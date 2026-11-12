@@ -1,77 +1,93 @@
 # @destack/event
 
-`@destack/event` keeps events in a database table, moves them into Parquet segments in a bucket, and reads, folds and forgets them.
+Keep the append-only events of scopes, hot in their database and sealed into their bucket, and query, fold and follow them.
+
+## Overview
+
+An event store keeps each kind's recent events in a database table and moves older ones into Parquet segments in the scope's bucket.
+
+- **EventKind**: one kind of event, such as a call or a log record: its query keys, data schema, delivery and retention; segments of a locked kind are chained as audit trails are.
+- **Event**: one thing that happened in a scope at a time, with its keys and data; appending it again while it is hot changes nothing.
+- **EventStore**: the events of a host's scopes; `append`, `query`, `get`, `series`, `changes` and `forget`, with controllers that flush, compact and expire segments.
 
 ```ts
-const kind = call.eventKind();
-await store.append(kind, [{ scope, id, time, keys, data }], transaction);
-await store.query(kind, { scopes: [scope], where: Filter.parse('outcome = "failure"') });
-await store.get(kind, { scopes: [scope], id });
-await store.series(metric.eventKind(), { scopes: [scope] }, { fold: "p99", group: ["name"] });
-await store.forget("user-…");
+import type { EventKind, EventStore } from "@destack/event";
+
+async (store: EventStore, kind: EventKind, scope: string) => {
+    const time = Date.now() * 1000;
+    await store.append(kind, [{ scope, id: "event-1", time, keys: {}, data: null }]);
+    const page = await store.query(kind, { scopes: [scope] }, { limit: 50 });
+    const event = await store.get(kind, { scopes: [scope], id: "event-1" });
+    const counts = await store.series(kind, { scopes: [scope] }, { fold: "count" });
+};
 ```
 
-## Storage
+## Examples
 
-A database keeps each kind's table, the segment catalog and people's keys, and the store's controllers flush, compact and expire segments.
+### Store events
+
+A store keeps its kinds' tables in its database, and each scope's segments in the bucket `files` returns.
 
 ```ts
-export const database = defineDatabase({ name: "main", tables: eventTables([call.eventKind()]) });
-const store = new EventStore({
-    database,
-    kinds: [call.eventKind()],
-    files,
-    personal,
-    clock,
+import { EventStore, type EventKind } from "@destack/event";
+import type { Bucket } from "@destack/bucket";
+import type { DatabaseConnection } from "@destack/db";
+import { BunEnvironment } from "@destack/environment/bun";
+
+(database: DatabaseConnection, kinds: readonly EventKind[], bucket: Bucket) =>
+    new EventStore({ database, kinds, files: () => bucket, clock: BunEnvironment.system.clock });
+```
+
+### Read events in order
+
+`changes` reads the events appended after a log position, so each reader keeps its place.
+
+```ts
+import type { EventKind, EventStore } from "@destack/event";
+
+async (store: EventStore, kind: EventKind, scope: string, after: number) => {
+    const { events, sequence } = await store.changes(kind, { scopes: [scope] }, after, 100);
+};
+```
+
+### Forget a person
+
+`forget` erases a person's key, so their personal values in every sealed segment can no longer be read.
+
+```ts
+import type { EventStore } from "@destack/event";
+
+async (store: EventStore) => {
+    await store.forget(["user-0199…"]);
+};
+```
+
+### Test with an event store
+
+`TestEventStore` runs a store and its controllers in a world, with a memory bucket.
+
+```ts
+import { schema } from "@destack/schema";
+import { TestEventStore, testKind } from "@destack/event/test";
+
+const reading = testKind({
+    package: import.meta.destack.package,
+    name: "reading",
+    keys: schema.object({ sensor: schema.string() }),
+    data: schema.object({ value: schema.number() }),
+    delivery: "exactly-once",
+    policy: { flush: { maxAge: 3_600_000, maxRows: 1000 }, retention: 86_400_000 },
 });
-```
-
-## Retention
-
-A kind's segments stay for a fixed time or for one its scope reads, such as a space setting.
-
-```ts
-policy: { flush: { maxAge: HOUR, maxRows: 100_000 }, retention: 30 * DAY },
-policy: { flush, retention: async (scope, database) => days(scope, database) * DAY },
-```
-
-## Reading in order
-
-`changes` reads the events appended after a log position, and an `EventReader` keeps its place in a log slot per key of its family.
-
-```ts
-const metering = new EventReader("metering", 7 * DAY);
-await metering.at(accountId).place(now, database); // in the appending transaction
-const accountIds = await metering.keys(database);
-const reader = metering.at(accountId);
-const after = await reader.after(database);
-const { events, sequence } = await store.changes(kind, { scopes: [accountId] }, after, 100);
-await reader.move(after, sequence, now, database);
-```
-
-## Claiming a page
-
-A reader acting outside the store claims its page first, so a retry acts on the same page.
-
-```ts
-const claim = await reader.claim(after, sequence, now, database);
-if (claim !== undefined) {
-    const page = await store.range(kind, { scopes: [accountId] }, after, claim.through);
-    await usage.append({
-        requestId: await RequestId.derive(claim.claimedAt, key),
-        items: page.map(use),
-    });
-    await reader.move(after, claim.through, now, database);
-}
-```
-
-## Tests
-
-`TestEventStore` runs a store and its controllers in a world, on SQLite or PostgreSQL with a memory bucket and keyring.
-
-```ts
-await using fixture = await TestEventStore.open([
-    testKind({ name: "reading", keys, data, delivery: "exactly-once", policy }),
-]);
+await using fixture = await TestEventStore.open([reading]);
 await fixture.simulation.idle();
 ```
+
+## Comparison
+
+### OpenTelemetry logs
+
+Events with keys and data follow OpenTelemetry's log records; three things differ.
+
+- Recent events stay in the scope's database, so an append can join the transaction that caused it, and older ones move into Parquet segments.
+- Personal values are sealed under the person's key, and `forget` erases the key.
+- Each kind sets its delivery, exactly once or at most once, and its retention, fixed or read from a scope's setting.
