@@ -50,7 +50,6 @@ export class LocalBucket extends CatalogueBucket {
 
         // create the blob directory before publishing any catalogue entries, and share the bucket's lock until the open fails or the storage takes it
         const blobs = await LocalBlobStorage.open(join(directory, "files"), environment, {
-            layout: "loose",
             synchronous: "full",
         });
         await using opening = new AsyncDisposableStack();

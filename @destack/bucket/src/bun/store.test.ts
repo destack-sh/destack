@@ -4,8 +4,8 @@ import { expect, refusal, test } from "@destack/test";
 import { Digest, present } from "@destack/schema";
 import { LocalBlobStorage } from "./store.ts";
 
-/** The layout of a bucket's blobs: a file per blob, synced fully. */
-const LOOSE = { layout: "loose", synchronous: "full" } as const;
+/** The sync of a bucket's blobs: fully. */
+const SYNCED = { synchronous: "full" } as const;
 
 /** Yield text as one chunk of bytes. */
 async function* bytesOf(content: string): AsyncIterable<Uint8Array> {
@@ -24,7 +24,7 @@ test("store a body once as a pack of its own under its digest, list the packs an
     await using simulation = testSimulation();
     const world = simulation.environment("host");
     const directory = await world.files.makeTemporaryDirectory("blobs-");
-    const store = await LocalBlobStorage.open(directory, world, LOOSE);
+    const store = await LocalBlobStorage.open(directory, world, SYNCED);
     const kept = await written(store, bytesOf("kept"));
     const dropped = await written(store, bytesOf("dropped"));
     const again = await written(store, bytesOf("kept"));
@@ -45,7 +45,7 @@ test("move a file into its blob once, refusing one whose bytes do not match its 
     const world = simulation.environment("host");
     const { files } = world;
     const directory = await files.makeTemporaryDirectory("moves-");
-    const store = await LocalBlobStorage.open(join(directory, "blobs"), world, LOOSE);
+    const store = await LocalBlobStorage.open(join(directory, "blobs"), world, SYNCED);
     const expected = await written(store, bytesOf("moved"));
     await store.delete(expected);
     await files.writeTextFile(join(directory, "first"), "moved");
@@ -81,7 +81,7 @@ test("read a range of a blob at an unaligned offset across read-sized chunks, an
     const store = await LocalBlobStorage.open(
         await world.files.makeTemporaryDirectory("slice-"),
         world,
-        LOOSE,
+        SYNCED,
     );
     const bytes = new Uint8Array(160 * 1024).map((_, index) => index % 251);
     const digest = await written(
@@ -115,7 +115,6 @@ test("store a write's bodies in one pack, read and copy each, and delete the pac
     const { files } = world;
     const directory = await files.makeTemporaryDirectory("packed-");
     const store = await LocalBlobStorage.open(join(directory, "blobs"), world, {
-        layout: "packed",
         synchronous: "full",
     });
     const packed = await store.write([{ body: bytesOf("first") }, { body: bytesOf("second") }]);
@@ -157,5 +156,42 @@ test("store a write's bodies in one pack, read and copy each, and delete the pac
         copied: ["second", "alone"],
         listed: [first.pack, alone.digest].toSorted(),
         left: [alone.digest],
+    });
+});
+
+test("store a large body alone under its digest, and the small bodies around it in packs in order", async () => {
+    // write one body of a mebibyte between two small ones, then two small ones
+    await using simulation = testSimulation();
+    const world = simulation.environment("host");
+    const directory = await world.files.makeTemporaryDirectory("sized-");
+    const store = await LocalBlobStorage.open(directory, world, SYNCED);
+    const large = new Uint8Array(1024 * 1024).map((_, index) => index % 251);
+    const around = await store.write([
+        { body: bytesOf("small") },
+        {
+            body: (async function* () {
+                yield large;
+            })(),
+            size: large.byteLength,
+        },
+        { body: bytesOf("other") },
+    ]);
+    const together = await store.write([{ body: bytesOf("first") }, { body: bytesOf("second") }]);
+
+    // place the large body under its digest, and each run of small bodies back to back in a pack
+    const [small, big, other] = around.map((placement) => present(placement, "a placement"));
+    const [first, second] = together.map((placement) => present(placement, "a placement"));
+    expect({
+        order: around.map((placement) => placement.size),
+        isAlone: big?.pack === big?.digest,
+        isSplit: small?.pack !== other?.pack,
+        isShared: first?.pack === second?.pack && first?.pack !== first?.digest,
+        offsets: [first?.offset, second?.offset],
+    }).toEqual({
+        order: [5, 1024 * 1024, 5],
+        isAlone: true,
+        isSplit: true,
+        isShared: true,
+        offsets: [0, 5],
     });
 });

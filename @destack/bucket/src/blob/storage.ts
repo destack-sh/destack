@@ -24,8 +24,18 @@ export class BucketBlobStorage implements BlobStorage {
         this.#random = random;
     }
 
-    /** Store the bodies in one pack, uploaded in parts straight to its key, each body verified. */
+    /** Store the bodies in order, a pack per group. */
     async write(bodies: readonly BlobBody[]): Promise<readonly BlobPlacement[]> {
+        const placements: BlobPlacement[] = [];
+        for (const group of BlobPack.groups(bodies)) {
+            placements.push(...(await this.#writePack(group)));
+        }
+
+        return placements;
+    }
+
+    /** Store the bodies in one pack, uploaded in parts straight to its key, each body verified. */
+    async #writePack(bodies: readonly BlobBody[]): Promise<readonly BlobPlacement[]> {
         // leave a lone blob of known digest stored before
         const pack = BlobPack.key(bodies, () => Uuid.v4(this.#random));
         const key = this.#key(pack);

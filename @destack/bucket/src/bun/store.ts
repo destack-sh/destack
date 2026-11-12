@@ -25,10 +25,7 @@ export type BlobEnvironment = Pick<Environment<"files">, "files" | "random">;
 /** How a blob store syncs its writes, as SQLite's `synchronous`: fully, or off for a cache. */
 export type BlobSynchronous = "full" | "off";
 
-/** How a blob store lays out its writes: one pack per write, or one file per blob to clone. */
-export type BlobLayout = "packed" | "loose";
-
-/** A bucket's blobs as files in a directory: packs of several blobs, and blobs alone by digest. */
+/** A bucket's blobs as files: runs of a write's small blobs in packs, large blobs alone. */
 export class LocalBlobStorage implements BlobStorage {
     /** The directory of pack files. */
     readonly directory: string;
@@ -36,8 +33,6 @@ export class LocalBlobStorage implements BlobStorage {
     readonly #files: FileSystem;
     /** The randomness naming each write's temporary file and each pack of several blobs. */
     readonly #random: Random;
-    /** Whether a write keeps its bodies in one pack, or each body in a file of its own. */
-    readonly #layout: BlobLayout;
     /** Whether each write syncs its file and directory, off for a cache its digests verify. */
     readonly #synchronous: BlobSynchronous;
 
@@ -45,21 +40,20 @@ export class LocalBlobStorage implements BlobStorage {
     private constructor(
         directory: string,
         environment: BlobEnvironment,
-        options: { readonly layout: BlobLayout; readonly synchronous: BlobSynchronous },
+        options: { readonly synchronous: BlobSynchronous },
     ) {
-        // keep the directory, its files, and how writes lay out and sync
+        // keep the directory, its files, and how writes sync
         this.directory = directory;
         this.#files = environment.files;
         this.#random = environment.random;
-        this.#layout = options.layout;
         this.#synchronous = options.synchronous;
     }
 
-    /** Open a directory of blobs with a layout and a sync, creating it durably. */
+    /** Open a directory of blobs with a sync, creating it durably. */
     static async open(
         directory: string,
         environment: BlobEnvironment,
-        options: { readonly layout: BlobLayout; readonly synchronous: BlobSynchronous },
+        options: { readonly synchronous: BlobSynchronous },
     ): Promise<LocalBlobStorage> {
         await createDurably(directory, environment.files);
 
@@ -119,12 +113,11 @@ export class LocalBlobStorage implements BlobStorage {
         }
     }
 
-    /** Store the bodies in one pack, or each in a file of its own, syncing the directory once. */
+    /** Store the bodies in order, a pack per group, syncing the directory once. */
     async write(bodies: readonly BlobBody[]): Promise<readonly BlobPlacement[]> {
-        // write the bodies
-        const packs = this.#layout === "packed" ? [bodies] : bodies.map((body) => [body]);
+        // write a pack per group, in order
         const placements: BlobPlacement[] = [];
-        for (const pack of packs.filter((each) => each.length > 0)) {
+        for (const pack of BlobPack.groups(bodies)) {
             placements.push(...(await this.#writePack(pack)));
         }
 
