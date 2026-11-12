@@ -118,25 +118,51 @@ export async function finishTask(
 
 ### Traits
 
-| Trait         | What it does                                               |
-| ------------- | ---------------------------------------------------------- |
-| `shareable`   | shares objects through relationships and invitations       |
-| `nested`      | nests objects under a parent, or in a tree of their type   |
-| `searchable`  | finds objects by text, and indexes filter and sort fields  |
-| `orderable`   | orders objects among their siblings                        |
-| `presentable` | shows objects with a title, an icon, a cover and an accent |
-| `versioned`   | keeps immutable, numbered versions of a parent             |
-| `recoverable` | deletes objects to a restorable trash                      |
-| `expiring`    | removes objects once a rule's window passes                |
-| `tracked`     | records objects' history in activities                     |
-| `controlled`  | reconciles records with a controller                       |
-| `bindable`    | lets installations and machines bind to objects            |
-| `suspendable` | lets scope objects be suspended                            |
-| `fencing`     | fences a scope while it moves between machines             |
-| `provisioned` | provisions objects as a kind's resources                   |
-| `propagated`  | replicates objects into the scopes inside theirs           |
-| `audited`     | records reads in the audit, beside writes                  |
-| `declarable`  | lets stacks declare the objects                            |
+A trait adds fields, methods and rules to a type, each declared with its options.
+
+| Trait         | What it does                                               | Options                                         | Example                                                     |
+| ------------- | ---------------------------------------------------------- | ----------------------------------------------- | ----------------------------------------------------------- |
+| `shareable`   | shares objects through relationships and invitations       | `{ by }` or `{ isPublic }`, and `read`          | `shareable({})`                                             |
+| `nested`      | nests objects under a parent, or in a tree of their type   | `{ in, add, delete, optional, move }`           | `nested({ in: notebook, delete: "cascade", add: "write" })` |
+| `searchable`  | finds objects by text, and indexes filter and sort fields  | `{ text, filter, sort }`, each a list of fields | `searchable({ text: ["title"], sort: ["title"] })`          |
+| `orderable`   | orders objects among their siblings                        | none, or `{ within }`                           | `orderable()`                                               |
+| `presentable` | shows objects with a title, an icon, a cover and an accent | none, or `{ title, subtitle, icon, color }`     | `presentable({ subtitle: "summary" })`                      |
+| `versioned`   | keeps immutable, numbered versions of a parent             | none                                            | `versioned()`                                               |
+| `recoverable` | deletes objects to a restorable trash                      | `{ within, by, purge, retain }`                 | `recoverable({ within: { days: 30 }, by: "delete" })`       |
+| `expiring`    | removes objects once a rule's window passes                | a list of `{ after, from }` rules               | `expiring([{ after: { days: 7 }, from: "expiresAt" }])`     |
+| `tracked`     | records objects' history in activities                     | `{ activity, by, session }`                     | `tracked({ activity, by: "update" })`                       |
+| `controlled`  | reconciles records with a controller                       | none, or `{ approval: true }`                   | `controlled()`                                              |
+| `bindable`    | lets installations and machines bind to objects            | `{ by }`                                        | `bindable({ by: "manage" })`                                |
+| `suspendable` | lets scope objects be suspended                            | `{ by }`                                        | `suspendable({ by: "update" })`                             |
+| `fencing`     | fences a scope while it moves between machines             | `{ by }`                                        | `fencing({ by: "cancel" })`                                 |
+| `provisioned` | provisions objects as a kind's resources                   | `{ kind }`                                      | `provisioned({ kind: ConnectionKind })`                     |
+| `propagated`  | replicates objects into the scopes inside theirs           | `{ where }`                                     | `propagated({})`                                            |
+| `audited`     | records reads in the audit, beside writes                  | `{ reads }`                                     | `audited({ reads: true })`                                  |
+| `declarable`  | lets stacks declare the objects                            | the fields a stack declares                     | `declarable(["release"])`                                   |
+
+### Constraints and indexes
+
+`constraints` are rules each database keeps over the objects' columns, by name.
+`indexes` are keys unique across databases, claimed in the universe or an enclosing type, such as an account's handle.
+
+| Constraint   | What it keeps                                                                | Example                                                                                    |
+| ------------ | ---------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| `check`      | a condition every object meets                                               | `{ kind: "check", condition: { name: { characters: "a-z0-9.*-" } } }`                      |
+| `index`      | an ordered index, `unique` for one object per key, `where` for a partial one | `{ kind: "index", on: ["scope"], unique: true, where: { kind: "personal" } }`              |
+| `unique`     | columns whose non-null values are distinct together                          | `{ kind: "unique", on: ["clientId"] }`                                                     |
+| `foreignKey` | a reference to another type's columns, with its delete action                | `{ kind: "foreignKey", on: ["scope"], references: { object: () => account, on: ["id"] } }` |
+
+| Index option | What it is                                                    | Example          |
+| ------------ | ------------------------------------------------------------- | ---------------- |
+| `on`         | the indexed fields, in key order                              | `["handle"]`     |
+| `across`     | the scope of the keys' uniqueness: the universe or a type     | `() => universe` |
+| `namespace`  | the namespace shared with other types' same-named indexes     | `"handle"`       |
+| `fold`       | characters keys leave out, so lookalike values claim one name | `"hyphens"`      |
+
+### Conditions
+
+Conditions are `@destack/db`'s JSON conditions, with every comparison its `Condition` reference lists.
+A type takes them in `list` and `updateMany` filters, `check` constraints, partial indexes, aggregates and `propagated`.
 
 ### method
 
@@ -172,6 +198,77 @@ An implementation's method takes a `MethodContext`.
 `implementPackage(handle, code)` implements it, from code or per installation.
 
 ## Examples
+
+### Create, read, update and delete
+
+Every type has the standard methods, and `recoverable` adds `restore` to bring a deleted object back.
+
+```ts
+import { argument, plural, t } from "@destack/locale";
+import { defineObject, definePackage, field, recoverable, shareable } from "@destack/object";
+import type { ClientOf } from "@destack/object/client";
+
+// declare projects, each a scope
+const project = defineObject({
+    name: "project",
+    plural: "projects",
+    title: t`${plural(argument("count"), { one: "Project", other: "Projects" })}`,
+    container: "scope",
+    fields: { name: field.string() },
+});
+
+// declare todos in projects, restorable for 30 days
+const todo = defineObject({
+    name: "todo",
+    plural: "todos",
+    title: t`${plural(argument("count"), { one: "Todo", other: "Todos" })}`,
+    scope: project,
+    fields: { title: field.string(), isDone: field.boolean().default(false) },
+    traits: [shareable({}), recoverable({ within: { days: 30 }, by: "write" })],
+});
+
+// declare the package
+const todos = definePackage({ objects: [project, todo] });
+
+/** Create a todo, read and finish it, list the open ones, then delete and restore it. */
+export async function walkTodo(
+    client: ClientOf<typeof todos>,
+    projectId: string,
+    requests: {
+        readonly create: string;
+        readonly update: string;
+        readonly delete: string;
+        readonly restore: string;
+    },
+) {
+    // create a todo, then read it back by its identifier
+    const created = await client.todo.create({
+        projectId,
+        title: "Write the README",
+        requestId: requests.create,
+    });
+    const read = await client.todo.get({ projectId, id: created.id });
+
+    // finish it, then list the open todos, newest first
+    await client.todo.update({ projectId, id: read.id, isDone: true, requestId: requests.update });
+    const open = await client.todo.list({
+        projectId,
+        where: { isDone: false },
+        orderBy: { createdAt: "desc" },
+        limit: 20,
+    });
+
+    // delete it to the trash, then restore it
+    await client.todo.delete({ projectId, id: read.id, requestId: requests.delete });
+    const restored = await client.todo.restore({
+        projectId,
+        id: read.id,
+        requestId: requests.restore,
+    });
+
+    return { open, restored };
+}
+```
 
 ### Share an object
 
