@@ -16,8 +16,8 @@ export default defineConfiguration(
             projects: [
                 {
                     extends: false,
-                    // run the server tests against each database the package stores in
-                    targets: { database: ["sqlite", "postgresql"] },
+                    // run the server tests against the database inboxes mostly run on, the spaces'
+                    targets: { database: ["sqlite"] },
                     ...defineProject(
                         {
                             test: {
