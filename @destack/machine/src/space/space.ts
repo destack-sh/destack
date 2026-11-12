@@ -276,9 +276,11 @@ export class Space {
         // serve a primary's applied installations, applying their changes in this start
         const hosted = await this.host.options();
         const { role } = hosted;
-        const { installed } =
-            role === "primary" ? await this.#installed("cache") : { installed: [] };
-        await this.#root(installed);
+        const { installed, unavailable } =
+            role === "primary"
+                ? await this.#installed("cache")
+                : { installed: [], unavailable: [] };
+        await this.#root(installed, unavailable);
         this.#serving = {
             mounts: Space.#mounts(installed),
             buckets,
@@ -379,13 +381,16 @@ export class Space {
         return this.host.controller(() => this.#reconcile());
     }
 
-    /** Retain the builds the space runs in the machine's cache while the machine stores it. */
-    async #root(installed: Awaited<ReturnType<typeof Database.installed>>): Promise<void> {
+    /** Retain the builds the space runs and waits for in the machine's cache. */
+    async #root(
+        installed: Awaited<ReturnType<typeof Database.installed>>,
+        unavailable: readonly Digest[],
+    ): Promise<void> {
         const { cache } = this.machine;
         const locks = installed.map((each) =>
             cache.resolve(each.rollout.installation.packageId, each.lock),
         );
-        await cache.retain(this.id, locks);
+        await cache.retain(this.id, [...locks, ...unavailable]);
     }
 
     /** Apply a primary's installed set in place, then report whether it serves each revision. */
@@ -396,7 +401,7 @@ export class Space {
         if (serving.role === "primary") {
             const { installed, unavailable: waiting } = await this.#installed("forges");
             unavailable = waiting;
-            await this.#root(installed);
+            await this.#root(installed, waiting);
             await serving.apply(installed);
         }
 
