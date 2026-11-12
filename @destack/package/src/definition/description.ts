@@ -63,6 +63,18 @@ export const PackageJson = Object.assign(packageJson, {
 
         return [...required, ...PackageJson.peers(requirements)];
     },
+    /** Read the range each runtime dependency is required at, a metadata-only peer at any. */
+    ranges(requirements: RuntimeRequirements): Record<string, string> {
+        return Object.fromEntries(
+            PackageJson.runtimeDependencies(requirements).map((name) => [
+                name,
+                requirements.optionalDependencies?.[name] ??
+                    requirements.dependencies?.[name] ??
+                    requirements.peerDependencies?.[name] ??
+                    "*",
+            ]),
+        );
+    },
     /** List the peers a package declares, an optional peer its metadata alone lists among them. */
     peers(requirements: RuntimeRequirements): string[] {
         const required = { ...requirements.dependencies, ...requirements.optionalDependencies };

@@ -140,33 +140,6 @@ test("open a remote build by its manifest digest, and refuse other bytes and uns
     ]);
 });
 
-test("list the Destack releases a build resolved, leaving its npm dependencies out", async () => {
-    // build the app against a Destack release and an npm package
-    await using simulation = testSimulation();
-    const { crypto } = simulation.environment("test");
-    const vault = {
-        kind: "destack" as const,
-        package: PackageVersion.parse({
-            id: "package-019f5530-8000-7000-8000-000000000003",
-            name: "@example/vault",
-            version: "2026.9.0",
-        }),
-        manifest: Digest.parse("a".repeat(64)),
-    };
-    const jose = {
-        kind: "npm" as const,
-        package: { name: "jose", version: "6.2.12" },
-        registry: "https://registry.npmjs.org/",
-        integrity: "sha512-fixture",
-        manifest: Digest.parse("b".repeat(64)),
-    };
-    const build = await MemoryBuild.of(app, [], crypto, {
-        dependencies: { "@example/vault": vault, jose },
-    });
-
-    expect(await build.releases()).toEqual([{ package: vault.package, manifest: vault.manifest }]);
-});
-
 test("read each list once, and read a list again after a failed read", async () => {
     // build an app declaring one declaration, and fail its first read of the file list
     await using simulation = testSimulation();
@@ -209,19 +182,12 @@ test("read each list once, and read a list again after a failed read", async () 
     ]);
 
     // read every list and the declarations twice, loading each file once after the failed read
-    const read = () =>
-        Promise.all([
-            reader.dependencies(),
-            reader.files(),
-            reader.sourceMaps(),
-            reader.declarations(),
-        ]);
+    const read = () => Promise.all([reader.files(), reader.sourceMaps(), reader.declarations()]);
     const first = await read();
     const second = await read();
     expect(loaded.toSorted()).toEqual(
         [
             lists.files.path,
-            lists.dependencies.path,
             lists.files.path,
             lists.sourceMaps.path,
             lists.declarations.path,
@@ -229,8 +195,8 @@ test("read each list once, and read a list again after a failed read", async () 
     );
 
     // answer the second reads with the first reads' lists, deriving the same declarations
-    const isReused = second.slice(0, 3).map((value, index) => value === first[index]);
-    expect([isReused, second[3]]).toEqual([[true, true, true], first[3]]);
+    const isReused = second.slice(0, 2).map((value, index) => value === first[index]);
+    expect([isReused, second[2]]).toEqual([[true, true], first[2]]);
 });
 
 test("read a build a directory keeps: its manifest, its file list and each file's bytes", async () => {

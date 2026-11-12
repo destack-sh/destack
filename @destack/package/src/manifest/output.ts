@@ -1,7 +1,7 @@
 import * as lexer from "es-module-lexer/js";
 import MagicString from "magic-string";
 import { present, schema } from "@destack/schema";
-import { DependencyName, DependencyRelease } from "../definition/index.ts";
+import { DependencyName } from "../definition/index.ts";
 import { PackageFile, PackagePath } from "../file/index.ts";
 import { Runtime } from "../runtime/index.ts";
 import { WorkloadDescription } from "./workload.ts";
@@ -41,8 +41,6 @@ export const PackageOutput = schema.object({
     directory: PackagePath,
     /** Generated entrypoints keyed by their exported names. */
     exports: schema.record(schema.string().min(1), OutputExport),
-    /** Exact dependencies referenced by runtime code. */
-    dependencies: schema.record(DependencyName, DependencyRelease),
     /** The peers its package declares, which each package depending on it provides beside it. */
     peers: schema.record(DependencyName, OutputPeer).default({}),
     /** The commands its package installs, each its emitted module by name, absent for none. */

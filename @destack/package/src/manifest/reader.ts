@@ -8,12 +8,11 @@ import {
 import { Tarball, TarballEntry } from "../archive/tarball.ts";
 import { Digest, present, schema } from "@destack/schema";
 import { PackageFile, PackagePath } from "../file/file.ts";
-import { DependencyResolution } from "../definition/dependency.ts";
-import type { PackageRelease } from "../definition/package.ts";
 import { SourceMapReference } from "../source/map.ts";
 import { Declaration } from "../graph/declaration.ts";
 import { PackageError } from "../error/index.ts";
 import { PackageLocation, PackageManifest } from "./manifest.ts";
+import type { Runtime } from "../runtime/runtime.ts";
 
 /** The path of a build's root manifest beside its files, in stores and running workloads. */
 export const MANIFEST_PATH = "manifest.json";
@@ -27,8 +26,6 @@ export class BuildReader {
     readonly manifest: PackageManifest;
     /** Stream one package file by its relative path, without keeping it whole in memory. */
     readonly stream: (path: string, signal?: AbortSignal) => Promise<ReadableStream<Uint8Array>>;
-    /** The dependency resolutions, read once. */
-    readonly #dependencies = new Once<Readonly<Record<string, DependencyResolution>>>();
     /** The file list, read once. */
     readonly #files = new Once<readonly PackageFile[]>();
     /** The source map list, read once. */
@@ -102,25 +99,6 @@ export class BuildReader {
         return file;
     }
 
-    /** Read exact compiler dependency resolutions. */
-    dependencies(): Promise<Readonly<Record<string, DependencyResolution>>> {
-        return this.#dependencies.get(() =>
-            this.read(
-                this.manifest.lists.dependencies,
-                schema.record(schema.string(), DependencyResolution),
-            ),
-        );
-    }
-
-    /** Read the Destack package releases the build resolved: its dependency closure's. */
-    async releases(): Promise<PackageRelease[]> {
-        return Object.values(await this.dependencies()).flatMap((dependency) =>
-            dependency.kind === "destack"
-                ? [{ package: dependency.package, manifest: dependency.manifest }]
-                : [],
-        );
-    }
-
     /** Read the source, executable and asset list. */
     files(): Promise<readonly PackageFile[]> {
         return this.#files.get(() =>
@@ -144,13 +122,16 @@ export class BuildReader {
         );
     }
 
-    /** List the files a pull of an output carries: the lists, its loaded files and its maps. */
-    async outputFiles(name: string): Promise<PackageFile[]> {
-        const files = [
-            ...this.references(),
-            ...(await this.loaded(name)),
-            ...(await this.maps(name)),
-        ];
+    /** List the files runtimes run of the build: the lists, and their outputs with their maps. */
+    async runFiles(runtimes: readonly Runtime[]): Promise<PackageFile[]> {
+        // take the lists, then each output on the runtimes with its maps
+        const names = Object.entries(this.manifest.outputs)
+            .filter(([, output]) => runtimes.includes(output.runtime))
+            .map(([name]) => name);
+        const outputs = await Promise.all(
+            names.map(async (name) => [...(await this.loaded(name)), ...(await this.maps(name))]),
+        );
+        const files = [...this.references(), ...outputs.flat()];
 
         return [...new Map(files.map((file) => [file.path, file])).values()];
     }

@@ -1,6 +1,6 @@
 import { testSimulation } from "@destack/test/world";
 import { expect, test } from "@destack/test";
-import { Digest, found, schema } from "@destack/schema";
+import { found, schema } from "@destack/schema";
 import { PackageVersion } from "../definition/package.ts";
 import { PackageFile } from "../file/file.ts";
 import { BuildReader } from "./reader.ts";
@@ -67,45 +67,21 @@ test("write a file's equal bytes once, a concurrent writer waiting for them, and
     });
 });
 
-test("write one manifest for one closure listed in any order", async () => {
-    // write the same two dependencies in both orders
+test("write one manifest for one set of requirements listed in any order", async () => {
+    // finish the same build requiring two packages
     await using simulation = testSimulation();
     const { crypto } = simulation.environment("test");
-    const schemaRelease = {
-        package: PackageVersion.parse({
-            ...app,
-            name: "@example/schema",
-            id: "package-01996ab0-0000-7000-8000-000000000002",
-        }),
-        manifest: Digest.parse("1".repeat(64)),
-        kind: "destack" as const,
-    };
-    const dbRelease = {
-        package: PackageVersion.parse({
-            ...app,
-            name: "@example/db",
-            id: "package-01996ab0-0000-7000-8000-000000000003",
-        }),
-        manifest: Digest.parse("2".repeat(64)),
-        kind: "destack" as const,
-    };
-    const finish = (dependencies: Record<string, typeof schemaRelease>) =>
+    const finish = (requires: Record<string, string>) =>
         new BuildWriter({ write: () => Promise.resolve() }, crypto).finish({
             destack: "2026.11.0",
             package: app,
             role: "app",
-            dependencies,
+            requires,
         });
-    const forward = await finish({
-        "@example/schema@2026.9.0": schemaRelease,
-        "@example/db@2026.9.0": dbRelease,
-    });
-    const backward = await finish({
-        "@example/db@2026.9.0": dbRelease,
-        "@example/schema@2026.9.0": schemaRelease,
-    });
+    const forward = await finish({ "@example/schema": "^2026.9.0", zod: "^4.6.0" });
+    const backward = await finish({ zod: "^4.6.0", "@example/schema": "^2026.9.0" });
 
-    // digest the dependency list and the manifest alike, as a store keys builds by them
+    // write one manifest
     expect(backward).toEqual(forward);
 });
 
@@ -164,7 +140,6 @@ function output(runtime: "bun" | "browser") {
         views: {},
         directory: runtime,
         exports: {},
-        dependencies: {},
     };
 }
 

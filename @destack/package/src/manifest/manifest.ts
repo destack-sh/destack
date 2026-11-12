@@ -1,6 +1,7 @@
-import { canonicalize, Commit, Digest, Instant, schema, Version } from "@destack/schema";
+import { canonicalize, Digest, Instant, schema, Version } from "@destack/schema";
 import {
     DeclarationName,
+    DependencyName,
     Language,
     NpmPackage,
     PackageVersion,
@@ -11,15 +12,13 @@ import { PackageFile } from "../file/file.ts";
 import { PackageOutput } from "./output.ts";
 
 /** The manifest format a build writes. */
-export const MANIFEST_FORMAT = 3;
+export const MANIFEST_FORMAT = 4;
 
 /** The directory of a build's catalogs, which every runtime loads. */
 export const CATALOG_DIRECTORY = "locale";
 
 /** The list files of a build, each read on demand and verified by its digest. */
 export const ManifestLists = schema.object({
-    /** The exact dependencies the compiler used. */
-    dependencies: PackageFile,
     /** The source, executable and asset files. */
     files: PackageFile,
     /** The source maps of generated files. */
@@ -42,9 +41,9 @@ const manifest = schema.object({
     destack: Version,
     /** The package's source language. */
     language: Language,
-    /** The commit the build compiled, absent for a working tree with uncommitted changes. */
-    commit: Commit.exactOptional(),
-    /** The list files of the build's dependencies, files, source maps and declarations. */
+    /** The Destack and npm packages it requires, by name, at their declared ranges. */
+    requires: schema.record(DependencyName, schema.string().min(1)),
+    /** The list files of the build's files, source maps and declarations. */
     lists: ManifestLists,
     /** The digest of what dependents' compilations read of the build, which their keys include. */
     interface: Digest,

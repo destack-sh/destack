@@ -1,23 +1,16 @@
 import type { Crypto } from "@destack/environment";
-import { canonicalize, type Commit, Digest, schema, type Version } from "@destack/schema";
-import type {
-    DependencyResolution,
-    NpmPackage,
-    PackageVersion,
-    PackageRole,
-} from "../definition/index.ts";
-import { Declaration } from "../graph/declaration.ts";
-import { PackageDefinition } from "../definition/index.ts";
+import { canonicalize, Digest, type Version } from "@destack/schema";
+import type { NpmPackage, PackageVersion, PackageRole } from "../definition/index.ts";
+import type { Declaration } from "../graph/declaration.ts";
 import { PackageError } from "../error/error.ts";
 import { PackageFile } from "../file/file.ts";
 import type { SourceMapReference } from "../source/map.ts";
 import { CATALOG_DIRECTORY, MANIFEST_FORMAT, PackageManifest } from "./manifest.ts";
 import { type OutputContent, PackageOutput } from "./output.ts";
-import { type BuildReader, MANIFEST_PATH } from "./reader.ts";
+import { MANIFEST_PATH } from "./reader.ts";
 
 /** The path of each list a build's manifest references, inside the build. */
 const MANIFEST_LISTS = {
-    dependencies: "manifest/dependencies.json",
     files: "manifest/files.json",
     sourceMaps: "manifest/sourceMaps.json",
     declarations: "manifest/declarations.json",
@@ -31,6 +24,9 @@ const UNLOADED_PATTERN = /\.map$|\.d\.[cm]?ts$/u;
 
 /** The package manifests a build retains, which define its exports, runtimes and stamps. */
 const DEFINITION_FILES: ReadonlySet<string> = new Set(["package.json", "destack.json"]);
+
+/** The manifest dependents' compilations read, as its package.json has the build's version. */
+const DEFINITION_FILE = "destack.json";
 
 /** The media types of a build's files by extension, else octet streams (nginx's mime.types). */
 const MEDIA_TYPES: Readonly<Record<string, string>> = {
@@ -130,12 +126,10 @@ export interface BuildContent {
     readonly role: PackageRole;
     /** The Destack version whose toolchain builds it, and whose builtins it links. */
     readonly destack: Version;
-    /** The commit the build compiled, absent for a working tree with uncommitted changes. */
-    readonly commit?: Commit;
     /** The named outputs, none when absent. */
     readonly outputs?: Readonly<Record<string, OutputContent>>;
-    /** The exact dependencies the compiler used, by name and version, none when absent. */
-    readonly dependencies?: Readonly<Record<string, DependencyResolution>>;
+    /** The packages it requires, by name, at their declared ranges, none when absent. */
+    readonly requires?: Readonly<Record<string, string>>;
     /** The source maps of generated files, none when absent. */
     readonly sourceMaps?: readonly SourceMapReference[];
     /** The declarations the build's evaluation described, none when absent. */
@@ -159,46 +153,6 @@ export class BuildWriter {
     constructor(storage: BuildStorage, crypto: Crypto) {
         this.#storage = storage;
         this.#crypto = crypto;
-    }
-
-    /** Write a build again from another's files, source maps and declarations under new pins. */
-    static async relink(
-        source: BuildReader,
-        storage: BuildStorage,
-        crypto: Crypto,
-        pinned: Required<Pick<BuildContent, "outputs" | "dependencies">>,
-    ): Promise<PackageManifest> {
-        // read the source's lists, and whether its package extends its dependents' builds
-        const read = source.manifest;
-        const { outputs, dependencies } = pinned;
-        const [files, sourceMaps, declarations] = await Promise.all([
-            source.files(),
-            source.sourceMaps(),
-            source.read(read.lists.declarations, schema.array(Declaration)),
-        ]);
-        const definition = files.some((file) => file.path === "destack.json")
-            ? PackageDefinition.parse(
-                  JSON.parse(new TextDecoder().decode(await source.load("destack.json"))),
-              )
-            : undefined;
-
-        // record its files as they are, reading none, then finish under the changes
-        const writer = new BuildWriter(storage, crypto);
-        for (const file of files) {
-            writer.add(file);
-        }
-
-        return await writer.finish({
-            package: read.package,
-            role: read.role,
-            destack: read.destack,
-            ...(read.commit === undefined ? {} : { commit: read.commit }),
-            outputs,
-            dependencies,
-            sourceMaps,
-            declarations,
-            isExtension: definition?.build !== undefined,
-        });
     }
 
     /** Name a build file's media type by its extension. */
@@ -265,10 +219,6 @@ export class BuildWriter {
             left.path < right.path ? -1 : Number(left.path > right.path),
         );
         const lists = {
-            dependencies: await this.#writeJson(
-                MANIFEST_LISTS.dependencies,
-                contents.dependencies ?? {},
-            ),
             files: await this.#writeJson(MANIFEST_LISTS.files, files),
             sourceMaps: await this.#writeJson(MANIFEST_LISTS.sourceMaps, contents.sourceMaps ?? []),
             declarations: await this.#writeJson(
@@ -290,8 +240,9 @@ export class BuildWriter {
         // digest what dependents' compilations read of the build
         const interfaceDigest = await Digest.json(
             {
-                package: contents.package,
-                manifests: files.filter((file) => DEFINITION_FILES.has(file.path)),
+                package: contents.package.name,
+                definition: files.find((file) => file.path === DEFINITION_FILE)?.digest ?? null,
+                requires: contents.requires ?? {},
                 exports: Object.fromEntries(
                     Object.entries(outputs).map(([name, output]) => [
                         name,
@@ -314,7 +265,7 @@ export class BuildWriter {
             role: contents.role,
             destack: contents.destack,
             language: "typescript",
-            ...(contents.commit === undefined ? {} : { commit: contents.commit }),
+            requires: contents.requires ?? {},
             lists,
             interface: interfaceDigest,
             outputs,
