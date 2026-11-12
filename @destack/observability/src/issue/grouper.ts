@@ -132,7 +132,7 @@ export class Grouper {
         return Identifier.hash("issue", ISSUE_NAMESPACE, name, this.#objects.environment.crypto);
     }
 
-    /** Read the revisions the occurrences ran, keyed by installation and build manifest. */
+    /** Read the revisions the occurrences ran, keyed by installation and build lock. */
     async #revisions(
         scope: Identifier<"space">,
         occurrences: readonly Occurrence[],
@@ -140,7 +140,7 @@ export class Grouper {
         // read the revisions of the occurrences' installations and builds from the replicas in one query
         const built = occurrences.filter((each) => each.build !== null);
         const installations = [...new Set(built.map((each) => each.installation))];
-        const manifests = [...new Set(built.flatMap((each) => each.build ?? []))];
+        const locks = [...new Set(built.flatMap((each) => each.build ?? []))];
         if (installations.length === 0) {
             return new Map();
         }
@@ -149,7 +149,7 @@ export class Grouper {
                 id: installationRevision.table.id,
                 createdAt: installationRevision.table.createdAt,
                 installationId: installationRevision.table.installationId,
-                manifest: build.table.manifest,
+                lock: build.table.lock,
             })
             .from(installationRevision.table)
             .innerJoin(
@@ -161,7 +161,7 @@ export class Grouper {
                 and(
                     eq(installation.table.scope, scope),
                     inArray(installation.table.id, installations),
-                    inArray(build.table.manifest, manifests),
+                    inArray(build.table.lock, locks),
                 ),
             )
             .orderBy(asc(installationRevision.table.createdAt), asc(installationRevision.table.id));
@@ -169,7 +169,7 @@ export class Grouper {
         // key each build by its latest revision, as a rollback to a build makes it again
         return new Map(
             rows.map((row) => [
-                `${row.installationId} ${row.manifest}`,
+                `${row.installationId} ${row.lock}`,
                 { id: row.id, createdAt: row.createdAt },
             ]),
         );

@@ -83,7 +83,6 @@ export const TestNotes = {
                         views: {},
                         directory: "output/bun",
                         exports: {},
-                        dependencies: {},
                         peers: {},
                     },
                 },
