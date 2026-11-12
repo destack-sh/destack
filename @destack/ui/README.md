@@ -1,183 +1,62 @@
 # @destack/ui
 
-`@destack/ui/<component>` is shadcn/ui's components on Solid and StyleX (`Button`, `Dialog`, `Select`, `Sidebar`…) with Radix's parts and props, Base UI's `render`, and the prior art each component follows: cmdk's `Command`, vaul's `Drawer`, sonner's `toast`, input-otp's `InputOTP`, frimousse's `EmojiPicker`, react-day-picker's `Calendar`, react-resizable-panels' `Resizable`, TanStack Table's `DataTable` and TanStack Virtual's `createVirtualizer`, Every Layout's `Stack`, `Cluster`, `Grid`, `Center`, `Switcher` and `Cover`, and React Aria's collections, focus, selection and positioning.
+Build views from accessible Solid components styled with StyleX and themed by the person's theme.
+
+## Overview
+
+Each component lives at `@destack/ui/<component>`, follows shadcn/ui's parts and props, and renders native elements styled by the theme's tokens.
+
+- **Component**: a set of parts such as `Dialog`, `DialogTrigger` and `DialogContent`, after shadcn/ui and Radix, built on Solid and StyleX.
+- **Part**: one rendered element with a `data-slot` and its state as `data-*`; `xstyle` adds styles after its own, and `render` swaps its element, as Base UI's does.
+- **Layout**: Every Layout's `Stack`, `Cluster`, `Grid`, `Center`, `Switcher` and `Cover`, spaced in the theme's steps.
+- **Collection**: React Aria's collections, focus, selection and positioning, under lists, menus, trees and tables.
 
 ```tsx
-<Button variant="outline" xstyle={styles.wide} />; // shadcn's className as StyleX styles
-// Base UI's render as a function of the part's attributes
-<Button render={(part) => <a href="/notes" {...part} />} />;
-mergeProperties(part, caller); // Base UI's mergeProps
-<TooltipContent side="right" sideOffset={8} />; // Radix's placement, through CSS anchor positioning
-// react-day-picker on PlainDate, where it takes Date
-<Calendar mode="range" selected={trip()} onSelect={setTrip} disabled={isPast} />;
-// input-otp's onChange, which Solid keeps for the native change event
-<InputOTP maxLength={6} onValueChange={setCode} />;
-// vaul's setActiveSnapPoint
-<Drawer activeSnapPoint={point()} onActiveSnapPointChange={setPoint} />;
-// shadcn's Carousel on scroll snapping, without Embla's opts and plugins
-<Carousel loop autoplay={5000} setApi={setApi} />;
-<Stack space="4" splitAfter={2} />; // Every Layout's space as a spacing step
-<SortableContainer id="todo" />; // dnd-kit's SortableContext, where Dice UI has one SortableContent
-// TanStack Charts in the theme's series colors
-<Chart definition={defineChart({ marks: [barY(rows, { x: "day", y: "notes" })] })} />;
+import * as style from "@destack/style";
+import { Button } from "@destack/ui/button";
+import { toast } from "@destack/ui/toast";
+
+const styles = style.create({ wide: { width: "100%" } });
+
+const Save = () => (
+    <Button variant="outline" xstyle={styles.wide} onClick={() => toast("Saved")}>
+        Save
+    </Button>
+);
 ```
 
-## Parts
+## Examples
 
-Every part renders its native element with a `data-slot` and its state as `data-*` and applies `xstyle` after its own styles; element parts take `render`, and parts built on a native behaviour, such as `DialogContent` on `dialog`, keep their element.
+### Build a part
 
-```tsx
-<Card render={(part) => <section {...part} />} />
-// <section data-slot="card">…</section>
-```
+`renderPart` builds an element part with its slot, its styles and the caller's `render` and `xstyle`.
 
-## Building parts
+```ts
+import * as style from "@destack/style";
+import { renderPart } from "@destack/ui/part";
 
-`renderPart` builds an element part, and `useRender` builds one with its own attributes.
+const styles = style.create({ footer: { display: "flex", gap: "0.5rem" } });
 
-```tsx
-export function CardFooter(properties: CardProperties): JSX.Element {
+export function CardFooter(properties: { readonly children?: string }) {
     return renderPart("div", "card-footer", properties, styles.footer);
 }
 ```
 
-## Built-in text
+### Import component stylesheets
 
-Text the components write themselves renders in the reader's locale through `useLocale`, which also sets the arrow keys' direction.
-
-```tsx
-<Pagination /> // "Pagination", "Previous", "Next" in German under de-AT
-```
-
-## Stylesheets
-
-`Prose`, `CodeBlock`, `Stack` and `Switcher` style their descendants through a stylesheet each, which the page imports once, as with Mantine's `@mantine/core/styles.css`.
+`Prose`, `CodeBlock`, `Stack` and `Switcher` style their descendants through a stylesheet each, which a page imports once.
 
 ```css
 @import "@destack/ui/prose.css";
 @import "@destack/ui/code-block.css";
 ```
 
-## Content
+## Comparison
 
-`Content` renders a hast tree as elements and replaces the mapped tags with components, after MDX and Astro's `<Content />`.
+### shadcn/ui
 
-```tsx
-<Prose>
-    <Content tree={post.tree} components={{ pre: Listing, figure: Figure }} />
-</Prose>
-```
+Components, parts and props follow shadcn/ui and Radix, and each component follows its own prior art, such as cmdk's `Command` or sonner's `toast`; three things differ.
 
-## Code block
-
-`CodeBlock` lays out, numbers and labels lines a highlighter wrote, coloring highlight.js token classes from the theme's roles.
-
-```tsx
-<CodeBlockContent isNumbered>
-    {lines.map((line) => (
-        <CodeBlockLine>
-            <Content tree={line} />
-        </CodeBlockLine>
-    ))}
-</CodeBlockContent>
-```
-
-## Glyph
-
-`Glyph` draws an emoji, a named icon or an image at one of four sizes, hidden from assistive technology unless labelled.
-
-```tsx
-<Glyph glyph={{ emoji: "📘" }} />;
-<Glyph glyph={{ icon: "rocket-launch" }} size="lg" label="Launch" />;
-```
-
-## Schema form
-
-`SchemaForm` renders a field per property of a JSON Schema, and `renderField` replaces the control of a property.
-
-```tsx
-<SchemaForm
-    schema={{
-        type: "object",
-        properties: {
-            title: { type: "string", minLength: 1 },
-            due: { type: "string", format: "date-time" }, // a DatePicker and a TimeField
-            tags: { type: "array", items: { enum: ["home", "work"] } }, // a checkbox per value
-            repeat: { oneOf: [daily, weekly] }, // a choice of kind, then its fields
-        },
-        required: ["title"],
-    }}
-    renderField={(field, held) =>
-        field.name === "ownerId" ? <OwnerPicker {...held} /> : undefined
-    }
-    onSubmit={file}
-/>
-```
-
-## Color swatch picker
-
-`ColorSwatchPicker` chooses one of the theme's accent presets from a list box of swatches.
-
-```tsx
-<ColorSwatchPicker name="color" value={color()} onValueChange={setColor} aria-label="Color" />
-```
-
-## Chart
-
-`Chart` draws its scene as SVG, readable before the script runs, or on a canvas, with arrow-key focus between points and a visually hidden `table` of its rows.
-
-```tsx
-<Chart label="Ten thousand response times" renderer="canvas" definition={definition} />;
-import { binX } from "@destack/ui/chart/transform/bin"; // each TanStack Charts entry point
-```
-
-## Consent
-
-`ConsentPrompt` asks a person to allow what an application asks, its `PermissionList` grouped by place, and `GrantList` lists what they allowed with Remove access, as Google's and GitHub's consent screens and app settings do.
-
-```tsx
-<ConsentPrompt onAllow={allow} onAllowOnce={once} onDeny={deny}>
-    <PermissionList>
-        <PermissionGroup title="In your home">
-            <Permission description="See settings" isGranted />
-        </PermissionGroup>
-    </PermissionList>
-</ConsentPrompt>;
-<GrantList>
-    <Grant name="notes" description="@acme/notes in work--ada" onRemove={remove} />
-</GrantList>;
-<Button variant="link" size="inline">
-    change
-</Button>; // a link inside running text
-```
-
-## Examples and scenarios
-
-Each component declares an example per visible state with `defineExample` and a scenario per keyboard or focus behavior with `defineScenario`.
-
-```tsx
-export const tabsSelectWithArrowKeys = defineScenario({
-    of: Tabs,
-    interaction: viewInteraction,
-    name: "select-with-arrow-keys",
-    description:
-        "select tabs as the arrow keys move the focus, skipping disabled tabs and wrapping",
-    given: { examples: [tabsHistoryUnavailable] },
-    when: [
-        { action: "focus", target: { role: "tab", name: "Edit" } },
-        { action: "press", key: "ArrowRight" },
-    ],
-    then: {
-        observe: { selected: { kind: "name", target: { role: "tab", selected: true } } },
-        each: [{ selected: "Edit" }, { selected: "Preview" }],
-    },
-});
-```
-
-## Credits
-
-The components follow the work of these projects.
-
-- [shadcn/ui](https://github.com/shadcn-ui/ui) for the APIs and styles, MIT licensed, copyright (c) 2023 shadcn.
-- [React Aria](https://github.com/adobe/react-spectrum) for collections, focus, selection and positioning, Apache 2.0 licensed, copyright 2020 Adobe.
-- [Every Layout](https://every-layout.dev) by Heydon Pickering and Andy Bell for the layout primitives.
+- Components are Solid components styled with StyleX, where shadcn/ui copies React components styled with Tailwind.
+- Positioning runs on CSS anchor positioning, and dialogs, popovers and drawers run on their native elements.
+- Text the components write themselves renders in the reader's locale.
