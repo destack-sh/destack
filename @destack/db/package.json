@@ -3,7 +3,7 @@
     "version": "2026.11.0",
     "license": "Apache-2.0",
     "type": "module",
-    "description": "Interact with SQL databases in Destack.",
+    "description": "Query SQLite and PostgreSQL with Drizzle's builder, and follow every committed change.",
     "sideEffects": false,
     "exports": {
         ".": "./src/index.ts",
@@ -20,7 +20,7 @@
         "./inspect": "./src/inspect/index.ts"
     },
     "scripts": {
-        "typecheck": "tsc --project tsconfig.json",
+        "typecheck": "destack-check readme && tsc --project tsconfig.json",
         "test": "bun --bun run vitest run --config vitest.config.ts"
     },
     "dependencies": {

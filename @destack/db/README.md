@@ -1,33 +1,24 @@
 # @destack/db
 
-`@destack/db` runs Drizzle's query builder on SQLite and PostgreSQL, with drivers for Bun, Postgres.js, Durable Objects and the browser (`/browser`), and `Filter` reads Google's AIP-160 filters.
+Query SQLite and PostgreSQL with Drizzle's builder, and follow every committed change.
+
+## Overview
+
+A package declares its tables and database, and a host connects the database on Bun, PostgreSQL, a Durable Object or the browser.
+
+- **Table**: columns, constraints and indexes, with log retention, full-text columns and release conversions; `defineTable`.
+- **Database**: the tables a package keeps and replicates, with their relations; `defineDatabase`, and `migrate` plans and applies its tables.
+- **Transaction**: reads at a snapshot and buffers writes; `commit` succeeds only when nothing it read changed.
+- **Log**: the committed changes of logged tables in order; `follow` reads them and `at` reads the tables as of a position.
+- **ControlLoop**: runs controllers, each converging the rows its `pending` condition matches, and cursors taking the log past a checkpoint.
+- **BlobStore**: content-addressed blobs that `blob` columns reference, deleted once nothing references them.
 
 ```ts
-// Drizzle's select
-const notes = await database.select().from(note).where(eq(note.scope, spaceId)).limit(50);
-// Drizzle's insert, inside a transaction as logged tables require
-await database.transaction((transaction) =>
-    transaction.insert(note).values(row).onConflictDoUpdate({ target: note.id, set: { title } }),
-);
-// Drizzle's relational queries v2
-await database.query.project.findMany({ with: { tasks: { limit: 3 } } });
-type NoteRow = Select<typeof note>; // Drizzle's $inferSelect
-// Drizzle's relational filters as JSON
-await database
-    .select()
-    .from(note)
-    .where(Condition.render({ title: { ilike: "q_%" } }, note));
-Filter.parse('status = open AND -title:"draft"', { fields, values }); // AIP-160
-await database.transaction(async (transaction) => transaction.update(note).set({ title }));
-await database.execute(sql`SELECT count(*) AS count FROM ${note}`, Counted); // rows parsed
-await database.run(sql`DELETE FROM ${note} WHERE ${note.scope} = ${spaceId}`); // no rows
-```
+import { defineDatabase, defineTable, eq, identifier, text } from "@destack/db";
+import { connectBunSqlite } from "@destack/db/bun";
+import { BunEnvironment } from "@destack/environment/bun";
+import { Identifier } from "@destack/schema";
 
-## Tables
-
-`defineTable` declares a table's columns, constraints, log retention and release conversions.
-
-```ts
 export const note = defineTable(
     "note",
     {
@@ -35,279 +26,165 @@ export const note = defineTable(
         scope: identifier("scope", "space").notNull(),
         title: text("title").notNull(),
     },
-    {
-        constraints: (note) => [
-            index("note_scope").on(note.scope),
-            check("note_title", { title: { length: { lte: 200 }, NOT: { startsWith: " " } } }),
-        ],
-        log: { retention: "history" },
-        convert: {
-            "2026.10.0": {
-                title: Expression.coalesce(Expression.column("title"), Expression.literal("")),
-            },
-        },
-    },
+    { log: { retention: "history" } },
 );
+export const notes = defineDatabase({ name: "notes", tables: [note] });
+
+const environment = BunEnvironment.system;
+const database = await connectBunSqlite("notes.db", notes, { environment });
+await database.migrate([note]);
+const id = Identifier.create("note", environment);
+const scope = Identifier.create("space", environment);
+await database.transaction((transaction) =>
+    transaction.insert(note).values({ id, scope, title: "Plans" }).execute(),
+);
+const rows = await database.select().from(note).where(eq(note.title, "Plans"));
+const position = await database.log.position();
 ```
 
-## Blobs
+## Examples
 
-`blob()` columns reference content-addressed blobs, which `BlobStore` stores in packs and deletes an hour after no row or lease references them.
+### Relate tables
+
+`defineRelations` relates a database's tables, as Drizzle's relational queries do.
 
 ```ts
-export const attachment = defineTable("attachment", {
+import { defineDatabase, defineRelations, defineTable, text } from "@destack/db";
+
+const project = defineTable("project", { id: text("id").primaryKey() });
+const task = defineTable("task", {
     id: text("id").primaryKey(),
-    file: blob("file"),
+    projectId: text("project_id").notNull(),
 });
-
-const blobs = new BlobStore({ storage: new MemoryBlobStorage(crypto), database, environment });
-await blobs.put([{ digest, size, open: async () => body }]); // leased half an hour, one pack
-await database.insert(attachment).values({ id: "a", file: digest });
-for await (const chunk of blobs.read(digest)) send(chunk);
-await database.delete(attachment).where(eq(attachment.id, "a")); // retires the blob
-await blobs.collect(); // frees it, then deletes it once the grace passed
-```
-
-## Predefined rows
-
-A table's `predefined` rows are the same in every database, and writes to them fail.
-
-```ts
-export const role = defineTable("role", columns, {
-    log: {},
-    predefined: [{ id: "role-owner", scope: "universe", name: "owner" }],
-});
-await Transaction.run(database, (transaction) =>
-    transaction.write({
-        table: role,
-        before: null,
-        after: { id: "role-owner", scope: "universe", name: "admin" },
-    }),
-); // INVALID_RECORD: cannot write predefined row ["role","role-owner"] of role
-```
-
-## Global indexes
-
-A table's `globalIndexes` keep its rows unique in another database, and a migration queues every stored row in the index's outbox when an index is added, changed or removed.
-
-```ts
-export const member = defineTable("member", columns, {
-    globalIndexes: () => [
-        {
-            name: "member/handle",
-            declaration: '{"on":["handle"]}',
-            id: "id",
-            scope: "scope",
-            outbox,
-        },
-    ],
-});
-await database.migrate([member, outbox]); // safe update table/member/globalIndexes: queue the rows for member/handle
-```
-
-## Full-text search
-
-A table's `fullText` columns keep a search index, and `SEARCH` matches rows that contain each word as a prefix.
-
-```ts
-export const note = defineTable("note", columns, { log: {}, fullText: ["title", "body"] });
-await database
-    .select()
-    .from(note)
-    .where(Condition.render({ SEARCH: "lov ada" }, note));
-note[TABLE].requireFullText().matches(row, SearchText.query("lov ada")); // the same match in memory
-```
-
-## Databases
-
-`defineDatabase` declares the tables a package owns and replicates, and `defineRelations` relates them, as Drizzle's does.
-
-```ts
-export const relations = defineRelations({ project, task }, (r) => ({
+const relations = defineRelations({ project, task }, (r) => ({
     project: { tasks: r.many.task({ from: r.project.id, to: r.task.projectId }) },
     task: { project: r.one.project({ from: r.task.projectId, to: r.project.id }) },
 }));
 export const work = defineDatabase({ name: "work", tables: [project, task], relations });
-
-const database = work.get(context);
 ```
 
-## Connections
+### Write in an optimistic transaction
 
-`connectBunSqlite` opens a database on Bun, `connectPostgres` opens one as a PostgreSQL schema on its own pool or a shared one, and `DurableObjectDatabaseHost` opens one in a Durable Object, which `DurableObjectDatabase` (`/cloudflare/durable`) serves.
+`Transaction.run` reads at a snapshot, writes each row with its value before, and runs again when another commit changed what it read.
 
 ```ts
-const file = await connectBunSqlite("work.db", work, { environment });
-const owned = await connectPostgres(url, work, { environment, schema: "work" });
-const shared = await connectPostgres(host.pool, work, { environment, schema: "work" });
-const storage = new DurableObjectDatabaseHost(state.storage, environment).connect(work, {
-    namespace: "work",
-});
+import { type DatabaseConnection, defineTable, text, Transaction } from "@destack/db";
+
+const note = defineTable("note", { id: text("id").primaryKey(), title: text("title").notNull() });
+
+async (database: DatabaseConnection) => {
+    await Transaction.run(database, async (transaction) => {
+        const before = await transaction.read(note).findFirst({ where: { id: "note-1" } });
+        const after = { id: "note-1", title: "Ideas" };
+        await transaction.write({ table: note, before: before ?? null, after });
+    });
+};
 ```
 
-## Sealed columns
+### Filter with JSON conditions
 
-`sensitive()` columns are encrypted at rest under a key derived from the database's scope, and `sensitive("deterministic")` columns can still be looked up.
+`Condition.render` turns Drizzle's relational filters, written as JSON, into SQL for a table.
 
 ```ts
-const credential = defineTable("credential", {
+import { Condition, type DatabaseConnection, defineTable, text } from "@destack/db";
+
+const note = defineTable("note", { id: text("id").primaryKey(), title: text("title").notNull() });
+
+async (database: DatabaseConnection) => {
+    const where = Condition.render({ title: { ilike: "plan%" } }, note);
+    const rows = await database.select().from(note).where(where);
+};
+```
+
+### Follow committed changes
+
+`log.follow` pages through the changes of the given tables after a position, waiting for new ones.
+
+```ts
+import { type DatabaseConnection, defineTable, text } from "@destack/db";
+
+const note = defineTable("note", { id: text("id").primaryKey() }, { log: {} });
+
+async (database: DatabaseConnection, signal: AbortSignal) => {
+    const { sequence } = await database.log.position();
+    for await (const page of database.log.follow({ tables: [note], after: sequence }, signal)) {
+        page.changes.length; // 1
+    }
+};
+```
+
+### Run a controller
+
+A `Controller` converges the rows its `pending` condition matches until they leave it, one key at a time.
+
+```ts
+import { ControlLoop, type Controller, type DatabaseConnection } from "@destack/db";
+import { defineTable, eq, text } from "@destack/db";
+
+const job = defineTable(
+    "job",
+    { id: text("id").primaryKey(), status: text("status").notNull() },
+    { log: {} },
+);
+
+async (database: DatabaseConnection, signal: AbortSignal) => {
+    const close: Controller<typeof job> = {
+        name: "close",
+        table: job,
+        pending: { status: "open" },
+        reconcile: async (rows) => {
+            for (const row of rows) {
+                const done = eq(job.id, row.id);
+                await database.transaction((transaction) =>
+                    transaction.update(job).set({ status: "done" }).where(done).execute(),
+                );
+            }
+        },
+    };
+    const control = { controllers: [close], cursors: [] };
+    const loop = new ControlLoop(database, control, { report: console.error });
+    void loop.run(signal);
+    await loop.idle();
+};
+```
+
+### Seal a column
+
+A `sensitive` column is encrypted at rest under its database's key, and a deterministic one can still be looked up.
+
+```ts
+import { defineTable, text } from "@destack/db";
+
+export const credential = defineTable("credential", {
     id: text("id").primaryKey(),
     secret: text("secret").notNull().sensitive(),
     token: text("token").notNull().sensitive("deterministic"),
 });
-database.key(await ColumnCipher.derive(spaceIdentity, environment.random));
-await database.select().from(credential).where(eq(credential.token, token));
 ```
 
-## Migrations
+### Test with a database
 
-`plan` lists the steps from the applied tables to the declared ones, and `apply` runs them, starting a new log at a drawn epoch.
+`TestDatabase.create` opens an isolated, migrated database in a test's world.
 
 ```ts
-const plan = await database.plan(mergeStates([previous.tables.sqlite, next.tables.sqlite]));
-// { steps: [{ action: "create", target: "table/note/column/priority", risk: "safe", … }] }
-await database.apply(plan);
+import { defineTable, text } from "@destack/db";
+import { TestDatabase } from "@destack/db/test";
+import { testSimulation } from "@destack/test/world";
+
+const note = defineTable("note", { id: text("id").primaryKey() });
+await using simulation = testSimulation();
+const environment = simulation.environment("test");
+const storage = await TestDatabase.create([note], { environment, isMigrated: true });
+await storage.database.insert(note).values({ id: "note-1" });
+await storage.close();
 ```
 
-## Transactions
+## Comparison
 
-`Transaction.open` reads at a snapshot, buffers its writes, and commits only when nothing it read changed.
+### Drizzle
 
-```ts
-const transaction = await Transaction.open(database);
-const before = present(await transaction.read(note).findFirst({ where: { id } }), "note");
-const recent = await transaction
-    .read(note)
-    .findMany({ where: { scope }, orderBy: { id: "desc" }, limit: 10 });
-await transaction.write(
-    { table: note, before, after: { ...before, title: "Plans" } },
-    { table: note, before: null, after: created },
-);
-await transaction.commit();
-```
+Tables, queries, relations and inferred row types follow Drizzle; Destack's database differs in three ways.
 
-## Cached reads
-
-A read outside a SQL transaction is answered from memory until a commit writes one of its tables, once the connection receives every commit.
-
-```ts
-await database.log.listening(); // listen to other writers' commits on the database's channel
-await database.select().from(member); // reads the database
-await database.select().from(member); // answers from memory until a commit writes member
-```
-
-## Log
-
-`database.log.follow` reads the committed changes of logged tables in order, and `database.log.at` reads the tables as of a position.
-
-```ts
-const position = await database.log.position();
-for await (const page of database.log.follow(
-    { tables: [note], scopes: [spaceId], after: position.sequence },
-    signal,
-)) {
-    apply(page.changes);
-}
-await database.log
-    .at(position)
-    .read(note)
-    .findMany({ where: { scope: spaceId } });
-await database.log.readTransaction({ tables: [note] }); // the open transaction's own changes
-await database.log.advance("trigger", position.sequence, expiresAt); // a slot retaining later changes until it expires
-```
-
-## Leases and rate limits
-
-`Lease` fences a key's old holders by epoch, as Kubernetes leader election does, and `Bucket` takes rate tokens by the generic cell rate algorithm.
-
-```ts
-const taken = await Lease.acquire(database, {
-    name: "controller:sync",
-    key,
-    holder,
-    duration: 15_000,
-    now,
-});
-await Lease.release(database, { holder, name: "controller:sync" });
-const outcome = await Bucket.take(database, {
-    name: "method:notes/post.create",
-    key: spaceId,
-    rate: { count: 2, every: 60_000 },
-    burst: 2,
-    now,
-}); // { kind: "taken" } | { kind: "limited", retryAfter }
-```
-
-## Derived columns
-
-`aggregates` keeps counts, sums, minimums and maximums of referencing rows, `dependents` cascades deletes, and `tree` keeps an ancestor index.
-
-```ts
-export const folder = defineTable("folder", columns, {
-    tree: { id: "id", scope: "scope", parent: "parentId" },
-});
-export const note = defineTable("note", columns, {
-    aggregates: [
-        { into: () => folder, column: "noteCount", key: "folderId", function: "count", where: {} },
-    ],
-    dependents: [{ from: () => comment, key: "noteId", where: {}, onDelete: "cascade" }],
-});
-```
-
-## Tests
-
-`TestDatabase.create` opens an isolated database in a test's world, on the project's dialect unless given.
-
-```ts
-test("keep notes", async () => {
-    const storage = await TestDatabase.create([note], {
-        environment: testSimulation().environment("test"),
-        isMigrated: true,
-    });
-    onTestFinished(() => storage.close());
-});
-```
-
-## Templates
-
-A `TestTemplate` is the databases and rows tests start with, written in a seeded world, kept below `node_modules/.cache/destack/templates` until its sources change, and copied into each test by `TestDatabase.copy`, which forks that world.
-
-```ts
-export const templates = [
-    new TestTemplate({
-        name: "notes.fixture",
-        databases: { main: [note] },
-        value: schema.null(),
-        world: { seed: 1, start: START },
-        write: keepFixture,
-    }),
-];
-export default TestRun.setup(new URL("./templates.ts", import.meta.url)); // src/test/setup.ts, the config's globalSetup
-const { simulation, databases, value } = await TestDatabase.copy(fixture, { label: "notes" });
-```
-
-## Controllers
-
-`ControlLoop` runs a `ReconcileController`, which converges each key and returns, and a `FollowController`, which follows each key until stopped and reports `synced` once caught up, listing again once a change touches what the list read through its view.
-
-```ts
-const expiry: ReconcileController = {
-    name: "expiry",
-    watches: [session],
-    keys: () => ["expiry"],
-    list: async () => ["expiry"],
-    reconcile: async () => ((await removeExpired()) ? 0 : undefined),
-};
-const live: FollowController = {
-    name: "live",
-    mode: "follow",
-    watches: [session],
-    list: async (view) => (await view.read(session).findMany()).map((row) => row.id), // reads recorded
-    reconcile: (id, { signal, synced }) => serve(id, signal, synced), // reports synced once caught up
-};
-const loop = new ControlLoop(database, [expiry, live], { clock, report });
-void loop.run(signal);
-await loop.idle(); // every key settled, every follow synced, every change keyed
-loop.depth; // keys waiting or settling
-loop.followed; // the log sequence consumed, a consumer's offset
-```
+- Writes to logged tables commit in a transaction and land in the log, which controllers, sync and replicas follow.
+- Migrations come from the declared tables alone: `plan` lists each step with its risk, and a release converts columns with `convert`.
+- Columns can be sealed, full-text indexed, aggregated from referencing rows, or reference content-addressed blobs.
