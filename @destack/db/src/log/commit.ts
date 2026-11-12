@@ -442,7 +442,7 @@ export class ChangeSet {
                 ...changed.map((column) => ChangeSet.#element(transaction, table, column, after)),
             ];
         });
-        await tupleUpdate(table, key, changed, transaction.dialect).all(transaction, {
+        await tupleUpdate(table, key, changed, transaction.dialect).run(transaction, {
             tuples: JSON.stringify(tuples),
         });
     }

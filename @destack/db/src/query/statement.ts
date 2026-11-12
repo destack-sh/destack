@@ -42,6 +42,14 @@ export class Statement {
         return database.driver.values(fill(this.#render(database), values));
     }
 
+    /** Run the statement for its effect with the values, as a write returning no rows. */
+    run(
+        database: DatabaseConnection,
+        values: Readonly<Record<string, DriverValue>> = {},
+    ): Promise<void> {
+        return database.driver.execute(fill(this.#render(database), values));
+    }
+
     /** Render the statement once per dialect and namespace. */
     #render(database: DatabaseConnection): StatementTemplate {
         // reuse the rendering of the database's dialect and namespace

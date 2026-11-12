@@ -225,6 +225,30 @@ test("commit a transaction's changes, seeing its writes through its overlay, rec
     });
 });
 
+test("commit several rows changing the same columns in one grouped update", async () => {
+    const { database, base } = await open();
+
+    // change the priority of two rows in one transaction
+    const reads = new ReadSet();
+    const changes = new ChangeSet();
+    const view = database.log.at(base).recording(reads);
+    for (const [id, priority] of [
+        ["a", 7],
+        ["b", 8],
+    ] as const) {
+        const before = present(await view.read(task).findFirst({ where: { id } }), `task ${id}`);
+        changes.write({ table: task, before, after: { ...before, priority } });
+    }
+
+    // commit, both rows changed in the database
+    await changes.commit(database, base, reads, async () => {});
+    expect((await tasks(database)).map((row) => [row.id, row.priority])).toEqual([
+        ["a", 7],
+        ["b", 8],
+        ["c", 3],
+    ]);
+});
+
 test("touch a merged read set with a change of either set's reads", async () => {
     const { database, base } = await open();
 
