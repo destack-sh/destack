@@ -1,462 +1,250 @@
 # @destack/view
 
-`@destack/view` renders a package's views in the shell with Solid, and gives them their space's objects, the person's settings and the shell's commands.
+Build a package's views with Solid, reading and changing its space's objects live.
+
+## Overview
+
+`@destack/view` is Next.js-style views on Solid 2: declared views, live queries over the space's objects, and static sites with islands.
+
+Packages declare views:
+
+- `defineView`: a page of a package, with the object types it opens and presents.
+
+Components read and change objects live:
+
+- `useSpace`, `useAccount` and `useHome`: typed access to the space's, account's or home's objects.
+- `useQuery`: a relational query, followed live.
+- `useForm` and `useText`: a method's input as a form, and a collaborative text field.
+- `useSetting`: a person's setting, followed live.
+
+Pages render and route:
+
+- `@destack/view/router`: Solid Router, with typed search parameters after nuqs.
+- `@destack/view/document`: fonts, images, metadata and appearance, as in Next.js.
+- `@destack/view/primitives/*`: browser primitives, such as `clipboard` or `resize-observer`.
+
+Declare a notes view that lists and renames notes live:
 
 ```tsx
-const space = useSpace({ notebook, note });
-const notes = useQuery(() => space.query.note.findMany({ where: { parentId: notebook() } }));
-await space.mutate.note.update({ id, title: "Groceries" });
-```
-
-## Prior art
-
-`@destack/view` is Solid 2, `/router` is Solid Router 2 with nuqs' `useQueryState` and React Router's `useBlocker`, `/document` follows Next.js's `Metadata`, `next/font` and next-themes, `/media` follows `next/image`, `/static` follows Astro's static pages, endpoints and islands, and `/test` follows Testing Library's `render`.
-
-```tsx
-const [page, setPage] = useQueryState("page", parseAsInteger.withDefault(1));
-const blocker = useBlocker(() => form.isEdited());
-const sans = defineFont({ src: plexSans, fallback: ["sans-serif"] });
-<Font font={sans} />;
-const { resolvedAppearance } = createAppearance();
-<Image src={cover} alt="" placeholder="blur" />;
-render(() => <Notes />, { container, hydrate: true });
-```
-
-## Views
-
-`defineView` declares a view with the object types it opens and the permissions it requests.
-
-```ts
+import { argument, plural, t } from "@destack/locale";
+import { defineObject, field, shareable } from "@destack/object";
+import { useQuery, useSpace } from "@destack/view";
 import { defineView } from "@destack/view/declare";
 
+// declare a note type
+const note = defineObject({
+    name: "note",
+    plural: "notes",
+    title: t`${plural(argument("count"), { one: "Note", other: "Notes" })}`,
+    container: "scope",
+    fields: { title: field.string() },
+    traits: [shareable({})],
+});
+
+/** List the notes, live. */
+function Notes() {
+    // read the notes in title order, and rename one
+    const space = useSpace({ note });
+    const notes = useQuery(space.query.note.findMany({ orderBy: { title: "asc" } }));
+    const rename = (id: string) => space.mutate.note.update({ id, title: "Groceries" });
+
+    return <p>{notes().length} notes</p>;
+}
+
+// declare the view, opening and presenting notes
 export const notes = defineView({
     name: "notes",
-    categories: ["main"], // the view the installation's origin opens at its root, one per package
-    audience: "person", // a signed-out page load signs in at the universe first; "anyone" serves visitors
-    objects: [notebook, note, notification, member], // each opened where it lives
+    title: t`Notes`,
+    categories: ["main"],
+    objects: [note],
     presents: [{ object: note, priority: "default" }],
-    component: () => import("./app.tsx"),
+    component: async () => ({ default: Notes }),
 });
 ```
 
-## Static views
+## Reference
 
-A static view prerenders its pages at build, after Astro: its `pages` module lists the paths and endpoints, and its islands alone hydrate.
+### defineView
 
-```ts
-export const site = defineView({
-    name: "site",
-    component: () => import("./app.tsx"),
-    render: {
-        mode: "static",
-        origin: "https://example.com",
-        hydrate: "islands", // only the components in islands/ directories hydrate, "page" hydrates the whole page
-        document: () => import("./document.tsx"),
-        pages: () => import("./pages.ts"), // runs on the server only
-    },
-});
+`defineView(definition)` declares a view.
 
-// pages.ts
-export const paths = ["/", "/about/", ...posts.map((post) => post.route)];
-export const notFound = "/404";
-export const endpoints = {
-    ...siteEndpoints({ sitemap: paths, robots: { rules: [{ userAgent: "*", allow: ["/"] }] } }),
-    "/search.json": () => Response.json(searchEntries),
-};
-```
+| Option          | What it is                                                  |
+| --------------- | ----------------------------------------------------------- |
+| `name`, `title` | the view's name, and its title as people read it            |
+| `objects`       | the object types it reads and changes                       |
+| `presents`      | the object types it presents, and how strongly              |
+| `categories`    | the roles clients open it in, such as `"main"`              |
+| `audience`      | a signed-in person by default, or anyone                    |
+| `packages`      | the packages it calls as its user                           |
+| `component`     | loads the module whose default export is the root component |
+| `render`        | `{ mode: "client" }` by default, or `{ mode: "static", … }` |
 
-## Islands
+A static view has an `origin`, `pages` with its paths, an optional `document`, and `hydrate`: `"page"` by default, or `"islands"`.
 
-An island takes JSON properties and children, which keep their server HTML.
+### Live data
+
+`useSpace({ note })` answers `query.note.findMany(…)`, as in `@destack/db`, and `mutate.note.update(…)`, as in `@destack/object`.
+`useQuery(query)` follows a query, pending until the replica has it, and writes show at once.
+
+### Primitives
+
+Each primitive is `@destack/view/primitives/<name>`, after Solid Primitives: `active-element`, `audio`, `bounds`, `clipboard`, `connectivity`, `cursor`, `devices`, `event-dispatcher`, `event-listener`, `event-props`, `favicon`, `focus`, `fullscreen`, `geolocation`, `idle`, `input-mask`, `intersection-observer`, `keyboard`, `media`, `mediastream`, `mutation-observer`, `notification`, `orientation`, `page-visibility`, `permission`, `pointer`, `raf`, `resize-observer`, `scheduled`, `scroll`, `selection`, `sensors`, `share`, `storage`, `styles`, `timer`, `upload`, `utils`, `vibrate`, `video`.
+
+## Examples
+
+### Edit an object with a form
+
+`useForm` edits one method call's input, checked by the method's input schema.
+`useBlocker` holds navigation while the form has unsaved edits.
 
 ```tsx
-// islands/disclosure.tsx
-export default function Disclosure(properties: { label: string; children?: JSX.Element }) {
-    const [isOpen, setIsOpen] = createSignal(false);
+import { argument, plural, t } from "@destack/locale";
+import { defineObject, field } from "@destack/object";
+import { schema } from "@destack/schema";
+import { Show, useForm, useSpace } from "@destack/view";
+import { useBlocker } from "@destack/view/router";
+
+// declare notes with a short title
+const note = defineObject(
+    {
+        name: "note",
+        plural: "notes",
+        title: t`${plural(argument("count"), { one: "Note", other: "Notes" })}`,
+        container: "scope",
+        fields: { title: field.string(schema.string().min(1).max(20)) },
+        access: { permissions: ["write"] },
+    },
+    (method) => ({ update: method.update("write") }),
+);
+
+/** Rename a note, asking before leaving with unsaved edits. */
+export function RenameNote(properties: { readonly id: string; readonly title: string }) {
+    // edit the update's input, submitted on save
+    const space = useSpace({ note });
+    const form = useForm(note, "update", {
+        values: () => ({ id: properties.id, title: properties.title }),
+        submit: (input) => space.mutate.note.update(input),
+    });
+    const title = form.field("title");
+
+    // hold navigation while edits are unsaved
+    const blocker = useBlocker(() => form.isEdited());
+
     return (
-        <section>
-            <button onClick={() => setIsOpen(!isOpen())}>{properties.label}</button>
-            {properties.children}
-        </section>
+        <form onSubmit={(event) => (event.preventDefault(), form.submit())}>
+            <input
+                value={title.value()}
+                onInput={(event) => title.set(event.currentTarget.value)}
+            />
+            <p>{title.problem()}</p>
+            <button>Save</button>
+            <Show when={blocker.state() === "blocked"}>
+                <p>Leave without saving?</p>
+                <button type="button" onClick={blocker.proceed}>
+                    Leave
+                </button>
+                <button type="button" onClick={blocker.reset}>
+                    Stay
+                </button>
+            </Show>
+        </form>
     );
 }
 ```
 
-## Development server
+### Set a page's metadata
 
-`DevelopmentServer` serves a workspace's static view on Vite, rendering each page and endpoint on request.
-
-```ts
-await using development = await DevelopmentServer.start({
-    workspace,
-    view: "site",
-    environment,
-    server: { port: 3737 },
-});
-```
-
-## Packages
-
-`usePackage` calls a package that the view declares in `packages`.
+`Metadata` writes the head over the metadata of the pages around it, as in Next.js.
 
 ```tsx
-export const traces = defineView({
-    name: "traces",
-    objects,
-    permissions,
-    packages: [observabilityPackage],
-    component,
-});
+import { Metadata } from "@destack/view/document";
 
-const observability = usePackage(observabilityPackage);
-const spans = createMemo(() => observability.span.list({ scope, where: `trace = "${traceId}"` }));
-```
-
-## Page origin
-
-`useOrigin` calls a path below the page's origin with its session cookie, and the origin calls each path as the person under their grant to the installation.
-
-```ts
-import { useOrigin } from "@destack/view";
-import { PACKAGE_PATH, PackageMount } from "@destack/object";
-import { HOME_PATH, PLATFORM_PATH } from "@destack/view/declare";
-
-const origin = useOrigin();
-createClient(notesPackage, origin(PACKAGE_PATH)); // the installation's own package
-createClient(stackPackage, origin(`${PLATFORM_PATH}${PackageMount.path(stackPackage.id)}`)); // a service its views declare
-createClient(settings, origin(`${HOME_PATH}/${userId}`)); // where a change of the person's own rows goes
-```
-
-## Launches
-
-A view's page lives at its installation's origin, which signs a signed-out person in at the universe and trades the launch for its session cookie; `ViewAddress` and `ObjectAddress` are what a launch opens, and `ViewState` answers a page load the view cannot.
-
-```ts
-import { ViewAddress, ViewState, type Address } from "@destack/view/declare";
-
-const board: Address = { space: "home--acme", installation: "tasks", view: "board", path: "/" };
-const note: Address = { space: "home--acme", object: note.reference(spaceId, id) }; // the view presenting it
-ViewAddress.url(board, "https://tasks--home--acme.destack.space"); // …/board
-await ViewState.document(refused); // starting (reloading), not found or error, as a page
-```
-
-## Mounting
-
-The origin's document carries the view's `ViewContext`, and the build's module mounts the view with its package's theme and commands.
-
-```ts
-ViewContext.document(context, view.entrypoint); // <script id="destack-view">{"installation":…}</script>
-await mount(
-    view,
-    { commands: [{ packageId, name: "archive", keybinding: "mod+e" }], theme },
-    BrowserEnvironment.system,
-); // generated
-// catalogs load by package from the build, only those context.catalogs lists: /locale/de.json, /locale/<package>/de.json
-```
-
-## Registered commands
-
-`registerCommand` registers a command of the running view while its component is mounted, which runs in its page on its keys and from the palette framed over it.
-
-```ts
-import { registerCommand } from "@destack/view";
-
-registerCommand({
-    name: "copy-link",
-    title: t`Copy Link`,
-    keybinding: "mod+shift+c",
-    run: () => copy(link),
-});
-registerCommand({
-    name: "go-to-line",
-    title: t`Go to Line…`,
-    input: schema.object({ line: schema.number().int().min(1) }), // the palette asks for it
-    run: ({ line }) => editor.reveal(line),
-});
-// the palette asks the page over postMessage: commands.list → commands.listed, command.run { name, input } → runs here
-```
-
-## Palette ranking
-
-`Palette.rank` orders entries by the typed text and the focused object.
-
-```ts
-import { Palette } from "@destack/view/palette";
-
-const ranked = Palette.rank(entries, "arch", focus);
-const binding = Palette.keybinding(command, "mod+e", overrides); // "mod+e" or null
-const isOffered = Palette.isOffered(entry, { spaces: false }); // false for a space
-```
-
-## Shortcuts
-
-`Shortcut` reads keybindings such as `mod+k`, `mod` being Command on Apple platforms and Control elsewhere.
-
-```ts
-import { Shortcut } from "@destack/object";
-import { isCommandPlatform } from "@destack/view/palette";
-import { createShortcut } from "@destack/view/primitives/keyboard";
-
-Shortcut.format("mod+shift+k", isCommandPlatform()); // "⌘⇧K" or "Ctrl+Shift+K"
-createShortcut(Shortcut.keys("mod+k", isCommandPlatform()), openPalette);
-```
-
-## Context
-
-`useView` returns the view's installation, space, person and target object.
-
-```tsx
-import { useView } from "@destack/view";
-
-const { space, user, home, locale, target, universe } = useView(); // universe: the origin of the person's account pages
-```
-
-## Routing
-
-`createRouter` from `@destack/view/router` routes each tab over its environment's session history through `navigationHistory`, as Solid Router's `browserHistory` routes over the window's, and leave guards hold steps from either side.
-
-```tsx
-const Router = createRouter({ routes: defineRoutes([{ path: "/notes/:id", component: Note }]) });
-<Router />; // follows useEnvironment().navigation; a config's own history wins
-```
-
-## Time
-
-`useNow` reads the view's clock once mounted, so the server and the hydrating page render alike, and moves on each second.
-
-```tsx
-const now = useNow();
-<Show when={now()}>{(time) => locale.relative(note.editedAt, time())}</Show>;
-```
-
-## Controllable signals
-
-`createControllableSignal` is Kobalte's: it follows an owner's value while the owner controls it, else its own.
-
-```ts
-import { createControllableSignal } from "@destack/view";
-
-const [open, setOpen] = createControllableSignal({
-    isControlled: () => properties.open !== undefined,
-    value: () => properties.open ?? false,
-    defaultValue: false,
-    onChange: properties.onOpenChange,
-});
-```
-
-## Motion
-
-`createReducedMotion` follows whether the theme keeps an element's motion still, from the person's motion setting or the device's preference, where Framer Motion's `useReducedMotion` reads only the device.
-
-```tsx
-const isStill = createReducedMotion(canvas);
-createTimer(turn, () => (isStill() ? false : 6000), "interval");
-isMotionReduced(element); // one read, for code outside tracking
-```
-
-## Data
-
-`useSpace` opens the objects of the view's space, and `useQuery` follows a query.
-
-```tsx
-import { For, useQuery, useSpace } from "@destack/view";
-
-const space = useSpace({ notebook, note });
-const notes = useQuery(() =>
-    space.query.note.findMany({ where: { parentId: notebook() }, orderBy: { title: "asc" } }),
-);
-await space.mutate.note.update({ id, title: "Groceries" });
-await space.mutation(async (mutation) => {
-    await mutation.call(note).create({ title: "Milk" });
-    await mutation.call(note).create({ title: "Bread" });
-}).predicted;
-await space.undo().confirmed;
-```
-
-## Accounts and text
-
-`useAccount` opens the objects of the view's account, and `useText` follows one text field with every keystroke shared live.
-
-```tsx
-const account = useAccount({ member });
-const body = useText(note, id, "body");
-```
-
-## Permissions and calls
-
-`can` checks a permission of the person on an object, and `call` calls a method by name.
-
-```tsx
-const space = useSpace({ note });
-if (await space.can("write")) {
-    await space.call(note, "publish", { id }).confirmed;
+/** Title the pricing page, under the site's title template. */
+export function PricingPage() {
+    return (
+        <Metadata title="Pricing" description="Plans for every team.">
+            <h1>Pricing</h1>
+        </Metadata>
+    );
 }
 ```
 
-## Forms
+### Load a third-party script
 
-`useForm` edits the input of an object's method call, checked against the method's input schema.
-
-```tsx
-const form = useForm(note, "update", {
-    values: () => ({ id: note().id, title: note().title }),
-    submit: (input) => space.mutate.note.update(input),
-    mode: "submit", // or "change"
-});
-<Field invalid={form.field("title").problem() !== undefined}>
-    <Input
-        value={form.field("title").value()}
-        onInput={(event) => form.field("title").set(event.currentTarget.value)}
-    />
-    <FieldError>{form.field("title").problem()}</FieldError>
-</Field>;
-<Button loading={form.status() === "pending"} onClick={() => form.submit()}>
-    Save
-</Button>;
-```
-
-## Schema forms
-
-`useSchemaForm` edits an input any schema checks, such as one read from JSON Schema, and reports refusals by JSON Pointer.
-
-```ts
-const form = useSchemaForm(fromJsonSchema(input), { values: () => ({ place: {} }), submit });
-form.field("place").set({ city: "" });
-form.problems(); // Map { "/place/city" => "Enter a value" }
-form.field("place").problem(); // "Enter a value"
-```
-
-## Home
-
-`useHome` reads objects from the person's home space.
+`Script` loads a script once, however many components ask for it.
 
 ```tsx
-import { useHome } from "@destack/view";
+import { Script } from "@destack/view/document";
 
-export const inbox = defineView({
-    name: "inbox",
-    objects: [notification],
-    component,
-});
-const home = useHome({ notification });
-const unread = useQuery(() => home.query.notification.aggregate(UNREAD));
-```
-
-## Opening objects
-
-`objectUrl` returns the address that opens an object in the view presenting it.
-
-```tsx
-import { objectUrl, useView } from "@destack/view";
-
-const { space } = useView();
-<a href={objectUrl(note.reference(space, id))}>Open</a>;
-<a href={objectUrl(note.reference(space, id), { view: "editor" })}>Edit</a>;
-```
-
-## Language
-
-`useLocale` reads the person's `Localization`, which `renderView` provides for views and `LocaleContext` for websites.
-
-```tsx
-import { plural, t } from "@destack/locale";
-import { useLocale } from "@destack/view";
-
-export function Archived(properties: { count: number; notebook: string }) {
-    const locale = useLocale();
-    const notes = plural(properties.count, { one: "# note", other: "# notes" });
-
-    return <p>{locale.render(t`Archived ${notes} in ${properties.notebook}`)}</p>;
+/** Load the analytics script after the page hydrates. */
+export function Analytics() {
+    return <Script src="https://example.com/analytics.js" onReady={() => console.log("ready")} />;
 }
-
-<LocaleContext value={Localization.of(Locale.parse("de-AT"), catalogs)}>{page}</LocaleContext>;
 ```
 
-## Display
+### Keep state in the address
 
-`resolveDisplay` resolves a person's `Display` from the `appearance`, `textSize`, `density`, `contrast`, `motion` and `accent` settings, their device's own values first, which a page presents with its theme, in the person's language, beside their keybindings.
-
-```ts
-import { resolveDisplay } from "@destack/view/setting";
-
-const display = resolveDisplay(selection, values, chain, device); // device: the device's own values
-const style = theme.variables(display);
-```
-
-## Styles
-
-`@destack/view/styles` loads a document's base styles: Preflight, the theme's element defaults and the StyleX rules; import it from the app module that server and browser both load, as SolidStart's `app.tsx`, so the browser bundle includes it.
+`useQueryState` keeps a value in the search parameters, as nuqs does.
 
 ```tsx
-import "@destack/view/styles";
+import { parseAsInteger, useQueryState } from "@destack/view/router";
+
+/** Show the page number kept in the address. */
+export function Pages() {
+    const [page, setPage] = useQueryState("page", parseAsInteger.withDefault(1));
+
+    return <p>page {page()}</p>;
+}
 ```
 
-## Examples
+### Read the person's setting
 
-`renderExample` renders an example into an element with its globals: a locale, direction, width and theme.
+`useSetting` reads this device's value first.
 
-```ts
-import { renderExample } from "@destack/view/example";
+```tsx
+import { appearance } from "@destack/view/setting";
+import { useSetting } from "@destack/view";
 
-const unmount = renderExample(
-    element,
-    {
-        example: buttonGhost,
-        globals: { locale: "ar-EG", direction: "rtl", width: 320, theme: { appearance: "dark" } },
-        catalogs,
+/** Show the person's appearance setting. */
+export function Appearance() {
+    const value = useSetting(appearance);
+
+    return <p>{value() ?? "system"}</p>;
+}
+```
+
+### Prerender a static site
+
+A static view prerenders its pages, and only its islands hydrate.
+
+```tsx
+import { t } from "@destack/locale";
+import { defineView } from "@destack/view/declare";
+
+// prerender two pages, hydrating only islands
+export const site = defineView({
+    name: "site",
+    title: t`Site`,
+    component: async () => ({ default: () => <p>Hello</p> }),
+    render: {
+        mode: "static",
+        origin: "https://example.com",
+        hydrate: "islands",
+        document: async () => ({ default: () => "<!doctype html>" }),
+        pages: async () => ({ paths: ["/", "/about/"] }),
     },
-    BrowserEnvironment.system,
-);
-```
-
-## Tests
-
-`renderView` from `@destack/view/test` renders a component as a mounted view, and `testBrowser()` is each test's simulated tab, which `wait` and `frame` move time in.
-
-```tsx
-import { defineConfiguration, renderView, testBrowser, wait } from "@destack/view/test";
-
-export default defineConfiguration(
-    { test: { include: ["tests/*.test.tsx"] } },
-    BunEnvironment.system,
-);
-const unmount = renderView(
-    Notes,
-    element,
-    { context, clients: new Map([[context.space, client]]), packages: new Map(), origin },
-    Localization.of("de", catalogs),
-    testBrowser(),
-);
-await wait(300); // runs the timers due in the next 300 ms on the tab's clock
-```
-
-## Scenario interaction
-
-`viewInteraction` from `@destack/view/scenario` is the UI interaction scenarios speak, after Playwright's actions, locators and assertions.
-
-```ts
-import { defineScenario } from "@destack/package/declare";
-import { viewInteraction } from "@destack/view/scenario";
-
-export const dropdownMenuOpenOntoFirstItem = defineScenario({
-    of: DropdownMenu,
-    interaction: viewInteraction,
-    name: "open-onto-first-item",
-    description: "open the note menu onto its first item",
-    given: { examples: [dropdownMenuNoteMenu] },
-    when: [{ action: "click", target: { role: "button", name: "Note" } }],
-    then: { observe: { focused: { kind: "focused" } }, end: { focused: "Rename" } },
 });
 ```
 
-## Scenario tests
+## Comparison
 
-`ViewDriver` plays the UI interaction in the test DOM.
+### Next.js
 
-```ts
-import { ViewDriver } from "@destack/view/test";
+Views, documents, fonts, images and metadata follow Next.js, on Solid 2.
 
-const driver = ViewDriver.start({ examples: [dropdownMenuNoteMenu] });
-driver.act({ action: "click", target: { role: "button", name: "Note" } });
-driver.observe({ kind: "focused" }); // "Rename"
-```
+| Next.js                 | `@destack/view`              | Difference                                       |
+| ----------------------- | ---------------------------- | ------------------------------------------------ |
+| pages and layouts       | `defineView`                 | A view declares the object types it opens.       |
+| `fetch` and server data | `useSpace`, `useQuery`       | Queries stay current as the space's rows change. |
+| server actions          | `mutate`                     | Writes show at once, and settle on the server.   |
+| static export           | `render: { mode: "static" }` | Hydrates only islands, as Astro does.            |

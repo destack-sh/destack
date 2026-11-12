@@ -1,6 +1,7 @@
 {
     "name": "@destack/view",
     "version": "2026.11.0",
+    "description": "Build a package's views with Solid, reading and changing its space's objects live.",
     "license": "Apache-2.0",
     "type": "module",
     "sideEffects": [
@@ -76,7 +77,7 @@
         "./client": "./src/client.d.ts"
     },
     "scripts": {
-        "typecheck": "tsc --project tsconfig.json",
+        "typecheck": "tsc --project tsconfig.json && destack-check readme",
         "test": "bun --bun run vitest run --config vitest.config.ts"
     },
     "dependencies": {
