@@ -1,40 +1,67 @@
 # @destack/locale
 
-`t`, `plural` and `select` are Lingui's macros writing Unicode MessageFormat 2 through `messageformat`, `Localization` is `Intl`'s formatters bound to a locale and its catalogs, and `Locale` is BCP 47 tags with CLDR parent locales and RFC 4647 lookup.
+Localise messages and format numbers, money and dates for a person's language and region.
+
+## Overview
+
+A package writes its messages with `t`, and each reader's localization renders them in their language later, such as a notification in each recipient's.
+
+- **Message**: text of its package in Unicode MessageFormat 2, with `plural`, `select` and named arguments; `t` writes one.
+- **Catalog**: one package's translations into one locale, read from its `locale/<tag>.json`.
+- **Localization**: a locale bound to its catalogs; `render`, `number`, `money`, `date`, `list` and `relative`.
+- **Locale**: BCP 47 tags with CLDR parent locales; `fallback`, `accepted` and `negotiate`.
 
 ```ts
-// Lingui's msg descriptor as JSON of its package, rendered later
-t`Archived ${plural(count, { one: "# page", other: "# pages" })} in ${space.name}`;
-Message.context("button")`Open`; // Lingui's context option as a tag
-verbatim`Destack`; // left out of extraction and catalogs, where Lingui leaves plain strings
-localization.money(1200, "EUR"); // minor units, where Intl.NumberFormat takes major: "12,00 €"
-localization.money(1200, "x-credits"); // a custom currency beside its code: "1,200 credits"
-// the largest whole unit, where Intl.RelativeTimeFormat takes one
-localization.relative(threeDaysAgo, Date.now());
-// CLDR parents, then the source language: ["es-MX", "es-419", "es", "en"]
-Locale.fallback("es-MX", "en");
-Locale.accepted("fr-CH, de;q=0.7, *;q=0.5"); // an Accept-Language header by weight: ["fr-CH", "de"]
-Country.parse("CH"); // an ISO 3166-1 alpha-2 country code
+import { argument, Localization, plural, t } from "@destack/locale";
+
+const archived = t`Archived ${plural(argument("count"), { one: "# page", other: "# pages" })}`;
+const localization = Localization.of("de-AT", []);
+const text = localization.render(archived, { count: 3 });
+const price = localization.money(1200, "EUR"); // "€ 12,00"
 ```
 
-## Messages
+## Examples
 
-`t` writes a message of its module's package, which the reader's locale renders later, such as a notification in each recipient's.
+### Format dates and times
+
+`relative` picks the largest whole unit, where `Intl.RelativeTimeFormat` takes one.
 
 ```ts
-const archived = t`Archived ${count} pages`;
-Localization.of("de-AT", catalogs).render(archived); // "3 Seiten archiviert"
+import { Localization } from "@destack/locale";
+
+const localization = Localization.of("en-GB", []);
+const now = Date.now();
+localization.relative(now - 3 * 86_400_000, now); // "3 days ago"
+localization.date(now, { dateStyle: "medium" });
 ```
 
-## Catalogs
+### Pick a locale
 
-A `Catalog` translates one package's messages into one locale from the package's `locale/<tag>.json`, which its build ships and `Catalog.read` reads back.
+`Locale.accepted` reads an `Accept-Language` header, and `Locale.fallback` lists a tag's CLDR parents.
 
-```json
-{
-    "package": "package-01a1075a-34ee-7343-832f-9faf3e1c456c",
-    "locale": "de",
-    "messages": { "1x3k9q2…": "Schließen" },
-    "drafts": ["1x3k9q2…"]
-}
+```ts
+import { Locale } from "@destack/locale";
+
+Locale.accepted("fr-CH, de;q=0.7, *;q=0.5"); // ["fr-CH", "de"]
+Locale.fallback("es-MX", "en"); // ["es-MX", "es-419", "es", "en"]
 ```
+
+### Keep a word untranslated
+
+`verbatim` marks text left out of extraction and catalogs, such as a product name.
+
+```ts
+import { verbatim } from "@destack/locale";
+
+const brand = verbatim`Destack`;
+```
+
+## Comparison
+
+### Lingui
+
+`t`, `plural` and `select` follow Lingui's macros; three things differ.
+
+- Messages are Unicode MessageFormat 2, rendered by `messageformat`.
+- A message is data of its package, so a server writes it once and each reader renders it in their language.
+- `money` takes minor units and knows custom currencies such as credits.
