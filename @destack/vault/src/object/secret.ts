@@ -162,7 +162,7 @@ export const secret = defineObject(
     }),
 );
 
-/** One numbered, immutable value of a secret, sealed at rest. */
+/** One numbered, immutable value of a secret, encrypted at rest. */
 export const secretVersion = defineObject(
     {
         name: "version",
@@ -175,12 +175,12 @@ export const secretVersion = defineObject(
             expiresAt: field.time().optional(),
             /** The version's state: readable when enabled, empty once destroyed. */
             state: field.enum(VERSION_STATES).default("enabled"),
-            /** The value bound to its secret and version, sealed at rest, absent once destroyed. */
+            /** The value bound to its secret and version, encrypted, absent once destroyed. */
             content: field.json(BoundValue).sensitive().optional(),
         },
         constraints: {
             positive: { kind: "check", condition: { number: { gt: 0 } } },
-            sealed: {
+            content: {
                 kind: "check",
                 condition: {
                     OR: [
