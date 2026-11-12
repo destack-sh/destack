@@ -3,7 +3,7 @@ import { defineConfiguration } from "@destack/test/config";
 
 export default defineConfiguration(
     {
-        // run every test against the universe's database, where accounts live
+        // run every test against the database accounts mostly run on, the universe's
         targets: { database: ["postgresql"] },
         test: {
             include: ["src/**/*.test.ts", "tests/**/*.test.ts"],
