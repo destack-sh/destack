@@ -4,7 +4,7 @@
     "license": "MIT",
     "type": "module",
     "sideEffects": false,
-    "description": "Full code-first definition of a Destack stack.",
+    "description": "Start a space's stack from a template: a files bucket, a credentials vault, the baseline installations and an automatic rollback.",
     "exports": {
         ".": "./src/index.ts",
         "./stack": "./src/stack/index.ts",
@@ -12,7 +12,7 @@
         "./setting": "./src/setting/index.ts"
     },
     "scripts": {
-        "typecheck": "tsc --project tsconfig.json"
+        "typecheck": "destack-check readme && tsc --project tsconfig.json"
     },
     "devDependencies": {
         "@destack/check": "2026.11.0"
