@@ -1,7 +1,7 @@
 {
     "name": "@destack/check",
     "version": "2026.11.0",
-    "description": "Check and format Destack packages.",
+    "description": "Lint, format and check Destack packages and their READMEs with one command.",
     "license": "Apache-2.0",
     "bin": {
         "destack-check": "./src/main.ts"
@@ -17,7 +17,7 @@
         "./bun": "./src/bun/index.ts"
     },
     "scripts": {
-        "typecheck": "tsc --project tsconfig.json",
+        "typecheck": "tsc --project tsconfig.json && destack-check readme",
         "test": "vitest run"
     },
     "dependencies": {
