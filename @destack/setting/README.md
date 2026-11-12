@@ -1,78 +1,88 @@
 # @destack/setting
 
-`@destack/setting` declares typed settings, stores their values as `setting` rows along a scope chain, and resolves the value that applies.
+Declare, place and resolve scoped settings.
+
+## Overview
+
+A package declares its settings with a schema and a default, values are placed along a scope chain, and a resolution picks the value that applies.
+
+- **Setting**: a declared, typed setting with its default, the scope it belongs to and the overrides that narrow it; `resolve` picks the value for a selection.
+- **Value**: a `setting` row at a placement with the mode `set`, `recommend` or `require`; `resolve` on the object type answers the value with its sources.
+- **Placement**: a value's scope and the package, space or installation it applies to.
 
 ```ts
+import type settingPackage from "@destack/setting/package";
 import { defineSetting } from "@destack/setting/declare";
+import { t } from "@destack/locale";
+import type { ClientOf } from "@destack/object/client";
+import { schema } from "@destack/schema";
 
 export const editorMode = defineSetting({
     name: "editor.mode",
-    title: "Editor mode",
-    description: "Keyboard behavior in the page editor.",
+    title: t`Editor mode`,
+    description: t`Keyboard behavior in the page editor.`,
     schema: schema.enum(["standard", "vim"]),
     default: "standard",
     scope: "user",
     overrides: ["space", "installation", "device"],
     apply: "immediate",
 });
+
+async (client: ClientOf<typeof settingPackage>, userId: string, requestId: string) => {
+    const { packageId, name } = editorMode.reference;
+    await client.setting.create({
+        scope: userId,
+        requestId,
+        packageId,
+        name,
+        mode: "set",
+        value: "vim",
+        release: "2026.11.0",
+    });
+};
 ```
 
-## Values
+## Examples
 
-A value is a `setting` row at a placement, with the mode `set`, `recommend` or `require`.
+### Change a setting from the terminal
 
-```ts
-const placement = SettingPlacement.of({ scope: userId, space: spaceId });
-await client
-    .mutate(setting)
-    .create({ ...editorMode.reference, ...placement, mode: "set", value: "vim", release });
+`destack setting` sets a value at a scope, such as this computer's.
+
+```sh
+destack setting editor.mode set vim --scope device
 ```
 
-## Stack values
+### Resolve a value
 
-A stack declares a space's values under `settings`, and stamps each with the release of the build declaring the setting.
+`resolve` ranks the default and every value placed along the selection's scope chain.
 
 ```ts
-export default defineStack({
-    types: [settingPackage],
-    settings: { editor: { ...editorMode.reference, value: "vim", mode: "recommend" } },
+import { defineSetting } from "@destack/setting/declare";
+import type { SettingValue } from "@destack/setting/object";
+import { t } from "@destack/locale";
+import { schema } from "@destack/schema";
+
+const editorMode = defineSetting({
+    name: "editor.mode",
+    title: t`Editor mode`,
+    description: t`Keyboard behavior in the page editor.`,
+    schema: schema.enum(["standard", "vim"]),
+    default: "standard",
+    scope: "user",
 });
+
+(values: readonly SettingValue[], chain: readonly string[]) => {
+    const resolution = editorMode.resolve({ scope: "user-1" }, values, chain);
+    resolution.value; // "vim"
+};
 ```
 
-## Resolving
+## Comparison
 
-`resolve` picks the value that applies to a selection from the values along its scope chain and a device's own values.
+### VS Code settings
 
-```ts
-const selection = SettingSelection.parse({ scope: userId, space: spaceId });
-const resolution = editorMode.resolve(selection, values, chain, deviceValues);
-resolution.value; // "vim"
-const mode = await SettingValue.resolve(Snapshot.live(database), editorMode, {
-    ...selection,
-    scope: userId,
-});
-```
+Declared settings with defaults, scopes and overrides follow VS Code's configuration contributions; three things differ.
 
-## Replicating
-
-`SettingValue.replicate` replicates a scope's values from the store serving them and yields them after each change.
-
-```ts
-for await (const { chain, values } of SettingValue.replicate(
-    { endpoint, scope: userId, caller, database, settings: [editorMode.reference], environment },
-    signal,
-)) {
-    editorMode.resolve(selection, values, chain);
-}
-```
-
-## Server
-
-`settingServer` serves the setting package in a store, checking each written value against its declaration.
-
-```ts
-import { settingServer } from "@destack/setting/server";
-import { Setting } from "@destack/setting";
-
-const server = settingServer({ declared: Setting.declared(open), after: [] });
-```
+- Values are rows along a scope chain of user, space, account and organization, and a manager can `recommend` or `require` one.
+- A resolution reports the source of its value, as `git config --show-origin` does.
+- A device keeps separate values, so one computer can differ from the person's others.
