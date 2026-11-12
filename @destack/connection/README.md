@@ -1,129 +1,96 @@
 # @destack/connection
 
-`@destack/connection` keeps the credentials of external accounts in its bound vault and applies them to outbound requests, as Nango's integrations, connections and proxy do.
+Connect external accounts once, and call their APIs with credentials kept in a vault.
+
+## Overview
+
+A package declares the external API it calls, and the connection installation keeps the account's credential and applies it to each outbound call.
+
+- **Connection**: the credential of one external account, authenticating by its `protocol`; `authorize`, `complete`, `rotate` and `disconnect`; its controller refreshes every token before it expires.
+- **Integration**: an external app's OAuth client, its endpoints and secret; `register` creates one by dynamic client registration.
+- **Issuer**: a package keeping an app's key, such as a GitHub App, which issues tokens for the accounts the app is installed on.
 
 ```ts
-// a Nango integration
-await client.integration.create({
-    scope,
-    requestId,
-    issuer: { kind: "server", url: "https://auth.example.com" },
-    endpoints,
-    clientId,
-    authentication: "client_secret_basic",
-    redirectUris,
-    secret,
-    isPublic: false,
+import type connectionPackage from "@destack/connection/client";
+import { defineConnection } from "@destack/connection/declare";
+import type { ClientOf } from "@destack/object/client";
+import type { ExternalClient } from "@destack/resource";
+import type { Identifier } from "@destack/schema";
+
+export const github = defineConnection({
+    name: "github",
+    spec: { resource: "https://api.github.com", scopes: ["repo"] },
 });
-// a Nango connection
-await client.connection.create({
-    scope,
-    requestId,
-    protocol: { kind: "authorization-code" },
-    resource,
-});
-// Nango's auth flow
-const { url } = await client.connection.authorize({ scope, id, requestId, redirectUri });
-const leased = await ConnectionRequest.lease(primary, reference, request, clock.now(), crypto); // Nango's proxy
-await client.connection.revoke({ scope, id, requestId }); // RFC 7009 revocation
-```
 
-## Connections
-
-A `connection` keeps the credential of one external account, authenticating by its `protocol`'s kind.
-
-```ts
-const { id } = await client.connection.create({
-    scope: spaceId,
-    requestId: RequestId.create(environment),
-    // or signature, sigv4, jwt, authorization-code, client-credentials, device-code,
-    // token-exchange, mtls
-    protocol: { kind: "key", header: "x-api-key" },
-    material: { kind: "key", key },
-});
-```
-
-## Dynamic registration
-
-A connection to a `resource` without an integration registers a client at the resource's authorization server, as MCP clients do (RFC 9728, RFC 8414, RFC 7591).
-
-```ts
-await client.connection.create({
-    scope,
-    requestId,
-    protocol: { kind: "authorization-code" },
-    resource: "https://mcp.example.com/mcp",
-});
-```
-
-## Server
-
-`@destack/connection/server` serves connections and integrations as the connection installation, whose controller obtains and refreshes every token before it expires.
-The installation keeps every credential and client secret in the vault its stack binds as `credentials`.
-
-```ts
-import server from "@destack/connection/server";
-import { connectionVault } from "@destack/connection/stack";
-
-const extension = server(context); // tokens through the host's network, the primary through its egress
-
-// an account home's stack: the vault, bound to the connections
-const home = {
-    vaults: { credentials: connectionVault.declare() },
-    installations: {
-        connection: install(connectionPackage, { credentials: "credentials" }),
-    },
+async (
+    client: ClientOf<typeof connectionPackage>,
+    scope: string,
+    id: Identifier<"connection">,
+    api: ExternalClient,
+    requestId: string,
+) => {
+    const { url } = await client.connection.authorize({ scope, id, requestId });
+    const parameters = { state: "…", code: "…" };
+    await client.connection.complete({ scope, id, parameters, requestId });
+    const response = await api.fetch("/user/repos");
 };
 ```
 
-## Leasing
+## Examples
 
-`ConnectionRequest.lease` applies a connection's current credential, leased at its primary, to a bound installation's outbound request.
+### Call an API from a server
 
-```ts
-const { request, certificate } = await ConnectionRequest.lease(
-    primary,
-    reference,
-    outbound,
-    clock.now(),
-    crypto,
-);
-```
-
-## Installations
-
-An app installed on external accounts gets its tokens from an installation of the package keeping the app's key, which declares the `Issuer` template.
+A server calls a bound connection's API below its address, and the host's egress applies the credential.
 
 ```ts
-import { Issuer } from "@destack/connection/object";
+import type { ExternalClient } from "@destack/resource";
 
-// the issuing package, such as the forge with its GitHub App
-export const issuer = defineObject(Issuer.definition(access), Issuer.methods); // access: who reads, manages and calls it
-
-// the integration records the installation and its issuer, whose consumer the connection installation is
-await client.integration.create({
-    scope,
-    requestId,
-    issuer: { kind: "installation", package: Package.of(forge), name: "forge", issuer: reference },
-    endpoints: {
-        installation: "https://github.com/apps/destack/installations/new",
-        isIssuerReturned: false,
-    },
-    clientId,
-    authentication: "none",
-    redirectUris,
-});
+async (stripe: ExternalClient) => {
+    const response = await stripe.fetch("/v1/customers", { method: "GET" });
+    const customers = await response.json();
+};
 ```
 
-## Tables
+### Supply an API key
 
-`connectionTables` lists the tables of connections and their pending authorizations, `integrationTables` lists the integrations, and `connectionVault` declares the vault of their credentials.
+A connection with the `key` protocol sends the key its owner supplies in a header.
 
 ```ts
-import { connectionTables, integrationTables } from "@destack/connection/stack";
+import type connectionPackage from "@destack/connection/client";
+import type { ClientOf } from "@destack/object/client";
+import type { Identifier } from "@destack/schema";
 
-const space = defineDatabase({
-    name: "main",
-    tables: [...connectionTables, ...integrationTables],
-});
+async (
+    client: ClientOf<typeof connectionPackage>,
+    scope: string,
+    id: Identifier<"connection">,
+    requestId: string,
+) => {
+    const material = { kind: "key", key: "sk_live_…" } as const;
+    await client.connection.rotate({ scope, id, material, requestId });
+};
 ```
+
+### Sign HTTP messages
+
+`MessageSignature.sign` signs a request's method, target and content digest after RFC 9421.
+
+```ts
+import { MessageSignature } from "@destack/connection/signature";
+import { BunEnvironment } from "@destack/environment/bun";
+
+const { crypto } = BunEnvironment.system;
+const request = new Request("https://api.example.com/v1/orders", { method: "POST", body: "{}" });
+const signer = { algorithm: "hmac-sha256", keyId: "key-1", key: "c2VjcmV0" } as const;
+const signed = await MessageSignature.sign(request, signer, Date.now(), crypto);
+```
+
+## Comparison
+
+### Nango
+
+Integrations, connections and the proxy that applies credentials follow Nango; Destack's differ in three ways.
+
+- A package declares the API it calls with `defineConnection`, and the connection installation binds it, so the package never reads the credential.
+- Credentials and client secrets live in the vault the stack binds as `credentials`, sealed at rest.
+- A connection to an API without an integration registers a client at its authorization server, as MCP clients do after RFC 9728, RFC 8414 and RFC 7591.
