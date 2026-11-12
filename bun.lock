@@ -718,6 +718,7 @@
         "@destack/schema": "workspace:*",
       },
       "devDependencies": {
+        "@destack/object": "workspace:*",
         "@destack/test": "workspace:*",
         "@types/bun": "1.4.4",
       },
