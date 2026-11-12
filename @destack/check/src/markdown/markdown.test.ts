@@ -1,9 +1,9 @@
 import { expect, test } from "vitest";
 import { checkMarkdown, fixMarkdown } from "./index.ts";
 
-/** Codes reported for a Markdown document. */
-function codes(text: string): string[] {
-    return checkMarkdown("note.md", text).map((diagnostic) => {
+/** Codes reported for a Markdown document, a package README when given its description. */
+function codes(text: string, description?: string): string[] {
+    return checkMarkdown("note.md", text, description).map((diagnostic) => {
         if (diagnostic.code === undefined) {
             throw new TypeError("a markdown finding has no code");
         }
@@ -41,4 +41,12 @@ test("require stepwise headings, one title and fenced code languages", () => {
 
 test("allow top-level sections when front matter names the title", () => {
     expect(codes('---\ntitle: "Notes"\n---\n\n# Read\n\n# Write\n')).toEqual([]);
+});
+
+test("start a package README with its package's description", () => {
+    const readme = "# @destack/mail\n\nSend email over SMTP.\n\n## Overview\n";
+    expect([
+        codes(readme, "Send email over SMTP."),
+        codes(readme, "Send email over SMTP, SES or a printer."),
+    ]).toEqual([[], ["markdown(readme-description)"]]);
 });

@@ -1,4 +1,4 @@
-import { join, relative, resolve } from "node:path";
+import { basename, dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { Environment, FileSystem } from "@destack/environment";
 import { writeIgnore } from "./format.ts";
@@ -17,6 +17,12 @@ import { checkMarkdown, fixMarkdown } from "../markdown/index.ts";
 import { CheckError } from "../error/index.ts";
 import type { Plugin } from "../lint/plugin.ts";
 import { schema } from "@destack/schema";
+
+/** A package.json: a package's description, or a workspace's packages. */
+const Manifest = schema.looseObject({
+    description: schema.string().min(1).exactOptional(),
+    workspaces: schema.array(schema.string()).exactOptional(),
+});
 
 /** This package's directory, whose dependencies include the tools when running from a workspace. */
 const PACKAGE = fileURLToPath(new URL("../..", import.meta.url));
@@ -122,10 +128,32 @@ async function checkMarkdownFiles(
                 text = fixed;
             }
         }
-        diagnostics.push(...checkMarkdown(relative(directory, file), text));
+        const description = await readmeDescription(file, files);
+        diagnostics.push(...checkMarkdown(relative(directory, file), text, description));
     }
 
     return diagnostics;
+}
+
+/** Read the description of a README's package, none for another file. */
+async function readmeDescription(file: string, files: FileSystem): Promise<string | undefined> {
+    // read the sibling package.json of a README
+    const manifest = join(dirname(file), "package.json");
+    if (basename(file) !== "README.md" || !(await files.exists(manifest))) {
+        return undefined;
+    }
+    // read a package's description, refusing a package without one, and none for a workspace's root
+    const read = Manifest.parse(JSON.parse(await files.readTextFile(manifest)));
+    if (read.workspaces !== undefined) {
+        return undefined;
+    } else if (read.description === undefined) {
+        throw CheckError.of(
+            "CONFIGURATION_INVALID",
+            `package '${dirname(manifest)}' is invalid: its package.json has no description`,
+        );
+    }
+
+    return read.description;
 }
 
 /** Report whether a selected file or directory contains JavaScript or TypeScript sources. */

@@ -31,13 +31,18 @@ interface SourceLine {
 }
 
 /** Check Markdown against the Destack prose rules, returning diagnostics with UTF-8 spans. */
-export function checkMarkdown(filename: string, text: string): Diagnostic[] {
+export function checkMarkdown(
+    filename: string,
+    text: string,
+    description: string | undefined,
+): Diagnostic[] {
     // run each rule over the classified lines
     const lines = classifyLines(text);
     const findings = [
         ...checkSentences(lines),
         ...checkHeadings(lines, /^---\n(?:.*\n)*?title:/u.test(text)),
         ...checkFences(lines),
+        ...(description === undefined ? [] : checkDescription(lines, description)),
     ];
 
     // convert character positions to UTF-8 byte offsets
@@ -227,6 +232,28 @@ function checkHeadings(lines: readonly SourceLine[], hasTitle: boolean): Finding
     }
 
     return findings;
+}
+
+/** Report a package README whose first prose line is not its package's description. */
+function checkDescription(lines: readonly SourceLine[], description: string): Finding[] {
+    // find the first prose line after the title
+    const title = lines.findIndex((line) => line.region === "prose" && line.text.startsWith("# "));
+    const index = lines.findIndex(
+        (line, at) => at > title && line.region === "prose" && line.text.trim() !== "",
+    );
+    const line = lines[index];
+
+    return line === undefined || line.text === description
+        ? []
+        : [
+              {
+                  code: "readme-description",
+                  message: `start the README with the package's description: '${description}'`,
+                  line: index,
+                  column: 0,
+                  offset: line.start,
+              },
+          ];
 }
 
 /** Report fenced code blocks without a language. */
