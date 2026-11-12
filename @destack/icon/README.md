@@ -1,28 +1,51 @@
 # @destack/icon
 
-`Icon` draws [Phosphor](https://phosphoricons.com) icons with `@phosphor-icons/react`'s `weight` and `size`, picked by `name`.
+Draw Phosphor icons by name, each one loaded only where it is used.
+
+## Overview
+
+`Icon` draws a Phosphor icon inline in the current text color, and the build imports only the icons a package uses.
+
+- **Icon**: one icon by `name`, with Phosphor's `weight` and a `size`; a `label` exposes it as an image, otherwise assistive technology skips it.
+- **Icon module**: one icon's bodies in every weight, at `@destack/icon/phosphor/<name>`.
+- **LazyIcon**: an icon chosen at run time, its module loaded on first draw.
+- **iconExtension**: the build extension passing each literal-named `Icon` its module, failing the build for a computed name without `icon`.
 
 ```tsx
-// Phosphor's <Trash weight="bold" size="1.5rem" />
-<Icon name="trash" weight="bold" size="1.5rem" />;
-<Icon name="trash" label="Delete" />; // hidden from assistive technology without a label
-<Icon icon={done() ? check : circle} />; // an icon module from @destack/icon/phosphor/<name>
+import { Icon } from "@destack/icon";
+import trash from "@destack/icon/phosphor/trash";
+
+const DeleteIcon = () => <Icon icon={trash} weight="bold" size="1.5rem" label="Delete" />;
 ```
 
-## Builds
+## Examples
 
-`iconExtension` imports the module of each `Icon` with a literal name, and fails the build for a computed name without `icon`.
+### Draw an icon by name
+
+A literal `name` is enough, as the build passes the named icon's module.
 
 ```tsx
-<Icon name={properties.name} /> // build error
+import { Icon } from "@destack/icon";
+
+const Trash = () => <Icon name="trash" weight="bold" />;
 ```
 
-## Lazy loading
+### Draw an icon chosen at run time
 
-`LazyIcon` draws an icon chosen at run time, loading its module on first draw.
+`LazyIcon` loads the named icon's module the first time it draws.
 
 ```tsx
+import type { IconName } from "@destack/icon";
 import { LazyIcon } from "@destack/icon/lazy";
 
-<LazyIcon name={file().icon} />;
+const FileIcon = (properties: { readonly name: IconName }) => <LazyIcon name={properties.name} />;
 ```
+
+## Comparison
+
+### Phosphor React
+
+Names, weights and sizes follow `@phosphor-icons/react`; two things differ.
+
+- One `Icon` component takes the icon by name, and the build imports only the icons a package uses.
+- An icon without a `label` is hidden from assistive technology, and one with a label is an image.
