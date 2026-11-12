@@ -1,112 +1,120 @@
 # @destack/forge
 
-`@destack/forge` hosts an account's Git repositories and publishes its packages as releases.
+Host the Git repositories of accounts and publish, resolve and distribute their Destack packages.
+
+## Overview
+
+The forge runs in each residency's home and serves the registry's repositories, packages, releases and tags for the accounts living there.
+
+- **Repository**: an account's Git repository, hosted by the forge, mirrored from GitHub or another Git remote, or reported by a machine; `open` leases a URL to fetch or push, and `refresh` reads its origin.
+- **Package**: a globally named package of an account; `resolve` finds it by name.
+- **Release**: one published version of a package with its build manifest; `create`, `resolve`, `deprecate` and `yank`.
+- **Tag**: a name such as `latest` pointing at a version.
+- **Unit**: the build of an npm package a release depends on.
+- **Issuer**: the forge's GitHub App, which issues tokens for the GitHub accounts it is installed on.
 
 ```ts
-// a platform repository, stored in the residency's home and owned by the account
-await client.repository.create({
-    spaceId: home,
-    accountId,
-    requestId,
-    name: "site",
-    hosting: "platform",
-});
-// { url, headers, expiresAt } for git push
-await client.repository.open({ spaceId: home, id, mode: "write" });
-// publish a pushed build, tagged next
-await client.release.create({
-    spaceId: home,
-    requestId,
-    parentId: packageId,
-    manifest,
-    tag: "next",
-});
-// point a tag at a version
-await client.tag.update({ spaceId: home, requestId, id: tagId, version: "2026.11.1" });
-// deprecate a release
-await client.release.deprecate({
-    spaceId: home,
-    requestId,
-    id: releaseId,
-    message: "use 2026.11.0",
-});
-// the package of a global name, then its release of a version or tag
-const found = await client.package.resolve({ spaceId: home, name: "@acme/tools" });
-await client.release.resolve({ spaceId: home, parentId: found.id, release: "latest" });
+import type registryPackage from "@destack/registry/package";
+import type { ClientOf } from "@destack/object/client";
+import type { Identifier } from "@destack/schema";
+
+async (
+    client: ClientOf<typeof registryPackage>,
+    spaceId: Identifier<"space">,
+    accountId: Identifier<"account">,
+    requestId: string,
+) => {
+    const site = await client.repository.create({
+        spaceId,
+        accountId,
+        requestId,
+        name: "site",
+        hosting: "platform",
+    });
+    const lease = await client.repository.open({ spaceId, id: site.id, mode: "write" });
+    const found = await client.package.resolve({ spaceId, name: "@acme/site" });
+    const parentId = found.id;
+    const release = await client.release.resolve({ spaceId, parentId, release: "latest" });
+};
 ```
 
-## Repositories
+## Examples
 
-`hosting` sets where a repository's references come from, `repository.refresh` reads them from its origin, and a Git remote's credential is written once into the forge's own vault and never read back.
-
-```ts
-const origins: RepositoryOrigin[] = [
-    { hosting: "platform" }, // the forge's GitStorage
-    { hosting: "github", remote, connectionId }, // a GitHub App token limited to the repository
-    { hosting: "git", remote, authentication: "anonymous" },
-    { hosting: "git", remote, authentication: "credential" }, // with `credential: { user, password }`, write-only
-    { hosting: "machine", machine }, // the machine's report calls
-];
-await client.repository.refresh({ spaceId: home, id: site.id, requestId: RequestId.create() });
-```
-
-## Checkouts
-
-`GitLease.checkout` fetches one commit through a read lease into a new working tree.
-
-```ts
-import { GitLease } from "@destack/forge/local";
-
-const lease = await client.repository.open({ spaceId: home, id: site.id, mode: "read" });
-await GitLease.checkout(lease, commit, directory, signal);
-```
-
-## Storage
-
-`defineGitStorage` declares a `git` resource, which `LocalGitStorage` stores in a directory and `ArtifactsStorage` in Cloudflare Artifacts.
-
-```ts
-export const repositoryStorage = defineGitStorage({ name: "repositories", spec: {} });
-const local = new LocalGitStorage("/var/lib/destack/repositories");
-const artifacts = new ArtifactsStorage(env.ARTIFACTS, resource.reference, fetch);
-const remote = await artifacts.create(repository.id);
-```
-
-## Installation
+### Install the forge
 
 The forge installs in each residency's home with its bucket, Git storage, credential vault and GitHub App secrets.
 
-```ts
-install(
-    forgePackage,
-    {
-        packages: "packages",
-        repositories: "repositories",
-        credentials: "credentials",
-        "github-webhook": "github-webhook",
-        "github-private-key": "github-private-key",
-    },
-    { alias: FORGE_INSTALLATION },
-);
+```sh
+destack install @destack/forge
 ```
 
-## Server
+### Mirror a GitHub repository
 
-The forge's server reads its bound bucket, Git storage, credential vault and GitHub App from its installation's context.
-
-```ts
-export default implementPackage(forgePackage, (context) => Forge.of(context).definition());
-```
-
-## Registry
-
-`Registry.of` reads a package's published releases from the forge in its account's residency home, found through the directory's replica.
+A repository hosted on GitHub reads its references through a GitHub App token limited to that repository.
 
 ```ts
-import { Registry } from "@destack/forge/client";
+import type registryPackage from "@destack/registry/package";
+import type { ClientOf } from "@destack/object/client";
+import type { Identifier } from "@destack/schema";
 
-const home = (account) => accounts.residency.locate({ account });
-const registry = Registry.of(directory, home, fetch, clock);
-const reader = await registry.open(packageId, LATEST_TAG);
-const pinned = await registry.read(packageId, manifest);
+async (
+    client: ClientOf<typeof registryPackage>,
+    spaceId: Identifier<"space">,
+    accountId: Identifier<"account">,
+    connectionId: Identifier<"connection">,
+    requestId: string,
+) => {
+    const remote = "https://github.com/acme/site.git";
+    const site = await client.repository.create({
+        spaceId,
+        accountId,
+        requestId,
+        name: "site",
+        hosting: "github",
+        remote,
+        connectionId,
+    });
+    await client.repository.refresh({ spaceId, id: site.id, requestId });
+};
 ```
+
+### Deprecate a release
+
+A deprecated release still resolves, with a message telling callers what to use instead.
+
+```ts
+import type registryPackage from "@destack/registry/package";
+import type { ClientOf } from "@destack/object/client";
+import type { Identifier } from "@destack/schema";
+
+async (
+    client: ClientOf<typeof registryPackage>,
+    spaceId: Identifier<"space">,
+    id: Identifier<"release">,
+    requestId: string,
+) => {
+    await client.release.deprecate({ spaceId, id, requestId, message: "use 2026.11.0" });
+};
+```
+
+### Test against a forge
+
+`TestForge` runs the forge in a residency's home over a test database, with a GitHub stand-in.
+
+```ts
+import { TestForge } from "@destack/forge/test";
+
+const forge = await TestForge.open();
+const owner = await forge.signOwnerIn();
+const packages = await forge.client(owner).package.list({ spaceId: forge.home.id });
+```
+
+## Comparison
+
+### GitHub
+
+Repositories, releases and tags follow GitHub's, and builds are served as an OCI registry serves images; three things differ.
+
+- A package name is global, and a release is a build by content, so every machine checks what it runs against its manifest.
+- A repository can mirror GitHub or any Git remote, keeping the remote's credential write-only in the forge's vault.
+- The forge lives in a residency's home, so an account's repositories and releases stay in its residency.
