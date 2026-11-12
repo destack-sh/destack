@@ -2,20 +2,16 @@ import { TEST_START } from "@destack/test/world";
 import type { Crypto } from "@destack/environment";
 import { join } from "node:path";
 import { Simulation } from "@destack/environment/simulation";
-import {
-    type DependencyRelease,
-    PackageVersion,
-    PackageId,
-    type PackageRole,
-} from "@destack/package";
-import { BuildReader, BuildWriter, PackageManifest } from "@destack/package/manifest";
+import { PackageVersion, type PackageRole } from "@destack/package";
+import { BuildReader, BuildWriter, Lock, PackageManifest } from "@destack/package/manifest";
 import { Digest, found, present } from "@destack/schema";
 import { expect, refusal, test } from "@destack/test";
 import { testHost } from "@destack/test/host";
 import { testSimulation } from "../test/world.ts";
 import { LocalBuildStore } from "./local.ts";
-import { BuildStore } from "./store.ts";
-import { BuildLayer } from "./layer.ts";
+import { BuildObject, BuildStore } from "./store.ts";
+import { BuildLayer, LAYER_FORMAT } from "./layer.ts";
+import { hoisted } from "../dependency/test/store.ts";
 import { DependencyTree, STAGING_DIRECTORY } from "../dependency/tree.ts";
 
 /** A day, in milliseconds. */
@@ -30,15 +26,15 @@ const ANSWER = { id: "package-00000000-0000-7000-8000-00000000a001", name: "@exa
 /** The bytes a test stores as a blob. */
 const MARKER = new TextEncoder().encode("stored");
 
-/** Write a build of one module in memory, as a builder writes one, of a package with its pins. */
+/** Write a build of one module in memory, as a builder writes one, with its requirements. */
 async function written(
     text: string,
     crypto: Crypto,
     built: { readonly id: string; readonly name: string; readonly role?: PackageRole } = ANSWER,
-    dependencies: Readonly<Record<string, DependencyRelease>> = {},
+    requires: Readonly<Record<string, string>> = {},
     extra: Readonly<Record<string, string>> = {},
 ): Promise<BuildReader> {
-    // write the module importing every dependency, the extra files and its package file, then the format listing them
+    // write the module importing every requirement
     const bytes = new Map<string, Uint8Array<ArrayBuffer>>();
     const writer = new BuildWriter(
         {
@@ -54,7 +50,9 @@ async function written(
     }
     await writer.write(
         "package.json",
-        new TextEncoder().encode(JSON.stringify({ name: built.name, exports: {} })),
+        new TextEncoder().encode(
+            JSON.stringify({ name: built.name, exports: {}, dependencies: requires }),
+        ),
     );
     const { role = "app", ...named } = built;
     const manifest = await writer.finish({
@@ -68,11 +66,11 @@ async function written(
                 workloads: {},
                 views: {},
                 directory: "src",
-                exports: { ".": { path: "src/answer.ts", imports: Object.keys(dependencies) } },
-                dependencies,
+                exports: { ".": { path: "src/answer.ts", imports: Object.keys(requires) } },
                 peers: {},
             },
         },
+        requires,
     });
 
     return new BuildReader(
@@ -80,6 +78,20 @@ async function written(
         async (path) => new Blob([found(bytes, path)]).stream(),
         crypto,
     );
+}
+
+/** Store the lock of a build running alone, returning its digest. */
+async function lockAlone(store: BuildStore, root: Digest): Promise<Digest> {
+    return await store.putLock(Lock.of(root));
+}
+
+/** Read a build's entry of a lock as a tree places it. */
+function entryOf(reader: BuildReader, manifest: Digest) {
+    return {
+        kind: "destack" as const,
+        package: PackageManifest.package(reader.manifest),
+        manifest,
+    };
 }
 
 test("keep one store in a directory, which a later open of any toolchain reads", async () => {
@@ -91,7 +103,7 @@ test("keep one store in a directory, which a later open of any toolchain reads",
     const marker = await Digest.of(MARKER, environment.crypto);
     {
         await using store = await LocalBuildStore.open(directory, environment);
-        await store.receive([{ digest: marker, bytes: MARKER }]);
+        await store.write(BuildObject.files([{ digest: marker, bytes: MARKER }]));
     }
     await using reopened = await LocalBuildStore.open(directory, environment);
 
@@ -102,7 +114,7 @@ test("keep one store in a directory, which a later open of any toolchain reads",
             .map((entry) => entry.name)
             .filter((name) => !name.startsWith("store.db-"))
             .toSorted(),
-        isStored: await reopened.has(marker),
+        isStored: (await reopened.has([marker]))[0],
     }).toEqual({
         entries: ["collected", "files", "open.lock", "store.db", "store.lock", "trees"],
         isStored: true,
@@ -117,16 +129,15 @@ test("place a stored file by its blob and a layered one from where its layer kee
     const directory = await files.makeTemporaryDirectory("test-stores-");
     await using store = await LocalBuildStore.open(join(directory, "store"), environment);
     const marker = await Digest.of(MARKER, crypto);
-    await store.receive([{ digest: marker, bytes: MARKER }]);
+    await store.write(BuildObject.files([{ digest: marker, bytes: MARKER }]));
     const build = await written("export const answer = 42;", crypto);
-    {
-        await using distributor = await LocalBuildStore.temporary(environment);
-        await distributor.writeLayer(
-            [await distributor.put(build)],
-            ["bun"],
-            join(directory, "distribution"),
-        );
-    }
+    await using distributor = await LocalBuildStore.temporary(environment);
+    await distributor.writeLayer(
+        [await lockAlone(distributor, await distributor.put(build))],
+        ["bun"],
+        join(directory, "distribution"),
+        "linked",
+    );
     const layer = await BuildLayer.open(join(directory, "distribution"), environment);
     await using layered = await LocalBuildStore.of({
         blobs: store.blobs,
@@ -159,70 +170,7 @@ test("place a stored file by its blob and a layered one from where its layer kee
     ]).toEqual(["stored", "export const answer = 42;"]);
 });
 
-test("lay out a distribution's release trees once, cloning a root and the trees it links, which outlive the layer", async () => {
-    // write a layer of a stored release to a directory, as a distribution does
-    await using simulation = testSimulation();
-    const environment = simulation.environment("test");
-    const { files, crypto } = environment;
-    const directory = await files.makeTemporaryDirectory("test-stores-");
-    await using store = await LocalBuildStore.open(join(directory, "store"), environment);
-    const build = await written("export const answer = 42;", crypto);
-    const release = await store.put(build);
-    const distribution = join(directory, "distribution");
-    await store.writeLayer([release], ["bun"], distribution);
-
-    // ship an npm tree beside it, which its root reaches through a relative link alone
-    const npm = join(distribution, "trees", "npm-left-pad", "node_modules", "left-pad");
-    await files.mkdir(npm, { recursive: true });
-    await files.writeTextFile(join(npm, "index.js"), "export const pad = 1;");
-    await files.symlink(
-        "../../../npm-left-pad/node_modules/left-pad",
-        join(distribution, "trees", release, "node_modules", "@example", "left-pad"),
-    );
-
-    // materialize the release over the opened layer
-    const layer = await BuildLayer.open(distribution, environment);
-    await using layered = await LocalBuildStore.of({
-        blobs: store.blobs,
-        directory: join(directory, "layered"),
-        environment,
-        layer,
-    });
-    const materialize = () =>
-        DependencyTree.materialize(
-            layered,
-            [
-                {
-                    kind: "destack",
-                    package: PackageManifest.package(build.manifest),
-                    manifest: release,
-                },
-            ],
-            join(directory, "tree"),
-        );
-    const tree = await materialize();
-    const root = join(directory, "tree", release);
-    const module = join(present(tree.directories["@example/answer"], "answer"), "src/answer.ts");
-
-    // clone the root and the npm tree, and read both modules once the layer is removed, materializing again from the clones
-    const shipped = layer.tree(release);
-    const { kind } = await files.lstat(root);
-    await files.remove(distribution, { recursive: true });
-    await materialize();
-    expect({
-        shipped,
-        kind,
-        module: await files.readTextFile(module),
-        linked: await files.readTextFile(join(root, "node_modules/@example/left-pad/index.js")),
-    }).toEqual({
-        shipped: join(distribution, "trees", release),
-        kind: "directory",
-        module: "export const answer = 42;",
-        linked: "export const pad = 1;",
-    });
-});
-
-test("ship a build in a layer without its output's maps, reading a map through the store's blobs", async () => {
+test("ship a build in a layer with its output's maps, reading a map from the layer", async () => {
     // store a release whose output has a map, and write a layer of it
     await using simulation = testSimulation();
     const environment = simulation.environment("test");
@@ -241,7 +189,7 @@ test("ship a build in a layer without its output's maps, reading a map through t
     );
     const release = await store.put(build);
     const distribution = join(directory, "distribution");
-    await store.writeLayer([release], ["bun"], distribution);
+    await store.writeLayer([await lockAlone(store, release)], ["bun"], distribution, "linked");
     await using layered = await LocalBuildStore.of({
         blobs: store.blobs,
         directory: join(directory, "layered"),
@@ -249,13 +197,13 @@ test("ship a build in a layer without its output's maps, reading a map through t
         layer: await BuildLayer.open(distribution, environment),
     });
 
-    // ship the module without the map, and read the map from the blobs
+    // ship the module with its map, and read the map from the layer
     const read = await layered.contents(release);
     expect({
         module: await files.exists(join(distribution, release, "src/answer.ts")),
         map: await files.exists(join(distribution, release, "src/answer.ts.map")),
         read: new TextDecoder().decode(await read.load("src/answer.ts.map")),
-    }).toEqual({ module: true, map: false, read: map });
+    }).toEqual({ module: true, map: true, read: map });
 });
 
 test("read an addressed layer's builds in assets by digest, without other runtimes' outputs", async () => {
@@ -266,8 +214,9 @@ test("read an addressed layer's builds in assets by digest, without other runtim
     const directory = await files.makeTemporaryDirectory("test-stores-");
     await using store = await LocalBuildStore.open(join(directory, "store"), environment);
     const release = await store.put(await written("export const answer = 42;", crypto));
+    const lock = await lockAlone(store, release);
     const distribution = join(directory, "distribution");
-    await store.writeLayer([release], ["workerd"], distribution, "addressed");
+    await store.writeLayer([lock], ["workerd"], distribution, "addressed");
 
     // open it through assets answering the layer's files by path, as a Worker's binding does
     const fetch = async (input: string) => {
@@ -291,19 +240,19 @@ test("read an addressed layer's builds in assets by digest, without other runtim
             .map((entry) => entry.name)
             .toSorted(),
     }).toEqual({
-        releases: [release],
+        releases: [lock],
         read: release,
         blobs: [...new Set([release, ...shipped.map((file) => file.digest)])].toSorted(),
     });
 });
 
-test("link a running tree's build to the dependencies its closure places alone, never reading a build outside it", async () => {
-    // store an app pinning a library it runs with, and a tool it only builds with that the store never pulled
+test("link a running tree's build to its closure's builds alone, never reading one outside it", async () => {
+    // store an app requiring a library it runs with
     await using simulation = testSimulation();
     const environment = simulation.environment("test");
     const { files, crypto } = environment;
     await using store = await LocalBuildStore.temporary(environment);
-    const pin = async (name: string, id: string, isStored: boolean) => {
+    const release = async (name: string, id: string, isStored: boolean) => {
         const reader = await written(`export const ${name} = 1;`, crypto, {
             id,
             name: `@example/${name}`,
@@ -317,22 +266,25 @@ test("link a running tree's build to the dependencies its closure places alone, 
                 : await BuildStore.digest(reader.manifest, crypto),
         };
     };
-    const library = await pin("library", "package-00000000-0000-7000-8000-00000000a002", true);
-    const tool = await pin("tool", "package-00000000-0000-7000-8000-00000000a003", false);
+    const library = await release("library", "package-00000000-0000-7000-8000-00000000a002", true);
+    const tool = await release("tool", "package-00000000-0000-7000-8000-00000000a003", false);
     const app = await written("export const app = 1;", crypto, ANSWER, {
-        "@example/library": library,
-        "@example/tool": tool,
+        "@example/library": "^2026.9.0",
+        "@example/tool": "^2026.9.0",
     });
-    const built = {
-        kind: "destack" as const,
-        package: PackageManifest.package(app.manifest),
-        manifest: await store.put(app),
-    };
+    const built = entryOf(app, await store.put(app));
 
     // materialize it running on Bun over a closure leaving the tool out
     const closure = new Set([built.manifest, library.manifest]);
-    const tree = await DependencyTree.materialize(store, [built], store.trees, {
-        run: { runtime: "bun", closure },
+    const entries = {
+        "@example/answer": built,
+        "@example/library": library,
+        "@example/tool": tool,
+    };
+    const tree = await DependencyTree.materialize(store, ...hoisted(entries), store.trees, {
+        kind: "run",
+        runtime: "bun",
+        closure,
     });
     const modules = join(present(tree.directories["@example/answer"], "the app"), "..");
 
@@ -342,12 +294,15 @@ test("link a running tree's build to the dependencies its closure places alone, 
         roots: (await tree.roots(files)).map((root) => root.slice(root.lastIndexOf("/") + 1)),
     }).toEqual({
         linked: ["answer", "library"],
-        roots: [`${built.manifest}.bun`, `${library.manifest}.bun`].toSorted(),
+        roots: [
+            `${built.manifest}+${await Digest.json([`${built.manifest} @example/library ${library.manifest}`], crypto)}.bun`,
+            `${library.manifest}.bun`,
+        ].toSorted(),
     });
 });
 
 test("move a build's tree into place after the trees it links", async () => {
-    // record each tree the store moves into its trees, over a store pinning an app to a library
+    // record each tree the store moves into its trees
     await using simulation = testSimulation();
     const base = simulation.environment("test");
     const moved: string[] = [];
@@ -377,29 +332,24 @@ test("move a build's tree into place after the trees it links", async () => {
         id: "package-00000000-0000-7000-8000-00000000a002",
         name: "@example/library",
     });
-    const pinned = {
-        kind: "destack" as const,
-        package: PackageManifest.package(library.manifest),
-        manifest: await store.put(library),
-    };
+    const required = entryOf(library, await store.put(library));
     const app = await written("export const app = 1;", crypto, ANSWER, {
-        "@example/library": pinned,
+        "@example/library": "^2026.9.0",
     });
-    const built = {
-        kind: "destack" as const,
-        package: PackageManifest.package(app.manifest),
-        manifest: await store.put(app),
-    };
+    const built = entryOf(app, await store.put(app));
 
     // materialize the app running on Bun
-    await DependencyTree.materialize(store, [built], store.trees, {
-        run: { runtime: "bun", closure: new Set([built.manifest, pinned.manifest]) },
+    const entries = { "@example/answer": built, "@example/library": required };
+    await DependencyTree.materialize(store, ...hoisted(entries), store.trees, {
+        kind: "run",
+        runtime: "bun",
+        closure: new Set([built.manifest, required.manifest]),
     });
 
     // move the library's tree in before the app's, which links it
     expect(moved.filter((name) => name.endsWith(".bun"))).toEqual([
-        `${pinned.manifest}.bun`,
-        `${built.manifest}.bun`,
+        `${required.manifest}.bun`,
+        `${built.manifest}+${await Digest.json([`${built.manifest} @example/library ${required.manifest}`], crypto)}.bun`,
     ]);
 });
 
@@ -414,28 +364,20 @@ test("leave the builtins out of a run tree, as the runtime links them", async ()
         name: "@example/library",
         role: "library",
     });
-    const library = {
-        kind: "destack" as const,
-        package: PackageManifest.package(reader.manifest),
-        manifest: await store.put(reader),
-    };
-    const builtin = {
-        kind: "builtin" as const,
-        package: {
-            id: PackageId.parse("package-00000000-0000-7000-8000-00000000a004"),
-            name: "@example/object",
-            version: "2026.11.0",
-        },
-    };
+    const library = await store.put(reader);
     const app = await written("export const app = 1;", crypto, ANSWER, {
-        "@example/library": library,
-        "@example/object": builtin,
+        "@example/library": "^2026.9.0",
+        "@example/object": "^2026.11.0",
     });
-    const digest = await store.put(app);
+    const root = await store.put(app);
 
-    // place the library alone among the app's dependencies
-    const tree = await store.runTree(app, digest, "bun");
-    expect(Object.keys(tree.directories)).toEqual(["@example/library"]);
+    // place the app and the library alone
+    const lock = Lock.of(root, { [root]: { "@example/library": library }, [library]: {} });
+    const tree = await store.runTree(lock, "bun");
+    expect(Object.keys(tree.directories).toSorted()).toEqual([
+        "@example/answer",
+        "@example/library",
+    ]);
 });
 
 test("share the store between opens, each reading what the other writes", async () => {
@@ -453,12 +395,12 @@ test("share the store between opens, each reading what the other writes", async 
         first: await Digest.of(bytes.first, environment.crypto),
         second: await Digest.of(bytes.second, environment.crypto),
     };
-    await first.receive([{ digest: digests.first, bytes: bytes.first }]);
-    await second.receive([{ digest: digests.second, bytes: bytes.second }]);
-    expect([await second.has(digests.first), await first.has(digests.second)]).toEqual([
-        true,
-        true,
-    ]);
+    await first.write(BuildObject.files([{ digest: digests.first, bytes: bytes.first }]));
+    await second.write(BuildObject.files([{ digest: digests.second, bytes: bytes.second }]));
+    expect([
+        (await second.has([digests.first]))[0],
+        (await first.has([digests.second]))[0],
+    ]).toEqual([true, true]);
 });
 
 test("retain a build's files while another process opens the store twice before its manifest", async () => {
@@ -471,7 +413,9 @@ test("retain a build's files while another process opens the store twice before 
     const build = await written("export const answer = 42;\n", environment.crypto);
     const distributed = await build.distributed();
     for (const file of distributed) {
-        await building.receive([{ digest: file.digest, bytes: await build.load(file.path) }]);
+        await building.write(
+            BuildObject.files([{ digest: file.digest, bytes: await build.load(file.path) }]),
+        );
     }
 
     // open the store twice elsewhere, which would collect unleased files of an idle store
@@ -481,7 +425,7 @@ test("retain a build's files while another process opens the store twice before 
     }
 
     // retain every file the build put before its manifest
-    const stored = await Promise.all(distributed.map((file) => building.has(file.digest)));
+    const stored = await building.has(distributed.map((file) => file.digest));
     expect(stored).toEqual(distributed.map(() => true));
 });
 
@@ -565,7 +509,10 @@ test("collect an unrooted build's layered copy and the linked layers shipping it
         const put = async (source: string) => {
             const build = await store.put(await written(source, environment.crypto));
 
-            return { build, layer: await store.writeLinkedLayer([build], []) };
+            return {
+                build,
+                layer: await store.writeLinkedLayer([await lockAlone(store, build)], []),
+            };
         };
         rooted = await put("export const answer = 42;\n");
         dropped = await put("export const answer = 43;\n");
@@ -575,7 +522,8 @@ test("collect an unrooted build's layered copy and the linked layers shipping it
     // read which builds and layers the store keeps on an idle open
     const contents = async () => {
         await using store = await LocalBuildStore.open(directory, environment);
-        const layered = (build: Digest) => files.exists(join(directory, "layered", build));
+        const layered = (build: Digest) =>
+            files.exists(join(directory, "layered", String(LAYER_FORMAT), build));
 
         return {
             rooted: [await layered(rooted.build), await files.exists(rooted.layer)],

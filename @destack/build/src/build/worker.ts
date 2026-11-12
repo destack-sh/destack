@@ -5,11 +5,10 @@ import { DependencyTree } from "../dependency/tree.ts";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
-    type DependencyResolution,
     graph,
     type PackageVersion,
     type DeclarationDescription,
-    type PackageJson,
+    PackageJson,
 } from "@destack/package";
 import { found, present, schema } from "@destack/schema";
 import type { BuildExtension, TransformCache } from "@destack/package/build";
@@ -30,7 +29,6 @@ import { BuildError, extensionFailureOf } from "../error/index.ts";
 import { outputsOf, type PackageBuildOptions, type ModuleOptions } from "./build.ts";
 import { BuildDirectory } from "./directory.ts";
 import { readCatalogs } from "./catalog.ts";
-import { comparePath } from "./serialization.ts";
 import { describeCode, describeGraph } from "../graph/module.ts";
 import { HostCache } from "./host-cache.ts";
 import {
@@ -296,13 +294,13 @@ export class CompilerWorker implements AsyncDisposable {
         }
     }
 
-    /** Compile a package into a directory, answering its outputs' npm imports. */
+    /** Compile a package into a directory. */
     async build(
         options: RequestedBuild,
         declarations: readonly EvaluatedDeclaration[],
         destination: string,
         cache: TransformCache,
-    ): Promise<Record<string, string[]>> {
+    ): Promise<void> {
         // retain the manifests, template and catalogs, then compile every output, a prerender output among them when pages render
         const opened = await this.#open(options, declarations);
         const files = new BuildDirectory(destination, this.environment);
@@ -328,8 +326,9 @@ export class CompilerWorker implements AsyncDisposable {
             });
         }
 
-        // write the manifest: the outputs, the sources and releases they bundle, and the declarations
+        // write the manifest
         const source = opened.primary.packageJson.package;
+        const requires = PackageJson.ranges(opened.packageJson);
         const graph = new DeclarationGraph(
             source,
             declarations.map((declaration) => declaration.description),
@@ -338,19 +337,14 @@ export class CompilerWorker implements AsyncDisposable {
             destack: DESTACK_VERSION,
             package: source,
             role: opened.packageJson.definition.role,
-            ...(options.commit === undefined ? {} : { commit: options.commit }),
             outputs: Object.fromEntries(
                 [...compiled.outputs].map(([name, { output }]) => [name, output]),
             ),
-            dependencies: compiled.resolved,
+            requires,
             sourceMaps: compiled.sourceMaps,
             declarations: graph.list(),
             isExtension: opened.packageJson.definition.build !== undefined,
         });
-
-        return Object.fromEntries(
-            [...compiled.outputs].map(([name, { npm }]) => [name, [...npm].toSorted()]),
-        );
     }
 
     /** Plan a package's outputs with its closure's extensions, and open each output's project. */
@@ -487,7 +481,6 @@ export class CompilerWorker implements AsyncDisposable {
     ): Promise<{
         outputs: Map<string, Pick<OutputBuild, "output" | "inspection" | "npm">>;
         sourceMaps: SourceMapReference[];
-        resolved: Record<string, DependencyResolution>;
     }> {
         // compile every output at once
         const context = { options, projects, declarations, extensions, files, cache, transformer };
@@ -499,24 +492,11 @@ export class CompilerWorker implements AsyncDisposable {
             }),
         );
 
-        // collect each output's description, the dependencies they resolve and every source map
-        const outputs = new Map<string, Pick<OutputBuild, "output" | "inspection" | "npm">>();
-        const resolved: Record<string, DependencyResolution> = {};
-        for (const [name, described] of compiled) {
-            outputs.set(name, described);
-            for (const [key, dependency] of Object.entries(described.inspection.packages)) {
-                resolved[key] = joinResolutions(key, resolved[key], dependency);
-            }
-        }
-
-        // record the closure's releases the build resolved against, which external imports pin
-        for (const dependency of Object.values(options.dependencies)) {
-            const key = `${dependency.package.name}@${dependency.package.version}`;
-            resolved[key] = joinResolutions(key, resolved[key], dependency);
-        }
+        // collect each output's description and every source map
+        const outputs = new Map(compiled);
         const sourceMaps = compiled.flatMap(([, entry]) => entry.sourceMaps);
 
-        return { outputs, sourceMaps, resolved };
+        return { outputs, sourceMaps };
     }
 
     /** Compile a module output with the extensions' plugins and write its files. */
@@ -614,22 +594,12 @@ export class CompilerWorker implements AsyncDisposable {
         cache: TransformCache,
     ): Promise<BuildResponse> {
         try {
-            // build the package
+            // evaluate the package's declarations, then build it on them
             if (request.kind === "build") {
-                const npm = await compiler.build(
-                    request.options,
-                    request.declarations,
-                    request.destination,
-                    cache,
-                );
-
-                return { kind: "result", result: { kind: "build", npm } };
-            }
-            // evaluate a package's declarations
-            else if (request.kind === "evaluate") {
                 const declarations = await compiler.evaluate(request.options);
+                await compiler.build(request.options, declarations, request.destination, cache);
 
-                return { kind: "result", result: { kind: "evaluate", declarations } };
+                return { kind: "result", result: { kind: "build" } };
             }
             // check a package's outputs
             else if (request.kind === "check") {
@@ -778,46 +748,6 @@ async function writeFiles(
     for (const path of paths) {
         await files.record(path);
     }
-}
-
-/** Join two outputs' resolutions of a dependency, uniting the source package files they read. */
-function joinResolutions(
-    key: string,
-    previous: DependencyResolution | undefined,
-    next: DependencyResolution,
-): DependencyResolution {
-    // take the first resolution and accept an equal one
-    if (previous === undefined || JSON.stringify(previous) === JSON.stringify(next)) {
-        return next;
-    }
-
-    // refuse different releases or packages
-    if (
-        previous.kind !== "source" ||
-        next.kind !== "source" ||
-        JSON.stringify(previous.package) !== JSON.stringify(next.package)
-    ) {
-        throw BuildError.of(
-            "DEPENDENCY_INVALID",
-            `dependency resolution '${key}' is invalid: it conflicts across outputs`,
-        );
-    }
-
-    // unite the files by path, refusing one path read with different bytes
-    const files = new Map(previous.files.map((file) => [file.path, file]));
-    for (const file of next.files) {
-        const known = files.get(file.path);
-        if (known !== undefined && known.digest !== file.digest) {
-            throw BuildError.of(
-                "DEPENDENCY_INVALID",
-                `dependency file '${key}/${file.path}' is invalid: it conflicts across outputs`,
-            );
-        }
-        files.set(file.path, file);
-    }
-    const ordered = [...files.values()].toSorted(comparePath);
-
-    return { ...next, files: ordered };
 }
 
 /** Read the identity of a Destack package among the build tool's dependencies. */

@@ -7,17 +7,10 @@ import { fileURLToPath } from "node:url";
 import { PackageBuild, Compiler } from "../index.ts";
 import type { PackageManifest } from "@destack/package/manifest";
 import { request } from "../../tests/fixture/library/request.ts";
-import {
-    countObjects,
-    expectFiles,
-    importBuilt,
-    isNoteModule,
-    type NoteModule,
-} from "../../tests/fixture.ts";
+import { expectFiles, importBuilt, isNoteModule, type NoteModule } from "../../tests/fixture.ts";
 import { present } from "@destack/schema";
 import { LocalBuildStore } from "../store/local.ts";
 import { BuildStore } from "../store/store.ts";
-import { copy, writeStore } from "../dependency/test/store.ts";
 import { Toolchain } from "@destack/check/toolchain";
 
 /** How long a cancelled build runs before it aborts: well inside the library's build. */
@@ -72,6 +65,7 @@ test("rebuild edited source, reject incompatible APIs, restore distributed outpu
         const workerdRequest = {
             directory: source,
             dependencies: {},
+            links: {},
             outputs: { library: { ...request.outputs.library, runtime: "workerd" } },
         } as const;
         await files.writeTextFile(
@@ -101,6 +95,7 @@ test("rebuild edited source, reject incompatible APIs, restore distributed outpu
                 builder.check({
                     directory: source,
                     dependencies: {},
+                    links: {},
                     outputs: { library: { ...request.outputs.library, runtime: "workerd" } },
                 }),
             ),
@@ -116,6 +111,7 @@ test("rebuild edited source, reject incompatible APIs, restore distributed outpu
         const workerd = await builder.check({
             directory: source,
             dependencies: {},
+            links: {},
             outputs: { library: { ...request.outputs.library, runtime: "workerd" } },
         });
         expect(new TextDecoder().decode(await workerd.load("src/note.ts"))).toBe(prototypeSource);
@@ -145,6 +141,7 @@ test("rebuild edited source, reject incompatible APIs, restore distributed outpu
         const browser = await builder.check({
             directory: source,
             dependencies: {},
+            links: {},
             outputs: {
                 library: {
                     ...request.outputs.library,
@@ -234,7 +231,9 @@ test("reject invalid outputs and recover the retained compiler", async () => {
     });
     const first = await builder.build(library);
     expect(
-        await refusal(builder.build({ directory: source, dependencies: {}, outputs: {} })),
+        await refusal(
+            builder.build({ directory: source, dependencies: {}, links: {}, outputs: {} }),
+        ),
     ).toEqual([
         "BAD_REQUEST",
         "OUTPUT_INVALID",
@@ -245,6 +244,7 @@ test("reject invalid outputs and recover the retained compiler", async () => {
             builder.build({
                 directory: source,
                 dependencies: {},
+                links: {},
                 outputs: { Library: { kind: "module", runtime: "bun" } },
             }),
         ),
@@ -402,6 +402,7 @@ test("compile a package with the build extension it declares", async () => {
         const built = await builder.build({
             directory: directory,
             dependencies: {},
+            links: {},
             outputs,
         });
         await built.writeDirectory(join(directory, "build"), files);
@@ -487,7 +488,7 @@ test("bundle a dependency's file imported with a query through the extension tha
             toolchain: async () => Toolchain.workspace(),
         });
         const outputs = { library: { kind: "module", runtime: "bun" } } as const;
-        const built = await builder.build({ directory, dependencies: {}, outputs });
+        const built = await builder.build({ directory, dependencies: {}, links: {}, outputs });
         await built.writeDirectory(join(directory, "build"), files);
         const module = await importBuilt(
             join(directory, "build"),
@@ -497,77 +498,6 @@ test("bundle a dependency's file imported with a query through the extension tha
     } finally {
         await files.remove(directory, { recursive: true });
     }
-});
-
-test("refuse an output importing an npm unit with a native addon", async () => {
-    // install a native addon
-    await using simulation = testSimulation();
-    const environment = simulation.environment("test");
-    const { files } = environment;
-    const { root, locked } = await writeStore(
-        {
-            native: {
-                manifest: { main: "index.js" },
-                files: { "index.js": "module.exports = 1;\n", "addon.node": "" },
-            },
-        },
-        files,
-    );
-    await using store = await LocalBuildStore.temporary(environment);
-    const release = present(locked["native@1.0.0"], "the native release");
-
-    // write a workerd package importing it, locked in its lockfile
-    const directory = await files.realPath(
-        await files.makeTemporaryDirectory("destack-build-addon-"),
-    );
-    const contents: Record<string, string> = {
-        "bun.lock": JSON.stringify({
-            lockfileVersion: 2,
-            workspaces: {},
-            packages: { native: ["native@1.0.0", "", {}, release.integrity] },
-        }),
-        "destack.json": JSON.stringify({
-            $schema: "https://destack.app/schemas/2026.9.0/destack.json",
-            id: "package-01996ab0-0000-7000-8000-00000000000f",
-            role: "library",
-            language: "typescript",
-            runtimes: ["workerd"],
-        }),
-        "package.json": JSON.stringify({
-            name: "@example/addon",
-            version: "2026.9.0",
-            type: "module",
-            dependencies: { native: "1.0.0" },
-            exports: { ".": "./src/index.ts" },
-        }),
-        "src/native.d.ts":
-            'declare module "native" {\n    const value: number;\n    export default value;\n}\n',
-        "src/index.ts":
-            'import value from "native";\n\n/** The addon\'s value, doubled. */\nexport const doubled: number = value * 2;\n',
-    };
-    for (const [path, text] of Object.entries(contents)) {
-        await files.mkdir(join(directory, path, ".."), { recursive: true });
-        await files.writeTextFile(join(directory, path), text);
-    }
-    await files.copy(copy(root, "native"), join(directory, "node_modules", "native"));
-
-    // refuse its build before the store stores it
-    const stored = await countObjects(store);
-    await using builder = await Compiler.start(directory, {
-        store,
-        toolchain: async () => Toolchain.workspace(),
-    });
-    const built = builder.build({
-        directory,
-        dependencies: {},
-        outputs: { server: { kind: "module", runtime: "workerd" } },
-    });
-    expect(await refusal(built)).toEqual([
-        "BAD_REQUEST",
-        "RUNTIME_MODULE_INVALID",
-        "package 'native' is invalid: it is a native addon, which no package may depend on",
-    ]);
-    expect(await countObjects(store)).toBe(stored);
 });
 
 test("check every output's entries with the package's ambient declarations", async () => {
@@ -616,6 +546,7 @@ test("check every output's entries with the package's ambient declarations", asy
     const built = await builder.build({
         directory,
         dependencies: {},
+        links: {},
         outputs: {
             server: { kind: "module", runtime: "bun" },
             browser: { kind: "module", runtime: "browser" },
@@ -670,6 +601,7 @@ test("compile each command the package installs into its Bun output, keeping its
     const built = await builder.build({
         directory,
         dependencies: {},
+        links: {},
         outputs: { bun: { kind: "module", runtime: "bun" } },
     });
     const bins = built.manifest.outputs["bun"]?.bins;
@@ -724,6 +656,7 @@ test("keep the declaration file a package exports for another runtime in a Bun b
     const built = await builder.build({
         directory,
         dependencies: {},
+        links: {},
         outputs: { bun: { kind: "module", runtime: "bun" } },
     });
     await built.writeDirectory(join(directory, "build"), files);
@@ -761,6 +694,7 @@ test("bundle a module a page starts as a worker, and refuse one it references as
     const browser = {
         directory: source,
         dependencies: {},
+        links: {},
         outputs: { library: { ...request.outputs.library, runtime: "browser" } },
     } as const;
 

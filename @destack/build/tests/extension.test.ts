@@ -213,7 +213,7 @@ test("apply the extensions of a package's runtime dependency closure, its depend
         store,
         toolchain: async () => Toolchain.workspace(),
     });
-    const transformed = await compiler.build({ directory, dependencies: {}, outputs });
+    const transformed = await compiler.build({ directory, dependencies: {}, links: {}, outputs });
     expect([
         loaded.map((entry) => entry.directory),
         await readEntry(transformed, ".", files),
@@ -261,12 +261,12 @@ test("compile a package through a listed extension and leave a development depen
         store,
         toolchain: async () => Toolchain.workspace(),
     });
-    const untouched = await compiler.build({ directory, dependencies: {}, outputs });
+    const untouched = await compiler.build({ directory, dependencies: {}, links: {}, outputs });
 
     // list the leaf's extension, then build again through it
     await listExtensions(directory, ["@fixture/leaf"], files);
     const listed = await extensions();
-    const transformed = await compiler.build({ directory, dependencies: {}, outputs });
+    const transformed = await compiler.build({ directory, dependencies: {}, links: {}, outputs });
     expect([
         developed,
         await readEntry(untouched, ".", files),
@@ -403,6 +403,7 @@ test("refuse what a module an extension generates imports until the package decl
     const request = {
         directory,
         dependencies: {},
+        links: {},
         outputs: { bun: { kind: "module", runtime: "bun" } },
     } as const;
     await using refusing = await LocalBuildStore.temporary(environment);
@@ -427,14 +428,19 @@ test("refuse what a module an extension generates imports until the package decl
     const workspace = await Workspace.open(directory, compilers);
     const build = await workspace.build({ outputs: request.outputs });
 
-    // run the generated entry with the leaf's build placed beside it, as a machine places it
-    const leaf = build.manifest.outputs["bun"]?.dependencies["@fixture/leaf"];
-    if (leaf?.kind !== "destack") {
-        throw new TypeError("the application's output records no leaf build");
-    }
+    // run the generated entry with the leaf's locked build placed beside it
+    const lock = await workspace.lock(await build.digest());
+    const entries = await store.entriesOf(await store.lock(lock));
+    const leaf = present(entries["@fixture/leaf"], "the leaf build");
     const destination = join(root, "deployed");
     await build.writeDirectory(destination, files);
-    const tree = await DependencyTree.materialize(store, [leaf], join(root, "builds"));
+    const tree = await DependencyTree.materialize(
+        store,
+        [leaf],
+        () => undefined,
+        join(root, "builds"),
+        { kind: "compile" },
+    );
     await tree.link(join(destination, "node_modules"), files);
     const barrel = present(
         build.manifest.outputs["bun"]?.exports["barrel"]?.path,

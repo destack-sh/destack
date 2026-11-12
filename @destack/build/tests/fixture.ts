@@ -243,9 +243,14 @@ export class Fixture implements AsyncDisposable {
 
     /** Build the copied package with the fixture's output selection. */
     async build(
-        request: Omit<PackageBuildOptions, "directory" | "dependencies">,
+        request: Omit<PackageBuildOptions, "directory" | "dependencies" | "links">,
     ): Promise<BuildReader> {
-        return await this.#compiler.build({ directory: this.source, dependencies: {}, ...request });
+        return await this.#compiler.build({
+            directory: this.source,
+            dependencies: {},
+            links: {},
+            ...request,
+        });
     }
 
     /** Index the copied package for Bun: each module's code and its graph. */
@@ -254,6 +259,7 @@ export class Fixture implements AsyncDisposable {
             directory: this.source,
             runtime: "bun",
             dependencies: {},
+            links: {},
         });
     }
 
@@ -286,7 +292,6 @@ export async function expectManifest(
 
     // read each list independently and compare its complete serialized contents
     for (const [name, read] of [
-        ["dependencies", () => reader.dependencies()],
         ["files", () => reader.files()],
         ["sourceMaps", () => reader.sourceMaps()],
         ["declarations", () => reader.declarations()],

@@ -3,20 +3,26 @@ import { LocalBlobStorage } from "@destack/bucket/bun";
 import { BlobStore, eq } from "@destack/db";
 import { connectBunSqlite } from "@destack/db/bun";
 import { type Environment, type FileSystem, FileSystemError } from "@destack/environment";
-import { DependencyRelease } from "@destack/package";
-import type { PackageFile } from "@destack/package/file";
-import { BuildStore } from "./store.ts";
+import { type PackageFile, PackagePath } from "@destack/package/file";
+import { BuildObject, BuildStore, CACHE_MILLISECONDS, USE_MILLISECONDS } from "./store.ts";
 import { BuildError } from "../error/index.ts";
-import { BuildReader, MANIFEST_PATH, PackageManifest } from "@destack/package/manifest";
-import { BuildLayer, LAYER_BLOBS, LAYER_INDEX, LAYER_TREES, LayerIndex } from "./layer.ts";
+import { BuildReader, Lock, MANIFEST_PATH, PackageManifest } from "@destack/package/manifest";
+import {
+    BuildLayer,
+    LAYER_BLOBS,
+    LAYER_FORMAT,
+    LAYER_INDEX,
+    LAYER_TREES,
+    LayerIndex,
+} from "./layer.ts";
 import { DependencyTree, STAGING_DIRECTORY } from "../dependency/tree.ts";
-import { Digest, present, schema, Uuid } from "@destack/schema";
+import { Digest, found, JsonValue, present, schema, Uuid } from "@destack/schema";
 import { HOST_RUNTIME, type Runtime } from "@destack/package/runtime";
 
 /** The directory below a store's directory with its blobs, by digest. */
 const FILES_DIRECTORY = "files";
 
-/** The database file of a store of its own, which indexes its blobs. */
+/** The database file of a standalone store, which indexes its blobs. */
 const DATABASE_FILE = "store.db";
 
 /** The directory below a store's directory with the dependency trees of its builds, by manifest. */
@@ -31,10 +37,10 @@ const LAYERED_DIRECTORY = "layered";
 /** The directory below a store's directory with its linked layers, by releases and runtimes. */
 const LAYERS_DIRECTORY = "layers";
 
-/** The suffix of a layered build's run tree while its links are written, moved in once whole. */
+/** The suffix of a lock's run directory while it is written, moved in once whole. */
 const STAGING_SUFFIX = ".staging";
 
-/** The prefix of a root a directory names, forgotten once the directory is gone. */
+/** The prefix of a directory's root, forgotten once the directory is gone. */
 const DIRECTORY_ROOT_PREFIX = "directory:";
 
 /** The files placed at once: well below the default limit of 256 open files on macOS. */
@@ -55,20 +61,14 @@ const COLLECT_MILLISECONDS = 24 * 60 * 60_000;
 /** The most bytes a local store's blobs take: 10 GiB, three times a platform's 3 GB of builds. */
 const MAX_BYTES = 10 * 1024 ** 3;
 
-/** How long a store retains an unrooted build past its last use: a week, as Nx keeps its cache. */
-const CACHE_MILLISECONDS = 7 * 24 * 60 * 60_000;
-
-/** How often a store records a build's use: daily, a seventh of its retention. */
-const USE_MILLISECONDS = 24 * 60 * 60_000;
-
 /** The directory of Destack's caches below the person's cache directory. */
 const CACHE_DIRECTORY = "destack";
 
 /** What the person's store has builds for: development tools, or test runs. */
 export type LocalStoreUse = "development" | "test";
 
-/** How a layer keeps its builds: in itself, linked to its store's own, or as blobs by digest. */
-export type LayerLayout = "contained" | "linked" | "addressed";
+/** How a layer lays out its builds: linked to its store's pooled builds, or as blobs by digest. */
+export type LayerLayout = "linked" | "addressed";
 
 /** The blobs, database, trees directory and environment of a store on this machine's disk. */
 export interface LocalBuildStoreOptions {
@@ -137,7 +137,7 @@ export class LocalBuildStore
         return store;
     }
 
-    /** Open a store of its own in a directory: its blobs, and its database migrated. */
+    /** Open a standalone store in a directory: its blobs, and its database migrated. */
     static async #openDirectory(
         directory: string,
         environment: Environment<"files" | "process" | "host">,
@@ -169,7 +169,7 @@ export class LocalBuildStore
         environment: Environment<"files" | "process" | "host">,
         scheduler?: Environment["scheduler"],
     ): Promise<LocalBuildStore> {
-        // open the view, then release this store after it, as one operation in a world it runs outside
+        // release this store after the view, as one operation of the scheduler's world
         const disposables = new AsyncDisposableStack();
         disposables.defer(() =>
             scheduler === undefined
@@ -214,23 +214,24 @@ export class LocalBuildStore
         // record the use for the maintaining store to renew once this view closes
         if (this.#maintainer !== undefined) {
             this.#used.add(digest);
-
-            return;
         }
-
-        // read the stored build's lease, renewing one a day or more old, and none for a layered build read in place
-        const now = this.environment.clock.now();
-        const [leased] = await this.database
-            .select({ until: BlobStore.table.leasedUntil })
-            .from(BlobStore.table)
-            .where(eq(BlobStore.table.digest, digest));
-        if (leased !== undefined && leased.until - CACHE_MILLISECONDS <= now - USE_MILLISECONDS) {
-            await this.lease(digest, new Date(now + CACHE_MILLISECONDS));
+        // renew a stored build's lease a day or more old, a layered build having none
+        else {
+            const now = this.environment.clock.now();
+            const [leased] = await this.database
+                .select({ until: BlobStore.table.leasedUntil })
+                .from(BlobStore.table)
+                .where(eq(BlobStore.table.digest, digest));
+            const isDue =
+                leased !== undefined && leased.until - CACHE_MILLISECONDS <= now - USE_MILLISECONDS;
+            if (isDue) {
+                await this.lease(digest, new Date(now + CACHE_MILLISECONDS));
+            }
         }
     }
 
     /** Root some builds by a directory, until the directory is gone. */
-    async rootDirectory(directory: string, manifests: ReadonlySet<string>): Promise<void> {
+    async rootDirectory(directory: string, manifests: ReadonlySet<Digest>): Promise<void> {
         await this.root(`${DIRECTORY_ROOT_PREFIX}${directory}`, manifests);
     }
 
@@ -246,7 +247,7 @@ export class LocalBuildStore
 
     /** Store a build written in a directory the store consumes, moving its files into the blobs. */
     async move(directory: string, signal?: AbortSignal): Promise<Digest> {
-        // store each missing file by moving it in, recorded under a lease, then remove what the directory has left
+        // store each missing file by moving it in, recorded under a lease
         const { files, crypto, clock } = this.environment;
         const source = await BuildReader.openDirectory(directory, files, crypto);
         const digest = await this.store(
@@ -262,67 +263,59 @@ export class LocalBuildStore
             },
             signal,
         );
+
+        // remove what the directory has left
         await files.remove(directory, { recursive: true, force: true });
 
         return digest;
     }
 
-    /** Write releases with what they run to a layer directory, as a distribution ships them. */
+    /** The store's layered builds of this layer format, by digest, which linked layers share. */
+    get #pool(): string {
+        return join(this.directory, LAYERED_DIRECTORY, String(LAYER_FORMAT));
+    }
+
+    /** Write locked releases to a layer: whole builds for a computer, run files for the cloud. */
     async writeLayer(
-        roots: readonly Digest[],
+        locks: readonly Digest[],
         runtimes: readonly Runtime[],
         directory: string,
-        layout: LayerLayout = "contained",
+        layout: LayerLayout,
     ): Promise<void> {
-        // collect each root and the builds its emitted outputs' exports import on the shipped runtimes
-        const builds = new Set<Digest>(roots);
-        for (const root of roots) {
-            const read = await this.get(root);
-            const packageId = PackageManifest.package(read).id;
-            const emitted = Object.values(read.outputs).filter(
-                (output) => output.emit && runtimes.includes(output.runtime),
-            );
-            for (const output of emitted) {
-                const exported = await this.closure(
-                    root,
-                    packageId,
-                    output.runtime,
-                    undefined,
-                    "export",
-                );
-                for (const reached of exported) {
-                    builds.add(reached);
-                }
+        // read each lock and its builds
+        const shipped = new Map<Digest, Lock>();
+        const builds = new Set<Digest>();
+        for (const digest of locks) {
+            const lock = await this.lock(digest);
+            shipped.set(digest, lock);
+            for (const build of Lock.builds(lock)) {
+                builds.add(build);
             }
         }
 
-        // write an addressed layer's blobs alone, as a reader by digest needs no build directories nor trees
+        // write an addressed layer's blobs alone, what the runtimes run, as the cloud only runs
         if (layout === "addressed") {
-            await this.#writeAddressed(roots, builds, runtimes, directory);
+            await this.#writeAddressed(shipped, runtimes, directory);
 
             return;
         }
 
-        // write each build missing its manifest, which a build writes last, in the store's layered builds for a linked layer, else in the layer
+        // write each build whole once in the store's layered builds, and link it from the layer
         const { files } = this.environment;
-        const pool = layout === "linked" ? join(this.directory, LAYERED_DIRECTORY) : undefined;
+        const pool = this.#pool;
         await files.mkdir(directory, { recursive: true });
         const readers = new Map<Digest, BuildReader>();
         for (const digest of builds) {
             const reader = await this.contents(digest);
             readers.set(digest, reader);
-            if (pool === undefined) {
-                await LocalBuildStore.#writeBuild(reader, join(directory, digest), runtimes, files);
-            } else {
-                await LocalBuildStore.#writePooled(reader, join(pool, digest), files);
-                if (!(await files.exists(join(directory, digest)))) {
-                    await files.symlink(join(pool, digest), join(directory, digest));
-                }
+            await this.#writePooled(reader, join(pool, digest));
+            if (!(await files.exists(join(directory, digest)))) {
+                await files.symlink(join(pool, digest), join(directory, digest));
             }
         }
 
-        // remove the builds left out
-        const kept = new Set<string>(builds);
+        // remove the builds and run directories left out
+        const kept = new Set<string>([...builds, ...shipped.keys()]);
         const stale = (await files.readDirectory(directory)).filter(
             (entry) =>
                 (entry.kind === "directory" || entry.kind === "symlink") &&
@@ -333,60 +326,51 @@ export class LocalBuildStore
             await files.remove(join(directory, entry.name), { recursive: true });
         }
 
-        // lay out the releases' trees once for the host, in the store's own trees for a linked layer, an empty directory for none
+        // lay out the releases' trees once for the host in the store's own trees, linked from the layer
         const isHosting = runtimes.includes(HOST_RUNTIME);
-        const trees = pool === undefined ? join(directory, LAYER_TREES) : this.trees;
+        const trees = this.trees;
         await files.mkdir(trees, { recursive: true });
-        if (pool !== undefined && !(await files.exists(join(directory, LAYER_TREES)))) {
+        if (!(await files.exists(join(directory, LAYER_TREES)))) {
             await files.symlink(trees, join(directory, LAYER_TREES));
         }
-        const released = await Promise.all(
-            roots.map(async (digest) => ({
-                kind: "destack" as const,
-                package: PackageManifest.package(await this.get(digest)),
-                manifest: digest,
-            })),
-        );
-        if (isHosting) {
-            await DependencyTree.materialize(this, released, trees);
+        for (const lock of isHosting ? shipped.values() : []) {
+            const releases = await Lock.releases(lock, (digest) => this.get(digest));
+            const resolve = (build: Digest, name: string) => Lock.resolve(lock, build, name);
+            await DependencyTree.materialize(this, releases, resolve, trees, { kind: "compile" });
         }
 
-        // link each root's host run tree as its node_modules, so the host runs it in place
-        for (const root of isHosting ? roots : []) {
-            const reader = present(readers.get(root), `the layered build ${root}`);
+        // write each hosted lock's root with its run tree in a directory of the lock's own
+        for (const [digest, lock] of isHosting ? shipped : []) {
+            const reader = found(readers, lock.root);
             const isRunning = Object.values(reader.manifest.outputs).some(
                 (output) => output.runtime === HOST_RUNTIME,
             );
-            const modules = join(directory, root, "node_modules");
-            if (isRunning && !(await files.exists(modules))) {
-                const tree = await this.runTree(reader, root, HOST_RUNTIME, trees);
-                const staging = `${modules}${STAGING_SUFFIX}`;
-                await files.remove(staging, { recursive: true, force: true });
-                await tree.link(staging, files);
-                await files.rename(staging, modules);
+            const run = join(directory, digest);
+            if (isRunning && !(await files.exists(run))) {
+                await this.#writeRun(reader, await this.runTree(lock, HOST_RUNTIME, trees), run);
             }
         }
 
-        // remove the trees of builds a contained layer no longer has, leaving the store's own trees
-        for (const entry of pool === undefined ? await files.readDirectory(trees) : []) {
-            const built = DependencyTree.manifestOf(entry.name);
-            if (built === undefined || !builds.has(built)) {
-                await files.remove(join(trees, entry.name), { recursive: true, force: true });
+        // index each build's manifest and files last
+        const sizes: LayerIndex["builds"] = {};
+        const placed: LayerIndex["files"] = {};
+        for (const [digest, reader] of readers) {
+            sizes[digest] = PackageManifest.serialize(reader.manifest).byteLength;
+            for (const file of await reader.distributed()) {
+                placed[file.digest] ??= { path: `${digest}/${file.path}`, size: file.size };
             }
         }
-
-        // write the index of its builds and their files last
-        await BuildLayer.writeIndex(directory, roots, readers, runtimes, files);
+        await BuildLayer.writeIndex(directory, shipped, sizes, placed, files);
     }
 
-    /** Write a linked layer of releases once, keyed with the runtimes, returning its directory. */
+    /** Write a linked layer of locked releases once, keyed with the runtimes. */
     async writeLinkedLayer(
-        roots: readonly Digest[],
+        locks: readonly Digest[],
         runtimes: readonly Runtime[],
     ): Promise<string> {
-        // leave a layer written before
+        // leave a layer written before in this format
         const { files, crypto, process } = this.environment;
-        const key = await Digest.json({ releases: roots, runtimes }, crypto);
+        const key = await Digest.json({ format: LAYER_FORMAT, releases: locks, runtimes }, crypto);
         const directory = join(this.directory, LAYERS_DIRECTORY, key);
         if (await files.exists(directory)) {
             return directory;
@@ -396,7 +380,7 @@ export class LocalBuildStore
         const written = `${directory}.${process.id}`;
         await files.remove(written, { recursive: true, force: true });
         await files.mkdir(dirname(written), { recursive: true });
-        await this.writeLayer(roots, runtimes, written, "linked");
+        await this.writeLayer(locks, runtimes, written, "linked");
         await files.rename(written, directory).catch(async (error: unknown) => {
             if (!FileSystemError.is(error, "FILE_EXISTS")) {
                 throw error;
@@ -407,10 +391,9 @@ export class LocalBuildStore
         return directory;
     }
 
-    /** Write each build's manifest and shipped files as blobs by digest, the index last. */
+    /** Write what the locks' runtimes run as blobs by digest, the index last. */
     async #writeAddressed(
-        roots: readonly Digest[],
-        builds: ReadonlySet<Digest>,
+        locks: ReadonlyMap<Digest, Lock>,
         runtimes: readonly Runtime[],
         directory: string,
     ): Promise<void> {
@@ -420,45 +403,60 @@ export class LocalBuildStore
         await files.remove(directory, { recursive: true, force: true });
         await files.mkdir(blobs, { recursive: true });
 
-        // write each build's manifest at its digest, and each file it ships at the file's, once
-        const index: LayerIndex = { releases: [...roots], builds: {}, files: {} };
-        for (const digest of builds) {
+        // list the objects a pull of the locks for the runtimes reads
+        const roots = [...locks.keys()].map((digest) => ({ kind: "lock", digest }) as const);
+        const objects = await BuildObject.of(this, roots, runtimes);
+        const wanted = new Set(
+            objects.filter((object) => object.kind === "file").map((object) => object.digest),
+        );
+
+        // write each build's manifest at its digest, and list the wanted files of it
+        const sizes: LayerIndex["builds"] = {};
+        const placed: LayerIndex["files"] = {};
+        const placements: FilePlacement[] = [];
+        for (const { digest } of objects.filter((object) => object.kind === "manifest")) {
             const reader = await this.contents(digest);
             const manifest = PackageManifest.serialize(reader.manifest);
             await files.writeFile(join(blobs, digest), manifest);
-            index.builds[digest] = manifest.byteLength;
-            for (const file of await BuildLayer.shipped(reader, runtimes)) {
-                if (index.files[file.digest] === undefined) {
-                    await files.writeFile(join(blobs, file.digest), await reader.load(file.path));
-                    index.files[file.digest] = `${LAYER_BLOBS}/${file.digest}`;
+            sizes[digest] = manifest.byteLength;
+            for (const file of await reader.distributed()) {
+                if (wanted.has(file.digest) && placed[file.digest] === undefined) {
+                    placements.push({ file, destination: join(blobs, file.digest) });
+                    placed[file.digest] = {
+                        path: `${LAYER_BLOBS}/${file.digest}`,
+                        size: file.size,
+                    };
                 }
             }
         }
 
-        // write the index last
-        await files.writeTextFile(join(directory, LAYER_INDEX), JSON.stringify(index));
+        // clone the listed files, then write the index
+        await this.place(placements);
+        await BuildLayer.writeIndex(directory, locks, sizes, placed, files);
     }
 
-    /** Write a build's directory for some runtimes unless its manifest, written last, is there. */
-    static async #writeBuild(
-        reader: BuildReader,
-        build: string,
-        runtimes: readonly Runtime[],
-        files: FileSystem,
-    ): Promise<void> {
-        if (!(await files.exists(join(build, MANIFEST_PATH)))) {
-            await files.remove(build, { recursive: true, force: true });
-            await reader.writeDirectory(build, files, await BuildLayer.shipped(reader, runtimes));
-        }
+    /** Write a lock's root and its run tree in a directory, unless another process did first. */
+    async #writeRun(reader: BuildReader, tree: DependencyTree, run: string): Promise<void> {
+        // stage it under this process's name
+        const { files, process } = this.environment;
+        const staging = `${run}${STAGING_SUFFIX}.${process.id}`;
+        await files.remove(staging, { recursive: true, force: true });
+        await this.#writeDirectory(reader, staging, await reader.distributed());
+        await tree.link(join(staging, "node_modules"), files);
+
+        // move it in, leaving one another process moved in first
+        await files.rename(staging, run).catch(async (error: unknown) => {
+            if (!FileSystemError.is(error, "FILE_EXISTS")) {
+                throw error;
+            }
+            await files.remove(staging, { recursive: true });
+        });
     }
 
     /** Write a build into the store's layered builds once, unless another writer did first. */
-    static async #writePooled(
-        reader: BuildReader,
-        build: string,
-        files: FileSystem,
-    ): Promise<void> {
+    async #writePooled(reader: BuildReader, build: string): Promise<void> {
         // leave a build the pool has
+        const { files } = this.environment;
         if (await files.exists(join(build, MANIFEST_PATH))) {
             return;
         }
@@ -469,15 +467,8 @@ export class LocalBuildStore
             directory: dirname(build),
         });
         try {
-            await reader.writeDirectory(
-                join(staging, "build"),
-                files,
-                // keep every output, as linked layers of any runtimes share the pooled build
-                await BuildLayer.shipped(
-                    reader,
-                    Object.values(reader.manifest.outputs).map((output) => output.runtime),
-                ),
-            );
+            // write every file, as linked layers of any runtimes share the pooled build
+            await this.#writeDirectory(reader, join(staging, "build"), await reader.distributed());
             await files.rename(join(staging, "build"), build).catch(async (error: unknown) => {
                 if (!(await files.exists(join(build, MANIFEST_PATH)))) {
                     throw error;
@@ -488,70 +479,85 @@ export class LocalBuildStore
         }
     }
 
-    /** Lay out the tree a build's output runs with on a runtime, a layered one in place. */
+    /** Clone some files of a build into a new directory, its manifest last. */
+    async #writeDirectory(
+        reader: BuildReader,
+        directory: string,
+        selected: readonly PackageFile[],
+    ): Promise<void> {
+        // require a new directory
+        const { files } = this.environment;
+        await files.mkdir(directory);
+        await this.place(
+            selected.map((file) => ({
+                file,
+                destination: join(directory, PackagePath.parse(file.path)),
+            })),
+        );
+
+        // make the build readable only after every file is written
+        const manifest = PackageManifest.serialize(reader.manifest);
+        await files.writeFile(join(directory, MANIFEST_PATH), manifest, { createNew: true });
+    }
+
+    /** Lay out the tree a lock's root runs with on a runtime, a layered one in place. */
     async runTree(
-        built: BuildReader,
-        digest: Digest,
+        lock: Lock,
         runtime: Runtime,
         directory: string = this.trees,
     ): Promise<DependencyTree> {
         // read the closure of every export, refusing a build the store lacks
-        const { manifest } = built;
         const closure = await this.closure(
-            digest,
-            PackageManifest.package(manifest).id,
+            lock,
             runtime,
             async (needed) => {
-                const found = await this.find(needed);
-                if (found === undefined) {
+                const stored = await this.find(needed);
+                if (stored === undefined) {
                     throw BuildError.of(
                         "DEPENDENCY_INVALID",
-                        `build '${needed}' of '${manifest.package.name}' is invalid: it is missing from the store`,
+                        `build '${needed}' of lock root '${lock.root}' is invalid: it is missing from the store`,
                     );
                 }
 
-                return found;
+                return stored;
             },
             "export",
         );
 
         // place each closure build's output once
-        const output = present(
-            Object.values(manifest.outputs).find((each) => each.runtime === runtime),
-            `the ${runtime} output of ${manifest.package.name}`,
-        );
-        const dependencies = Object.values(output.dependencies).filter(
-            (dependency) =>
-                DependencyRelease.hasManifest(dependency) && closure.has(dependency.manifest),
-        );
+        const releases = await Lock.releases(lock, (digest) => this.get(digest));
+        const resolve = (build: Digest, name: string) => Lock.resolve(lock, build, name);
 
-        return await DependencyTree.materialize(this, dependencies, directory, {
-            run: { runtime, closure },
+        return await DependencyTree.materialize(this, releases, resolve, directory, {
+            kind: "run",
+            runtime,
+            closure,
         });
     }
 
     /** Write files to paths, cloning stored blobs and the layer's files. */
     async place(placements: readonly FilePlacement[]): Promise<void> {
-        // create each directory once, and find the files the store's own blobs lack
+        // create each directory once
         const { files } = this.environment;
         const directories = new Set(placements.map(({ destination }) => dirname(destination)));
         for (const directory of [...directories].toSorted()) {
             await files.mkdir(directory, { recursive: true });
         }
-        const lacking = new Set(
-            await this.blobs.missing(placements.map(({ file }) => file.digest)),
-        );
 
-        // clone a stored file's blocks, and place any other through the layered build holding it, a batch at a time
+        // find where each file lies, then clone it a batch at a time
+        const located = await this.locate(placements.map(({ file }) => file.digest));
         for (let start = 0; start < placements.length; start += PLACE_BATCH) {
             await Promise.all(
-                placements
-                    .slice(start, start + PLACE_BATCH)
-                    .map(({ file, destination }) =>
-                        lacking.has(file.digest)
-                            ? this.placeLayered(file, destination, files)
-                            : this.blobs.storage.copy(file.digest, destination),
-                    ),
+                placements.slice(start, start + PLACE_BATCH).map(({ file, destination }) => {
+                    const location = present(
+                        located.get(file.digest),
+                        `package file '${file.path}'`,
+                    );
+
+                    return location.kind === "layered"
+                        ? this.placeLayered(file, destination, files)
+                        : this.blobs.storage.copy(location, destination);
+                }),
             );
         }
     }
@@ -568,13 +574,13 @@ export class LocalBuildStore
             }
         }
 
-        // delete what crashed materializations and compilers left staged, and what interrupted blob writes left
+        // delete what crashed materializations, compilers and blob writes left
         const { files } = this.environment;
         await files.remove(join(this.trees, STAGING_DIRECTORY), { recursive: true, force: true });
         await files.remove(join(this.directory, STAGE_DIRECTORY), { recursive: true, force: true });
         await this.blobs.storage.clean();
 
-        // drop the unused cache entries, fit the size, then delete what nothing retains at once, as no process reads
+        // drop the unused cache entries and fit the size, then delete what nothing retains
         await this.expire();
         await this.evict(MAX_BYTES);
         await this.blobs.collect(0);
@@ -583,32 +589,50 @@ export class LocalBuildStore
         const entries = await files.readDirectory(this.trees);
         const trees = entries
             .filter((entry) => entry.kind === "directory" && entry.name !== STAGING_DIRECTORY)
-            .map((entry) => entry.name);
+            .map((entry) => ({
+                name: entry.name,
+                manifest: DependencyTree.manifestOf(entry.name),
+            }));
+        const manifests = await this.#stored(trees.map((tree) => tree.manifest));
         for (const tree of trees) {
-            const manifest = DependencyTree.manifestOf(tree);
-            if (manifest === undefined || !(await this.has(manifest))) {
-                await files.remove(join(this.trees, tree), { recursive: true, force: true });
+            if (tree.manifest === undefined || !manifests.has(tree.manifest)) {
+                await files.remove(join(this.trees, tree.name), { recursive: true, force: true });
             }
         }
 
-        // delete the layered builds the store no longer has, and what interrupted writes left
+        // delete the layered builds of other layer formats
         const layered = join(this.directory, LAYERED_DIRECTORY);
         for (const entry of await LocalBuildStore.#entries(layered, files)) {
-            const digest = Digest.safeParse(entry);
-            if (!digest.success || !(await this.has(digest.data))) {
+            if (entry !== String(LAYER_FORMAT)) {
                 await files.remove(join(layered, entry), { recursive: true, force: true });
             }
         }
 
-        // delete the layers linking a build the store no longer has, and what interrupted writes left
+        // delete the layered builds the store no longer has, and what interrupted writes left
+        const pooled = (await LocalBuildStore.#entries(this.#pool, files)).map((name) => ({
+            name,
+            digest: Digest.safeParse(name).data,
+        }));
+        const kept = await this.#stored(pooled.map((entry) => entry.digest));
+        for (const entry of pooled) {
+            if (entry.digest === undefined || !kept.has(entry.digest)) {
+                await files.remove(join(this.#pool, entry.name), { recursive: true, force: true });
+            }
+        }
+
+        // delete the layers linking a build the store no longer has
         const layers = join(this.directory, LAYERS_DIRECTORY);
         for (const entry of await LocalBuildStore.#entries(layers, files)) {
-            const index = await files
+            const text = await files
                 .readTextFile(join(layers, entry, LAYER_INDEX))
-                .then((text) => LayerIndex.parse(JSON.parse(text)))
                 .catch(FileSystemError.absent);
+            const written =
+                text === undefined ? undefined : JsonValue.object(JsonValue.parse(text));
+            const index =
+                written?.["formatVersion"] === LAYER_FORMAT ? LayerIndex.parse(written) : undefined;
             const builds = Object.keys(index?.builds ?? {}).map((each) => Digest.parse(each));
-            const isComplete = index !== undefined && (await this.#hasAll(builds));
+            const isComplete =
+                index !== undefined && (await this.has(builds)).every((isStored) => isStored);
             if (!isComplete) {
                 await files.remove(join(layers, entry), { recursive: true, force: true });
             }
@@ -622,15 +646,12 @@ export class LocalBuildStore
         return (entries ?? []).map((entry) => entry.name);
     }
 
-    /** Report whether the store has every build of a list. */
-    async #hasAll(builds: readonly Digest[]): Promise<boolean> {
-        for (const build of builds) {
-            if (!(await this.has(build))) {
-                return false;
-            }
-        }
+    /** Find which of some blobs the store has, at once, leaving out absent digests. */
+    async #stored(digests: readonly (Digest | undefined)[]): Promise<ReadonlySet<Digest>> {
+        const given = digests.filter((digest) => digest !== undefined);
+        const isStored = await this.has(given);
 
-        return true;
+        return new Set(given.filter((_digest, index) => isStored[index] === true));
     }
 
     /** Collect an idle store a day after its last collection, recording when it did. */
@@ -654,7 +675,7 @@ export class LocalBuildStore
         directory: string,
         environment: Environment<"files" | "process" | "host">,
     ): Promise<LocalBuildStore> {
-        // lock the directory while opening and collecting, so no process builds into a store being collected
+        // lock the directory while one process opens and collects the store
         const { files } = environment;
         await files.mkdir(directory, { recursive: true });
         const held = await files.lock(join(directory, OPEN_LOCK), "exclusive");

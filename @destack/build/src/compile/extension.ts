@@ -132,7 +132,7 @@ export async function loadTransforms(
 
     return transformPlugins(
         loaded.map((entry) => entry.extension),
-        { ...context, dependencies: tree.directories },
+        { ...context, dependencies: tree.builds },
     );
 }
 

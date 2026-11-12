@@ -47,7 +47,7 @@ async function place(
         }
     }
 
-    // resolve the converted package by its manifest's exports, as a runtime's loader does
+    // write a converted package's package.json, keeping a published one
     const output = present(reader.manifest.outputs[runtime], `the ${runtime} output of ${name}`);
     const exports = Object.fromEntries(
         Object.entries(output.exports).map(([subpath, module]) => [
@@ -55,10 +55,10 @@ async function place(
             `./${module.path.slice(prefix.length)}`,
         ]),
     );
-    await files.writeTextFile(
-        join(directory, "node_modules", name, "package.json"),
-        JSON.stringify({ name, type: "module", exports }),
-    );
+    const packageJson = join(directory, "node_modules", name, "package.json");
+    if (!(await files.exists(packageJson))) {
+        await files.writeTextFile(packageJson, JSON.stringify({ name, type: "module", exports }));
+    }
 }
 
 /** List the runtimes a stored unit's build has outputs for. */
@@ -66,8 +66,8 @@ async function runtimesOf(store: LocalBuildStore, manifest: Digest): Promise<str
     return Object.keys((await store.contents(manifest)).manifest.outputs);
 }
 
-test("build an npm unit per runtime as ES modules on its dependency's unit, and run it on each", async () => {
-    // install a CommonJS package requiring another
+test("build an npm unit with an output per runtime", async () => {
+    // install a package requiring another
     await using simulation = testSimulation();
     const environment = simulation.environment("test");
     const { files } = environment;
@@ -88,46 +88,48 @@ test("build an npm unit per runtime as ES modules on its dependency's unit, and 
     await using store = await LocalBuildStore.temporary(environment);
     const installation = new NpmInstallation(locked, store, CONTEXT, environment);
     const unit = await installation.open(copy(root, "greeting"));
-    const stored = await installation.store(unit, "workerd");
-    const installed = await installation.store(unit, "bun");
+    const stored = await installation.store(unit);
+    const word = await installation.store(
+        present(unit.dependencies.get("word"), "the unit of word"),
+    );
     const reopened = new NpmInstallation(locked, store, CONTEXT, environment);
-    const again = await reopened.store(await reopened.open(copy(root, "greeting")), "workerd");
+    const again = await reopened.store(await reopened.open(copy(root, "greeting")));
 
-    // place each runtime's outputs where node_modules resolves them, and run the converted module
-    const run = async (manifest: Digest, runtime: "bun" | "workerd") => {
-        const reader = await store.contents(manifest);
-        const recorded = reader.manifest.outputs[runtime]?.dependencies["word"];
-        if (recorded?.kind !== "npm") {
-            throw new TypeError(`the '${runtime}' output records no npm unit of word`);
-        }
+    // place and run each runtime's output
+    const run = async (runtime: "bun" | "workerd") => {
         const placed = join(root, `placed-${runtime}`);
-        await place(store, manifest, "greeting", runtime, placed);
-        await place(store, recorded.manifest, "word", runtime, placed);
+        await place(store, stored.manifest, "greeting", runtime, placed);
+        await place(store, word.manifest, "word", runtime, placed);
 
         return schema
             .looseObject({ default: schema.string() })
             .parse(await import(join(placed, "node_modules", "greeting", "index.js"))).default;
     };
     const reader = await store.contents(stored.manifest);
-    const bun = await store.contents(installed.manifest);
 
-    // convert both, record the release with its build, and reuse the stored build
+    // compare the build
     expect({
         package: reader.manifest.package,
-        outputs: [Object.keys(reader.manifest.outputs), Object.keys(bun.manifest.outputs)],
-        greeting: [await run(stored.manifest, "workerd"), await run(installed.manifest, "bun")],
+        outputs: Object.keys(reader.manifest.outputs),
+        requires: reader.manifest.requires,
+        greeting: [await run("bun"), await run("workerd")],
         stored: { ...stored, manifest: "" },
         isReused: again.manifest === stored.manifest,
     }).toEqual({
         package: { name: "greeting", version: "1.0.0", integrity: "sha512-greeting" },
-        outputs: [["workerd"], ["bun"]],
+        outputs: ["browser", "bun", "workerd"],
+        requires: { word: "1.0.0" },
         greeting: ["hello, world", "hello, world"],
-        stored: { kind: "npm", ...locked["greeting@1.0.0"], manifest: "" },
+        stored: {
+            kind: "npm",
+            package: { name: "greeting", version: "1.0.0", integrity: "sha512-greeting" },
+            manifest: "",
+        },
         isReused: true,
     });
 });
 
-test("convert for workerd what its conditions import, replacing what a `browser` field empties and failing a require of a missing host module when it runs", async () => {
+test("convert a package for workerd by its conditions and browser field, failing a missing host module when run", async () => {
     // install a parser whose signal reader requires the constants module lazily, once replaced and once not
     await using simulation = testSimulation();
     const environment = simulation.environment("test");
@@ -158,9 +160,9 @@ test("convert for workerd what its conditions import, replacing what a `browser`
     await using store = await LocalBuildStore.temporary(environment);
     const installation = new NpmInstallation(locked, store, CONTEXT, environment);
     const build = async (name: string) =>
-        await installation.store(await installation.open(copy(root, name)), "workerd");
+        await installation.store(await installation.open(copy(root, name)));
 
-    // run the replaced parser on workerd's modules, and build no workerd output of the other
+    // run both parsers on workerd
     const replaced = await build("replaced");
     await place(store, replaced.manifest, "replaced", "workerd", join(root, "placed"));
     const module = Exports.parse(
@@ -181,8 +183,8 @@ test("convert for workerd what its conditions import, replacing what a `browser`
     }).toEqual({
         parsed: "HELLO",
         lazy: "HELLO",
-        reader: ["workerd"],
-        detector: ["workerd"],
+        reader: ["browser", "bun", "workerd"],
+        detector: ["browser", "bun", "workerd"],
     });
 
     // fail the unreplaced parser's signal reader once it runs, as workerd lacks the constants module
@@ -192,7 +194,7 @@ test("convert for workerd what its conditions import, replacing what a `browser`
     );
 });
 
-test("convert a CommonJS module whose own binding takes the name rolldown gives its wrapper, as OpenTelemetry's builds do", async () => {
+test("convert a CommonJS module with a binding named like its rolldown wrapper", async () => {
     // install a module that names its required sibling as rolldown names the module itself
     await using simulation = testSimulation();
     const environment = simulation.environment("test");
@@ -214,7 +216,7 @@ test("convert a CommonJS module whose own binding takes the name rolldown gives 
     await using store = await LocalBuildStore.temporary(environment);
     const installation = new NpmInstallation(locked, store, CONTEXT, environment);
     const unit = await installation.open(copy(root, "colliding"));
-    const built = await installation.store(unit, "workerd");
+    const built = await installation.store(unit);
 
     // run workerd's module, exported by name
     await place(store, built.manifest, "colliding", "workerd", join(root, "placed"));
@@ -224,7 +226,7 @@ test("convert a CommonJS module whose own binding takes the name rolldown gives 
     expect(module["answer"]).toBe(42);
 });
 
-test("convert a package for workerd past the tsconfig it publishes, which extends a development dependency, as khroma's does", async () => {
+test("convert a package publishing a tsconfig that extends an absent package", async () => {
     // install a package whose index re-exports a module, publishing a tsconfig of an absent package
     await using simulation = testSimulation();
     const environment = simulation.environment("test");
@@ -244,10 +246,7 @@ test("convert a package for workerd past the tsconfig it publishes, which extend
     );
     await using store = await LocalBuildStore.temporary(environment);
     const installation = new NpmInstallation(locked, store, CONTEXT, environment);
-    const built = await installation.store(
-        await installation.open(copy(root, "colors")),
-        "workerd",
-    );
+    const built = await installation.store(await installation.open(copy(root, "colors")));
 
     // run workerd's converted modules through the re-export
     await place(store, built.manifest, "colors", "workerd", join(root, "placed"));
@@ -257,7 +256,7 @@ test("convert a package for workerd past the tsconfig it publishes, which extend
     expect(call(module["lighten"], 1)).toBe(2);
 });
 
-test("fail an absent optional dependency's require when it runs, and an absent optional peer's import once imported", async () => {
+test("fail an absent optional dependency and an absent optional peer when they load", async () => {
     // install a package falling back without its optional dependency, and a loader of an optional peer nobody installs
     await using simulation = testSimulation();
     const environment = simulation.environment("test");
@@ -290,10 +289,7 @@ test("fail an absent optional dependency's require when it runs, and an absent o
     const placed = join(root, "placed");
     for (const name of ["fallback", "loader"]) {
         const installation = new NpmInstallation(locked, store, CONTEXT, environment);
-        const stored = await installation.store(
-            await installation.open(copy(root, name)),
-            "workerd",
-        );
+        const stored = await installation.store(await installation.open(copy(root, name)));
         await place(store, stored.manifest, name, "workerd", placed);
     }
 
@@ -313,7 +309,7 @@ test("fail an absent optional dependency's require when it runs, and an absent o
     ]);
 });
 
-test("pin a required peer the install linked beside a unit, leaving an optional one to its dependents", async () => {
+test("require a linked required peer, leaving an optional one to dependents", async () => {
     // install a loader importing a required and an optional peer, both linked beside it
     await using simulation = testSimulation();
     const environment = simulation.environment("test");
@@ -345,23 +341,20 @@ test("pin a required peer the install linked beside a unit, leaving an optional 
     );
     await using store = await LocalBuildStore.temporary(environment);
     const installation = new NpmInstallation(locked, store, CONTEXT, environment);
-    const stored = await installation.store(
-        await installation.open(copy(root, "loader")),
-        "workerd",
-    );
+    const stored = await installation.store(await installation.open(copy(root, "loader")));
 
-    // pin the required peer, and declare the optional one for the tree to provide
-    const output = (await store.contents(stored.manifest)).manifest.outputs["workerd"];
+    // require the required peer
+    const { manifest } = await store.contents(stored.manifest);
     expect({
-        dependencies: Object.keys(output?.dependencies ?? {}),
-        peers: output?.peers,
+        requires: manifest.requires,
+        peers: manifest.outputs["workerd"]?.peers,
     }).toEqual({
-        dependencies: ["host"],
+        requires: { host: "1.0.0" },
         peers: { host: { isOptional: false }, plugin: { isOptional: true } },
     });
 });
 
-test("refuse an npm unit with a missing dependency or a cycle, and a native addon and its importers on every runtime", async () => {
+test("build a native addon and its importer for Bun alone, and refuse a missing dependency or a cycle", async () => {
     // install a native addon, a unit importing it, a missing dependency and a cycle
     await using simulation = testSimulation();
     const environment = simulation.environment("test");
@@ -390,20 +383,12 @@ test("refuse an npm unit with a missing dependency or a cycle, and a native addo
     await using store = await LocalBuildStore.temporary(environment);
     const installation = new NpmInstallation(locked, store, CONTEXT, environment);
     const build = async (name: string) =>
-        await installation.store(await installation.open(copy(root, name)), "workerd");
+        await installation.store(await installation.open(copy(root, name)));
 
-    // refuse the native addon and its importer on Bun as on workerd, and the others with their exact reasons
-    const unloadable = [
-        "BAD_REQUEST",
-        "RUNTIME_MODULE_INVALID",
-        "package 'native' is invalid: it is a native addon, which no package may depend on",
-    ];
-    const onBun = await refusal(
-        installation.store(await installation.open(copy(root, "native")), "bun"),
-    );
-    expect(onBun).toEqual(unloadable);
-    expect(await refusal(build("native"))).toEqual(unloadable);
-    expect(await refusal(build("importer"))).toEqual(unloadable);
+    // build the native addon and its importer for Bun alone
+    const runtimes = async (name: string) =>
+        Object.keys((await store.get((await build(name)).manifest)).outputs);
+    expect([await runtimes("native"), await runtimes("importer")]).toEqual([["bun"], ["bun"]]);
     expect(await refusal(build("missing"))).toEqual([
         "BAD_REQUEST",
         "DEPENDENCY_INVALID",

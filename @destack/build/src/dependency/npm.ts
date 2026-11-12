@@ -1,14 +1,15 @@
 import { join } from "node:path";
-import type { Environment, FileSystem } from "@destack/environment";
+import { type Environment, type FileSystem, Once } from "@destack/environment";
 import {
     type DependencyRelease,
     type NpmRelease,
     PackageJson,
     RuntimeRequirements,
 } from "@destack/package";
+import { PackageFile } from "@destack/package/file";
 import { PackageLocator } from "@destack/package/locator";
 import { BuildReader, BuildWriter, type OutputContent } from "@destack/package/manifest";
-import { Runtime } from "@destack/package/runtime";
+import { HOST_RUNTIME, Runtime } from "@destack/package/runtime";
 import { NpmConversion } from "../compile/conversion.ts";
 import { Digest, found, nth, schema } from "@destack/schema";
 import { BuildError } from "../error/index.ts";
@@ -19,9 +20,6 @@ const DESTACK_VERSION = import.meta.destack.package.version;
 
 /** The files read at once, 64: well under macOS's default limit of 256 open files. */
 const CONCURRENT_READS = 64;
-
-/** The extension of a native addon, which Bun loads and workerd cannot. */
-const ADDON_EXTENSION = ".node";
 
 /** The package.json fields an npm unit reads: its release and its requirements. */
 const Manifest = RuntimeRequirements.extend({
@@ -93,7 +91,7 @@ export class NpmInstallation {
             throw BuildError.of("LOCKFILE_INVALID", `lockfile is invalid: it has no '${key}'`);
         }
 
-        // open each installed package it requires, and each peer its install resolved outside its dependents
+        // open each installed package it requires
         const locator = new PackageLocator(this.#environment.files);
         const dependencies = new Map<string, NpmUnit>();
         const required = Object.keys({
@@ -120,11 +118,12 @@ export class NpmInstallation {
                 dependencies.set(name, await this.#open(real, next));
             }
         }
+
+        // open each required peer the install linked beside it, unless the peer leads back to it
         const requiredPeers = PackageJson.peers(manifest).filter(
             (peer) => !PackageJson.isOptional(manifest, peer),
         );
         for (const peer of requiredPeers.toSorted()) {
-            // pin a required peer the install linked beside it, leaving one leading back to it and every optional one to the tree
             const installed = await locator.directory(peer, directory);
             const real =
                 installed === undefined
@@ -174,16 +173,15 @@ export class NpmInstallation {
         return false;
     }
 
-    /** Store a unit's build for a runtime once, keyed by conversion, release and closure. */
-    async store(unit: NpmUnit, runtime: Runtime): Promise<NpmDependency> {
-        // key the build by what decides its bytes: the conversion, the release, the runtime and the locked closure
+    /** Store a unit's build once, an output per runtime, keyed by release and closure. */
+    async store(unit: NpmUnit): Promise<NpmDependency> {
+        // key the build by what decides its bytes
         const { package: released, integrity } = unit.release;
         const key = await Digest.json(
             {
                 kind: "npm",
                 conversion: this.conversion,
                 package: { ...released, integrity },
-                runtime,
                 closure: unit
                     .closure()
                     .map((each) => `${each.release.package.name}@${each.release.package.version}`)
@@ -194,16 +192,16 @@ export class NpmInstallation {
 
         // take the stored build, else build it on the builds of the dependencies its modules import
         const manifest = await this.#store.cachedBuild(key, async () => {
-            const built = await unit.build(runtime, (each) => this.store(each, runtime));
+            const built = await unit.build((each) => this.store(each));
 
             return await this.#store.put(built);
         });
 
-        return { kind: "npm", ...unit.release, manifest };
+        return { kind: "npm", package: { ...released, integrity }, manifest };
     }
 }
 
-/** An npm package installed in the workspace's Bun store, built as one unit per runtime. */
+/** An npm package in the workspace's Bun store, built as one unit with an output per runtime. */
 export class NpmUnit {
     /** The release the lockfile locks. */
     readonly release: NpmRelease;
@@ -215,6 +213,8 @@ export class NpmUnit {
     readonly requirements: RuntimeRequirements;
     /** The files the installed copy is read from, and the crypto digesting its build. */
     readonly #environment: Environment<"files">;
+    /** The runtimes the unit runs on, read once. */
+    readonly #runtimes = new Once<readonly Runtime[]>();
 
     /** Store an installed package's release, copy, dependencies and requirements. */
     constructor(
@@ -275,48 +275,97 @@ export class NpmUnit {
         return [...units];
     }
 
-    /** Build the unit for a runtime in memory, converted to ES modules. */
-    async build(
-        runtime: Runtime,
-        store: (dependency: NpmUnit) => Promise<NpmDependency>,
-    ): Promise<BuildReader> {
-        // refuse a native addon, which only the machine's toolchain may use
-        const files = await NpmUnit.files(this.directory, this.#environment.files);
-        const isAddon = [...files.keys()].some((path) => path.endsWith(ADDON_EXTENSION));
-        const { name } = this.release.package;
-        if (isAddon) {
-            throw BuildError.of(
-                "RUNTIME_MODULE_INVALID",
-                `package '${name}' is invalid: it is a native addon, which no package may depend on`,
+    /** Read the runtimes the unit runs on: Bun alone once it or a dependency has a native addon. */
+    runtimes(): Promise<readonly Runtime[]> {
+        return this.#runtimes.get(async () => {
+            // run on Bun alone with a native addon of its own
+            const paths = await NpmUnit.paths(this.directory, this.#environment.files);
+            if (paths.some((path) => PackageFile.isAddon(path))) {
+                return [HOST_RUNTIME];
+            }
+
+            // run where every dependency runs
+            const depended = await Promise.all(
+                [...this.dependencies.values()].map(async (unit) => unit.runtimes()),
             );
-        }
 
-        // convert its modules to ES modules for the runtime
-        const converted = await new NpmConversion(
-            name,
-            [...this.dependencies.keys()],
-            this.peers,
-            runtime,
-            this.#environment,
-        ).convert(files);
+            return Runtime.options.filter((runtime) =>
+                depended.every((runtimes) => runtimes.includes(runtime)),
+            );
+        });
+    }
 
-        // store the dependencies its modules import and the peers it installs for them
-        const imported = this.#provided(converted.imported);
-        const dependencies = Object.fromEntries(
-            await Promise.all(
-                imported.map(async ([each, unit]) => [each, await store(unit)] as const),
-            ),
-        );
+    /** Build the unit in memory, converted to ES modules, with an output per runtime it runs on. */
+    async build(store: (dependency: NpmUnit) => Promise<NpmDependency>): Promise<BuildReader> {
+        // read the files, and the runtimes the unit runs on
+        const files = await NpmUnit.files(this.directory, this.#environment.files);
+        const runtimes = await this.runtimes();
 
-        // write its files below the runtime, described by its exports and the dependencies it imports
+        // write each runtime's conversion below the runtime
         const written = new Map<string, Uint8Array<ArrayBuffer>>();
         const writer = new BuildWriter(
             { write: async (path, bytes) => void written.set(path, bytes) },
             this.#environment.crypto,
         );
+        const outputs: Record<string, OutputContent> = {};
+        const required = new Map<string, NpmUnit>();
+        for (const runtime of runtimes) {
+            const { output, imported } = await this.#convert(files, runtime, writer);
+            outputs[runtime] = output;
+            for (const [each, unit] of imported) {
+                required.set(each, unit);
+            }
+        }
+
+        // store the units its modules import
+        await Promise.all([...required.values()].map((unit) => store(unit)));
+        const requires = Object.fromEntries(
+            [...required]
+                .map(([each, unit]) => [each, unit.release.package.version] as const)
+                .toSorted(([left], [right]) => (left < right ? -1 : Number(left > right))),
+        );
+        const { integrity } = this.release;
+        const manifest = await writer.finish({
+            destack: DESTACK_VERSION,
+            package: { ...this.release.package, integrity },
+            role: "library",
+            outputs,
+            requires,
+        });
+
+        return new BuildReader(
+            manifest,
+            async (path) => new Blob([found(written, path)]).stream(),
+            this.#environment.crypto,
+        );
+    }
+
+    /** Write the unit for one runtime: published files for Bun, else converted ones. */
+    async #convert(
+        files: ReadonlyMap<string, Uint8Array<ArrayBuffer>>,
+        runtime: Runtime,
+        writer: BuildWriter,
+    ): Promise<{ readonly output: OutputContent; readonly imported: [string, NpmUnit][] }> {
+        // keep the published files for the host, else convert them
+        const converted =
+            runtime === HOST_RUNTIME
+                ? {
+                      files,
+                      exports: {},
+                      imported: new Set([...this.dependencies.keys(), ...this.peers]),
+                  }
+                : await new NpmConversion(
+                      this.release.package.name,
+                      [...this.dependencies.keys()],
+                      this.peers,
+                      runtime,
+                      this.#environment,
+                  ).convert(files);
         await Promise.all(
             [...converted.files].map(([path, bytes]) => writer.write(`${runtime}/${path}`, bytes)),
         );
+
+        // describe its exports
         const output: OutputContent = {
             runtime,
             emit: true,
@@ -329,8 +378,6 @@ export class NpmUnit {
                     { path: `${runtime}/${module}`, imports: [] },
                 ]),
             ),
-            dependencies,
-            // require only the peers its modules import
             peers: Object.fromEntries(
                 this.peers
                     .filter((peer) => converted.imported.has(peer))
@@ -341,27 +388,12 @@ export class NpmUnit {
                     ]),
             ),
         };
-        const { integrity } = this.release;
-        const manifest = await writer.finish({
-            destack: DESTACK_VERSION,
-            package: { ...this.release.package, integrity },
-            role: "library",
-            outputs: { [runtime]: output },
-            dependencies,
-        });
 
-        return new BuildReader(
-            manifest,
-            async (path) => new Blob([found(written, path)]).stream(),
-            this.#environment.crypto,
-        );
+        return { output, imported: this.#provided(converted.imported) };
     }
 
-    /** Read every file of an installed copy by its path, leaving the copy's node_modules out. */
-    static async files(
-        directory: string,
-        files: FileSystem,
-    ): Promise<Map<string, Uint8Array<ArrayBuffer>>> {
+    /** List an installed copy's file paths in order, leaving its node_modules out. */
+    static async paths(directory: string, files: FileSystem): Promise<string[]> {
         // list each file, links followed, in path order
         const entries = await files.readDirectory(directory, { recursive: true });
         const listed = entries
@@ -381,7 +413,16 @@ export class NpmUnit {
             );
         }
 
+        return paths;
+    }
+
+    /** Read every file of an installed copy by its path, leaving the copy's node_modules out. */
+    static async files(
+        directory: string,
+        files: FileSystem,
+    ): Promise<Map<string, Uint8Array<ArrayBuffer>>> {
         // read the files a bounded number at a time
+        const paths = await NpmUnit.paths(directory, files);
         const contents = new Map<string, Uint8Array<ArrayBuffer>>();
         for (let start = 0; start < paths.length; start += CONCURRENT_READS) {
             const batch = paths.slice(start, start + CONCURRENT_READS);

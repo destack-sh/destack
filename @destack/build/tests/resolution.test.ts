@@ -3,7 +3,7 @@ import { Program } from "@destack/package/bun";
 import { testSimulation } from "../src/test/world.ts";
 import { join } from "node:path";
 import { createServer } from "vite";
-import { DependencyResolution } from "@destack/package";
+import { DependencyRelease } from "@destack/package";
 import { expect, refusal, test } from "@destack/test";
 import { Compiler, Workspace, CompilerPool } from "../src/index.ts";
 import { resolutionPlugin } from "../src/compile/dependency.ts";
@@ -84,19 +84,19 @@ async function writeApplication(files: FileSystem): Promise<string> {
 }
 
 test("refuse an undeclared, differently selected or unsupported dependency in the development server", async () => {
-    // serve the application with the host pinning another release of one dependency
+    // serve the application with the host selecting another release of one dependency
     await using simulation = testSimulation();
     const environment = simulation.environment("test");
     const { files } = environment;
     const root = await writeApplication(files);
-    const pinned = DependencyResolution.parse({
-        kind: "source",
+    const pinned = DependencyRelease.parse({
+        kind: "destack",
         package: {
             id: "package-01a10a00-0000-7000-8000-000000000002",
             name: "@fixture/pinned",
             version: "2026.8.0",
         },
-        files: [],
+        manifest: "0".repeat(64),
     });
     const source = await PackageSource.open(
         { directory: join(root, "application"), runtime: "browser", tree: {} },
@@ -163,8 +163,8 @@ test("refuse an unsupported dependency in a build as the development server does
     });
     expect({
         outputs: Object.keys(build.manifest.outputs),
-        server: build.manifest.outputs["bun"]?.dependencies["@fixture/server"]?.kind,
-    }).toEqual({ outputs: ["bun"], server: "destack" });
+        server: build.manifest.requires["@fixture/server"],
+    }).toEqual({ outputs: ["bun"], server: "2026.9.0" });
     const dependencies = await workspace.storeDependencies({});
     expect(
         await refusal(
@@ -172,6 +172,7 @@ test("refuse an unsupported dependency in a build as the development server does
                 compiler.build({
                     directory,
                     dependencies,
+                    links: {},
                     outputs: { browser: { kind: "module", runtime: "browser" } },
                 }),
             ),
@@ -258,8 +259,8 @@ test("build a browser-safe export whose entry re-exports a sibling of a package 
     // load the library's browser export from its own browser output
     expect({
         outputs: Object.keys(build.manifest.outputs),
-        library: build.manifest.outputs["browser"]?.dependencies["@fixture/library"]?.kind,
-    }).toEqual({ outputs: ["browser"], library: "destack" });
+        library: build.manifest.requires["@fixture/library"],
+    }).toEqual({ outputs: ["browser"], library: "2026.9.0" });
 });
 
 test("refuse indexing star exports that lead back into a module, listing the cycle", async () => {
@@ -293,7 +294,9 @@ test("refuse indexing star exports that lead back into a module, listing the cyc
         store,
         toolchain: async () => Toolchain.workspace(),
     });
-    expect(await refusal(compiler.index({ directory, runtime: "bun", dependencies: {} }))).toEqual([
+    expect(
+        await refusal(compiler.index({ directory, runtime: "bun", dependencies: {}, links: {} })),
+    ).toEqual([
         "BAD_REQUEST",
         "INSPECTION_INVALID",
         "export * chain 'src/left.ts -> src/right.ts -> src/left.ts' is invalid: it is a cycle",

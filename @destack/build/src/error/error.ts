@@ -36,18 +36,14 @@ export const BuildError = defineErrorFamily({
         LOCKFILE_INVALID: {},
         MANIFEST_BLOB_INVALID: {},
         MANIFEST_INVALID: {},
+        OBJECT_INVALID: {},
         OUTPUT_INVALID: {},
         RUNTIME_API_INVALID: {},
         RUNTIME_MODULE_INVALID: {},
         TIMEOUT_INVALID: {},
 
-        // required
-        MEDIA_TYPE_REQUIRED: {},
-
         // unreachable
         COMPILER_UNREACHABLE: {},
-        DIGEST_UNREACHABLE: {},
-        PROBE_UNREACHABLE: {},
         UPLOAD_UNREACHABLE: {},
 
         // cancelled
@@ -56,7 +52,6 @@ export const BuildError = defineErrorFamily({
         // broken
         CHECKOUT_BROKEN: {},
         COMPILER_BROKEN: {},
-        CONTENT_BROKEN: {},
         INVARIANT_BROKEN: {},
         LAYER_FILE_BROKEN: {},
     },

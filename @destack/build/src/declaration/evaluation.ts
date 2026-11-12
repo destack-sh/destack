@@ -487,7 +487,7 @@ async function bundleAndEvaluate(
                         directory: project.directory,
                         runtime: HOST_RUNTIME,
                         server: true,
-                        dependencies: project.tree.directories,
+                        dependencies: project.tree.builds,
                         environment: project.environment,
                     },
                 ).map((option) => serverTransform(option)),

@@ -46,7 +46,7 @@ const IMPLIED_EXPORTS: ReadonlySet<string> = new Set(["default", "module.exports
 /** The suffixes Node tries for a relative require, in order. */
 const RESOLVED_SUFFIXES = ["", ".js", ".cjs", ".json", "/index.js", "/index.cjs"];
 
-/** The fields declaring a package's entry, as Wrangler and browser bundlers read them. */
+/** The package.json fields with a package's main module, browser first as bundlers read them. */
 const MAIN_FIELDS = ["browser", "module", "main"];
 
 /** The package.json fields declaring a package's entries. */
@@ -119,7 +119,8 @@ export class NpmConversion {
 
             // convert every module its exports import, noting the files they import that JavaScript does not load
             const exports = this.#exports(installed);
-            const modules = [...new Set(exports.values())].toSorted();
+            const targets = [...new Set(exports.values())].toSorted();
+            const modules = targets.filter((path) => MODULE_PATTERN.test(path));
             const imported = new Set<string>();
             const foreign = new Set<string>();
             const converted = new Map<string, Uint8Array<ArrayBuffer>>();
@@ -135,9 +136,10 @@ export class NpmConversion {
                 }
             }
 
-            // keep the files the modules reference, and the license files
+            // keep exported data, referenced files and licenses
+            const data = targets.filter((path) => !MODULE_PATTERN.test(path));
             const licenses = [...installed.keys()].filter((path) => LICENSE_PATTERN.test(path));
-            for (const path of [...foreign, ...licenses]) {
+            for (const path of [...data, ...foreign, ...licenses]) {
                 converted.set(path, present(installed.get(path), `${this.name}'s ${path}`));
             }
             NpmConversion.#keepReferenced(converted, installed);
@@ -283,14 +285,8 @@ export class NpmConversion {
 
     /** Write the module standing in for a require, an absent package or an emptied host module. */
     static #standIn(id: string, runtime: Runtime): string | null {
-        // require a package on Bun only when the require runs, as CommonJS does
-        if (id.startsWith(REQUIRE_PREFIX) && runtime === "bun") {
-            const specifier = JSON.stringify(id.slice(REQUIRE_PREFIX.length));
-
-            return `import { createRequire } from "node:module";\nmodule.exports = createRequire(import.meta.url)(${specifier});\n`;
-        }
         // require a runtime module by its default, and a package by its `module.exports` export
-        else if (id.startsWith(REQUIRE_PREFIX)) {
+        if (id.startsWith(REQUIRE_PREFIX)) {
             const specifier = JSON.stringify(id.slice(REQUIRE_PREFIX.length));
             const exported = isBuiltin(id.slice(REQUIRE_PREFIX.length))
                 ? "m.default"
@@ -322,7 +318,7 @@ export class NpmConversion {
         return [...runtimeConditions(this.runtime), "import", "require", "default"];
     }
 
-    /** Map each export subpath to the module it resolves to under the runtime's conditions. */
+    /** Map each export subpath to the file it resolves to under the runtime's conditions. */
     #exports(files: ReadonlyMap<string, Uint8Array<ArrayBuffer>>): Map<string, string> {
         // read the package's exports by subpath, else its first main field
         const manifest = EntryManifest.parse(
@@ -338,23 +334,23 @@ export class NpmConversion {
                 ? [[".", main ?? "index.js"] as const]
                 : this.#subpaths(manifest.exports);
 
-        // take each target's module, and every module a pattern matches under its subpath
-        const modules = [...files.keys()].filter((path) => MODULE_PATTERN.test(path));
+        // map each export to its file
+        const paths = [...files.keys()].filter((path) => path !== "package.json");
         const exported = new Map<string, string>();
         for (const [subpath, target] of subpaths) {
-            // take a plain target's module
+            // take a plain target
             const path = target.replace(/^\.\//u, "");
             if (!path.includes("*")) {
                 const module = NpmConversion.#moduleAt(path, files);
-                if (module !== undefined && MODULE_PATTERN.test(module)) {
+                if (module !== undefined && module !== "package.json") {
                     exported.set(subpath, module);
                 }
             }
-            // take every module a pattern matches, under the subpath its match fills
+            // take each file a pattern matches
             else {
                 const [prefix = "", suffix = ""] = path.split("*");
                 const [before = "", after = ""] = subpath.split("*");
-                for (const module of modules) {
+                for (const module of paths) {
                     if (module.startsWith(prefix) && module.endsWith(suffix)) {
                         const match = module.slice(prefix.length, module.length - suffix.length);
                         exported.set(`${before}${match}${after}`, module);

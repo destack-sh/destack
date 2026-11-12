@@ -3,12 +3,15 @@ import { DeclarationDescription } from "@destack/package";
 import { expect, refusal, test } from "@destack/test";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { schema } from "@destack/schema";
+import { present, schema } from "@destack/schema";
 import { TestDeclaration } from "../src/typescript/test.ts";
 import { Workspace, CompilerPool } from "../src/index.ts";
 import { LocalBuildStore } from "../src/store/local.ts";
-import { THING_FILES } from "./fixture.ts";
+import { THING_FILES, writeThing } from "./fixture.ts";
 import { Toolchain } from "@destack/check/toolchain";
+
+/** The app module declaring one thing. */
+const THING_APP = present(THING_FILES["src/app.ts"], "the thing app");
 
 /** The installed vitest, whose test function the inspected tests import. */
 const VITEST = dirname(fileURLToPath(import.meta.resolve("vitest/package.json")));
@@ -19,22 +22,16 @@ test("inspect test bodies and fixture extensions without declaring what they con
     await using simulation = testSimulation();
     const environment = simulation.environment("test");
     const { files } = environment;
-    const directory = await files.realPath(await files.makeTemporaryDirectory("destack-inspect-"));
-    for (const [path, text] of Object.entries(THING_FILES)) {
-        await files.mkdir(dirname(join(directory, path)), { recursive: true });
-        await files.writeTextFile(join(directory, path), text);
-    }
+    const root = await files.realPath(await files.makeTemporaryDirectory("destack-inspect-"));
+    const directory = await writeThing(root, THING_APP, environment);
     await files.symlink(VITEST, join(directory, "node_modules", "vitest"));
-    expect(
-        (await environment.process.spawn(["git", "init", "--quiet", directory]).output()).code,
-    ).toBe(0);
     await using store = await LocalBuildStore.temporary(environment);
     await using compilers = await CompilerPool.open(store, async () => Toolchain.workspace());
     const workspace = await Workspace.open(directory, compilers);
     const dependencies = await workspace.storeDependencies({});
     const inspect = async () =>
         await compilers.use(directory, (compiler) =>
-            compiler.inspect({ directory, runtime: "bun", dependencies }),
+            compiler.inspect({ directory, runtime: "bun", dependencies, links: {} }),
         );
     const before = await inspect();
     const description = schema.object({
@@ -76,25 +73,20 @@ test("construct a thing", () => {
 
 /** Inspect an app module beside the thing kind's package, answering its declarations. */
 async function inspectApp(app: string): Promise<readonly string[]> {
-    // write the app with its kind's package installed beside it
+    // write the app beside its kind's package in one workspace
     await using simulation = testSimulation();
     const environment = simulation.environment("test");
-    const { files } = environment;
-    const directory = await files.realPath(await files.makeTemporaryDirectory("destack-inspect-"));
-    for (const [path, text] of Object.entries({ ...THING_FILES, "src/app.ts": app })) {
-        await files.mkdir(dirname(join(directory, path)), { recursive: true });
-        await files.writeTextFile(join(directory, path), text);
-    }
-    expect(
-        (await environment.process.spawn(["git", "init", "--quiet", directory]).output()).code,
-    ).toBe(0);
+    const root = await environment.files.realPath(
+        await environment.files.makeTemporaryDirectory("destack-inspect-"),
+    );
+    const directory = await writeThing(root, app, environment);
 
     // inspect it on its dependencies' builds
     await using store = await LocalBuildStore.temporary(environment);
     await using compilers = await CompilerPool.open(store, async () => Toolchain.workspace());
     const dependencies = await (await Workspace.open(directory, compilers)).storeDependencies({});
     const inspected = await compilers.use(directory, (compiler) =>
-        compiler.inspect({ directory, runtime: "bun", dependencies }),
+        compiler.inspect({ directory, runtime: "bun", dependencies, links: {} }),
     );
     const { declarations } = schema
         .looseObject({ declarations: schema.array(DeclarationDescription) })

@@ -1,6 +1,7 @@
 import { dirname, join } from "node:path";
 import type { FileSystem } from "@destack/environment";
-import type { NpmRelease } from "@destack/package";
+import type { DependencyRelease, NpmRelease } from "@destack/package";
+import type { Digest } from "@destack/schema";
 
 /** A package of a fixture Bun store: its manifest fields and files. */
 export interface StoredPackage {
@@ -67,4 +68,11 @@ export function moduleFailure(
             return [error.code, error.message] as const;
         },
     );
+}
+
+/** Give builds of distinct packages, hoisted as npm does: each requirement resolves by name. */
+export function hoisted(
+    entries: Readonly<Record<string, DependencyRelease>>,
+): [DependencyRelease[], (build: Digest, name: string) => Digest | undefined] {
+    return [Object.values(entries), (_build, name) => entries[name]?.manifest];
 }

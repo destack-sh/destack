@@ -15,8 +15,7 @@ import type {
 } from "rolldown";
 import {
     DependencyName,
-    DependencyRelease,
-    type DependencyResolution,
+    type DependencyRelease,
     PackageVersion,
     type DeclarationDescription,
 } from "@destack/package";
@@ -85,14 +84,16 @@ export interface OutputBuild {
     paths: string[];
     /** Maps for generated JavaScript. */
     sourceMaps: SourceMapReference[];
-    /** The npm packages the output imports, which the host's link pins for its runtime. */
+    /** The Destack packages its modules import, external to the output. */
+    destack: Set<string>;
+    /** The npm packages its modules import, external to the output. */
     npm: Set<string>;
 }
 
 /** The resolved dependencies, sources, destination and entries one compilation reads. */
 interface CompileInput {
     /** The resolved dependencies, by name. */
-    readonly dependencies: Readonly<Record<string, DependencyResolution>>;
+    readonly dependencies: Readonly<Record<string, DependencyRelease>>;
     /** The source bytes the build snapshots once each, by package path. */
     readonly sources: Pick<BuildDirectory, "retained" | "retain">;
     /** The directory the build writes under. */
@@ -203,7 +204,7 @@ export class OutputCompilation implements Compilation {
 
     /** Compile the output with Vite and extension plugins, then let the extensions describe it. */
     async compile(
-        dependencies: Readonly<Record<string, DependencyResolution>>,
+        dependencies: Readonly<Record<string, DependencyRelease>>,
         sources: Pick<BuildDirectory, "retained" | "retain">,
         destinationRoot: string,
     ): Promise<OutputBuild> {
@@ -268,7 +269,6 @@ export class OutputCompilation implements Compilation {
             views: {},
             directory: `output/${this.name}`,
             exports: {},
-            dependencies: {},
             peers: {},
         };
 
@@ -280,6 +280,7 @@ export class OutputCompilation implements Compilation {
             files: new Map(),
             paths: [],
             sourceMaps: [],
+            destack: new Set(),
             npm: new Set(),
         };
     }
@@ -340,7 +341,7 @@ export class OutputCompilation implements Compilation {
             runtime: this.runtime,
             // render components on the server runtimes, which run them without a document
             server: this.runtime !== "browser",
-            dependencies: this.project.tree.directories,
+            dependencies: this.project.tree.builds,
             cache: this.cache,
             environment: this.project.environment,
         };
@@ -641,8 +642,8 @@ export class OutputCompilation implements Compilation {
     #isExternal(
         specifier: string,
         importer: string | undefined,
-        dependencies: Readonly<Record<string, DependencyResolution>>,
-        compiled: Pick<OutputBuild, "output" | "npm">,
+        dependencies: Readonly<Record<string, DependencyRelease>>,
+        compiled: Pick<OutputBuild, "destack" | "npm">,
     ): boolean {
         // leave host modules to the host plugin, which keeps, empties or refuses them, and keep the Destack host's
         if (isHostModule(specifier)) {
@@ -680,12 +681,12 @@ export class OutputCompilation implements Compilation {
         );
     }
 
-    /** Require a declared dependency, and pin its registry release as external. */
+    /** Require a declared dependency, and mark its Destack release as external. */
     #isExternalRelease(
         specifier: string,
         importer: string | undefined,
-        dependencies: Readonly<Record<string, DependencyResolution>>,
-        compiled: Pick<OutputBuild, "output" | "npm">,
+        dependencies: Readonly<Record<string, DependencyRelease>>,
+        compiled: Pick<OutputBuild, "destack" | "npm">,
     ): boolean {
         // require a declared dependency
         const dependency = DependencyName.of(specifier);
@@ -698,7 +699,7 @@ export class OutputCompilation implements Compilation {
             );
         }
 
-        // pin a Destack dependency's build, refusing an export without a module for the output's runtime
+        // keep a Destack dependency external
         const selected = dependencies[dependency];
         if (selected?.kind === "destack") {
             const modules = this.project.tree.export(specifier);
@@ -708,22 +709,17 @@ export class OutputCompilation implements Compilation {
                     `dependency '${specifier}' of '${by}' is invalid: it has no '${this.runtime}' module`,
                 );
             }
-
-            // record a builtin by its release, which every runtime links, and another build by its manifest
-            compiled.output.dependencies[dependency] =
-                this.project.tree.roles.get(dependency) === "builtin"
-                    ? { kind: "builtin", package: PackageVersion.of(selected.package) }
-                    : DependencyRelease.parse(selected);
+            compiled.destack.add(dependency);
         }
-        // leave an npm package to the host's link, which pins its unit for the runtime
+        // leave an npm package to the dependency tree, which links its unit
         else if (selected === undefined) {
             compiled.npm.add(dependency);
         }
-        // refuse a source snapshot, which no runtime loads
+        // refuse an npm unit's build selected as a dependency, which the tree links instead
         else {
             throw BuildError.of(
                 "DEPENDENCY_INVALID",
-                `runtime dependency '${dependency}' is invalid: it requires a registry release`,
+                `runtime dependency '${dependency}' is invalid: it is an npm unit, which the dependency tree links`,
             );
         }
 
@@ -804,7 +800,7 @@ export class OutputCompilation implements Compilation {
     /** List the dependency specifiers an entry's chunks import, refusing ones nothing provides. */
     #importsOf(entrypoint: string, emitted: string, compiled: OutputBuild): string[] {
         // walk the entry's chunks from its emitted file
-        const { inspection, output } = compiled;
+        const { inspection } = compiled;
         const chunks = [emitted];
         const visited = new Set<string>();
         const imports = new Set<string>();
@@ -822,8 +818,7 @@ export class OutputCompilation implements Compilation {
             // follow internal imports and check external ones against the runtime and the dependencies
             for (const imported of chunk.imports) {
                 const name = DependencyName.of(imported.path);
-                const isDependency =
-                    Object.hasOwn(output.dependencies, name) || compiled.npm.has(name);
+                const isDependency = compiled.destack.has(name) || compiled.npm.has(name);
                 if (!imported.external) {
                     chunks.push(imported.path);
                 } else if (isDependency) {

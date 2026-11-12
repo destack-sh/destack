@@ -3,12 +3,13 @@
     "version": "2026.11.0",
     "license": "MIT",
     "type": "module",
+    "description": "Start a new Destack package from an empty package with one setting.",
     "exports": {
         "./setting": "./src/setting/index.ts",
         "./package": "./src/package.ts"
     },
     "scripts": {
-        "typecheck": "tsc --project tsconfig.json"
+        "typecheck": "tsc --project tsconfig.json && destack-check readme"
     },
     "devDependencies": {
         "@destack/check": "2026.11.0"

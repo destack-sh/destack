@@ -4,7 +4,7 @@ import { expect, refusal, test } from "@destack/test";
 
 import { NpmInstallation } from "./npm.ts";
 import { testSimulation } from "../test/world.ts";
-import { copy, writeStore } from "./test/store.ts";
+import { copy, hoisted, writeStore } from "./test/store.ts";
 import { DependencyTree } from "./tree.ts";
 import { LocalBuildStore } from "../store/local.ts";
 
@@ -14,8 +14,11 @@ const CONTEXT = Digest.parse("802596258260ddeb8be4565d4ec5b9afd34a32b950022f39c6
 /** The default export of a module. */
 const DefaultExport = schema.looseObject({ default: schema.unknown() });
 
-test("place npm units with the peers the packages beside them or their install provide, refusing a required peer left out and leaving an optional one", async () => {
-    // install a renderer whose peers are a core package and an optional theme, a styler whose install links its core peer, and a list depending on a store whose peer it is
+/** The scope of a compile's tree. */
+const COMPILE = { kind: "compile" } as const;
+
+test("place npm units of a lock beside their peers, refusing a missing required peer", async () => {
+    // install a renderer
     await using simulation = testSimulation();
     const environment = simulation.environment("test");
     const { files } = environment;
@@ -53,31 +56,38 @@ test("place npm units with the peers the packages beside them or their install p
     await using store = await LocalBuildStore.temporary(environment);
     const installation = new NpmInstallation(locked, store, CONTEXT, environment);
     const build = async (name: string) =>
-        await installation.store(await installation.open(copy(root, name)), "bun");
+        await installation.store(await installation.open(copy(root, name)));
     const [renderer, core, lists, styler] = [
         await build("renderer"),
         await build("core"),
         await build("store"),
         await build("styler"),
     ];
+    const listed = await installation.store(await installation.open(copy(root, "lists")));
 
-    // place the renderer beside its core, and the store, whose list requires it as its peer
+    // place the renderer
     const tree = await DependencyTree.materialize(
         store,
-        [renderer, core, lists],
+        ...hoisted({ renderer, core, store: lists, lists: listed }),
         join(root, "tree"),
+        COMPILE,
     );
     const exported = async (name: string) =>
         DefaultExport.parse(await import(join(present(tree.directories[name], name), "index.js")))
             .default;
 
-    // render with the provided core and no theme, read the store through its list, style with the core its install linked, and refuse a renderer without its core
-    const alone = await DependencyTree.materialize(store, [styler], join(root, "alone"));
+    // place the styler with its core
+    const peered = await DependencyTree.materialize(
+        store,
+        ...hoisted({ styler, core }),
+        join(root, "peered"),
+        COMPILE,
+    );
     const styled = DefaultExport.parse(
-        await import(join(present(alone.directories["styler"], "styler"), "index.js")),
+        await import(join(present(peered.directories["styler"], "styler"), "index.js")),
     ).default;
     const lacking = await refusal(
-        DependencyTree.materialize(store, [renderer], join(root, "lacking")),
+        DependencyTree.materialize(store, ...hoisted({ renderer }), join(root, "lacking"), COMPILE),
     );
     expect({
         renderer: await exported("renderer"),
@@ -96,7 +106,7 @@ test("place npm units with the peers the packages beside them or their install p
     });
 });
 
-test("place a running tree's npm units as their Bun outputs alone, under runtime roots, listing every root it reaches", async () => {
+test("place a running tree's npm units as their Bun outputs under runtime roots, listing each root", async () => {
     // install a store unit depending on a list unit, each shipping its types beside its module
     await using simulation = testSimulation();
     const environment = simulation.environment("test");
@@ -123,15 +133,18 @@ test("place a running tree's npm units as their Bun outputs alone, under runtime
     );
     await using store = await LocalBuildStore.temporary(environment);
     const installation = new NpmInstallation(locked, store, CONTEXT, environment);
-    const unit = await installation.store(await installation.open(copy(root, "store")), "bun");
+    const opened = await installation.open(copy(root, "store"));
+    const unit = await installation.store(opened);
+    const lists = await installation.store(present(opened.dependencies.get("lists"), "lists"));
 
-    // materialize it as a running tree on Bun, over the closure of both units
-    const recorded = (await store.get(unit.manifest)).outputs["bun"]?.dependencies["lists"];
-    const lists = present(recorded?.kind === "npm" ? recorded : undefined, "the lists unit");
+    // materialize both units
     const directory = join(root, "run");
-    const tree = await DependencyTree.materialize(store, [unit], directory, {
-        run: { runtime: "bun", closure: new Set([unit.manifest, lists.manifest]) },
-    });
+    const tree = await DependencyTree.materialize(
+        store,
+        ...hoisted({ store: unit, lists }),
+        directory,
+        { kind: "run", runtime: "bun", closure: new Set([unit.manifest, lists.manifest]) },
+    );
     const placed = present(tree.directories["store"], "the store unit");
 
     // place the module but not its types, under roots named by the runtime, and list both roots
@@ -142,12 +155,15 @@ test("place a running tree's npm units as their Bun outputs alone, under runtime
     }).toEqual({
         exported: "lists",
         isTyped: false,
-        roots: [`${lists.manifest}.bun`, `${unit.manifest}.bun`].toSorted(),
+        roots: [
+            `${lists.manifest}.bun`,
+            `${unit.manifest}+${await Digest.json([`${unit.manifest} lists ${lists.manifest}`], environment.crypto)}.bun`,
+        ].toSorted(),
     });
 });
 
-test("list the roots a layered build links, through the links inside each package a root places", async () => {
-    // lay out a schema tree placing @acme/schema, which links a validator tree beside it, as a store's trees do
+test("list the roots a layered build links, through the links inside each placed package", async () => {
+    // lay out a schema tree placing @acme/schema
     await using simulation = testSimulation();
     const { files } = simulation.environment("test");
     const root = await files.makeTemporaryDirectory("linked-roots-");

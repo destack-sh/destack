@@ -44,10 +44,11 @@ export class Checkout {
         this.#environment = environment;
     }
 
-    /** List the files of the git checkout enclosing a directory, refusing one outside. */
+    /** List the files of the git checkout enclosing a directory: all of them, or those below it. */
     static async list(
         directory: string,
         environment: Environment<"files" | "process">,
+        scope: "checkout" | "directory" = "checkout",
     ): Promise<Checkout> {
         // find the checkout's top-level directory and object format
         const revision = ["rev-parse", "--show-toplevel", "--show-object-format"];
@@ -57,11 +58,12 @@ export class Checkout {
             throw BuildError.of("CHECKOUT_BROKEN", `'${directory}' is not a git checkout`);
         }
 
-        // list the stored blobs, then the untracked and modified files git stores no blob for
+        // list the stored blobs
+        const pathspec = scope === "directory" ? ["--", relativePath(root, directory) || "."] : [];
         const [stored, changed] = await Promise.all([
-            Checkout.#git(["ls-files", "--stage", "-z"], root, environment),
+            Checkout.#git(["ls-files", "--stage", "-z", ...pathspec], root, environment),
             Checkout.#git(
-                ["ls-files", "--others", "--modified", "--exclude-standard", "-z"],
+                ["ls-files", "--others", "--modified", "--exclude-standard", "-z", ...pathspec],
                 root,
                 environment,
             ),

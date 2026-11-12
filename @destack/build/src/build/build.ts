@@ -1,6 +1,6 @@
 import { BuildError } from "../error/index.ts";
 import {
-    type DependencyResolution,
+    type DependencyRelease,
     PackageDefinition,
     type PackageJson,
     TEST_EXPORT,
@@ -8,7 +8,7 @@ import {
 import type { LocalBuildStore } from "../store/local.ts";
 import { mapExports } from "../source/source.ts";
 import { Runtime } from "@destack/package/runtime";
-import { type Commit, type Digest, schema, type Version } from "@destack/schema";
+import { type Digest, schema, type Version } from "@destack/schema";
 import { join, resolve } from "node:path";
 import type { Environment, FileSystem } from "@destack/environment";
 import { BuildReader, MANIFEST_PATH, PackageManifest } from "@destack/package/manifest";
@@ -248,15 +248,15 @@ export interface PackageBuildOptions {
     /** The module outputs to compile, by name. */
     outputs: Readonly<Record<string, ModuleOptions>>;
     /** Exact dependency releases selected by the package resolver. */
-    dependencies: Readonly<Record<string, DependencyResolution>>;
+    dependencies: Readonly<Record<string, DependencyRelease>>;
+    /** The build each requirement of a dependency's build resolves to, as its lock links it. */
+    links: Readonly<Record<Digest, Readonly<Record<string, Digest>>>>;
     /** The TypeScript configuration, absent for the package defaults. */
     configuration?: string;
     /** Cancel compilation and terminate its subprocesses. */
     signal?: AbortSignal;
     /** The longest a compilation may take, in milliseconds, absent for no deadline. */
     timeout?: number;
-    /** The commit of the source directory, absent for a working tree with changes. */
-    commit?: Commit;
     /** The versions the build releases its source packages at, by package name. */
     versions?: Readonly<Record<string, Version>>;
 }

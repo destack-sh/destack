@@ -1,25 +1,17 @@
 import { graph } from "@destack/package";
 import { PackageInspection } from "@destack/package/code";
 import { deserialize, serialize } from "node:v8";
-import { DependencyResolution, PackageName } from "@destack/package";
+import { DependencyName, DependencyRelease, PackageName } from "@destack/package";
 import { Runtime } from "@destack/package/runtime";
-import { Commit, Digest, schema, Version } from "@destack/schema";
+import { Digest, schema, Version } from "@destack/schema";
 import { Failure } from "@destack/error";
 import { BuildError } from "../error/index.ts";
 import { ModuleOptions } from "./build.ts";
-import { EvaluatedDeclaration } from "../declaration/evaluation.ts";
 
 /** Completed compiler work. */
 export const BuildResult = schema.discriminatedUnion("kind", [
     schema.object({
         kind: schema.literal("build"),
-        /** The npm packages each output imports, which the host's link pins, by output. */
-        npm: schema.record(schema.string(), schema.array(schema.string())),
-    }),
-    schema.object({
-        kind: schema.literal("evaluate"),
-        /** The package's declarations, each with the module and export it has. */
-        declarations: schema.array(EvaluatedDeclaration),
     }),
     schema.object({
         /** The package's outputs passed their type and runtime checks. */
@@ -78,15 +70,13 @@ export const RequestedBuild = schema.object({
     /** The module outputs to compile, by name. */
     outputs: schema.record(schema.string(), ModuleOptions).readonly(),
     /** Exact dependency releases selected by the package resolver. */
-    dependencies: schema.record(schema.string(), DependencyResolution).readonly(),
+    dependencies: schema.record(schema.string(), DependencyRelease).readonly(),
     /** The TypeScript configuration, absent for the package defaults. */
     configuration: schema.string().exactOptional(),
-    /** The commit of the source directory, absent for a working tree with changes. */
-    commit: Commit.exactOptional(),
     /** The versions the build releases its source packages at, by package name. */
     versions: schema.record(PackageName, Version).readonly().exactOptional(),
-    /** The directory the host materialized each Destack dependency's build in, by package name. */
-    tree: schema.record(PackageName, schema.string()).readonly(),
+    /** The directory the host materialized each dependency's build in, by dependency name. */
+    tree: schema.record(DependencyName, schema.string()).readonly(),
 });
 
 /** The options of a build of one source package. */
@@ -98,13 +88,6 @@ export const BuildRequest = schema.discriminatedUnion("kind", [
         kind: schema.literal("build"),
         /** The directory the build writes into. */
         destination: schema.string(),
-        /** The build's options. */
-        options: RequestedBuild,
-        /** The package's evaluated declarations. */
-        declarations: schema.array(EvaluatedDeclaration),
-    }),
-    schema.object({
-        kind: schema.literal("evaluate"),
         /** The build's options. */
         options: RequestedBuild,
     }),

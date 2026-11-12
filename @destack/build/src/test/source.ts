@@ -1,10 +1,9 @@
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { FileSystem } from "@destack/environment";
-import { DependencyRelease, type DependencyResolution, PackageJson } from "@destack/package";
+import { type DependencyRelease, PackageJson } from "@destack/package";
 import type { PackageBuildOptions } from "../build/build.ts";
 import type { BuildReader } from "@destack/package/manifest";
-import { DependencyTree } from "../dependency/tree.ts";
 import { Workspace, type WorkspaceCompilers } from "../dependency/workspace.ts";
 import { BuildError } from "../error/index.ts";
 import { readLockfile, readPackageJson } from "../source/index.ts";
@@ -17,7 +16,7 @@ export class PackageCopy implements AsyncDisposable {
     /** The copied package. */
     readonly source: string;
     /** The builds of the units it depends on, as its build takes them. */
-    readonly dependencies: Readonly<Record<string, DependencyResolution>>;
+    readonly dependencies: Readonly<Record<string, DependencyRelease>>;
     /** The store of the units' builds. */
     readonly store: LocalBuildStore;
     /** The compilers building the copy into the store. */
@@ -27,7 +26,7 @@ export class PackageCopy implements AsyncDisposable {
     private constructor(
         directory: string,
         source: string,
-        dependencies: Readonly<Record<string, DependencyResolution>>,
+        dependencies: Readonly<Record<string, DependencyRelease>>,
         compilers: WorkspaceCompilers,
     ) {
         // store the copy, its dependencies and the compilers with their store
@@ -80,39 +79,22 @@ export class PackageCopy implements AsyncDisposable {
 
     /** Build the copy on its dependencies' builds with its warm compiler. */
     async build(
-        request: Omit<PackageBuildOptions, "directory" | "dependencies">,
+        request: Omit<PackageBuildOptions, "directory" | "dependencies" | "links">,
     ): Promise<BuildReader> {
-        const options = { ...request, directory: this.source, dependencies: this.dependencies };
+        const { source, dependencies } = this;
+        const options = { ...request, directory: source, dependencies, links: {} };
 
         return await this.#compilers.use(this.source, (compiler) => compiler.build(options));
     }
 
     /** Check the copy's outputs, their types and runtime globals, then build them. */
     async check(
-        request: Omit<PackageBuildOptions, "directory" | "dependencies">,
+        request: Omit<PackageBuildOptions, "directory" | "dependencies" | "links">,
     ): Promise<BuildReader> {
-        const options = { ...request, directory: this.source, dependencies: this.dependencies };
+        const { source, dependencies } = this;
+        const options = { ...request, directory: source, dependencies, links: {} };
 
         return await this.#compilers.use(this.source, (compiler) => compiler.check(options));
-    }
-
-    /** Write a build into a directory with the builds its outputs import placed beside it. */
-    async deploy(build: BuildReader, destination: string): Promise<void> {
-        // write the build, then place the builds its outputs record and link them into it
-        const { files } = this.store.environment;
-        await build.writeDirectory(destination, files);
-        const recorded = Object.values(build.manifest.outputs).flatMap((output) =>
-            Object.values(output.dependencies).filter((each) =>
-                DependencyRelease.hasManifest(each),
-            ),
-        );
-        const unique = [...new Map(recorded.map((each) => [each.manifest, each])).values()];
-        const tree = await DependencyTree.materialize(
-            this.store,
-            unique,
-            join(this.directory, "tree"),
-        );
-        await tree.link(join(destination, "node_modules"), files);
     }
 
     /** Remove the copy, its builds and their trees. */

@@ -1,4 +1,4 @@
-import { basename, dirname, join, relative, sep } from "node:path";
+import { dirname, join, relative, sep } from "node:path";
 import { type FileSystem, FileSystemError } from "@destack/environment";
 import {
     DependencyName,
@@ -8,9 +8,7 @@ import {
     RuntimeRequirements,
     type DependencyPackage,
     DependencyRelease,
-    type DependencyResolution,
 } from "@destack/package";
-import type { NpmDependency } from "./npm.ts";
 import {
     type BuildReader,
     MANIFEST_PATH,
@@ -68,24 +66,35 @@ const MaterializedPackage = schema.looseObject({
     exports: MaterializedExports,
 });
 
-/** A running tree's runtime and the builds it places, its outputs alone. */
-export interface TreeRun {
-    /** The runtime whose outputs the tree places. */
-    readonly runtime: Runtime;
-    /** The builds to place, a workload's closure. */
-    readonly closure: ReadonlySet<string>;
-}
+/** What a tree places: whole builds for a compile, or a running closure's outputs. */
+export type TreeScope =
+    | {
+          /** A compile's tree, placing whole builds. */
+          readonly kind: "compile";
+      }
+    | {
+          /** A running tree. */
+          readonly kind: "run";
+          /** The runtime whose outputs the tree places. */
+          readonly runtime: Runtime;
+          /** The builds to place, a workload's closure. */
+          readonly closure: ReadonlySet<string>;
+      };
 
-/** A build a materialization visited: where its tree goes and the builds it links. */
+/** A build a materialization visited: where its tree goes and the packages it links. */
 interface TreeVisit {
+    /** The package's name. */
+    readonly name: string;
     /** The build. */
-    readonly dependency: DependencyBuild;
-    /** The dependencies the build was compiled with, by name. */
-    readonly recorded: Readonly<Record<string, DependencyRelease>>;
+    readonly entry: DependencyRelease;
+    /** The build's manifest and files. */
+    readonly reader: BuildReader;
     /** The directory its tree goes in. */
     readonly root: string;
-    /** The Destack builds it links that the tree places. */
-    readonly linked: readonly DependencyBuild[];
+    /** The packages it requires at run time, placed by the tree or not. */
+    readonly required: readonly string[];
+    /** The build each required package the tree places resolves to, by name. */
+    readonly links: Readonly<Record<string, Digest>>;
 }
 
 /** The builds of a package's Destack dependencies, materialized as a node_modules tree. */
@@ -108,339 +117,326 @@ export class DependencyTree {
         this.#exports = exports;
     }
 
-    /** Materialize a package's Destack dependencies in the store's trees, once per build. */
+    /** Materialize the builds a package compiles against in the store's trees, once each. */
     static async install(
-        dependencies: Readonly<Record<string, DependencyResolution>>,
+        dependencies: Readonly<Record<string, DependencyRelease>>,
+        links: Readonly<Record<Digest, Readonly<Record<string, Digest>>>>,
         directory: string,
         store: LocalBuildStore,
     ): Promise<DependencyTree> {
-        // write each build once in the store's trees, linking the npm packages the workspace installed
-        const builds = Object.values(dependencies).filter(
-            (dependency): dependency is DependencyBuild => dependency.kind === "destack",
-        );
+        // find the workspace the tree serves
         const workspace = await DependencyTree.#workspace(directory, store.environment.files);
 
-        return await DependencyTree.materialize(store, builds, store.trees, { workspace });
+        // place the dependencies and every build their locks link
+        const builds = Object.values(dependencies);
+        const named = new Set(builds.map((build) => build.manifest));
+        const linked = new Set(Object.values(links).flatMap((each) => Object.values(each)));
+        for (const digest of [...linked].filter((each) => !named.has(each))) {
+            const { package: built } = await store.get(digest);
+            builds.push(
+                "id" in built
+                    ? { kind: "destack", package: built, manifest: digest }
+                    : { kind: "npm", package: built, manifest: digest },
+            );
+        }
+
+        // resolve each requirement through its build's lock, else by name among the dependencies
+        const resolve = (build: Digest, name: string) =>
+            links[build]?.[name] ?? dependencies[name]?.manifest;
+        const scope = { kind: "compile" } as const;
+
+        return await DependencyTree.materialize(store, builds, resolve, store.trees, scope, {
+            workspace,
+        });
     }
 
-    /** Write builds and theirs once each under a directory by manifest, with their npm packages. */
+    /** Write builds once each under a directory, each linked to the builds it requires. */
     static async materialize(
         store: LocalBuildStore,
-        dependencies: readonly DependencyRelease[],
+        builds: readonly DependencyRelease[],
+        resolve: (build: Digest, name: string) => Digest | undefined,
         directory: string,
+        scope: TreeScope,
         options: {
-            /** The workspace whose Bun store links the npm packages, else the store places them. */
+            /** The workspace whose Bun store links its members' npm packages, else the entries. */
             readonly workspace?: string | undefined;
-            /** A running tree's runtime and closure, placed as outputs alone, else whole builds. */
-            readonly run?: TreeRun;
         } = {},
     ): Promise<DependencyTree> {
-        // link npm packages to a workspace's Bun store, else place the npm units the builds record
-        const { files } = store.environment;
-        const { workspace, run } = options;
-        const closure = run?.closure;
+        // take the builds the tree places
+        const { files, crypto } = store.environment;
+        const { workspace } = options;
         const installation =
             workspace === undefined
                 ? undefined
                 : await DependencyTree.#installation(workspace, files);
+        const placed = new Map(
+            builds
+                .filter((entry) => scope.kind === "compile" || scope.closure.has(entry.manifest))
+                .map((entry) => [entry.manifest, entry] as const),
+        );
 
-        // place the npm units given directly, each other's peers among them
-        const placedNpm: Record<string, string> = {};
-        const given = dependencies.filter((each): each is NpmDependency => each.kind === "npm");
-        const placedBeside = new Map(given.map((each) => [each.package.name, each]));
-        for (const unit of given) {
-            const placed = await DependencyTree.#placeNpm(
-                store,
-                unit,
-                directory,
-                placedBeside,
-                new Set(),
-                run,
-            );
-            placedNpm[unit.package.name] = placed;
+        // read what each build links among the placed builds
+        const read = new Map<
+            Digest,
+            {
+                readonly reader: BuildReader;
+                readonly required: readonly string[];
+                readonly links: Readonly<Record<string, Digest>>;
+            }
+        >();
+        for (const [manifest, entry] of placed) {
+            const reader = await store.contents(manifest);
+            const required = await DependencyTree.#required(reader, entry);
+            const resolved = required.flatMap((each) => {
+                const target = resolve(manifest, each);
+
+                return target !== undefined && target !== manifest && placed.has(target)
+                    ? [[each, target] as const]
+                    : [];
+            });
+            read.set(manifest, { reader, required, links: Object.fromEntries(resolved) });
         }
 
-        // write each build once, following the Destack dependencies it was compiled with
-        const directories: Record<string, string> = {};
-        const builds = dependencies.filter(
-            (each): each is DependencyBuild => each.kind === "destack",
-        );
-        const manifests = new Map<string, string>();
-        const visits = new Map<string, TreeVisit>();
-        const named = new Set(builds.map((dependency) => dependency.package.name));
-        const pending = [...builds];
-        for (let dependency = pending.pop(); dependency !== undefined; dependency = pending.pop()) {
-            // visit each package once, refusing two builds of one package in the flat tree
-            const visited = manifests.get(dependency.package.name);
-            if (visited !== undefined && visited !== dependency.manifest) {
-                throw BuildError.of(
-                    "DEPENDENCY_INVALID",
-                    `dependency '${dependency.package.name}' is invalid: it is required as two different builds '${visited}' and '${dependency.manifest}'`,
-                );
-            } else if (visited !== undefined) {
-                continue;
-            }
-            manifests.set(dependency.package.name, dependency.manifest);
-            // visit the Destack dependencies the build's outputs import, as builds
-            const reader = await store.contents(dependency.manifest);
-            const { manifest } = reader;
-            const recorded: Record<string, DependencyRelease> = {};
-            const outputs = Object.values(manifest.outputs).toSorted(
-                (left, right) =>
-                    Number(left.runtime === HOST_RUNTIME) - Number(right.runtime === HOST_RUNTIME),
+        // key each root by its build and every edge of its tree
+        const visits = new Map<Digest, TreeVisit>();
+        for (const [manifest, entry] of placed) {
+            const { reader, required, links } = present(read.get(manifest), manifest);
+            const edges = DependencyTree.#edges(
+                manifest,
+                (each) => present(read.get(each), each).links,
             );
-            // take each npm unit from the Bun output where it has one, which the tree places
-            for (const output of outputs) {
-                Object.assign(recorded, output.dependencies);
-            }
+            const base =
+                edges.length === 0 ? manifest : `${manifest}+${await Digest.json(edges, crypto)}`;
+            const root = join(directory, DependencyTree.#rootName(base, scope));
+            visits.set(manifest, {
+                name: entry.package.name,
+                entry,
+                reader,
+                root,
+                required,
+                links,
+            });
+        }
 
-            // place each builtin a compile reads at its locked build
-            if (run === undefined) {
-                const locked = new Map(
-                    Object.values(await reader.dependencies()).flatMap((each) =>
-                        each.kind === "destack" ? [[each.package.name, each] as const] : [],
-                    ),
-                );
-                for (const [name, release] of Object.entries(recorded)) {
-                    if (release.kind === "builtin") {
-                        recorded[name] = present(
-                            locked.get(name),
-                            `the build of ${name} that ${manifest.package.name} compiled against`,
-                        );
-                    }
+        // place each root once
+        const done = new Set<Digest>();
+        const place = async (manifest: Digest, visiting: ReadonlySet<Digest>): Promise<void> => {
+            // place the linked roots first
+            const visit = present(visits.get(manifest), manifest);
+            if (done.has(manifest) || visiting.has(manifest)) {
+                return;
+            }
+            for (const each of Object.values(visit.links)) {
+                await place(each, new Set([...visiting, manifest]));
+            }
+            done.add(manifest);
+
+            // place a root the trees lack
+            if (!(await files.exists(visit.root))) {
+                await DependencyTree.#place(store, visit, visits, directory, installation, scope);
+            }
+        };
+        for (const manifest of visits.keys()) {
+            await place(manifest, new Set());
+        }
+
+        // read the Destack builds' exports where each lies in its root
+        const placedIn = (kind: DependencyRelease["kind"]): Record<string, string> =>
+            Object.fromEntries(
+                [...visits.values()]
+                    .filter((visit) => visit.entry.kind === kind)
+                    .map(
+                        (visit) =>
+                            [visit.name, join(visit.root, "node_modules", visit.name)] as const,
+                    )
+                    .toReversed(),
+            );
+        const tree = await DependencyTree.read(placedIn("destack"), files);
+
+        return new DependencyTree(
+            { ...placedIn("npm"), ...tree.directories },
+            tree.roles,
+            tree.#exports,
+        );
+    }
+
+    /** List the packages a build requires at run time: an npm unit's requirements and peers. */
+    static async #required(reader: BuildReader, entry: DependencyRelease): Promise<string[]> {
+        // take an npm unit's requirements and the peers its host output declares
+        if (entry.kind === "npm") {
+            const peers = Object.keys(reader.manifest.outputs[HOST_RUNTIME]?.peers ?? {});
+
+            return [...new Set([...Object.keys(reader.manifest.requires), ...peers])];
+        }
+        // take every runtime dependency a Destack build's package.json declares
+        else {
+            const authored = AuthoredPackage.parse(
+                JSON.parse(new TextDecoder().decode(await reader.load("package.json"))),
+            );
+
+            return PackageJson.runtimeDependencies(authored);
+        }
+    }
+
+    /** List every edge of a build's tree, as sorted from, name and target triples. */
+    static #edges(
+        root: Digest,
+        links: (build: Digest) => Readonly<Record<string, Digest>>,
+    ): string[] {
+        // walk the links once each from the root
+        const edges: string[] = [];
+        const seen = new Set<Digest>([root]);
+        const pending = [root];
+        for (let next = pending.pop(); next !== undefined; next = pending.pop()) {
+            for (const [name, target] of Object.entries(links(next))) {
+                edges.push(`${next} ${name} ${target}`);
+                if (!seen.has(target)) {
+                    seen.add(target);
+                    pending.push(target);
                 }
             }
-            const linked = Object.values(recorded).filter(
-                (each): each is DependencyBuild =>
-                    each.kind === "destack" && (closure?.has(each.manifest) ?? true),
-            );
-            pending.push(...linked);
-
-            // record where the build goes and the builds it links
-            const root = join(directory, DependencyTree.#rootName(dependency.manifest, run));
-            directories[dependency.package.name] = join(
-                root,
-                "node_modules",
-                dependency.package.name,
-            );
-            visits.set(dependency.manifest, { dependency, recorded, root, linked });
         }
 
-        // place each build after the builds it links
-        const roots = builds.map((each) => each.manifest);
-        for (const visit of DependencyTree.#linkedFirst(visits, roots)) {
-            // clone what the store still lacks of a tree the store's layer ships
-            const shipped = store.layeredTree(basename(visit.root));
-            if (shipped !== undefined) {
-                await DependencyTree.#adopt(shipped, visit.root, files);
-            }
-            // place a tree outside the layer
-            else if (!(await files.exists(visit.root))) {
-                await DependencyTree.#place(store, visit.dependency, visit.recorded, directory, {
-                    installation,
-                    named,
-                    run,
-                });
-            }
-        }
-
-        // read the builds' exports, beside the npm units placed directly
-        const tree = await DependencyTree.read(directories, files);
-
-        return new DependencyTree({ ...placedNpm, ...tree.directories }, tree.roles, tree.#exports);
+        return edges.toSorted();
     }
 
-    /** Order visited builds from some roots so each follows the builds it links, each once. */
-    static #linkedFirst(
-        visits: ReadonlyMap<string, TreeVisit>,
-        roots: readonly string[],
-    ): TreeVisit[] {
-        // walk depth first, taking a build once every build it links is taken
-        const ordered: TreeVisit[] = [];
-        const seen = new Set<string>();
-        const pending = roots.toReversed().map((manifest) => ({ manifest, isExpanded: false }));
-        for (let entry = pending.pop(); entry !== undefined; entry = pending.pop()) {
-            // take an expanded build, else expand a first visit with its links on top
-            const visit = visits.get(entry.manifest);
-            if (visit !== undefined && entry.isExpanded) {
-                ordered.push(visit);
-            } else if (visit !== undefined && !seen.has(entry.manifest)) {
-                seen.add(entry.manifest);
-                const links = visit.linked.map((each) => ({
-                    manifest: each.manifest,
-                    isExpanded: false,
-                }));
-                pending.push({ manifest: entry.manifest, isExpanded: true }, ...links.toReversed());
-            }
-        }
-
-        return ordered;
-    }
-
-    /** Write one build into its place below a directory: its files, links and package.json. */
+    /** Write one build into its root: its files, its links, and its package.json. */
     static async #place(
         store: LocalBuildStore,
-        dependency: DependencyBuild,
-        recorded: Readonly<Record<string, DependencyRelease>>,
+        visit: TreeVisit,
+        visits: ReadonlyMap<Digest, TreeVisit>,
         directory: string,
-        workspace: {
-            readonly installation: WorkspaceInstall | undefined;
-            readonly named: ReadonlySet<string>;
-            readonly run: TreeRun | undefined;
-        },
+        installation: WorkspaceInstall | undefined,
+        scope: TreeScope,
     ): Promise<void> {
-        // stage the build beside its place, linking as siblings the Destack dependencies the tree places
+        // stage the build beside its root
         const { files } = store.environment;
-        const reader = await store.contents(dependency.manifest);
+        const { name, entry, reader, root } = visit;
         const staged = await DependencyTree.#stage(directory, files);
-        const root = join(directory, DependencyTree.#rootName(dependency.manifest, workspace.run));
-        const target = join(staged, "node_modules", dependency.package.name);
-        for (const [name, release] of Object.entries(recorded)) {
-            if (
-                release.kind === "destack" &&
-                (workspace.run?.closure.has(release.manifest) ?? true)
-            ) {
-                const sibling = join(staged, "node_modules", name);
-                const linkedRoot = DependencyTree.#rootName(release.manifest, workspace.run);
-                const linked = join(directory, linkedRoot, "node_modules", name);
-                await DependencyTree.#symlink(linked, sibling, { staged, root }, files);
+        const target = join(staged, "node_modules", name);
+        for (const [each, manifest] of Object.entries(visit.links)) {
+            const linked = join(present(visits.get(manifest), manifest).root, "node_modules", each);
+            await DependencyTree.#symlink(
+                linked,
+                join(staged, "node_modules", each),
+                { staged, root },
+                files,
+            );
+        }
+
+        // place an npm unit's host output
+        if (entry.kind === "npm") {
+            const output = present(
+                reader.manifest.outputs[HOST_RUNTIME],
+                `the ${HOST_RUNTIME} output of ${name}`,
+            );
+            for (const [peer, declared] of Object.entries(output.peers)) {
+                if (!declared.isOptional && visit.links[peer] === undefined) {
+                    throw BuildError.of(
+                        "DEPENDENCY_INVALID",
+                        `peer '${peer}' of '${name}' is invalid: its dependent does not provide it`,
+                    );
+                }
+            }
+            const prefix = `${output.directory}/`;
+            await store.place(
+                (await DependencyTree.#placed(reader, scope))
+                    .filter((file) => file.path.startsWith(prefix))
+                    .map((file) => ({
+                        file,
+                        destination: join(target, file.path.slice(prefix.length)),
+                    })),
+            );
+            // write a converted output's package.json
+            const exports = Object.fromEntries(
+                Object.entries(output.exports).map(([subpath, module]) => [
+                    subpath,
+                    `./${module.path.slice(prefix.length)}`,
+                ]),
+            );
+            await files.mkdir(target, { recursive: true });
+            if (!(await files.exists(join(target, "package.json")))) {
+                await files.writeTextFile(
+                    join(target, "package.json"),
+                    JSON.stringify({ name, type: "module", exports }),
+                );
             }
         }
-
-        // clone the build's files but its package.json, which the tree writes anew, then write its manifest
-        const built = await DependencyTree.#placed(reader, workspace.run);
-        await store.place(
-            built
-                .filter((file) => file.path !== "package.json")
-                .map((file) => ({ file, destination: join(target, file.path) })),
-        );
-        await files.writeFile(
-            join(target, MANIFEST_PATH),
-            PackageManifest.serialize(reader.manifest),
-        );
-
-        // link a member's npm packages from the workspace's Bun store, others' as their host output records
-        const authored = AuthoredPackage.parse(
-            JSON.parse(new TextDecoder().decode(await reader.load("package.json"))),
-        );
-        const { installation, named, run } = workspace;
-        const hosted = await DependencyTree.#hosted(store, reader.manifest, dependency, run);
-        const linked =
-            installation === undefined || !installation.members.has(dependency.package.name)
-                ? await DependencyTree.#placeRecorded(store, hosted, directory, run)
-                : await DependencyTree.#installed(
-                      installation,
-                      dependency,
-                      recorded,
-                      authored,
-                      named,
-                  );
-        for (const [name, placed] of linked) {
-            const link = join(target, "node_modules", name);
-            await DependencyTree.#symlink(placed, link, { staged, root }, files);
+        // place a Destack build's files
+        else {
+            const built = await DependencyTree.#placed(reader, scope);
+            await store.place(
+                built
+                    .filter((file) => file.path !== "package.json")
+                    .map((file) => ({ file, destination: join(target, file.path) })),
+            );
+            await files.writeFile(
+                join(target, MANIFEST_PATH),
+                PackageManifest.serialize(reader.manifest),
+            );
+            const authored = AuthoredPackage.parse(
+                JSON.parse(new TextDecoder().decode(await reader.load("package.json"))),
+            );
+            if (installation !== undefined && installation.members.has(name)) {
+                const installed = await DependencyTree.#installed(
+                    installation,
+                    name,
+                    authored,
+                    visit.links,
+                );
+                for (const [each, path] of installed) {
+                    await DependencyTree.#symlink(
+                        path,
+                        join(target, "node_modules", each),
+                        { staged, root },
+                        files,
+                    );
+                }
+            }
+            const exports = DependencyTree.#exportsOf(
+                Object.values(reader.manifest.outputs),
+                authored.exports,
+            );
+            await files.writeTextFile(
+                join(target, "package.json"),
+                JSON.stringify({ ...authored, type: "module", exports }),
+            );
         }
 
-        // export its outputs' modules and its authored sources' types from its package.json
-        const outputs = Object.values(reader.manifest.outputs);
-        const exports = DependencyTree.#exportsOf(outputs, authored.exports);
-        const packageJson = { ...authored, type: "module", exports };
-        await files.writeTextFile(join(target, "package.json"), JSON.stringify(packageJson));
-
-        // move it into place, leaving the one a concurrent materialization moved in first
+        // move it into place
         await DependencyTree.#move(staged, root, files);
     }
 
-    /** Read the pins a build's host output runs with: the run's closure, else its exports'. */
-    static async #hosted(
-        store: LocalBuildStore,
-        manifest: PackageManifest,
-        dependency: DependencyBuild,
-        run: TreeRun | undefined,
-    ): Promise<Readonly<Record<string, DependencyRelease>>> {
-        const pinned = manifest.outputs[HOST_RUNTIME]?.dependencies ?? {};
-        const imported =
-            run?.closure ??
-            (await store.closure(
-                dependency.manifest,
-                dependency.package.id,
-                HOST_RUNTIME,
-                undefined,
-                "export",
-            ));
-
-        return Object.fromEntries(
-            Object.entries(pinned).filter(
-                ([, each]) => DependencyRelease.hasManifest(each) && imported.has(each.manifest),
-            ),
-        );
-    }
-
-    /** Place the npm units a build's outputs record, each beside the others as its peers. */
-    static async #placeRecorded(
-        store: LocalBuildStore,
-        recorded: Readonly<Record<string, DependencyRelease>>,
-        directory: string,
-        run: TreeRun | undefined,
-    ): Promise<Map<string, string>> {
-        // place each recorded unit with the others beside it
-        const units = Object.entries(recorded).filter(
-            (entry): entry is [string, NpmDependency] =>
-                entry[1].kind === "npm" && (run?.closure.has(entry[1].manifest) ?? true),
-        );
-        const beside = new Map(units);
-        const placed = new Map<string, string>();
-        for (const [name, unit] of units) {
-            placed.set(
-                name,
-                await DependencyTree.#placeNpm(store, unit, directory, beside, new Set(), run),
-            );
-        }
-
-        return placed;
-    }
-
-    /** Find the npm packages a build imports and declares as the workspace installed them. */
+    /** Find the npm packages a member declares as the workspace installed them. */
     static async #installed(
         installation: WorkspaceInstall,
-        dependency: DependencyBuild,
-        recorded: Readonly<Record<string, DependencyRelease>>,
+        owner: string,
         authored: schema.Infer<typeof AuthoredPackage>,
-        named: ReadonlySet<string>,
+        links: Readonly<Record<string, Digest>>,
     ): Promise<Map<string, string>> {
-        // take the npm units its outputs record, at their locked versions
-        const owner = dependency.package.name;
-        const linked = new Map<string, string | undefined>();
-        for (const [name, release] of Object.entries(recorded)) {
-            if (release.kind === "npm") {
-                linked.set(name, await installation.find(owner, name, release.package, true));
-            }
-        }
-
-        // take the npm packages its sources declare at a version, leaving its Destack ones to the tree
+        // find each runtime dependency the tree does not place
+        const linked = new Map<string, string>();
         for (const name of PackageJson.runtimeDependencies(authored)) {
             const version =
                 authored.dependencies?.[name] ??
                 authored.optionalDependencies?.[name] ??
                 authored.peerDependencies?.[name];
-            const isDestack = recorded[name]?.kind === "destack" || named.has(name);
-            const isLinked = linked.has(name) || isDestack;
-            // leave a linked or Destack package, and a peer without a version
-            if (isLinked || version === undefined || version.startsWith("workspace:")) {
-                continue;
-            }
-            // find the npm package as the workspace installed it
-            else {
-                const isRequired = !PackageJson.isOptional(authored, name);
-                const release = { name, version };
-                linked.set(name, await installation.find(owner, name, release, isRequired));
+            const isPlaced = links[name] !== undefined;
+            const placed =
+                isPlaced || version === undefined || version.startsWith("workspace:")
+                    ? undefined
+                    : await installation.find(
+                          owner,
+                          name,
+                          { name, version },
+                          !PackageJson.isOptional(authored, name),
+                      );
+            if (placed !== undefined) {
+                linked.set(name, placed);
             }
         }
 
-        return new Map(
-            [...linked].flatMap(([name, placed]) =>
-                placed === undefined ? [] : [[name, placed] as const],
-            ),
-        );
+        return linked;
     }
 
     /** Read how a workspace installs npm packages: by its members' links, else in its Bun store. */
@@ -485,178 +481,6 @@ export class DependencyTree {
         });
     }
 
-    /** Find where an npm unit is placed: by its manifest, and by its peers' places if any. */
-    static async #npmRoot(
-        store: LocalBuildStore,
-        dependency: NpmDependency,
-        directory: string,
-        scope: ReadonlyMap<string, NpmDependency>,
-        visiting: ReadonlySet<string>,
-        run: TreeRun | undefined,
-    ): Promise<{ readonly root: string; readonly peers: ReadonlyMap<string, NpmDependency> }> {
-        // refuse peers requiring each other in a cycle
-        const name = dependency.package.name;
-        if (visiting.has(dependency.manifest)) {
-            throw BuildError.of(
-                "DEPENDENCY_INVALID",
-                `npm peer '${name}' is invalid: it is part of a peer cycle`,
-            );
-        }
-
-        // provide each peer the unit declares from the packages beside it, as Node resolves them
-        const reader = await store.contents(dependency.manifest);
-        const output = present(
-            reader.manifest.outputs[HOST_RUNTIME],
-            `the ${HOST_RUNTIME} output of ${name}`,
-        );
-        const peers = new Map<string, NpmDependency>();
-        const declaredPeers = Object.entries(output.peers)
-            .filter(([peer]) => !Object.hasOwn(output.dependencies, peer))
-            .toSorted(([left], [right]) => (left < right ? -1 : Number(left > right)));
-        for (const [peer, declared] of declaredPeers) {
-            // take a provided peer, and refuse a required one its dependent leaves out
-            const provided = scope.get(peer);
-            if (provided !== undefined) {
-                peers.set(peer, provided);
-            } else if (!declared.isOptional) {
-                throw BuildError.of(
-                    "DEPENDENCY_INVALID",
-                    `peer '${peer}' of '${name}' is invalid: its dependent does not provide it`,
-                );
-            }
-        }
-
-        // place a unit without peers by its manifest, and one with peers by its peers' places too
-        if (peers.size === 0) {
-            return {
-                root: join(directory, DependencyTree.#rootName(dependency.manifest, run)),
-                peers,
-            };
-        }
-        const placed: Record<string, string> = {};
-        for (const [peer, provided] of peers) {
-            const next = new Set([...visiting, dependency.manifest]);
-            placed[peer] = (
-                await DependencyTree.#npmRoot(store, provided, directory, scope, next, run)
-            ).root;
-        }
-
-        return {
-            root: join(
-                directory,
-                DependencyTree.#rootName(
-                    `${dependency.manifest}+${await Digest.json(placed, store.environment.crypto)}`,
-                    run,
-                ),
-            ),
-            peers,
-        };
-    }
-
-    /** Place an npm unit's Bun output once, its dependencies' units and its peers beside it. */
-    static async #placeNpm(
-        store: LocalBuildStore,
-        dependency: NpmDependency,
-        directory: string,
-        scope: ReadonlyMap<string, NpmDependency>,
-        placing: ReadonlySet<string>,
-        run: TreeRun | undefined,
-    ): Promise<string> {
-        // use a unit placed before or being placed, its peers taken from the packages beside it
-        const name = dependency.package.name;
-        const { root, peers } = await DependencyTree.#npmRoot(
-            store,
-            dependency,
-            directory,
-            scope,
-            new Set(),
-            run,
-        );
-        const { files } = store.environment;
-        const target = join(root, "node_modules", name);
-        const shipped = store.layeredTree(basename(root));
-        // leave a tree this materialization places
-        if (placing.has(root)) {
-            return target;
-        }
-        // clone what the store still lacks of a tree the store's layer ships
-        else if (shipped !== undefined) {
-            await DependencyTree.#adopt(shipped, root, files);
-
-            return target;
-        }
-        // leave a tree placed before
-        else if (await files.exists(root)) {
-            return target;
-        }
-        const reader = await store.contents(dependency.manifest);
-        const output = present(
-            reader.manifest.outputs[HOST_RUNTIME],
-            `the ${HOST_RUNTIME} output of ${name}`,
-        );
-        const staged = await DependencyTree.#stage(directory, files);
-
-        // link the dependencies it records and its peers beside it
-        const siblings = new Map<string, DependencyRelease>([
-            ...Object.entries(output.dependencies),
-            ...peers,
-        ]);
-        const beside = new Map<string, NpmDependency>([[name, dependency]]);
-        for (const [imported, release] of siblings) {
-            if (release.kind !== "npm") {
-                throw BuildError.of(
-                    "DEPENDENCY_INVALID",
-                    `npm unit of '${name}' is invalid: it lists '${imported}' as a build, not an npm release`,
-                );
-            }
-            beside.set(imported, release);
-        }
-        for (const [imported, release] of beside) {
-            if (imported === name) {
-                continue;
-            }
-            const next = new Set([...placing, root]);
-            const placed = await DependencyTree.#placeNpm(
-                store,
-                release,
-                directory,
-                beside,
-                next,
-                run,
-            );
-            const sibling = join(staged, "node_modules", imported);
-            await DependencyTree.#symlink(placed, sibling, { staged, root }, files);
-        }
-
-        // write its Bun output's files as the package
-        const prefix = `${output.directory}/`;
-        const placed = join(staged, "node_modules", name);
-        await store.place(
-            (await DependencyTree.#placed(reader, run))
-                .filter((file) => file.path.startsWith(prefix))
-                .map((file) => ({
-                    file,
-                    destination: join(placed, file.path.slice(prefix.length)),
-                })),
-        );
-
-        // resolve its converted modules by the exports its build records, then move it into place
-        const exports = Object.fromEntries(
-            Object.entries(output.exports).map(([subpath, module]) => [
-                subpath,
-                `./${module.path.slice(prefix.length)}`,
-            ]),
-        );
-        await files.mkdir(placed, { recursive: true });
-        await files.writeTextFile(
-            join(placed, "package.json"),
-            JSON.stringify({ name, type: "module", exports }),
-        );
-        await DependencyTree.#move(staged, root, files);
-
-        return target;
-    }
-
     /** Link a staged path to a sibling tree relatively, so trees move whole, else absolutely. */
     static async #symlink(
         target: string,
@@ -671,25 +495,23 @@ export class DependencyTree {
         await files.symlink(isSibling ? relative(dirname(moved), target) : target, link);
     }
 
-    /** List a build's files a tree places: a running tree's output alone, else the whole build. */
-    static async #placed(
-        reader: BuildReader,
-        run: TreeRun | undefined,
-    ): Promise<readonly PackageFile[]> {
+    /** List a build's files a tree places: a whole build for a compile, else what a run runs. */
+    static async #placed(reader: BuildReader, scope: TreeScope): Promise<readonly PackageFile[]> {
         // place every file for a compile
-        if (run === undefined) {
+        if (scope.kind === "compile") {
             return await reader.distributed();
         }
+        // place the output a running tree runs, refusing a build without one
+        else {
+            present(
+                Object.values(reader.manifest.outputs).find(
+                    (output) => output.runtime === scope.runtime,
+                ),
+                `the ${scope.runtime} output of ${reader.manifest.package.name}`,
+            );
 
-        // place the output a running tree runs, with its maps
-        const [name] = present(
-            Object.entries(reader.manifest.outputs).find(
-                ([, output]) => output.runtime === run.runtime,
-            ),
-            `the ${run.runtime} output of ${reader.manifest.package.name}`,
-        );
-
-        return await reader.outputFiles(name);
+            return await reader.runFiles([scope.runtime]);
+        }
     }
 
     /** Read the build a tree root holds by its name, absent for a name of no root. */
@@ -700,49 +522,9 @@ export class DependencyTree {
         return parsed.success ? parsed.data : undefined;
     }
 
-    /** Name a tree root: a build's manifest, and the runtime for a running tree's outputs alone. */
-    static #rootName(base: string, run: TreeRun | undefined): string {
-        return run === undefined ? base : `${base}.${run.runtime}`;
-    }
-
-    /** Clone every tree a layer's tree reaches that the store lacks, whole once it returns. */
-    static async #adopt(shipped: string, root: string, files: FileSystem): Promise<void> {
-        // leave a root in place, which has every tree it reaches in place
-        if (await files.exists(root)) {
-            return;
-        }
-
-        // clone each reached tree missing beside the root, one a concurrent clone has not moved in too
-        const reached = await DependencyTree.#follow([await files.realPath(shipped)], files);
-        // clone the root last, so a root in place has every tree it reaches in place
-        for (const tree of [...reached].toReversed()) {
-            const owned = join(dirname(root), basename(tree));
-            // clone a tree the store does not own yet
-            if (!(await files.exists(owned))) {
-                await DependencyTree.#clone(tree, owned, files);
-            }
-        }
-    }
-
-    /** Clone a tree to a root in a staging directory beside it, keeping a concurrent clone. */
-    static async #clone(tree: string, root: string, files: FileSystem): Promise<void> {
-        // clone the tree in a staging directory beside the root, which a replaced layer leaves intact
-        await files.mkdir(dirname(root), { recursive: true });
-        const staging = await files.makeTemporaryDirectory(`${basename(root)}.`, {
-            directory: dirname(root),
-        });
-        const staged = join(staging, "tree");
-        try {
-            // move it into place, keeping the root a concurrent materialization placed first
-            await files.copy(tree, staged);
-            await files.rename(staged, root).catch((error: unknown) => {
-                if (!FileSystemError.is(error, "FILE_EXISTS")) {
-                    throw error;
-                }
-            });
-        } finally {
-            await files.remove(staging, { recursive: true, force: true });
-        }
+    /** Name a tree root: a build and its edges, then what the tree places. */
+    static #rootName(base: string, scope: TreeScope): string {
+        return scope.kind === "compile" ? base : `${base}.${scope.runtime}`;
     }
 
     /** Locate a directory's workspace where its lockfile really is, past a linked lockfile. */
@@ -764,7 +546,14 @@ export class DependencyTree {
         }
     }
 
-    /** Read the tree of materialized dependency directories, by package name. */
+    /** The directory of each Destack dependency's build, by package name. */
+    get builds(): Readonly<Record<string, string>> {
+        return Object.fromEntries(
+            Object.entries(this.directories).filter(([name]) => this.roles.has(name)),
+        );
+    }
+
+    /** Read the tree of materialized dependency directories, by dependency name. */
     static async read(
         directories: Readonly<Record<string, string>>,
         files: FileSystem,
@@ -773,15 +562,13 @@ export class DependencyTree {
         const roles = new Map<string, PackageRole>();
         const exports = new Map<string, schema.Infer<typeof MaterializedExports>>();
         for (const [name, directory] of Object.entries(directories)) {
-            // read its exports
-            const packageJson = MaterializedPackage.parse(
-                JSON.parse(await files.readTextFile(join(directory, "package.json"))),
-            );
-            exports.set(name, packageJson.exports);
-
-            // read its declared role, absent for an npm package
+            // read a Destack package's role and runtime exports, an npm package having neither
             const definition = join(directory, DEFINITION_FILE);
             if (await files.exists(definition)) {
+                const packageJson = MaterializedPackage.parse(
+                    JSON.parse(await files.readTextFile(join(directory, "package.json"))),
+                );
+                exports.set(name, packageJson.exports);
                 roles.set(name, PackageDefinition.read(await files.readTextFile(definition)).role);
             }
         }
