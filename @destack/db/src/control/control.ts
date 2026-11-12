@@ -768,8 +768,9 @@ export class ControlLoop {
 
     /** Read a controller's pending keys, enqueueing those not failing, and its next due row. */
     async #read(controller: Job): Promise<void> {
-        // take a listed cursor once its batch passes, as what it reads may have changed meanwhile
+        // take a listed cursor once its batch passes
         if (ControlLoop.#isCursor(controller)) {
+            this.#wakes.delete(controller);
             this.enqueue(controller, ONE_CHECKPOINT, this.#clock.now() + (controller.batch ?? 0));
 
             return;
@@ -855,7 +856,7 @@ export class ControlLoop {
         }
     }
 
-    /** List the controllers of unlogged tables again after each commit to one of those tables. */
+    /** Wake the controllers of unlogged tables once per batch of commits, as a work queue does. */
     async #listUnlogged(signal: AbortSignal): Promise<void> {
         // find the controllers reading or watching unlogged tables
         const unlogged = new Map(
@@ -869,15 +870,16 @@ export class ControlLoop {
         if (![...unlogged.values()].some((tables) => tables.length > 0)) {
             return;
         }
-        await this.database.log.waitUntil(async (committed) => {
-            // list the controllers whose unlogged tables the commits wrote
+        await this.database.log.waitUntil((committed) => {
+            // wake each controller
+            const at = this.#clock.now();
             for (const controller of this.#jobs) {
                 if (found(unlogged, controller).some((table) => committed.has(table))) {
-                    await this.#list(controller);
+                    this.#wakeAt(controller, at);
                 }
             }
 
-            return false;
+            return Promise.resolve(false);
         }, signal);
     }
 

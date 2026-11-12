@@ -1038,6 +1038,34 @@ test("list a controller of an unlogged table again after a commit to its table",
     await waitEqual(simulation, () => reconciled, ["first"]);
 });
 
+test("take a cursor once more after a commit to an unlogged table it reads, then go idle", async () => {
+    // count the takes of a cursor over notes and unlogged tickets
+    await using simulation = testSimulation();
+    const { database } = await openJobs(simulation, [note, ticket, lock]);
+    let takes = 0;
+    const cursor: Cursor = {
+        name: "note-cursor",
+        tables: [note, ticket],
+        take: async () => {
+            takes += 1;
+        },
+    };
+    const loop = new ControlLoop(
+        database,
+        { controllers: [], cursors: [cursor] },
+        { report: ignore },
+    );
+    running(loop);
+    await loop.idle();
+    const before = takes;
+
+    // write a ticket
+    await database.insert(ticket).values({ id: "first", status: "open" });
+    await waitEqual(simulation, () => takes, before + 1);
+    await loop.idle();
+    expect(takes).toBe(before + 1);
+});
+
 test("list again after the follow's changes were compacted, reconciling the rows pending meanwhile", async () => {
     // reconcile open jobs, holding the first until its follow's later changes are compacted
     await using simulation = testSimulation();
