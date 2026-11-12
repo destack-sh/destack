@@ -1,112 +1,96 @@
 # @destack/notification
 
-`@destack/notification` declares notifications, records them as activities for each recipient, stores each person's inbox in their home, and sends them as messages under the person's focus and summary settings.
+Declare notifications, notify recipients, watch objects and deliver them as messages.
 
-```ts
-await call.mutate(call.caller, [
-    mention.call({ source, recipients: [bob], reason: "mention", payload: { author, excerpt } }),
-]);
-await home.mutate.notification.read({ id });
-```
+## Overview
 
-## Declarations
+A package declares its notifications, and its methods notify recipients; each person's inbox lives in their home, and delivery follows their focus and summary settings.
 
-`defineNotification` declares a notification: its payload, its content as catalog messages over the payload's fields, its summary over `count`, and the actions it offers.
+- **Notification**: a kind of notice a package sends, with its payload, content, summary and actions; `call` notifies named recipients or an audience.
+- **Activity**: one notice for its recipients about a source object, kept beside the object.
+- **Subscription**: a person watching an object, so its `subscribers` audience reaches them.
+- **Inbox**: a person's notifications in their home, each with its read, snooze and archive state.
+- **Summary**: the notices a person's schedule saves, sent together once due.
 
 ```ts
 import { defineNotification } from "@destack/notification/declare";
+import { argument, plural, t } from "@destack/locale";
+import { schema } from "@destack/schema";
+import type { ObjectReference, Subject } from "@destack/sync";
 
 export const mention = defineNotification({
     name: "mention",
-    title: "Mentions",
-    description: "Someone mentions you in a comment.",
+    title: t`Mentions`,
+    description: t`Someone mentions you in a comment.`,
     payload: schema.object({ author: schema.string(), excerpt: schema.string().max(280) }),
     interruption: "active",
     preference: { channels: ["desktop", "push", "email"], delivery: "immediate" },
     content: { title: t`${argument("author")} mentioned you`, body: t`${argument("excerpt")}` },
     summary: t`${plural(argument("count"), { one: "# mention", other: "# mentions" })}`,
-    actions: [{ name: "open", title: "Open", type: page, method: "open" }],
 });
+
+(source: ObjectReference, bob: Subject) =>
+    mention.call({
+        source,
+        recipients: [bob],
+        reason: "mention",
+        payload: { author: "Ada", excerpt: "Can you check this?" },
+    });
 ```
 
-## Notifying
+## Examples
 
-An object type attaches `activity`, `announcement` and `subscription`; a notification's `call` notifies named recipients or an audience.
+### Install notification
+
+A space installs notification for its activities, and each person's home keeps their inbox.
+
+```sh
+destack install @destack/notification
+```
+
+### Notify an object's subscribers
+
+A notification's `call` reaches an audience instead of named recipients, such as the source's subscribers.
 
 ```ts
-export const page = defineObject({
-    ...definition,
-    attachments: [
-        activity.attach({ by: "read" }),
-        announcement.attach({ by: "read" }),
-        subscription.attach({ by: "read" }),
-    ],
+import { defineNotification } from "@destack/notification/declare";
+import { argument, plural, t } from "@destack/locale";
+import { schema } from "@destack/schema";
+import type { ObjectReference } from "@destack/sync";
+
+const change = defineNotification({
+    name: "change",
+    title: t`Changes`,
+    description: t`A document you follow changed.`,
+    payload: schema.object({ summary: schema.string() }),
+    interruption: "active",
+    preference: { channels: ["desktop", "email"], delivery: "immediate" },
+    content: { title: t`Document changed`, body: t`${argument("summary")}` },
+    summary: t`${plural(argument("count"), { one: "# change", other: "# changes" })}`,
 });
-await call.mutate(call.caller, [
-    Subscription.subscribe(parent, caller, "participating"),
-    update.call({ source, audience: { kind: "subscribers" }, payload }),
-]);
+
+(source: ObjectReference) =>
+    change.call({ source, audience: { kind: "subscribers" }, payload: { summary: "Renamed" } });
 ```
 
-## Inbox
+### Test notifications
 
-A person's home replicates their activities and stores one `notification` of each with its read, snooze and archive state.
+`TestNotification` serves a space and its people's homes with notification installed, mail and push in process.
 
 ```ts
-const inbox = new Inbox(notifications, activities, now);
-const unread = inbox.unread({ space: spaceId });
-await home.mutate.notification.snooze({ id, until: tomorrow });
-await home.mutate.notification.readMany({ items: [{ id, readAt: now }] });
+import { TestNotification } from "@destack/notification/test";
+
+await using notifications = await TestNotification.open();
+await notifications.join("bob");
+const inbox = await notifications.inbox("bob");
 ```
 
-## Delivery
+## Comparison
 
-A notification's controller delivers each new occurrence once its `deliveryAt` is due: `Routing.decide` sends, defers, saves for the scheduled summary, or skips each destination from the person's preference, focus and summary schedule, and a `summary` per home and time goes out once due.
+### Apple's User Notifications
 
-```ts
-const weekend: Focus = {
-    schedules: [{ days: [6, 7], from: "00:00", to: "00:00" }],
-    allowed: [],
-    isTimeSensitiveAllowed: true,
-};
-const evening: SummarySchedule = { times: ["19:00"], channels: ["email"] };
-const decision = new Routing(entry, recipient, settings, { emailDelay }, now).decide(to); // { action: "defer", until }
-```
+Interruption levels, focus, scheduled summaries and actions follow Apple's User Notifications; three things differ.
 
-## Server
-
-The package's server, its default export of `./server`, serves a space's activities, announcements and subscriptions, and a home's notifications and summaries with their controllers.
-
-```ts
-import notificationServer from "@destack/notification/server";
-
-// the package requests in its space: notification.plan, summary.plan, announcement.expand, message.*
-// and in the universe, acting for its home under the home's grant: user.recipient
-// its optional `push` capability pushes only where an installation allows it; message forgets gone browsers
-const store = new ObjectStore({ servers: [notificationServer, messageServer], ...options });
-```
-
-## Views
-
-`NotificationInbox` lists the person's inbox, and `NotificationBadge` counts their unread notifications.
-
-```tsx
-import { NotificationBadge, NotificationInbox } from "@destack/notification/view";
-
-<NotificationBadge space={space} />;
-<NotificationInbox onOpen={(entry) => open(entry)} />;
-```
-
-## Tests
-
-`TestNotification` hosts a space of a test universe with a documents application and notifications installed, and five people calling with their own tokens.
-
-```ts
-await using fixture = await TestNotification.open({ batch: 2 });
-await fixture.call(
-    "alice",
-    document.call("broadcast", { ...fixture.scope, id, audience: "members" }),
-);
-await fixture.simulation.idle();
-const activities = await fixture.activities();
-```
+- A package declares its notifications, and each person chooses their channels for each: desktop, push or email.
+- Each notice refers to its source object, so only people who may read the source receive it.
+- A person's inbox lives in their home, so it follows them across every space and device.
