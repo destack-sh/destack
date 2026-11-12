@@ -4,7 +4,7 @@
     "license": "Apache-2.0",
     "type": "module",
     "sideEffects": false,
-    "description": "Hold credentials for external accounts and lend them to outbound calls.",
+    "description": "Connect external accounts once, and call their APIs with credentials kept in a vault.",
     "exports": {
         ".": "./src/index.ts",
         "./declare": "./src/declare/index.ts",
@@ -20,7 +20,7 @@
         "./test": "./src/test/index.ts"
     },
     "scripts": {
-        "typecheck": "tsc --project tsconfig.json",
+        "typecheck": "tsc --project tsconfig.json && destack-check readme",
         "test": "bun --bun run vitest run --config vitest.config.ts"
     },
     "dependencies": {
