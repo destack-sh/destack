@@ -2,9 +2,9 @@ import { resource, through, union, universe } from "@destack/access";
 import { account, space } from "@destack/account/object";
 import type { Select } from "@destack/db";
 import { defineObject, field } from "@destack/object";
-import { schema } from "@destack/schema";
+import { Digest, schema } from "@destack/schema";
 import { ObjectReference } from "@destack/sync";
-import { PackageName } from "@destack/package";
+import { graph, PackageId, PackageName } from "@destack/package";
 import { Vocabulary } from "@destack/resource";
 import { RegistryError } from "../error/index.ts";
 import { validRange } from "semver";
@@ -15,6 +15,9 @@ const NAME_LENGTH = 149;
 
 /** The longest distribution tag name, as long as the longest version it may stand for. */
 const TAG_LENGTH = 256;
+
+/** Who can read a package: anyone, anyone with its name, or its account alone. */
+const VISIBILITIES = ["public", "unlisted", "private"] as const;
 
 /** The tag installers follow when they request no version. */
 export const LATEST_TAG = "latest";
@@ -38,6 +41,20 @@ export const TagName = Object.assign(tagName, {
     },
 });
 
+/** A pushed lock checked for its release, before the release's transaction. */
+export const Candidate = schema.object({
+    /** The digest of the lock. */
+    lock: Digest,
+    /** The commit its root compiled, absent for a prerelease of uncommitted changes. */
+    commit: schema.string().exactOptional(),
+    /** The version its root build declares. */
+    version: schema.string(),
+    /** Its root build's declarations, with their terms. */
+    declarations: schema.array(graph.Declaration).readonly(),
+});
+/** A pushed lock checked for its release, before the release's transaction. */
+export type Candidate = schema.Infer<typeof Candidate>;
+
 /** A package of an account, installed as `@<account handle>/<name>` and keyed by its package id. */
 export const packageObject = defineObject(
     {
@@ -57,7 +74,7 @@ export const packageObject = defineObject(
                     .regex(/^[a-z0-9][a-z0-9._-]*$/u),
             ),
             /** Who can read the package, and whether it is listed to them. */
-            visibility: field.enum(["public", "unlisted", "private"]).default("unlisted"),
+            visibility: field.enum(VISIBILITIES).default("unlisted"),
             /** The terms of the package's releases. */
             vocabulary: field.json(Vocabulary).default({}),
         },
@@ -98,6 +115,29 @@ export const packageObject = defineObject(
         create: method.create("publish", {
             fields: ["accountId", "name", "visibility"],
             onConflict: "id",
+        }),
+        /** Publish a pushed lock as a release under a tag, creating the package, as npm does. */
+        publish: method.mutation({
+            title: t`Publish`,
+            permission: "publish",
+            target: "scope",
+            prepared: Candidate,
+            input: schema.object({
+                /** The package. */
+                packageId: PackageId,
+                /** The account publishing it. */
+                accountId: schema.identifier("account"),
+                /** Its name within the account. */
+                name: schema.string(),
+                /** Who can read it, unlisted on its first publish when absent. */
+                visibility: schema.enum(VISIBILITIES).exactOptional(),
+                /** The digest of the pushed lock. */
+                lock: Digest,
+                /** The commit its root compiled, absent for a prerelease of uncommitted changes. */
+                commit: schema.string().exactOptional(),
+                /** The distribution tag pointing at the release, latest when absent. */
+                tag: TagName.exactOptional(),
+            }),
         }),
         list: method.list("discover"),
         /** Find the package of a global name, `@<account handle>/<name>`. */

@@ -3,9 +3,8 @@ import { space } from "@destack/account/object";
 import type { Select } from "@destack/db";
 import { defineObject, field } from "@destack/object";
 import { PackageId } from "@destack/package";
-import { graph } from "@destack/package";
-import { Digest, schema } from "@destack/schema";
-import { packageObject, TagName } from "./package.ts";
+import { schema } from "@destack/schema";
+import { Candidate, packageObject, TagName } from "./package.ts";
 import { nested } from "@destack/object";
 import { argument, plural, t } from "@destack/locale";
 
@@ -14,22 +13,6 @@ const DEPRECATION_LENGTH = 1024;
 
 /** The warning installers show for a deprecated release. */
 const DeprecationMessage = schema.string().min(1).max(DEPRECATION_LENGTH);
-
-/** A pushed build checked for its release, before the release's transaction. */
-export const Candidate = schema.object({
-    /** The digest of the build's manifest. */
-    manifest: Digest,
-    /** The commit the build compiled, absent for a prerelease of uncommitted changes. */
-    commit: schema.string().exactOptional(),
-    /** The version the build declares. */
-    version: schema.string(),
-    /** The manifests of the npm units the build depends on, directly or through other units. */
-    units: schema.array(Digest).readonly(),
-    /** The build's declarations, with their terms. */
-    declarations: schema.array(graph.Declaration).readonly(),
-});
-/** A pushed build checked for its release, before the release's transaction. */
-export type Candidate = schema.Infer<typeof Candidate>;
 
 /** An immutable release of a package at one calendar version. */
 export const release = defineObject(
@@ -41,8 +24,8 @@ export const release = defineObject(
         fields: {
             /** The immutable calendar version. */
             version: field.string(),
-            /** The SHA-256 digest of the published manifest. */
-            manifest: field.blob(),
+            /** The published lock's digest: the package's build and every build it runs with. */
+            lock: field.blob(),
             /** The full Git SHA-1 or SHA-256 commit identifier, absent for some prereleases. */
             commit: field.string().optional(),
             /** The warning installers show for the release, absent while it is not deprecated. */
@@ -61,12 +44,12 @@ export const release = defineObject(
                     ],
                 },
             },
-            manifest: {
+            lock: {
                 kind: "check",
-                condition: { manifest: { length: 64, characters: "0-9a-f" } },
+                condition: { lock: { length: 64, characters: "0-9a-f" } },
             },
             version: { kind: "unique", on: ["parentId", "version"] },
-            build: { kind: "index", on: ["manifest"] },
+            build: { kind: "index", on: ["lock"] },
         },
         access: {
             permissions: { read: through("parent", "read"), publish: through("parent", "publish") },
@@ -74,13 +57,12 @@ export const release = defineObject(
         traits: [nested({ in: packageObject, add: "publish", delete: "restrict" })],
     },
     (method) => ({
+        /** Insert a checked lock's release under a tag, which only the package's publish calls. */
         create: method.create("publish", {
+            visibility: "package",
             isPredicted: false,
             fields: [],
-            prepared: Candidate,
-            input: schema.object({
-                /** The digest of the pushed build's manifest. */
-                manifest: Digest,
+            input: Candidate.extend({
                 /** The distribution tag pointing at the release, latest when absent. */
                 tag: TagName.exactOptional(),
             }),
@@ -97,6 +79,8 @@ export const release = defineObject(
                 release: schema.string().min(1),
             }),
         }),
+        /** Delete a prerelease, refusing a stable release, which stays immutable and only yanks. */
+        delete: method.delete("publish"),
         deprecate: method.mutation({
             title: t`Deprecate`,
             permission: "publish",
