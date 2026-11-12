@@ -8,27 +8,27 @@ import { defineTable, TABLE } from "../table/table.ts";
 import { TEST_CIPHER, TestDatabase } from "../test/database.ts";
 import { testSimulation } from "@destack/test/world";
 
-/** Credentials with a secret sealed randomly and a token sealed alike for lookups. */
+/** Credentials with a randomized encrypted secret and a deterministic encrypted token. */
 const credential = defineTable(
-    "sealed_credential",
+    "encrypted_credential",
     {
         /** The credential's identifier. */
         id: text("id").primaryKey(),
         /** The space it lives in. */
         scope: text("scope").notNull(),
-        /** The secret, sealed under a fresh nonce. */
+        /** The secret, encrypted under a fresh nonce. */
         secret: text("secret").notNull().sensitive(),
-        /** The bearer token, sealed alike so a lookup finds it by value. */
+        /** The bearer token, encrypted alike so a lookup finds it by value. */
         token: text("token").notNull().sensitive("deterministic"),
     },
     { log: {} },
 );
 
-/** Push subscriptions with a sealed JSON endpoint and a sealed flag. */
-const subscription = defineTable("sealed_subscription", {
+/** Push subscriptions with an encrypted JSON endpoint and an encrypted flag. */
+const subscription = defineTable("encrypted_subscription", {
     /** The subscription's identifier. */
     id: text("id").primaryKey(),
-    /** The push endpoint and its keys, sealed. */
+    /** The push endpoint and its keys, encrypted. */
     endpoint: json(
         "endpoint",
         schema.object({
@@ -36,11 +36,11 @@ const subscription = defineTable("sealed_subscription", {
             keys: schema.record(schema.string(), schema.string()),
         }),
     ).sensitive(),
-    /** Whether the subscription is muted, sealed. */
+    /** Whether the subscription is muted, encrypted. */
     isMuted: boolean("is_muted").notNull().sensitive(),
 });
 
-/** The stored text of each credential's sealed columns. */
+/** The stored text of each credential's encrypted columns. */
 const Stored = schema.array(schema.object({ secret: schema.string(), token: schema.string() }));
 
 /** Open a migrated database with two credentials. */
@@ -64,21 +64,21 @@ async function open() {
     return database;
 }
 
-/** Read the stored text of the sealed columns in key order. */
+/** Read the stored text of the encrypted columns in key order. */
 async function stored(database: Awaited<ReturnType<typeof open>>) {
     const name = sql.relation(credential[TABLE].sqlName);
 
     return Stored.parse(await database.all(sql`SELECT secret, token FROM ${name} ORDER BY id`));
 }
 
-test("seal sensitive columns at rest, open them on read, and find a deterministic one by value", async () => {
+test("encrypt sensitive columns at rest, decrypt them on read, and find a deterministic one by value", async () => {
     const database = await open();
     const [first, second] = await stored(database);
 
-    // open the stored text with the database's key, which never stores the plaintext
+    // decrypt the stored text with the database's key
     expect([
-        TEST_CIPHER.open(first?.secret, "secret"),
-        TEST_CIPHER.open(second?.token, "token"),
+        TEST_CIPHER.decrypt(first?.secret, "secret"),
+        TEST_CIPHER.decrypt(second?.token, "token"),
         first?.secret === "first secret" || first?.token === "first token",
     ]).toEqual(["first secret", "second token", false]);
 
@@ -98,7 +98,7 @@ test("seal sensitive columns at rest, open them on read, and find a deterministi
     ]);
 });
 
-test("seal equal secrets apart and equal tokens alike, each bound to its column", async () => {
+test("encrypt equal secrets apart and equal tokens alike, each bound to its column", async () => {
     const database = await open();
     await database.transaction((transaction) =>
         transaction
@@ -117,13 +117,13 @@ test("seal equal secrets apart and equal tokens alike, each bound to its column"
         true,
     ]);
 
-    // refuse opening the token's text as the secret's column
-    expect(() => TEST_CIPHER.open(third?.token, "secret")).toThrow(
+    // refuse decrypting the token's text
+    expect(() => TEST_CIPHER.decrypt(third?.token, "secret")).toThrow(
         new TypeError("cannot decrypt secret with the database key"),
     );
 });
 
-test("seal the values one transaction updates together, as one statement writes them", async () => {
+test("encrypt the values one transaction updates together, as one statement writes them", async () => {
     const database = await open();
 
     // change both secrets in one transaction
@@ -141,16 +141,16 @@ test("seal the values one transaction updates together, as one statement writes 
     }
     await transaction.commit();
 
-    // store both sealed, and open them as written
+    // store both encrypted
     const [first, second] = await stored(database);
     expect([
-        TEST_CIPHER.open(first?.secret, "secret"),
-        TEST_CIPHER.open(second?.secret, "secret"),
+        TEST_CIPHER.decrypt(first?.secret, "secret"),
+        TEST_CIPHER.decrypt(second?.secret, "secret"),
         first?.secret === "a rotated",
     ]).toEqual(["a rotated", "b rotated", false]);
 });
 
-test("return the opened values of the rows an insert and an update write, as a select reads them", async () => {
+test("return the decrypted values of the rows an insert and an update write, as a select reads them", async () => {
     // insert and update credentials, returning the written rows
     const database = await open();
     const inserted = await database.transaction(
@@ -176,11 +176,11 @@ test("return the opened values of the rows an insert and an update write, as a s
     ]);
 });
 
-test("open sealed JSON and boolean values as the values written", async () => {
+test("decrypt encrypted JSON and boolean values as the values written", async () => {
     // run in a world of its own
     const world = testSimulation().environment("test");
 
-    // write a sealed JSON value and a sealed flag
+    // write an encrypted JSON value and an encrypted flag
     const storage = await TestDatabase.create([subscription], {
         environment: world,
         isMigrated: true,

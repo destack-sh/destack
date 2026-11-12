@@ -2,7 +2,7 @@ import { nth, canonicalize } from "@destack/schema";
 import type { DatabaseConnection } from "../database/connection.ts";
 import { type Dialect } from "../dialect/dialect.ts";
 import { elementValue, jsonElements, jsonOf, Statement } from "../query/statement.ts";
-import { ColumnCipher, SEALED_DIALECT } from "../database/cipher.ts";
+import { ColumnCipher, ENCRYPTED_DIALECT } from "../database/cipher.ts";
 import { sql } from "../sql/index.ts";
 import { DatabaseError } from "../error/error.ts";
 import { Condition, Scalar } from "../query/condition.ts";
@@ -447,27 +447,27 @@ export class ChangeSet {
         });
     }
 
-    /** Write a changed column's JSON array element, sealing a sensitive value. */
+    /** Write a changed column's JSON array element, encrypting a sensitive value. */
     static #element(
         transaction: DatabaseConnection,
         table: Table,
         column: string,
         row: Row,
     ): unknown {
-        // take a value without sealing as its JSON form
+        // take a value without encryption
         const { definition } = table[TABLE].column(column);
         const value = row[column];
-        if (definition.sealing === undefined || value === undefined || value === null) {
+        if (definition.encryption === undefined || value === undefined || value === null) {
             return jsonOf(table, column, row);
         }
 
-        // seal the driver value under the transaction's cipher
+        // encrypt the driver value under the transaction's cipher
         const cipher = ColumnCipher.require(transaction.state.cipher, { definition });
 
-        return cipher.seal(
-            definition.encode(value, SEALED_DIALECT),
+        return cipher.encrypt(
+            definition.encode(value, ENCRYPTED_DIALECT),
             definition.name,
-            definition.sealing,
+            definition.encryption,
         );
     }
 

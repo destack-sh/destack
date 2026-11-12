@@ -260,7 +260,7 @@ export class DatabaseConnection<
 
     /** Key the database's sensitive columns once, as SQLCipher's `PRAGMA key` does. */
     key(cipher: ColumnCipher): void {
-        // refuse a second key, which would mix the sealing of stored values
+        // refuse a second key
         if (this.state.cipher !== undefined && this.state.cipher !== cipher) {
             throw new TypeError("the database already has a key");
         }

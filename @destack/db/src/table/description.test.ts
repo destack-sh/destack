@@ -127,8 +127,8 @@ test("rebuild a declared table from its state under its properties, reading the 
         { id: "a", scope: "space-1", switchedAt: 1_790_000_000_000, wiringKey: undefined },
     ]);
 
-    // copy the unlogged column's sealed text as it is, which the database's cipher opens
-    expect(TEST_CIPHER.open(present(copied, "the copied row")["wiringKey"], "wiring_key")).toBe(
+    // copy the unlogged column's encrypted text
+    expect(TEST_CIPHER.decrypt(present(copied, "the copied row")["wiringKey"], "wiring_key")).toBe(
         "secret",
     );
 });

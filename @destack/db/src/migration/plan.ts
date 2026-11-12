@@ -973,7 +973,7 @@ function changeValues(
             isEmpty ||
             releases.some((release) => state.conversions?.[release]?.[column.name] !== undefined);
         try {
-            const planned = Plan.values({
+            const planned = Plan.of({
                 target: Address.join("table", name, "column", column.name),
                 before: old.value,
                 after: column.value,

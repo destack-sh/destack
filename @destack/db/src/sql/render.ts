@@ -1,6 +1,6 @@
 import { nth } from "@destack/schema";
 import type { Dialect } from "../dialect/dialect.ts";
-import { ColumnCipher, SEALED_DIALECT } from "../database/cipher.ts";
+import { ColumnCipher, ENCRYPTED_DIALECT } from "../database/cipher.ts";
 import { Column, type DriverValue } from "../table/column.ts";
 import { TABLE, Table } from "../table/table.ts";
 import { DatabaseError } from "../error/error.ts";
@@ -147,7 +147,7 @@ interface Target {
     readonly dialect: Dialect;
     /** The database's namespace in a shared store, absent for a separate database. */
     readonly namespace: string | undefined;
-    /** The cipher sealing sensitive columns' values, absent for a database without them. */
+    /** The cipher encryption sensitive columns' values, absent for a database without them. */
     readonly cipher: ColumnCipher | undefined;
     /** The common tables the statement reads, by name, absent for a declaration. */
     readonly commons: Map<string, string> | undefined;
@@ -263,7 +263,7 @@ function bind(chunk: Parameter | Placeholder, target: Target): string {
     return `?${target.parameters.length}`;
 }
 
-/** Encode a parameter's value through its column, sealing a sensitive column's value. */
+/** Encode a parameter's value through its column, encryption a sensitive column's value. */
 function encoded(parameter: Parameter, target: Target): DriverValue {
     // take null and a value without a column as they are
     const { encoder } = parameter;
@@ -271,14 +271,14 @@ function encoded(parameter: Parameter, target: Target): DriverValue {
         return driverValue(parameter.value);
     }
 
-    // encode through the column, or seal a sensitive value's text-stored form
-    const { classification, sealing, name } = encoder.definition;
-    if (classification !== "sensitive" || sealing === undefined) {
+    // encode through the column
+    const { classification, encryption, name } = encoder.definition;
+    if (classification !== "sensitive" || encryption === undefined) {
         return encoder.definition.encode(parameter.value, target.dialect);
     }
-    const value = encoder.definition.encode(parameter.value, SEALED_DIALECT);
+    const value = encoder.definition.encode(parameter.value, ENCRYPTED_DIALECT);
 
-    return ColumnCipher.require(target.cipher, encoder).seal(value, name, sealing);
+    return ColumnCipher.require(target.cipher, encoder).encrypt(value, name, encryption);
 }
 
 /** Require a value bound without a column to be one the drivers take as it is. */

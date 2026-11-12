@@ -97,7 +97,7 @@ export function textValues(json: SQLWrapper, name: string): SQL {
 
 /** Read a JSON element's value at a position as a column's type, the element named `wanted`. */
 export function elementValue(column: Column, index: number, dialect: Dialect): SQL {
-    // read a JSON column's element as JSON, a JSON null as SQL NULL, and any other or sealed element as its text
+    // read a JSON column's element
     const position = sql.raw(String(index));
     const isJson =
         column.definition.kind === "json" && column.definition.classification !== "sensitive";

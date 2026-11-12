@@ -3,7 +3,7 @@ import { mapValues } from "@destack/schema";
 import { Column, type ColumnDefinition, type ValueOf } from "../table/column.ts";
 import { type Select, TABLE, Table } from "../table/table.ts";
 import type { Dialect } from "../dialect/dialect.ts";
-import { ColumnCipher, SEALED_DIALECT } from "../database/cipher.ts";
+import { ColumnCipher, ENCRYPTED_DIALECT } from "../database/cipher.ts";
 
 /** The fields of a selection: columns, fragments, whole tables or nested groups. */
 export interface Selection {
@@ -176,7 +176,7 @@ function isMissingGroup(
     );
 }
 
-/** Decode one selected driver value by its column or fragment decoder, opening a sealed one. */
+/** Decode one selected driver value by its column's or fragment's decoder, decrypting it. */
 function decodeValue(
     field: Column | SQL | Alias,
     value: unknown,
@@ -191,11 +191,11 @@ function decodeValue(
     } else if (value === null) {
         return null;
     }
-    // open a sealed column's value, also a mutation's returned column
-    else if (definition?.sealing !== undefined) {
+    // decrypt an encrypted column's value
+    else if (definition?.encryption !== undefined) {
         return definition.decode(
-            ColumnCipher.require(cipher, { definition }).open(value, definition.name),
-            SEALED_DIALECT,
+            ColumnCipher.require(cipher, { definition }).decrypt(value, definition.name),
+            ENCRYPTED_DIALECT,
         );
     } else if (definition !== undefined) {
         return definition.decode(value, dialect);

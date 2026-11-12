@@ -4,11 +4,11 @@ import { Digest, schema, type Identifier, type JsonValue } from "@destack/schema
 import type { Dialect } from "../dialect/dialect.ts";
 import type { Condition } from "../query/condition.ts";
 
-/** How a sensitive value is sealed: randomly, or alike for a column looked up by value. */
-export type Sealing = "random" | "deterministic";
+/** How a sensitive value is encrypted: randomly, or alike for a column looked up by value. */
+export type Encryption = "randomized" | "deterministic";
 
-/** The SQL type of a sensitive column, which stores its value sealed as text. */
-const SEALED_TYPES = { sqlite: "text", postgresql: "text" } as const;
+/** The SQL type of a sensitive column, which stores its value encrypted as text. */
+const ENCRYPTED_TYPES = { sqlite: "text", postgresql: "text" } as const;
 
 /** The logical value types of columns. */
 export const COLUMN_KINDS = [
@@ -159,16 +159,16 @@ export class ColumnBuilder<Definition extends ColumnDefinition = ColumnDefinitio
         });
     }
 
-    /** Seal the value at rest and leave it out of logs, audits, sync and fingerprints. */
+    /** Encrypt the value at rest and leave it out of logs, audits, sync and fingerprints. */
     sensitive(
-        sealing: Sealing = "random",
+        encryption: Encryption = "randomized",
     ): ColumnBuilder<Definition & { readonly classification: "sensitive" }> {
         return new ColumnBuilder({
             ...this.definition,
-            // store the sealed text, whatever the value's type
-            types: SEALED_TYPES,
+            // store the encrypted text
+            types: ENCRYPTED_TYPES,
             classification: "sensitive" as const,
-            sealing,
+            encryption,
             schema: schema.sensitive(this.definition.schema.clone()),
             json: schema.sensitive(this.definition.json.clone()),
         });
@@ -279,8 +279,8 @@ export interface ColumnDefinition<
     readonly blob?: BlobOptions;
     /** The protection: sensitive values stay in the row and out of the log. */
     readonly classification?: "sensitive";
-    /** How a sensitive value is sealed, absent for an opaque copy of sealed text. */
-    readonly sealing?: Sealing;
+    /** How a sensitive value is encrypted, absent for an opaque copy of encrypted text. */
+    readonly encryption?: Encryption;
     /** Convert a valid application value to a driver parameter, which its write validated. */
     readonly encode: (value: unknown, dialect: Dialect) => DriverValue;
     /** Convert a stored driver value to an application value, which its write validated. */
