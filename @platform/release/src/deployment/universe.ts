@@ -13,8 +13,8 @@ import type { ControlOptions } from "@destack/control";
 export interface ShippedReleases {
     /** The shipped releases. */
     readonly releases: readonly PackageRelease[];
-    /** Open a shipped release's build by its manifest. */
-    readonly open: (manifest: Digest) => Promise<BuildReader>;
+    /** Open a shipped release's root build by its lock. */
+    readonly open: (lock: Digest) => Promise<BuildReader>;
 }
 
 /** The platform's packages a universe serves beside its own: the forges' and the relay's. */
@@ -41,7 +41,7 @@ export const PlatformUniverse = {
 
                         return found === undefined
                             ? forges.open(packageId, release)
-                            : shipped.open(found.manifest);
+                            : shipped.open(found.lock);
                     },
                     distribution: shipped.releases,
                 };

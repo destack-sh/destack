@@ -5,8 +5,13 @@ import * as stacks from "@platform/stack";
 import { RESIDENCIES } from "@platform/stack";
 import { SERVER_EXPORT } from "@destack/object";
 import { InstallationDefinition } from "@destack/stack/declare";
-import { CompilerPool, LocalBuildStore, Workspace } from "@destack/build";
-import { BuildStore } from "@destack/build/store";
+import {
+    BuildError,
+    CompilerPool,
+    LocalBuildStore,
+    Workspace,
+    type WorkspaceUnitOptions,
+} from "@destack/build";
 import { COMPUTER_RUNTIMES } from "@destack/machine/computer";
 import { CLOUD_RUNTIMES } from "@destack/machine/cloudflare";
 import type { Environment } from "@destack/environment";
@@ -14,10 +19,19 @@ import {
     DISTRIBUTION_LAYER,
     DISTRIBUTION_MANIFEST,
     DistributionManifest,
-    type PackageVersion,
+    DistributionPlatform,
+    PackageName,
 } from "@destack/package";
 import { type BuildReader, PackageManifest } from "@destack/package/manifest";
-import { type Digest, type JsonValue, present, schema, type Version } from "@destack/schema";
+import {
+    type Digest,
+    found,
+    type Identifier,
+    type JsonValue,
+    present,
+    schema,
+} from "@destack/schema";
+import type { Registry } from "@destack/registry/client";
 import { Toolchain } from "@destack/check/toolchain";
 
 /** The package declaring the homes' stacks, by its directory below the checkout's root. */
@@ -46,35 +60,42 @@ const DESKTOP = "@destack/desktop";
 /** The checkout's store of first-party releases, which every stage and target shares. */
 export const RELEASES_DIRECTORY = "target/releases";
 
-/** A local build's versions. */
-export interface LocalBuild {
-    /** Read the versions a local build starts its packages at, by package name. */
-    readonly versions: (packages: readonly PackageVersion[]) => Readonly<Record<string, Version>>;
-    /** Read the next versions for the packages a build changed, none once nothing changed. */
-    readonly settle: (
-        built: ReadonlyMap<string, Digest>,
-        versions: Readonly<Record<string, Version>>,
-    ) => Readonly<Record<string, Version>> | undefined;
+/** A forge a platform build releases into: its account and the registry calling it. */
+export interface ReleaseForge {
+    /** The publishing account. */
+    readonly accountId: Identifier<"account">;
+    /** The registry calling the account's forge. */
+    readonly registry: Registry;
 }
+
+/** Open the forge of a handle's account, as a machine publishing in its residency's home. */
+export type ForgeOpen = (handle: string) => Promise<ReleaseForge>;
 
 /** The first-party releases a universe's homes run and its forge publishes. */
 export class PlatformBuild implements AsyncDisposable {
-    /** The store keeping every build, locked to this process until disposed. */
+    /** The store keeping every build and lock, locked to this process until disposed. */
     readonly store: LocalBuildStore;
     /** The releases of the stacks' closure and the published packages, by package name. */
     readonly releases: ReadonlyMap<string, BuildReader>;
+    /** The lock of each release: its build and every build it runs with, by package name. */
+    readonly locks: ReadonlyMap<string, Digest>;
 
-    /** Keep built releases. */
-    private constructor(store: LocalBuildStore, releases: ReadonlyMap<string, BuildReader>) {
+    /** Keep built releases and their locks. */
+    private constructor(
+        store: LocalBuildStore,
+        releases: ReadonlyMap<string, BuildReader>,
+        locks: ReadonlyMap<string, Digest>,
+    ) {
         this.store = store;
         this.releases = releases;
+        this.locks = locks;
     }
 
-    /** Build the stacks' closure and the published packages of a checkout into its store. */
+    /** Build the stacks' closure and a checkout's published packages into its store. */
     static async build(
         root: string,
         host: Environment<"files" | "process" | "host">,
-        local?: LocalBuild,
+        options: Pick<WorkspaceUnitOptions, "isPrerelease"> = {},
     ): Promise<PlatformBuild> {
         // open the store and the compilers, closing the store when a build fails
         await using opened = new AsyncDisposableStack();
@@ -87,35 +108,82 @@ export class PlatformBuild implements AsyncDisposable {
             await Workspace.open(join(root, DESKTOP), compilers),
         ];
 
-        // start a local build's versions over every unit's package
-        const units = new Map(
-            workspaces.flatMap((workspace) => workspace.units).map((unit) => [unit.name, unit]),
-        );
-        const packages = [...units.values()].map((unit) => unit.packageJson.package);
-        let versions = local?.versions(packages);
-
-        // store every unit's build, the units the workspaces share once, until its versions settle
+        // build and lock each unit
         const releases = new Map<string, BuildReader>();
-        for (;;) {
-            const built = new Map<string, Digest>();
-            for (const workspace of workspaces) {
-                const shared = versions === undefined ? {} : { versions };
-                for (const [name, build] of await workspace.storeUnits(shared)) {
-                    releases.set(name, await store.contents(build.manifest));
-                    built.set(name, build.manifest);
+        const locks = new Map<string, Digest>();
+        const builds = new Map<string, Digest>();
+        for (const workspace of workspaces) {
+            for (const [name, { build, lock }] of await workspace.lockUnits(options)) {
+                // refuse a unit two workspaces built differently
+                const kept = builds.get(name);
+                if (kept !== undefined && kept !== build.manifest) {
+                    throw BuildError.of(
+                        "SOURCE_CONFLICT",
+                        `cannot build '${name}': two workspaces built it differently`,
+                    );
                 }
+
+                builds.set(name, build.manifest);
+                releases.set(name, await store.contents(build.manifest));
+                locks.set(name, lock);
             }
-            const next = versions === undefined ? undefined : local?.settle(built, versions);
-            if (next === undefined) {
-                break;
-            }
-            versions = next;
         }
 
         // hand the store to the build, which closes it
         opened.move();
 
-        return new PlatformBuild(store, releases);
+        return new PlatformBuild(store, releases, locks);
+    }
+
+    /** Release each lock under a tag into its account's forge, a dependency layer at a time. */
+    async release(
+        tag: string,
+        open: ForgeOpen,
+        released: (reader: BuildReader) => Promise<void>,
+    ): Promise<void> {
+        // order the releases so each follows those it requires, then split them into runs of one handle
+        const runs: { readonly handle: string; readonly names: string[] }[] = [];
+        for (const name of PlatformBuild.#ordered(this.releases)) {
+            const { handle } = PackageName.split(name);
+            const last = runs.at(-1);
+            if (last?.handle === handle) {
+                last.names.push(name);
+            } else {
+                runs.push({ handle, names: [name] });
+            }
+        }
+
+        // release each run's locks at once into its account's forge
+        for (const { handle, names } of runs) {
+            const { accountId, registry } = await open(handle);
+            const locks = names.map((name) => found(this.locks, name));
+            const releases = await registry.release(this.store, locks, accountId, tag);
+            for (const each of releases) {
+                await released(found(this.releases, each.package.name));
+            }
+        }
+    }
+
+    /** Order releases by name so each comes after the releases it requires. */
+    static #ordered(releases: ReadonlyMap<string, BuildReader>): string[] {
+        // visit each release's required releases before it, once
+        const ordered: string[] = [];
+        const visited = new Set<string>();
+        const visit = (name: string) => {
+            if (!visited.has(name)) {
+                visited.add(name);
+                const required = Object.keys(found(releases, name).manifest.requires);
+                for (const each of required.filter((dependency) => releases.has(dependency))) {
+                    visit(each);
+                }
+                ordered.push(name);
+            }
+        };
+        for (const name of releases.keys()) {
+            visit(name);
+        }
+
+        return ordered;
     }
 
     /** Close the builds' store, releasing its lock. */
@@ -128,15 +196,13 @@ export class PlatformBuild implements AsyncDisposable {
         return [...this.releases.values()];
     }
 
-    /** List every release the build keeps with its role, the distribution machines ship. */
-    async distribution(): Promise<DistributionManifest> {
-        const releases = await Promise.all(
-            this.readers.map(async (reader) => ({
-                package: PackageManifest.package(reader.manifest),
-                manifest: await BuildStore.digest(reader.manifest, this.store.environment.crypto),
-                role: reader.manifest.role,
-            })),
-        );
+    /** List every release the build keeps with its role and its lock on a platform. */
+    distribution(platform: DistributionPlatform): DistributionManifest {
+        const releases = [...this.releases].map(([name, reader]) => ({
+            package: PackageManifest.package(reader.manifest),
+            role: reader.manifest.role,
+            locks: { [platform]: found(this.locks, name) },
+        }));
 
         return { releases };
     }
@@ -175,26 +241,28 @@ export class PlatformBuild implements AsyncDisposable {
 
     /** Write the releases with what cloud Workers run as their assets, a layer by digest. */
     async writeAssets(directory: string): Promise<void> {
-        const distribution = await this.distribution();
-        const manifests = distribution.releases.map((release) => release.manifest);
-        await this.store.writeLayer(manifests, CLOUD_RUNTIMES, directory, "addressed");
+        await this.store.writeLayer(
+            [...this.locks.values()],
+            CLOUD_RUNTIMES,
+            directory,
+            "addressed",
+        );
     }
 
-    /** Write the distribution's manifest, the releases computers pin, to a directory. */
+    /** Write the manifest of the releases computers on the host run to a directory. */
     async writeDistribution(directory: string): Promise<void> {
-        // write the manifest into the directory, created if new
-        const { files } = this.store.environment;
-        const text = JSON.stringify(DistributionManifest.parse(await this.distribution()));
+        // write the host's manifest into the directory, created if new
+        const { files, host } = this.store.environment;
+        const distribution = this.distribution(DistributionPlatform.of(host));
+        const text = JSON.stringify(DistributionManifest.parse(distribution));
         await files.mkdir(directory, { recursive: true });
         await files.writeTextFile(join(directory, DISTRIBUTION_MANIFEST), text);
     }
 
     /** Write the releases with what computers run as a layer, as local cloud machines read it. */
     async writeLayer(directory: string): Promise<void> {
-        const distribution = await this.distribution();
-        const manifests = distribution.releases.map((release) => release.manifest);
         await this.store.writeLayer(
-            manifests,
+            [...this.locks.values()],
             COMPUTER_RUNTIMES,
             join(directory, DISTRIBUTION_LAYER),
             "linked",
@@ -221,19 +289,18 @@ export class PlatformBuild implements AsyncDisposable {
         };
     }
 
-    /** Pin an export of the stack package's built release with its settings, as a home does. */
-    async pinned(
+    /** Select an export of the stack package's built release with its settings, as a home does. */
+    released(
         exported: keyof typeof stacks,
         settings: Readonly<Record<string, JsonValue>>,
-    ): Promise<StackRelease> {
-        // pin the stack package's built release by its manifest
+    ): StackRelease {
+        // select the stack package's built release by its version
         const stack = present(this.releases.get(STACK), `the release of ${STACK}`);
         const { id, version } = PackageManifest.package(stack.manifest);
-        const manifest = await BuildStore.digest(stack.manifest, this.store.environment.crypto);
 
         return {
             packageId: id,
-            selection: { kind: "release", version, manifest },
+            selection: { kind: "release", version },
             export: exported,
             settings: { ...settings },
         };

@@ -207,6 +207,7 @@ test.skipIf(HOST.host.os !== "darwin" || HOST.host.architecture !== "arm64")(
             const build = await builder.build({
                 directory: TEMPLATE_STACK,
                 dependencies,
+                links: {},
                 outputs,
             });
             built = [build.manifest.package.name, Object.keys(build.manifest.outputs)];

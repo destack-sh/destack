@@ -7,6 +7,7 @@ import type { Jurisdiction } from "@destack/db/cloudflare";
 import { Stage } from "@destack/update/release";
 import { Identifier, type JsonValue, present, schema } from "@destack/schema";
 import type { UniverseDefinition } from "@destack/control";
+import type { WorkspaceUnitOptions } from "@destack/build";
 import type { PlatformDefinition } from "@destack/account/server";
 import type { StackRelease } from "@destack/account/object";
 import accountPackage from "@destack/account/package";
@@ -23,7 +24,6 @@ import { Account, account } from "@destack/account/object";
 import { Claim, SpaceMount } from "@destack/object";
 import registryPackage from "@destack/registry/package";
 import { Registry } from "@destack/registry/client";
-import { type ForgeOpen, Publication } from "../local/publication.ts";
 import { ActionsToken } from "../github/oidc.ts";
 import { Operator } from "../local/operator.ts";
 import { PrintedMail } from "../local/mail.ts";
@@ -51,7 +51,7 @@ import { S3Server } from "@destack/bucket/s3";
 import { LocalBucket } from "@destack/bucket/bun";
 import { LocalProcess } from "../local/process.ts";
 import { CHECKOUT } from "../distribution/distribution.ts";
-import { type LocalBuild, PlatformBuild } from "./build.ts";
+import { type ForgeOpen, PlatformBuild } from "./build.ts";
 import { GITHUB_APP, PLATFORM, type PlatformResidency, RESIDENCIES } from "@platform/stack";
 import { Custody, type CustodyEnvelopes } from "./custody.ts";
 import { DISTRIBUTION_MODULE, PackageId } from "@destack/package";
@@ -227,11 +227,11 @@ export class Deployment {
             : `https://relay-${residency.code}.${DOMAINS.machine}`;
     }
 
-    /** Pin each residency home's stack with its relay's settings and production's routes. */
-    async homes(build: Pick<PlatformBuild, "pinned">): Promise<Record<string, StackRelease>> {
+    /** Select each residency home's stack with its relay's settings and production's routes. */
+    async homes(build: Pick<PlatformBuild, "released">): Promise<Record<string, StackRelease>> {
         const homes: Record<string, StackRelease> = {};
         for (const residency of RESIDENCIES) {
-            homes[residency.code] = await build.pinned(residency.stack, {
+            homes[residency.code] = build.released(residency.stack, {
                 ...this.settings,
                 [DeclarationReference.key(relay.origin.reference)]: this.relayOrigin(residency),
                 [DeclarationReference.key(relay.residency.reference)]: residency.code,
@@ -330,12 +330,8 @@ export class Deployment {
         const hyperdrive = new URL(url);
         hyperdrive.password ||= HYPERDRIVE_PASSWORD;
 
-        // build the checkout at local prerelease versions, as the local stage does, as its working tree may be uncommitted
-        const publication = await Publication.read(
-            resolve(CHECKOUT, "target", this.stage.name, E2E_DIRECTORY),
-            environment.files,
-        );
-        await using build = await this.#build(publication.build);
+        // build the checkout
+        await using build = await this.#build({ isPrerelease: true });
 
         // declare the universe over keys in the clear with the stacks built from the checkout
         const custody = await Custody.local(this.#machineIds(), environment);
@@ -456,12 +452,7 @@ export class Deployment {
         const send = (request: Request) => this.environment.network.fetch(request);
         const issuer = new Issuer(this.issuer, send, this.environment, new Bookmark());
         const operator = await Operator.signIn(issuer, mail, this.environment);
-        await Publication.release(
-            build,
-            this.stage.tag,
-            this.forges(custody, build, operator),
-            async () => {},
-        );
+        await build.release(this.stage.tag, this.forges(custody, build, operator), async () => {});
         print("e2e", `the releases are published under ${this.stage.tag}`);
 
         // sign a person up in the first residency, as the CLI does, and require their home to serve
@@ -804,8 +795,7 @@ export class Deployment {
 
         // release each build under the stage's tag, in the account of its handle
         await using build = await this.#build();
-        await Publication.release(
-            build,
+        await build.release(
             this.stage.tag,
             async (handle) => ({ accountId: await owner(handle), registry }),
             async (reader) => {
@@ -918,8 +908,8 @@ export class Deployment {
     }
 
     /** Build the checkout's first-party releases into the stage's store. */
-    async #build(local?: LocalBuild): Promise<PlatformBuild> {
-        return await PlatformBuild.build(CHECKOUT, this.environment, local);
+    async #build(options: Pick<WorkspaceUnitOptions, "isPrerelease"> = {}): Promise<PlatformBuild> {
+        return await PlatformBuild.build(CHECKOUT, this.environment, options);
     }
 
     /** Write the universe root's outputs an end-to-end run binds, its files at an S3 endpoint. */
@@ -957,7 +947,7 @@ export class Deployment {
         declaration: UniverseDefinition,
     ): Promise<SuppliedModules> {
         return {
-            [DISTRIBUTION_MODULE]: { kind: "data", value: await build.distribution() },
+            [DISTRIBUTION_MODULE]: { kind: "data", value: build.distribution("workerd") },
             [UNIVERSE_MODULE]: { kind: "data", value: declaration },
             [SERVER_BUNDLE_MODULE]: { kind: "imports", specifiers: build.serverBundle() },
         };

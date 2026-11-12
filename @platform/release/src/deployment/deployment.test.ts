@@ -132,11 +132,11 @@ test("declare each stage's universe with its residencies, the reserved handles a
     });
 });
 
-test("pin each residency home's stack with its relay's origin, residency and issuer, the edge's routes in production alone", async () => {
-    // pin the homes of both stages over a build answering each export with its settings
+test("select each residency home's stack release with its relay's origin, residency and issuer, the edge's routes in production alone", async () => {
+    // select the homes of both stages over a build answering each export with its settings
     const host = testSimulation().environment("deployment");
     const build = {
-        pinned: async (exported: string, settings: Readonly<Record<string, JsonValue>>) => ({
+        released: (exported: string, settings: Readonly<Record<string, JsonValue>>) => ({
             ...RESIDENCY_STACK,
             export: exported,
             settings: { ...settings },

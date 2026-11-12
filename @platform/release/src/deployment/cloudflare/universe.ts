@@ -2,7 +2,7 @@
 import "reflect-metadata";
 import { BucketBlobStorage } from "@destack/bucket/blob";
 import { S3Client, S3Location } from "@destack/bucket/s3";
-import { BuildLayer, type LayerAssets } from "@destack/build/store";
+import { BuildLayer, type LayerAssets } from "@destack/package/manifest";
 import type { DurableObjectNamespace } from "@destack/db/cloudflare";
 import { connectPostgres } from "@destack/db/postgres";
 import { Envelope, EnvelopeConfiguration, UNIVERSE_OWNER } from "@destack/identity/aws";
@@ -102,7 +102,7 @@ async function startUniverse(bindings: UniverseBindings, alarm: Alarm) {
     const releases = await BuildLayer.assets(bindings.RELEASES, environment.crypto);
     const universe = await Control.start({
         ...PlatformUniverse.options(environment, {
-            releases: DistributionManifest.releases(await WorkerdDistribution.read()),
+            releases: DistributionManifest.releases(await WorkerdDistribution.read(), "workerd"),
             open: (manifest) =>
                 present(releases.build(manifest), `the shipped release ${manifest}`),
         }),

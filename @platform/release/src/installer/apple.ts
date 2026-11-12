@@ -5,6 +5,11 @@ import { MacSigning } from "../signing/apple.ts";
 import { run } from "../distribution/command.ts";
 import { Stage } from "@destack/update/release";
 import type { Environment, HostCapability } from "@destack/environment";
+import { DISTRIBUTION_MANIFEST, DistributionManifest } from "@destack/package";
+import { DISTRIBUTION_DIRECTORY } from "@destack/update";
+
+/** The distribution's manifest in the application's resources, which lists each slice's locks. */
+const MANIFEST = join(DISTRIBUTION_DIRECTORY, DISTRIBUTION_MANIFEST);
 
 /** One architecture's signed application unpacked from its archive. */
 interface Slice {
@@ -121,7 +126,7 @@ async function mergeResources(
     slices: Slice[],
     environment: Environment<"files">,
 ): Promise<void> {
-    // copy each slice's files with their modes, refusing a shared file whose bytes differ between the slices
+    // copy each slice's files with their modes, merging the shared ones
     const { files } = environment;
     const merged = join(contents, "Resources");
     for (const { application } of slices) {
@@ -130,10 +135,26 @@ async function mergeResources(
         for (const entry of entries.filter((each) => each.kind === "file")) {
             const from = join(source, entry.name);
             const target = join(merged, entry.name);
+
+            // copy a file new to the application
             if (!(await files.exists(target))) {
                 await files.mkdir(dirname(target), { recursive: true });
                 await files.copyFile(from, target);
-            } else {
+            }
+            // merge the slices' manifests into each release's locks on both platforms
+            else if (entry.name === MANIFEST) {
+                const [copied, kept] = [
+                    await files.readTextFile(from),
+                    await files.readTextFile(target),
+                ];
+                const manifest = DistributionManifest.merge(
+                    DistributionManifest.parse(JSON.parse(kept)),
+                    DistributionManifest.parse(JSON.parse(copied)),
+                );
+                await files.writeTextFile(target, JSON.stringify(manifest));
+            }
+            // refuse another shared file whose bytes differ between the slices
+            else {
                 const [copied, kept] = [await files.readFile(from), await files.readFile(target)];
                 if (!Buffer.from(copied).equals(Buffer.from(kept))) {
                     throw new Error(`the slices' resources differ at '${entry.name}'`);

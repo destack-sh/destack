@@ -65,6 +65,7 @@ export class BunUniverse implements AsyncDisposable {
         const blobs = await LocalBlobStorage.open(
             join(options.directory, "universe-blobs"),
             options.environment,
+            { synchronous: "full" },
         );
         const keyring = await LocalKeyring.read(options.rootKey, options.environment);
         const key = CallKey.of(keyring, options.environment.crypto);

@@ -23,22 +23,21 @@ import { Stage } from "@destack/update/release";
 import { Toolchain } from "@destack/check/toolchain";
 import { BunUniverse } from "./universe.ts";
 import { Custody, PlatformBuild } from "../deployment/index.ts";
-import { DISTRIBUTION_LAYER, DistributionManifest } from "@destack/package";
+import { DISTRIBUTION_LAYER, DistributionManifest, DistributionPlatform } from "@destack/package";
 import { BunDistribution } from "@destack/package/bun";
-import { BuildLayer } from "@destack/build/store";
+import { BuildLayer } from "@destack/package/manifest";
 import { Deployment, type LoopbackLayout } from "../deployment/index.ts";
 import { PLATFORM, type PlatformResidency, RESIDENCIES } from "@platform/stack";
 import { DOMAINS } from "@destack/account/address";
 import type { Environment, HostCapability } from "@destack/environment";
 import { LocalProcess } from "./process.ts";
-import { Publication } from "./publication.ts";
 import { Issuer } from "@destack/account/client";
 import { Bookmark } from "@destack/object/client";
 import { PrintedMail } from "./mail.ts";
 import { Operator } from "./operator.ts";
 
 /** The state a reset removes below the local directory, keeping the store and distribution. */
-const STATE = ["universe", "machines", "publication.json"] as const;
+const STATE = ["universe", "machines"] as const;
 
 /** The local stage. */
 const STAGE = Stage.of("local");
@@ -123,16 +122,16 @@ export class LocalUniverse implements AsyncDisposable {
         await using stack = new AsyncDisposableStack();
         await LocalUniverse.#create(options);
 
-        // build the local releases from the checkout, a package's version moving on only where it changed
-        const publication = await Publication.read(options.directory, options.environment.files);
+        // build the local releases from the checkout
         options.print("build", "building the first-party releases");
         const build = stack.use(
-            await PlatformBuild.build(options.root, options.environment, publication.build),
+            await PlatformBuild.build(options.root, options.environment, { isPrerelease: true }),
         );
-
-        // record the build's local versions, then report the build
-        await publication.assign(build);
         options.print("build", `built ${build.readers.length} releases`);
+
+        // list the releases the universe ships, with their locks on the host
+        const target = DistributionPlatform.of(options.environment.host);
+        const shipped = DistributionManifest.releases(build.distribution(target), target);
 
         // start the universe as its declaration declares it over the fixed local keys, printing its mail
         const mail = new PrintedMail();
@@ -188,8 +187,8 @@ export class LocalUniverse implements AsyncDisposable {
                 report: (error) =>
                     options.print("universe", inspect(error, { getters: true, depth: 6 })),
                 shipped: {
-                    releases: DistributionManifest.releases(await build.distribution()),
-                    open: (manifest) => build.store.contents(manifest),
+                    releases: shipped,
+                    open: (lock) => build.store.root(lock),
                 },
             }),
         );
@@ -234,15 +233,10 @@ export class LocalUniverse implements AsyncDisposable {
         const issuer = new Issuer(local.issuer, send, options.environment, new Bookmark());
         const operator = await Operator.signIn(issuer, mail, options.environment);
         const print = (line: string) => options.print("publish", line);
-        await Publication.release(
-            build,
-            STAGE.tag,
-            local.forges(custody, build, operator),
-            async (reader) => {
-                const { name, version } = PackageManifest.package(reader.manifest);
-                print(`${name}@${version}`);
-            },
-        );
+        await build.release(STAGE.tag, local.forges(custody, build, operator), async (reader) => {
+            const { name, version } = PackageManifest.package(reader.manifest);
+            print(`${name}@${version}`);
+        });
 
         return new LocalUniverse(endpoints, local, options, stack.move());
     }
