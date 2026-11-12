@@ -1,11 +1,4 @@
-import {
-    type Compression,
-    type Crypto,
-    type FileHandle,
-    type FileSystem,
-    Once,
-} from "@destack/environment";
-import { Tarball, TarballEntry } from "../archive/tarball.ts";
+import { type Crypto, type FileHandle, type FileSystem, Once } from "@destack/environment";
 import { Digest, present, schema } from "@destack/schema";
 import { PackageFile, PackagePath } from "../file/file.ts";
 import { SourceMapReference } from "../source/map.ts";
@@ -278,50 +271,6 @@ export class BuildReader {
                 return present(file.body, "a package file's body");
             },
             crypto,
-        );
-    }
-
-    /** Read a remote build, whole or one output's, in one request for its archive. */
-    static async archive(
-        location: PackageLocation,
-        fetch: (input: URL, init: RequestInit) => Promise<Response>,
-        environment: { readonly crypto: Crypto; readonly compression: Compression },
-        options: {
-            /** The signal ending the request. */
-            readonly signal?: AbortSignal | undefined;
-            /** The output whose runtime's files and maps to take, every file when absent. */
-            readonly output?: string;
-        } = {},
-    ): Promise<BuildReader> {
-        // read the archive's entries, the manifest first, refusing one not matching its digest
-        location = PackageLocation.parse(location);
-        const url = new URL("archive", BuildReader.#base(location));
-        if (options.output !== undefined) {
-            url.searchParams.set("output", options.output);
-        }
-        const response = await BuildReader.#request(url, fetch, options.signal);
-        const files = new Map<string, Uint8Array<ArrayBuffer>>();
-        for await (const entry of Tarball.read(present(response.body, "a package's archive"))) {
-            files.set(entry.path, await TarballEntry.bytes(entry));
-        }
-        const bytes = present(files.get(MANIFEST_PATH), "the archive's manifest");
-        await PackageFile.verify(
-            {
-                path: MANIFEST_PATH,
-                digest: location.manifest,
-                size: bytes.byteLength,
-                mediaType: "application/json",
-            },
-            bytes,
-            environment.crypto,
-        );
-
-        // read each file from the archive, verified as the reader reads it
-        return new BuildReader(
-            PackageManifest.parse(decode(bytes)),
-            async (path) =>
-                new Blob([present(files.get(path), `the archived file ${path}`)]).stream(),
-            environment.crypto,
         );
     }
 

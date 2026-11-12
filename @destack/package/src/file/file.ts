@@ -8,6 +8,9 @@ export const PackagePath = schema
         /^(?:[^./\\A-Za-z\x00-\x1f\x7f][^/\\\x00-\x1f\x7f]*|[A-Za-z](?:[^:/\\\x00-\x1f\x7f][^/\\\x00-\x1f\x7f]*)?|\.[^./\\\x00-\x1f\x7f][^/\\\x00-\x1f\x7f]*|\.\.[^/\\\x00-\x1f\x7f]+)(?:\/(?:[^./\\\x00-\x1f\x7f][^/\\\x00-\x1f\x7f]*|\.[^./\\\x00-\x1f\x7f][^/\\\x00-\x1f\x7f]*|\.\.[^/\\\x00-\x1f\x7f]+))*$/u,
     );
 
+/** The extension of a native addon, which Bun loads and workerd cannot. */
+const ADDON_EXTENSION = ".node";
+
 /** The schema of a source or generated file in a package. */
 const packageFileSchema = schema.object({
     /** The path relative to the source or build root. */
@@ -23,7 +26,7 @@ const packageFileSchema = schema.object({
 export type PackageFile = schema.Infer<typeof packageFileSchema>;
 
 /** A source or generated file in a package. */
-export const PackageFile = Object.assign(packageFileSchema, { describe, verify });
+export const PackageFile = Object.assign(packageFileSchema, { describe, verify, isAddon });
 
 /** Describe a file's path, content, and media type. */
 async function describe(
@@ -58,4 +61,9 @@ async function verify(
             `file '${file.path}' is invalid: its digest does not match`,
         );
     }
+}
+
+/** Report whether a file is a native addon, which only host packages may run. */
+function isAddon(path: string): boolean {
+    return path.endsWith(ADDON_EXTENSION);
 }
