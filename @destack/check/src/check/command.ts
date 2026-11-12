@@ -5,6 +5,7 @@ import { configurePackage } from "./configuration.ts";
 import { CheckError } from "../error/index.ts";
 import { listAffected } from "../workspace/index.ts";
 import { Toolchain } from "../toolchain/index.ts";
+import { Readme } from "../markdown/index.ts";
 
 /** Run the shared package commands in an environment. */
 export async function main(environment: Environment<"files" | "process" | "host">): Promise<void> {
@@ -38,6 +39,12 @@ export async function main(environment: Environment<"files" | "process" | "host"
         return;
     }
 
+    // write the README's listings as the modules the typecheck compiles
+    if (command === "readme") {
+        await Readme.write(options.directory, environment.files);
+        return;
+    }
+
     // print the member directories the changes since a base commit affect
     if (command === "affected") {
         const [base] = files;
@@ -66,7 +73,7 @@ export async function main(environment: Environment<"files" | "process" | "host"
     } else {
         throw CheckError.of(
             "CONFIGURATION_INVALID",
-            `command '${command}' is invalid: it must be check, fix, format or format-check`,
+            `command '${command}' is invalid: it must be check, fix, format, format-check, configure, readme or affected`,
         );
     }
 
