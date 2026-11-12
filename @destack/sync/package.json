@@ -4,14 +4,14 @@
     "license": "Apache-2.0",
     "type": "module",
     "sideEffects": false,
-    "description": "Keep shapes of database rows current in subscribers and local copies.",
+    "description": "Synchronize database rows to subscribers and local replicas, as each commit lands.",
     "exports": {
         ".": "./src/index.ts",
         "./error": "./src/error/index.ts",
         "./test": "./src/test/index.ts"
     },
     "scripts": {
-        "typecheck": "tsc --project tsconfig.json",
+        "typecheck": "tsc --project tsconfig.json && destack-check readme",
         "test": "bun --bun run vitest run --config vitest.config.ts --project 'unit:*'",
         "bench": "bun --bun run vitest run --config vitest.config.ts --project 'bench:*'"
     },
