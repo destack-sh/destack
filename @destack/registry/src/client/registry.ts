@@ -156,7 +156,7 @@ export class Registry {
             PackageManifest.package(await store.get(read.root)).name,
         );
         const forge = await this.#find({ account });
-        await Registry.#uploads(forge, handle, this.#environment).push(store, [lock], signal);
+        await Registry.#uploads(forge, handle).push(store, [lock], signal);
     }
 
     /** Release stored locks' roots under a tag at their account's forge, required ones first. */
@@ -181,7 +181,7 @@ export class Registry {
         // push every lock's objects once below the account's handle
         const { handle } = PackageName.split(nth([...roots.values()], 0).package.name);
         const forge = await this.#find({ account });
-        await Registry.#uploads(forge, handle, this.#environment).push(store, locks);
+        await Registry.#uploads(forge, handle).push(store, locks);
         const merged = Lock.of(
             nth(read, 0).root,
             Object.fromEntries(read.flatMap((each) => Object.entries(each.builds))),
@@ -255,10 +255,10 @@ export class Registry {
     }
 
     /** Open the upload endpoint below an account's handle at its forge. */
-    static #uploads(forge: ForgeEndpoint, handle: string, environment: Environment): PackageClient {
+    static #uploads(forge: ForgeEndpoint, handle: string): PackageClient {
         const uploads = `${forge.url}${registryPackage.mounts.builds.path}/${handle}/`;
 
-        return new PackageClient(uploads, forge.fetch, environment);
+        return new PackageClient(uploads, forge.fetch);
     }
 
     /** Pull a published lock into a store for some runtimes, refusing another package's root. */
@@ -320,7 +320,7 @@ export class Registry {
         const forge = await this.#find({ package: packageId });
         const url = `${forge.url}${registryPackage.mounts.builds.path}/${BuildObject.path(root)}/`;
 
-        return new PackageClient(url, forge.fetch, this.#environment);
+        return new PackageClient(url, forge.fetch);
     }
 
     /** Read the build a published build attached at a path, such as its runtime build. */
