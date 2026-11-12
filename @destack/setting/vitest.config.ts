@@ -22,8 +22,8 @@ export default defineConfiguration(
                 },
                 {
                     extends: false,
-                    // store values against each database the package stores in
-                    targets: { database: ["sqlite"] },
+                    // store values against both databases, as the universe and spaces keep settings
+                    targets: { database: ["sqlite", "postgresql"] },
                     ...defineProject(
                         {
                             test: {
