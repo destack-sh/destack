@@ -1,177 +1,201 @@
 # @destack/account
 
-`@destack/account` has Destack's people, accounts, organizations, spaces and machines, and signs them in.
+Sign people and machines in, and manage their accounts, organizations and spaces.
+
+## Overview
+
+`@destack/account` is the universe's OAuth 2.1 and OpenID Connect issuer over Better Auth: people, machines, accounts, organizations and spaces, and the tokens packages are called with.
+
+The account package defines who owns what:
+
+- `user`: one person.
+- `account`: what owns spaces and pays for them, personal or shared.
+- `organization`: people under one name, with owners, admins, members and guests.
+- `space`: one database of installed packages in an account.
+- `machine`: a computer serving spaces.
+
+Clients sign in and call packages:
+
+- `NativeClient`: signs a person in on a computer, keeping tokens in the keychain.
+- `Session`: calls packages as a principal, with a token per package.
+- `MachineKey`: a machine's signing key.
+
+Names address what the universe serves:
+
+- `SpaceAddress`, `InstallationOrigin` and `MachineAddress`: the names of installations, spaces and machines.
+
+Create a shared account and a space in it:
 
 ```ts
-// Better Auth signs people in by magic link, email code, passkey or provider, with the account's own second factor
-await auth.signIn.magicLink({ email: "ada@example.com", metadata: signUp });
-await fetch(new URL("/two-factor/verify-totp", issuer), { method: "POST", body }); // RFC 6238 TOTP, locked for fifteen minutes after five wrong codes
-```
+import type accountPackage from "@destack/account/package";
+import type { ClientOf } from "@destack/object/client";
+import type { Identifier } from "@destack/schema";
 
-## Authorization server
+/** Create a shared account with a space, and list its spaces. */
+export async function createWorkspace(
+    client: ClientOf<typeof accountPackage>,
+    user: Identifier<"user">,
+    requestId: string,
+) {
+    // create the account in the EU residency
+    const account = await client.account.create({
+        scope: user,
+        requestId,
+        handle: "acme",
+        name: "Acme",
+        kind: "shared",
+        residencyId: "eu",
+    });
 
-The account package is the universe's OAuth 2.1 and OpenID Connect authorization server below the issuer's URL.
+    // create a space in it, and list the account's spaces
+    await client.space.create({ accountId: account.id, requestId, name: "work" });
 
-```ts
-const metadata = await fetch(`${issuer}/.well-known/openid-configuration`); // the endpoints below
-const sent = `${issuer}/oauth2/authorize?${query}`; // PKCE S256, continued after sign-in by request_uri (RFC 9126)
-// an installation's origin is its own client and sends a request object its space signs (RFC 9101),
-// asking a grant as one destack_grant authorization detail (RFC 9396)
-const signed = `${issuer}/oauth2/authorize?client_id=${origin}&request=${jar}`;
-await fetch(`${issuer}/oauth2/requests/authorization?request_uri=${uri}`); // the consent page's review, then a POSTed decision
-await fetch(`${issuer}/oauth2/requests/device?user_code=${code}`); // the verification page's review and decision
-await fetch(`${issuer}/oauth2/consents`); // the person's apps, each consent with the grant it gave; DELETE ?client_id= removes one
-await fetch(`${issuer}/oauth2/token`, { method: "POST", body: form }); // code, refresh, device, jwt-bearer, token exchange, email code
-await fetch(`${issuer}/oauth2/device_authorization`, { method: "POST", body: form }); // RFC 8628, approved on the device page
-await fetch(`${issuer}/oauth2/revoke`, { method: "POST", body: form }); // ends a refresh token's family
-await fetch(`${issuer}/oauth2/introspect`, { method: "POST", body: form }); // describes the asking client's own tokens (RFC 7662)
-await fetch(`${issuer}/oauth2/userinfo`, { headers: { authorization: `Bearer ${accessToken}` } });
-// access tokens are RFC 9068 JWTs that live out their lifetime; refresh tokens rotate and rest on the person's consent
-```
-
-## Objects
-
-Clients call the account objects through the package client.
-
-```ts
-import accountPackage from "@destack/account/package";
-import { createClient } from "@destack/object/client";
-
-const accounts = createClient(accountPackage, { url, fetch, environment });
-await accounts.account.create({
-    scope: userId,
-    requestId,
-    handle,
-    name,
-    kind: "shared",
-    residencyId: "eu",
-});
-await accounts.space.create({ accountId, requestId, name: "work" });
-await accounts.space.update({ accountId, id, requestId, revision, tenancy: "dedicated" }); // the placement decided anew in the same call
-await accounts.domain.verify({ scope: organizationId, id, requestId }); // after the TXT record _destack.acme.com
-await accounts.residency.locate({ account: accountId }); // the space serving the account's residency
-await accounts.user.suspend({ id: userId, requestId }); // the platform's operators alone
-```
-
-## Organizations
-
-An organization has members through its relations `owner`, `admin`, `billing`, `member` and `guest`, invited and accepted like any relationship, and always keeps an owner.
-
-```ts
-import objectPackage from "@destack/object/package";
-
-const objects = createClient(objectPackage, { url, fetch, environment });
-const acme = organization.reference("universe", organizationId);
-const invited = await objects.invitation.create({
-    scope: "universe",
-    requestId,
-    object: acme,
-    relationship: { relation: "member", subject },
-});
-await objects.invitation.accept({
-    scope: "universe",
-    requestId,
-    object: acme,
-    invitationId: invited.id,
-}); // as the invitee
-await objects.relationship.list({
-    scope: "universe",
-    where: { objectId: organizationId, relation: { in: ["owner", "admin"] } },
-});
-await objects.relationship.delete({ scope: "universe", id, requestId }); // refused for the last owner
-```
-
-## Universe
-
-`accountServer` serves the account package in the universe's store, and `Platform` applies the organization operating the universe as the universe declares it, each step again without effect once applied.
-
-```ts
-import { Residency } from "@destack/account/object";
-import { accountServer, Platform, UniverseRole } from "@destack/account/server";
-
-const server = accountServer({ resolver: new DnsOverHttps(send), stacks, signIn });
-await UniverseRole.trust(store, now); // the universe owns itself with its inherent role
-await Residency.apply(store, declaration.residencies, now);
-for (const step of new Platform(store, declaration.platform, stacks.residency).steps()) {
-    await step.apply(now); // machines, organization, roles, names, residency spaces, invitation
+    return await client.space.list({ accountId: account.id });
 }
-await UniverseRole.platform(snapshot); // the platform's organization, holding the operator role
 ```
 
-## Sign-in on a computer
+## Reference
 
-`NativeClient` signs people in on a computer's machine and keeps their credentials in its keychain.
+### NativeClient
+
+`new NativeClient(options)` signs people in with the issuer, the keychain's refresh tokens and this computer's logins.
+
+| Verb            | What it does                                                    |
+| --------------- | --------------------------------------------------------------- |
+| `browser(…)`    | signs in through the browser, with PKCE and a loopback redirect |
+| `device(show)`  | signs in with a device code                                     |
+| `email(…)`      | signs in, or up, with a mailed code                             |
+| `issue(login)`  | refreshes a login's token                                       |
+| `forget(login)` | forgets a login and its refresh token                           |
+
+### Session
+
+A `Session` calls packages as its principal, exchanging its token for one per package, as RFC 8693 does.
+
+| Verb                                | What it does                                     |
+| ----------------------------------- | ------------------------------------------------ |
+| `client(handle, endpoint, binding)` | a typed client of a package below an endpoint    |
+| `fetch(audience, binding)`          | a fetch with the principal's token for a package |
+| `accounts()`, `objects()`           | clients of the account and object packages       |
+
+### MachineKey
+
+`new MachineKey(machineId, keychain, environment)` proves a machine with the key in its keychain.
+
+| Verb                      | What it does                                           |
+| ------------------------- | ------------------------------------------------------ |
+| `enroll(client, machine)` | enrolls a new key, through a client a person signed in |
+| `rotate(client, account)` | registers a new key, signed with the current one       |
+| `assert(endpoint)`        | signs an assertion for a token endpoint (RFC 7523)     |
+| `forget()`                | forgets the private key                                |
+
+### Issuer
+
+The issuer serves its metadata at `/.well-known/oauth-authorization-server` and `/.well-known/openid-configuration`, its keys at `/.well-known/jwks.json`, and its endpoints below `/oauth`.
+
+### Names
+
+The universe serves `destack.app`, spaces' views below `destack.space`, and machines at `destack.computer`.
+
+| Name                                                         | Is                                              |
+| ------------------------------------------------------------ | ----------------------------------------------- |
+| `<installation>--<space>--<handle>.destack.space`            | an installation in a space                      |
+| `<installation>--<branch>---<space>--<handle>.destack.space` | the same, on a branch                           |
+| `<digest>---<space>--<handle>.destack.space`                 | the same, for a branch label over 63 characters |
+| `s3--<space identifier>.destack.space`                       | a space's buckets over S3                       |
+| `<machine>--<handle>.destack.computer`                       | a machine                                       |
+
+## Examples
+
+### Sign in on a computer
+
+`device` shows the page and code to enter, then waits.
 
 ```ts
-import { NativeClient } from "@destack/account/native";
+import type { NativeClient } from "@destack/account/native";
 
-const native = new NativeClient({ issuer, sessions, keys, logins, environment, client });
-const login = await native.device(async ({ url, userCode }) => print(url, userCode));
-await native.email("bea@example.com", ask, {
-    name: "Bea",
-    handle: "bea",
-    residencyId: "eu",
-    timeZone,
-    locale,
-}); // signs Bea up
+/** Sign a person in with a device code, printing where to enter it. */
+export async function signIn(native: NativeClient) {
+    return await native.device(async ({ url, userCode }) => console.log(url, userCode));
+}
 ```
 
-## Calling packages
+### Call a package as a person
 
-A `Session` calls packages as a principal through its `Credential`, which adds the principal's token to each call.
+`client` exchanges the person's token for the package's.
 
 ```ts
-import { Session } from "@destack/account/client";
+import type { Session } from "@destack/account/client";
+import type { Package } from "@destack/object";
+import type { Identifier } from "@destack/schema";
 
-const { session, user } = login; // a computer's sign-in: the user's tokens and their calls
-const accounts = session.accounts(); // the account package the universe serves
-const notes = session.client(notesPackage, origin, { partition: spaceId }); // a package in a space
-const token = await user.token(notes.id, { partition: spaceId }); // exchanged at the issuer (RFC 8693)
+/** Connect to a package in a space, as the session's person. */
+export function connectNotes(
+    session: Session,
+    notes: Package,
+    origin: string,
+    spaceId: Identifier<"space">,
+) {
+    return session.client(notes, origin, { partition: spaceId });
+}
 ```
 
-## Machines
+### Enroll a machine
 
-`MachineKey` enrolls a machine and signs its assertions, which an issuer grants tokens for (RFC 7523).
+A person signed in on the machine approves its key.
 
 ```ts
-import { MachineKey, Session } from "@destack/account/client";
+import { MachineKey } from "@destack/account/client";
+import type accountPackage from "@destack/account/package";
+import type { Environment } from "@destack/environment";
+import type { Keychain } from "@destack/identity";
+import type { ClientOf } from "@destack/object/client";
+import type { Identifier } from "@destack/schema";
 
-const key = new MachineKey(machineId, keychain, environment);
-await key.enroll(accounts, { scope: accountId, requestId, name: "laptop", kind: "personal" });
-const session = new Session(key.at(issuer, send), { universe, send, bookmark, environment });
+/** Enroll this laptop in an account. */
+export async function enrollLaptop(
+    client: ClientOf<typeof accountPackage>,
+    machineId: Identifier<"machine">,
+    keychain: Keychain,
+    environment: Environment,
+    accountId: Identifier<"account">,
+    requestId: string,
+) {
+    // generate the machine's key, and enroll it
+    const key = new MachineKey(machineId, keychain, environment);
+    await key.enroll(client, {
+        scope: accountId,
+        requestId,
+        name: "laptop",
+        kind: "personal",
+        platform: "macOS",
+        architecture: "arm64",
+        model: "Mac14,2",
+    });
+}
 ```
 
-## Addresses
+### Test code that signs people in
 
-`Directory` finds the machine serving an address such as `work--acme`.
-
-```ts
-import { Directory } from "@destack/account/address";
-
-const resolver = new Directory(snapshot);
-const { machine, url } = await resolver.resolve(space, "work--acme", now); // space: the space type
-```
-
-## Errors
-
-`AccountError` refuses a call with a reason and the HTTP code it answers.
-
-```ts
-import { AccountError } from "@destack/account/error";
-
-throw AccountError.of("RESIDENCY_SPACE_MISSING", "residency eu has no space"); // NOT_FOUND
-```
-
-## Tests
-
-`TestAccountStore` serves the account package over a test database, and signs people in through the real issuer.
+`TestAccountStore` signs people in through the real issuer, over a test database.
 
 ```ts
 import { OWNER_EMAIL, TestAccountStore } from "@destack/account/test";
 
-await using accounts = await TestAccountStore.open({ clock });
-const owner = await accounts.signIn(OWNER_EMAIL); // the CLI's email code
+// serve accounts, sign the owner in, and create a space
+await using accounts = await TestAccountStore.open();
+const owner = await accounts.signIn(OWNER_EMAIL);
 const { accountId, spaceId } = await accounts.createSpace(owner);
-await accounts.join(owner, member, organizationId, "member"); // through an accepted invitation
-await accounts.as(machineId).client(accountPackage).machine.list({ accountId }); // signed with its key
 ```
+
+## Comparison
+
+### Better Auth
+
+Sign-in methods, sessions, passkeys and second factors follow Better Auth, which the issuer runs.
+
+| Better Auth             | `@destack/account`      | Difference                                                   |
+| ----------------------- | ----------------------- | ------------------------------------------------------------ |
+| sessions                | `Session`               | Every package call sends a token exchanged for that package. |
+| the organization plugin | `organization`          | Relationships follow `@destack/access`, like any object.     |
+| none                    | `machine`, `MachineKey` | Machines sign in with their own key.                         |
