@@ -644,6 +644,8 @@ function changeSQLiteTable(
     }
 
     // add columns and replace changed indexes
+    const indexes = changeIndexes(previous, next);
+
     return [
         ...added.map((column) =>
             step(
@@ -654,7 +656,8 @@ function changeSQLiteTable(
                 [statement.addColumn(next.name, column, "sqlite")],
             ),
         ),
-        ...changeIndexes(previous, next),
+        ...indexes.dropped,
+        ...indexes.created,
     ];
 }
 
@@ -666,8 +669,14 @@ function changePostgresTable(
     removed: readonly TableDescription["columns"][number][],
     changed: readonly ColumnChange[],
 ): TableStep[] {
+    // drop the changed constraints and indexes first, as dropping a column drops those using it
+    const constraints = changeConstraints(previous, next);
+    const indexes = changeIndexes(previous, next);
+
     // add and drop columns
     const steps: TableStep[] = [
+        ...constraints.dropped,
+        ...indexes.dropped,
         ...added.map((column) =>
             step(
                 "create",
@@ -720,16 +729,16 @@ function changePostgresTable(
         }
     }
 
-    // replace changed constraints and indexes
-    return [...steps, ...changeConstraints(previous, next), ...changeIndexes(previous, next)];
+    // create the changed constraints and indexes over the altered columns
+    return [...steps, ...constraints.created, ...indexes.created];
 }
 
-/** Replace differing PostgreSQL constraints. */
-function changeConstraints(previous: TableDescription, next: TableDescription): TableStep[] {
+/** Plan the drops and creations replacing differing PostgreSQL constraints. */
+function changeConstraints(previous: TableDescription, next: TableDescription): TableChanges {
     const { dropped, created } = differing(previous.constraints, next.constraints);
 
-    return [
-        ...dropped.map((constraint) =>
+    return {
+        dropped: dropped.map((constraint) =>
             step(
                 "delete",
                 Address.join("table", next.name, "constraint", constraint.name),
@@ -738,7 +747,7 @@ function changeConstraints(previous: TableDescription, next: TableDescription): 
                 [statement.dropConstraint(next.name, constraint.name)],
             ),
         ),
-        ...created.map((constraint) =>
+        created: created.map((constraint) =>
             step(
                 "create",
                 Address.join("table", next.name, "constraint", constraint.name),
@@ -747,15 +756,15 @@ function changeConstraints(previous: TableDescription, next: TableDescription): 
                 [statement.addConstraint(next.name, constraint)],
             ),
         ),
-    ];
+    };
 }
 
-/** Replace removed, new or changed indexes. */
-function changeIndexes(previous: TableDescription, next: TableDescription): TableStep[] {
+/** Plan the drops and creations replacing removed, new or changed indexes. */
+function changeIndexes(previous: TableDescription, next: TableDescription): TableChanges {
     const { dropped, created } = differing(previous.indexes, next.indexes);
 
-    return [
-        ...dropped.map((index) =>
+    return {
+        dropped: dropped.map((index) =>
             step(
                 "delete",
                 Address.join("table", next.name, "index", index.name),
@@ -764,7 +773,7 @@ function changeIndexes(previous: TableDescription, next: TableDescription): Tabl
                 [statement.dropIndex(index.name)],
             ),
         ),
-        ...created.map((index) =>
+        created: created.map((index) =>
             step(
                 "create",
                 Address.join("table", next.name, "index", index.name),
@@ -773,7 +782,15 @@ function changeIndexes(previous: TableDescription, next: TableDescription): Tabl
                 [statement.createIndex(next.name, index)],
             ),
         ),
-    ];
+    };
+}
+
+/** The steps replacing a table's differing constraints or indexes: drops, then creations. */
+interface TableChanges {
+    /** The steps dropping the applied ones that differ. */
+    readonly dropped: TableStep[];
+    /** The steps creating the declared ones that differ. */
+    readonly created: TableStep[];
 }
 
 /** Split named items into applied ones to drop and declared ones to create, by definition. */

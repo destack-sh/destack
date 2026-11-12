@@ -1,5 +1,14 @@
 import { expect, onTestFinished, refusal, test } from "@destack/test";
-import { Change, defineTable, index, integer, json, sql, text, uniqueIndex } from "../index.ts";
+import {
+    Change,
+    defineTable,
+    index,
+    integer,
+    json,
+    sql,
+    text,
+    uniqueIndex,
+} from "../index.ts";
 import { PackageVersion } from "@destack/package";
 import { present, schema } from "@destack/schema";
 import { TABLE, type Table } from "../table/table.ts";
@@ -297,6 +306,50 @@ test("retain the applied tables a migration leaves out when asked, and drop them
     // drop the tasks a migration leaves out by default
     const dropped = await database.migrate([labelUnique]);
     expect(review(dropped)).toEqual([`destructive delete table/${table(taskOne)}: drop table`]);
+});
+
+test("drop a column a partial unique index uses, keeping the index's name over another column", async () => {
+    // key machines by name among the unrevoked ones, then among the undeleted ones
+    const revoked = defineTable(
+        "machine",
+        {
+            id: text("id").primaryKey(),
+            name: text("name").notNull(),
+            revokedAt: integer("revoked_at"),
+        },
+        {
+            constraints: (columns) => [
+                uniqueIndex("machine_name")
+                    .on(columns.name)
+                    .where({ revokedAt: { isNull: true } }),
+            ],
+        },
+    );
+    const deleted = defineTable(
+        "machine",
+        {
+            id: text("id").primaryKey(),
+            name: text("name").notNull(),
+            deletedAt: integer("deleted_at"),
+        },
+        {
+            constraints: (columns) => [
+                uniqueIndex("machine_name")
+                    .on(columns.name)
+                    .where({ deletedAt: { isNull: true } }),
+            ],
+        },
+    );
+    const database = await open([]);
+    await database.migrate([revoked]);
+    await database.run(sql`INSERT INTO ${revoked} (id, name) VALUES ('a', 'laptop')`);
+
+    // migrate, keeping the row and the index under its name on the new column
+    await database.migrate([deleted]);
+    expect({
+        unapplied: await database.unapplied([deleted]),
+        rows: await database.select({ id: deleted.id, name: deleted.name }).from(deleted),
+    }).toEqual({ unapplied: [], rows: [{ id: "a", name: "laptop" }] });
 });
 
 test("rename, drop, add and index columns while preserving rows", async () => {
