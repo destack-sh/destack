@@ -1,29 +1,37 @@
 # @destack/theme
 
-`defineTheme` is Radix Themes' theme (`accent` its `accentColor`, `base` its `grayColor`, `radius`, `scaling`) over shadcn's color roles (`background`, `foreground`, `primary`, `mutedForeground`, `chart1`…), with Apple's text styles in `@destack/theme/text` and W3C design tokens as StyleX constants in `@destack/theme/tokens.stylex`.
+Theme views with an accent, a base and roles solved for contrast, in light and dark.
+
+## Overview
+
+A package declares its theme from an accent and a base, and every view renders it under the person's display settings.
+
+- **Theme**: an accent, a base gray, a radius, a scaling and a density over color roles such as `background`, `primary` and `mutedForeground`; `defineTheme`.
+- **Role**: a color the views use, solved per appearance for APCA contrast; `roles` overrides one.
+- **Display**: the person's appearance, contrast, text size, density and motion; `variables` turns a theme into CSS custom properties under it.
+- **Palette**: OKLCH tones grown from one seed color.
+- **Tokens**: the roles, text styles, swatches and transitions as StyleX constants in `@destack/theme/tokens.stylex`.
 
 ```ts
-// Radix Themes has no density
-defineTheme({ name: "notes", base: "sand", accent: "orange", density: "compact" });
-Palette.of("indigo").tone(0.95).hex; // OKLCH tones from a seed, where Radix has twelve steps
-theme.resolve("light", 1).color("mutedForeground"); // roles solved for APCA contrast
-theme.variables(display); // custom properties, where Radix has a <Theme> component
+import { DEFAULT_DISPLAY } from "@destack/theme";
+import { defineTheme } from "@destack/theme/declare";
+
+export const theme = defineTheme({ name: "notes", base: "sand", accent: "orange" });
+
+const light = theme.resolve("light", 1).color("mutedForeground");
+const variables = theme.variables({ ...DEFAULT_DISPLAY, appearance: "dark", contrast: 0.5 });
 ```
 
-## Contrast
+## Examples
 
-`contrast` in a person's display runs from 0, the APCA bronze floors, to 1, and `defineTheme` refuses a role below its floor.
+### Override a role
 
-```ts
-theme.variables({ ...DEFAULT_DISPLAY, appearance: "light", contrast: 0.5 });
-```
-
-## Role overrides
-
-`roles` replaces a role with a palette tone, another role moved in lightness, or explicit colors.
+`roles` replaces a role with explicit colors, or derives it from another role.
 
 ```ts
-defineTheme({
+import { defineTheme } from "@destack/theme/declare";
+
+export const paper = defineTheme({
     name: "paper",
     roles: {
         background: { light: "#f8f5ee", dark: "#0b2029" },
@@ -32,44 +40,38 @@ defineTheme({
 });
 ```
 
-## Nested surfaces
+### Style with theme tokens
+
+A component styles itself with the theme's tokens, which follow the person's theme.
+
+```ts
+import * as style from "@destack/style";
+import { color, swatch } from "@destack/theme/tokens.stylex";
+
+const styles = style.create({
+    tag: { backgroundColor: swatch.tealTint, color: swatch.tealText },
+    muted: { color: color.mutedForeground },
+});
+```
+
+### Theme a nested surface
 
 `rebase` derives a theme over another background, such as a selected row's.
 
-```tsx
-const row = theme.rebase({ light: "#c9d8ff", dark: "#1d2f66" });
-
-<li style={row.variables(display)}>Groceries</li>;
-```
-
-## Swatches
-
-`swatch` holds each preset's solid, label, tint and tint text for marking objects.
-
 ```ts
-const styles = style.create({ tag: { backgroundColor: swatch.tealTint, color: swatch.tealText } });
+import { DEFAULT_DISPLAY } from "@destack/theme";
+import { destackTheme } from "@destack/theme/declare";
+
+const selected = destackTheme.rebase({ light: "#c9d8ff", dark: "#1d2f66" });
+const variables = selected.variables(DEFAULT_DISPLAY);
 ```
 
-## Motion
+## Comparison
 
-`transition` enters elements from `@starting-style` and exits them with discrete transitions.
+### Radix Themes
 
-```tsx
-<dialog {...style.attrs(isOpen() ? transition.enter : transition.exit)} />
-```
+`accent`, `base`, `radius` and `scaling` follow Radix Themes' `accentColor`, `grayColor`, `radius` and `scaling`, over shadcn's color roles; three things differ.
 
-## Element defaults
-
-`theme.css` sets the element defaults that read the theme, in `@destack/style`'s `base` layer.
-
-```ts
-import "@destack/theme/theme.css";
-```
-
-## Default theme
-
-`destackTheme` is the theme of views whose packages declare none.
-
-```ts
-destackTheme.variables(DEFAULT_DISPLAY);
-```
+- Roles are solved from OKLCH tones for APCA contrast, and a person's `contrast` raises them, where Radix has twelve fixed steps.
+- A theme becomes CSS custom properties, where Radix has a `<Theme>` component.
+- Themes add a density, and text styles follow Apple's.
