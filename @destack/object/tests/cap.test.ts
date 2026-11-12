@@ -1,3 +1,4 @@
+import { BuildLayer } from "@destack/package/manifest";
 import { schema } from "@destack/schema";
 import { MemoryBlobStorage } from "@destack/resource";
 import { Transaction } from "@destack/db";
@@ -68,6 +69,7 @@ async function serveInstalledNotes(world: Environment) {
             receive: () => Promise.reject(new TypeError("the fixture receives no changes")),
             call: () => Promise.reject(new TypeError("the fixture answers no queries")),
         },
+        distribution: BuildLayer.empty(),
         settings: {},
         capabilities: [],
         keys: await testKeys(world),

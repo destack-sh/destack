@@ -11,7 +11,7 @@ import { TelemetryScope } from "@destack/telemetry";
 import type { Telemetry, TelemetryOptions } from "@destack/telemetry/sdk";
 import { OTLP_ORIGIN_PATH, OtlpExporter } from "@destack/telemetry/otlp";
 import type {} from "@destack/package/import-meta";
-import type { BuildReader } from "@destack/package/manifest";
+import { BuildLayer, type BuildReader } from "@destack/package/manifest";
 import type { Package } from "../declare/package.ts";
 
 import { refusal } from "../error/report.ts";
@@ -217,6 +217,7 @@ export class WorkloadRunner implements AsyncDisposable {
             scope: start.scope,
             ...(start.partition === undefined ? {} : { partition: start.partition }),
             build,
+            distribution: BuildLayer.empty(),
             settings: start.settings,
             capabilities: start.capabilities,
             resources,

@@ -11,6 +11,7 @@ import {
 } from "@destack/package";
 import type { Declaration } from "@destack/package/declare";
 import {
+    type BuildLayer,
     type BuildReader,
     WorkloadDefinition,
     WorkloadDescription,
@@ -115,6 +116,8 @@ export interface ServerContext {
     readonly partition?: string;
     /** The build the installation's deployment runs. */
     readonly build: BuildReader;
+    /** The builds of the host's distribution, which the installation's stores read in place. */
+    readonly distribution: BuildLayer;
     /** The installation's resolved value of each setting its package declares. */
     readonly settings: Readonly<Record<string, JsonValue>>;
     /** The package's capabilities the installation runs with: required and allowed ones. */

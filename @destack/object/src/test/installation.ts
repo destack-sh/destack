@@ -1,3 +1,4 @@
+import { BuildLayer } from "@destack/package/manifest";
 import { schema } from "@destack/schema";
 import type { Deriver } from "@destack/identity";
 import { ResourceContext } from "@destack/resource/context";
@@ -44,6 +45,7 @@ export async function testServerContext(
             { role: "app", package: owner },
             environment.crypto,
         ),
+        distribution: BuildLayer.empty(),
         settings: {},
         capabilities: [],
         resources: new ResourceContext(),

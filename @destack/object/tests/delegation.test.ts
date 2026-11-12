@@ -1,3 +1,4 @@
+import { BuildLayer } from "@destack/package/manifest";
 import { testSimulation } from "../src/test/index.ts";
 import { MemoryBlobStorage } from "@destack/resource";
 import { defineDatabase } from "@destack/db";
@@ -111,6 +112,7 @@ test("act with the space's delegation to its installation, refusing without one,
             receive: () => Promise.reject(new TypeError("the fixture receives no changes")),
             call: () => Promise.reject(new TypeError("the fixture answers no queries")),
         },
+        distribution: BuildLayer.empty(),
         settings: {},
         capabilities: ["push"],
         keys: await testKeys(world),

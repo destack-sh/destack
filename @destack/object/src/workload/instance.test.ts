@@ -1,3 +1,4 @@
+import { BuildLayer } from "@destack/package/manifest";
 import { schema } from "@destack/schema";
 import { ResourceContext } from "@destack/resource/context";
 import { MemoryBuild } from "@destack/package/test";
@@ -63,6 +64,7 @@ const serverIn = async (world: Environment): Promise<ServerContext> => ({
     scope: "space-01996ab0-0000-7000-8000-000000000001",
     build: await MemoryBuild.write(new Map(), { role: "app", package: first }, world.crypto),
     environment: world,
+    distribution: BuildLayer.empty(),
     settings: {},
     capabilities: [],
     resources: new ResourceContext(),
