@@ -216,23 +216,30 @@ export class Registry {
         account: Identifier<"account">,
         tag: string,
     ): Promise<readonly PackageRelease[]> {
-        // order the build's closure with each dependency before the builds pinning it
+        // layer the build's closure, each layer pinning only builds of earlier ones
         const root = PackageManifest.package((await store.contents(manifest)).manifest);
         const { handle } = PackageName.split(root.name);
-        const ordered = await BuildStore.ordered(store, [manifest]);
+        const layers = await BuildStore.layers(store, [manifest]);
 
-        // release the account's builds the forge lacks, and require every other one published
+        // release a layer at a time
         const released: PackageRelease[] = [];
-        for (const digest of ordered) {
-            const built = PackageManifest.package((await store.contents(digest)).manifest);
-            if (PackageName.split(built.name).handle === handle) {
-                const outcome = await this.release(store, digest, account, tag);
-                released.push(
-                    ...(outcome === "released" ? [{ package: built, manifest: digest }] : []),
-                );
-            } else {
-                await this.#requirePublished(built, digest);
-            }
+        for (const layer of layers) {
+            const outcomes = await Promise.all(
+                layer.map(async (digest): Promise<PackageRelease[]> => {
+                    // require another account's build published, else release this account's
+                    const built = PackageManifest.package((await store.contents(digest)).manifest);
+                    if (PackageName.split(built.name).handle !== handle) {
+                        await this.#requirePublished(built, digest);
+
+                        return [];
+                    } else {
+                        const outcome = await this.release(store, digest, account, tag);
+
+                        return outcome === "released" ? [{ package: built, manifest: digest }] : [];
+                    }
+                }),
+            );
+            released.push(...outcomes.flat());
         }
 
         return released;
