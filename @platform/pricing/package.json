@@ -4,7 +4,7 @@
     "license": "Apache-2.0",
     "type": "module",
     "sideEffects": false,
-    "description": "Destack's plans and units, the features its plans grant, and the list prices of the providers it runs on.",
+    "description": "Price Destack: its plans and the features they grant, the units its usage is billed in, and the list prices of the providers it runs on.",
     "exports": {
         ".": "./src/index.ts",
         "./cloudflare": "./src/vendor/cloudflare.ts",
@@ -12,7 +12,7 @@
         "./destack.json": "./destack.json"
     },
     "scripts": {
-        "typecheck": "tsc --project tsconfig.json",
+        "typecheck": "destack-check readme && tsc --project tsconfig.json",
         "refresh": "bun run scripts/refresh.ts"
     },
     "dependencies": {

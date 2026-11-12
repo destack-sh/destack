@@ -1,127 +1,80 @@
 # @platform/pricing
 
-Destack's plans, units, price book and plan features, and the list prices of the vendors it runs on.
+Price Destack: its plans and the features they grant, the units its usage is billed in, and the list prices of the providers it runs on.
 
-## Plans
+## Overview
 
-`PLANS` declares Free, Go, Plus and Pro as products, each fee a month per member including the same amount of usage, Free a monthly usage per member, and Free and Go capped at their usage.
+The platform's stack sells the plans declared here, and finance rates each space's usage at the unit prices declared here.
+
+- **Plan**: Free, Go, Plus and Pro as products, each fee a month per member including as much usage; `ENTERPRISE` is the contract past Pro.
+- **Feature**: what a plan grants, such as `database`, `tenancy` or `customDomains`.
+- **Unit**: the price in credits of one meter at its attribute values, the same on every host and in every region; `UNIT_SKUS`.
+- **PricingModel**: a provider's SKUs for each meter; `price` rates a quantity in US cents.
+- **Machine**: a dedicated machine size, billed per awake second; `MACHINES` and `MACHINE_SKUS`.
+- **Vendor**: a provider's published list prices with their sources, such as Cloudflare's and Hetzner's.
 
 ```ts
 import { CREDIT_PRICES, PLANS } from "@platform/pricing";
+import { defineStack } from "@destack/stack";
+import financePackage from "@destack/finance/package";
+import { defineCatalog } from "@destack/finance/declare";
 
 export const platform = defineStack({
-    sellers: { platform: { provider: "stripe", country: "AT", creditPrices: CREDIT_PRICES } },
-    products: PLANS, // { free: { name: t`Free`, … }, go, plus, pro }
+    types: [financePackage],
+    sellers: { platform: { provider: "stripe", creditPrices: CREDIT_PRICES } },
+    ...defineCatalog(PLANS),
 });
-
-// free: every account's default, 2.50 credits of usage per member a month, email support
-// go:   8 USD, EUR, CHF or GBP, 11 CAD, 13 AUD per member a month, capped: custom retention, early access
-// plus: 20, 28 or 32 per member a month, then pay as you go: custom domains
-// pro:  50, 70 or 80 per member a month: dedicated machines, priority support
 ```
 
-## Enterprise
+## Examples
 
-`ENTERPRISE` declares the contract organisations sign past Pro: all of Pro, uptime and support SLAs, and a monthly commitment spent on usage.
+### Rate usage
 
-```ts
-import { ENTERPRISE } from "@platform/pricing";
-
-ENTERPRISE.commitment.USD; // 100_000, 1000 USD a month
-ENTERPRISE.support; // "sla"
-```
-
-## Price book
-
-`CREDIT_PRICES` prices a credit in each billing currency, and `Fee.conversion` converts a list price's currency to US cents.
+A pricing model rates a meter's quantity at a provider's prices or at Destack's units.
 
 ```ts
-import { CREDIT_PRICES, Fee } from "@platform/pricing";
-
-CREDIT_PRICES.CAD; // "1.4"
-Fee.conversion("x-credits"); // "1"
-```
-
-## Machines
-
-`MACHINES` sizes the dedicated machines, each billed per awake second through `MACHINE_SKUS` at an hourly price that makes 500 awake hours about twice its share of a Hetzner server.
-
-```ts
-import { MACHINE_HOST, MACHINE_SKUS, MACHINES } from "@platform/pricing";
-
-MACHINES.small; // { vcpus: 2, memory: 4, disk: 80, hourly: 8 } credit cents
-MACHINE_SKUS.small.definition.unitAmount; // "8" per hour of 3600 seconds
-MACHINE_HOST.quote(MACHINES.small); // { name: "AX42-1", monthly: 1906.51, … }
-```
-
-## Units
-
-`UNIT_SKUS` prices each meter at each of its attribute values in credits at twice its Cloudflare cost, the same on every host and in every region, transfer free both ways, and inference at 1.25 credits per US dollar of its provider's list price.
-
-```ts
-import { computeUsageUnit, databaseWriteUnit, inferenceCostUnit, RESOURCES } from "@platform/pricing";
-
-RESOURCES; // ["Compute", "Database", "Files", "Network", "Inference"]
-computeUsageUnit.definition.unitAmount; // "9" per GB-hour
-databaseWriteUnit.definition.attributes; // { direction: "write" }
-databaseWriteUnit.meterKey; // "<telemetry>/database.operation direction=write"
-inferenceCostUnit.definition.unitAmount; // "125" per US dollar
-```
-
-### Pricing models
-
-`PricingModel` maps each meter at its attribute values to a provider's SKUs, none where the provider bills nothing, and `price` rates a quantity in US cents.
-
-```ts
+import { computeOperation } from "@destack/telemetry/meter";
 import { UNIT_PRICING } from "@platform/pricing";
 import { CLOUDFLARE_PRICING } from "@platform/pricing/cloudflare";
-import { computeOperation } from "@destack/telemetry/meter";
 
 const requests = computeOperation.key({});
-CLOUDFLARE_PRICING.components(requests); // [[workerRequests, 1], [durableObjectRequests, 1]]
-CLOUDFLARE_PRICING.price(requests, 1_000_000); // 45 US cents
-UNIT_PRICING.price(requests, 1_000_000); // 90 US cents
+const cost = CLOUDFLARE_PRICING.price(requests, 1_000_000);
+const price = UNIT_PRICING.price(requests, 1_000_000);
 ```
 
-## Vendors
+### Grant a feature
 
-`CLOUDFLARE_SKUS` lists Cloudflare's published prices as FOCUS SKUs with their sources, and `CLOUDFLARE_PRICING` prices each meter with them.
+A plan grants each feature a value, such as the tenancies its spaces may run in.
 
 ```ts
-import { CLOUDFLARE_PRICING, r2Storage } from "@platform/pricing/cloudflare";
-import { networkTransfer } from "@destack/telemetry/meter";
+import { customDomains, tenancy } from "@platform/pricing";
 
-r2Storage.definition.unitAmount; // "1.5" US cents per GB-month
-CLOUDFLARE_PRICING.price(networkTransfer.key({ direction: "ingress" }), 1e12); // 0 US cents
+const grants = [tenancy.grant(["shared", "dedicated", "local"]), customDomains.grant(null)];
 ```
 
-### Refresh
+### Quote a machine
 
-`just refresh` reads Cloudflare's docs pages and rewrites the module's prices and date.
+`MACHINE_HOST` quotes the cheapest share of a server with a machine size's resources.
+
+```ts
+import { MACHINE_HOST, MACHINES } from "@platform/pricing";
+
+const quote = MACHINE_HOST.quote(MACHINES.small);
+```
+
+### Refresh vendor prices
+
+`just refresh` reads Cloudflare's pricing pages and rewrites the module's prices and date.
 
 ```sh
 just refresh
 ```
 
-### Machine vendors
+## Comparison
 
-`hetzner` lists Hetzner's prices and quotes the cheapest share of a server with the given resources.
+### FOCUS
 
-```ts
-import { hetzner } from "@platform/pricing/hetzner";
+SKUs with list prices, pricing units and sources follow the FinOps FOCUS specification; two things differ.
 
-hetzner.quote({ vcpus: 16, memory: 32, disk: 640 }); // { name: "AX102-1", monthly: 15725.83, … }
-```
-
-## Features
-
-Each feature is an entitlement a plan grants: the database, bucket, compute and network its spaces use, where they may run, and what a plan unlocks, such as custom retention past each setting's default.
-
-```ts
-import { bucket, customDomains, database, tenancy } from "@platform/pricing";
-
-database.grant(null); // unlimited, within the plan's included usage or its spending limit
-bucket.grant(null);
-tenancy.grant(["shared", "dedicated", "local"]);
-customDomains.grant(null);
-```
+- Destack's units price each meter in credits, so a space's bill is the same on every host.
+- Each vendor price records the page it came from and the date it was read.
