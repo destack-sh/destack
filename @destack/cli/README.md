@@ -1,126 +1,113 @@
 # @destack/cli
 
-`destack` reads and changes the objects of a space, its account and this computer from the terminal, through this computer's machine.
+Use Destack from the terminal: sign in, install packages and work with a space's objects.
+
+## Overview
+
+`@destack/cli` is `destack`, a kubectl-style command line: fixed commands for the session, packages and stacks, and a command per object type a space installs.
+
+The terminal acts as a person in a space:
+
+- `login`, `logout`, `whoami` and `switch`: the person signed in, and the space commands act in.
+
+Packages and stacks:
+
+- `install`: installs a package, following a release tag or staying on a version.
+- `apply`, `plan`, `approve` and `reject`: the space's stack and its plans.
+- `dev`, `build`, `publish` and `tag`: a package in a checkout.
+
+Objects:
+
+- `destack <nouns>`: lists a type's objects.
+- `destack <noun> <id> [method]`: gets an object, or calls a method on it.
+
+Sign in, install a package, and work with its objects:
 
 ```sh
-destack login                                     # a device code, switching to your home
-destack install @acme/notebooks                   # following its latest release, in the current space
-destack switch work                               # an address, an alias, home, residency or a space's name
-destack notebooks --where 'name = Plans' --watch  # list, redrawn as the rows change
-destack notebook notebook-0199… update --name Ideas --revision 2  # a method call with field flags
-destack notebook create --name Plans
-destack notes:notebooks                           # a noun two installations serve, qualified by the installation
-destack logs --where 'severity >= 17' --watch     # the space's events as a noun
-destack setting palette.shortcut set alt+k --scope account
-destack apply ./stack --export space --yes
-destack open notebook-0199…                       # in a desktop window
-```
-
-## Context
-
-`login` signs you in through this computer's machine, which stores the session and enrolls itself in your account.
-
-```sh
-# RFC 8628: a one-time code to enter at the printed page in any browser, which also signs people up
 destack login
-# sign in, asking for the code alone
-destack login --email ada@example.com
-# scripted: the code on standard input
-DESTACK_EMAIL=ada@example.com destack login --json < code.txt
-# RFC 8252: the browser and a loopback redirect
-destack login --browser
-# the person, their session and the space switched to
-destack whoami
-# another space for one command line: an address, an alias of space.aliases, home, residency or a name
-destack --space home spaces
-destack logout
+destack switch work
+destack install @acme/notebooks
+destack notebook create --name Plans
+destack notebooks --where 'name = Plans' --watch
 ```
 
-## Objects
+## Reference
 
-A plural lists a type's objects, and a singular gets, creates and calls methods on one, from the nouns the stores of this computer's machine, the universe and the space describe.
+### Commands
+
+Every command takes `--space` to act in another space, `--json` for machine-readable output, and `--help`.
+
+| Command                       | What it does                                                     |
+| ----------------------------- | ---------------------------------------------------------------- |
+| `login`                       | signs in with a device code, or `--browser` or `--email`         |
+| `logout`, `whoami`            | signs out, or shows the person and space                         |
+| `switch <space>`              | sets the space commands act in                                   |
+| `install <package>`           | installs `@scope/name`, at `@tag` or `@version`                  |
+| `apply <checkout>`            | applies a checkout's stack to the space                          |
+| `plan`, `approve`, `reject`   | shows, approves or rejects the plan an installation waits on     |
+| `dev <checkout>`              | previews a checkout's package live against the space             |
+| `build`, `publish <checkout>` | builds a checkout's package, or builds and publishes it          |
+| `tag`                         | points a distribution tag at a release                           |
+| `setting`, `settings`         | gets, sets, resets or lists setting values at a `--scope`        |
+| `open <target>`               | opens a link or an object in a desktop window or the browser     |
+| `self`                        | installs, starts, stops, updates or uninstalls this distribution |
+| `completion <shell>`          | prints the completion script for bash, zsh or fish               |
+
+### Object commands
+
+Each type the space installs adds a plural and a singular, such as `notebooks` and `notebook`.
+`installation:noun` picks one installation's type when two share a name.
+
+| Form                                      | What it does                                  |
+| ----------------------------------------- | --------------------------------------------- |
+| `destack <nouns> --where <filter>`        | lists objects matching a `@destack/db` filter |
+| `destack <nouns> --limit <n> --watch`     | lists a page, and follows changes             |
+| `destack <noun> <id>`                     | gets one object                               |
+| `destack <noun> create --<field> <value>` | creates an object, with a flag per field      |
+| `destack <noun> <id> <method> --<field>`  | calls a method, with a flag per input field   |
+
+A failed command prints one error and exits with 2 for a usage error, 4 when signed out, and 130 when interrupted.
+
+## Examples
+
+### Install a package
+
+`install` follows a tag, or stays on a version.
 
 ```sh
-destack spaces                                       # account:spaces, served by the universe
-destack space create --name projects --machine machine-0199…
-destack space --help                                 # the methods of one space
-destack space space-0199… rename --name archive
-destack calls --watch                                # object:calls, the space's call log
-destack issues --where 'status = unresolved'         # where observability is installed
-destack --space residency charges --status open      # finance, in your account's residency
-destack setting start set destack://home--home--ada/home --scope device   # this computer's value
-destack settings --scope space
+destack install @acme/notebooks                         # follow latest
+destack install @acme/notebooks@next                    # follow next
+destack install @acme/notebooks@2026.10.0 --name notes  # stay on 2026.10.0
 ```
 
-## Commands
+### Apply a stack
 
-A command a package declares on its type runs on one object as a verb, setting its input and refused where its `when` misses.
-
-```sh
-# update's restart-to-update: distribution.activate, offered once a release is staged
-destack distribution distribution-0199… restart-to-update
-# a notebook command presetting its input, the other fields as flags
-destack notebook notebook-0199… rename-to-ideas --revision 3
-# {"error":{"code":"PRECONDITION_FAILED","message":"rename-to-ideas does not apply to notebook notebook-0199…"}}
-```
-
-## Stacks
-
-`apply` changes the space's stack; `plan` shows the plan any installation waits on, the stack's by default, and `approve` or `reject` decides the change request asking the space's managers for it.
+`apply` changes the space's stack, and `approve` decides a plan that waits.
 
 ```sh
-destack apply ./stack --export space --parameters '{"region":"eu"}'
+destack apply ./stack --export space --yes
 destack plan --watch
-destack approve --plan 3f1c…
-destack approve notes --plan 9a2e…   # an update of notes asking for more access
-destack reject notes --plan 9a2e…
+destack approve notes --plan 9a2e…
 ```
 
-## Installations
+### Develop and publish a package
 
-`install` follows a package's latest release or a tag, or stays on a version, and waits until the space serves it, asking before a plan applies; installing an installed name changes what it follows.
-
-```sh
-destack install @acme/notebooks                    # follows latest
-destack install @acme/notebooks@next               # follows next
-destack install @acme/notebooks@2026.10.0 --name notes   # stays on 2026.10.0
-# the same through the installation type, a flag per field of the selection
-destack installation create --package-id package-0199… --selection-kind release --selection-version 2026.10.0 --name notes
-```
-
-## Packages
-
-`dev`, `build` and `publish` run, build and publish a package of a checkout.
+`dev` previews a checkout's package, and `publish` releases it under a tag.
 
 ```sh
-destack checkout create --directory ~/code/notebooks   # machine:checkout, this computer's
 destack dev ./@acme/notebooks
-destack build ./@acme/notebooks --outputs bun
 destack publish ./@acme/notebooks --tag latest
 ```
 
-## Distribution
+## Comparison
 
-`self` installs, updates and uninstalls this computer's Destack, and `completion` prints a shell's completion script.
+### kubectl
 
-```sh
-destack self start                     # start this computer's machine, or reuse the one running
-destack self stop                      # stop this computer's machine
-destack self update --stage            # distribution.stage: download and verify
-# stage, activate, restart the machine and relaunch the desktop
-destack self update
-# stop the machine, wait for the desktop to quit, leave the state
-destack self uninstall
-source <(destack completion zsh)       # spaces for switch, a setting's values, directories for dev and apply
-```
+Plural listings, `--watch` and declarative `apply` follow kubectl.
 
-## Errors
-
-A failed command exits with 2 for a usage error, 4 when nobody is signed in, 130 once interrupted, and 1 otherwise.
-
-```sh
-# {"error":{"code":"NOT_FOUND","message":"no space of yours is called notes"}}
-destack --space notes whoami --json
-# {"error":{"code":"BAD_REQUEST","message":"--limit takes a positive whole number"}}
-destack tasks --limit 0 --json
-```
+| kubectl                          | `destack`                  | Difference                                             |
+| -------------------------------- | -------------------------- | ------------------------------------------------------ |
+| `kubectl get <kind>`             | `destack <nouns>`          | Types come from the space's packages, without plugins. |
+| `--selector`, `--field-selector` | `--where <filter>`         | One filter language over any field and relation.       |
+| `kubectl apply -f`               | `destack apply <checkout>` | Risky plans wait for approval.                         |
+| kubeconfig contexts              | `switch`                   | The machine keeps the session and its tokens.          |
