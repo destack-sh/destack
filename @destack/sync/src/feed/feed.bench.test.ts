@@ -100,124 +100,114 @@ const RANKED_OPERATIONS = 12;
 /** The most database operations a write flipping every row may cost, at 90 keys a read. */
 const FLIP_OPERATIONS = 60;
 
-test(
-    "snapshot and replicate thousands of rows within an operation budget",
-    { timeout: 30_000 },
-    async ({ annotate }) => {
-        await using simulation = new Simulation({
-            world: testWorldOptions(),
-            seed: 1,
-            start: START,
-        });
-        const source = await open({ simulation });
-        const feed = new Feed(source, TABLES);
-        await new Workload(new Random(3)).seed(source, 4000);
+test("snapshot and replicate thousands of rows within an operation budget", async ({
+    annotate,
+}) => {
+    await using simulation = new Simulation({
+        world: testWorldOptions(),
+        seed: 1,
+        start: START,
+    });
+    const source = await open({ simulation });
+    const feed = new Feed(source, TABLES);
+    await new Workload(new Random(3)).seed(source, 4000);
 
-        // snapshot every query set into memory
-        const snapshotOnce = async () => {
-            const operations = source.driver.state.operations;
-            const start = cpuTime();
-            const follower = new Follower(feed, SNAPSHOT_QUERIES, TABLES, { audience: AUDIENCE });
-            follower.start();
-            await follower.wait(await source.log.position());
-            await follower.stop();
+    // snapshot every query set into memory
+    const snapshotOnce = async () => {
+        const operations = source.driver.state.operations;
+        const start = cpuTime();
+        const follower = new Follower(feed, SNAPSHOT_QUERIES, TABLES, { audience: AUDIENCE });
+        follower.start();
+        await follower.wait(await source.log.position());
+        await follower.stop();
 
-            return {
-                milliseconds: cpuTime() - start,
-                operations: source.driver.state.operations - operations,
-                rows: follower.replica.rows.size,
-            };
+        return {
+            milliseconds: cpuTime() - start,
+            operations: source.driver.state.operations - operations,
+            rows: follower.replica.rows.size,
         };
-        await snapshotOnce();
-        const { milliseconds: snapshot, operations, rows } = await snapshotOnce();
+    };
+    await snapshotOnce();
+    const { milliseconds: snapshot, operations, rows } = await snapshotOnce();
 
-        // snapshot them through a replica
-        const replicateOnce = async () => {
-            const client = await openReplica({ simulation });
-            const replica = new Replica({ name: "replica", scope: "inbox", tables: TABLES });
-            const start = cpuTime();
-            const applied = client.driver.state.operations;
-            const replicated = new Follower(feed, SNAPSHOT_QUERIES, TABLES, {
-                audience: AUDIENCE,
-                replica: { replica, database: client },
-            });
-            replicated.start();
-            await replicated.wait(await source.log.position());
-            await replicated.stop();
-
-            return {
-                milliseconds: cpuTime() - start,
-                operations: client.driver.state.operations - applied,
-            };
-        };
-        await replicateOnce();
-        const replicated = await replicateOnce();
-
-        // stay within the budgets and report the time per row
-        await report(annotate, "snapshot CPU µs per row", (snapshot * 1000) / rows);
-        await report(annotate, "replica CPU µs per row", (replicated.milliseconds * 1000) / rows);
-        expect(rows).toBeGreaterThan(2000);
-        expect(operations, "operations per snapshot").toBeLessThan(SNAPSHOT_OPERATIONS);
-        expect(replicated.operations, "operations per replicated snapshot").toBeLessThan(
-            REPLICA_OPERATIONS,
-        );
-    },
-);
-
-test(
-    "decide writes for a hundred subscribers within an operation budget",
-    { timeout: 30_000 },
-    async ({ annotate }) => {
-        await using simulation = new Simulation({
-            world: testWorldOptions(),
-            seed: 1,
-            start: START,
+    // snapshot them through a replica
+    const replicateOnce = async () => {
+        const client = await openReplica({ simulation });
+        const replica = new Replica({ name: "replica", scope: "inbox", tables: TABLES });
+        const start = cpuTime();
+        const applied = client.driver.state.operations;
+        const replicated = new Follower(feed, SNAPSHOT_QUERIES, TABLES, {
+            audience: AUDIENCE,
+            replica: { replica, database: client },
         });
-        const source = await open({ simulation });
-        const feed = new Feed(source, TABLES);
-        const workload = new Workload(new Random(9));
-        await workload.seed(source, 500);
+        replicated.start();
+        await replicated.wait(await source.log.position());
+        await replicated.stop();
 
-        // follow filters and windows with a hundred subscribers
-        const followers = Array.from(
-            { length: 100 },
-            () => new Follower(feed, { ...FILTERS, ...WINDOWS }, TABLES, { audience: AUDIENCE }),
-        );
-        for (const follower of followers) {
-            follower.start();
+        return {
+            milliseconds: cpuTime() - start,
+            operations: client.driver.state.operations - applied,
+        };
+    };
+    await replicateOnce();
+    const replicated = await replicateOnce();
+
+    // stay within the budgets and report the time per row
+    await report(annotate, "snapshot CPU µs per row", (snapshot * 1000) / rows);
+    await report(annotate, "replica CPU µs per row", (replicated.milliseconds * 1000) / rows);
+    expect(rows).toBeGreaterThan(2000);
+    expect(operations, "operations per snapshot").toBeLessThan(SNAPSHOT_OPERATIONS);
+    expect(replicated.operations, "operations per replicated snapshot").toBeLessThan(
+        REPLICA_OPERATIONS,
+    );
+});
+
+test("decide writes for a hundred subscribers within an operation budget", async ({ annotate }) => {
+    await using simulation = new Simulation({
+        world: testWorldOptions(),
+        seed: 1,
+        start: START,
+    });
+    const source = await open({ simulation });
+    const feed = new Feed(source, TABLES);
+    const workload = new Workload(new Random(9));
+    await workload.seed(source, 500);
+
+    // follow filters and windows with a hundred subscribers
+    const followers = Array.from(
+        { length: 100 },
+        () => new Follower(feed, { ...FILTERS, ...WINDOWS }, TABLES, { audience: AUDIENCE }),
+    );
+    for (const follower of followers) {
+        follower.start();
+    }
+    const snapshot = await source.log.position();
+    await Promise.all(followers.map((follower) => follower.wait(snapshot)));
+
+    // time a burst of writes
+    const writes = 40;
+    const burst = async () => {
+        for (let index = 0; index < writes; index += 1) {
+            await workload.write(source);
         }
-        const snapshot = await source.log.position();
-        await Promise.all(followers.map((follower) => follower.wait(snapshot)));
+        const start = cpuTime();
+        const operations = source.driver.state.operations;
+        const position = await source.log.position();
+        await Promise.all(followers.map((follower) => follower.wait(position)));
 
-        // time a burst of writes
-        const writes = 40;
-        const burst = async () => {
-            for (let index = 0; index < writes; index += 1) {
-                await workload.write(source);
-            }
-            const start = cpuTime();
-            const operations = source.driver.state.operations;
-            const position = await source.log.position();
-            await Promise.all(followers.map((follower) => follower.wait(position)));
-
-            return {
-                milliseconds: cpuTime() - start,
-                operations: (source.driver.state.operations - operations) / writes,
-            };
+        return {
+            milliseconds: cpuTime() - start,
+            operations: (source.driver.state.operations - operations) / writes,
         };
-        await burst();
-        const { milliseconds: elapsed, operations } = await burst();
-        await Promise.all(followers.map((follower) => follower.stop()));
+    };
+    await burst();
+    const { milliseconds: elapsed, operations } = await burst();
+    await Promise.all(followers.map((follower) => follower.stop()));
 
-        // stay within the budget and report the time
-        await report(
-            annotate,
-            "CPU µs per decision",
-            (elapsed * 1000) / (followers.length * writes),
-        );
-        expect(operations, "operations per write").toBeLessThan(DECISION_OPERATIONS);
-    },
-);
+    // stay within the budget and report the time
+    await report(annotate, "CPU µs per decision", (elapsed * 1000) / (followers.length * writes));
+    expect(operations, "operations per write").toBeLessThan(DECISION_OPERATIONS);
+});
 
 test("resume a stateful subscriber without sending selected rows again", async () => {
     await using simulation = new Simulation({
@@ -247,269 +237,253 @@ test("resume a stateful subscriber without sending selected rows again", async (
     ]).toEqual([false, []]);
 });
 
-test(
-    "send to a thousand subscribers of one row within an operation budget",
-    { timeout: 30_000 },
-    async ({ annotate }) => {
-        await using simulation = new Simulation({
-            world: testWorldOptions(),
-            seed: 1,
-            start: START,
-        });
-        const source = await open({ simulation });
-        const feed = new Feed(source, TABLES, { subscribers: 1000 });
-        await new Workload(new Random(21)).seed(source, 200);
+test("send to a thousand subscribers of one row within an operation budget", async ({
+    annotate,
+}) => {
+    await using simulation = new Simulation({
+        world: testWorldOptions(),
+        seed: 1,
+        start: START,
+    });
+    const source = await open({ simulation });
+    const feed = new Feed(source, TABLES, { subscribers: 1000 });
+    await new Workload(new Random(21)).seed(source, 200);
 
-        // follow with a thousand subscribers
-        const controller = new AbortController();
-        const positions = Array.from({ length: 1000 }, () => -1);
-        let progress = Promise.withResolvers<void>();
-        const subscribers = positions.map(async (_, index) => {
-            const pages = feed.subscribe({ ...FILTERS, ...WINDOWS }, undefined, controller.signal, {
-                audience: AUDIENCE,
-            });
-            for await (const sent of pages) {
-                if (sent.complete) {
-                    positions[index] = sent.position.sequence;
-                }
-                progress.resolve();
+    // follow with a thousand subscribers
+    const controller = new AbortController();
+    const positions = Array.from({ length: 1000 }, () => -1);
+    let progress = Promise.withResolvers<void>();
+    const subscribers = positions.map(async (_, index) => {
+        const pages = feed.subscribe({ ...FILTERS, ...WINDOWS }, undefined, controller.signal, {
+            audience: AUDIENCE,
+        });
+        for await (const sent of pages) {
+            if (sent.complete) {
+                positions[index] = sent.position.sequence;
             }
-        });
-        const waitReached = async (position: LogPosition) => {
-            while (positions.some((sequence) => sequence < position.sequence)) {
-                await progress.promise;
-                progress = Promise.withResolvers<void>();
-            }
-        };
-        await waitReached(await source.log.position());
+            progress.resolve();
+        }
+    });
+    const waitReached = async (position: LogPosition) => {
+        while (positions.some((sequence) => sequence < position.sequence)) {
+            await progress.promise;
+            progress = Promise.withResolvers<void>();
+        }
+    };
+    await waitReached(await source.log.position());
 
-        // time a write every subscriber has
-        const { milliseconds, operations } = await measure(
-            source,
-            40,
-            async (index) => {
-                await source.transaction(
-                    async (transaction) =>
-                        await transaction
-                            .update(task)
-                            .set({ rank: index % 10 })
-                            .where(eq(task.id, "s1")),
-                );
-            },
-            waitReached,
-        );
-        controller.abort();
-        await Promise.all(subscribers);
+    // time a write every subscriber has
+    const { milliseconds, operations } = await measure(
+        source,
+        40,
+        async (index) => {
+            await source.transaction(
+                async (transaction) =>
+                    await transaction
+                        .update(task)
+                        .set({ rank: index % 10 })
+                        .where(eq(task.id, "s1")),
+            );
+        },
+        waitReached,
+    );
+    controller.abort();
+    await Promise.all(subscribers);
 
-        // stay within the budget and report the time
-        await report(annotate, "CPU ms per write", milliseconds);
-        expect(operations, "operations per write").toBeLessThan(FAN_OUT_OPERATIONS);
-    },
-);
+    // stay within the budget and report the time
+    await report(annotate, "CPU ms per write", milliseconds);
+    expect(operations, "operations per write").toBeLessThan(FAN_OUT_OPERATIONS);
+});
 
-test(
-    "flip fifteen hundred rows through a lookup within an operation budget",
-    { timeout: 60_000 },
-    async ({ annotate }) => {
-        await using simulation = new Simulation({
-            world: testWorldOptions(),
-            seed: 1,
-            start: START,
-        });
-        const source = await open({ simulation });
-        const feed = new Feed(source, TABLES);
+test("flip fifteen hundred rows through a lookup within an operation budget", async ({
+    annotate,
+}) => {
+    await using simulation = new Simulation({
+        world: testWorldOptions(),
+        seed: 1,
+        start: START,
+    });
+    const source = await open({ simulation });
+    const feed = new Feed(source, TABLES);
 
-        // follow the tasks of a named project
-        await source.transaction(
-            async (transaction) =>
-                await transaction.insert(project).values({ id: "p0", scope: "inbox", name: "a" }),
-        );
+    // follow the tasks of a named project
+    await source.transaction(
+        async (transaction) =>
+            await transaction.insert(project).values({ id: "p0", scope: "inbox", name: "a" }),
+    );
+    await source.transaction(
+        async (transaction) =>
+            await transaction.insert(task).values(
+                Array.from({ length: FLIPPED_ROWS }, (_, index) => ({
+                    id: `t${index}`,
+                    scope: "inbox",
+                    projectId: "p0",
+                    state: "open",
+                    rank: index % 10,
+                    points: 1,
+                    title: "work",
+                    isSecret: false,
+                })),
+            ),
+    );
+    const follower = new Follower(feed, LOOKUPS, TABLES, { audience: AUDIENCE });
+    follower.start();
+    await follower.wait(await source.log.position());
+
+    // rename the project back and forth
+    const { milliseconds, operations } = await measure(
+        source,
+        6,
+        async (index) => {
+            await source.transaction(
+                async (transaction) =>
+                    await transaction
+                        .update(project)
+                        .set({ name: index % 2 === 0 ? "x" : "a" })
+                        .where(eq(project.id, "p0")),
+            );
+        },
+        (position) => follower.wait(position),
+    );
+    await follower.stop();
+
+    // stay within the budget and report the time
+    await report(annotate, "CPU ms per flip", milliseconds);
+    expect(operations, "operations per flip").toBeLessThan(FLIP_OPERATIONS);
+});
+
+test("follow every query set at scale within an operation budget", async ({ annotate }) => {
+    await using simulation = new Simulation({
+        world: testWorldOptions(),
+        seed: 1,
+        start: START,
+    });
+    const source = await open({ simulation });
+    const feed = new Feed(source, TABLES);
+    const workload = new Workload(new Random(31));
+    await workload.seed(source, SCALE_ROWS);
+
+    // follow every query set
+    const follower = new Follower(feed, EVERYTHING, TABLES, { audience: AUDIENCE });
+    follower.start();
+    await follower.wait(await source.log.position());
+
+    // time single writes
+    const { milliseconds, operations } = await measure(
+        source,
+        48,
+        () => workload.write(source),
+        (position) => follower.wait(position),
+    );
+    await follower.stop();
+
+    // stay within the budget and report the time
+    await report(annotate, "CPU ms per write", milliseconds);
+    expect(operations, "operations per write").toBeLessThan(SCALE_OPERATIONS);
+});
+
+test("send to the subscribers of a space with distinct access within an operation budget", async ({
+    annotate,
+}) => {
+    await using simulation = new Simulation({
+        world: testWorldOptions(),
+        seed: 1,
+        start: START,
+    });
+    const source = await open({ simulation });
+    const feed = new Feed(source, TABLES, {
+        subscribers: SPACE_SUBSCRIBERS,
+    });
+    const workload = new Workload(new Random(41));
+    await workload.seed(source, 500);
+
+    // follow as subscribers of distinct audiences
+    const audiences = Array.from(
+        { length: SPACE_AUDIENCES },
+        (_, index) =>
+            new ConditionAudience(new Map<Table, Condition>([[task, { id: { ne: `s${index}` } }]])),
+    );
+    const followers = Array.from(
+        { length: SPACE_SUBSCRIBERS },
+        (_, index) =>
+            new Follower(feed, { ...FILTERS, ...WINDOWS }, TABLES, {
+                audience: nth(audiences, index % SPACE_AUDIENCES),
+            }),
+    );
+    for (const follower of followers) {
+        follower.start();
+    }
+    const snapshot = await source.log.position();
+    await Promise.all(followers.map((follower) => follower.wait(snapshot)));
+
+    // time single writes
+    const { milliseconds, operations } = await measure(
+        source,
+        40,
+        () => workload.write(source),
+        async (position) => {
+            await Promise.all(followers.map((follower) => follower.wait(position)));
+        },
+    );
+    await Promise.all(followers.map((follower) => follower.stop()));
+
+    // stay within the budget and report the time
+    await report(annotate, "CPU ms per write", milliseconds);
+    expect(operations, "operations per write").toBeLessThan(SPACE_OPERATIONS);
+});
+
+test("reorder ten thousand tasks by a rollup within an operation budget", async ({ annotate }) => {
+    await using simulation = new Simulation({
+        world: testWorldOptions(),
+        seed: 1,
+        start: START,
+    });
+    const source = await open({ simulation });
+    const feed = new Feed(source, TABLES);
+
+    // file ten thousand tasks and follow the ten most commented
+    for (let start = 0; start < RANKED_ROWS; start += 500) {
         await source.transaction(
             async (transaction) =>
                 await transaction.insert(task).values(
-                    Array.from({ length: FLIPPED_ROWS }, (_, index) => ({
-                        id: `t${index}`,
+                    Array.from({ length: 500 }, (_, index) => ({
+                        id: `t${start + index}`,
                         scope: "inbox",
-                        projectId: "p0",
                         state: "open",
-                        rank: index % 10,
-                        points: 1,
-                        title: "work",
+                        rank: 0,
                         isSecret: false,
                     })),
                 ),
         );
-        const follower = new Follower(feed, LOOKUPS, TABLES, { audience: AUDIENCE });
-        follower.start();
-        await follower.wait(await source.log.position());
+    }
+    const follower = new Follower(feed, DISCUSSED, TABLES, { audience: AUDIENCE });
+    follower.start();
+    await follower.wait(await source.log.position());
 
-        // rename the project back and forth
-        const { milliseconds, operations } = await measure(
-            source,
-            6,
-            async (index) => {
-                await source.transaction(
-                    async (transaction) =>
-                        await transaction
-                            .update(project)
-                            .set({ name: index % 2 === 0 ? "x" : "a" })
-                            .where(eq(project.id, "p0")),
-                );
-            },
-            (position) => follower.wait(position),
-        );
-        await follower.stop();
-
-        // stay within the budget and report the time
-        await report(annotate, "CPU ms per flip", milliseconds);
-        expect(operations, "operations per flip").toBeLessThan(FLIP_OPERATIONS);
-    },
-);
-
-test(
-    "follow every query set at scale within an operation budget",
-    { timeout: 60_000 },
-    async ({ annotate }) => {
-        await using simulation = new Simulation({
-            world: testWorldOptions(),
-            seed: 1,
-            start: START,
-        });
-        const source = await open({ simulation });
-        const feed = new Feed(source, TABLES);
-        const workload = new Workload(new Random(31));
-        await workload.seed(source, SCALE_ROWS);
-
-        // follow every query set
-        const follower = new Follower(feed, EVERYTHING, TABLES, { audience: AUDIENCE });
-        follower.start();
-        await follower.wait(await source.log.position());
-
-        // time single writes
-        const { milliseconds, operations } = await measure(
-            source,
-            48,
-            () => workload.write(source),
-            (position) => follower.wait(position),
-        );
-        await follower.stop();
-
-        // stay within the budget and report the time
-        await report(annotate, "CPU ms per write", milliseconds);
-        expect(operations, "operations per write").toBeLessThan(SCALE_OPERATIONS);
-    },
-);
-
-test(
-    "send to the subscribers of a space with distinct access within an operation budget",
-    { timeout: 60_000 },
-    async ({ annotate }) => {
-        await using simulation = new Simulation({
-            world: testWorldOptions(),
-            seed: 1,
-            start: START,
-        });
-        const source = await open({ simulation });
-        const feed = new Feed(source, TABLES, {
-            subscribers: SPACE_SUBSCRIBERS,
-        });
-        const workload = new Workload(new Random(41));
-        await workload.seed(source, 500);
-
-        // follow as subscribers of distinct audiences
-        const audiences = Array.from(
-            { length: SPACE_AUDIENCES },
-            (_, index) =>
-                new ConditionAudience(
-                    new Map<Table, Condition>([[task, { id: { ne: `s${index}` } }]]),
-                ),
-        );
-        const followers = Array.from(
-            { length: SPACE_SUBSCRIBERS },
-            (_, index) =>
-                new Follower(feed, { ...FILTERS, ...WINDOWS }, TABLES, {
-                    audience: nth(audiences, index % SPACE_AUDIENCES),
-                }),
-        );
-        for (const follower of followers) {
-            follower.start();
-        }
-        const snapshot = await source.log.position();
-        await Promise.all(followers.map((follower) => follower.wait(snapshot)));
-
-        // time single writes
-        const { milliseconds, operations } = await measure(
-            source,
-            40,
-            () => workload.write(source),
-            async (position) => {
-                await Promise.all(followers.map((follower) => follower.wait(position)));
-            },
-        );
-        await Promise.all(followers.map((follower) => follower.stop()));
-
-        // stay within the budget and report the time
-        await report(annotate, "CPU ms per write", milliseconds);
-        expect(operations, "operations per write").toBeLessThan(SPACE_OPERATIONS);
-    },
-);
-
-test(
-    "reorder ten thousand tasks by a rollup within an operation budget",
-    { timeout: 60_000 },
-    async ({ annotate }) => {
-        await using simulation = new Simulation({
-            world: testWorldOptions(),
-            seed: 1,
-            start: START,
-        });
-        const source = await open({ simulation });
-        const feed = new Feed(source, TABLES);
-
-        // file ten thousand tasks and follow the ten most commented
-        for (let start = 0; start < RANKED_ROWS; start += 500) {
+    // comment on random tasks
+    const random = new Random(17);
+    const { milliseconds, operations } = await measure(
+        source,
+        60,
+        async (index) => {
             await source.transaction(
                 async (transaction) =>
-                    await transaction.insert(task).values(
-                        Array.from({ length: 500 }, (_, index) => ({
-                            id: `t${start + index}`,
-                            scope: "inbox",
-                            state: "open",
-                            rank: 0,
-                            isSecret: false,
-                        })),
-                    ),
+                    await transaction.insert(comment).values({
+                        id: `c${index}`,
+                        scope: "inbox",
+                        taskId: `t${random.integer(40)}`,
+                        position: index,
+                    }),
             );
-        }
-        const follower = new Follower(feed, DISCUSSED, TABLES, { audience: AUDIENCE });
-        follower.start();
-        await follower.wait(await source.log.position());
+        },
+        (position) => follower.wait(position),
+    );
+    await follower.stop();
 
-        // comment on random tasks
-        const random = new Random(17);
-        const { milliseconds, operations } = await measure(
-            source,
-            60,
-            async (index) => {
-                await source.transaction(
-                    async (transaction) =>
-                        await transaction.insert(comment).values({
-                            id: `c${index}`,
-                            scope: "inbox",
-                            taskId: `t${random.integer(40)}`,
-                            position: index,
-                        }),
-                );
-            },
-            (position) => follower.wait(position),
-        );
-        await follower.stop();
-
-        // stay within the budget and report the time
-        await report(annotate, "CPU ms per comment", milliseconds);
-        expect(operations, "operations per comment").toBeLessThan(RANKED_OPERATIONS);
-    },
-);
+    // stay within the budget and report the time
+    await report(annotate, "CPU ms per comment", milliseconds);
+    expect(operations, "operations per comment").toBeLessThan(RANKED_OPERATIONS);
+});
 
 /** Run a scenario's writes after warmup, returning average CPU time and operations per write. */
 async function measure(

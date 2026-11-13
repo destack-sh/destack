@@ -10,24 +10,22 @@ export default defineConfiguration(
                 // test behaviour in parallel, within tight timeouts
                 {
                     extends: true,
+                    tier: "unit",
                     test: {
                         name: "unit",
                         include: ["src/**/*.test.ts", "tests/**/*.test.ts"],
                         exclude: ["**/*.bench.test.ts"],
-                        testTimeout: 5000,
-                        hookTimeout: 5000,
                     },
                 },
                 // run performance budgets one file at a time after the unit tests, keeping their measurements apart
                 {
                     extends: true,
+                    tier: "bench",
                     test: {
                         name: "bench",
                         include: ["tests/**/*.bench.test.ts"],
                         fileParallelism: false,
                         sequence: { groupOrder: 1 },
-                        testTimeout: 30_000,
-                        hookTimeout: 30_000,
                     },
                 },
             ],

@@ -26,7 +26,7 @@ beforeAll(async () => {
 
     // compile the native fixture before measuring update operations
     fixture = await TestUpdate.compile();
-}, 10000);
+});
 
 afterAll(async () => {
     await testHost().files.remove(fixture, { recursive: true });

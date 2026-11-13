@@ -729,9 +729,7 @@ test("lock each key to one instance of several sharing a database, handing it ov
     const holder = nth(reconciled, 0);
     (holder === "first" ? first : second).abort();
     await nth(runs, holder === "first" ? 0 : 1);
-    await expect
-        .poll(() => reconciled, { timeout: 2000 })
-        .toEqual([holder, holder === "first" ? "second" : "first"]);
+    await expect.poll(() => reconciled).toEqual([holder, holder === "first" ? "second" : "first"]);
 });
 
 test("follow a key while its rows stay pending, stopping it once they leave or the loop stops", async () => {

@@ -14,9 +14,6 @@ const OUTPUTS = {
     bun: { kind: "module", runtime: "bun" },
 } as const;
 
-/** The longest a cold build of the site on its stored closure takes. */
-const SITE_BUILD_MILLISECONDS = 60_000;
-
 /** The world the test builds in. */
 let simulation: Simulation;
 /** The checkout's test store. */
@@ -31,7 +28,7 @@ beforeAll(async () => {
     store = await testStore();
     compilers = await CompilerPool.open(store, async () => Toolchain.workspace());
     source = await PackageCopy.open(SITE, compilers);
-}, SITE_BUILD_MILLISECONDS);
+});
 
 afterAll(async () => {
     await source[Symbol.asyncDispose]();
@@ -64,83 +61,79 @@ function headings(document: string): string[] {
     return [...document.matchAll(/<h1[^>]*>([^<]*)<\/h1>/gu)].map((match) => match[1] ?? "");
 }
 
-test(
-    "prerender a static view's pages from its declaration, hydrated by its view's chunk",
-    { timeout: SITE_BUILD_MILLISECONDS },
-    async () => {
-        // build the package with no output requested, the view requesting its own
-        const build = await source.build({ outputs: OUTPUTS });
-        const distributed = new Set((await build.distributed()).map((file) => file.path));
-        const read = async (path: string) =>
-            new TextDecoder().decode(await build.load(`output/browser/view/site/${path}`));
+test("prerender a static view's pages from its declaration, hydrated by its view's chunk", async () => {
+    // build the package with no output requested, the view requesting its own
+    const build = await source.build({ outputs: OUTPUTS });
+    const distributed = new Set((await build.distributed()).map((file) => file.path));
+    const read = async (path: string) =>
+        new TextDecoder().decode(await build.load(`output/browser/view/site/${path}`));
 
-        // read the view, and each page's headings, stylesheets and the scripts it loads
-        const view = build.manifest.outputs["browser"]?.views["site"];
-        const pages = await Promise.all(
-            ["index.html", "about/index.html", "404.html"].map(async (path) => {
-                const page = await read(path);
+    // read the view, and each page's headings, stylesheets and the scripts it loads
+    const view = build.manifest.outputs["browser"]?.views["site"];
+    const pages = await Promise.all(
+        ["index.html", "about/index.html", "404.html"].map(async (path) => {
+            const page = await read(path);
 
-                return {
-                    path,
-                    headings: headings(page),
-                    stylesheets: stylesheets(page),
-                    scripts: scripts(page),
-                };
-            }),
-        );
-        const entry = `/${view?.entrypoint ?? ""}`;
-        const linked = (view?.stylesheets ?? []).map((path) => `/${path}`);
+            return {
+                path,
+                headings: headings(page),
+                stylesheets: stylesheets(page),
+                scripts: scripts(page),
+            };
+        }),
+    );
+    const entry = `/${view?.entrypoint ?? ""}`;
+    const linked = (view?.stylesheets ?? []).map((path) => `/${path}`);
 
-        // list the browser scripts carrying the site's origin, which only its build reads
-        const browserScripts = [...distributed].filter(
-            (path) => path.startsWith("output/browser/") && path.endsWith(".js"),
-        );
-        const carrying = [];
-        for (const path of browserScripts) {
-            const text = new TextDecoder().decode(await build.load(path));
-            if (text.includes("https://example.test")) {
-                carrying.push(path);
-            }
+    // list the browser scripts carrying the site's origin, which only its build reads
+    const browserScripts = [...distributed].filter(
+        (path) => path.startsWith("output/browser/") && path.endsWith(".js"),
+    );
+    const carrying = [];
+    for (const path of browserScripts) {
+        const text = new TextDecoder().decode(await build.load(path));
+        if (text.includes("https://example.test")) {
+            carrying.push(path);
         }
-        expect({
-            outputs: Object.keys(build.manifest.outputs).toSorted(),
-            render: view?.render,
-            isEntryDistributed: view === undefined ? false : distributed.has(view.entrypoint),
-            carrying,
-            pages,
-            sitemap: await read("sitemap.xml"),
-            favicon: await read("favicon.svg"),
-            logo: (await read("index.html"))
-                .match(/<img[^>]* src="([^"]+)"/u)?.[1]
-                ?.replace(/-[\w-]+\.png$/u, ".png"),
-        }).toEqual({
-            outputs: ["browser", "bun"],
-            render: { mode: "static" },
-            isEntryDistributed: true,
-            carrying: [],
-            pages: [
-                { path: "index.html", headings: ["Home"], stylesheets: linked, scripts: [entry] },
-                {
-                    path: "about/index.html",
-                    headings: ["About"],
-                    stylesheets: linked,
-                    scripts: [entry],
-                },
-                { path: "404.html", headings: ["Missing"], stylesheets: linked, scripts: [entry] },
-            ],
-            sitemap: [
-                `<?xml version="1.0" encoding="UTF-8"?>`,
-                `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">`,
-                `  <url><loc>https://example.test/</loc></url>`,
-                `  <url><loc>https://example.test/about/</loc></url>`,
-                `</urlset>`,
-                ``,
-            ].join("\n"),
-            favicon: '<svg xmlns="http://www.w3.org/2000/svg"/>\n',
-            logo: "/.destack/asset/logo.png",
-        });
-    },
-);
+    }
+    expect({
+        outputs: Object.keys(build.manifest.outputs).toSorted(),
+        render: view?.render,
+        isEntryDistributed: view === undefined ? false : distributed.has(view.entrypoint),
+        carrying,
+        pages,
+        sitemap: await read("sitemap.xml"),
+        favicon: await read("favicon.svg"),
+        logo: (await read("index.html"))
+            .match(/<img[^>]* src="([^"]+)"/u)?.[1]
+            ?.replace(/-[\w-]+\.png$/u, ".png"),
+    }).toEqual({
+        outputs: ["browser", "bun"],
+        render: { mode: "static" },
+        isEntryDistributed: true,
+        carrying: [],
+        pages: [
+            { path: "index.html", headings: ["Home"], stylesheets: linked, scripts: [entry] },
+            {
+                path: "about/index.html",
+                headings: ["About"],
+                stylesheets: linked,
+                scripts: [entry],
+            },
+            { path: "404.html", headings: ["Missing"], stylesheets: linked, scripts: [entry] },
+        ],
+        sitemap: [
+            `<?xml version="1.0" encoding="UTF-8"?>`,
+            `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">`,
+            `  <url><loc>https://example.test/</loc></url>`,
+            `  <url><loc>https://example.test/about/</loc></url>`,
+            `</urlset>`,
+            ``,
+        ].join("\n"),
+        favicon: '<svg xmlns="http://www.w3.org/2000/svg"/>\n',
+        logo: "/.destack/asset/logo.png",
+    });
+});
 
 /** The islands fixture, a static view whose counter alone hydrates. */
 const ISLANDS = new URL("../../tests/fixture/islands/source/", import.meta.url);
@@ -171,46 +164,42 @@ async function imported(
     return { loaded: [...loaded].toSorted(), deferred: [...deferred].toSorted() };
 }
 
-test(
-    "prerender a browser-only package's static page on a Bun output it does not ship, its island alone loading",
-    { timeout: SITE_BUILD_MILLISECONDS },
-    async () => {
-        // build the islands fixture
-        await using islands = await PackageCopy.open(ISLANDS, compilers);
-        const build = await islands.build({ outputs: { browser: OUTPUTS.browser } });
-        const read = async (path: string) => new TextDecoder().decode(await build.load(path));
+test("prerender a browser-only package's static page on a Bun output it does not ship, its island alone loading", async () => {
+    // build the islands fixture
+    await using islands = await PackageCopy.open(ISLANDS, compilers);
+    const build = await islands.build({ outputs: { browser: OUTPUTS.browser } });
+    const read = async (path: string) => new TextDecoder().decode(await build.load(path));
 
-        // read the page, what its script loads of the package at once and on demand, and of other packages
-        const page = await read("output/browser/view/site/index.html");
-        const [script = ""] = scripts(page);
-        const entry = script.slice(1);
-        const { loaded, deferred } = await imported(read, entry);
-        const exported = build.manifest.outputs["browser"]?.exports["./view/site"];
-        const loadedCode = await Promise.all(loaded.map(read));
-        const counter = deferred.find((path) => moduleName(path) === "counter") ?? "";
-        const counterLoaded = await imported(read, counter);
-        const counterCode = (await Promise.all(counterLoaded.loaded.map(read))).join("\n");
+    // read the page, what its script loads of the package at once and on demand, and of other packages
+    const page = await read("output/browser/view/site/index.html");
+    const [script = ""] = scripts(page);
+    const entry = script.slice(1);
+    const { loaded, deferred } = await imported(read, entry);
+    const exported = build.manifest.outputs["browser"]?.exports["./view/site"];
+    const loadedCode = await Promise.all(loaded.map(read));
+    const counter = deferred.find((path) => moduleName(path) === "counter") ?? "";
+    const counterLoaded = await imported(read, counter);
+    const counterCode = (await Promise.all(counterLoaded.loaded.map(read))).join("\n");
 
-        // render the heading as HTML and the counter as an island root, loading no page code at once
-        expect({
-            headings: headings(page),
-            island: page.match(
-                /<div data-island="[^"]+" data-island-id="[^"]+" data-island-properties="[^"]+"/u,
-            )?.[0],
-            isPageLoaded: loadedCode.some((code) => code.includes("Static heading")),
-            deferred: deferred.map((path) => moduleName(path)).filter((name) => name === "counter"),
-            imports: exported?.imports,
-            prerender: build.manifest.outputs["prerender"]?.emit,
-            // claim the island's elements from the prerendered page in what its chunk loads, as hydration needs, instead of cloning new ones
-            isClaiming: counterCode.includes("getNextElement("),
-        }).toEqual({
-            headings: ["Static heading"],
-            island: '<div data-island="/src/islands/counter.tsx" data-island-id="/src/islands/counter.tsx#0" data-island-properties="{&quot;start&quot;:3}"',
-            isPageLoaded: false,
-            deferred: ["counter"],
-            imports: ["@destack/view", "@destack/view/runtime", "@destack/view/static/browser"],
-            prerender: false,
-            isClaiming: true,
-        });
-    },
-);
+    // render the heading as HTML and the counter as an island root, loading no page code at once
+    expect({
+        headings: headings(page),
+        island: page.match(
+            /<div data-island="[^"]+" data-island-id="[^"]+" data-island-properties="[^"]+"/u,
+        )?.[0],
+        isPageLoaded: loadedCode.some((code) => code.includes("Static heading")),
+        deferred: deferred.map((path) => moduleName(path)).filter((name) => name === "counter"),
+        imports: exported?.imports,
+        prerender: build.manifest.outputs["prerender"]?.emit,
+        // claim the island's elements from the prerendered page in what its chunk loads, as hydration needs, instead of cloning new ones
+        isClaiming: counterCode.includes("getNextElement("),
+    }).toEqual({
+        headings: ["Static heading"],
+        island: '<div data-island="/src/islands/counter.tsx" data-island-id="/src/islands/counter.tsx#0" data-island-properties="{&quot;start&quot;:3}"',
+        isPageLoaded: false,
+        deferred: ["counter"],
+        imports: ["@destack/view", "@destack/view/runtime", "@destack/view/static/browser"],
+        prerender: false,
+        isClaiming: true,
+    });
+});

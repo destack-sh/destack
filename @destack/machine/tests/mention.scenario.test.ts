@@ -7,7 +7,6 @@ import { accessRelationship, Caller, principal, Role } from "@destack/access";
 import {
     OWNER_EMAIL,
     PUBLISHER,
-    SCENARIO_MILLISECONDS,
     TestComputer,
     type TestComputerOptions,
     type TestWorld,
@@ -38,51 +37,47 @@ interface Served {
     readonly space: Identifier<"space">;
 }
 
-test(
-    "project a mention on a card in a sandboxed space on one computer into the inbox of the person's home on another",
-    { timeout: SCENARIO_MILLISECONDS },
-    async () => {
-        // serve the owner's home on the cloud computer, its inbox in process as computers run it
-        const { home, organizations } = await TestComputer.home({ organizations: [PUBLISHER] });
-        const { world } = home;
+test("project a mention on a card in a sandboxed space on one computer into the inbox of the person's home on another", async () => {
+    // serve the owner's home on the cloud computer, its inbox in process as computers run it
+    const { home, organizations } = await TestComputer.home({ organizations: [PUBLISHER] });
+    const { world } = home;
 
-        // serve the board's space on another computer behind the relay, shared with another person
-        const relay = await TestComputer.relay(world);
-        const account = found(organizations, PUBLISHER.handle);
-        const source = await openBoard(home, account, { relay: relay.url });
-        const stranger = await grantStranger(world, source);
+    // serve the board's space on another computer behind the relay, shared with another person
+    const relay = await TestComputer.relay(world);
+    const account = found(organizations, PUBLISHER.handle);
+    const source = await openBoard(home, account, { relay: relay.url });
+    const stranger = await grantStranger(world, source);
 
-        // let that person mention the owner on a card the owner may read
-        const recipient = principal.user.reference(Scope.universe.id, world.owner.id);
-        const client = boardClient(source, stranger);
-        const spaceId = source.space;
-        const now = () => RequestId.create(world.universe.environment);
-        const created = await client.card.create({ spaceId, requestId: now(), title: "Launch" });
-        await client.card.grant({
-            spaceId,
-            requestId: now(),
-            id: created.id,
-            relation: "viewer",
-            subject: recipient,
-        });
-        await client.card.remark({
-            spaceId,
-            requestId: now(),
-            id: created.id,
-            text: "a question for you",
-            mentions: [recipient],
-        });
+    // let that person mention the owner on a card the owner may read
+    const recipient = principal.user.reference(Scope.universe.id, world.owner.id);
+    const client = boardClient(source, stranger);
+    const spaceId = source.space;
+    const now = () => RequestId.create(world.universe.environment);
+    const created = await client.card.create({ spaceId, requestId: now(), title: "Launch" });
+    await client.card.grant({
+        spaceId,
+        requestId: now(),
+        id: created.id,
+        relation: "viewer",
+        subject: recipient,
+    });
+    await client.card.remark({
+        spaceId,
+        requestId: now(),
+        id: created.id,
+        text: "a question for you",
+        mentions: [recipient],
+    });
 
-        // read the owner's notifications from the board's space once one arrives in the home's inbox
-        const notifications = (await home.machine.space(world.owner.home)).database;
-        const read = async () =>
-            (await notifications.select().from(activity.table))
-                .filter((row) => row.recipientId === recipient.id && row.scope === spaceId)
-                .map((row) => [row.content.body, row.content.title, row.summary]);
-        await home.waitUntil(notifications, async () => (await read()).length === 1);
-        expect(await read()).toEqual([["⁨a question for you⁩", "Mentioned", "1 mention"]]);
-    },
-);
+    // read the owner's notifications from the board's space once one arrives in the home's inbox
+    const notifications = (await home.machine.space(world.owner.home)).database;
+    const read = async () =>
+        (await notifications.select().from(activity.table))
+            .filter((row) => row.recipientId === recipient.id && row.scope === spaceId)
+            .map((row) => [row.content.body, row.content.title, row.summary]);
+    await home.waitUntil(notifications, async () => (await read()).length === 1);
+    expect(await read()).toEqual([["⁨a question for you⁩", "Mentioned", "1 mention"]]);
+});
 
 /** Serve a board's space of a shared account on a computer, with its vault, messages and inbox. */
 async function openBoard(

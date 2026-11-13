@@ -16,13 +16,14 @@ export default defineConfiguration(
             projects: [
                 {
                     extends: false,
+                    tier: "unit",
                     ...view.defineConfiguration(
                         {
+                            tier: "unit",
                             root: ROOT,
                             test: {
                                 name: "dom",
                                 include: ["src/**/*.test.ts", "src/**/*.test.tsx"],
-                                testTimeout: 2000,
                             },
                         },
                         environment,
@@ -30,14 +31,15 @@ export default defineConfiguration(
                 },
                 {
                     extends: false,
+                    tier: "unit",
                     ...view.defineConfiguration(
                         {
+                            tier: "unit",
                             root: ROOT,
                             test: {
                                 name: "server",
                                 environment: "node",
                                 include: ["tests/**/*.test.tsx"],
-                                testTimeout: 2000,
                             },
                         },
                         environment,

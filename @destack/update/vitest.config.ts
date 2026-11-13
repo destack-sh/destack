@@ -12,12 +12,11 @@ export default defineConfiguration(
     {
         root: fileURLToPath(new URL(".", import.meta.url)),
         test: {
-            testTimeout: 5000,
-            hookTimeout: 5000,
             projects: [
                 // run the tests without a database once
                 {
                     extends: true,
+                    tier: "unit",
                     test: {
                         name: "unit",
                         include: ["src/**/*.test.ts"],
@@ -27,12 +26,19 @@ export default defineConfiguration(
                 // run the stored tests against each database the package stores in
                 {
                     extends: true,
+                    tier: "unit",
                     targets: { database: ["sqlite"] },
                     test: { include: STORED },
                 },
                 // replace real application bundles once on a Mac, whose ditto, codesign and plutil they need
                 ...(BunEnvironment.system.host.os === "darwin"
-                    ? [{ extends: true, test: { name: "integration", include: INTEGRATION } }]
+                    ? [
+                          {
+                              extends: true,
+                              tier: "unit" as const,
+                              test: { name: "integration", include: INTEGRATION },
+                          },
+                      ]
                     : []),
             ],
         },

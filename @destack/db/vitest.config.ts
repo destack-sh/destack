@@ -20,18 +20,18 @@ export default defineConfiguration(
         plugins: [scenarioPlugin([{ module: "@destack/db/test", name: "TestDatabaseDriver" }])],
         test: {
             globalSetup: ["src/test/setup.ts"],
-            testTimeout: 5000,
-            hookTimeout: 5000,
             projects: [
                 // run the tests of every database on SQLite
                 {
                     extends: true,
+                    tier: "unit",
                     targets: { database: ["sqlite"] },
                     test: { include: TESTS, exclude: POSTGRESQL },
                 },
                 // run every other test on PostgreSQL, its own behavior included
                 {
                     extends: true,
+                    tier: "unit",
                     targets: { database: ["postgresql"] },
                     test: { include: TESTS, exclude: SQLITE },
                 },
@@ -39,6 +39,7 @@ export default defineConfiguration(
                 // measure the benchmarks on each database, which `just bench` runs on its own
                 {
                     extends: true,
+                    tier: "bench",
                     targets: { database: ["sqlite", "postgresql"] },
                     test: { name: "bench", include: [BENCHMARK_MODULES] },
                 },

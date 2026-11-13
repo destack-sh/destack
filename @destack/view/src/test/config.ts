@@ -12,7 +12,7 @@ export interface ViewTestOptions {
 
 /** Define a test configuration that compiles modules as builds do and renders them into a DOM. */
 export function defineConfiguration(
-    configuration: Parameters<typeof test.defineConfiguration>[0],
+    configuration: Extract<test.TestConfiguration, { readonly tier: test.TestTier }>,
     environment: Environment<"files" | "process">,
     options: ViewTestOptions = {},
 ): ReturnType<typeof test.defineConfiguration> {

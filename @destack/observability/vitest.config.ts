@@ -11,24 +11,21 @@ const UNITS = [
     "src/object/issue.test.ts",
 ];
 
-/** The most milliseconds a world test takes. */
-const WORLD_TIMEOUT = 15_000;
-
 export default defineConfiguration(
     {
         root: fileURLToPath(new URL(".", import.meta.url)),
         test: {
-            testTimeout: WORLD_TIMEOUT,
-            hookTimeout: WORLD_TIMEOUT,
             projects: [
                 // run the units once
                 {
                     extends: true,
+                    tier: "unit",
                     test: { name: "unit", include: UNITS },
                 },
                 // run every other test against each database the package stores in
                 {
                     extends: true,
+                    tier: "scenario",
                     targets: { database: ["sqlite"] },
                     test: {
                         include: ["src/**/*.test.ts"],

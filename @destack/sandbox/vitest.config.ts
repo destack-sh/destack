@@ -6,12 +6,11 @@ export default defineConfiguration(
     {
         root: fileURLToPath(new URL(".", import.meta.url)),
         test: {
-            testTimeout: 5000,
-            hookTimeout: 5000,
             projects: [
                 // run every test in a real operating system sandbox
                 {
                     extends: true,
+                    tier: "unit",
                     test: { name: "integration", include: ["src/**/*.test.ts"] },
                 },
             ],

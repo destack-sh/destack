@@ -4,8 +4,9 @@ import { fileURLToPath } from "node:url";
 
 export default defineConfiguration(
     {
+        tier: "unit",
         root: fileURLToPath(new URL(".", import.meta.url)),
-        test: { include: ["src/**/*.test.ts"], testTimeout: 5000, hookTimeout: 5000 },
+        test: { include: ["src/**/*.test.ts"] },
     },
     BunEnvironment.system,
 );

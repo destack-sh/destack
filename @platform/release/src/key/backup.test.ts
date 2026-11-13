@@ -30,4 +30,4 @@ test("encrypt and restore a signing archive without replacing an existing backup
         `cannot open ${output}: EEXIST`,
     ]);
     expect(await files.readFile(output)).toEqual(encrypted);
-}, 5000);
+});

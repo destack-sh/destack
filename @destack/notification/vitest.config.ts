@@ -6,9 +6,6 @@ import * as view from "@destack/view/test";
 /** The host the tests build and run on. */
 const environment = BunEnvironment.system;
 
-/** The most milliseconds a server test serving a world's spaces takes. */
-const WORLD_TIMEOUT = 15_000;
-
 export default defineConfiguration(
     {
         test: {
@@ -16,6 +13,7 @@ export default defineConfiguration(
             projects: [
                 {
                     extends: false,
+                    tier: "scenario",
                     // run the server tests against the database inboxes mostly run on, the spaces'
                     targets: { database: ["sqlite"] },
                     ...defineProject(
@@ -24,8 +22,6 @@ export default defineConfiguration(
                                 name: "server",
                                 include: ["tests/*.test.ts"],
                                 globalSetup: ["src/test/setup.ts"],
-                                testTimeout: WORLD_TIMEOUT,
-                                hookTimeout: WORLD_TIMEOUT,
                             },
                         },
                         environment,
@@ -33,16 +29,17 @@ export default defineConfiguration(
                 },
                 {
                     extends: false,
+                    tier: "unit",
                     // render the views over the database a browser stores in
                     targets: { database: ["sqlite"] },
                     ...view.defineConfiguration(
                         {
+                            tier: "unit",
                             root: fileURLToPath(new URL(".", import.meta.url)),
                             test: {
                                 name: "view",
                                 include: ["tests/view/**/*.test.tsx"],
                                 globalSetup: ["src/test/setup.ts"],
-                                testTimeout: 5000,
                             },
                         },
                         environment,

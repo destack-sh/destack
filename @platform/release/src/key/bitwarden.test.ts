@@ -115,4 +115,4 @@ test("persist and verify hardware credentials through private CLI input", async 
         JSON.stringify({ id: "fixture-item", name: "renamed hardware", fields: stored.fields }),
     );
     expect(await bitwarden.get("23503038")).toEqual(credential);
-}, 5000);
+});

@@ -33,9 +33,6 @@ const DATABASE = "destack_executable";
 /** The person signing up on the compiled machine. */
 const PERSON = { email: "ada@destack.test", handle: "ada", residency: "eu", name: "Ada" };
 
-/** How long building the releases cold, compiling and the scenario may take, in milliseconds. */
-const TIMEOUT_MILLISECONDS = 600_000;
-
 /** The real host the executables compile and run on. */
 const HOST = testHost();
 
@@ -259,7 +256,6 @@ test.skipIf(HOST.host.os !== "darwin" || HOST.host.architecture !== "arm64")(
         );
         expect(JSON.parse(sandbox)).toEqual({ allowed: "public", denied: "EPERM" });
     },
-    TIMEOUT_MILLISECONDS,
 );
 
 /** The identifier of a registered checkout. */

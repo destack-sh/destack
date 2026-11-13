@@ -22,7 +22,7 @@
     },
     "scripts": {
         "typecheck": "tsc --project tsconfig.json && destack-check readme",
-        "test": "bun --bun run vitest run --config vitest.config.ts --project \"test:*\" --project \"world:*\"",
+        "test": "bun --bun run vitest run --config vitest.config.ts --project \"test:*\" --project \"scenario:*\"",
         "bench": "bun --bun run vitest run --config vitest.config.ts --project \"bench:*\""
     },
     "dependencies": {

@@ -121,7 +121,7 @@ test("release startup resources when the workload shuts down during startup", as
         ),
     ).rejects.toMatchObject({ name: "AbortError" });
     expect(events).toEqual(["resources"]);
-}, 1000);
+});
 
 test("start two packages and drain accepted requests before shared cleanup", async () => {
     // run in a world of its own
@@ -188,7 +188,7 @@ test("start two packages and drain accepted requests before shared cleanup", asy
     expect(await response.text()).toBe("complete");
     await closing;
     expect(events).toEqual(["shutdown", "resources"]);
-}, 1500);
+});
 
 test("retain shared resources until an overdue request observes cancellation", async () => {
     // run in a world of its own, moving its time while the drain waits
@@ -268,7 +268,7 @@ test("retain shared resources until an overdue request observes cancellation", a
     released.resolve();
     await Promise.all([responseFailure, closeFailure]);
     expect(events).toEqual(["resources"]);
-}, 1500);
+});
 
 test("reject a package served twice and release startup resources", async () => {
     // run in a world of its own
@@ -306,7 +306,7 @@ test("reject a package served twice and release startup resources", async () => 
         ),
     ).rejects.toThrow(`duplicate workload package: '${first.name}'`);
     expect(events).toEqual(["resources"]);
-}, 1500);
+});
 
 test("give a starting workload its server context", async () => {
     // run in a world of its own

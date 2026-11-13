@@ -33,9 +33,6 @@ import { LoopbackEndpoint, ENDPOINT_FILE, ENDPOINT_MODE } from "../process/index
 import { TestDistribution, type TestPublisher } from "./distribution.ts";
 import { Toolchain } from "@destack/check/toolchain";
 
-/** How long a scenario of machines in a universe takes at most. */
-export const SCENARIO_MILLISECONDS = 30_000;
-
 /** When every simulation starts: 16 October 2026, UTC. */
 const START = Date.UTC(2026, 9, 16);
 

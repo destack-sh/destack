@@ -82,7 +82,7 @@ test("record this machine's distribution, stage the published release and hand i
         await files.remove(home, { recursive: true, force: true });
         await files.remove(compiled, { recursive: true, force: true });
     }
-}, 20_000);
+});
 
 test("report a controller's failed reconciliation to the machine: a stage its repository refuses", async () => {
     // follow a repository whose origin finds nothing, in the computer's world
@@ -135,7 +135,7 @@ test("report a controller's failed reconciliation to the machine: a stage its re
     } finally {
         await refusing.stop(true);
     }
-}, 20_000);
+});
 
 test("refuse staging on a machine running no installed distribution", async () => {
     const opened = await TestComputer.open();

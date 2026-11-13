@@ -4,8 +4,9 @@ import { defineConfiguration } from "@destack/view/test";
 
 export default defineConfiguration(
     {
+        tier: "unit",
         root: fileURLToPath(new URL(".", import.meta.url)),
-        test: { include: ["src/**/*.test.{ts,tsx}"], testTimeout: 2000 },
+        test: { include: ["src/**/*.test.{ts,tsx}"] },
     },
     BunEnvironment.system,
 );

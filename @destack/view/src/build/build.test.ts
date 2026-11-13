@@ -15,9 +15,6 @@ import { Toolchain } from "@destack/check/toolchain";
 /** The notebook package, whose view module declares its notebooks view. */
 const NOTEBOOK = fileURLToPath(new URL("../../tests/fixture/notebook/", import.meta.url));
 
-/** The longest a browser build of the notebook package takes. */
-const NOTEBOOK_BUILD_MILLISECONDS = 60_000;
-
 /** Flatten plugin options into their plugins, refusing pending ones. */
 function flatten(options: readonly PluginOption[]): Plugin[] {
     const plugins: Plugin[] = [];
@@ -52,38 +49,34 @@ function invoke(
     return Reflect.apply(hook.handler, undefined, parameters);
 }
 
-test(
-    "mount each declared view from a separate browser chunk and describe it in the output",
-    { timeout: NOTEBOOK_BUILD_MILLISECONDS },
-    async () => {
-        // build the notebook package's browser output on its stored dependency builds, the router's JSX on view's runtime
-        await using simulation = testSimulation();
-        await using store = await testStore();
-        await using compilers = await CompilerPool.open(store, async () => Toolchain.workspace());
-        const workspacePackage = await (await Workspace.open(NOTEBOOK, compilers)).package();
-        const dependencies = await workspacePackage.storeDependencies({});
-        const build = await compilers.use(NOTEBOOK, (compiler) =>
-            compiler.build({
-                directory: NOTEBOOK,
-                dependencies,
-                links: {},
-                outputs: { browser: { kind: "module", runtime: "browser" } },
-            }),
-        );
+test("mount each declared view from a separate browser chunk and describe it in the output", async () => {
+    // build the notebook package's browser output on its stored dependency builds, the router's JSX on view's runtime
+    await using simulation = testSimulation();
+    await using store = await testStore();
+    await using compilers = await CompilerPool.open(store, async () => Toolchain.workspace());
+    const workspacePackage = await (await Workspace.open(NOTEBOOK, compilers)).package();
+    const dependencies = await workspacePackage.storeDependencies({});
+    const build = await compilers.use(NOTEBOOK, (compiler) =>
+        compiler.build({
+            directory: NOTEBOOK,
+            dependencies,
+            links: {},
+            outputs: { browser: { kind: "module", runtime: "browser" } },
+        }),
+    );
 
-        // describe the view by its generated chunk, exported under its entrypoint
-        const output = build.manifest.outputs["browser"];
-        if (output === undefined) {
-            throw new TypeError("missing browser output");
-        }
-        const entrypoint = output.views["notebooks"]?.entrypoint ?? "";
-        expect([
-            Object.keys(output.views),
-            output.exports["./view/notebooks"]?.path === entrypoint,
-            entrypoint === "output/browser/view-notebooks.js",
-        ]).toEqual([["notebooks"], true, true]);
-    },
-);
+    // describe the view by its generated chunk, exported under its entrypoint
+    const output = build.manifest.outputs["browser"];
+    if (output === undefined) {
+        throw new TypeError("missing browser output");
+    }
+    const entrypoint = output.views["notebooks"]?.entrypoint ?? "";
+    expect([
+        Object.keys(output.views),
+        output.exports["./view/notebooks"]?.path === entrypoint,
+        entrypoint === "output/browser/view-notebooks.js",
+    ]).toEqual([["notebooks"], true, true]);
+});
 
 test("generate the module mounting a view with its package's theme and commands, and describe it with its package's browser capabilities", () => {
     // compile a browser output of a package declaring one view, a theme and two commands, using the network and the camera

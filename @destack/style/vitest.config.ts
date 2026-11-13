@@ -9,6 +9,7 @@ const ROOT = fileURLToPath(new URL(".", import.meta.url));
 
 export default defineConfiguration(
     {
+        tier: "unit",
         root: ROOT,
         plugins: [
             styleExtension.transform({
@@ -19,7 +20,7 @@ export default defineConfiguration(
                 environment: BunEnvironment.system,
             }),
         ],
-        test: { include: ["src/**/*.test.ts"], testTimeout: 3000, hookTimeout: 3000 },
+        test: { include: ["src/**/*.test.ts"] },
     },
     BunEnvironment.system,
 );

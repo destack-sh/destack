@@ -255,7 +255,7 @@ test("export a process's uncaught exception and unhandled rejection with its rel
         },
       ]
     `);
-}, 20_000);
+});
 
 /** The metrics of an OTLP/JSON metrics export, as far as a process's CPU time reads them. */
 const MetricsExport = schema.looseObject({

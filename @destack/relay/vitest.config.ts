@@ -9,12 +9,11 @@ export default defineConfiguration(
     {
         root: fileURLToPath(new URL(".", import.meta.url)),
         test: {
-            testTimeout: 5000,
-            hookTimeout: 5000,
             projects: [
                 // run the units, which use no database, once
                 {
                     extends: true,
+                    tier: "unit",
                     test: {
                         name: "unit",
                         include: ["src/**/*.test.ts", "tests/*.test.ts"],
@@ -24,6 +23,7 @@ export default defineConfiguration(
                 // play the simulations over a database inside the process
                 {
                     extends: true,
+                    tier: "unit",
                     targets: { database: ["sqlite"] },
                     test: { name: "simulation", include: SIMULATED },
                 },

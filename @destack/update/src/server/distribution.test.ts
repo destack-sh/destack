@@ -23,7 +23,7 @@ let fixture: string;
 beforeAll(async () => {
     rootKeys = await Promise.all(Array.from({ length: 3 }, () => createRootKey(testHost().crypto)));
     fixture = await TestUpdate.compile();
-}, 10000);
+});
 
 afterAll(async () => {
     await testHost().files.remove(fixture, { recursive: true });

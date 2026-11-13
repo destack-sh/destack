@@ -16,10 +16,12 @@ export default defineConfiguration(
             projects: [
                 {
                     extends: false,
+                    tier: "unit",
                     // render the views over the database a browser stores in
                     targets: { database: ["sqlite"] },
                     ...view.defineConfiguration(
                         {
+                            tier: "unit",
                             root: ROOT,
                             test: {
                                 name: "dom",
@@ -29,7 +31,6 @@ export default defineConfiguration(
                                     "src/**/*.server.test.ts",
                                     "src/**/*.hydration.test.tsx",
                                 ],
-                                testTimeout: 2000,
                             },
                         },
                         environment,
@@ -37,14 +38,15 @@ export default defineConfiguration(
                 },
                 {
                     extends: false,
+                    tier: "unit",
                     ...view.defineConfiguration(
                         {
+                            tier: "unit",
                             root: ROOT,
                             test: {
                                 name: "server",
                                 environment: "node",
                                 include: ["src/**/*.server.test.ts"],
-                                testTimeout: 2000,
                             },
                         },
                         environment,
@@ -52,13 +54,14 @@ export default defineConfiguration(
                 },
                 {
                     extends: false,
+                    tier: "unit",
                     ...view.defineConfiguration(
                         {
+                            tier: "unit",
                             root: ROOT,
                             test: {
                                 name: "hydration",
                                 include: ["src/**/*.hydration.test.tsx"],
-                                testTimeout: 5000,
                             },
                         },
                         environment,
@@ -67,15 +70,16 @@ export default defineConfiguration(
                 },
                 {
                     extends: false,
+                    tier: "scenario",
                     ...defineConfiguration(
                         {
+                            tier: "scenario",
                             root: ROOT,
                             test: {
                                 name: "build",
                                 include: ["src/build/**/*.test.ts"],
                                 // store the notebook package's dependency builds once per run
                                 globalSetup: ["src/test/setup.ts"],
-                                testTimeout: 2000,
                             },
                         },
                         environment,

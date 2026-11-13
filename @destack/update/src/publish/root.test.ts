@@ -73,4 +73,4 @@ test("require independent RSA root signatures and both quorums during rotation",
         "METADATA_INVALID",
         "root is invalid: it must have three independent keys and three distinct online keys",
     ]);
-}, 5000);
+});

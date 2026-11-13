@@ -7,14 +7,13 @@ export default defineConfiguration(
             projects: [
                 {
                     extends: false,
+                    tier: "unit",
                     // resolve and describe settings once, as no database stores them
                     ...defineProject(
                         {
                             test: {
                                 name: "setting",
                                 include: ["tests/setting.test.ts"],
-                                testTimeout: 1000,
-                                hookTimeout: 1000,
                             },
                         },
                         BunEnvironment.system,
@@ -22,6 +21,7 @@ export default defineConfiguration(
                 },
                 {
                     extends: false,
+                    tier: "unit",
                     // store values against both databases, as the universe and spaces keep settings
                     targets: { database: ["sqlite", "postgresql"] },
                     ...defineProject(
@@ -30,8 +30,6 @@ export default defineConfiguration(
                                 name: "store",
                                 include: ["tests/**/*.test.ts"],
                                 exclude: ["tests/setting.test.ts"],
-                                testTimeout: 1000,
-                                hookTimeout: 1000,
                             },
                         },
                         BunEnvironment.system,

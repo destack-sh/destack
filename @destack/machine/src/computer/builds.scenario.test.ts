@@ -16,7 +16,7 @@ import { installation } from "@destack/object";
 import { build, installationRevision } from "@destack/stack/object";
 import objectPackage from "@destack/object/package";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
-import { TestComputer, SCENARIO_MILLISECONDS } from "./test/index.ts";
+import { TestComputer } from "./test/index.ts";
 
 /** The package of every pushed commit: a library compiling one Bun module. */
 const SITE = PackageId.parse("package-01996ab0-0000-7000-8000-0000000000f1");
@@ -260,112 +260,101 @@ async function git(directory: string, ...command: string[]): Promise<string> {
     return output.trim();
 }
 
-test(
-    "build each commit a push moves main to once in the space selecting it, pulling it as the space, and deploy it from the machine's build store",
-    async () => {
-        // install the site following main and push its first version
-        const site = await pushHome();
-        const { machine } = site.home;
-        const { space } = site;
-        const installed = await site.install();
-        const first = await site.push(1);
-        const served = (await machine.space(space)).database;
+test("build each commit a push moves main to once in the space selecting it, pulling it as the space, and deploy it from the machine's build store", async () => {
+    // install the site following main and push its first version
+    const site = await pushHome();
+    const { machine } = site.home;
+    const { space } = site;
+    const installed = await site.install();
+    const first = await site.push(1);
+    const served = (await machine.space(space)).database;
 
-        // wait until the installation follows the first commit's build
-        const wait = async (commit: string) => {
-            const isDeployed = await site.home.world.simulation.wait(
-                served.log.waitUntil(async () => {
-                    const current = await followed(served, installed.id);
-                    if (current === undefined) {
-                        return false;
-                    }
-                    const [built] = await served
-                        .select({ source: build.table.source })
-                        .from(build.table)
-                        .where(eq(build.table.id, current));
+    // wait until the installation follows the first commit's build
+    const wait = async (commit: string) => {
+        const isDeployed = await site.home.world.simulation.wait(
+            served.log.waitUntil(async () => {
+                const current = await followed(served, installed.id);
+                if (current === undefined) {
+                    return false;
+                }
+                const [built] = await served
+                    .select({ source: build.table.source })
+                    .from(build.table)
+                    .where(eq(build.table.id, current));
 
-                    return built?.source.kind === "commit" && built.source.commit === commit;
-                }, site.home.clock.timeout(DEPLOY_MILLISECONDS)),
-            );
-            if (!isDeployed) {
-                const builds = await served.select().from(build.table);
-                throw new Error(`commit '${commit}' was not deployed: ${JSON.stringify(builds)}`);
-            }
-        };
-        await wait(first);
-
-        // list the repository's references again and push the second version
-        await site.list();
-        const second = await site.push(2);
-        await wait(second);
-
-        // store one build per commit beside the stack's release builds
-        const stored = await served
-            .select()
-            .from(build.table)
-            .where(eq(build.table.scope, space))
-            .orderBy(build.table.createdAt);
-        const builds = stored.filter((row) => row.source.kind === "commit");
-        const packages = await Promise.all(
-            builds.map(async (row) => {
-                const lock = present(row.lock, "the lock");
-                const reader = await (await machine.space(space)).builds.root(lock);
-
-                return PackageManifest.package(reader.manifest).id;
-            }),
+                return built?.source.kind === "commit" && built.source.commit === commit;
+            }, site.home.clock.timeout(DEPLOY_MILLISECONDS)),
         );
+        if (!isDeployed) {
+            const builds = await served.select().from(build.table);
+            throw new Error(`commit '${commit}' was not deployed: ${JSON.stringify(builds)}`);
+        }
+    };
+    await wait(first);
 
-        // root the second build alone in the machine's builds, as the space no longer runs the first
-        const root = present(
-            (await machine.builds.roots()).get(`space:${space}`),
-            "the space's root",
-        );
-        const rooted = builds.map((row) => root.has(present(row.lock, "the lock")));
-        expect([
-            builds.map((row) => [row.source, row.outputs, row.state, row.commit]),
-            packages,
-            await followed(served, installed.id),
-            rooted,
-        ]).toEqual([
-            [first, second].map((commit) => [
-                { kind: "commit", repository: site.repository.id, commit, directory: "." },
-                ["bun"],
-                "succeeded",
-                null,
-            ]),
-            [SITE, SITE],
-            builds[1]?.id,
-            [false, true],
-        ]);
-    },
-    SCENARIO_MILLISECONDS,
-);
+    // list the repository's references again and push the second version
+    await site.list();
+    const second = await site.push(2);
+    await wait(second);
 
-test(
-    "replicate the branch a space's installation follows as the space inside the account, granting its machine nothing",
-    async () => {
-        // push the site's first version and install it without granting the machine any role
-        const site = await pushHome();
-        const { machine } = site.home;
-        const { space } = site;
-        const first = await site.push(1);
-        await site.install();
-        const served = (await machine.space(space)).database;
+    // store one build per commit beside the stack's release builds
+    const stored = await served
+        .select()
+        .from(build.table)
+        .where(eq(build.table.scope, space))
+        .orderBy(build.table.createdAt);
+    const builds = stored.filter((row) => row.source.kind === "commit");
+    const packages = await Promise.all(
+        builds.map(async (row) => {
+            const lock = present(row.lock, "the lock");
+            const reader = await (await machine.space(space)).builds.root(lock);
 
-        // wait until the space's replica of main applied its first snapshot
-        const key = { scope: site.residency, repository: site.repository.id, name: MAIN };
-        await site.home.world.simulation.wait(
-            served.log.waitUntil(
-                () => referenceShape.isSynced(served, key),
-                site.home.clock.timeout(DEPLOY_MILLISECONDS),
-            ),
-        );
+            return PackageManifest.package(reader.manifest).id;
+        }),
+    );
 
-        // replicate main at the pushed commit
-        const rows = await served.select().from(reference.table);
-        expect(rows.map((row) => [row.parentId, row.name, row.commit])).toEqual([
-            [site.repository.id, MAIN, first],
-        ]);
-    },
-    SCENARIO_MILLISECONDS,
-);
+    // root the second build alone in the machine's builds, as the space no longer runs the first
+    const root = present((await machine.builds.roots()).get(`space:${space}`), "the space's root");
+    const rooted = builds.map((row) => root.has(present(row.lock, "the lock")));
+    expect([
+        builds.map((row) => [row.source, row.outputs, row.state, row.commit]),
+        packages,
+        await followed(served, installed.id),
+        rooted,
+    ]).toEqual([
+        [first, second].map((commit) => [
+            { kind: "commit", repository: site.repository.id, commit, directory: "." },
+            ["bun"],
+            "succeeded",
+            null,
+        ]),
+        [SITE, SITE],
+        builds[1]?.id,
+        [false, true],
+    ]);
+});
+
+test("replicate the branch a space's installation follows as the space inside the account, granting its machine nothing", async () => {
+    // push the site's first version and install it without granting the machine any role
+    const site = await pushHome();
+    const { machine } = site.home;
+    const { space } = site;
+    const first = await site.push(1);
+    await site.install();
+    const served = (await machine.space(space)).database;
+
+    // wait until the space's replica of main applied its first snapshot
+    const key = { scope: site.residency, repository: site.repository.id, name: MAIN };
+    await site.home.world.simulation.wait(
+        served.log.waitUntil(
+            () => referenceShape.isSynced(served, key),
+            site.home.clock.timeout(DEPLOY_MILLISECONDS),
+        ),
+    );
+
+    // replicate main at the pushed commit
+    const rows = await served.select().from(reference.table);
+    expect(rows.map((row) => [row.parentId, row.name, row.commit])).toEqual([
+        [site.repository.id, MAIN, first],
+    ]);
+});

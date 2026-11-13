@@ -10,7 +10,7 @@ import type { ObjectType } from "@destack/object";
 import { BrowserTab } from "@destack/object/browser";
 import { ObjectClient } from "@destack/object/client";
 import { BrowserClient } from "@destack/account/browser";
-import type { Subject } from "@destack/sync";
+import { ObjectTypeReference, type Subject } from "@destack/sync";
 import { principal } from "@destack/access";
 import type { ClientOptions } from "@destack/object/client";
 import { reportToDevtools, startTelemetry } from "@destack/telemetry/browser";
@@ -447,8 +447,14 @@ async function openTabs(
         }
     }
 
-    // open each scope's tab at the origin's package path, calling other scopes' homes below its home path
-    const { url } = origin(PACKAGE_PATH);
+    // open each scope's tab at the origin's package path, the person's own and their home's at the home's, calling other scopes' homes below its home path
+    const home = context.home;
+    const endpointOf = (scope: string) =>
+        (scope === context.user.id || scope === home) &&
+        home !== undefined &&
+        home !== context.space
+            ? origin(`${HOME_PATH}/${home}`)
+            : origin(PACKAGE_PATH);
 
     return new Map(
         await Promise.all(
@@ -461,10 +467,10 @@ async function openTabs(
                     scope,
                     caller: context.user,
                     ...(device === undefined ? {} : { device }),
-                    endpoint: { url },
+                    endpoint: { url: endpointOf(scope).url },
                     // reopen the same endpoint
-                    reconnect: () => ({ url }),
-                    homes: (home: string) => origin(`${HOME_PATH}/${home}`),
+                    reconnect: () => ({ url: endpointOf(scope).url }),
+                    homes: (other: string) => origin(`${HOME_PATH}/${other}`),
                     environment,
                     report: (error: unknown) => globalThis.reportError(error),
                 });
@@ -473,8 +479,10 @@ async function openTabs(
                 // keep the person's own settings and profile synced for the page, once their first rows arrive
                 if (scope === context.user.id) {
                     const { query } = tab.client;
-                    const profile = present(query[user.name], "the person's profile type");
-                    const settings = present(query[setting.name], "the person's setting type");
+                    const keyOf = (object: ObjectType) =>
+                        ObjectTypeReference.key(object.typeReference);
+                    const profile = present(query[keyOf(user)], "the person's profile type");
+                    const settings = present(query[keyOf(setting)], "the person's setting type");
                     await Promise.all([
                         profile.findMany({ scopes: "every", where: { id: scope } }).subscribe()
                             .ready,

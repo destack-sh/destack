@@ -1034,7 +1034,7 @@ test("serve a woken store only once the replicas it stored are live again", asyn
 
         return gates.length > 0 && current.every(Boolean);
     };
-    await expect.poll(isComplete, { timeout: 5000 }).toBe(true);
+    await expect.poll(isComplete).toBe(true);
     first.abort();
     await firstFollow;
     await simulation.jump(clock.now() + 60_000);

@@ -10,12 +10,11 @@ export default defineConfiguration(
         root: fileURLToPath(new URL(".", import.meta.url)),
         test: {
             globalSetup: ["tests/setup.ts"],
-            testTimeout: 10_000,
-            hookTimeout: 10_000,
             projects: [
                 // run the unit tests against each database the package stores in
                 {
                     extends: true,
+                    tier: "unit",
                     targets: { database: ["sqlite"] },
                     test: {
                         include: ["src/**/*.test.ts", "tests/*.test.ts"],
@@ -25,6 +24,7 @@ export default defineConfiguration(
                 // run Bun's installs once, on sqlite, in a project of their own
                 {
                     extends: true,
+                    tier: "scenario",
                     test: {
                         name: "integration",
                         include: INTEGRATION,

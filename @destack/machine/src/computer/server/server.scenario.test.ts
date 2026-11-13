@@ -27,12 +27,7 @@ import stackPackage from "@destack/stack/package";
 import machinePackage from "../../package.ts";
 import { ComputerServer } from "./computer.ts";
 import { TOKEN_LIFETIME_MILLISECONDS } from "@destack/access/token";
-import {
-    OWNER_EMAIL,
-    TestComputer,
-    SCENARIO_MILLISECONDS,
-    TestDistribution,
-} from "../test/index.ts";
+import { OWNER_EMAIL, TestComputer, TestDistribution } from "../test/index.ts";
 
 /** The template stack package, used as a registered checkout. */
 const templateStack = dirname(
@@ -83,10 +78,10 @@ const PREVIEWED_SPACE = schema
 const SETTLED_MILLISECONDS = 600;
 
 /** Poll a watched preview once per settling period. */
-const WATCH_POLL = { interval: SETTLED_MILLISECONDS, timeout: 10_000 };
+const WATCH_POLL = { interval: SETTLED_MILLISECONDS };
 
 /** Poll a machine following its status every few milliseconds, for as long as a replica takes. */
-const PAUSE_POLL = { interval: 20, timeout: 10_000 };
+const PAUSE_POLL = { interval: 20 };
 
 /** Connect to the stack package of a space at its machine as a person signed in on a computer. */
 async function stackOf(
@@ -319,49 +314,45 @@ test("stop the machine as its device's owner, and refuse another device stopping
     ]);
 });
 
-test(
-    "send a desktop's telemetry export to its person's home, sent through the computer's machine",
-    async () => {
-        const { home: computer, login } = await TestComputer.home();
-        const { device: native, machine } = computer;
-        const home = accountObject.Account.home(await (await native.launcher(login)).account());
+test("send a desktop's telemetry export to its person's home, sent through the computer's machine", async () => {
+    const { home: computer, login } = await TestComputer.home();
+    const { device: native, machine } = computer;
+    const home = accountObject.Account.home(await (await native.launcher(login)).account());
 
-        // export a desktop's failure log to the home's observability as its person
-        const now = computer.clock.now();
-        const record = {
-            timeUnixNano: String(now * 1_000_000),
-            eventName: "inbox.failed",
-            body: { stringValue: "the inbox stopped" },
-            attributes: [],
-        };
-        const scope = { name: "@destack/desktop", version: "2026.9.2" };
-        const body = {
-            resourceLogs: [
-                { resource: { attributes: [] }, scopeLogs: [{ scope, logRecords: [record] }] },
-            ],
-        };
-        const exported = await (
-            await native.launcher(login)
-        ).send(
-            new Request("http://127.0.0.1/v1/logs", {
-                method: "POST",
-                headers: { "content-type": "application/json" },
-                body: JSON.stringify(body),
-            }),
-            observabilityPackage.id,
-            await native.locate(home),
-        );
-        expect([exported.status, await exported.text()]).toEqual([200, "{}"]);
+    // export a desktop's failure log to the home's observability as its person
+    const now = computer.clock.now();
+    const record = {
+        timeUnixNano: String(now * 1_000_000),
+        eventName: "inbox.failed",
+        body: { stringValue: "the inbox stopped" },
+        attributes: [],
+    };
+    const scope = { name: "@destack/desktop", version: "2026.9.2" };
+    const body = {
+        resourceLogs: [
+            { resource: { attributes: [] }, scopeLogs: [{ scope, logRecords: [record] }] },
+        ],
+    };
+    const exported = await (
+        await native.launcher(login)
+    ).send(
+        new Request("http://127.0.0.1/v1/logs", {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify(body),
+        }),
+        observabilityPackage.id,
+        await native.locate(home),
+    );
+    expect([exported.status, await exported.text()]).toEqual([200, "{}"]);
 
-        // read it back from the home's events
-        const { events } = (await machine.space(home)).volume;
-        const logged = await events.query(log.eventKind(), { scopes: [home] }, { limit: 10 });
-        expect(
-            logged.events.map((found) => [found.keys["name"], LogData.parse(found.data).body]),
-        ).toEqual([["inbox.failed", "the inbox stopped"]]);
-    },
-    SCENARIO_MILLISECONDS,
-);
+    // read it back from the home's events
+    const { events } = (await machine.space(home)).volume;
+    const logged = await events.query(log.eventKind(), { scopes: [home] }, { limit: 10 });
+    expect(
+        logged.events.map((found) => [found.keys["name"], LogData.parse(found.data).body]),
+    ).toEqual([["inbox.failed", "the inbox stopped"]]);
+});
 
 test("authenticate a signed-in person's own client by its key's proof, reading no session", async () => {
     // sign the owner in, then forget every stored session
@@ -466,44 +457,40 @@ test("enroll as the signed-in person, serve spaces only while enrolled, and revo
     });
 });
 
-test(
-    "pause serving while the account drains the machine, refusing its space's calls and starts, and serve again once enabled",
-    { timeout: SCENARIO_MILLISECONDS },
-    async () => {
-        const opened = await TestComputer.open();
-        const { machine, device } = opened;
-        const { owner } = opened.world;
-        const signedIn = await opened.signIn(OWNER_EMAIL);
-        await opened.enroll(signedIn, owner.account);
-        const created = await opened.space(signedIn, owner.account, "work");
-        const service = await stackOf(opened, signedIn.id, created);
+test("pause serving while the account drains the machine, refusing its space's calls and starts, and serve again once enabled", async () => {
+    const opened = await TestComputer.open();
+    const { machine, device } = opened;
+    const { owner } = opened.world;
+    const signedIn = await opened.signIn(OWNER_EMAIL);
+    await opened.enroll(signedIn, owner.account);
+    const created = await opened.space(signedIn, owner.account, "work");
+    const service = await stackOf(opened, signedIn.id, created);
 
-        // drain or enable the machine as the owner, and list the space's sockets
-        const accounts = (await device.launcher(signedIn.id)).session.accounts();
-        const change = (name: "drain" | "enable") =>
-            accounts.machine[name]({
-                scope: owner.account,
-                id: machine.id,
-                requestId: RequestId.create(opened.environment),
-            });
-        const list = () => refusal(service.socket.list({ spaceId: created }));
-        const paused = [
-            "SERVICE_UNAVAILABLE",
-            "SERVER_UNAVAILABLE",
-            `server '${machine.id}' is unavailable: it is down: its account set its status to draining`,
-        ];
+    // drain or enable the machine as the owner, and list the space's sockets
+    const accounts = (await device.launcher(signedIn.id)).session.accounts();
+    const change = (name: "drain" | "enable") =>
+        accounts.machine[name]({
+            scope: owner.account,
+            id: machine.id,
+            requestId: RequestId.create(opened.environment),
+        });
+    const list = () => refusal(service.socket.list({ spaceId: created }));
+    const paused = [
+        "SERVICE_UNAVAILABLE",
+        "SERVER_UNAVAILABLE",
+        `server '${machine.id}' is unavailable: it is down: its account set its status to draining`,
+    ];
 
-        // drain the machine until it refuses the space's calls and starts
-        await change("drain");
-        await expect.poll(list, PAUSE_POLL).toEqual(paused);
-        const started = await refusal(machine.space(created));
+    // drain the machine until it refuses the space's calls and starts
+    await change("drain");
+    await expect.poll(list, PAUSE_POLL).toEqual(paused);
+    const started = await refusal(machine.space(created));
 
-        // enable it until it serves the space again
-        await change("enable");
-        await expect.poll(list, PAUSE_POLL).toBe("done");
-        expect(started).toEqual(paused);
-    },
-);
+    // enable it until it serves the space again
+    await change("enable");
+    await expect.poll(list, PAUSE_POLL).toBe("done");
+    expect(started).toEqual(paused);
+});
 
 test("receive the machine scope in its partition with its own packages, letting the machine register checkouts and writing nothing at the universe", async () => {
     // enroll a computer, and register a checkout as its local owner
@@ -732,7 +719,7 @@ test("register a working tree's directory, build its stack in a space as the per
             message: "package directory is invalid: it is outside the checkout",
         }),
     );
-}, 90_000);
+});
 
 test("derive a workspace's members, and start a preview's next generation once its own or a dependency's sources settle", async () => {
     // enroll the owner's computer, which stores checkouts and previews once enrolled
@@ -838,4 +825,4 @@ test("derive a workspace's members, and start a preview's next generation once i
         packages: ["packages/app", "packages/library"],
         generation: started + 1,
     });
-}, 30_000);
+});
