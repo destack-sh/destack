@@ -571,7 +571,7 @@ export class Deployment {
             );
 
             // call the forge below its installation in the home, as the operator bound to the home
-            const fetch = operator.fetch(registryPackage.id, { partition: home });
+            const fetch = this.#waiting(operator.fetch(registryPackage.id, { partition: home }));
             const origin = InstallationMount.url(
                 this.machineOrigin(residency),
                 home,
@@ -617,6 +617,28 @@ export class Deployment {
         };
     }
 
+    /** Send as a fetch does, asking again as a 503's Retry-After says, until a deadline. */
+    #waiting(
+        fetch: (request: Request) => Promise<Response>,
+    ): (request: Request) => Promise<Response> {
+        const { clock } = this.environment;
+
+        return async (request) => {
+            // ask again as each answer's Retry-After says, until the deadline
+            const deadline = clock.now() + DIRECTORY_SYNC_MILLISECONDS + HOME_SERVE_MILLISECONDS;
+            let response = await fetch(request.clone());
+            let asked = response.headers.get("retry-after");
+            while (response.status === 503 && asked !== null && clock.now() < deadline) {
+                await response.body?.cancel();
+                await clock.sleep(Number(asked) * 1000);
+                response = await fetch(request.clone());
+                asked = response.headers.get("retry-after");
+            }
+
+            return response;
+        };
+    }
+
     /** Wait until a space's installation serves on a residency's machine, as its readiness says. */
     async #waitServed(
         residency: PlatformResidency,
@@ -632,19 +654,7 @@ export class Deployment {
             redirect: "manual",
             headers: { [VERSION_HEADER]: version },
         });
-        const fetch = machine.fetch(packageId, space);
-
-        // ask again as each answer's Retry-After says, while the directory syncs and the space serves
-        const { clock } = this.environment;
-        const deadline = clock.now() + DIRECTORY_SYNC_MILLISECONDS + HOME_SERVE_MILLISECONDS;
-        let response = await fetch(request.clone());
-        let asked = response.headers.get("retry-after");
-        while (response.status === 503 && asked !== null && clock.now() < deadline) {
-            await response.body?.cancel();
-            await clock.sleep(Number(asked) * 1000);
-            response = await fetch(request.clone());
-            asked = response.headers.get("retry-after");
-        }
+        const response = await this.#waiting(machine.fetch(packageId, space))(request);
 
         // refuse an answer of a failure
         if (response.status >= 400) {
