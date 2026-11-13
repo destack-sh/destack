@@ -30,6 +30,7 @@ export default defineConfiguration(
                                 name: "store",
                                 include: ["tests/**/*.test.ts"],
                                 exclude: ["tests/setting.test.ts"],
+                                setupFiles: ["tests/setup.ts"],
                                 testTimeout: 1000,
                                 hookTimeout: 1000,
                             },
