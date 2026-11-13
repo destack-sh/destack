@@ -29,7 +29,7 @@ import type { Package } from "../declare/package.ts";
 
 import type { Health } from "./health.ts";
 import { ProcedureContext, type ProcedureAudit } from "./procedure.ts";
-import { CallTelemetry } from "../procedure/telemetry.ts";
+import { traceCalls } from "../procedure/telemetry.ts";
 import { SmartCoercionPlugin } from "@orpc/json-schema";
 import type { ConditionalSchemaConverter, JSONSchema } from "@orpc/openapi";
 
@@ -152,11 +152,11 @@ export class RequestHandler<State extends RequestState> extends OpenAPIHandler<S
         options: HandlerOptions<State>,
         metas: ReadonlyMap<string, ProcedureMetadata>,
     ): NonNullable<OpenAPIHandlerOptions<State>["clientInterceptors"]> {
-        const telemetry = new CallTelemetry("server", options.environment);
+        const traced = traceCalls("server", options.environment);
 
         return [
             (call) =>
-                telemetry.invoke(call.path, () => call.next(), {
+                traced(call.path, () => call.next(), {
                     "destack.caller.version": RequestHandler.#observedRelease(call.context.request),
                 }),
             async (interception) => {

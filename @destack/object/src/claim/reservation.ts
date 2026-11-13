@@ -26,6 +26,7 @@ import type { ClaimType } from "./method.ts";
 import type { PushResult } from "../replica/replica.ts";
 
 import type {} from "@destack/package/import-meta";
+import { TelemetryScope } from "@destack/telemetry";
 
 /** A store serving object types elsewhere, called as the claiming store. */
 export interface RemoteStore {
@@ -140,9 +141,21 @@ export const Reservation = {
         database: DatabaseConnection,
     ): Promise<Reservation> {
         // claim in the committing transaction of the store serving the claim type, else at its home now
-        return claims.home === undefined
-            ? Reservation.local(claimants, types, request.environment)
-            : Reservation.remote(claims.object, claims.home, claimants, types, request, database);
+        const { telemetry } = database.state.environment;
+        const scope = TelemetryScope.of(import.meta.destack.package, telemetry);
+
+        return scope.span("destack.claim.reserve", {}, async () =>
+            claims.home === undefined
+                ? Reservation.local(claimants, types, request.environment)
+                : Reservation.remote(
+                      claims.object,
+                      claims.home,
+                      claimants,
+                      types,
+                      request,
+                      database,
+                  ),
+        );
     },
 
     /** Replace objects' names at their home after unreserved writes, refusing taken names. */

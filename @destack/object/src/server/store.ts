@@ -1392,9 +1392,18 @@ export class ObjectStore {
         site: CallSite = CallSite.of(caller),
         options: QueryOptions = {},
     ): Promise<Result> {
-        // read untyped, then type the answer by the method's output
+        // read untyped in a span, then type the answer
         const callable = this.#callable(call, false, this.replicas);
-        const answer = await this.#query(caller, call, site, options);
+        const attributes = {
+            "destack.object.type": call.type.type,
+            "destack.object.method": call.method,
+        };
+        const answer = await this.#instruments.span(
+            "destack.object.query",
+            attributes,
+            () => this.#query(caller, call, site, options),
+            { duration: { attributes } },
+        );
         const [result] = MethodContext.results(callable, [call], [answer]);
 
         return result;
@@ -3203,12 +3212,22 @@ export class ObjectStore {
     ): Promise<unknown> {
         const attributes = { "destack.object.type": object.name, "destack.object.method": name };
 
-        return this.#instruments.span("object.call", attributes, () =>
-            this.#perform(transaction, authorization, object, name, input, caller, options).catch(
-                (error: unknown) => {
+        return this.#instruments.span(
+            "destack.object.call",
+            attributes,
+            () =>
+                this.#perform(
+                    transaction,
+                    authorization,
+                    object,
+                    name,
+                    input,
+                    caller,
+                    options,
+                ).catch((error: unknown) => {
                     throw object.conflict(error);
-                },
-            ),
+                }),
+            { duration: { attributes } },
         );
     }
 

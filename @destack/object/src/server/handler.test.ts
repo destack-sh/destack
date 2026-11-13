@@ -241,15 +241,27 @@ test("enforce access and audit requirements through streamed HTTP calls", async 
     const outcomes = [
         { attributes: { "rpc.system.name": "orpc", "rpc.method": "read" }, count: 1 },
         {
-            attributes: { "rpc.system.name": "orpc", "rpc.method": "read", "error.type": "403" },
+            attributes: {
+                "rpc.system.name": "orpc",
+                "rpc.method": "read",
+                "error.type": "FORBIDDEN",
+            },
             count: 1,
         },
         {
-            attributes: { "rpc.system.name": "orpc", "rpc.method": "read", "error.type": "404" },
+            attributes: {
+                "rpc.system.name": "orpc",
+                "rpc.method": "read",
+                "error.type": "NOT_FOUND",
+            },
             count: 1,
         },
         {
-            attributes: { "rpc.system.name": "orpc", "rpc.method": "read", "error.type": "503" },
+            attributes: {
+                "rpc.system.name": "orpc",
+                "rpc.method": "read",
+                "error.type": "SERVICE_UNAVAILABLE",
+            },
             count: 1,
         },
     ];

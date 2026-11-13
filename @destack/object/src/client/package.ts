@@ -7,7 +7,7 @@ import { ClientRetryPlugin } from "@orpc/client/plugins";
 import type { Client, ProcedureRouter } from "../procedure/index.ts";
 import { ProcedureMetadata } from "../procedure/procedure.ts";
 import { VERSION_HEADER } from "../procedure/procedure.ts";
-import { CallTelemetry } from "../procedure/telemetry.ts";
+import { traceCalls } from "../procedure/telemetry.ts";
 import { BOOKMARK_HEADER, Bookmark } from "../procedure/bookmark.ts";
 import type { Environment } from "@destack/environment";
 
@@ -43,7 +43,7 @@ export function createClient<
     environment: Environment,
 ): Client<Definition, Context> {
     // create the client telemetry, and read each called procedure's release once
-    const instruments = new CallTelemetry("client", environment);
+    const traced = traceCalls("client", environment);
     const releases = new Map<string, string>();
     const releaseOf = (path: readonly string[]) => {
         // read a path's release the first time it is called
@@ -126,8 +126,7 @@ export function createClient<
     });
 
     return createORPCClient<Client<Definition, Context>>({
-        call: (path, input, callOptions) =>
-            instruments.invoke(path, () => link.call(path, input, callOptions)),
+        call: (path, input, callOptions) => traced(path, () => link.call(path, input, callOptions)),
     });
 }
 

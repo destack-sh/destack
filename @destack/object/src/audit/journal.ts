@@ -27,6 +27,7 @@ import { Replay } from "./replay.ts";
 import { journal } from "../stack/db.ts";
 import type { Clock, Environment } from "@destack/environment";
 import type {} from "@destack/package/import-meta";
+import { TelemetryScope } from "@destack/telemetry";
 
 /** How long calls stay by default: as long as a request identifier stays retryable. */
 const LIFETIME: Duration = { milliseconds: REQUEST_LIFETIME_MILLISECONDS };
@@ -69,6 +70,9 @@ export interface RequestIdentity {
     readonly requestId: string;
 }
 
+/** The encoder measuring a recorded call's bytes. */
+const ENCODER = new TextEncoder();
+
 /** The recent calls of one database, replayed to retries, audited ones recorded as call events. */
 export class Journal {
     /** The journal table. */
@@ -85,6 +89,8 @@ export class Journal {
     readonly environment: Environment;
     /** When the journal last removed its expired calls, absent before its first write. */
     #prunedAt: number | undefined;
+    /** The journal's spans, in its environment. */
+    readonly #instruments: TelemetryScope;
 
     /** Journal a database's calls, fingerprinting sensitive inputs under the deployment's key. */
     constructor(database: DatabaseConnection, key: CallKey, options: JournalOptions) {
@@ -94,6 +100,10 @@ export class Journal {
         this.events = options.events;
         this.lifetime = Duration.milliseconds(options.lifetime ?? LIFETIME);
         this.environment = options.environment;
+        this.#instruments = TelemetryScope.of(
+            import.meta.destack.package,
+            options.environment.telemetry,
+        );
     }
 
     /** The clock retry periods and lifetimes run on, its environment's. */
@@ -122,14 +132,21 @@ export class Journal {
     }
 
     /** Write calls or their outcomes, the ended audited ones as call events, in one round trip. */
-    async write(
+    write(records: readonly JournalRecord[], transaction?: DatabaseConnection): Promise<void> {
+        return this.#instruments.span("destack.journal.write", {}, () =>
+            this.#write(records, transaction),
+        );
+    }
+
+    /** Write calls or their outcomes in their span. */
+    async #write(
         records: readonly JournalRecord[],
         transaction?: DatabaseConnection,
     ): Promise<void> {
         // bound what each call event records
         for (const { entry } of records) {
             const recorded = canonicalize(Journal.recorded(entry));
-            if (new TextEncoder().encode(recorded).byteLength > MAX_EXECUTION_BYTES) {
+            if (ENCODER.encode(recorded).byteLength > MAX_EXECUTION_BYTES) {
                 throw ObjectError.of(
                     "CALL_INVALID",
                     `call is invalid: it must take at most ${MAX_EXECUTION_BYTES} bytes`,
@@ -141,14 +158,14 @@ export class Journal {
         if (records.length === 0) {
             return;
         } else if (transaction === undefined) {
-            await this.database.transaction((opened) => this.#write(records, opened));
+            await this.database.transaction((opened) => this.#insert(records, opened));
         } else {
-            await this.#write(records, transaction);
+            await this.#insert(records, transaction);
         }
     }
 
     /** Insert calls or their outcomes, appending the ended audited ones to the call events. */
-    async #write(
+    async #insert(
         records: readonly JournalRecord[],
         transaction: DatabaseConnection,
     ): Promise<void> {
@@ -346,9 +363,11 @@ export class Journal {
         fingerprint: string,
         database: DatabaseConnection = this.database,
     ): Promise<unknown[] | undefined> {
-        const recorded = await this.#recorded(database, request);
+        return this.#instruments.span("destack.journal.replay", {}, async () => {
+            const recorded = await this.#recorded(database, request);
 
-        return recorded.length === 0 ? undefined : Journal.#replay(recorded, fingerprint);
+            return recorded.length === 0 ? undefined : Journal.#replay(recorded, fingerprint);
+        });
     }
 
     /** Read the outcome of a request's last call, absent before it ran. */

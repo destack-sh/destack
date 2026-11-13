@@ -1,157 +1,50 @@
-import { type Clock, type Environment, SpanPath } from "@destack/environment";
-import {
-    type ContextManager,
-    type Histogram,
-    type Attributes,
-    type Span,
-    type Context,
-    type Tracer,
-    SpanKind,
-    SpanStatusCode,
-    trace,
-} from "@destack/telemetry";
-import { AsyncIteratorClass } from "@orpc/shared";
-import { CallError } from "../error/index.ts";
+import { type Environment, SpanPath } from "@destack/environment";
+import { type Attributes, TelemetryScope } from "@destack/telemetry";
 import type {} from "@destack/package/import-meta";
 
-/** The instrumenting package. */
-const manifest = import.meta.destack.package;
+/** The span total counting the statements run inside a span, as the database adds them. */
+const STATEMENTS = "db.client.operation.count";
 
-/** Record RPC calls, including streams. */
-export class CallTelemetry {
-    /** The package's tracer. */
-    readonly #tracer: Tracer;
-    /** The call durations, in seconds. */
-    readonly #duration: Histogram;
-    /** The RPC span kind. */
-    readonly #kind: SpanKind;
-    /** The clock calls are timed on. */
-    readonly #clock: Clock;
-    /** The manager of the context calls run in. */
-    readonly #context: ContextManager;
+/** The RPC system of every call, as OpenTelemetry's `rpc.system.name` reports it. */
+const RPC_SYSTEM = "orpc";
 
-    /** Create the telemetry on an environment's tracers, meters and clock. */
-    constructor(kind: "client" | "server", environment: Environment) {
-        // create the tracer and the duration histogram
-        const { tracers, meters } = environment.telemetry;
-        this.#kind = kind === "client" ? SpanKind.CLIENT : SpanKind.SERVER;
-        this.#tracer = tracers.getTracer(manifest.name, manifest.version);
-        this.#duration = meters
-            .getMeter(manifest.name, manifest.version)
-            .createHistogram(`rpc.${kind}.call.duration`, { unit: "s" });
-        this.#clock = environment.clock;
-        this.#context = environment.telemetry.context;
-    }
+/** Trace one end's RPC calls: a span and a duration each, a stream's until it closes. */
+export function traceCalls(
+    kind: "client" | "server",
+    environment: Environment,
+): (
+    path: readonly string[],
+    next: () => Promise<unknown>,
+    labels?: Attributes,
+) => Promise<unknown> {
+    // declare the statements per call
+    const scope = TelemetryScope.of(import.meta.destack.package, environment.telemetry);
+    const methods: readonly string[] = [];
+    const statements = scope.metric.histogram("destack.call.statements", {
+        unit: "{statement}",
+        attributes: { "rpc.method": methods },
+    });
 
-    /** Measure a call. */
-    invoke(
-        path: readonly string[],
-        next: () => Promise<unknown>,
-        labels: Attributes = {},
-    ): Promise<unknown> {
-        // label the call by its path and the caller's labels
-        const attributes: Attributes = {
-            "rpc.system.name": "orpc",
-            "rpc.method": path.join("/"),
-            ...labels,
-        };
+    return (path, next, labels = {}) => {
+        // run the call in a span named by its method, recording the server's statements per call
+        const method = path.join("/");
+        const attributes = { "rpc.system.name": RPC_SYSTEM, "rpc.method": method, ...labels };
+        const duration = { name: `rpc.${kind}.call.duration`, attributes };
 
-        // run the call in its span, a child of the active one
-        const parent = this.#context.active();
-        const name = path.join("/");
-        const span = this.#tracer.startSpan(name, { kind: this.#kind, attributes }, parent);
-        const entered = SpanPath.enter(
-            trace.setSpan(parent, span),
-            SpanPath.label(name, attributes),
-        );
-
-        return this.#context.with(entered, () => this.#invoke(next, attributes, span));
-    }
-
-    /** Trace a call until its value or stream completes. */
-    async #invoke(
-        next: () => Promise<unknown>,
-        attributes: Attributes,
-        span: Span,
-    ): Promise<unknown> {
-        // start the timer and span
-        const started = this.#clock.now();
-        const active = this.#context.active();
-        try {
-            const result = await next();
-
-            // trace a stream until it ends
-            if (isAsyncIterable(result)) {
-                return this.#watch(result, started, attributes, span, active);
-            }
-
-            // record a value call
-            this.#record(started, attributes, span);
-
-            return result;
-        } catch (error) {
-            this.#record(started, attributes, span, error);
-            throw error;
-        }
-    }
-
-    /** Trace a stream until it completes or is cancelled. */
-    #watch(
-        stream: AsyncIterable<unknown>,
-        started: number,
-        attributes: Attributes,
-        span: Span,
-        active: Context,
-    ): AsyncIteratorClass<unknown, unknown, void> {
-        // record the failure until the stream closes
-        let failure: unknown;
-        const iterator = stream[Symbol.asyncIterator]();
-
-        return new AsyncIteratorClass(
+        return scope.span(
+            method,
+            attributes,
             async () => {
-                try {
-                    return await this.#context.with(active, () => iterator.next());
-                } catch (error) {
-                    failure = error;
-                    throw error;
+                // answer the call, then record the statements it ran on the server
+                const result = await next();
+                const ran = SpanPath.totals(environment.telemetry.context.active())[STATEMENTS];
+                if (kind === "server" && typeof ran === "number") {
+                    statements.record(ran, { "rpc.method": method });
                 }
+
+                return result;
             },
-            async (reason) => {
-                // record the stream on close
-                try {
-                    if (reason !== "next") {
-                        attributes["error.type"] = "cancelled";
-                        await this.#context.with(active, () => iterator.return?.());
-                    }
-                } catch (error) {
-                    failure = error;
-                    throw error;
-                } finally {
-                    this.#record(started, attributes, span, failure);
-                }
-            },
+            { kind, duration },
         );
-    }
-
-    /** Record a call's outcome and duration. */
-    #record(started: number, attributes: Attributes, span: Span, error?: unknown): void {
-        // label the failure and end the span
-        if (error !== undefined) {
-            const known = CallError.of(error);
-            attributes["error.type"] = known === undefined ? "internal" : String(known.status);
-        }
-
-        // mark failed calls before recording the call
-        if (attributes["error.type"] !== undefined) {
-            span.setStatus({ code: SpanStatusCode.ERROR });
-        }
-        span.setAttributes(attributes);
-        span.end();
-        this.#duration.record((this.#clock.now() - started) / 1000, attributes);
-    }
-}
-
-/** Report whether a call's result is a stream. */
-function isAsyncIterable(value: unknown): value is AsyncIterable<unknown> {
-    return value !== null && typeof value === "object" && Symbol.asyncIterator in value;
+    };
 }

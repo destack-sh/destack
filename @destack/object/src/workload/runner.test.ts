@@ -15,8 +15,8 @@ import type { WorkloadStart } from "./start.ts";
 import { defineWorkload, type EphemeralHost } from "./workload.ts";
 import { SOCKET_HEADER, SOCKET_PATH } from "./socket.ts";
 
-/** The OTLP logs export the observability service receives. */
-const LogsExport = schema
+/** The OTLP logs or traces export the observability service receives. */
+const OtlpExport = schema
     .object({
         /** The logs by resource. */
         resourceLogs: schema
@@ -50,6 +50,26 @@ const LogsExport = schema
                                                 eventName: schema.string().exactOptional(),
                                             })
                                             .loose(),
+                                    ),
+                                })
+                                .loose(),
+                        ),
+                    })
+                    .loose(),
+            )
+            .exactOptional(),
+        /** The spans by resource, read for their names. */
+        resourceSpans: schema
+            .array(
+                schema
+                    .object({
+                        /** The spans by instrumentation scope. */
+                        scopeSpans: schema.array(
+                            schema
+                                .object({
+                                    /** The spans. */
+                                    spans: schema.array(
+                                        schema.object({ name: schema.string() }).loose(),
                                     ),
                                 })
                                 .loose(),
@@ -122,9 +142,10 @@ test("start the workload with its installation's settings, serve a forwarded cal
         authorization: string | null;
         release: Record<string, string>[];
         events: string[];
+        spans: string[];
     }[] = [];
     const exporting = async (request: Request) => {
-        const body = LogsExport.parse(await request.json());
+        const body = OtlpExport.parse(await request.json());
         exported.push({
             url: request.url,
             authorization: request.headers.get("authorization"),
@@ -141,6 +162,9 @@ test("start the workload with its installation's settings, serve a forwarded cal
                 group.scopeLogs.flatMap((scope) =>
                     scope.logRecords.map((record) => record.eventName ?? ""),
                 ),
+            ),
+            spans: (body.resourceSpans ?? []).flatMap((group) =>
+                group.scopeSpans.flatMap((scope) => scope.spans.map((span) => span.name)),
             ),
         });
 
@@ -202,7 +226,7 @@ test("start the workload with its installation's settings, serve a forwarded cal
 
     // read what it exported once its start settled
     await world.idle();
-    const started = exported.map((request) => request.events);
+    const started = exported.map((request) => [...request.spans, ...request.events]);
 
     // refuse a request without the host's secret
     const mount = `http://runner.test${PackageMount.path(notes.id)}`;
@@ -252,9 +276,11 @@ test("start the workload with its installation's settings, serve a forwarded cal
         served,
         received,
         other: other.status,
-        exported: exported.filter((request) => request.events.length > 0),
+        exported: exported
+            .filter((request) => request.events.length > 0)
+            .map(({ spans: _spans, ...request }) => request),
     }).toEqual({
-        started: [["destack.workload.started"]],
+        started: [["destack.workload.start"], ["destack.workload.started"]],
         settings: { [`${notes.id}/language`]: "de" },
         unauthorized: [
             401,

@@ -123,41 +123,30 @@ export class WorkloadRunner implements AsyncDisposable {
 
         // start the instance on the bound resources
         const connections = new AsyncDisposableStack();
+        const scope = TelemetryScope.of(import.meta.destack.package, running);
+        const attributes = { "destack.workload.name": runner.workload.name };
         try {
-            const resources = await WorkloadRunner.#connect(runner, start, connections);
-            const keys = await InstallationRoot.open(
-                Uint8Array.fromHex(start.root),
-                runner.environment.crypto,
+            // start the instance in the start's span
+            const { instance, hibernation } = await scope.span(
+                "destack.workload.start",
+                attributes,
+                () =>
+                    WorkloadRunner.#instance(
+                        runner,
+                        start,
+                        build,
+                        environment,
+                        connections,
+                        report,
+                    ),
+                { duration: { attributes } },
             );
-            const callKey = CallKey.of(keys, runner.environment.crypto);
-            const stack = Egress.url(start.egress, STACK_ADDRESS);
-            const host = runner.socketHost ?? {
-                url: Egress.beside(start.egress, SOCKET_PATH),
-                fetch: (request: Request) => runner.environment.network.fetch(request),
-            };
-            const hibernation = new Hibernation(host, start.secret, report);
-            const instance = await WorkloadInstance.start(runner.workload, {
-                resources,
-                server: WorkloadRunner.#server(runner, start, { build, stack, resources, keys }),
-                callKey: () => callKey,
-                environment,
-                report,
-                ...(runner.alarm === undefined ? {} : { alarm: runner.alarm }),
-                ephemeral: runner.ephemeral,
-                hibernation,
-                serverOptions: () => WorkloadRunner.#serve(runner, start),
-            });
 
             // index the served packages
             const packages = new Map(instance.packages.map((handle) => [handle.id, handle]));
 
             // set the instance
-            TelemetryScope.of(import.meta.destack.package, running).log.info(
-                "destack.workload.started",
-                {
-                    "destack.workload.name": runner.workload.name,
-                },
-            );
+            scope.log.info("destack.workload.started", attributes);
 
             // export the start's traces and logs
             const started = new WorkloadRunner(
@@ -178,6 +167,43 @@ export class WorkloadRunner implements AsyncDisposable {
             await running.shutdown();
             throw error;
         }
+    }
+
+    /** Connect a workload's resources and start its instance, with the hibernation it sleeps in. */
+    static async #instance(
+        runner: RunnerOptions,
+        start: WorkloadStart,
+        build: BuildReader,
+        environment: Environment,
+        connections: AsyncDisposableStack,
+        report: (error: unknown) => void,
+    ): Promise<{ readonly instance: WorkloadInstance; readonly hibernation: Hibernation }> {
+        // connect the resources, open the keys, and start the instance
+        const resources = await WorkloadRunner.#connect(runner, start, connections);
+        const keys = await InstallationRoot.open(
+            Uint8Array.fromHex(start.root),
+            runner.environment.crypto,
+        );
+        const callKey = CallKey.of(keys, runner.environment.crypto);
+        const stack = Egress.url(start.egress, STACK_ADDRESS);
+        const host = runner.socketHost ?? {
+            url: Egress.beside(start.egress, SOCKET_PATH),
+            fetch: (request: Request) => runner.environment.network.fetch(request),
+        };
+        const hibernation = new Hibernation(host, start.secret, report);
+        const instance = await WorkloadInstance.start(runner.workload, {
+            resources,
+            server: WorkloadRunner.#server(runner, start, { build, stack, resources, keys }),
+            callKey: () => callKey,
+            environment,
+            report,
+            ...(runner.alarm === undefined ? {} : { alarm: runner.alarm }),
+            ephemeral: runner.ephemeral,
+            hibernation,
+            serverOptions: () => WorkloadRunner.#serve(runner, start),
+        });
+
+        return { instance, hibernation };
     }
 
     /** Export a workload's telemetry to its host, symbolicated by its build. */
