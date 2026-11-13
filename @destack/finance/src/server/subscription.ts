@@ -17,7 +17,7 @@ export function implementSubscription(billing: Billing): typeof subscription {
             change: {
                 prepare: (context) => billing.prepareChange(context),
                 handle: (context) => billing.change(context),
-                settle: (context, settled) => billing.settleChange(context, settled),
+                confirm: (context, work) => billing.confirmChange(context, work),
             },
             sync: (call) => Subscription.sync(call),
         },

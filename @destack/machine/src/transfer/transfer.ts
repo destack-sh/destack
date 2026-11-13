@@ -127,11 +127,9 @@ export function implementTransfer(options: TransferOptions) {
         methods: {
             create: {
                 prepare: (context) => mark(context, options),
-                settle: async (context, settled) => {
-                    // unmark a move whose creation failed
-                    if (settled.status === "rolledBack") {
-                        await unmark(context, options);
-                    }
+                // unmark a move whose creation failed
+                cancel: async (context) => {
+                    await unmark(context, options);
                 },
                 handle: async (context, next) => {
                     // move the space from this machine at its epoch
@@ -213,17 +211,16 @@ export function implementTransfer(options: TransferOptions) {
                     return context.update({ completedAt: context.now, outcome: "cancelled" });
                 },
                 // lift the fences of the space's resources once cancelled
-                settle: async (context, settled) => {
-                    if (settled.status === "committed") {
-                        const id = schema.identifier("transfer").parse(context.id);
-                        const record = await SpaceTransfer.read(context.database, id);
-                        const cancelled = await SpaceTransfer.of(
-                            { database: context.database, blobs: options.blobs },
-                            settled.prepared,
-                            record.targetId,
-                        );
-                        await cancelled.lift(options.providers);
-                    }
+                confirm: async (context, prepared) => {
+                    // read the cancelled move and lift its fences
+                    const id = schema.identifier("transfer").parse(context.id);
+                    const record = await SpaceTransfer.read(context.database, id);
+                    const cancelled = await SpaceTransfer.of(
+                        { database: context.database, blobs: options.blobs },
+                        prepared,
+                        record.targetId,
+                    );
+                    await cancelled.lift(options.providers);
                 },
             },
         },

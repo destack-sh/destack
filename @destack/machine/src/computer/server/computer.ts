@@ -396,10 +396,10 @@ export class ComputerServer {
                 enroll: {
                     prepare: (context) => this.#enroll(context),
                     handle: (context) => context.update({ enrollment: context.prepared }),
-                    settle: async (_call, settled) => {
-                        // withdraw an enrollment this machine failed to complete
-                        if (settled.status === "rolledBack" && settled.prepared !== undefined) {
-                            await this.machine.revoke(settled.prepared);
+                    // withdraw an enrollment this machine failed to complete, nothing when none was made
+                    cancel: async (_call, prepared) => {
+                        if (prepared !== undefined) {
+                            await this.machine.revoke(prepared);
                         }
                     },
                 },
@@ -417,11 +417,9 @@ export class ComputerServer {
                         context.update({
                             enrollment: { ...context.prepared, status: "revoked" },
                         }),
-                    settle: async (_call, settled) => {
-                        // revoke the machine at its issuer once revoked here
-                        if (settled.status === "committed") {
-                            await this.machine.revoke(settled.prepared);
-                        }
+                    // revoke the machine at its issuer once revoked here
+                    confirm: async (_call, prepared) => {
+                        await this.machine.revoke(prepared);
                     },
                 },
             },

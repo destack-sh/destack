@@ -26,7 +26,7 @@ export function implementResidency(releases: ReleaseRegistry): typeof residency 
         methods: {
             // show a new residency to everyone choosing one while signing up
             create: {
-                creation: () => ({
+                relate: () => ({
                     relationships: [{ relation: "public", subject: anyone.reference("*", "*") }],
                 }),
             },

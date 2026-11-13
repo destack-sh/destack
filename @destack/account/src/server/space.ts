@@ -17,7 +17,7 @@ export function implementSpace(stacks: PlatformDefinition["stacks"]): typeof spa
         methods: {
             create: {
                 // make the space the owner of itself
-                creation: (_call, created) =>
+                relate: (_call, created) =>
                     Space.creation({ id: schema.identifier("space").parse(created.id) }),
                 handle: (context, next) => create(context, next, stacks),
             },

@@ -13,7 +13,7 @@ export function implementIntegration(tokens: ConnectionCredential): typeof integ
         methods: {
             create: {
                 // relate anyone to a public integration, and the installation issuing its tokens
-                creation: (context) => relate(context),
+                relate: (context) => relate(context),
                 authorize: async (context) => requireSecret(context),
                 prepare: (context) => keepSecret(context, tokens),
                 handle: (_call, next) => next(),

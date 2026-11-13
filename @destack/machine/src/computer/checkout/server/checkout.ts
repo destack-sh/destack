@@ -110,11 +110,9 @@ export class CheckoutServer {
                 },
                 delete: {
                     prepare: async (context) => context.target.root,
-                    settle: async (_call, settled) => {
-                        // close the warm compilers of the unregistered working tree
-                        if (settled.status === "committed") {
-                            await compilers.release(settled.prepared);
-                        }
+                    // close the warm compilers of the unregistered working tree
+                    confirm: async (_call, prepared) => {
+                        await compilers.release(prepared);
                     },
                 },
                 members: {

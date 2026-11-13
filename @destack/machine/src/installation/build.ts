@@ -203,7 +203,7 @@ export function implementBuild(options: BuildOptions) {
         methods: {
             create: {
                 // relate a compiled build's runner, which its modules and symbols use
-                creation: (context) => ({
+                relate: (context) => ({
                     relationships:
                         context.input.source.kind === "release"
                             ? []

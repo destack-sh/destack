@@ -25,8 +25,8 @@ export function implementMachine(): typeof machine {
     return machine.implement({
         methods: {
             // let every machine verify a new machine's keys, as its peers in moves
-            enroll: { handle: enroll, creation: () => PEERS },
-            declare: { handle: declare, creation: () => PEERS },
+            enroll: { handle: enroll, relate: () => PEERS },
+            declare: { handle: declare, relate: () => PEERS },
             delete: remove,
             relay,
             enable: (call) => transition(call, "enabled"),

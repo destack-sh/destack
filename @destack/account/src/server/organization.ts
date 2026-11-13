@@ -11,7 +11,7 @@ export function implementOrganization(): typeof organization {
     return organization.implement({
         methods: {
             create: {
-                creation: (context, object) => {
+                relate: (context, object) => {
                     // relate its creating user as an owner
                     const creator = context.caller.subject;
                     const owners =

@@ -86,11 +86,9 @@ export function serveDistributions(host: DistributionHost | undefined) {
                 },
                 handle: (context) =>
                     context.update({ staged: context.prepared, status: "activating" }),
-                settle: async (_call, settled) => {
-                    // restart into it once the activation is recorded
-                    if (settled.status === "committed") {
-                        requireHost(host).activate();
-                    }
+                // restart into it once the activation is recorded
+                confirm: async () => {
+                    requireHost(host).activate();
                 },
             },
         },

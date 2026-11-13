@@ -75,11 +75,9 @@ export function implementRepository(options: RepositoryOptions): typeof reposito
 
                     return created;
                 },
-                settle: async (context, settled) => {
-                    // delete the storage a creation made before its record rolled back
-                    if (settled.status === "rolledBack") {
-                        await hosting.discard(context.requireId(), settled.prepared);
-                    }
+                // delete the storage a creation made before its record rolled back
+                cancel: async (context, prepared) => {
+                    await hosting.discard(context.requireId(), prepared);
                 },
             },
             open: {
@@ -150,11 +148,9 @@ export function implementRepository(options: RepositoryOptions): typeof reposito
 
                     return next();
                 },
-                settle: async (_call, settled) => {
-                    // delete the storage once the purge committed
-                    if (settled.status === "committed") {
-                        await hosting.delete(settled.prepared);
-                    }
+                // delete the storage once the purge committed
+                confirm: async (_call, prepared) => {
+                    await hosting.delete(prepared);
                 },
             },
         },

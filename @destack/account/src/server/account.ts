@@ -19,7 +19,7 @@ export function implementAccount(stacks: PlatformDefinition["stacks"]): typeof a
     return account.implement({
         methods: {
             create: {
-                creation: (context, object) => Account.creation(context, object),
+                relate: (context, object) => Account.creation(context, object),
                 handle: (context, next) => create(context, next, stacks),
             },
             purge: { handle: (context, next) => purge(context, next) },

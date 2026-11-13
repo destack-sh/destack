@@ -9,7 +9,7 @@ export function implementCheckoutSession(billing: Billing): typeof checkoutSessi
                 authorize: (context) => Customer.require(context.input.accountId, context),
                 prepare: (context) => billing.prepareCheckout(context),
                 handle: (context, next) => billing.openCheckout(context, next),
-                settle: (context, settled) => billing.settleCheckout(context, settled),
+                cancel: (context, prepared) => billing.cancelCheckout(context, prepared),
             },
             settle: (context) => Billing.settle(context),
         },

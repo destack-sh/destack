@@ -1,12 +1,6 @@
 import { Account } from "@destack/account/object";
 import { FinanceError } from "../error/error.ts";
-import type {
-    MethodContext,
-    MethodContextOf,
-    NextOf,
-    Settled,
-    SettlementContext,
-} from "@destack/object";
+import type { MethodContext, MethodContextOf, NextOf, SettlementContext } from "@destack/object";
 import type { Snapshot } from "@destack/db";
 import { ObjectReference } from "@destack/sync";
 import { found, type Identifier, present, zip } from "@destack/schema";
@@ -197,29 +191,29 @@ export class Billing {
     }
 
     /** Expire a prepared session at the provider once its checkout rolled back. */
-    async settleCheckout(
+    async cancelCheckout(
         context: SettlementContext,
-        settled: Settled<MethodContextOf<typeof checkoutSession, "create">["prepared"]>,
+        prepared: MethodContextOf<typeof checkoutSession, "create">["prepared"] | undefined,
     ): Promise<void> {
-        // leave a committed checkout, and one that prepared nothing
-        if (settled.status === "committed" || settled.prepared === undefined) {
-            return;
+        // expire the session it opened, none when it prepared nothing
+        if (prepared !== undefined) {
+            const session = prepared.session.providerId;
+            await this.requireProvider().expire(session, `${context.idempotencyKey}/rollback`);
         }
-
-        // expire the session it opened
-        const session = settled.prepared.session.providerId;
-        await this.requireProvider().expire(session, `${context.idempotencyKey}/rollback`);
     }
 
     /** Change a subscription's prices, or close its period for the default product. */
     async prepareChange(
-        context: MethodContextOf<typeof subscription, "change", unknown>,
+        context: MethodContextOf<typeof subscription, "change", unknown> & {
+            /** The key the change's provider calls run under. */
+            readonly idempotencyKey: string;
+        },
     ): Promise<PlanChange> {
         // close the current period onto the final invoice for the default product
         const { currency } = context.input;
         const offering = await Offering.read({ product: context.input.product, currency }, context);
         const current = context.target;
-        const key = present(context.idempotencyKey, "a change's idempotency key");
+        const key = context.idempotencyKey;
         const provider = this.requireProvider();
         const customerId = await Billing.#mirrorCustomer(current.accountId, provider, key, context);
         if (offering.product.isDefault) {
@@ -249,14 +243,8 @@ export class Billing {
     }
 
     /** Change or cancel a subscription at the provider once its change committed. */
-    async settleChange(context: SettlementContext, settled: Settled<PlanChange>): Promise<void> {
-        // leave a rolled back change
-        if (settled.status === "rolledBack") {
-            return;
-        }
-
+    async confirmChange(context: SettlementContext, work: PlanChange): Promise<void> {
         // change the prices, or cancel for the default product
-        const work = settled.prepared;
         const provider = this.requireProvider();
         if (work.kind === "change") {
             await provider.change(

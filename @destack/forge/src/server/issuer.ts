@@ -14,7 +14,7 @@ export function implementIssuer(app: GitHubApp | undefined): typeof issuer {
         methods: {
             create: {
                 // relate the residency whose home declares the issuer
-                creation: async (context) => {
+                relate: async (context) => {
                     const homed = await context
                         .read(residency)
                         .findFirst({ where: { space: space.identifier(context.scope) } });
