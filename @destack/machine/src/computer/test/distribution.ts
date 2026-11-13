@@ -2,7 +2,7 @@ import type { Environment } from "@destack/environment";
 import { fileURLToPath } from "node:url";
 import type { StackRelease } from "@destack/account/object";
 import type { PlatformDefinition, ReleaseRegistry } from "@destack/account/server";
-import { CompilerPool, type LocalBuildStore, Workspace } from "@destack/build";
+import { type LocalBuildStore, Workspace } from "@destack/build";
 import { BuildStore } from "@destack/build/store";
 import { BuildLayer } from "@destack/package/manifest";
 import { testStore } from "@destack/build/test";
@@ -340,38 +340,38 @@ export class TestDistribution implements ReleaseRegistry, AsyncDisposable {
     /** Build a platform package from the workspace, found through machine's dependency on it. */
     static platform(
         name: (typeof PLATFORM_PACKAGES)[number],
-        compilers: CompilerPool,
+        workspace: Workspace,
     ): ReturnType<typeof TestDistribution.compile> {
         const directory = fileURLToPath(new URL(`../../../node_modules/${name}/`, import.meta.url));
 
-        return TestDistribution.compile(compilers, directory);
+        return TestDistribution.compile(workspace, directory);
     }
 
     /** Build the desktop from its workspace directory, as production's distribution ships it. */
-    static desktop(compilers: CompilerPool): ReturnType<typeof TestDistribution.compile> {
+    static desktop(workspace: Workspace): ReturnType<typeof TestDistribution.compile> {
         const directory = fileURLToPath(new URL("../../../../desktop/", import.meta.url));
 
-        return TestDistribution.compile(compilers, directory);
+        return TestDistribution.compile(workspace, directory);
     }
 
     /** Build the package the test computers run, as the distribution ships it. */
-    static runtime(compilers: CompilerPool): ReturnType<typeof TestDistribution.compile> {
+    static runtime(workspace: Workspace): ReturnType<typeof TestDistribution.compile> {
         const directory = fileURLToPath(new URL("../../../", import.meta.url));
 
-        return TestDistribution.compile(compilers, directory);
+        return TestDistribution.compile(workspace, directory);
     }
 
-    /** Build and lock every unit of a package's workspace. */
+    /** Build and lock every unit of a workspace package, each unit once per workspace. */
     static async compile(
-        compilers: CompilerPool,
+        workspace: Workspace,
         directory: string,
     ): Promise<{ readonly lock: Digest; readonly units: ReadonlyMap<string, Digest> }> {
         // build and lock each unit
-        const workspace = await Workspace.open(directory, compilers);
-        const locked = await workspace.lockUnits({});
+        const opened = await workspace.package(directory);
+        const locked = await opened.lockUnits({});
         const units = new Map([...locked].map(([name, { lock }]) => [name, lock] as const));
 
-        return { lock: found(units, workspace.root.name), units };
+        return { lock: found(units, opened.root.name), units };
     }
 
     /** Select a stack's export at a build's release by its version. */

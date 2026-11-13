@@ -1,4 +1,5 @@
-import { CompilerPool } from "@destack/build";
+import { CompilerPool, Workspace } from "@destack/build";
+import { fileURLToPath } from "node:url";
 import { testStore } from "@destack/build/test";
 import { TestRun } from "@destack/db/test/run";
 import { canonicalize, type Digest } from "@destack/schema";
@@ -29,18 +30,22 @@ export default async function setup(project: TestProject): Promise<() => Promise
     {
         await using store = await testStore();
         await using compilers = await CompilerPool.open(store, async () => Toolchain.workspace());
+        const workspace = await Workspace.open(
+            fileURLToPath(new URL("../../../", import.meta.url)),
+            compilers,
+        );
         const builds = [
-            [RUNTIME_PACKAGE, built, () => TestDistribution.runtime(compilers)] as const,
-            [DESKTOP_PACKAGE, built, () => TestDistribution.desktop(compilers)] as const,
+            [RUNTIME_PACKAGE, built, () => TestDistribution.runtime(workspace)] as const,
+            [DESKTOP_PACKAGE, built, () => TestDistribution.desktop(workspace)] as const,
             ...PLATFORM_PACKAGES.map(
-                (name) => [name, built, () => TestDistribution.platform(name, compilers)] as const,
+                (name) => [name, built, () => TestDistribution.platform(name, workspace)] as const,
             ),
             ...[...WORLD_FIXTURES, STACK_FIXTURE, START_FIXTURE, ...SCENARIO_FIXTURES].map(
                 (name) =>
                     [
                         name,
                         SCENARIO_FIXTURES.some((each) => each === name) ? scenario : built,
-                        () => WorldDriver.build(name, compilers),
+                        () => WorldDriver.build(name, workspace),
                     ] as const,
             ),
         ];
@@ -51,7 +56,7 @@ export default async function setup(project: TestProject): Promise<() => Promise
         );
 
         // lock the runtime's builtins too
-        const { units } = await TestDistribution.runtime(compilers);
+        const { units } = await TestDistribution.runtime(workspace);
         for (const [name, lock] of units) {
             built[name] ??= lock;
         }

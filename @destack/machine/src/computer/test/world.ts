@@ -1,6 +1,6 @@
 import { principal } from "@destack/access";
 import type { Login } from "@destack/account/native";
-import type { CompilerPool } from "@destack/build";
+import type { Workspace } from "@destack/build";
 import type { DatabaseConnection } from "@destack/db";
 import { connectBunSqlite } from "@destack/db/bun";
 import { type Clock, World, type WorldStep } from "@destack/environment";
@@ -249,9 +249,9 @@ export class WorldDriver implements Driver<typeof worldInteraction> {
     /** Build and lock a fixture package at its authored version. */
     static build(
         fixture: string,
-        compilers: CompilerPool,
+        workspace: Workspace,
     ): ReturnType<typeof TestDistribution.compile> {
-        return TestDistribution.compile(compilers, new TestFixture(fixture).directory);
+        return TestDistribution.compile(workspace, new TestFixture(fixture).directory);
     }
 
     /** Install a fixture build in the owner's home as the owner, recording its object types. */
