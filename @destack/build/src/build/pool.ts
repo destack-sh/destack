@@ -6,12 +6,17 @@ import { Once } from "@destack/environment";
 import { Compiler } from "./compiler.ts";
 import type { LocalBuildStore } from "../store/local.ts";
 import { CompilerFingerprint } from "../cache/cache.ts";
+import type {} from "@destack/package/import-meta";
+import { TelemetryScope } from "@destack/telemetry";
 
 /** The warm compilers a machine runs at once: 4, each a TypeScript program of a few hundred MB. */
 const MAX_WARM_COMPILERS = 4;
 
 /** How long an unused compiler stays warm: fifteen minutes, since a cold start costs seconds. */
 const IDLE_MILLISECONDS = 15 * 60_000;
+
+/** The states a pooled compiler is in: waiting for a lease, or leased. */
+const COMPILER_STATES = ["idle", "used"] as const;
 
 /** A workspace's warm compiler, the package it last built and when it was last used. */
 interface Warm {
@@ -61,12 +66,27 @@ export class CompilerPool implements AsyncDisposable {
     readonly #waiting: Waiter[] = [];
     /** The failures of compilers closing with no lease to answer, thrown on disposal. */
     readonly #failures: unknown[] = [];
+    /** The durations of the waits for a compiler. */
+    readonly #scope: TelemetryScope;
+    /** The compilers in the pool, idle and used. */
+    readonly #compilers;
 
     /** Store compilers running a toolchain into a store. */
     private constructor(store: LocalBuildStore, toolchain: () => Promise<Toolchain>) {
+        // keep the store, the toolchain, the fingerprint and the scope
         this.store = store;
         this.#read = toolchain;
         this.fingerprint = CompilerFingerprint.of(store.environment);
+        this.#scope = TelemetryScope.of(import.meta.destack.package, store.environment.telemetry);
+        this.#compilers = this.#scope.metric.upDownCounter("destack.compiler.count", {
+            unit: "{compiler}",
+            attributes: { "destack.compiler.state": COMPILER_STATES },
+        });
+    }
+
+    /** Count compilers entering or leaving a state. */
+    #count(state: (typeof COMPILER_STATES)[number], delta: number): void {
+        this.#compilers.add(delta, { "destack.compiler.state": state });
     }
 
     /** Open a pool starting the current compiler with a toolchain, building into a store. */
@@ -91,10 +111,15 @@ export class CompilerPool implements AsyncDisposable {
         const { files } = this.store.environment;
         const resolved = await files.realPath(resolve(directory));
         const workspace = await files.realPath(await locateWorkspace(resolved, files));
-        const warm = await new Promise<Warm>((take) => {
-            this.#waiting.push({ workspace, directory: resolved, take });
-            this.#serve();
-        });
+        const warm = await this.#scope.measure(
+            "destack.compiler.wait_time",
+            {},
+            () =>
+                new Promise<Warm>((take) => {
+                    this.#waiting.push({ workspace, directory: resolved, take });
+                    this.#serve();
+                }),
+        );
 
         // run the work, then free the compiler, closing one the pool released meanwhile
         const leased = Promise.withResolvers<void>();
@@ -102,8 +127,11 @@ export class CompilerPool implements AsyncDisposable {
         try {
             return await work(await warm.compiler);
         } finally {
+            // count it idle again, or gone once the pool released it
             warm.isBusy = false;
+            this.#count("used", -1);
             if (this.#warm.includes(warm)) {
+                this.#count("idle", 1);
                 this.#idle(warm);
             } else {
                 void this.#dispose(warm);
@@ -129,6 +157,8 @@ export class CompilerPool implements AsyncDisposable {
                 this.#waiting.splice(index, 1);
                 warm.directory = waiter.directory;
                 warm.isBusy = true;
+                this.#count("idle", -1);
+                this.#count("used", 1);
                 warm.use = ++this.#uses;
                 this.#idle(warm);
                 waiter.take(warm);
@@ -181,11 +211,18 @@ export class CompilerPool implements AsyncDisposable {
         const idle = new AbortController();
         const warm: Warm = { compiler, workspace, directory, isBusy: false, use: this.#uses, idle };
         this.#warm.push(warm);
+        this.#count("idle", 1);
         this.#idle(warm);
 
         // forget one that fails to start, which its lease answers, and serve the next waiter
         compiler.catch(() => {
+            // stop its timer and count an idle one gone, a leased one counted once its lease ends
             warm.idle.abort();
+            if (this.#warm.includes(warm) && !warm.isBusy) {
+                this.#count("idle", -1);
+            }
+
+            // drop it and serve the next waiter
             this.#warm = this.#warm.filter((each) => each !== warm);
             this.#serve();
         });
@@ -217,9 +254,12 @@ export class CompilerPool implements AsyncDisposable {
 
     /** Forget some warm compilers, closing each idle one now and each busy one after its lease. */
     async #close(closed: readonly Warm[]): Promise<void> {
-        // stop their idle timers and drop them from the pool
+        // stop their idle timers and drop them from the pool, a busy one counted until its lease ends
         for (const warm of closed) {
             warm.idle.abort();
+            if (this.#warm.includes(warm) && !warm.isBusy) {
+                this.#count("idle", -1);
+            }
         }
         this.#warm = this.#warm.filter((warm) => !closed.includes(warm));
 

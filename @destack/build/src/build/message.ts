@@ -39,11 +39,15 @@ export const BuildResponse = schema.union([
         kind: schema.literal("result"),
         /** The requested compilation or inspection. */
         result: BuildResult,
+        /** The OTLP/JSON traces export of the spans the compiler ended while it worked. */
+        traces: schema.unknown(),
         /** No compilation failure. */
         error: schema.never().exactOptional(),
     }),
     schema.object({
         kind: schema.literal("result"),
+        /** The OTLP/JSON traces export of the spans the compiler ended while it worked. */
+        traces: schema.unknown(),
         /** The compilation failure, keeping its call error. */
         error: schema.object({
             failure: Failure,
@@ -147,12 +151,24 @@ export const CacheResponse = schema.object({
 export type CacheResponse = schema.Infer<typeof CacheResponse>;
 
 /** What the host sends the compiler: work, or the answer to a cache request. */
-export const HostMessage = schema.union([BuildRequest, CacheResponse]);
+/** A host's request with the trace context of the span it runs in (W3C Trace Context). */
+export const TracedRequest = schema.object({
+    kind: schema.literal("request"),
+    /** The trace context fields of the host's span, such as `traceparent`. */
+    trace: schema.record(schema.string(), schema.string()),
+    /** The work. */
+    request: BuildRequest,
+});
+
+/** What the host sends the compiler: traced work, or the answer to a cache request. */
+export const HostMessage = schema.union([TracedRequest, CacheResponse]);
 /** What the host sends the compiler: work, or the answer to a cache request. */
 export type HostMessage = schema.Infer<typeof HostMessage>;
 
 /** What the compiler sends its host: a result, or a cache request. */
 export const CompilerMessage = schema.union([BuildResponse, CacheRequest]);
+/** What the compiler sends its host: a result, or a cache request. */
+export type CompilerMessage = schema.Infer<typeof CompilerMessage>;
 
 /** Where compiler messages are written, such as a stream's writer or a process's output. */
 export interface MessageOutput {
@@ -215,7 +231,7 @@ export async function* readMessages<Message>(
 /** Write a compiler message, preserving byte arrays and regular expressions. */
 export async function writeMessage(
     output: MessageOutput,
-    value: BuildRequest | BuildResponse | CacheRequest | CacheResponse,
+    value: HostMessage | CompilerMessage,
 ): Promise<void> {
     // write the length header and the payload as one chunk, which concurrent writes cannot split
     const payload = serialize(value);

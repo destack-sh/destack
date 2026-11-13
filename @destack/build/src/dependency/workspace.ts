@@ -22,9 +22,11 @@ import type { InspectOptions } from "../inspection/inspection.ts";
 import type { PackageInspection } from "@destack/package/code";
 import { BuildError } from "../error/index.ts";
 import { readLockedReleases, readLockfile, readPackageJson } from "../source/index.ts";
-import { BuildStore } from "../store/index.ts";
+import { BuildStore, type CacheOutcome } from "../store/index.ts";
 import type { LocalBuildStore } from "../store/local.ts";
 import type { DependencyBuild } from "./tree.ts";
+import type {} from "@destack/package/import-meta";
+import { TelemetryScope } from "@destack/telemetry";
 
 /** A Destack package of a workspace, built as one unit on its dependencies' builds. */
 interface WorkspaceUnit {
@@ -142,10 +144,24 @@ export class Workspace {
     }
 
     /** Read a checkout's workspace once: its members, files, npm installation and toolchain. */
-    static async open(
+    static open(
         directory: string,
         compilers: WorkspaceCompilers,
         options: WorkspaceOptions = {},
+    ): Promise<Workspace> {
+        const { telemetry } = compilers.store.environment;
+        return TelemetryScope.of(import.meta.destack.package, telemetry).span(
+            "destack.workspace.open",
+            {},
+            () => Workspace.#open(directory, compilers, options),
+        );
+    }
+
+    /** Read the lockfile's members, the checkout, the toolchain and the locked npm releases. */
+    static async #open(
+        directory: string,
+        compilers: WorkspaceCompilers,
+        options: WorkspaceOptions,
     ): Promise<Workspace> {
         // read the workspace's members by their real directories, refusing a missing one
         const { environment } = compilers.store;
@@ -391,6 +407,8 @@ export class WorkspacePackage {
     readonly #named: ReadonlyMap<string, WorkspaceUnit>;
     /** The releases resolved once a build first needs them, each with its lock and root. */
     #releases: Promise<ReadonlyMap<string, WorkspaceRelease>> | undefined;
+    /** The spans and durations of the units' builds and locks. */
+    readonly #scope: TelemetryScope;
 
     /** Store a closure's units in build order, the package last, in its workspace. */
     constructor(units: readonly WorkspaceUnit[], workspace: Workspace) {
@@ -399,6 +417,10 @@ export class WorkspacePackage {
         this.root = nth(units, units.length - 1);
         this.workspace = workspace;
         this.#named = new Map(units.map((unit) => [unit.name, unit]));
+        this.#scope = TelemetryScope.of(
+            import.meta.destack.package,
+            workspace.compilers.store.environment.telemetry,
+        );
     }
 
     /** Resolve each release the units require once a build first needs them. */
@@ -498,7 +520,20 @@ export class WorkspacePackage {
     }
 
     /** Lock a unit's build with every build it runs with. */
-    async #lock(
+    #lock(
+        unit: WorkspaceUnit,
+        root: Digest,
+        units: ReadonlyMap<string, DependencyBuild>,
+    ): Promise<Digest> {
+        const attributes = { "destack.package.name": unit.name };
+
+        return this.#scope.span("destack.workspace.lock", attributes, () =>
+            this.#storeLock(unit, root, units),
+        );
+    }
+
+    /** Link a unit's build on to the build each requirement resolves to, then store the lock. */
+    async #storeLock(
         unit: WorkspaceUnit,
         root: Digest,
         units: ReadonlyMap<string, DependencyBuild>,
@@ -752,11 +787,37 @@ export class WorkspacePackage {
     }
 
     /** Take a unit's stored build, building it once and refusing sources edited meanwhile. */
-    async #cachedPut(
+    #cachedPut(
         unit: WorkspaceUnit,
         options: PackageBuildOptions,
         isPrerelease: boolean,
     ): Promise<Digest> {
+        // build in the unit's span, its duration by how the cache answered
+        let cache: CacheOutcome["cache"] | undefined;
+        const answered = () =>
+            cache === undefined ? {} : { "destack.workspace.build.cache": cache };
+
+        return this.#scope.span(
+            "destack.workspace.build",
+            { "destack.package.name": unit.name },
+            async (span) => {
+                // take the build, noting how the cache answered
+                const cached = await this.#takeBuild(unit, options, isPrerelease);
+                cache = cached.cache;
+                span.setAttributes(answered());
+
+                return cached.manifest;
+            },
+            { duration: { attributes: answered } },
+        );
+    }
+
+    /** Key a unit by its sources as they read now, then take or build its build under the key. */
+    async #takeBuild(
+        unit: WorkspaceUnit,
+        options: PackageBuildOptions,
+        isPrerelease: boolean,
+    ): Promise<CacheOutcome> {
         // key the unit by its sources as they read now
         const sources = await this.workspace.checkout.identify(unit.directory);
         const key = await this.#key(unit, options, sources, isPrerelease);

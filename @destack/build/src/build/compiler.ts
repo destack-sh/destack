@@ -2,6 +2,7 @@ import type { graph } from "@destack/package";
 import { type PackageInspection } from "@destack/package/code";
 import { dirname, join, resolve } from "node:path";
 import type { Environment } from "@destack/environment";
+import { TraceHeaders } from "@destack/environment";
 import { fileURLToPath } from "node:url";
 import { Sandbox } from "@destack/sandbox";
 import { Toolchain } from "@destack/check/toolchain";
@@ -27,6 +28,9 @@ import {
 } from "./message.ts";
 import type { InspectOptions } from "../inspection/inspection.ts";
 import type { BuildReader } from "@destack/package/manifest";
+import type {} from "@destack/package/import-meta";
+import { TelemetryScope } from "@destack/telemetry";
+import { OtlpExport } from "@destack/telemetry/otlp";
 
 /** The compiler executable beside a standalone Destack executable. */
 const EXECUTABLE = "destack-build";
@@ -161,6 +165,8 @@ export class Compiler implements AsyncDisposable {
     #builds = 0;
     /** The last request's settled work, since the compiler takes one request at a time. */
     #queue: Promise<void> = Promise.resolve();
+    /** The spans and durations of the compiler's verbs. */
+    readonly #scope: TelemetryScope;
 
     /** Retain the workspace, store, files, read paths, command and compiler. */
     private constructor(
@@ -177,6 +183,7 @@ export class Compiler implements AsyncDisposable {
         this.#temporary = temporary;
         this.#read = read;
         this.#compiler = compiler;
+        this.#scope = TelemetryScope.of(import.meta.destack.package, store.environment.telemetry);
 
         // watch the started compiler
         this.#sandbox = sandbox;
@@ -185,7 +192,17 @@ export class Compiler implements AsyncDisposable {
     }
 
     /** Start a reusable compiler for a directory's workspace, building into a store. */
-    static async start(directory: string, options: CompilerOptions): Promise<Compiler> {
+    static start(directory: string, options: CompilerOptions): Promise<Compiler> {
+        const { telemetry } = options.store.environment;
+        return TelemetryScope.of(import.meta.destack.package, telemetry).span(
+            "destack.compiler.start",
+            {},
+            () => Compiler.#start(directory, options),
+        );
+    }
+
+    /** Spawn a sandboxed compiler reading the workspace, its tools and the store's trees. */
+    static async #start(directory: string, options: CompilerOptions): Promise<Compiler> {
         // read the toolchain, the workspace, the compiler's tools and the store's trees
         const { store } = options;
         const { environment } = store;
@@ -224,7 +241,12 @@ export class Compiler implements AsyncDisposable {
     }
 
     /** Start the compiler again after a failed one. */
-    async #restart(): Promise<void> {
+    #restart(): Promise<void> {
+        return this.#scope.span("destack.compiler.start", {}, () => this.#respawn());
+    }
+
+    /** Spawn the next compiler and watch it, forgetting the stopped one's failure. */
+    async #respawn(): Promise<void> {
         // start the next compiler, recording the failure of the stopped one should it not start
         const sandbox = await spawn(
             this.workspace,
@@ -374,7 +396,12 @@ export class Compiler implements AsyncDisposable {
     }
 
     /** Check a package's outputs, their types and the runtime globals they use, then build it. */
-    async check(options: PackageBuildOptions): Promise<BuildReader> {
+    check(options: PackageBuildOptions): Promise<BuildReader> {
+        return this.#scope.span("destack.compiler.check", {}, () => this.#check(options));
+    }
+
+    /** Send a check after the requests before it, then build. */
+    async #check(options: PackageBuildOptions): Promise<BuildReader> {
         // check after the requests before it, then build
         await this.#serially(async () => {
             // send the check at the real directory, the dependencies materialized
@@ -396,7 +423,12 @@ export class Compiler implements AsyncDisposable {
     }
 
     /** Build a package's current source in one request: evaluate its declarations, compile it. */
-    async build(options: PackageBuildOptions): Promise<BuildReader> {
+    build(options: PackageBuildOptions): Promise<BuildReader> {
+        return this.#scope.span("destack.compiler.build", {}, () => this.#storeBuild(options));
+    }
+
+    /** Compile after the requests before it, then move the written build into the store. */
+    async #storeBuild(options: PackageBuildOptions): Promise<BuildReader> {
         // build after the requests before it
         const { files } = this.store.environment;
         const destination = await this.#serially(() => this.#build(options));
@@ -459,16 +491,21 @@ export class Compiler implements AsyncDisposable {
         options: InspectOptions & Pick<PackageBuildOptions, "dependencies" | "links">,
         signal?: AbortSignal,
     ): Promise<PackageInspection> {
-        return this.#serially(async () => {
-            // send the inspection at the real directory, the dependencies materialized
-            const request = { kind: "inspect", options: await this.#inspected(options) } as const;
-            const response = await this.#request(request, signal);
-            if (response.kind !== "inspect") {
-                throw BuildError.of("COMPILER_BROKEN", "unexpected compiler result");
-            }
+        return this.#scope.span("destack.compiler.inspect", {}, () =>
+            this.#serially(async () => {
+                // send the inspection at the real directory, the dependencies materialized
+                const request = {
+                    kind: "inspect",
+                    options: await this.#inspected(options),
+                } as const;
+                const response = await this.#request(request, signal);
+                if (response.kind !== "inspect") {
+                    throw BuildError.of("COMPILER_BROKEN", "unexpected compiler result");
+                }
 
-            return response.inspection;
-        });
+                return response.inspection;
+            }),
+        );
     }
 
     /** Index source inside the isolated compiler process after the requests before it. */
@@ -476,16 +513,18 @@ export class Compiler implements AsyncDisposable {
         options: InspectOptions & Pick<PackageBuildOptions, "dependencies" | "links">,
         signal?: AbortSignal,
     ): Promise<{ code: graph.Document[]; modules: graph.Module[] }> {
-        return this.#serially(async () => {
-            // send the index request at the real directory, the dependencies materialized
-            const request = { kind: "index", options: await this.#inspected(options) } as const;
-            const response = await this.#request(request, signal);
-            if (response.kind !== "index") {
-                throw BuildError.of("COMPILER_BROKEN", "unexpected compiler result");
-            }
+        return this.#scope.span("destack.compiler.index", {}, () =>
+            this.#serially(async () => {
+                // send the index request at the real directory, the dependencies materialized
+                const request = { kind: "index", options: await this.#inspected(options) } as const;
+                const response = await this.#request(request, signal);
+                if (response.kind !== "index") {
+                    throw BuildError.of("COMPILER_BROKEN", "unexpected compiler result");
+                }
 
-            return { code: response.code, modules: response.modules };
-        });
+                return { code: response.code, modules: response.modules };
+            }),
+        );
     }
 
     /** Read inspection options at the real directory, the Destack dependencies materialized. */
@@ -564,9 +603,13 @@ export class Compiler implements AsyncDisposable {
 
         // send the request and wait for its response, a peer the compiler answers
         try {
-            const { scheduler } = this.store.environment;
+            const { scheduler, telemetry } = this.store.environment;
+            const response = await scheduler.run(() => this.#send(request), { isLong: true });
 
-            return resultOf(await scheduler.run(() => this.#send(request), { isLong: true }));
+            // take the spans the compiler ended into this telemetry
+            telemetry.ingest(new OtlpExport("traces", response.traces).spans());
+
+            return resultOf(response);
         } finally {
             deadline.abort();
             signal?.removeEventListener("abort", abort);
@@ -576,11 +619,15 @@ export class Compiler implements AsyncDisposable {
 
     /** Send a request to the compiler and await its response. */
     #send(request: BuildRequest): Promise<BuildResponse> {
+        // clear the last request's diagnostics, and carry the active span's trace context
         this.#stderr = "";
+        const trace = new Headers();
+        TraceHeaders.inject(trace, this.store.environment.telemetry);
+        const traced = { kind: "request", trace: Object.fromEntries(trace), request } as const;
 
         return new Promise<BuildResponse>((deliver, reject) => {
             this.#pending = { resolve: deliver, reject };
-            void writeMessage(this.#input, request).catch((error: unknown) =>
+            void writeMessage(this.#input, traced).catch((error: unknown) =>
                 this.#fail(
                     BuildError.of("COMPILER_BROKEN", "cannot send the compiler request", {
                         cause: error,

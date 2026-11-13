@@ -8,6 +8,8 @@ import { TypeScriptInspection } from "./module.ts";
 import { isAuthored, linkDependencies } from "../source/dependency.ts";
 import { runtimeConditions, TYPE_CHECKS, TYPESCRIPT_OPTIONS } from "@destack/package/build";
 import type { PackageSource } from "../source/index.ts";
+import type {} from "@destack/package/import-meta";
+import { TelemetryScope } from "@destack/telemetry";
 
 /** This package's directory, whose dependencies include the tools when running from a workspace. */
 const PACKAGE = fileURLToPath(new URL("../..", import.meta.url));
@@ -22,18 +24,39 @@ export class TypeScriptCompiler implements AsyncDisposable {
     readonly #files: FileSystem;
     /** The directory of the program configurations, linking the installed dependencies. */
     readonly #configurations: string;
+    /** The spans of the compiler's inspections. */
+    readonly #scope: TelemetryScope;
 
     /** Run the native compiler for a source package's real directory. */
-    private constructor(directory: string, api: API, files: FileSystem, configurations: string) {
-        // store the package, the compiler process and the configurations' directory
+    private constructor(
+        directory: string,
+        api: API,
+        configurations: string,
+        environment: Environment<"files" | "host">,
+    ) {
+        // store the package, the compiler process, the configurations' directory and the scope
         this.directory = directory;
         this.#api = api;
-        this.#files = files;
+        this.#files = environment.files;
         this.#configurations = configurations;
+        this.#scope = TelemetryScope.of(import.meta.destack.package, environment.telemetry);
     }
 
     /** Start a toolchain's native compiler for a source package. */
-    static async start(
+    static start(
+        directory: string,
+        toolchain: Toolchain,
+        environment: Environment<"files" | "host">,
+    ): Promise<TypeScriptCompiler> {
+        return TelemetryScope.of(import.meta.destack.package, environment.telemetry).span(
+            "destack.typescript.start",
+            {},
+            () => TypeScriptCompiler.#start(directory, toolchain, environment),
+        );
+    }
+
+    /** Link the package's dependencies for its configurations, then start the compiler process. */
+    static async #start(
         directory: string,
         toolchain: Toolchain,
         environment: Environment<"files" | "host">,
@@ -50,7 +73,7 @@ export class TypeScriptCompiler implements AsyncDisposable {
             tsserverPath: TypeScriptCompiler.executable(toolchain, environment),
         });
 
-        return new TypeScriptCompiler(real, api, files, configurations);
+        return new TypeScriptCompiler(real, api, configurations, environment);
     }
 
     /** Find this platform's native TypeScript compiler among a toolchain's packages. */
@@ -64,7 +87,16 @@ export class TypeScriptCompiler implements AsyncDisposable {
     }
 
     /** Check a package's whole program, then read its modules and every symbol they lead to. */
-    async inspect(source: PackageSource): Promise<TypeScriptInspection> {
+    inspect(source: PackageSource): Promise<TypeScriptInspection> {
+        const attributes = { "destack.runtime": source.runtime };
+
+        return this.#scope.span("destack.typescript.inspect", attributes, () =>
+            this.#inspect(source),
+        );
+    }
+
+    /** Check a source's configured program, refusing its diagnostics, then read its modules. */
+    async #inspect(source: PackageSource): Promise<TypeScriptInspection> {
         return await this.#read(await this.#configure(source), async (project) => {
             // check the configuration and the authored modules
             const diagnostics = await this.#check(project);

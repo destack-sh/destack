@@ -191,7 +191,7 @@ export class NpmInstallation {
         );
 
         // take the stored build, else build it on the builds of the dependencies its modules import
-        const manifest = await this.#store.cachedBuild(key, async () => {
+        const { manifest } = await this.#store.cachedBuild(key, async () => {
             const built = await unit.build((each) => this.store(each));
 
             return await this.#store.put(built);

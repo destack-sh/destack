@@ -341,3 +341,68 @@ test("declare a builtin workspace member in a build's requirements, leaving it o
         lock: Lock.of(root),
     });
 });
+
+test("trace a workspace's unit builds: compile each unit on a miss, take each from the cache on a hit", async () => {
+    // lay out a workspace, then build its application twice
+    await using simulation = testSimulation();
+    const environment = simulation.environment("test");
+    const { application } = await layOut(environment);
+    await using store = await LocalBuildStore.temporary(environment);
+    await using compilers = await CompilerPool.open(store, async () => Toolchain.workspace());
+    const build = async () => {
+        const opened = await (await Workspace.open(application, compilers)).package();
+        await opened.build({ outputs: OUTPUTS });
+    };
+    await build();
+    await build();
+
+    // read how often each of the build's spans ran, a unit's build by its cache answer, and its own counts
+    const names = simulation.telemetry.spans
+        .filter((span) => span.instrumentationScope.name === "@destack/build")
+        .map((span) => {
+            const cache = span.attributes["destack.workspace.build.cache"];
+
+            return typeof cache === "string" ? `${span.name}[${cache}]` : span.name;
+        });
+    const spans = Object.fromEntries(
+        [...new Set(names)]
+            .toSorted()
+            .map((name) => [name, names.filter((each) => each === name).length]),
+    );
+    const counts = Object.fromEntries(
+        Object.entries(await simulation.telemetry.counts()).filter(
+            ([key]) =>
+                /^destack\.(build|compiler|workspace|checkout)\./u.test(key) &&
+                !key.endsWith(".seconds"),
+        ),
+    );
+
+    // expect each unit compiled once by its own started compiler, then taken from the cache
+    expect({ spans, counts }).toEqual({
+        spans: {
+            "destack.build.move": 2,
+            "destack.checkout.identify": 6,
+            "destack.checkout.list": 4,
+            "destack.compiler.build": 2,
+            "destack.compiler.compile": 2,
+            "destack.compiler.evaluate": 2,
+            "destack.compiler.start": 2,
+            "destack.workspace.build[hit]": 2,
+            "destack.workspace.build[miss]": 2,
+            "destack.workspace.open": 2,
+        },
+        counts: {
+            "destack.build.move.duration.count": 2,
+            "destack.checkout.identify.duration.count": 6,
+            "destack.checkout.list.duration.count": 4,
+            "destack.compiler.build.duration.count": 2,
+            "destack.compiler.compile.duration.count": 2,
+            "destack.compiler.count": 2,
+            "destack.compiler.evaluate.duration.count": 2,
+            "destack.compiler.start.duration.count": 2,
+            "destack.compiler.wait_time.count": 2,
+            "destack.workspace.build.duration.count": 4,
+            "destack.workspace.open.duration.count": 2,
+        },
+    });
+});

@@ -35,6 +35,7 @@
         "@destack/resource": "workspace:*",
         "@destack/sandbox": "workspace:*",
         "@destack/schema": "workspace:*",
+        "@destack/telemetry": "workspace:*",
         "@destack/update": "workspace:*",
         "cjs-module-lexer": "2.3.0",
         "magic-string": "1.4.1",

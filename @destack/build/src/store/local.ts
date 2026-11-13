@@ -246,7 +246,12 @@ export class LocalBuildStore
     }
 
     /** Store a build written in a directory the store consumes, moving its files into the blobs. */
-    async move(directory: string, signal?: AbortSignal): Promise<Digest> {
+    move(directory: string, signal?: AbortSignal): Promise<Digest> {
+        return this.scope.span("destack.build.move", {}, () => this.#move(directory, signal));
+    }
+
+    /** Move a written build's missing files into the blobs, then remove what is left. */
+    async #move(directory: string, signal: AbortSignal | undefined): Promise<Digest> {
         // store each missing file by moving it in, recorded under a lease
         const { files, crypto, clock } = this.environment;
         const source = await BuildReader.openDirectory(directory, files, crypto);
@@ -276,7 +281,19 @@ export class LocalBuildStore
     }
 
     /** Write locked releases to a layer: whole builds for a computer, run files for the cloud. */
-    async writeLayer(
+    writeLayer(
+        locks: readonly Digest[],
+        runtimes: readonly Runtime[],
+        directory: string,
+        layout: LayerLayout,
+    ): Promise<void> {
+        return this.scope.span("destack.build.write_layer", {}, () =>
+            this.#writeLayer(locks, runtimes, directory, layout),
+        );
+    }
+
+    /** Write the locks' builds in a layout: addressed blobs, or whole builds and run trees. */
+    async #writeLayer(
         locks: readonly Digest[],
         runtimes: readonly Runtime[],
         directory: string,
@@ -501,11 +518,14 @@ export class LocalBuildStore
     }
 
     /** Lay out the tree a lock's root runs with on a runtime, a layered one in place. */
-    async runTree(
-        lock: Lock,
-        runtime: Runtime,
-        directory: string = this.trees,
-    ): Promise<DependencyTree> {
+    runTree(lock: Lock, runtime: Runtime, directory: string = this.trees): Promise<DependencyTree> {
+        return this.scope.span("destack.build.run_tree", {}, () =>
+            this.#runTree(lock, runtime, directory),
+        );
+    }
+
+    /** Place each build of a lock's export closure for a runtime. */
+    async #runTree(lock: Lock, runtime: Runtime, directory: string): Promise<DependencyTree> {
         // read the closure of every export, refusing a build the store lacks
         const closure = await this.closure(
             lock,

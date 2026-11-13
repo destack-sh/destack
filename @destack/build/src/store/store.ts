@@ -29,6 +29,8 @@ import { TarballEntry } from "@destack/package/archive";
 import { comparePath } from "../build/serialization.ts";
 import type { CacheEntry } from "../cache/entry.ts";
 import { type PackageAccess, serveStore } from "./http.ts";
+import type {} from "@destack/package/import-meta";
+import { TelemetryScope } from "@destack/telemetry";
 import {
     BUILD_STORE_TABLES,
     buildCache,
@@ -169,6 +171,14 @@ export const BuildObject = {
     },
 };
 
+/** A cache key's build, and how the cache answered: stored, built now, or joined. */
+export interface CacheOutcome {
+    /** The build's manifest digest. */
+    readonly manifest: Digest;
+    /** How the cache answered the key. */
+    readonly cache: "hit" | "miss" | "joined";
+}
+
 /** An object with its bytes, as a store packs it. */
 interface StoredObject {
     /** What the object is. */
@@ -200,9 +210,9 @@ export interface BuildStoreOptions<StoreEnvironment, Storage extends BlobStorage
 
 /** Immutable package builds in a partition's blobs, kept while any of its rows references them. */
 export class BuildStore<
-    StoreEnvironment extends Pick<Environment, "crypto" | "clock"> = Pick<
+    StoreEnvironment extends Pick<Environment, "crypto" | "clock" | "telemetry"> = Pick<
         Environment,
-        "crypto" | "clock"
+        "crypto" | "clock" | "telemetry"
     >,
     Storage extends BlobStorage = BlobStorage,
 > {
@@ -221,7 +231,7 @@ export class BuildStore<
     /** The locks read so far, by digest, as locks never change. */
     readonly #locks = new Map<Digest, Promise<Lock>>();
     /** The builds of cache keys in flight, so callers asking at once build each key once. */
-    readonly #building = new Map<Digest, Promise<Digest>>();
+    readonly #building = new Map<Digest, Promise<CacheOutcome>>();
     /** The builds in flight to the store, by manifest digest, each stored once. */
     readonly #putting = new Map<Digest, Promise<Digest>>();
     /** The read-only builds the store reads in place. */
@@ -232,6 +242,8 @@ export class BuildStore<
     readonly sources: readonly BuildStore[];
     /** Pull a build's file this store and its sources lack, absent where every file is stored. */
     readonly #pullFile: BuildStoreOptions<StoreEnvironment, Storage>["pullFile"];
+    /** The spans and durations of the store's verbs. */
+    protected readonly scope: TelemetryScope;
 
     /** Store builds in a partition's blobs, reading some read-only builds in place. */
     constructor(options: BuildStoreOptions<StoreEnvironment, Storage>) {
@@ -242,6 +254,7 @@ export class BuildStore<
         this.leaseMilliseconds = options.leaseMilliseconds ?? options.blobs.leaseMilliseconds;
         this.sources = options.sources ?? [];
         this.#pullFile = options.pullFile;
+        this.scope = TelemetryScope.of(import.meta.destack.package, options.environment.telemetry);
     }
 
     /** Read when a lease taken now ends. */
@@ -268,19 +281,21 @@ export class BuildStore<
 
     /** Store each missing file of a build, then its manifest, returning the manifest's digest. */
     put(source: BuildReader, signal?: AbortSignal): Promise<Digest> {
-        return this.store(
-            source,
-            async (files) => {
-                await this.blobs.put(
-                    files.map((file) => ({
-                        digest: file.digest,
-                        size: file.size,
-                        open: () => source.stream(file.path),
-                    })),
-                    this.#leasedUntil,
-                );
-            },
-            signal,
+        return this.scope.span("destack.build.put", {}, () =>
+            this.store(
+                source,
+                async (files) => {
+                    await this.blobs.put(
+                        files.map((file) => ({
+                            digest: file.digest,
+                            size: file.size,
+                            open: () => source.stream(file.path),
+                        })),
+                        this.#leasedUntil,
+                    );
+                },
+                signal,
+            ),
         );
     }
 
@@ -511,8 +526,10 @@ export class BuildStore<
     }
 
     /** Write objects files first, recording the manifests and locks of each pack once stored. */
-    async write(entries: AsyncIterable<TarballEntry>): Promise<void> {
-        await this.#pack(BuildStore.#parsed(entries), "verify");
+    write(entries: AsyncIterable<TarballEntry>): Promise<void> {
+        return this.scope.span("destack.build.write", {}, () =>
+            this.#pack(BuildStore.#parsed(entries), "verify"),
+        );
     }
 
     /** Store objects in packs of at most the write limit, then record their manifests and locks. */
@@ -567,7 +584,16 @@ export class BuildStore<
     }
 
     /** Pull a lock's or build's objects for some runtimes from another store, a read per round. */
-    async pull(
+    pull(
+        source: Pick<BuildStore, "read">,
+        root: Pick<BuildObject, "kind" | "digest">,
+        runtimes: readonly Runtime[] | "all",
+    ): Promise<void> {
+        return this.scope.span("destack.build.pull", {}, () => this.#pull(source, root, runtimes));
+    }
+
+    /** Read the lock, the builds and their lists a round each, then write what runtimes need. */
+    async #pull(
         source: Pick<BuildStore, "read">,
         root: Pick<BuildObject, "kind" | "digest">,
         runtimes: readonly Runtime[] | "all",
@@ -686,17 +712,19 @@ export class BuildStore<
     }
 
     /** Store a lock once every build it lists is recorded, returning its digest. */
-    async putLock(lock: Lock): Promise<Digest> {
-        // write the lock's canonical bytes under their digest
-        const bytes = Lock.serialize(lock);
-        const digest = await Digest.of(bytes, this.environment.crypto);
-        await this.write(
-            (async function* () {
-                yield TarballEntry.of(BuildObject.path({ kind: "lock", digest }), bytes);
-            })(),
-        );
+    putLock(lock: Lock): Promise<Digest> {
+        return this.scope.span("destack.build.put_lock", {}, async () => {
+            // write the lock's canonical bytes under their digest
+            const bytes = Lock.serialize(lock);
+            const digest = await Digest.of(bytes, this.environment.crypto);
+            await this.write(
+                (async function* () {
+                    yield TarballEntry.of(BuildObject.path({ kind: "lock", digest }), bytes);
+                })(),
+            );
 
-        return digest;
+            return digest;
+        });
     }
 
     /** List the stored manifests and locks referencing a blob or build. */
@@ -924,24 +952,24 @@ export class BuildStore<
     }
 
     /** Take the build a key caches, else build and cache it once for all callers at once. */
-    cachedBuild(key: Digest, build: () => Promise<Digest>): Promise<Digest> {
+    cachedBuild(key: Digest, build: () => Promise<Digest>): Promise<CacheOutcome> {
         // join a build of the key in flight
         const flying = this.#building.get(key);
         if (flying !== undefined) {
-            return flying;
+            return flying.then(({ manifest }) => ({ manifest, cache: "joined" }));
         }
 
         // build the key once, forgetting the build once it settles
-        const building = (async () => {
+        const building = (async (): Promise<CacheOutcome> => {
             // take the cached build, else build and cache its manifest
             const entry = await this.cached(key);
             if (entry?.kind === "build") {
-                return entry.manifest;
+                return { manifest: entry.manifest, cache: "hit" };
             }
             const built = await build();
             await this.cache(key, { kind: "build", manifest: built });
 
-            return built;
+            return { manifest: built, cache: "miss" };
         })();
         this.#building.set(key, building);
         void building.finally(() => this.#building.delete(key)).catch(() => undefined);
@@ -967,7 +995,12 @@ export class BuildStore<
     }
 
     /** Copy in what builds and locks have only through the layer, as overlayfs does. */
-    async copyUp(roots: readonly Pick<BuildObject, "kind" | "digest">[]): Promise<void> {
+    copyUp(roots: readonly Pick<BuildObject, "kind" | "digest">[]): Promise<void> {
+        return this.scope.span("destack.build.copy_up", {}, () => this.#copyUp(roots));
+    }
+
+    /** Store the layered objects of the roots the store lacks, trusted as the host's own. */
+    async #copyUp(roots: readonly Pick<BuildObject, "kind" | "digest">[]): Promise<void> {
         // copy nothing without a layer
         if (this.layer.isEmpty || roots.length === 0) {
             return;
@@ -1064,7 +1097,12 @@ export class BuildStore<
     }
 
     /** Evict the least recently used entries and leases until the blobs fit a size, while alone. */
-    async evict(maxBytes: number): Promise<void> {
+    evict(maxBytes: number): Promise<void> {
+        return this.scope.span("destack.build.evict", {}, () => this.#evict(maxBytes));
+    }
+
+    /** Drop the oldest entry or leases and collect, until the blobs fit a size. */
+    async #evict(maxBytes: number): Promise<void> {
         while ((await this.blobs.size()) > maxBytes) {
             // take the least recently used: the oldest cache entry, else the blobs a use leased longest ago
             const [entry] = await this.database

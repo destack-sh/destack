@@ -1,6 +1,6 @@
 import { ModuleTransformer } from "@destack/package/transform";
 import type { Program } from "@destack/package/bun";
-import { type Environment, FileSystemError, type Output } from "@destack/environment";
+import { Environment, FileSystemError, type Output, TraceHeaders } from "@destack/environment";
 import { DependencyTree } from "../dependency/tree.ts";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -43,6 +43,13 @@ import { Console } from "node:console";
 import { Writable } from "node:stream";
 import { PRIMARY_RUNTIMES, type Runtime } from "@destack/package/runtime";
 import type { ModuleDescription } from "@destack/package/code";
+import { TelemetryScope } from "@destack/telemetry";
+import {
+    InMemorySpanExporter,
+    SimpleSpanProcessor,
+    TracerProvider,
+} from "@destack/telemetry/trace";
+import { OtlpExport } from "@destack/telemetry/otlp";
 
 /** The Destack version this toolchain builds with: its own release's. */
 const DESTACK_VERSION = import.meta.destack.package.version;
@@ -87,6 +94,8 @@ export class CompilerWorker implements AsyncDisposable {
     readonly #packages: PackageLocator;
     /** The modules the compiler shares with the code it loads. */
     readonly #program: Program;
+    /** The spans of the compiler's steps, recorded for the host. */
+    readonly #scope: TelemetryScope;
 
     /** Compile with a toolchain on an environment, sharing the linked modules. */
     constructor(
@@ -100,6 +109,7 @@ export class CompilerWorker implements AsyncDisposable {
         this.toolchain = toolchain;
         this.runtimes = new RuntimeCompiler(toolchain, environment);
         this.#packages = new PackageLocator(environment.files);
+        this.#scope = TelemetryScope.of(import.meta.destack.package, environment.telemetry);
     }
 
     /** Switch to a package's native compiler, closing the last package's. */
@@ -146,7 +156,15 @@ export class CompilerWorker implements AsyncDisposable {
             },
         );
         const cache = new HostCache(stdout);
-        await using compiler = new CompilerWorker(program, toolchain, environment);
+
+        // collect each request's ended spans, which leave with its answer as an OTLP export
+        const ended = new InMemorySpanExporter();
+        const tracers = new TracerProvider({
+            spanProcessors: [new SimpleSpanProcessor({ exporter: ended })],
+        });
+        const telemetry = { ...environment.telemetry, tracers };
+        const recording = Environment.with(environment, { telemetry });
+        await using compiler = new CompilerWorker(program, toolchain, recording);
 
         // read the host's messages while requests run
         let responding = Promise.resolve();
@@ -159,9 +177,20 @@ export class CompilerWorker implements AsyncDisposable {
             }
             // answer the host's requests one at a time
             else {
-                responding = responding.then(async () =>
-                    writeMessage(stdout, await CompilerWorker.#respond(compiler, message, cache)),
-                );
+                responding = responding.then(async () => {
+                    // answer it below the host's span, with the spans it ended
+                    const parent = TraceHeaders.extract(new Headers(message.trace), telemetry);
+                    const traces = () => {
+                        const spans = ended.getFinishedSpans();
+                        ended.reset();
+
+                        return OtlpExport.traces(spans).body;
+                    };
+                    const answer = await telemetry.context.with(parent, () =>
+                        CompilerWorker.#respond(compiler, message.request, cache, traces),
+                    );
+                    await writeMessage(stdout, answer);
+                });
             }
         }
 
@@ -232,7 +261,12 @@ export class CompilerWorker implements AsyncDisposable {
     }
 
     /** Evaluate a package's declarations, each export entry once, in the first project with it. */
-    async evaluate(options: RequestedBuild): Promise<EvaluatedDeclaration[]> {
+    evaluate(options: RequestedBuild): Promise<EvaluatedDeclaration[]> {
+        return this.#scope.span("destack.compiler.evaluate", {}, () => this.#evaluate(options));
+    }
+
+    /** Open the outputs' projects, then evaluate each export entry in the first project with it. */
+    async #evaluate(options: RequestedBuild): Promise<EvaluatedDeclaration[]> {
         // open the outputs' projects with the exports' on the runtime declarations evaluate on
         const packageJson = await readPackageJson(options.directory, this.environment.files);
         const [primary] = Object.entries(outputsOf(packageJson)).toSorted(
@@ -499,7 +533,20 @@ export class CompilerWorker implements AsyncDisposable {
     }
 
     /** Compile a module output with the extensions' plugins and write its files. */
-    async #module(
+    #module(
+        name: string,
+        output: ModuleOptions,
+        context: CompileContext,
+    ): Promise<Pick<OutputBuild, "output" | "inspection" | "npm" | "sourceMaps">> {
+        const attributes = { "destack.compiler.output": name, "destack.runtime": output.runtime };
+
+        return this.#scope.span("destack.compiler.compile", attributes, () =>
+            this.#compileModule(name, output, context),
+        );
+    }
+
+    /** Compile an output, write its files and check the runtime of each module it loads. */
+    async #compileModule(
         name: string,
         output: ModuleOptions,
         context: CompileContext,
@@ -536,6 +583,26 @@ export class CompilerWorker implements AsyncDisposable {
         if (rendering.length === 0) {
             return;
         }
+
+        // render in the prerender span
+        await this.#scope.span("destack.compiler.prerender", {}, () =>
+            this.#render(opened, outputs, tree, files),
+        );
+    }
+
+    /** Link the dependency builds and npm packages, then write each extension's pages. */
+    async #render(
+        opened: {
+            readonly primary: PackageSource;
+            readonly rendering: readonly BuildExtension[];
+            readonly declarations: readonly DeclarationDescription[];
+        },
+        outputs: ReadonlyMap<string, Pick<OutputBuild, "output" | "npm">>,
+        tree: RequestedBuild["tree"],
+        files: BuildDirectory,
+    ): Promise<void> {
+        // read the extensions rendering pages
+        const { rendering } = opened;
 
         // link the dependency builds and the outputs' npm packages, as installed beside the package
         const { files: system } = this.environment;
@@ -591,6 +658,7 @@ export class CompilerWorker implements AsyncDisposable {
         compiler: CompilerWorker,
         request: BuildRequest,
         cache: TransformCache,
+        traces: () => unknown,
     ): Promise<BuildResponse> {
         try {
             // evaluate the package's declarations, then build it on them
@@ -598,28 +666,36 @@ export class CompilerWorker implements AsyncDisposable {
                 const declarations = await compiler.evaluate(request.options);
                 await compiler.build(request.options, declarations, request.destination, cache);
 
-                return { kind: "result", result: { kind: "build" } };
+                return { kind: "result", result: { kind: "build" }, traces: traces() };
             }
             // check a package's outputs
             else if (request.kind === "check") {
                 await compiler.check(request.options);
 
-                return { kind: "result", result: { kind: "check" } };
+                return { kind: "result", result: { kind: "check" }, traces: traces() };
             }
             // index the package's code
             else if (request.kind === "index") {
                 const { code, modules } = await compiler.index(request.options);
 
-                return { kind: "result", result: { kind: "index", code, modules } };
+                return {
+                    kind: "result",
+                    result: { kind: "index", code, modules },
+                    traces: traces(),
+                };
             }
             // inspect the package
             else {
                 const inspection = await compiler.inspect(request.options);
 
-                return { kind: "result", result: { kind: "inspect", inspection } };
+                return {
+                    kind: "result",
+                    result: { kind: "inspect", inspection },
+                    traces: traces(),
+                };
             }
         } catch (error) {
-            return { kind: "result", error: describeFailure(error) };
+            return { kind: "result", error: describeFailure(error), traces: traces() };
         }
     }
 }

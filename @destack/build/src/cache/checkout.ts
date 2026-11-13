@@ -1,5 +1,7 @@
 import { join } from "node:path";
 import { type Environment, FileSystemError } from "@destack/environment";
+import type {} from "@destack/package/import-meta";
+import { TelemetryScope } from "@destack/telemetry";
 import { Digest, schema } from "@destack/schema";
 import { BuildError } from "../error/index.ts";
 import { relativePath } from "../source/dependency.ts";
@@ -29,6 +31,8 @@ export class Checkout {
     readonly #format: schema.Infer<typeof ObjectFormat>;
     /** The files and process the checkout reads through. */
     readonly #environment: Environment<"files" | "process">;
+    /** The spans and durations of the checkout's verbs. */
+    readonly #scope: TelemetryScope;
 
     /** Store a checkout's root, its listed files and its object format. */
     private constructor(
@@ -42,13 +46,27 @@ export class Checkout {
         this.files = files;
         this.#format = format;
         this.#environment = environment;
+        this.#scope = TelemetryScope.of(import.meta.destack.package, environment.telemetry);
     }
 
     /** List the files of the git checkout enclosing a directory: all of them, or those below it. */
-    static async list(
+    static list(
         directory: string,
         environment: Environment<"files" | "process">,
         scope: "checkout" | "directory" = "checkout",
+    ): Promise<Checkout> {
+        return TelemetryScope.of(import.meta.destack.package, environment.telemetry).span(
+            "destack.checkout.list",
+            {},
+            () => Checkout.#list(directory, environment, scope),
+        );
+    }
+
+    /** Ask git for the checkout's root and format, then its stored and changed files. */
+    static async #list(
+        directory: string,
+        environment: Environment<"files" | "process">,
+        scope: "checkout" | "directory",
     ): Promise<Checkout> {
         // find the checkout's top-level directory and object format
         const revision = ["rev-parse", "--show-toplevel", "--show-object-format"];
@@ -82,7 +100,12 @@ export class Checkout {
     }
 
     /** Digest the files a build reads by path and git blob id, hashing files without a blob. */
-    async identify(directory: string): Promise<Digest> {
+    identify(directory: string): Promise<Digest> {
+        return this.#scope.span("destack.checkout.identify", {}, () => this.#identify(directory));
+    }
+
+    /** Key each readable file below a directory by its blob, hashing those git stores none for. */
+    async #identify(directory: string): Promise<Digest> {
         // take the files below the directory
         const below = relativePath(this.root, directory);
         const prefix = below === "" ? "" : `${below}/`;
