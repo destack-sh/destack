@@ -15,6 +15,7 @@ Components declare and apply styles:
 Shared conditions and resets:
 
 - `media`: Tailwind's breakpoints and media variants as StyleX constants, such as `media.maxSm`.
+- `frame`: a page's columns, margin, gutter and widest width at each breakpoint, as StyleX variables.
 - `preflight.css`: Tailwind's preflight, below every component style.
 
 Builds compile the styles:
@@ -72,6 +73,34 @@ The style verbs are StyleX's, plus `attrs` and `attributes` for Solid and plain 
 | `contrastMore`                               | a person who asked for more contrast             |
 | `print`                                      | a printed page                                   |
 | `portrait`, `landscape`                      | a screen held upright or sideways                |
+
+### frame
+
+`frame` from `@destack/style/frame.stylex` has a page's layout grid: Material's columns, margins and gutters on Tailwind's breakpoints.
+A page lays its grid out from the variables, and sets its own with `createTheme`.
+
+| Variable  | Value                                 |
+| --------- | ------------------------------------- |
+| `columns` | 4 columns, 8 from `sm`, 12 from `lg`  |
+| `margin`  | 16px beside the frame, 24px from `sm` |
+| `gutter`  | 16px between columns, 24px from `sm`  |
+| `max`     | `80rem`, the widest the frame grows   |
+
+```ts
+import * as style from "@destack/style";
+import { frame } from "@destack/style/frame.stylex";
+
+// lay a page out on the frame's columns
+export const styles = style.create({
+    page: {
+        columnGap: frame.gutter,
+        display: "grid",
+        gridTemplateColumns: `repeat(${frame.columns}, minmax(0, 1fr))`,
+        marginInline: "auto",
+        width: `min(${frame.max}, 100% - 2 * ${frame.margin})`,
+    },
+});
+```
 
 ### Stylesheet
 

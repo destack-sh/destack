@@ -11,6 +11,7 @@
         ".": "./src/index.ts",
         "./build": "./src/build/index.ts",
         "./media.stylex": "./src/style/media.stylex.ts",
+        "./frame.stylex": "./src/style/frame.stylex.ts",
         "./preflight.css": "./src/preflight/preflight.css"
     },
     "scripts": {
