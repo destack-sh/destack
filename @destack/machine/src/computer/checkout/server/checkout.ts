@@ -238,12 +238,16 @@ export class CheckoutServer {
     ): Promise<PackageInspection> {
         // read the output's runtime, refusing an output the package does not build
         const located = WorkingTree.package(registered.root, input.directory);
-        const workspace = await Workspace.open(located.path, this.compilers);
-        const [selected] = Object.values(outputsOf(workspace.root.packageJson, [input.output]));
+        const workspacePackage = await (
+            await Workspace.open(located.path, this.compilers)
+        ).package();
+        const [selected] = Object.values(
+            outputsOf(workspacePackage.root.packageJson, [input.output]),
+        );
         const { runtime } = present(selected, `the output ${input.output}`);
 
         // inspect with the package's warm compiler on its workspace units' stored builds
-        const inspection = await workspace.inspect({ runtime });
+        const inspection = await workspacePackage.inspect({ runtime });
 
         return PackageInspection.parse(inspection);
     }

@@ -1,7 +1,7 @@
 import type { LocalGitEnvironment } from "@destack/git/local";
 import { join } from "node:path";
 import type { ClientOf } from "@destack/object/client";
-import { type CompilerPool, outputsOf, Workspace } from "@destack/build";
+import { type CompilerPool, outputsOf, Workspace, type WorkspacePackage } from "@destack/build";
 import type { PackageVersion } from "@destack/package";
 import type { BuildReader, Lock } from "@destack/package/manifest";
 import { type Controller, eq, type Select, Reconciliation } from "@destack/db";
@@ -135,12 +135,14 @@ export class BuildRunner {
     ): Promise<void> {
         // open the source and its workspace, compiling only its publisher's members as a published build does
         await using opened = await this.#open(target.spaceId, replicated, signal);
-        const workspace = await Workspace.open(opened.directory, this.#compilers, {
-            resolver: (dependency) => this.#release(dependency),
-            selection: "account",
-            host: await this.#builtins(),
-        });
-        const implied = outputsOf(workspace.root.packageJson);
+        const workspacePackage = await (
+            await Workspace.open(opened.directory, this.#compilers, {
+                resolver: (dependency) => this.#release(dependency),
+                selection: "account",
+                host: await this.#builtins(),
+            })
+        ).package();
+        const implied = outputsOf(workspacePackage.root.packageJson);
         const outputs = replicated.outputs ?? Object.keys(implied);
         await space.build.progress({
             ...target,
@@ -153,14 +155,16 @@ export class BuildRunner {
         });
 
         // compile the outputs with a warm compiler, then index the code for its primary runtime
-        const compiled = await this.#compile(workspace, opened, outputs, signal);
+        const compiled = await this.#compile(workspacePackage, opened, outputs, signal);
         const runtime = present(
             PRIMARY_RUNTIMES.find((each) =>
                 Object.values(implied).some((output) => output.runtime === each),
             ),
-            `a runtime ${workspace.root.name} ships`,
+            `a runtime ${workspacePackage.root.name} ships`,
         );
-        const code = new TextEncoder().encode(JSON.stringify(await workspace.index({ runtime })));
+        const code = new TextEncoder().encode(
+            JSON.stringify(await workspacePackage.index({ runtime })),
+        );
         const indexed = {
             digest: await Digest.of(code, this.#environment.crypto),
             size: code.byteLength,
@@ -177,7 +181,7 @@ export class BuildRunner {
             `${endpoint.url}${PUSH_PATH}/${target.spaceId}/${target.id}/`,
             endpoint.fetch,
         );
-        const digest = await workspace.lock(await compiled.digest());
+        const digest = await workspacePackage.lock(await compiled.digest());
         await pushing.push(this.#compilers.store, [digest], signal);
         await pushing.write(BuildObject.files([{ digest: indexed.digest, bytes: code }]), signal);
         await space.build.finish({
@@ -274,19 +278,19 @@ export class BuildRunner {
 
     /** Compile a package directory's outputs on its workspace units into the machine's store. */
     async #compile(
-        workspace: Workspace,
+        workspacePackage: WorkspacePackage,
         opened: SourceDirectory,
         outputs: readonly string[],
         signal: AbortSignal,
     ): Promise<BuildReader> {
         // stamp a build of uncommitted source as a prerelease
         const request = {
-            outputs: outputsOf(workspace.root.packageJson, outputs),
+            outputs: outputsOf(workspacePackage.root.packageJson, outputs),
             isPrerelease: opened.commit === undefined,
             signal,
         };
 
-        return workspace.build(request);
+        return workspacePackage.build(request);
     }
 
     /** Read a build's replica. */
