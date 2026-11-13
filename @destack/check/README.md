@@ -71,6 +71,7 @@ Every rule is an error, beside Oxlint's own rules.
 | `no-manifest-import`      | no package manifests read from source                                  |
 | `no-overload-cast`        | an implementation returning what its overloads return                  |
 | `no-partial-assertions`   | tests asserting complete values                                        |
+| `no-test-timeout`        | tests taking timeouts from their tier alone                             |
 | `no-system-environment`   | system effects only in entrypoints and the environment package         |
 | `padding-before-return`   | a blank line before a final return                                     |
 | `package-layout`          | only imports the package layout allows                                 |

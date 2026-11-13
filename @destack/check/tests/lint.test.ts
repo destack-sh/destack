@@ -901,6 +901,48 @@ tester.run("no-partial-assertions", rules["no-partial-assertions"], {
     ],
 });
 
+tester.run("no-test-timeout", rules["no-test-timeout"], {
+    valid: [
+        { code: "test('save a note', async () => {});", filename: "/package/tests/note.test.ts" },
+        {
+            code: "await expect.poll(() => saved).toBe(true);",
+            filename: "/package/tests/note.test.ts",
+        },
+        { code: "open({ timeout: 5000 });", filename: "/package/src/note.ts" },
+        {
+            code: "expect(options).toEqual({ testTimeout: 5000 });",
+            filename: "/package/tests/note.test.ts",
+        },
+    ],
+    invalid: [
+        {
+            code: "test('save a note', async () => {}, 5000);",
+            filename: "/package/tests/note.test.ts",
+            errors: [{ messageId: "timeout" }],
+        },
+        {
+            code: "test('save a note', { timeout: 5000 }, async () => {});",
+            filename: "/package/tests/note.test.ts",
+            errors: [{ messageId: "timeout" }],
+        },
+        {
+            code: "beforeAll(async () => {}, 5000);",
+            filename: "/package/tests/note.test.ts",
+            errors: [{ messageId: "timeout" }],
+        },
+        {
+            code: "await expect.poll(() => saved, { timeout: 2000 }).toBe(true);",
+            filename: "/package/tests/note.test.ts",
+            errors: [{ messageId: "timeout" }],
+        },
+        {
+            code: "export default { test: { testTimeout: 5000 } };",
+            filename: "/package/vitest.config.ts",
+            errors: [{ messageId: "key" }],
+        },
+    ],
+});
+
 tester.run("valid-package-handle", rules["valid-package-handle"], {
     valid: [
         { code: "export default definePackage({});", filename: PACKAGE_HANDLE, settings: SETTINGS },

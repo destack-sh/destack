@@ -16,6 +16,7 @@ import { noManifestImport } from "./no-manifest-import.ts";
 import { noOverloadCast } from "./no-overload-cast.ts";
 import { noPartialAssertions } from "./no-partial-assertions.ts";
 import { noSystemEnvironment } from "./no-system-environment.ts";
+import { noTestTimeout } from "./no-test-timeout.ts";
 import { paddingBeforeReturn } from "./padding-before-return.ts";
 import { preventAbbreviations } from "./prevent-abbreviations.ts";
 import { requireBlockComment } from "./require-block-comment.ts";
@@ -57,6 +58,7 @@ export const rules = {
     "no-overload-cast": noOverloadCast,
     "no-partial-assertions": noPartialAssertions,
     "no-system-environment": noSystemEnvironment,
+    "no-test-timeout": noTestTimeout,
     "padding-before-return": paddingBeforeReturn,
     "package-layout": packageLayout,
     "prevent-abbreviations": preventAbbreviations,
