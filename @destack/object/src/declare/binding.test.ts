@@ -35,6 +35,7 @@ const note = <Router extends ProcedureRouter>(owner: PackageVersion, procedures:
         hooks: {},
         procedures,
         shared: {},
+        requireValid: () => {},
     };
 
     return declaration satisfies ObjectDeclaration;

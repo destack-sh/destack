@@ -40,6 +40,7 @@ const query = (procedures: ProcedureRouter): ObjectDeclaration => ({
     hooks: {},
     procedures,
     shared: {},
+    requireValid: () => {},
 });
 
 /** A procedure without requirements. */

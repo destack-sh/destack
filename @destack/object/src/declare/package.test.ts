@@ -32,6 +32,7 @@ const note: ObjectDeclaration = {
     hooks: {},
     procedures: { create },
     shared: { replica: { push } },
+    requireValid: () => {},
 };
 
 test("declare a package handle with its identity, the router its objects derive, and its mounts", async () => {

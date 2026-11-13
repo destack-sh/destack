@@ -1,4 +1,9 @@
-import { type ErrorFamily, type ReasonDeclarations, ReasonDescription } from "@destack/error";
+import {
+    type ErrorFamily,
+    Failure,
+    type ReasonDeclarations,
+    ReasonDescription,
+} from "@destack/error";
 import { isContractProcedure } from "@orpc/contract";
 import type { Table } from "@destack/db";
 import {
@@ -42,6 +47,8 @@ export interface ObjectDeclaration {
     readonly procedures: ProcedureRouter;
     /** The procedures every declaration of its kind shares. */
     readonly shared: ProcedureRouter;
+    /** Require its members and traits valid, as describing or serving it does. */
+    readonly requireValid: () => void;
 }
 
 /** How people recognise a package: its title, description, icon and color. */
@@ -239,6 +246,20 @@ function handleOf<const Options extends PackageOptions, Identity extends object>
             "DEFINITION_INVALID",
             `mount path '${overlap}' is invalid: it overlaps another`,
         );
+    }
+
+    // refuse an object type whose members or traits it cannot serve
+    for (const object of Object.values(objects)) {
+        try {
+            object.requireValid();
+        } catch (error) {
+            const { message } = Failure.of(error);
+            throw PackageError.of(
+                "DEFINITION_INVALID",
+                `object ${object.name} is invalid: ${message}`,
+                { cause: error },
+            );
+        }
     }
 
     // refuse a mount answering below an object's routes, which would take its calls
