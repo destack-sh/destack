@@ -27,6 +27,7 @@ Failures and tests:
 Declare the mail, then send an email from your package's server:
 
 ```ts
+import { t } from "@destack/locale";
 import { defineMail } from "@destack/mail";
 import { defineMount, definePackage } from "@destack/object";
 import { implementPackage } from "@destack/object/server";
@@ -34,7 +35,14 @@ import { implementPackage } from "@destack/object/server";
 // declare the mail and a contact form's mount
 const outbound = defineMail({ name: "outbound" });
 const contact = defineMount({ name: "contact", path: "/contact" });
-const site = definePackage({ resources: [outbound], mounts: [contact] });
+const site = definePackage({
+    title: t`Site`,
+    description: t`Show a site's pages.`,
+    icon: "globe",
+    color: "blue",
+    resources: [outbound],
+    mounts: [contact],
+});
 
 export default implementPackage(site, (context) => {
     // read the bound transport

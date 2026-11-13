@@ -1,3 +1,4 @@
+import { testIdentity } from "@destack/object/test";
 import type { Environment } from "@destack/environment";
 import {
     defineObject,
@@ -91,7 +92,11 @@ function declarationsOf(owner: PackageVersion, type: ObjectType, route: string):
 
     return [
         { symbol, ...OBJECT_KIND.identity, description },
-        { symbol, ...PACKAGE_KIND.identity, description: describePackage(handle) },
+        {
+            symbol,
+            ...PACKAGE_KIND.identity,
+            description: describePackage({ ...handle, ...testIdentity }),
+        },
     ];
 }
 

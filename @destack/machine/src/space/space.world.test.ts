@@ -1,3 +1,4 @@
+import { testIdentity } from "@destack/object/test";
 import { eq } from "@destack/db";
 import { testBuild } from "@destack/object/test";
 import { expect, refusal, test } from "@destack/test";
@@ -32,7 +33,10 @@ async function installCaller(connect: readonly string[]) {
         reason: t`Call the example API`,
         sandbox: { network: { connect: [...connect] } },
     };
-    const handle = Package.of(released, { objects: [], capabilities: [{ name: "call", ...call }] });
+    const handle = {
+        ...Package.of(released, { objects: [], capabilities: [{ name: "call", ...call }] }),
+        ...testIdentity,
+    };
     const build = await testBuild(handle, testHost().crypto);
     const contexts: ServerContext[] = [];
     const fixture = await TestSpace.open({

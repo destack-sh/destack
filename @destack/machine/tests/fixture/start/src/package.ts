@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { client, space, user } from "@destack/account/object";
 import { definePackage, installation } from "@destack/object";
 import { declaration, installationRevision, rollout } from "@destack/stack/object";
@@ -5,6 +6,10 @@ import { setting } from "@destack/setting/object";
 
 /** The start page every person's home installs, granted what a start page reads. */
 export default definePackage({
+    title: t`Start`,
+    description: t`Open the start page.`,
+    icon: "house",
+    color: "orange",
     access: {
         permissions: {
             user: {

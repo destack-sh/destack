@@ -16,6 +16,10 @@ export { FORGE_INSTALLATION } from "./client/installation.ts";
 
 /** The handle stacks install the forge by, and clients call its packages and repositories by. */
 export default definePackage({
+    title: t`Forge`,
+    description: t`Host the Git repositories of accounts and publish, resolve and distribute their Destack packages.`,
+    icon: "git-branch",
+    color: "green",
     objects: [issuer, appInstallation],
     // the store of pushed builds, indexed beside the forge's objects
     tables: BUILD_STORE_TABLES,

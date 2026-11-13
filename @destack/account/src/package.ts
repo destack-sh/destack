@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { role, universe } from "@destack/access";
 import { defineMount, definePackage, proof } from "@destack/object";
 import { AccountError } from "./error/error.ts";
@@ -40,6 +41,10 @@ import { OAUTH_PATH } from "./address/address.ts";
 
 /** The account package: its objects, authentication records, OAuth mount and errors. */
 export default definePackage({
+    title: t`Accounts`,
+    description: t`Sign people and machines in, and manage their accounts, organizations and spaces.`,
+    icon: "user-circle",
+    color: "amber",
     objects: [
         user,
         session,

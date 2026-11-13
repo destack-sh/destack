@@ -1,3 +1,4 @@
+import { testIdentity } from "@destack/object/test";
 import type { Environment } from "@destack/environment";
 import { InstallationDefinition } from "@destack/stack/declare";
 import { install, StackDefinition } from "@destack/stack/declare";
@@ -1006,7 +1007,10 @@ async function fixtureRelease(
               {
                   ...PACKAGE_KIND.identity,
                   name: "default",
-                  description: describePackage(Package.of(owner, { objects: [] })),
+                  description: describePackage({
+                      ...Package.of(owner, { objects: [] }),
+                      ...testIdentity,
+                  }),
               },
               {
                   kind: "object",

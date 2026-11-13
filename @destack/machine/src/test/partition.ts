@@ -1,7 +1,7 @@
 import { Account, account, space } from "@destack/account/object";
-import { defineObject, field, Package } from "@destack/object";
+import { defineObject, definePackage, field } from "@destack/object";
 import { implementPackage } from "@destack/object/server";
-import { testBuild, type TestObjectStore } from "@destack/object/test";
+import { testBuild, testIdentity, type TestObjectStore } from "@destack/object/test";
 import { testHost } from "@destack/test/host";
 import { TestPackage } from "./package.ts";
 import { PackageVersion } from "@destack/package";
@@ -51,7 +51,7 @@ export const memo = defineObject(
 );
 
 /** The package of the cards and memos. */
-export const board = Package.of(BOARD, { objects: [card, memo] });
+export const board = definePackage({ ...testIdentity, objects: [card, memo] }, { package: BOARD });
 
 /** The board as a test space installs it: linked and served in process. */
 export const BOARD_PACKAGE: TestPackage = {

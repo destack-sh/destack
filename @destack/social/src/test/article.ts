@@ -1,6 +1,7 @@
+import { testIdentity } from "@destack/object/test";
 import { space } from "@destack/account/object";
 import { activity, announcement, Subscription, subscription } from "@destack/notification/object";
-import { defineObject, field, Package } from "@destack/object";
+import { defineObject, definePackage, field } from "@destack/object";
 import { implementPackage } from "@destack/object/server";
 import { PackageVersion } from "@destack/package";
 import { schema } from "@destack/schema";
@@ -53,7 +54,10 @@ export const article = defineObject(
 );
 
 /** The articles package's handle. */
-export const articlesPackage = Package.of(ARTICLES, { objects: [article] });
+export const articlesPackage = definePackage(
+    { ...testIdentity, objects: [article] },
+    { package: ARTICLES },
+);
 
 /** The articles package's server, subscribing each article's creator to it. */
 export const articlesServer = implementPackage(articlesPackage, {

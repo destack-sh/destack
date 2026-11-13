@@ -42,7 +42,13 @@ export const pageSize = defineSetting({
     overrides: ["installation"],
 });
 const notes = defineMount({ name: "notes", path: "/notes" });
-const notesPackage = definePackage({ mounts: [notes] });
+const notesPackage = definePackage({
+    title: t`Notes`,
+    description: t`Keep notes.`,
+    icon: "note",
+    color: "yellow",
+    mounts: [notes],
+});
 
 export default implementPackage(notesPackage, (context) => {
     // read the resolved value

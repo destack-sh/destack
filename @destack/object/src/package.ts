@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { definePackage } from "./declare/package.ts";
 import { grant, invitation, proof, relationship, role } from "./access/index.ts";
 import { call } from "./audit/call.ts";
@@ -9,6 +10,10 @@ import { chunk, chunkRun } from "./text/table.ts";
 
 /** The handle a space and a machine serve their call log and access objects through. */
 export default definePackage({
+    title: t`Objects`,
+    description: t`Declare object types with access, methods and sync, and call them from anywhere.`,
+    icon: "cube",
+    color: "blue",
     objects: [
         call,
         role,

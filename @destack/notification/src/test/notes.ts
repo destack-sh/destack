@@ -1,9 +1,9 @@
 import { space, user } from "@destack/account/object";
 import { principal, relation, union } from "@destack/access";
 import { argument, type Catalog, Message, plural, t } from "@destack/locale";
-import { defineObject, field, Package } from "@destack/object";
+import { defineObject, definePackage, field } from "@destack/object";
 import { implementPackage } from "@destack/object/server";
-import { testBuild } from "@destack/object/test";
+import { testBuild, testIdentity } from "@destack/object/test";
 import type { Crypto } from "@destack/environment";
 import { PackageVersion } from "@destack/package";
 import type { BuildReader } from "@destack/package/manifest";
@@ -298,7 +298,10 @@ const NOTES_CATALOG: Catalog = {
 };
 
 /** The documents package's handle. */
-export const notesPackage = Package.of(NOTES, { objects: [document] });
+export const notesPackage = definePackage(
+    { ...testIdentity, objects: [document] },
+    { package: NOTES },
+);
 
 /** The documents package's server. */
 export const notesServer = implementPackage(notesPackage, { objects: [documentHandlers] });

@@ -1,3 +1,4 @@
+import { testIdentity } from "@destack/object/test";
 import { testSimulation } from "@destack/test/world";
 import { BrowserSimulation } from "@destack/environment/browser/simulation";
 import type { BrowserEnvironment } from "@destack/environment/browser";
@@ -125,7 +126,13 @@ const tally = defineObject(
 );
 
 /** A package answering how many notes a person keeps. */
-const counter = definePackage({ objects: [tally] }, { package: COUNTER });
+const counter = definePackage(
+    {
+        ...testIdentity,
+        objects: [tally],
+    },
+    { package: COUNTER },
+);
 
 /** Show the note count the counter package answers. */
 function Count() {

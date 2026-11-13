@@ -36,7 +36,7 @@ export default function Home() {
     return (
         <main {...style.attrs(styles.page)}>
             {/* Title */}
-            <h1 {...style.attrs(text.largeTitle)}>{locale.render(t`Home`)}</h1>
+            <h1 {...style.attrs(text["3xl"])}>{locale.render(t`Home`)}</h1>
 
             {/* Spaces */}
             <Card>

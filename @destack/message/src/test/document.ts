@@ -1,5 +1,6 @@
+import { testIdentity } from "@destack/object/test";
 import { space } from "@destack/account/object";
-import { defineObject, field, Package } from "@destack/object";
+import { defineObject, definePackage, field } from "@destack/object";
 import { implementPackage } from "@destack/object/server";
 import { PackageVersion } from "@destack/package";
 import { schema } from "@destack/schema";
@@ -36,7 +37,10 @@ export const document = defineObject(
 );
 
 /** The documents package's handle. */
-export const documentsPackage = Package.of(DOCUMENTS, { objects: [document] });
+export const documentsPackage = definePackage(
+    { ...testIdentity, objects: [document] },
+    { package: DOCUMENTS },
+);
 
 /** The documents package's server. */
 export const documentsServer = implementPackage(documentsPackage, { objects: [document] });

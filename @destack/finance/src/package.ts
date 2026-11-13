@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { account, residency } from "@destack/account/object";
 import { definePackage } from "@destack/object";
 import { FinanceError } from "./error/error.ts";
@@ -21,6 +22,10 @@ export const FINANCE_INSTALLATION = "finance";
 
 /** The handle stacks install finance by, and clients call its products and prices by. */
 export default definePackage({
+    title: t`Finance`,
+    description: t`Sell products with features, bill accounts for subscriptions and usage, and derive their entitlements.`,
+    icon: "receipt",
+    color: "violet",
     objects: [
         customer,
         seller,

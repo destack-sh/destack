@@ -1,3 +1,4 @@
+import { testIdentity } from "@destack/object/test";
 import type { Crypto } from "@destack/environment";
 import { OTLP_ORIGIN_PATH } from "@destack/telemetry/otlp";
 import { eq } from "@destack/db";
@@ -73,6 +74,7 @@ const notes = PackageVersion.parse({
 /** The notes package: it reads the person's settings, writes them once asked, and scans notes. */
 const notesPackage = definePackage(
     {
+        ...testIdentity,
         access: {
             permissions: {
                 user: { home: [setting.permission("read")] },
@@ -125,6 +127,7 @@ const task = defineObject(
 /** The tasks package's handle: its board reads and manages the person's tasks in the space. */
 const tasksPackage = definePackage(
     {
+        ...testIdentity,
         objects: [task],
         access: {
             permissions: { user: { space: [task.permission("read"), task.permission("manage")] } },
@@ -263,6 +266,7 @@ const article = defineObject(
 /** The articles package's handle: its reader reads, writes and shares the person's articles. */
 const articlesPackage = definePackage(
     {
+        ...testIdentity,
         objects: [article],
         access: {
             permissions: {

@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { principal } from "@destack/access";
 import { BUILD_STORE_TABLES } from "@destack/build/table";
 import { defineMount, definePackage, installation } from "@destack/object";
@@ -32,6 +33,10 @@ export const HOOK_PATH = "/hooks";
 
 /** The handle spaces serve their stack through, and machines and people call it by. */
 export default definePackage({
+    title: t`Stack`,
+    description: t`Declare and apply a space's stack: its installations, resources, bindings, deployments, routes, runs and transfers.`,
+    icon: "stack",
+    color: "green",
     objects: [
         rollout,
         installationRevision,

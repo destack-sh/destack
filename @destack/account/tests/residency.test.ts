@@ -35,7 +35,8 @@ import {
 } from "../src/test/index.ts";
 import type { TestCaller } from "@destack/object/test";
 import { claimNames, firstPage, place } from "./fixture.ts";
-import { Claim, Claimant, PACKAGE_KIND, Package, QUERIES_PUBLICATION } from "@destack/object";
+import { Claim, Claimant, definePackage, PACKAGE_KIND, QUERIES_PUBLICATION } from "@destack/object";
+import { testIdentity } from "@destack/object/test";
 import { describePackage } from "@destack/object/inspect";
 import { PackageVersion } from "@destack/package";
 import { MemoryBuild } from "@destack/package/test";
@@ -482,9 +483,13 @@ test("relate an installation its residency's space declares once its release ask
     await using fixture = await TestAccountStore.open({
         openRelease: (packageId) => {
             const owner = present(opened.get(packageId), `the release of ${packageId}`);
-            const handle = Package.of(owner, {
-                access: { permissions: { space: { universe: asking.get(packageId) ?? [] } } },
-            });
+            const handle = definePackage(
+                {
+                    ...testIdentity,
+                    access: { permissions: { space: { universe: asking.get(packageId) ?? [] } } },
+                },
+                { package: owner },
+            );
 
             return MemoryBuild.of(
                 owner,
@@ -590,19 +595,23 @@ test("let an installation its residency's home declares entitle the residency's 
                         ...PACKAGE_KIND.identity,
                         name: "default",
                         description: describePackage(
-                            Package.of(billing, {
-                                access: {
-                                    permissions: {
-                                        space: {
-                                            universe: [
-                                                account.permission("entitle"),
-                                                account.permission("serve"),
-                                                residency.permission("locate"),
-                                            ],
+                            definePackage(
+                                {
+                                    ...testIdentity,
+                                    access: {
+                                        permissions: {
+                                            space: {
+                                                universe: [
+                                                    account.permission("entitle"),
+                                                    account.permission("serve"),
+                                                    residency.permission("locate"),
+                                                ],
+                                            },
                                         },
                                     },
                                 },
-                            }),
+                                { package: billing },
+                            ),
                         ),
                     },
                 ],

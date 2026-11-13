@@ -22,6 +22,7 @@ Vault objects:
 Declare a vault and a generated signing key, then read the key in your package's server:
 
 ```ts
+import { t } from "@destack/locale";
 import { definePackage, defineMount } from "@destack/object";
 import { implementPackage } from "@destack/object/server";
 import { SecretReading } from "@destack/resource";
@@ -34,7 +35,14 @@ const signingKey = defineSecret({
     generated: { vault: "keys", algorithm: "ES256" },
 });
 const status = defineMount({ name: "status", path: "/status" });
-const push = definePackage({ resources: [keys, signingKey], mounts: [status] });
+const push = definePackage({
+    title: t`Push`,
+    description: t`Push notifications to devices.`,
+    icon: "bell-ringing",
+    color: "pink",
+    resources: [keys, signingKey],
+    mounts: [status],
+});
 
 export default implementPackage(push, (context) => {
     // read the bound secret

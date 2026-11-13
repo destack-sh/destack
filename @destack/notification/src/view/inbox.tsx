@@ -155,7 +155,7 @@ export function NotificationInbox(properties: NotificationInboxProperties): JSX.
             aria-label={locale.render(t`Notifications`)}
             data-slot="notification-inbox"
             {...rest}
-            {...style.attrs(text.footnote, styles.inbox, properties.style)}
+            {...style.attrs(text.xs, styles.inbox, properties.style)}
         >
             {/* Entries, once the view knows the time */}
             <Show when={inbox()}>
@@ -205,7 +205,7 @@ function NotificationRow(properties: {
                     {properties.entry.activity.summary}
                     <time
                         datetime={new Date(properties.entry.activity.occurredAt).toISOString()}
-                        {...style.attrs(text.caption, styles.time)}
+                        {...style.attrs(text.xs, styles.time)}
                     >
                         <Show when={properties.now()}>
                             {(time) =>

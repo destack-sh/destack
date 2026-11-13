@@ -23,6 +23,7 @@ Connections hold the credentials:
 Declare GitHub's API, then call it from your package's server:
 
 ```ts
+import { t } from "@destack/locale";
 import { defineConnection } from "@destack/connection/declare";
 import { defineMount, definePackage } from "@destack/object";
 import { implementPackage } from "@destack/object/server";
@@ -33,7 +34,14 @@ const github = defineConnection({
     spec: { resource: "https://api.github.com", scopes: ["repo"] },
 });
 const repositories = defineMount({ name: "repositories", path: "/repositories" });
-const site = definePackage({ resources: [github], mounts: [repositories] });
+const site = definePackage({
+    title: t`Site`,
+    description: t`Show a site's pages.`,
+    icon: "globe",
+    color: "blue",
+    resources: [github],
+    mounts: [repositories],
+});
 
 export default implementPackage(site, (context) => {
     // read the bound connection

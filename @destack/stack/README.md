@@ -23,13 +23,20 @@ Spaces apply them:
 Declare a stack that provisions a bucket and installs a package with it:
 
 ```ts
+import { t } from "@destack/locale";
 import { defineBucket } from "@destack/bucket/declare";
 import { definePackage } from "@destack/object";
 import { defineStack, install } from "@destack/stack";
 
 // declare a package that uses a bucket
 const files = defineBucket({ name: "files" });
-const notes = definePackage({ resources: [files] });
+const notes = definePackage({
+    title: t`Notes`,
+    description: t`Keep notes.`,
+    icon: "note",
+    color: "yellow",
+    resources: [files],
+});
 
 // provision the bucket, and install the package with it
 export const personal = defineStack({

@@ -22,6 +22,10 @@ import { t } from "@destack/locale";
 
 /** The handle spaces serve issues, alerts, telemetry and analytics through. */
 export default definePackage({
+    title: t`Observability`,
+    description: t`Query, follow and alert on the telemetry and analytics of Destack scopes, group their failures into issues, and measure what their spaces use.`,
+    icon: "pulse",
+    color: "violet",
     objects: [
         issue,
         issuePerson,

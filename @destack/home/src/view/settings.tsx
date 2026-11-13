@@ -33,7 +33,7 @@ export default function Settings() {
     return (
         <main {...style.attrs(styles.page)}>
             {/* Title */}
-            <h1 {...style.attrs(text.largeTitle)}>{locale.render(t`Settings`)}</h1>
+            <h1 {...style.attrs(text["3xl"])}>{locale.render(t`Settings`)}</h1>
 
             {/* Apps with access, kept at the universe */}
             <a href={apps} {...style.attrs(itemVariants({ variant: "outline" }))}>

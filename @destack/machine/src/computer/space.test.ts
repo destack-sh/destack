@@ -1,3 +1,4 @@
+import { testIdentity } from "@destack/object/test";
 import { Failure } from "@destack/error";
 import type { ResourceDeclaration } from "@destack/resource";
 import { log, LogData } from "@destack/observability/object";
@@ -62,7 +63,12 @@ const echo = PackageVersion.parse({
 });
 
 /** The echo package's handle. */
-const echoPackage = definePackage({}, { package: echo });
+const echoPackage = definePackage(
+    {
+        ...testIdentity,
+    },
+    { package: echo },
+);
 
 /** The echo package's workload, which answers each call with its path and caller. */
 const echoWorkload = defineWorkload(

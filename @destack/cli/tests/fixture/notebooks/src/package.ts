@@ -27,4 +27,10 @@ export const notebook = defineObject(
 );
 
 /** The notebooks Acme publishes. */
-export default definePackage({ objects: [notebook] });
+export default definePackage({
+    title: t`Notebooks`,
+    description: t`Keep notebooks.`,
+    icon: "notebook",
+    color: "yellow",
+    objects: [notebook],
+});

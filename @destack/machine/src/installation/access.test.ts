@@ -1,3 +1,4 @@
+import { testIdentity } from "@destack/object/test";
 import { schema } from "@destack/schema";
 import {
     AccessContext,
@@ -19,6 +20,7 @@ import { InstallationAccess } from "./access.ts";
 
 /** The description of a notes release requesting reading the space and its own notes. */
 const DESCRIPTION: PackageDescription = {
+    ...testIdentity,
     api: { name: "notes", procedures: [] },
     objects: {},
     mounts: {},

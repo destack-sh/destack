@@ -6,6 +6,7 @@ import {
     PACKAGE_KIND,
     PACKAGE_EXPORT,
     type Package,
+    type PackageIdentity,
 } from "@destack/object";
 import { describePackage } from "@destack/object/inspect";
 import { graph, type PackageVersion } from "@destack/package";
@@ -38,7 +39,7 @@ export const TestViewBuild = {
             /** The build's other files, by path. */
             readonly files?: ReadonlyMap<string, Uint8Array<ArrayBuffer>>;
             /** The package's definition, declared as its build would, with its object types. */
-            readonly package?: Package;
+            readonly package?: Package & PackageIdentity;
             /** The object types the package declares, its definition's when absent. */
             readonly objects?: readonly ObjectType[];
             /** The builds of the Destack packages it depends on, which it requires and imports. */

@@ -1,3 +1,4 @@
+import { testIdentity } from "@destack/object/test";
 import { expect, refusal, test } from "@destack/test";
 import { eq, Snapshot } from "@destack/db";
 import { Identifier, present, Digest, nth } from "@destack/schema";
@@ -310,7 +311,7 @@ test("relate a residency home's declared installation at the universe once a pas
             {
                 ...PACKAGE_KIND.identity,
                 name: PACKAGE_EXPORT,
-                description: describePackage(registry),
+                description: describePackage({ ...registry, ...testIdentity }),
             },
         ],
         testHost().crypto,
@@ -359,7 +360,7 @@ test("relate a shipped server as consumer of the bucket it binds while its revis
             {
                 ...PACKAGE_KIND.identity,
                 name: PACKAGE_EXPORT,
-                description: describePackage(boxes),
+                description: describePackage({ ...boxes, ...testIdentity }),
             },
             {
                 ...box.kind.identity,

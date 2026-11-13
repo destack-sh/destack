@@ -1,3 +1,4 @@
+import { t } from "@destack/locale";
 import { client, space, user } from "@destack/account/object";
 import { definePackage, installation } from "@destack/object";
 import { declaration, installationRevision, rollout } from "@destack/stack/object";
@@ -5,6 +6,10 @@ import { setting } from "@destack/setting/object";
 
 /** The handle clients import to address this package. */
 export default definePackage({
+    title: t`Home`,
+    description: t`Start from Home: see your spaces and their apps, approve their plans, search commands and change your settings.`,
+    icon: "house",
+    color: "pink",
     access: {
         permissions: {
             user: {
