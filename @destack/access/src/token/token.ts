@@ -153,11 +153,8 @@ export class TokenVerifier {
 
     /** Verify an access token for an audience at a time, optionally for one partition. */
     verify(token: string, verification: TokenVerification): Promise<Authentication> {
-        return this.#scope.span(
-            "destack.access.token.verify",
-            {},
-            () => this.#verify(token, verification),
-            { duration: { attributes: {} } },
+        return this.#scope.span("destack.access.token.verify", {}, () =>
+            this.#verify(token, verification),
         );
     }
 

@@ -1461,11 +1461,8 @@ export class Authorizer {
         links?: readonly ScopeLink[],
         assumed?: number,
     ): Promise<Access> {
-        return this.scope(snapshot.database).span(
-            "destack.access.resolve",
-            {},
-            () => Access.resolve(snapshot, scope, context, this, links, assumed),
-            { duration: { attributes: {} } },
+        return this.scope(snapshot.database).span("destack.access.resolve", {}, () =>
+            Access.resolve(snapshot, scope, context, this, links, assumed),
         );
     }
 
