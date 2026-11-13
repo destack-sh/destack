@@ -1,4 +1,4 @@
-import { TEST_START, testSimulation } from "@destack/test/world";
+import { TEST_START, testSimulation, testWorldOptions } from "@destack/test/world";
 import { Simulation } from "@destack/environment/simulation";
 import { expect, test } from "@destack/test";
 import { schema } from "../index.ts";
@@ -10,7 +10,11 @@ const UUID = "01996ab0-0000-7000-8000-000000000001";
 /** Create two notes in the first millisecond of a seeded world and one in the next. */
 async function createNotes(seed: number): Promise<string[]> {
     // create two identifiers, advance the clock, and create a third
-    await using simulation = new Simulation({ seed, start: TEST_START });
+    await using simulation = new Simulation({
+        world: testWorldOptions(),
+        seed,
+        start: TEST_START,
+    });
     const environment = simulation.environment("schema");
     const created = [
         Identifier.create("note", environment),
