@@ -305,6 +305,11 @@ export class Control implements AsyncDisposable {
         };
 
         // answer each package to bearers of the universe's access tokens, the first running the controllers
+        const verifier = AccountAuthentication.universe(
+            Snapshot.live(database),
+            issuer,
+            options.environment,
+        );
         const servers = new Map(
             store.packages.map((implementation, index) => [
                 implementation.package.id,
@@ -314,12 +319,9 @@ export class Control implements AsyncDisposable {
                     health: new Health(implementation.package.name),
                     resources: new ResourceContext(),
                     authenticate: (request) =>
-                        AccountAuthentication.bearer(request, {
-                            database,
-                            issuer,
+                        AccountAuthentication.bearer(request, verifier, {
                             audience: implementation.package.id,
                             now: clock.now(),
-                            environment: options.environment,
                         }),
                     authorizeMachine: async () => {},
                     drainTimeout: DRAIN_MILLISECONDS,
