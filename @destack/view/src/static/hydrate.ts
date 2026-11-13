@@ -1,4 +1,4 @@
-import type { Environment } from "@destack/environment";
+import { Environment } from "@destack/environment";
 import type { BrowserCapability } from "@destack/environment/browser";
 import { Localization, SOURCE_LOCALE } from "@destack/locale";
 import type { JsonObject } from "@destack/schema";
@@ -30,7 +30,11 @@ export async function hydrateStatic(
 ): Promise<void> {
     // hydrate the page under the page's telemetry
     const telemetry = await startPageTelemetry(view, environment);
-    const page = await StaticPage.open(view, declared, { ...environment, telemetry });
+    const page = await StaticPage.open(
+        view,
+        declared,
+        Environment.with(environment, { telemetry }),
+    );
     const dispose = hydrate(() => page.render(), document);
 
     // follow the page until it goes
@@ -45,7 +49,7 @@ export async function hydrateIslands(
 ): Promise<void> {
     // load every island's component at once, each root with its module and properties
     const telemetry = await startPageTelemetry(view, environment);
-    const rendered = { ...environment, telemetry };
+    const rendered = Environment.with(environment, { telemetry });
     const localization = Localization.of(SOURCE_LOCALE, []);
     const roots = [...document.querySelectorAll<HTMLElement>("[data-island]")];
     const loaded = await Promise.all(roots.map((root) => loadIsland(root, islands)));
