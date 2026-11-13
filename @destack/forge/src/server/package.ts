@@ -89,7 +89,7 @@ export function implementPackageObject(options: ReleaseOptions): typeof packageO
     return packageObject.implement({
         methods: {
             publish: {
-                prepare: (context) => ReleaseMethod.check(context, options),
+                prepare: (context) => ReleaseMethod.prepare(context, options),
                 handle: (context) => PackageMethod.publish(context),
             },
             resolve: {

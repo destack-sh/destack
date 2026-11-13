@@ -182,6 +182,37 @@ test("release a stored lock under a tag, answer the same release under another t
     ]);
 });
 
+test("answer the release of a version again for another lock of the same build", async () => {
+    // lock one build of answer with two builds of a library it depends on
+    const forge = await TestForge.open();
+    const releases = new Registry(async () => forge.registry(), forge.environment);
+    const { crypto } = forge.environment;
+    const { id, name } = PackageManifest.package((await fixtureBuild("answer")).reader.manifest);
+    const version = PackageVersion.parse({ id, name, version: PRERELEASE_VERSION });
+    const library = PackageVersion.parse({
+        id: "package-01996ab0-0000-7000-8000-0000000000f1",
+        name: "@example/library",
+        version: "2026.9.0",
+    });
+    await using store = await TestBuildStore.create(forge.environment);
+    const root = await store.put(await MemoryBuild.of(version, [], crypto));
+    const locked = async (notes: string) => {
+        const files = new Map([["notes.txt", new TextEncoder().encode(notes)]]);
+        const built = await store.put(await MemoryBuild.of(library, [], crypto, { files }));
+
+        return await store.putLock(
+            Lock.of(root, { [root]: { [library.name]: built }, [built]: {} }),
+        );
+    };
+    const first = await locked("first");
+    const second = await locked("second");
+
+    // release both locks at the version, keeping the first
+    await releases.release(store, [first], ACCOUNT_ID, LATEST_TAG);
+    await releases.release(store, [second], ACCOUNT_ID, LATEST_TAG);
+    expect(await releases.find(id, PRERELEASE_VERSION)).toBe(first);
+});
+
 test("publish a lock's builds of its account in dependency order, answering the same releases again", async () => {
     // lock greeting with the answer build it requires in one store
     const forge = await TestForge.open();

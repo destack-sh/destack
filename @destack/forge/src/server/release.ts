@@ -26,10 +26,10 @@ export interface ReleaseOptions {
     readonly store: BuildStore;
 }
 
-/** The release methods' handlers: checking, publishing, resolving, deprecating and yanking. */
+/** The release methods' handlers: preparing, publishing, resolving, deprecating and yanking. */
 export const ReleaseMethod = {
-    /** Check a pushed lock of a package under its global name, before the publish's transaction. */
-    async check(
+    /** Check and copy up a pushed lock before the publish's transaction. */
+    async prepare(
         context: MethodContextOf<typeof packageObject, "publish", Candidate | undefined>,
         options: ReleaseOptions,
     ): Promise<Candidate> {
@@ -47,6 +47,8 @@ export const ReleaseMethod = {
         }
         const read = await store.lock(lock);
         const contents = await store.contents(read.root);
+
+        // refuse a release of uncommitted changes that is no prerelease
         if (commit === undefined && !Version.isPrerelease(contents.manifest.package.version)) {
             throw ForgeError.of(
                 "BUILD_INVALID",
@@ -79,9 +81,25 @@ export const ReleaseMethod = {
         const entries = await store.entriesOf(read);
         await ReleaseMethod.requirePublished(context, id, entries);
 
+        // answer the release of this version again when another lock of the same build published it
+        const [taken] = await context
+            .read(release)
+            .findMany({ where: { parentId, version }, limit: 1 });
+        const isRepeated =
+            taken !== undefined &&
+            taken.lock !== lock &&
+            (await store.lock(taken.lock)).root === read.root;
+
+        // copy up the lock and every build it lists that the host's distribution ships
+        const builds = Object.values(entries).map((entry) => ({
+            kind: "manifest" as const,
+            digest: entry.manifest,
+        }));
+        await store.copyUp([{ kind: "lock", digest: lock }, ...builds]);
+
         // read the root's declarations
         return {
-            lock,
+            lock: isRepeated ? taken.lock : lock,
             ...(commit === undefined ? {} : { commit }),
             version,
             declarations: await contents.declarations(),
