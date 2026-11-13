@@ -364,6 +364,13 @@ export const Build = {
         return FINISHED_BUILD_STATES.some((state) => state === entry.state);
     },
 
+    /** Read the commit a build compiled: its source's, else a clean checkout's, absent if dirty. */
+    commit(entry: Pick<Select<typeof build.table>, "source" | "commit">): string | undefined {
+        const { source } = entry;
+
+        return source.kind === "commit" ? source.commit : (entry.commit ?? undefined);
+    },
+
     /** Read a build's lock. */
     lock(entry: Pick<Select<typeof build.table>, "id" | "expiredAt" | keyof BuildState>): Digest {
         // read a succeeded build's lock until retention removes its files

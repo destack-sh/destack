@@ -89,6 +89,7 @@ export interface BuildOptions {
         lock: Digest,
         account: Identifier<"account">,
         tag: string,
+        commit: string | undefined,
         caller: Caller,
         requested: GrantRequest,
     ) => Promise<readonly PackageRelease[]>;
@@ -541,6 +542,7 @@ export function implementBuild(options: BuildOptions) {
                             Build.lock(context.target),
                             context.input.account,
                             context.input.tag ?? LATEST_TAG,
+                            Build.commit(context.target),
                             context.caller,
                             await publishRequest(context),
                         )),

@@ -2020,7 +2020,10 @@ export class TestSpace implements AsyncDisposable {
         const name = released.name.slice(released.name.lastIndexOf("/") + 1);
         const declared = {
             packageId: released.id,
-            selection: { kind: "release" as const, version: released.version },
+            selection:
+                options.isolation === "host"
+                    ? { kind: "host" as const }
+                    : { kind: "release" as const, version: released.version },
             status: "enabled" as const,
             name,
             bindings: options.bindings ?? {},
