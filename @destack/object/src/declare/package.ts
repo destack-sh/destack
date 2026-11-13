@@ -52,7 +52,7 @@ export interface PackageIdentity {
     readonly description: Message;
     /** The Phosphor icon its app's tile draws, such as `calendar-blank`. */
     readonly icon: string;
-    /** The swatch the stack draws it in wherever it appears, such as its tile, traces and diagrams. */
+    /** The swatch the stack draws it in, such as on its tile, in traces and in diagrams. */
     readonly color: SwatchName;
 }
 
@@ -186,7 +186,7 @@ export const Package = {
     },
 };
 
-/** Build a package's handle from its version and what it declares, with its identity when declared. */
+/** Build a package's handle from its version, what it declares and any identity. */
 function handleOf<const Options extends PackageOptions, Identity extends object>(
     owner: PackageVersion,
     options: Options,
@@ -263,6 +263,7 @@ function handleOf<const Options extends PackageOptions, Identity extends object>
     // route the objects' procedures on first use, which spares a package's import the work
     let router: PackageRouter<Options> | undefined;
 
+    // build the handle, its procedures routed lazily
     const handle: Package<Options> & { readonly [PACKAGE]: PackageVersion } = {
         [PACKAGE]: owner,
         ...owner,
