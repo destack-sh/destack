@@ -247,11 +247,29 @@ export function defineWorkflow<
                             new Run(workflow, present(call.target, "the run")).reset(call),
                         // close the children ending with the run on each transition ending it
                         complete: (call, next) =>
-                            Run.end(workflow, call, present(call.target, "the run"), next),
+                            Run.end(
+                                workflow,
+                                call,
+                                present(call.target, "the run"),
+                                "completed",
+                                next,
+                            ),
                         fail: (call, next) =>
-                            Run.end(workflow, call, present(call.target, "the run"), next),
+                            Run.end(
+                                workflow,
+                                call,
+                                present(call.target, "the run"),
+                                "failed",
+                                next,
+                            ),
                         cancel: (call, next) =>
-                            Run.end(workflow, call, present(call.target, "the run"), next),
+                            Run.end(
+                                workflow,
+                                call,
+                                present(call.target, "the run"),
+                                "cancelled",
+                                next,
+                            ),
                     },
                     controllers: [
                         {

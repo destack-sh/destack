@@ -24,6 +24,7 @@ import { type RunContext, Step, Suspension } from "../step/step.ts";
 import { recorded, type RunType, type WaitOf, type Workflow } from "../workflow/workflow.ts";
 import type {} from "@destack/package/import-meta";
 import { WorkflowError } from "../error/index.ts";
+import { TelemetryScope } from "@destack/telemetry";
 
 /** The states of a run: due, waiting to wake, paused by its actor, or ended. */
 export const RUN_STATES = [
@@ -47,6 +48,12 @@ export const ENDED_STATES = [
     "failed",
     "cancelled",
 ] as const satisfies readonly RunState[];
+
+/** A state a run ends in. */
+export type EndedState = (typeof ENDED_STATES)[number];
+
+/** The milliseconds in a second, as OpenTelemetry records durations in seconds. */
+const MILLISECONDS_PER_SECOND = 1000;
 
 /** A run of a workflow: its state, input, attempts and wake times, advanced step by step. */
 export class Run<Input = unknown, Output = unknown, Waits extends ObjectType = ObjectType> {
@@ -188,18 +195,41 @@ export class Run<Input = unknown, Output = unknown, Waits extends ObjectType = O
     /** End a run through a transition, cancelling in the same call the children ending with it. */
     static async end<Input, Output, Waits extends ObjectType, Ended>(
         workflow: Workflow<Input, Output, Waits>,
-        context: Pick<MethodContext, "read" | "objects" | "mutate" | "self">,
+        context: Pick<
+            MethodContext,
+            "read" | "objects" | "mutate" | "self" | "now" | "environment"
+        >,
         target: Run["row"],
+        state: EndedState,
         next: () => Promise<Ended>,
     ): Promise<Ended> {
-        // end the run, then cancel its live children that end with it
+        // end the run, counting it by the state it ends in, with its time since it began
         const ended = await next();
+        Run.#count(context, target, state);
+
+        // cancel its live children that end with it
         const closing = await new Run(workflow, target).closeChildren(context);
         if (closing.length > 0) {
             await context.mutate(context.self, closing);
         }
 
         return ended;
+    }
+
+    /** Record a run ending by the state it ends in, with its time since it was created. */
+    static #count(
+        context: Pick<MethodContext, "now" | "environment">,
+        target: Run["row"],
+        state: EndedState,
+    ): void {
+        // record its time since it was created, the duration's count counting the runs by state
+        const seconds = (context.now - target.createdAt) / MILLISECONDS_PER_SECOND;
+        TelemetryScope.of(import.meta.destack.package, context.environment.telemetry)
+            .metric.histogram("destack.workflow.run.duration", {
+                unit: "s",
+                attributes: { "destack.workflow.run.state": ENDED_STATES },
+            })
+            .record(seconds, { "destack.workflow.run.state": state });
     }
 
     /** Build the calls cancelling the live child runs the run's invoke steps started. */
@@ -246,7 +276,35 @@ export class Run<Input = unknown, Output = unknown, Waits extends ObjectType = O
     }
 
     /** Advance the run to its next wait, output, retry or failure, answering when it wakes. */
-    async advance(
+    advance(
+        code: (step: Step<WaitOf<Waits>>, input: Input, context: RunContext) => Promise<Output>,
+        reconciliation: ObjectReconciliation,
+    ): Promise<void> {
+        // pass a run sleeping until later without a span, unless its deadline passed
+        const { now } = reconciliation;
+        const isLate = this.row.deadline !== null && this.row.deadline <= now;
+        const isSleeping =
+            this.row.wakeAt !== null && this.row.wakeAt > now && this.row.waitType === null;
+        if (isSleeping && !isLate) {
+            return Promise.resolve();
+        }
+
+        // advance it in its span
+        const { telemetry } = reconciliation.store.environment;
+        const attributes = {
+            "destack.workflow.name": this.workflow.name,
+            "destack.workflow.run.id": this.row.id,
+        };
+
+        return TelemetryScope.of(import.meta.destack.package, telemetry).span(
+            "destack.workflow.advance",
+            attributes,
+            () => this.#advance(code, reconciliation),
+        );
+    }
+
+    /** Fail a run past its deadline, else take its start and slot and run its steps. */
+    async #advance(
         code: (step: Step<WaitOf<Waits>>, input: Input, context: RunContext) => Promise<Output>,
         reconciliation: ObjectReconciliation,
     ): Promise<void> {
@@ -266,11 +324,6 @@ export class Run<Input = unknown, Output = unknown, Waits extends ObjectType = O
             );
             await this.#releaseSlot(database);
 
-            return;
-        }
-
-        // wait until a sleeping, retried, limited or later run is due, a run waiting for writes waking on them
-        if (this.row.wakeAt !== null && this.row.wakeAt > now && this.row.waitType === null) {
             return;
         }
 

@@ -19,6 +19,13 @@ import type { Run } from "../run/run.ts";
 import { recorded, type StepType, type Workflow } from "../workflow/workflow.ts";
 import type {} from "@destack/package/import-meta";
 import { WorkflowError } from "../error/index.ts";
+import { TelemetryScope } from "@destack/telemetry";
+
+/** The ways a step answers: replayed from its record without a span, or taken now in one. */
+const STEP_ANSWERS = ["replayed", "taken"] as const;
+
+/** The steps a run traces, each a span `destack.workflow.step.<verb>`. */
+type StepVerb = "call" | "query" | "run" | "invoke";
 
 /** A step's row as its workflow's step type stores it. */
 export type StepRecord = Select<StepType["table"]>;
@@ -88,6 +95,10 @@ export class Step<Waits extends ObjectType = ObjectType> {
     readonly #taken: string[];
     /** The recorded steps' names, by their place in the run. */
     readonly #positions: ReadonlyMap<number, string>;
+    /** The spans and durations of the steps. */
+    readonly #scope: TelemetryScope;
+    /** The steps answered, by whether their record or the work answered them. */
+    readonly #steps;
 
     /** Take a run's steps over its recorded step objects, acting as its actor through a caller. */
     constructor(
@@ -103,6 +114,28 @@ export class Step<Waits extends ObjectType = ObjectType> {
         this.#store = store;
         this.#recorded = new Map(recordedSteps.map((step) => [step.name, step]));
         this.#positions = new Map(recordedSteps.map((step) => [step.position, step.name]));
+        this.#scope = TelemetryScope.of(import.meta.destack.package, store.environment.telemetry);
+        this.#steps = this.#scope.metric.counter("destack.workflow.steps", {
+            unit: "{step}",
+            attributes: { "destack.workflow.step.answer": STEP_ANSWERS },
+        });
+    }
+
+    /** Run a step in its span, its duration by whether its record answered it. */
+    #trace<Result>(verb: StepVerb, name: string, run: () => Promise<Result>): Promise<Result> {
+        // count the step by how it answers, replaying a recorded one without a span
+        const isReplayed = Step.#completed(this.#recorded.get(name)) !== undefined;
+        this.#steps.add(1, { "destack.workflow.step.answer": isReplayed ? "replayed" : "taken" });
+        if (isReplayed) {
+            return run();
+        }
+
+        // take a step in its span
+        return this.#scope.span(
+            `destack.workflow.step.${verb}`,
+            { "destack.workflow.step.name": name },
+            run,
+        );
     }
 
     /** Read the steps a run recorded. */
@@ -117,7 +150,12 @@ export class Step<Waits extends ObjectType = ObjectType> {
     }
 
     /** Make an object method call once as the run's actor, waiting for any approval it needs. */
-    async call<Result>(name: string, call: sync.Call<Result>): Promise<Result> {
+    call<Result>(name: string, call: sync.Call<Result>): Promise<Result> {
+        return this.#trace("call", name, () => this.#call(name, call));
+    }
+
+    /** Answer a recorded call, or one awaiting approval, else make it once and record it. */
+    async #call<Result>(name: string, call: sync.Call<Result>): Promise<Result> {
         // answer a recorded call again by its method's output schema, its failure thrown again
         const recordedStep = this.#take(name);
         const completed = Step.#completed(recordedStep);
@@ -307,34 +345,38 @@ export class Step<Waits extends ObjectType = ObjectType> {
     }
 
     /** Read an object query method once as the run's actor. */
-    async query<Result>(name: string, call: sync.Call<Result>): Promise<Result> {
-        // answer a recorded read again, else read once and record the answer
-        const recordedStep = this.#take(name);
-        const completed = Step.#completed(recordedStep);
-        if (completed !== undefined) {
-            return this.#answer(call, completed);
-        }
-        const result = await this.#store.query(this.#caller, call, CallSite.store);
-        await this.#complete(name, { output: recorded(result) });
+    query<Result>(name: string, call: sync.Call<Result>): Promise<Result> {
+        return this.#trace("query", name, async () => {
+            // answer a recorded read again, else read once and record the answer
+            const recordedStep = this.#take(name);
+            const completed = Step.#completed(recordedStep);
+            if (completed !== undefined) {
+                return this.#answer(call, completed);
+            }
+            const result = await this.#store.query(this.#caller, call, CallSite.store);
+            await this.#complete(name, { output: recorded(result) });
 
-        return result;
+            return result;
+        });
     }
 
     /** Run local code once, recording its output. */
-    async run<Output>(
+    run<Output>(
         name: string,
         output: schema.Schema<Output>,
         work: () => Promise<Output>,
     ): Promise<Output> {
-        // answer recorded output again by its schema, else do the work once and record it
-        const completed = Step.#completed(this.#take(name));
-        if (completed !== undefined) {
-            return output.parse(Step.#replay(completed));
-        }
-        const done = output.parse(await work());
-        await this.#complete(name, { output: recorded(done) });
+        return this.#trace("run", name, async () => {
+            // answer recorded output again by its schema, else do the work once and record it
+            const completed = Step.#completed(this.#take(name));
+            if (completed !== undefined) {
+                return output.parse(Step.#replay(completed));
+            }
+            const done = output.parse(await work());
+            await this.#complete(name, { output: recorded(done) });
 
-        return done;
+            return done;
+        });
     }
 
     /** Wait for a duration from the step's first advance. */
@@ -465,11 +507,21 @@ export class Step<Waits extends ObjectType = ObjectType> {
     }
 
     /** Start a run of a workflow the store serves once, answering its output once it ends. */
-    async invoke<Input, Output>(
+    invoke<Input, Output>(
         name: string,
         workflow: InvokedWorkflow<Input, Output> & { readonly run: Waits },
         input: Input,
         options: InvokeOptions = {},
+    ): Promise<Output> {
+        return this.#trace("invoke", name, () => this.#invoke(name, workflow, input, options));
+    }
+
+    /** Answer a recorded child run's output, else start the child once and wait for its end. */
+    async #invoke<Input, Output>(
+        name: string,
+        workflow: InvokedWorkflow<Input, Output> & { readonly run: Waits },
+        input: Input,
+        options: InvokeOptions,
     ): Promise<Output> {
         // answer a recorded run's output again
         const waitType = this.#waitType(workflow.run.typeReference);
