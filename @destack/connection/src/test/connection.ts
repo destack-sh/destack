@@ -62,6 +62,7 @@ import { Simulation } from "@destack/environment/simulation";
 import { tablesOf } from "@destack/object";
 import objectPackage from "@destack/object/package";
 import { argument, plural, t } from "@destack/locale";
+import { testWorldOptions } from "@destack/test/world";
 
 /** The issuer of the test authorization server. */
 export const ISSUER = "https://auth.test";
@@ -454,7 +455,8 @@ export class TestConnection {
     static async open(options: ConnectionFixtureOptions = {}): Promise<TestConnection> {
         // take the test's world, else open one paused at a fixed start, and serve driven through it
         const simulation =
-            options.simulation ?? new Simulation({ seed: WORLD_SEED, start: WORLD_START });
+            options.simulation ??
+            new Simulation({ world: testWorldOptions(), seed: WORLD_SEED, start: WORLD_START });
 
         return TestConnection.#open(options, simulation);
     }
