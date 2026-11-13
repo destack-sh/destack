@@ -1,0 +1,25 @@
+{
+    "$schema": "https://destack.app/schemas/2026.9.0/destack.json",
+    "id": "package-01a1d2b7-8527-77de-bf5b-5b7f55032e2a",
+    "role": "app",
+    "language": "typescript",
+    "template": {
+        "files": [
+            "src",
+            "package.json",
+            "destack.json",
+            "justfile",
+            "tsconfig.json",
+            "bunfig.toml",
+            ".oxlintrc.json",
+            ".oxfmtrc.json"
+        ],
+        "dependencies": []
+    },
+    "runtimes": ["browser", "bun", "workerd"],
+    "exports": {
+        "./view": {
+            "runtimes": ["browser"]
+        }
+    }
+}

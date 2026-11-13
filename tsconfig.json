@@ -77,6 +77,7 @@
         "@destack/telemetry",
         "@destack/template-blank",
         "@destack/template-stack",
+        "@destack/template-tasks",
         "@destack/test",
         "@destack/theme",
         "@destack/tunnel",
