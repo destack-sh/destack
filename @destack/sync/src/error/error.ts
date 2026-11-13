@@ -13,6 +13,7 @@ export const SyncError = defineErrorFamily({
 
         // unauthenticated
         CREDENTIAL_UNAUTHENTICATED: {},
+        FOLLOWER_UNAUTHENTICATED: {},
 
         // blocked
         FOLLOW_BLOCKED: {},

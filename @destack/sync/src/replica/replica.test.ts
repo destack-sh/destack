@@ -1331,6 +1331,57 @@ test("resume a follow after a backoff once its source refuses a fresh credential
     ]).toEqual([[1000, 2000], ["n1"]]);
 });
 
+test("wait out a follower its issuer refuses, backing off and logging until it follows again", async () => {
+    await using simulation = new Simulation({
+        world: testWorldOptions(),
+        seed: 1,
+        start: 1000,
+    });
+    const local = await openReplica({ simulation });
+    const notes = new Replica({ name: "notes", scope: "inbox", tables: [note] });
+    const controller = new AbortController();
+    const position = { log: LOG, epoch: "01996ab0-0000-7000-8000-000000000001", sequence: 1 };
+
+    // refuse the follower twice, as an operator disables it, then answer a snapshot and stop
+    const requests: number[] = [];
+    const following = notes.follow(
+        local,
+        async function* () {
+            requests.push(simulation.clock.now());
+            if (requests.length <= 2) {
+                throw SyncError.of(
+                    "FOLLOWER_UNAUTHENTICATED",
+                    "authentication required: assertion has no standing key",
+                );
+            }
+            yield { reset: true, complete: true, changes: [noteInsert("n1")], position };
+            controller.abort();
+        },
+        controller.signal,
+        { synced: () => {} },
+    );
+    await simulation.waitUntil(() => controller.signal.aborted);
+    await simulation.wait(following);
+
+    // request again after one second, then after two, logging the first refusal and the restore
+    const logs = simulation.telemetry.logs.map((record) => [
+        record.eventName,
+        record.attributes["destack.replica.name"],
+    ]);
+    expect([
+        requests,
+        (await local.select({ id: note.id }).from(note)).map((row) => row.id),
+        logs,
+    ]).toEqual([
+        [1000, 2000, 4000],
+        ["n1"],
+        [
+            ["destack.replica.refused", "notes"],
+            ["destack.replica.restored", "notes"],
+        ],
+    ]);
+});
+
 test("fail a follow whose source lapses five fresh credentials in a row before any page", async () => {
     await using simulation = new Simulation({
         world: testWorldOptions(),

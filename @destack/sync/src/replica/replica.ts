@@ -1,3 +1,5 @@
+import { TelemetryScope } from "@destack/telemetry";
+import type {} from "@destack/package/import-meta";
 import {
     Change,
     and,
@@ -77,6 +79,9 @@ const SILENT_LAGS = 2;
 
 /** How a follow retries a source lapsing fresh credentials before any page: 5 tries, about 15 s. */
 const LAPSE_RETRY = RetryPolicy.of({ maximumAttempts: 5 });
+
+/** How a follow waits out its issuer refusing the follower: from 1 s, at most 100 s apart. */
+const REFUSAL_RETRY = RetryPolicy.of();
 
 /** A group's values as a retained group's canonical JSON text has them. */
 const GroupValues = schema.record(schema.string(), Scalar);
@@ -1744,10 +1749,12 @@ export class Replica {
         );
         let isSynced = false;
         let lapses = 0;
+        let refusals = 0;
         try {
             while (!signal.aborted) {
                 let isReceived = false;
                 let isLapsed = false;
+                let isRefused = false;
                 silent = new AbortController();
                 const streaming = AbortSignal.any([signal, silent.signal]);
 
@@ -1771,10 +1778,13 @@ export class Replica {
                     // resume with a fresh credential once the source refused the lapsed one
                     isLapsed = SyncError.is(error, "CREDENTIAL_UNAUTHENTICATED");
 
+                    // wait out a follower its issuer no longer authenticates, as an operator may restore it
+                    isRefused = SyncError.is(error, "FOLLOWER_UNAUTHENTICATED");
+
                     // end quietly on this follow's own abort or a silent stream's, failing on anything else
                     const isAborted = signal.aborted && error === signal.reason;
                     const isSilent = silent.signal.aborted && !signal.aborted;
-                    if (!isLapsed && !isAborted && !isSilent) {
+                    if (!isLapsed && !isRefused && !isAborted && !isSilent) {
                         throw error;
                     }
                 }
@@ -1782,8 +1792,23 @@ export class Replica {
                 // resume a stream ended for its silence like one that delivered pages
                 isReceived ||= silent.signal.aborted && !signal.aborted;
 
+                // back off before following again as a follower its issuer refuses, logging the first refusal
+                if (isRefused) {
+                    refusals += 1;
+                    if (refusals === 1) {
+                        this.#scope(database).log.warn("destack.replica.refused", {
+                            "destack.replica.name": this.name,
+                            "destack.replica.scope": this.scope,
+                        });
+                    }
+                    const { clock } = database.state;
+                    const drawn = RetryPolicy.draw(
+                        `${this.name} ${this.scope} refused ${refusals}`,
+                    );
+                    await RetryPolicy.pause(REFUSAL_RETRY, refusals, clock, signal, () => drawn);
+                }
                 // reject a stream that ends without a page, other than one whose credential lapsed
-                if (!isReceived && !isLapsed && !signal.aborted) {
+                else if (!isReceived && !isLapsed && !signal.aborted) {
                     throw SyncError.of(
                         "STREAM_UNREACHABLE",
                         `could not read a page from the source of '${this.scope}' before the stream ended`,
@@ -1807,15 +1832,27 @@ export class Replica {
                     const drawn = RetryPolicy.draw(`${this.name} ${this.scope} ${lapses}`);
                     await RetryPolicy.pause(LAPSE_RETRY, lapses, clock, signal, () => drawn);
                 }
-                // resume at once after a stream that delivered pages
+                // resume at once after a stream that delivered pages, logging a follower restored
                 else {
+                    if (refusals > 0) {
+                        this.#scope(database).log.info("destack.replica.restored", {
+                            "destack.replica.name": this.name,
+                            "destack.replica.scope": this.scope,
+                        });
+                    }
                     lapses = 0;
+                    refusals = 0;
                 }
             }
         } finally {
             // stop the silence timer when the follow ends, also when it fails
             ended.abort();
         }
+    }
+
+    /** Read the replica's telemetry scope from its database's environment. */
+    #scope(database: DatabaseConnection): TelemetryScope {
+        return TelemetryScope.of(import.meta.destack.package, database.state.environment.telemetry);
     }
 
     /** Arm the silence ending a stream without a page for two lags, rearmed at each page. */
