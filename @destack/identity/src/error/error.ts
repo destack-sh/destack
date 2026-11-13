@@ -7,6 +7,7 @@ export const IdentityError = defineErrorFamily({
         // invalid
         CIPHERTEXT_INVALID: {},
         KEY_INVALID: {},
+        KEY_SET_INVALID: {},
         OPERATION_INVALID: {},
         PROOF_INVALID: {},
 

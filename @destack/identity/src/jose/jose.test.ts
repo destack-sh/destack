@@ -205,6 +205,33 @@ test("encrypt to an AES-GCM key and to an ECDH key, opening each with its key al
     });
 });
 
+test("fetch a remote key set over HTTPS, or over plain HTTP from loopback only", async () => {
+    // open a key set at each address, noting its refusal
+    await using simulation = testSimulation();
+    const world = simulation.environment("verifier");
+    const options = {
+        fetch: () => Promise.reject(new Error("unused")),
+        maxAge: 1,
+        cooldown: 1,
+        timeout: 1,
+    };
+    const open = (url: string) => refusal(() => Jwks.remote(new URL(url), options, world));
+
+    expect({
+        https: await open("https://issuer.test/keys"),
+        loopback: await open("http://127.0.0.1:8080/keys"),
+        plain: await open("http://issuer.test/keys"),
+    }).toEqual({
+        https: "done",
+        loopback: "done",
+        plain: [
+            "BAD_REQUEST",
+            "KEY_SET_INVALID",
+            "key set 'http://issuer.test/keys' is invalid: it requires HTTPS outside loopback",
+        ],
+    });
+});
+
 test("fetch a remote key set once while it is fresh, again once it is stale, and again for an unknown key after the cooldown", async () => {
     // serve a key set that starts with one key and later gains another
     await using simulation = testSimulation();

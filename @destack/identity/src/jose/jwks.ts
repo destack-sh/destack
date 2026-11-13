@@ -72,6 +72,16 @@ export const Jwks = {
         options: RemoteJwksOptions,
         environment: { readonly clock: Clock; readonly crypto: Crypto },
     ): KeyLookup {
+        // fetch keys over plain HTTP only from loopback
+        const isLoopback = ["localhost", "127.0.0.1", "[::1]"].includes(url.hostname);
+        if (url.protocol !== "https:" && !(url.protocol === "http:" && isLoopback)) {
+            throw IdentityError.of(
+                "KEY_SET_INVALID",
+                `key set '${url.href}' is invalid: it requires HTTPS outside loopback`,
+            );
+        }
+
+        // look keys up in the set, fetching it on demand
         const remote = new RemoteJwks(url, options, environment);
 
         return (header) => remote.lookup(header);
