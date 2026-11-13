@@ -60,8 +60,8 @@ test(
         await using simulation = testSimulation();
         await using store = await testStore();
         await using compilers = await CompilerPool.open(store, async () => Toolchain.workspace());
-        const workspace = await Workspace.open(NOTEBOOK, compilers);
-        const dependencies = await workspace.storeDependencies({});
+        const workspacePackage = await (await Workspace.open(NOTEBOOK, compilers)).package();
+        const dependencies = await workspacePackage.storeDependencies({});
         const build = await compilers.use(NOTEBOOK, (compiler) =>
             compiler.build({
                 directory: NOTEBOOK,

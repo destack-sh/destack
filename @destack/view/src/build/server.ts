@@ -1,7 +1,7 @@
 import { isAbsolute, join } from "node:path";
 import type { Environment, FileSystem } from "@destack/environment";
 import { createServer, isCSSRequest, type ServerOptions, type ViteDevServer } from "vite";
-import type { Workspace } from "@destack/build";
+import type { WorkspacePackage } from "@destack/build";
 import { loadTransforms } from "@destack/build/local";
 import { DeclarationDescription } from "@destack/package";
 import type { Plugin } from "@destack/package/build";
@@ -119,7 +119,7 @@ export class DevelopmentServer implements AsyncDisposable {
 /** The workspace, view and network settings of a local view server. */
 export interface DevelopmentServerOptions {
     /** The workspace whose root declares the view. */
-    readonly workspace: Workspace;
+    readonly workspace: WorkspacePackage;
     /** The static view's name. */
     readonly view: string;
     /** Network and filesystem access, listening on loopback by default. */
@@ -186,7 +186,7 @@ async function serve(
 
 /** Read a workspace root's views, each at the module and symbol declaring it. */
 async function inspect(
-    workspace: Workspace,
+    workspace: WorkspacePackage,
 ): Promise<{ readonly package: ViewPackage; readonly located: LocatedView[] }> {
     // read the root's declarations from its inspection
     const { root } = workspace;

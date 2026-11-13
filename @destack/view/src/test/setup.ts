@@ -10,5 +10,5 @@ const NOTEBOOK = fileURLToPath(new URL("../../tests/fixture/notebook/", import.m
 export default async function setup(): Promise<void> {
     await using store = await testStore();
     await using compilers = await CompilerPool.open(store, async () => Toolchain.workspace());
-    await (await Workspace.open(NOTEBOOK, compilers)).storeDependencies({});
+    await (await (await Workspace.open(NOTEBOOK, compilers)).package()).storeDependencies({});
 }

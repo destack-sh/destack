@@ -40,10 +40,10 @@ test(
     { timeout: START_MILLISECONDS },
     async () => {
         // serve the site from its workspace on a free port
-        const workspace = await Workspace.open(source.source, compilers);
+        const workspacePackage = await (await Workspace.open(source.source, compilers)).package();
         const environment = testHost();
         await using development = await DevelopmentServer.start({
-            workspace,
+            workspace: workspacePackage,
             view: "site",
             environment,
             server: { port: 0 },
