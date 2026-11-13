@@ -719,7 +719,12 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
             scope: definition.scope ?? [],
             fields: definition.fields ?? {},
             aggregates: definition.aggregates ?? {},
-            attachments: definition.attachments ?? [],
+            attachments: [
+                ...(definition.attachments ?? []),
+                ...(definition.tracked === undefined
+                    ? []
+                    : [definition.tracked.activity.attach({ by: definition.tracked.by })]),
+            ],
             indexes: definition.indexes ?? {},
         };
 

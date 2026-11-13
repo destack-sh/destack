@@ -44,7 +44,7 @@ const page = defineObject(
             title: field.string(),
             body: field.string(),
         },
-        attachments: [activity.attach({ by: "read" }), checkpoint.attach({ by: "edit" })],
+        attachments: [checkpoint.attach({ by: "edit" })],
         access: {
             relations: { editor: { subjects: [user] } },
             permissions: {
@@ -203,7 +203,6 @@ test("refuse serving history that reads through an object recording none", async
         title: t`${plural(argument("count"), { one: "Sheet", other: "Sheets" })}`,
         scope: space,
         fields: { title: field.string() },
-        attachments: [activity.attach({ by: "read" })],
         access: {
             permissions: { read: through("parent", "read") },
         },

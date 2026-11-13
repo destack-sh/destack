@@ -16,7 +16,7 @@ import { t } from "@destack/locale";
 export interface TrackedDefinition<
     Permissions extends string = string,
 > extends TraitPermission<Permissions> {
-    /** The activity type among the object's attachments. */
+    /** The activity type the history groups changes into, attached by the tracked permission. */
     readonly activity: ObjectOf<{ table: ActivityTable }>;
     /** How long one activity continues after its last change, 10 minutes by default. */
     readonly session?: Duration;
@@ -58,12 +58,7 @@ const trackedTrait: TraitBehavior<TrackedDefinition> & {
     constraints: () => [],
     methods: (options) => ({ revert: tracked.revert(options.by) }),
     validate: (options, object) => {
-        // require the activity attachment and a valid session
-        if (!object.attachments.some((attachment) => attachment.object === options.activity)) {
-            throw new TypeError(
-                `object ${object.name} records history but has no '${options.activity.plural}' attachment`,
-            );
-        }
+        // require a valid session
         if (options.session !== undefined) {
             Duration.require(options.session, `history session of ${object.name}`);
         }
