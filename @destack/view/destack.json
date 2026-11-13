@@ -15,9 +15,6 @@
         "./example": {
             "runtimes": ["browser"]
         },
-        "./test": {
-            "runtimes": ["bun"]
-        },
         "./build": {
             "runtimes": ["bun"]
         },
