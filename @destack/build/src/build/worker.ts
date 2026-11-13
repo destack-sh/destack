@@ -163,7 +163,7 @@ export class CompilerWorker implements AsyncDisposable {
             spanProcessors: [new SimpleSpanProcessor({ exporter: ended })],
         });
         const telemetry = { ...environment.telemetry, tracers };
-        const recording = Environment.with(environment, { telemetry });
+        const recording = Environment.instrument(environment, telemetry);
         await using compiler = new CompilerWorker(program, toolchain, recording);
 
         // read the host's messages while requests run
