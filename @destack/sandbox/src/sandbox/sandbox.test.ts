@@ -1,5 +1,5 @@
 import { Uuid } from "@destack/schema";
-import { TEST_START } from "@destack/test/world";
+import { TEST_START, testWorldOptions } from "@destack/test/world";
 import { join } from "node:path";
 import type { OperatingSystem } from "@destack/environment";
 import { testHost } from "@destack/test/host";
@@ -20,6 +20,7 @@ const LAUNCHER_PATH = "/usr/bin:/bin:/usr/sbin:/sbin";
 /** Make a world on the host's platform, and a real temporary directory in it. */
 async function world(prefix: string) {
     const simulation = new Simulation({
+        world: testWorldOptions(),
         seed: 1,
         start: TEST_START,
         host: testHost().host,
