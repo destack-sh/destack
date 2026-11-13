@@ -2,6 +2,8 @@ export {
     defineConfiguration,
     defineProject,
     BENCHMARK_MODULES,
+    TEST_TIERS,
+    type TestTier,
     SCENARIO_MODULES,
     scenarioPlugin,
     type DriverReference,

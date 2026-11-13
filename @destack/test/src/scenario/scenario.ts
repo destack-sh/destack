@@ -14,9 +14,6 @@ const CURRENT_BASELINE = "current";
 /** The directory of the saved results, below the package's working directory. */
 const BENCH_DIRECTORY = "node_modules/.cache/destack/bench";
 
-/** The most milliseconds a benchmark takes, its world's setup included. */
-const BENCHMARK_MILLISECONDS = 600_000;
-
 /** The parts of an exceeded counter a failure lists, largest first. */
 const LISTED_PARTS = 8;
 
@@ -199,7 +196,7 @@ export const Runner = {
     /** Measure a benchmark as a test, saving its results and expecting operations within limits. */
     bench(benchmark: Benchmark, types: readonly DriverType[]): void {
         const type = Runner.driverOf(benchmark.interaction, benchmark.name, types);
-        test(`measure ${benchmark.description}`, { timeout: BENCHMARK_MILLISECONDS }, async () => {
+        test(`measure ${benchmark.description}`, async () => {
             // measure, then save the results under the run's baseline
             const play = () => Runner.measure(benchmark, type);
             const measured = await Runner.replay(play);

@@ -46,7 +46,35 @@ function withCaches(
 }
 
 /** How often `expect.poll` rechecks in milliseconds, a local sync round trip taking a few. */
-const POLL = { poll: { interval: 5 } };
+const POLL_INTERVAL = 5;
+
+/** A test tier: how a test costs, which sets when it counts as slow and when as hung. */
+export type TestTier = "unit" | "scenario" | "bench";
+
+/** The milliseconds after which a tier's test is reported as slow, and fails as hung. */
+export const TEST_TIERS = {
+    /** One package's nouns in process: tens of milliseconds each, as AGENTS CT40 asks. */
+    unit: { slow: 100, hang: 5_000 },
+    /** A story across a simulated world, which boots in about a second, on CI about two. */
+    scenario: { slow: 5_000, hang: 60_000 },
+    /** A measurement, its world's setup included, reported by its own numbers and never as slow. */
+    bench: { slow: 600_000, hang: 600_000 },
+} as const satisfies Record<TestTier, { readonly slow: number; readonly hang: number }>;
+
+/** The test options a tier sets, which configurations leave to it. */
+type TierOption = "testTimeout" | "hookTimeout" | "slowTestThreshold";
+
+/** The test options of a tier: its hang ceiling for tests, hooks and polls, and slow threshold. */
+function tierOptions(tier: TestTier) {
+    const { slow, hang } = TEST_TIERS[tier];
+
+    return {
+        testTimeout: hang,
+        hookTimeout: hang,
+        slowTestThreshold: slow,
+        expect: { poll: { interval: POLL_INTERVAL, timeout: hang } },
+    };
+}
 
 /** The workspace patterns and exports of a package.json. */
 const Manifest = schema.looseObject({
@@ -57,43 +85,61 @@ const Manifest = schema.looseObject({
 /** The build extension a destack.json declares, such as `./build#viewExtension`. */
 const Definition = schema.looseObject({ build: schema.string().exactOptional() });
 
-/** A test project, and the targets it runs against. */
-export type ProjectConfiguration = TestProjectInlineConfiguration & {
+/** A test project, its tier and the targets it runs against. */
+export type ProjectConfiguration = Omit<TestProjectInlineConfiguration, "test"> & {
+    /** The tier of its tests. */
+    readonly tier: TestTier;
     /** The values it runs against by kind, one project per combination. */
     readonly targets?: TestMatrix;
+    /** The test options, the tier's own left to it. */
+    readonly test?: Omit<NonNullable<TestProjectInlineConfiguration["test"]>, TierOption>;
 };
 
-/** A test configuration, its projects and the targets they run against. */
+/** The test options of a configuration, the tier's own left to it. */
+type TestOptions = Omit<NonNullable<ViteUserConfig["test"]>, "projects" | TierOption>;
+
+/** A test configuration: its tier alone, or its projects each with theirs. */
 export type TestConfiguration = Omit<ViteUserConfig, "test"> & {
     /** The values its tests run against by kind, where its projects declare none. */
     readonly targets?: TestMatrix;
-    /** The test options, whose projects may declare separate targets. */
-    readonly test?: Omit<NonNullable<ViteUserConfig["test"]>, "projects"> & {
-        /** The projects, each run once per combination of its targets. */
-        readonly projects?: readonly ProjectConfiguration[];
-    };
-};
+} & (
+        | {
+              /** The tier of its tests. */
+              readonly tier: TestTier;
+              /** The test options. */
+              readonly test?: TestOptions;
+          }
+        | {
+              /** The tier, which each project declares instead. */
+              readonly tier?: never;
+              /** The test options and the projects, each run once per combination. */
+              readonly test: TestOptions & { readonly projects: readonly ProjectConfiguration[] };
+          }
+    );
 
 /** Define a test configuration whose package sources receive Destack module metadata. */
 export function defineConfiguration(
     configuration: TestConfiguration,
     environment: Environment<"files" | "process">,
 ): ViteUserConfig {
-    // split off the targets, the projects and the global setup the projects run in the root's place
-    const { targets, test, ...rest } = configuration;
-    const { projects: declared, globalSetup, ...options } = test ?? {};
+    // split off the tier, the targets, the projects and the global setup the projects run in the root's place
+    const { tier, targets, test, ...rest } = configuration;
+    const { globalSetup, ...options } = test ?? {};
+    const declared = test !== undefined && "projects" in test ? test.projects : undefined;
     const setup = globalSetup === undefined ? {} : { globalSetup };
-    const projects = configuredProjects(declared, targets, setup)?.map((project) => ({
+    const projects = configuredProjects(declared, tier, targets, setup)?.map((project) => ({
         ...project,
         test: { ...project.test, server: withCaches(project.test?.server, environment) },
     }));
+    const tiered = tier === undefined ? {} : tierOptions(tier);
 
     return vitest.defineConfig({
         ...rest,
         test: {
             ...TEST,
-            expect: POLL,
-            ...(projects === undefined ? { ...options, ...setup } : { ...options, projects }),
+            ...(projects === undefined
+                ? { ...options, ...setup, ...tiered }
+                : { ...options, projects }),
             server: withCaches(options.server, environment),
         },
         plugins: [
@@ -104,16 +150,18 @@ export function defineConfiguration(
     });
 }
 
-/** Define a test project whose package sources receive Destack module metadata. */
+/** Define a project's tests, in its project's tier, whose sources receive module metadata. */
 export function defineProject(
-    configuration: UserWorkspaceConfig,
+    configuration: Omit<UserWorkspaceConfig, "test"> & {
+        /** The test options, the tier's own left to the project. */
+        readonly test?: Omit<NonNullable<UserWorkspaceConfig["test"]>, TierOption>;
+    },
     environment: Environment<"files" | "process">,
 ): UserWorkspaceConfig {
     return vitest.defineProject({
         ...configuration,
         test: {
             ...TEST,
-            expect: POLL,
             ...configuration.test,
             server: withCaches(configuration.test?.server, environment),
         },
@@ -186,6 +234,7 @@ async function withoutServer(
 /** List a configuration's projects, one per combination of targets, absent for the root alone. */
 function configuredProjects(
     declared: readonly ProjectConfiguration[] | undefined,
+    tier: TestTier | undefined,
     targets: TestMatrix | undefined,
     setup: Pick<NonNullable<TestProjectInlineConfiguration["test"]>, "globalSetup">,
 ): TestProjectInlineConfiguration[] | undefined {
@@ -200,9 +249,9 @@ function configuredProjects(
             ),
         );
     }
-    // run the whole configuration per combination of its targets
-    else if (targets !== undefined) {
-        return targetProjects({ extends: true, test: setup }, targets);
+    // run the whole configuration per combination of its targets, in its tier
+    else if (targets !== undefined && tier !== undefined) {
+        return targetProjects({ extends: true, tier, test: setup }, targets);
     }
     // run the root alone
     else {
@@ -215,11 +264,12 @@ function targetProjects(
     project: ProjectConfiguration,
     declared: TestMatrix | undefined,
 ): TestProjectInlineConfiguration[] {
-    // return a project without targets as it is
-    const { targets: local, ...config } = project;
+    // set the tier's options, and return a project without targets as it is
+    const { targets: local, tier, ...options } = project;
+    const configuration = { ...options, test: { ...options.test, ...tierOptions(tier) } };
     const targets = local ?? declared;
     if (targets === undefined) {
-        return [config];
+        return [configuration];
     }
 
     // list every combination of the targets' values
@@ -235,7 +285,7 @@ function targetProjects(
     return combinations.map((combination) => {
         // title it by the project's label and the values, with its color
         const values = Object.values(combination).join(",");
-        const named = config.test?.name;
+        const named = configuration.test?.name;
         const name =
             named === undefined
                 ? values
@@ -245,11 +295,11 @@ function targetProjects(
 
         // provide the values to its tests
         return {
-            ...config,
+            ...configuration,
             test: {
-                ...config.test,
+                ...configuration.test,
                 name,
-                provide: { ...config.test?.provide, targets: combination },
+                provide: { ...configuration.test?.provide, targets: combination },
             },
         };
     });
