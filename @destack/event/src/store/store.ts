@@ -40,7 +40,7 @@ import {
 import { type PersonalKeyring, PersonalSeal } from "./personal-keyring.ts";
 import { EventCursor, EventFilter, type EventOrder } from "./filter.ts";
 import { Fold, type Series, SeriesFold, type SeriesRequest, type StepFold } from "./series.ts";
-import { Clock } from "@destack/environment";
+import type { Clock, Environment } from "@destack/environment";
 
 /** The bucket key prefix segments are written under unless a host sets another. */
 const SEGMENT_PREFIX = "events";
@@ -73,8 +73,8 @@ export interface EventStoreOptions {
     readonly personal?: PersonalKeyring;
     /** Read the retention a scope's setting gives, for kinds that retain segments by a setting. */
     readonly settings?: SettingRetention;
-    /** The clock segments flush, compact and expire by. */
-    readonly clock: Clock;
+    /** The clock segments flush, compact and expire by, and the telemetry the store traces on. */
+    readonly environment: Pick<Environment, "clock" | "telemetry">;
 }
 
 /** The append-only events of a host's scopes. */
@@ -91,8 +91,10 @@ export class EventStore {
     readonly #settings: EventStoreOptions["settings"];
     /** The clock that tells a late event from a recent one, as segments flush by it. */
     readonly #clock: Clock;
-    /** The instruments capturing the dropped writes of events stored at most once. */
+    /** The spans and durations of the store's verbs, and the dropped writes it captures. */
     readonly #telemetry: TelemetryScope;
+    /** The at-most-once events whose write failed, lost. */
+    readonly #dropped;
 
     /** Store events of some kinds over a host's database and buckets. */
     constructor(options: EventStoreOptions) {
@@ -100,17 +102,22 @@ export class EventStore {
         this.database = options.database;
         this.#telemetry = TelemetryScope.of(
             import.meta.destack.package,
-            options.database.state.environment.telemetry,
+            options.environment.telemetry,
         );
+        this.#dropped = this.#telemetry.metric.counter("destack.event.dropped", {
+            unit: "{event}",
+            attributes: {},
+        });
         this.#archive = new EventArchive({
             database: options.database,
             files: options.files,
             prefix: options.prefix ?? SEGMENT_PREFIX,
             settings: options.settings,
+            environment: options.environment,
         });
         this.#personal = options.personal;
         this.#settings = options.settings;
-        this.#clock = options.clock;
+        this.#clock = options.environment.clock;
         this.register(options.kinds);
     }
 
@@ -198,10 +205,23 @@ export class EventStore {
     }
 
     /** Append events of a kind once each, sealing personal values. */
-    async append<Fields extends EventKeyFields, Data extends JsonValue>(
+    append<Fields extends EventKeyFields, Data extends JsonValue>(
         kind: EventKind<Fields, Data>,
         events: readonly Event<Fields, Data>[],
         transaction?: DatabaseConnection,
+    ): Promise<void> {
+        return this.#telemetry.span(
+            "destack.event.append",
+            { "destack.event.kind": kind.key },
+            () => this.#append(kind, events, transaction),
+        );
+    }
+
+    /** Check, seal and write events, counting those appended and those dropped. */
+    async #append<Fields extends EventKeyFields, Data extends JsonValue>(
+        kind: EventKind<Fields, Data>,
+        events: readonly Event<Fields, Data>[],
+        transaction: DatabaseConnection | undefined,
     ): Promise<void> {
         // refuse a transaction for a kind whose events outlive the work recording them
         this.kind(kind.key);
@@ -221,21 +241,31 @@ export class EventStore {
             return;
         }
 
-        // append them in the caller's transaction or the store's
+        // append them in the caller's transaction or the store's, counting a dropped write
         const write = (connection: DatabaseConnection) => this.#write(kind, stored, connection);
         if (transaction !== undefined) {
             await write(transaction);
         } else if (kind.delivery === "at-most-once") {
-            await this.database.transaction(write).catch((error: unknown) => {
-                this.#telemetry.captureException(error);
-            });
+            const isWritten = await this.database.transaction(write).then(
+                () => true,
+                (error: unknown) => {
+                    this.#telemetry.captureException(error);
+
+                    return false;
+                },
+            );
+            if (!isWritten) {
+                this.#dropped.add(stored.length);
+
+                return;
+            }
         } else {
             await this.database.transaction(write);
         }
     }
 
     /** Read a page of some scopes' events in time order, hot and flushed alike. */
-    async query<Fields extends EventKeyFields, Data extends JsonValue>(
+    query<Fields extends EventKeyFields, Data extends JsonValue>(
         kind: EventKind<Fields, Data>,
         filter: EventFilter,
         page: {
@@ -243,6 +273,21 @@ export class EventStore {
             readonly limit?: number;
             readonly order?: EventOrder;
         } = {},
+    ): Promise<EventPage<Fields, Data>> {
+        return this.#telemetry.span("destack.event.query", { "destack.event.kind": kind.key }, () =>
+            this.#query(kind, filter, page),
+        );
+    }
+
+    /** Read one event past a page, hot and flushed alike, and open the page's. */
+    async #query<Fields extends EventKeyFields, Data extends JsonValue>(
+        kind: EventKind<Fields, Data>,
+        filter: EventFilter,
+        page: {
+            readonly after?: EventCursor;
+            readonly limit?: number;
+            readonly order?: EventOrder;
+        },
     ): Promise<EventPage<Fields, Data>> {
         // read one event past the page, hot and flushed alike, and open the page's
         EventFilter.check(kind, filter);
@@ -298,7 +343,20 @@ export class EventStore {
     }
 
     /** Fold a scope's events into a series per group of key values. */
-    async series<Fields extends EventKeyFields, Data extends JsonValue>(
+    series<Fields extends EventKeyFields, Data extends JsonValue>(
+        kind: EventKind<Fields, Data>,
+        filter: EventFilter,
+        request: SeriesRequest<Fields>,
+    ): Promise<Series[]> {
+        return this.#telemetry.span(
+            "destack.event.series",
+            { "destack.event.kind": kind.key },
+            () => this.#series(kind, filter, request),
+        );
+    }
+
+    /** Fold hot events in SQL and flushed ones in turn, or every opened event for its data. */
+    async #series<Fields extends EventKeyFields, Data extends JsonValue>(
         kind: EventKind<Fields, Data>,
         filter: EventFilter,
         request: SeriesRequest<Fields>,
@@ -350,42 +408,54 @@ export class EventStore {
     }
 
     /** Read a page of some scopes' events in commit order after a log sequence. */
-    async changes<Fields extends EventKeyFields, Data extends JsonValue>(
+    changes<Fields extends EventKeyFields, Data extends JsonValue>(
         kind: EventKind<Fields, Data>,
         filter: EventFilter,
         after: number,
         limit?: number,
     ): Promise<{ readonly events: readonly Event<Fields, Data>[]; readonly sequence: number }> {
-        // read the page of the kind's committed appends after the sequence
-        EventFilter.check(kind, filter);
-        const page = await this.database.log.read({
-            tables: [kind.table],
-            scopes: filter.scopes,
-            after,
-            ...(limit === undefined ? {} : { limit }),
-        });
+        return this.#telemetry.span(
+            "destack.event.changes",
+            { "destack.event.kind": kind.key },
+            async () => {
+                // read the page of the kind's committed appends after the sequence
+                EventFilter.check(kind, filter);
+                const page = await this.database.log.read({
+                    tables: [kind.table],
+                    scopes: filter.scopes,
+                    after,
+                    ...(limit === undefined ? {} : { limit }),
+                });
 
-        return {
-            events: await this.#appended(kind, filter, page.changes),
-            sequence: page.sequence,
-        };
+                return {
+                    events: await this.#appended(kind, filter, page.changes),
+                    sequence: page.sequence,
+                };
+            },
+        );
     }
 
     /** Read the events some scopes appended after a log sequence through another, as one page. */
-    async range<Fields extends EventKeyFields, Data extends JsonValue>(
+    range<Fields extends EventKeyFields, Data extends JsonValue>(
         kind: EventKind<Fields, Data>,
         filter: EventFilter,
         after: number,
         through: number,
     ): Promise<readonly Event<Fields, Data>[]> {
-        // read the kind's committed appends in the range
-        EventFilter.check(kind, filter);
-        const changes = await this.database.log.range(
-            { tables: [kind.table], scopes: filter.scopes, after },
-            through,
-        );
+        return this.#telemetry.span(
+            "destack.event.range",
+            { "destack.event.kind": kind.key },
+            async () => {
+                // read the kind's committed appends in the range
+                EventFilter.check(kind, filter);
+                const changes = await this.database.log.range(
+                    { tables: [kind.table], scopes: filter.scopes, after },
+                    through,
+                );
 
-        return this.#appended(kind, filter, changes);
+                return await this.#appended(kind, filter, changes);
+            },
+        );
     }
 
     /** Open each event some changes append that a filter selects, in commit order. */
@@ -409,13 +479,16 @@ export class EventStore {
     }
 
     /** Forget a person by their subject keys' values, erasing their sealed personal values. */
-    async forget(subject: readonly string[]): Promise<void> {
-        if (this.#personal === undefined) {
-            throw new TypeError(
-                "a store without a personal keyring cannot encrypt personal values",
-            );
-        }
-        await this.#personal.forget(EventKind.person(subject));
+    forget(subject: readonly string[]): Promise<void> {
+        return this.#telemetry.span("destack.event.forget", {}, async () => {
+            // refuse a store without a keyring, then erase the person's key
+            if (this.#personal === undefined) {
+                throw new TypeError(
+                    "a store without a personal keyring cannot encrypt personal values",
+                );
+            }
+            await this.#personal.forget(EventKind.person(subject));
+        });
     }
 
     /** Check events against their kind, seal their personal values and drop their secrets. */

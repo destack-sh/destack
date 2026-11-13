@@ -1,4 +1,5 @@
 import type { Bucket } from "@destack/bucket";
+import type { Environment } from "@destack/environment";
 import {
     and,
     asc,
@@ -25,6 +26,8 @@ import {
 import { type Event, type EventKind, EventTime, type SettingRetention } from "../kind/kind.ts";
 import { EventCursor, EventFilter, type EventOrder } from "../store/filter.ts";
 import { SegmentFile } from "./segment.ts";
+import type {} from "@destack/package/import-meta";
+import { TelemetryScope } from "@destack/telemetry";
 
 /** The events one pruning statement deletes, far below every dialect's bound on parameters. */
 const PRUNE_BATCH = 500;
@@ -53,6 +56,8 @@ export interface EventArchiveOptions {
     readonly prefix: string;
     /** Read the retention a scope's setting gives a kind with segments by one. */
     readonly settings: SettingRetention | undefined;
+    /** The telemetry the archive traces on. */
+    readonly environment: Pick<Environment, "telemetry">;
 }
 
 /** The segments of a store's scopes, written, compacted, expired and read back. */
@@ -65,6 +70,8 @@ export class EventArchive {
     readonly #prefix: string;
     /** The reader of scopes' retention settings. */
     readonly #settings: SettingRetention | undefined;
+    /** The spans and durations of the archive's verbs. */
+    readonly #scope: TelemetryScope;
 
     /** Store segments as the options say. */
     constructor(options: EventArchiveOptions) {
@@ -73,10 +80,25 @@ export class EventArchive {
         this.#files = options.files;
         this.#prefix = options.prefix;
         this.#settings = options.settings;
+        this.#scope = TelemetryScope.of(import.meta.destack.package, options.environment.telemetry);
     }
 
     /** Flush a scope's oldest settled hot events into a catalogued segment, returning how many. */
-    async flush(kind: EventKind, scope: string, now: number): Promise<number> {
+    flush(kind: EventKind, scope: string, now: number): Promise<number> {
+        return this.#scope.span(
+            "destack.event.flush",
+            { "destack.event.kind": kind.key },
+            async () => {
+                // flush, counting the events flushed
+                const flushed = await this.#flush(kind, scope, now);
+
+                return flushed;
+            },
+        );
+    }
+
+    /** Write the oldest settled hot events as a segment, pruning them in the same commit. */
+    async #flush(kind: EventKind, scope: string, now: number): Promise<number> {
         // read the oldest hot events, at most a segment's worth
         const { flush } = kind.policy;
         const rows = await this.#database
@@ -104,7 +126,14 @@ export class EventArchive {
     }
 
     /** Compact a scope's small segments of an unlocked kind into fuller ones. */
-    async compact(kind: EventKind, scope: string, now: number): Promise<number> {
+    compact(kind: EventKind, scope: string, now: number): Promise<number> {
+        return this.#scope.span("destack.event.compact", { "destack.event.kind": kind.key }, () =>
+            this.#compact(kind, scope, now),
+        );
+    }
+
+    /** Rewrite consecutive small segments as one, retiring them in the same commit. */
+    async #compact(kind: EventKind, scope: string, now: number): Promise<number> {
         // leave locked kinds, whose chained segments stay as written
         if (kind.isLocked) {
             return 0;
@@ -146,26 +175,31 @@ export class EventArchive {
     }
 
     /** Remove expired segments from the catalog, deleting their files with the same commit. */
-    async expire(
+    expire(
         segments: readonly Pick<ChosenSegment, "id" | "scope" | "file">[],
         now: number,
     ): Promise<void> {
-        await this.#database.transaction(async (transaction) => {
-            for (const [scope, expired] of Map.groupBy(segments, (segment) => segment.scope)) {
-                await EventArchive.#retire(transaction, scope, expired, now);
-            }
-        });
+        return this.#scope.span("destack.event.expire", {}, () =>
+            this.#database.transaction(async (transaction) => {
+                for (const [scope, expired] of Map.groupBy(segments, (segment) => segment.scope)) {
+                    await EventArchive.#retire(transaction, scope, expired, now);
+                }
+            }),
+        );
     }
 
     /** Delete the files whose deletion came due, then their deletion rows. */
-    async delete(scope: string, files: readonly string[]): Promise<void> {
-        await this.#files(scope).delete([...files]);
-        await this.#database.transaction(
-            async (transaction) =>
-                await transaction
-                    .delete(segmentDeletion)
-                    .where(inArray(segmentDeletion.file, [...files])),
-        );
+    delete(scope: string, files: readonly string[]): Promise<void> {
+        return this.#scope.span("destack.event.delete", {}, async () => {
+            // delete the files, then their deletion rows
+            await this.#files(scope).delete([...files]);
+            await this.#database.transaction(
+                async (transaction) =>
+                    await transaction
+                        .delete(segmentDeletion)
+                        .where(inArray(segmentDeletion.file, [...files])),
+            );
+        });
     }
 
     /** Remove segments from the catalog and record their files' deletion in one transaction. */
@@ -266,12 +300,25 @@ export class EventArchive {
     }
 
     /** Decode the selected events of chosen segments, absent once one was compacted away. */
-    async decode(
+    decode(
         kind: EventKind,
         segments: readonly ChosenSegment[],
         filter: EventFilter,
         after: EventCursor | undefined,
         order: EventOrder = "ascending",
+    ): Promise<Event[] | undefined> {
+        return this.#scope.span("destack.event.decode", { "destack.event.kind": kind.key }, () =>
+            this.#decode(kind, segments, filter, after, order),
+        );
+    }
+
+    /** Decode each segment, then take the events past the cursor the filter selects. */
+    async #decode(
+        kind: EventKind,
+        segments: readonly ChosenSegment[],
+        filter: EventFilter,
+        after: EventCursor | undefined,
+        order: EventOrder,
     ): Promise<Event[] | undefined> {
         // decode each segment, noticing a file deleted since it was chosen
         const decoded = await Promise.all(

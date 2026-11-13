@@ -157,7 +157,7 @@ export class TestEventStore implements AsyncDisposable {
                     files: () => fixture.bucket,
                     personal: new DatabasePersonalKeyring(database.database, keyring, environment),
                     ...(settings === undefined ? {} : { settings }),
-                    clock: fixture.clock,
+                    environment: { clock: fixture.clock, telemetry: environment.telemetry },
                 }),
             database,
             simulation,

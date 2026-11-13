@@ -1026,3 +1026,48 @@ test("select, group and count the events of a map key's entries newest first, ho
         twice: `TypeError: event kind '${request.key}' is registered twice`,
     });
 });
+
+test("trace appends, a flush into a segment and a query reading it", async () => {
+    // append three readings, flush them once the first is an hour old, then query them back
+    const fixture = await open();
+    const { store, simulation } = fixture;
+    await store.append(
+        reading,
+        [1, 2, 3].map((minute) => measured(`r${String(minute)}`, minute, "db.bytes", minute)),
+    );
+    await simulation.run(TEST_START + 61 * MINUTE);
+    await store.query(reading, { scopes: ["space-1"] });
+
+    // read how often each of the store's spans ran, and its own counts
+    const names = simulation.telemetry.spans
+        .filter((span) => span.name.startsWith("destack.event."))
+        .map((span) => span.name);
+    const spans = Object.fromEntries(
+        [...new Set(names)]
+            .toSorted()
+            .map((name) => [name, names.filter((each) => each === name).length]),
+    );
+    const counts = Object.fromEntries(
+        Object.entries(await simulation.telemetry.counts()).filter(
+            ([key]) => key.startsWith("destack.event.") && !key.endsWith(".seconds"),
+        ),
+    );
+
+    // expect one append, a flush writing the full segment and one finding none left, and a query decoding it
+    expect({ spans, counts }).toEqual({
+        spans: {
+            "destack.event.append": 1,
+            "destack.event.compact": 1,
+            "destack.event.decode": 1,
+            "destack.event.flush": 2,
+            "destack.event.query": 1,
+        },
+        counts: {
+            "destack.event.append.duration.count": 1,
+            "destack.event.compact.duration.count": 1,
+            "destack.event.decode.duration.count": 1,
+            "destack.event.flush.duration.count": 2,
+            "destack.event.query.duration.count": 1,
+        },
+    });
+});
