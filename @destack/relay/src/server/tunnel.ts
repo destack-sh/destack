@@ -269,7 +269,9 @@ export class Tunnel implements SocketHandler {
         // run the socket the host connected, publishing the tunnel
         this.#accepted.delete(socket.id);
         const added = this.#attach(socket, accepted, true);
-        this.#instruments.log.info("tunnel.open", { machine: this.machineId });
+        this.#instruments.log.info("destack.tunnel.opened", {
+            "destack.machine.id": this.machineId,
+        });
         this.#publish(accepted.lapsesAt);
 
         return added;
@@ -379,7 +381,10 @@ export class Tunnel implements SocketHandler {
 
     /** Record a socket's close as an event of the machine's tunnel. */
     #closed(reason: TunnelCloseReason): void {
-        this.#instruments.log.info("tunnel.close", { machine: this.machineId, reason });
+        this.#instruments.log.info("destack.tunnel.closed", {
+            "destack.machine.id": this.machineId,
+            "destack.tunnel.reason": reason,
+        });
     }
 
     /** Store a socket's new lapse and key with it at the host. */

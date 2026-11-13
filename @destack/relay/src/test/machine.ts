@@ -357,7 +357,8 @@ export class TestTunnelMachine implements AsyncDisposable {
         return this.telemetry
             .records()
             .flatMap((record) =>
-                record.scope === relayPackage.name && record.event?.startsWith("tunnel.") === true
+                record.scope === relayPackage.name &&
+                record.event?.startsWith("destack.tunnel.") === true
                     ? [[record.event, record.attributes] as const]
                     : [],
             );

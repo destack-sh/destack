@@ -210,7 +210,10 @@ function event(name: string, reason?: string) {
         scope: "@destack/relay",
         event: name,
         severity: "INFO",
-        attributes: reason === undefined ? { machine: machineId } : { machine: machineId, reason },
+        attributes:
+            reason === undefined
+                ? { "destack.machine.id": machineId }
+                : { "destack.machine.id": machineId, "destack.tunnel.reason": reason },
     };
 }
 
@@ -238,10 +241,10 @@ test("forward through the newest socket, fall back to the older once the newest 
             "the machine is unavailable: it is disconnected",
         ],
         [
-            event("tunnel.open"),
-            event("tunnel.open"),
-            event("tunnel.close", "closed"),
-            event("tunnel.close", "machine-unknown"),
+            event("destack.tunnel.opened"),
+            event("destack.tunnel.opened"),
+            event("destack.tunnel.closed", "closed"),
+            event("destack.tunnel.closed", "machine-unknown"),
         ],
     ]);
 });
@@ -279,7 +282,7 @@ test("run an accepted socket only once its host delivers its first event, and fo
             "the machine is unavailable: it is disconnected",
         ],
         "host /b",
-        [event("tunnel.open")],
+        [event("destack.tunnel.opened")],
     ]);
 });
 
@@ -339,7 +342,7 @@ test("renew a socket's token through a stream the machine opens, answering its n
             "MACHINE_UNAVAILABLE",
             "the machine is unavailable: it is disconnected",
         ],
-        [event("tunnel.open"), event("tunnel.close", "lapsed")],
+        [event("destack.tunnel.opened"), event("destack.tunnel.closed", "lapsed")],
         // publish the tunnel once it opened and once it renewed, never at a refused renewal
         [
             [ACCOUNT, TEST_START + 1000],
@@ -404,10 +407,10 @@ test("refuse a renewal of a machine left keyless or missing from the directory m
             "the machine is unavailable: it is disconnected",
         ],
         [
-            event("tunnel.open"),
-            event("tunnel.close", "lapsed"),
-            event("tunnel.open"),
-            event("tunnel.close", "lapsed"),
+            event("destack.tunnel.opened"),
+            event("destack.tunnel.closed", "lapsed"),
+            event("destack.tunnel.opened"),
+            event("destack.tunnel.closed", "lapsed"),
         ],
     ]);
 });
@@ -437,9 +440,13 @@ test("keep a lapsed socket open until the next use, which closes it and forwards
 
     // keep the lapsed socket until the forward, which closes it first and goes through the older
     expect([lapsed, await forward(running, "/a"), telemetry.records()]).toEqual([
-        [event("tunnel.open"), event("tunnel.open")],
+        [event("destack.tunnel.opened"), event("destack.tunnel.opened")],
         "older /a",
-        [event("tunnel.open"), event("tunnel.open"), event("tunnel.close", "lapsed")],
+        [
+            event("destack.tunnel.opened"),
+            event("destack.tunnel.opened"),
+            event("destack.tunnel.closed", "lapsed"),
+        ],
     ]);
 });
 
@@ -457,7 +464,7 @@ test("close a socket that lapsed while the partition slept on the next wake, for
             "MACHINE_UNAVAILABLE",
             "the machine is unavailable: it is disconnected",
         ],
-        [event("tunnel.open"), event("tunnel.close", "lapsed")],
+        [event("destack.tunnel.opened"), event("destack.tunnel.closed", "lapsed")],
     ]);
 });
 
@@ -485,7 +492,7 @@ test("verify woken sockets once their standing reads, again after a failed read,
             "MACHINE_UNAVAILABLE",
             "the machine is unavailable: it is disconnected",
         ],
-        [event("tunnel.open"), event("tunnel.close", "key-revoked")],
+        [event("destack.tunnel.opened"), event("destack.tunnel.closed", "key-revoked")],
     ]);
 });
 
@@ -504,7 +511,7 @@ test("forward only through woken sockets whose key the universe still lists", as
             "MACHINE_UNAVAILABLE",
             "the machine is unavailable: it is disconnected",
         ],
-        [event("tunnel.open"), event("tunnel.close", "key-revoked")],
+        [event("destack.tunnel.opened"), event("destack.tunnel.closed", "key-revoked")],
     ]);
 });
 

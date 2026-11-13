@@ -33,9 +33,9 @@ async function refused(response: Response) {
 
 /** Describe a tunnel event of the computer, with its reason for a close. */
 function event(computer: TestTunnelMachine, name: string, reason?: string) {
-    const machine = computer.machine.id;
+    const machine = { "destack.machine.id": computer.machine.id };
 
-    return [name, reason === undefined ? { machine } : { machine, reason }];
+    return [name, reason === undefined ? machine : { ...machine, "destack.tunnel.reason": reason }];
 }
 
 test("forward a request for a space's name or S3 origin through its machine's tunnel, preserving its name, method and body", async () => {
@@ -54,7 +54,7 @@ test("forward a request for a space's name or S3 origin through its machine's tu
     ]).toEqual([
         "hello POST /notes/1 pinned",
         [`POST ${computer.notes}/notes/1`],
-        [event(computer, "tunnel.open")],
+        [event(computer, "destack.tunnel.opened")],
     ]);
 
     // call the space's buckets by its S3 origin
@@ -390,9 +390,9 @@ test("restore the route when the machine reconnects after its relay restarts", a
             (await computer.request(second, computer.notes, "/again")) === "hello GET /again",
     );
     expect(computer.tunnels()).toEqual([
-        event(computer, "tunnel.open"),
-        event(computer, "tunnel.close", "closed"),
-        event(computer, "tunnel.open"),
+        event(computer, "destack.tunnel.opened"),
+        event(computer, "destack.tunnel.closed", "closed"),
+        event(computer, "destack.tunnel.opened"),
     ]);
 });
 
@@ -469,7 +469,10 @@ test("route a request from an eu relay to a machine's name in the us residency t
         "hello GET /status",
         await disconnected(computer),
         [`GET ${name}/status`],
-        [event(computer, "tunnel.open"), event(computer, "tunnel.close", "lapsed")],
+        [
+            event(computer, "destack.tunnel.opened"),
+            event(computer, "destack.tunnel.closed", "lapsed"),
+        ],
     ]);
 });
 
@@ -554,7 +557,10 @@ test("end a deleted machine's tunnel at once, refuse its names, and emit the ope
             "MACHINE_UNAVAILABLE",
             `machine '${computer.machine.id}' is unavailable: it is not in the directory`,
         ],
-        [event(computer, "tunnel.open"), event(computer, "tunnel.close", "machine-unknown")],
+        [
+            event(computer, "destack.tunnel.opened"),
+            event(computer, "destack.tunnel.closed", "machine-unknown"),
+        ],
     ]);
 });
 
@@ -582,7 +588,10 @@ test("end a tunnel at once as its relay restarts, when its machine was deleted m
     await computer.waitUntil(() => computer.tunnels().length === 2);
     expect([before, computer.tunnels()]).toEqual([
         "hello GET /",
-        [event(computer, "tunnel.open"), event(computer, "tunnel.close", "machine-unknown")],
+        [
+            event(computer, "destack.tunnel.opened"),
+            event(computer, "destack.tunnel.closed", "machine-unknown"),
+        ],
     ]);
 });
 
@@ -619,7 +628,10 @@ test("end a machine's tunnel once its last key is revoked, emitting why", async 
             "MACHINE_UNAVAILABLE",
             "the machine is unavailable: it is disconnected",
         ],
-        [event(computer, "tunnel.open"), event(computer, "tunnel.close", "key-revoked")],
+        [
+            event(computer, "destack.tunnel.opened"),
+            event(computer, "destack.tunnel.closed", "key-revoked"),
+        ],
     ]);
 });
 
@@ -646,9 +658,9 @@ test("end a disabled machine's tunnel, and route to it again once it is enabled 
     expect([before, computer.tunnels()]).toEqual([
         "hello GET /",
         [
-            event(computer, "tunnel.open"),
-            event(computer, "tunnel.close", "key-revoked"),
-            event(computer, "tunnel.open"),
+            event(computer, "destack.tunnel.opened"),
+            event(computer, "destack.tunnel.closed", "key-revoked"),
+            event(computer, "destack.tunnel.opened"),
         ],
     ]);
 });
@@ -681,9 +693,9 @@ test("end a machine's socket once its token lapses, and route to the machine aga
     expect([before, computer.tunnels()]).toEqual([
         "hello GET /",
         [
-            event(computer, "tunnel.open"),
-            event(computer, "tunnel.close", "lapsed"),
-            event(computer, "tunnel.open"),
+            event(computer, "destack.tunnel.opened"),
+            event(computer, "destack.tunnel.closed", "lapsed"),
+            event(computer, "destack.tunnel.opened"),
         ],
     ]);
 });
