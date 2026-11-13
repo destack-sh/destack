@@ -426,9 +426,8 @@ export const lattice = style.create({
         position: "absolute",
     },
 
-    /** A guide word of a running head, in small capitals on a patch of page. */
+    /** A guide word of a running head, in small capitals over the dots. */
     guide: {
-        backgroundColor: color.background,
         color: color.mutedForeground,
         fontFamily: font.code,
         fontSize: "0.6875rem",
