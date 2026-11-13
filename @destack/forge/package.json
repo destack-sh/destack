@@ -44,6 +44,7 @@
     "devDependencies": {
         "@destack/check": "workspace:*",
         "@destack/identity": "workspace:*",
+        "@destack/machine": "workspace:*",
         "@destack/test": "workspace:*",
         "@types/bun": "1.4.4"
     }

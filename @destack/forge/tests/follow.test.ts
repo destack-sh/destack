@@ -1,30 +1,24 @@
+import registryPackage from "@destack/registry/package";
+import { fileURLToPath } from "node:url";
+import forgePackage from "../src/package.ts";
+import { History } from "@destack/git/test";
+import { FORGE_HOME_OPTIONS } from "../src/test/index.ts";
+import { FOLLOW_TEMPLATE } from "../src/test/index.ts";
 import type { Crypto } from "@destack/environment";
 import type { Environment } from "@destack/environment";
 import { PackageId } from "@destack/package";
 import { type DatabaseConnection, eq, Snapshot } from "@destack/db";
-import {
-    packageObject,
-    reference,
-    referenceShape,
-    repository,
-    tag,
-} from "@destack/registry/object";
+import { packageObject, referenceShape, repository, tag } from "@destack/registry/object";
 import type { BuildReader } from "@destack/package/manifest";
 import { MemoryBuild } from "@destack/package/test";
 import { Commit, Identifier, present, schema } from "@destack/schema";
 import { RequestId, Scope } from "@destack/sync";
 import { build, installationRevision } from "@destack/stack/object";
-import { SpaceStore } from "@destack/stack/server";
 import stackPackage from "@destack/stack/package";
 import objectPackage from "@destack/object/package";
-import { ids, reconcile, TestSpace } from "@destack/stack/test";
-import { TestEntitlement } from "@destack/account/test";
+import { ids, reconcile, TestSpace } from "@destack/machine/test";
 import { expect, refusal, test } from "@destack/test";
-import { Forge } from "@destack/registry/client";
-import { Claim, ClaimLookup, claimTable, installation, Shape } from "@destack/object";
-
-/** The residency's home space, where its forge stores the repositories' references. */
-const FORGE_HOME = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000007");
+import { Claim, claimTable, installation, Shape } from "@destack/object";
 
 /** Write a built package with one module, as a runner compiles it. */
 function writeBuild(crypto: Crypto): Promise<BuildReader> {
@@ -71,39 +65,10 @@ async function claimRepository(
     return id;
 }
 
-/** Move a repository reference to a commit as the space's replica of the references receives it. */
-async function moveReference(
-    database: DatabaseConnection,
-    moved: {
-        readonly id: Identifier<"reference">;
-        readonly repository: Identifier<"repository">;
-        readonly name: string;
-    },
-    commit: Commit,
-    now: number,
-): Promise<void> {
-    await database.transaction(async (transaction) => {
-        await transaction.log.asReplica(async () => {
-            const row = {
-                scope: FORGE_HOME,
-                parentId: moved.repository,
-                name: moved.name,
-                object: commit,
-                commit,
-                observedAt: now,
-                updatedAt: now,
-            };
-            await transaction
-                .insert(reference.table)
-                .values({ ...row, id: moved.id, createdAt: now })
-                .onConflictDoUpdate({ target: reference.table.id, set: row });
-        });
-    });
-}
-
 /** Point a package's tag at a version as the space's replica of the forge's tags receives it. */
 async function moveTag(
     database: DatabaseConnection,
+    home: Identifier<"space">,
     moved: { readonly id: Identifier<"tag">; readonly package: PackageId; readonly name: string },
     version: string,
     now: number,
@@ -111,7 +76,7 @@ async function moveTag(
     await database.transaction(async (transaction) => {
         await transaction.log.asReplica(async () => {
             const row = {
-                scope: FORGE_HOME,
+                scope: home,
                 parentId: moved.package,
                 name: moved.name,
                 version,
@@ -179,34 +144,38 @@ async function tagFollows(
 
 /** Serve a space whose installations follow repository references. */
 async function serveCommits() {
-    // serve installations following references from repositories the universe claims
-    const fixture = await TestSpace.open({
-        follows: new Forge(
-            { resolve: async () => new Map() },
-            async () => FORGE_HOME,
-            ids.machine,
-        ).follows(),
-    });
+    // serve the forge in the residency's home, and installations following references in the fixture's space
+    const { spaces } = await TestSpace.copy(FOLLOW_TEMPLATE, FORGE_HOME_OPTIONS);
+    const fixture = present(spaces.get(ids.space), "the fixture's space");
+    const residency = present(
+        [...spaces.values()].find((each) => each.id !== ids.space),
+        "the residency's home",
+    );
+    const home = residency.id;
     const { database } = fixture;
     const { clock, environment } = fixture.machine;
     const universe = fixture.universe.storage.database;
-    const claims = ClaimLookup.of(Snapshot.live(universe).read(claimTable));
-    const forge = new Forge(claims, async () => FORGE_HOME, fixture.machine.id);
-    const followed = {
-        forge,
-        follows: forge.follows(),
-        // call the forge in the residency home with a publisher that sends nothing
-        publisherAt: () => TestEntitlement.publisher,
-    };
-    const served = await fixture.serve(followed);
+    const served = await fixture.serve();
     const owner = served.as(fixture.owner.subject).client(stackPackage);
     const installer = served.as(fixture.owner.subject).client(objectPackage);
-    const options = await fixture.options(followed);
-    const store = new SpaceStore(options).store;
+    const { store } = await fixture.spaceStore();
     const follow = (id: string) => reconcile(store, "rollout", { installationId: id });
 
-    // install a package following the main branch of a repository in the space's account
-    const repositoryId = await claimRepository(environment, universe, ids.account);
+    // create a platform repository of the space's account at the forge, as the account's owner
+    const forge = (await residency.serve())
+        .as(fixture.owner.subject)
+        .client(registryPackage, forgePackage);
+    const created = await forge.repository.create({
+        spaceId: home,
+        accountId: ids.account,
+        requestId: RequestId.create(environment),
+        name: "library",
+        hosting: "platform",
+    });
+    const repositoryId = created.id;
+    const remote = fileURLToPath(present(created.remote, "the platform repository's remote"));
+
+    // install a package following the main branch of the repository
     const selection = {
         kind: "repository" as const,
         repository: repositoryId,
@@ -222,18 +191,31 @@ async function serveCommits() {
             name,
         });
 
-    // move the branch to a commit as the space's replica of the repository's references receives it
-    const id = Identifier.create("reference", fixture.environment);
-    const move = (commit: Commit) =>
-        moveReference(
-            database,
-            { id, repository: repositoryId, name: selection.reference },
-            commit,
-            clock.now(),
-        );
+    // move the branch at the forge to a new commit or a written one, then let the space replicate it
+    const history = new History();
+    let commits = 0;
+    const moveTo = async (commit?: Commit): Promise<Commit> => {
+        if (commit === undefined) {
+            commits += 1;
+            history.commit("main", "index.ts", `export const commit = ${commits};\n`);
+        } else {
+            history.reset("refs/heads/main", commit);
+        }
+        const [written] = await history.write(remote);
+        await forge.repository.refresh({
+            spaceId: home,
+            id: repositoryId,
+            requestId: RequestId.create(environment),
+        });
+        await fixture.simulation.idle();
+
+        return Commit.parse(commit ?? present(written, "the written commit"));
+    };
+    const move = () => moveTo();
 
     return {
         fixture,
+        home,
         clock,
         environment,
         database,
@@ -247,6 +229,7 @@ async function serveCommits() {
         selection,
         install,
         move,
+        moveTo,
         built: () => listBuilds(database),
     };
 }
@@ -264,8 +247,7 @@ test("build the commit a followed reference resolves to once for the installatio
     // follow the main branch and move it to a commit
     const { fixture, database, follow, runner, install, move, environment } = await serveCommits();
     const installed = await install("library");
-    const commit = Commit.parse("a".repeat(40));
-    await move(commit);
+    const commit = await move();
     await follow(installed.id);
 
     // run the commit's build as the space's machine and store it
@@ -310,7 +292,14 @@ test("build the commit a followed reference resolves to once for the installatio
 
 test("request one replica of the references a served space's installations select, from the forge in its residency home", async () => {
     // follow the main branch from two packages and a tag from a third
-    const { installer, store, repository: repositoryId, selection, install } = await serveCommits();
+    const {
+        installer,
+        store,
+        repository: repositoryId,
+        selection,
+        install,
+        home,
+    } = await serveCommits();
     await install("site");
     await install("preview", PackageId.parse("package-01996ab0-0000-7000-8000-0000000000c1"));
     await installer.installation.create({
@@ -332,8 +321,8 @@ test("request one replica of the references a served space's installations selec
     expect(
         requests
             .map((request) => request.subscription)
-            .filter((subscription) => subscription.scope === FORGE_HOME),
-    ).toEqual([Shape.subscription(FORGE_HOME, [{ shape: referenceShape, keys }], ids.space)]);
+            .filter((subscription) => subscription.scope === home),
+    ).toEqual([Shape.subscription(home, [{ shape: referenceShape, keys }], ids.space)]);
 });
 
 test("refuse an installation selecting a repository of another account or one no account claims, when created, updated or submitted", async () => {
@@ -386,16 +375,15 @@ test("refuse an installation selecting a repository of another account or one no
 
 test("cancel the unfinished build of a commit a newer commit of the selected branch supersedes, and build a commit followed again anew", async () => {
     // build the first commit of the followed branch
-    const { follow, install, move, built } = await serveCommits();
+    const { follow, install, move, moveTo, built } = await serveCommits();
     const installed = await install("site");
-    const [first, second] = [Commit.parse("a".repeat(40)), Commit.parse("b".repeat(40))];
-    await move(first);
+    const first = await move();
     await follow(installed.id);
 
     // move the branch on and back to the first commit
-    await move(second);
+    const second = await move();
     await follow(installed.id);
-    await move(first);
+    await moveTo(first);
     await follow(installed.id);
 
     // cancel each superseded build and build the first commit again once it is followed again
@@ -410,19 +398,19 @@ test("create one build of a commit when two reconciliations of its installation 
     // follow one branch and reconcile its installation twice at once
     const { follow, install, move, built } = await serveCommits();
     const site = await install("site");
-    await move(Commit.parse("a".repeat(40)));
+    const commit = await move();
     await Promise.all([follow(site.id), follow(site.id)]);
 
     // read the one build both create
-    expect(await built()).toEqual([["a".repeat(40), "pending"]]);
+    expect(await built()).toEqual([[commit, "pending"]]);
 });
 
 test("follow a selected tag to the release its replicated row points at, and to the next once the tag moves", async () => {
     // point latest at the first release in the space's replica, and install the package following it
-    const { database, clock, environment, installer, follow } = await serveCommits();
+    const { database, clock, environment, installer, follow, home } = await serveCommits();
     const id = Identifier.create("tag", environment);
     const point = (version: string) =>
-        moveTag(database, { id, package: ids.package, name: "latest" }, version, clock.now());
+        moveTag(database, home, { id, package: ids.package, name: "latest" }, version, clock.now());
     await point("2026.9.0");
     const installed = await installer.installation.create({
         scope: ids.space,
@@ -446,7 +434,7 @@ test("follow a selected tag to the release its replicated row points at, and to 
 
 test("follow a tag's package claim as the machine, then the tag at its forge home", async () => {
     // follow latest of a package whose claim the space lacks
-    const { database, environment, fixture, installer, store } = await serveCommits();
+    const { database, environment, fixture, installer, store, home } = await serveCommits();
     const packageId = PackageId.parse("package-01996ab0-0000-7000-8000-0000000000c3");
     await installer.installation.create({
         scope: ids.space,
@@ -482,6 +470,6 @@ test("follow a tag's package claim as the machine, then the tag at its forge hom
         subject: fixture.machine.id,
         query: `claim:${index}:${claimed.key}:0:claim`,
     };
-    const tagged = { scope: FORGE_HOME, subject: null, query: `tag:latest:${packageId}:0:tag` };
+    const tagged = { scope: home, subject: null, query: `tag:latest:${packageId}:0:tag` };
     expect({ before, after }).toEqual({ before: [claim], after: [claim, tagged] });
 });

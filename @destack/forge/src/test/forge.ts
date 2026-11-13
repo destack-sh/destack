@@ -30,7 +30,7 @@ import { join } from "node:path";
 import settingPackage from "@destack/setting/package";
 import { describeSetting } from "@destack/setting/inspect";
 import { installationRevision } from "@destack/stack/object";
-import { TestPackage, TestSpace } from "@destack/stack/test";
+import { TestPackage, TestSpace, ids } from "@destack/machine/test";
 import { RequestId, type Subject } from "@destack/sync";
 import { defineVault } from "@destack/vault/declare";
 import { secret } from "@destack/vault/object";
@@ -142,10 +142,10 @@ const HOME_STACK = {
 const SETUP_URL = "https://forge.test/github/setup";
 
 /** The packages whose types the home's stack declares. */
-const HOME_TYPES = [vaultPackage, forgePackage, gitStorage] as const;
+export const FORGE_HOME_TYPES = [vaultPackage, forgePackage, gitStorage] as const;
 
 /** The home's stack, as the residency's declares it: the forge with its resources and issuer. */
-const RESIDENCY_STACK = {
+export const FORGE_HOME_STACK = {
     vaults: { platform: PLATFORM_VAULT.provision(), credentials: credentialVault.provision() },
     gitStorages: { repositories: repositoryStorage.provision() },
     issuers: { github: {} },
@@ -169,7 +169,7 @@ const RESIDENCY_STACK = {
 };
 
 /** The residency's home its tests copy: the forge with the vault's tables and Git storage. */
-const HOME_OPTIONS = {
+export const FORGE_HOME_OPTIONS = {
     residencies: RESIDENCIES,
     ...TestPackage.options([VAULT, FORGE]),
     tables: gitStorage.tables,
@@ -194,10 +194,22 @@ const ForgeWorld = schema.object({
 type ForgeWorld = schema.Infer<typeof ForgeWorld>;
 
 /** The template of the residency's home serving the forge and its GitHub App. */
-export const FORGE_TEMPLATE = TestSpace.template(HOME_OPTIONS, {
+export const FORGE_TEMPLATE = TestSpace.template(FORGE_HOME_OPTIONS, {
     name: "forge",
     value: ForgeWorld,
     spaces: [{ residency: RESIDENCY }],
+    write: (home) => TestForge.write(home),
+});
+
+/** The forge's residency home beside a space of the fixture's account, which follows its forge. */
+export const FOLLOW_TEMPLATE = TestSpace.template(FORGE_HOME_OPTIONS, {
+    name: "forge-follow",
+    value: ForgeWorld,
+    spaces: [
+        { residency: RESIDENCY },
+        // the tenant's space serves none of the home's packages, following the forge's rows
+        { id: ids.space, account: ids.account, name: "space", packages: [] },
+    ],
     write: (home) => TestForge.write(home),
 });
 
@@ -292,7 +304,7 @@ export class TestForge {
     /** Serve a copy of the template's home with the forge installed, in a fork of its world. */
     static async open(): Promise<TestForge> {
         // copy the home, with GitHub answering in its world
-        const { space: home, world } = await TestSpace.copy(FORGE_TEMPLATE, HOME_OPTIONS);
+        const { space: home, world } = await TestSpace.copy(FORGE_TEMPLATE, FORGE_HOME_OPTIONS);
         const standIn = TestForge.#github(home);
 
         // serve it with the forge
@@ -348,8 +360,8 @@ export class TestForge {
         }
 
         // select the App in the forge's setting, then stop serving for the forge to restart with it
-        await home.apply(configuring, HOME_TYPES, {
-            ...RESIDENCY_STACK,
+        await home.apply(configuring, FORGE_HOME_TYPES, {
+            ...FORGE_HOME_STACK,
             settings: {
                 github: {
                     ...github.reference,
@@ -365,7 +377,7 @@ export class TestForge {
     static async write(home: TestSpace): Promise<ForgeWorld> {
         // install the forge with its vaults, Git storage, secrets and the GitHub App's issuer, as the residency's stack declares it
         const installing = await home.serve();
-        await home.apply(installing, HOME_TYPES, RESIDENCY_STACK);
+        await home.apply(installing, FORGE_HOME_TYPES, FORGE_HOME_STACK);
 
         // create the publishing account as its owner, then stop serving
         const owner = await home.universe.signIn(OWNER_EMAIL);
