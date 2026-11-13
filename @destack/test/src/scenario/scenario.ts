@@ -1,5 +1,5 @@
 import type { Benchmark, Given, Interaction, Scenario, SetStep } from "@destack/package/declare";
-import type { Clock } from "@destack/environment";
+import { Clock } from "@destack/environment";
 import type { JsonValue, schema } from "@destack/schema";
 import { join } from "node:path";
 import { expect, inject, test } from "vitest";
@@ -76,6 +76,8 @@ export interface Measurement {
     readonly operation: string;
     /** The iterations taken. */
     readonly iterations: number;
+    /** The host time each iteration took, in seconds, in order. */
+    readonly host: readonly number[];
     /** The host CPU time all iterations took, in seconds. */
     readonly cpu: number;
     /** The world time all iterations took on the driver's clock, in seconds. */
@@ -130,8 +132,11 @@ export const Runner = {
         for (const [operation, step] of Object.entries(benchmark.operations)) {
             const before = { usage: process.usage(), now: driver.clock.now(), taken: clock.now() };
             const counted = await driver.count();
+            const host: number[] = [];
             for (let iteration = 0; iteration < benchmark.iterations; iteration += 1) {
+                const acted = Clock.monotonic.now();
                 await driver.act(step);
+                host.push((Clock.monotonic.now() - acted) / MILLISECONDS);
             }
             const after = { usage: process.usage(), now: driver.clock.now() };
             report(benchmark, `${operation} x${benchmark.iterations}`, before.taken);
@@ -147,6 +152,7 @@ export const Runner = {
             measured.push({
                 operation,
                 iterations: benchmark.iterations,
+                host,
                 cpu,
                 world: (after.now - before.now) / MILLISECONDS,
                 counters: Object.fromEntries(grown),
@@ -313,11 +319,17 @@ export const Runner = {
         const parameters = Object.entries(benchmark.parameters)
             .map(([key, value]) => `/${key}=${value}`)
             .join("");
-        const lines = measured.map(({ operation, iterations, cpu, world, counters }) => {
+        const lines = measured.map(({ operation, iterations, host, cpu, world, counters }) => {
+            // write host time per operation and its quantiles, CPU, world time and each counter
             const name = `Benchmark${pascal(benchmark.name)}/op=${operation}${parameters}`;
+            const ordered = host.toSorted((left, right) => left - right);
+            const total = host.reduce((sum, seconds) => sum + seconds, 0);
             const values = [
-                `${world / iterations} sec/op`,
+                `${total / iterations} sec/op`,
+                `${quantile(ordered, 0.5)} p50-sec/op`,
+                `${quantile(ordered, 0.95)} p95-sec/op`,
                 `${cpu / iterations} cpu-sec/op`,
+                `${world / iterations} world-sec/op`,
                 ...Object.entries(counters).map(
                     ([unit, value]) => `${value / iterations} ${unit}/op`,
                 ),
@@ -329,6 +341,14 @@ export const Runner = {
         return `${[...header, "", ...lines].join("\n")}\n`;
     },
 };
+
+/** Read a quantile of sorted values by its nearest rank. */
+function quantile(sorted: readonly number[], fraction: number): number {
+    // take the value at the fraction's rank, the first for a fraction below one value
+    const rank = Math.min(sorted.length - 1, Math.ceil(fraction * sorted.length) - 1);
+
+    return sorted[Math.max(0, rank)] ?? 0;
+}
 
 /** Report a benchmark step's host time on standard error, as a long setup runs. */
 function report(benchmark: Benchmark, step: string, started: number): void {

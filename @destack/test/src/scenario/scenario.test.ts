@@ -129,15 +129,15 @@ test("measure each operation per iteration after an unmeasured setup, as Go benc
         })),
     ).toEqual([{ operation: "tally.mark", iterations: 4, world: 0, counters: { marks: 4 } }]);
 
-    // expect configuration lines, then one line per operation with values per iteration
+    // expect configuration lines, then one line per operation with values per iteration, host times left out as they vary
     const lines = Runner.format(markTally, measured, { pkg: "@destack/test", database: "sqlite" })
-        .replace(/ \S+ cpu-sec/u, " N cpu-sec")
+        .replaceAll(/ \S+ (sec|p50-sec|p95-sec|cpu-sec)\/op/gu, " N $1/op")
         .split("\n");
     expect(lines).toEqual([
         "pkg: @destack/test",
         "database: sqlite",
         "",
-        "BenchmarkTally/op=tally.mark/start=2 4 0 sec/op N cpu-sec/op 1 marks/op",
+        "BenchmarkTally/op=tally.mark/start=2 4 N sec/op N p50-sec/op N p95-sec/op N cpu-sec/op 0 world-sec/op 1 marks/op",
         "",
     ]);
 });

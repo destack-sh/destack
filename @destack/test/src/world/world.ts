@@ -8,6 +8,9 @@ const SEED = 1;
 /** The variable that runs every test's world with jitter, exposing real work no world schedules. */
 const JITTER_VARIABLE = "DESTACK_SIMULATION_JITTER";
 
+/** The variable that prints a world's span tree and histograms as it ends, when `tree`. */
+const TELEMETRY_VARIABLE = "DESTACK_TELEMETRY";
+
 /** The moment a test's own world starts at unless it names another: 2026-10-01T00:00:00Z. */
 export const TEST_START = Date.UTC(2026, 9, 1);
 
@@ -17,9 +20,17 @@ export function testSimulation(
     options: Omit<SimulationOptions, "seed" | "start"> = {},
 ): Simulation {
     // stop the world once its test finishes, or once its file's tests did for a world they share
-    const jitter = options.jitter ?? testHost().process.variables[JITTER_VARIABLE] === "1";
+    const { process } = testHost();
+    const jitter = options.jitter ?? process.variables[JITTER_VARIABLE] === "1";
     const simulation = new Simulation({ ...options, jitter, seed: SEED, start });
-    const dispose = () => simulation[Symbol.asyncDispose]();
+    const isDescribed = process.variables[TELEMETRY_VARIABLE] === "tree";
+    const dispose = async () => {
+        // describe what the world spent, then stop it
+        if (isDescribed) {
+            process.stderr.writeSync(`${await simulation.telemetry.describe()}\n`);
+        }
+        await simulation[Symbol.asyncDispose]();
+    };
     const current = TestRunner.getCurrentTest();
     if (current === undefined) {
         afterAll(dispose);
