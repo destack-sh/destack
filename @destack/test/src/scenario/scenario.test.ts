@@ -85,6 +85,7 @@ const tallyClock = new SimulatedClock(0);
 /** The drivers of tallies. */
 const TallyDriver: DriverType<Tallying, Tally> = {
     interaction: tallyInteraction,
+    configuration: {},
     start(given: Given<Tally>): Driver<Tallying> {
         // start the given tally, or an empty one for a benchmark
         const tally = given.examples[0]?.render?.() ?? createTally({ marks: 0 });

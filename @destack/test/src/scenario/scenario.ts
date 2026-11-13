@@ -41,6 +41,8 @@ export interface Driver<Speaks extends Interaction = Interaction> extends AsyncD
 export interface DriverType<Speaks extends Interaction = Interaction, Instance = unknown> {
     /** The interaction the drivers speak. */
     readonly interaction: Speaks;
+    /** The settings the drivers' worlds run with that change their numbers, such as durability. */
+    readonly configuration: Configuration;
     /** Start a driver on the examples a scenario is given, none for a benchmark. */
     start(given: Given<Instance>): Driver<Speaks> | Promise<Driver<Speaks>>;
 }
@@ -203,7 +205,7 @@ export const Runner = {
             const measured = await Runner.replay(play);
             const { variables } = testHost().process;
             const baseline = variables[BASELINE_VARIABLE] ?? CURRENT_BASELINE;
-            const configuration = await Runner.configuration(benchmark);
+            const configuration = await Runner.configuration(benchmark, type);
             await Runner.save(benchmark, measured, configuration, baseline);
 
             // expect each operation's counters within their limits, refusing a limit nothing counts
@@ -267,8 +269,8 @@ export const Runner = {
         return type;
     },
 
-    /** Read the configuration a benchmark runs in: its package, targets, host and commit. */
-    async configuration(benchmark: Benchmark): Promise<Configuration> {
+    /** Read a benchmark's configuration: its package, targets, driver, host and commit. */
+    async configuration(benchmark: Benchmark, type: DriverType): Promise<Configuration> {
         // read the commit the working tree is at, marked dirty when it has changes
         const { host, process } = testHost();
         const output = async (command: readonly string[]) => {
@@ -282,6 +284,7 @@ export const Runner = {
         return {
             pkg: benchmark.package.name,
             ...inject("targets"),
+            ...type.configuration,
             os: host.os,
             arch: host.architecture,
             commit: isDirty ? `${commit}-dirty` : commit,
