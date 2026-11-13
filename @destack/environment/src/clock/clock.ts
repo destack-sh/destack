@@ -20,7 +20,10 @@ export interface Clock {
 export const LONGEST_DELAY = 2 ** 31 - 1;
 
 /** Clocks. */
-export const Clock: { readonly system: Clock } = {
+export const Clock: { readonly system: Clock; readonly monotonic: Pick<Clock, "now"> } = {
+    /** The host's monotonic clock in fractional milliseconds, which durations are measured on. */
+    monotonic: { now: () => performance.now() },
+
     /** The system's clock, waiting on real timers. */
     system: {
         now: () => Date.now(),

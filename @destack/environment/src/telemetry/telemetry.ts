@@ -1,4 +1,4 @@
-import type { Clock } from "../clock/clock.ts";
+import { Clock } from "../clock/clock.ts";
 import {
     type Context,
     type ContextManager,
@@ -37,6 +37,8 @@ export interface Telemetry {
     readonly context: ContextManager;
     /** The clock the spans and log records are stamped on. */
     readonly clock: Clock;
+    /** The clock durations are measured on: the host's, also in a simulated world. */
+    readonly monotonic: Pick<Clock, "now">;
 }
 
 /** Telemetry sources. */
@@ -50,6 +52,7 @@ export const Telemetry = {
             propagator: W3C_PROPAGATOR,
             context,
             clock,
+            monotonic: Clock.monotonic,
         };
     },
 
