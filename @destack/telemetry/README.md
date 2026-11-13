@@ -29,12 +29,22 @@ export async function savePage(environment: Environment, text: string) {
 Signals follow OpenTelemetry's semantic conventions, with these Destack additions:
 
 ```ts
-const { span, measure, log } = TelemetryScope.of(import.meta.destack.package, telemetry); // per package, never a global
-await span("destack.controller.pass", { ...bounded, "destack.key": key }, run, { duration: { attributes: bounded } }); // ids stay off metrics
-await measure("db.client.operation.duration", attributes, run); // no span; error.type: CONFLICT
-waits.record(seconds, bounded); // destack.controller.wait.duration: a computed wait, apart from the work
-log.warn("destack.postgres.warned", { "db.response.status_code": "01000" }); // past tense
-SpanPath.add(context.active(), "db.client.operation.count", 1); // every running span's totals
+import { type Environment, SpanPath } from "@destack/environment";
+import { TelemetryScope } from "@destack/telemetry";
+
+/** Pass a controller over a key that waited since it came due. */
+export async function pass(environment: Environment, key: string, waited: number, run: () => Promise<void>) {
+    const { telemetry } = environment;
+    const { span, measure, metric, log } = TelemetryScope.of(import.meta.destack.package, telemetry); // per package, never a global
+    const bounded = { "destack.controller": "page" } as const;
+    const waits = metric.histogram("destack.controller.wait_time", { unit: "s", attributes: { "destack.controller": ["page"] } });
+
+    waits.record(waited, bounded); // a real wait only, apart from the work
+    await span("destack.controller.pass", { ...bounded, "destack.key": key }, run, { duration: { attributes: bounded } }); // ids stay off metrics
+    await measure("db.client.operation.duration", bounded, run); // no span; error.type: CONFLICT
+    log.warn("destack.postgres.warned", { "db.response.status_code": "01000" }); // past tense
+    SpanPath.add(telemetry.context.active(), "db.client.operation.count", 1); // every running span's totals
+}
 ```
 
 ## Trace a stream
@@ -42,17 +52,35 @@ SpanPath.add(context.active(), "db.client.operation.count", 1); // every running
 `span` follows work that answers a stream, each step in the span, and ends it once the stream ends.
 
 ```ts
-const pages = await span("note/list", attributes, () => list(input), { kind: "server", duration: { attributes } });
-for await (const page of pages) send(page); // a reader closing early: CLIENT_CLOSED_REQUEST
-await span("destack.access.check", attributes, check, { duration: { attributes: () => decided } }); // read at the end
+import type { Environment } from "@destack/environment";
+import { TelemetryScope } from "@destack/telemetry";
+
+/** Answer a list call with a stream of pages, and check access with its decision read at the end. */
+export async function* listPages(environment: Environment, pages: AsyncIterable<string>) {
+    const { span } = TelemetryScope.of(import.meta.destack.package, environment.telemetry);
+    const attributes = { "rpc.method": "note/list" };
+    let decided = { "destack.access.decision": "denied" };
+
+    await span("destack.access.check", attributes, async () => (decided = { "destack.access.decision": "allowed" }), {
+        duration: { attributes: () => decided }, // read at the end
+    });
+    yield* await span("note/list", attributes, () => pages, { kind: "server", duration: { attributes } }); // a reader closing early: CLIENT_CLOSED_REQUEST
+}
 ```
 
 ## Capture an exception
 
-`captureException` records a handled failure in the active trace, grouped into issues as Sentry groups them.
+`captureException` records a handled failure in the active trace.
 
 ```ts
-captureException(error, { level: "warning", tags: { feature: "export" }, fingerprint: ["export"] });
+import type { Environment } from "@destack/environment";
+import { TelemetryScope } from "@destack/telemetry";
+
+/** Record a failed export as a warning, grouped with every other failed export. */
+export function reportExport(environment: Environment, error: unknown) {
+    const { captureException } = TelemetryScope.of(import.meta.destack.package, environment.telemetry);
+    captureException(error, { level: "warning", tags: { feature: "export" }, fingerprint: ["export"] });
+}
 ```
 
 ## Track an action
@@ -60,8 +88,15 @@ captureException(error, { level: "warning", tags: { feature: "export" }, fingerp
 `track` and `visit` record what a person did and opened, as Segment's `track` and `page`.
 
 ```ts
-track("page.shared", { audience: "space" });
-visit("/notes/:id", { path: "/notes/1", title: "Groceries" });
+import type { Environment } from "@destack/environment";
+import { TelemetryScope } from "@destack/telemetry";
+
+/** Record a person opening a note and sharing it with the space. */
+export function shareNote(environment: Environment) {
+    const { track, visit } = TelemetryScope.of(import.meta.destack.package, environment.telemetry);
+    visit("/notes/:id", { path: "/notes/1", title: "Groceries" });
+    track("page.shared", { audience: "space" });
+}
 ```
 
 ## Declare a meter
@@ -126,17 +161,18 @@ test("capture a failed export", async () => {
 `SimulatedTelemetry.counts()` gives each histogram's count and seconds, in all and by target.
 
 ```ts
+import { TelemetryScope } from "@destack/telemetry";
 import { expect, test } from "@destack/test";
 import { testSimulation } from "@destack/test/world";
 
-test("save a page in one transaction of two statements", async () => {
+test("save a page once", async () => {
     await using simulation = testSimulation();
+    const { span } = TelemetryScope.of(import.meta.destack.package, simulation.environment("host").telemetry);
     const before = await simulation.telemetry.counts();
-    await savePage(simulation.environment("host"), "hello");
+    await span("acme.page.save", {}, async () => "saved");
     const after = await simulation.telemetry.counts();
 
-    const count = (key: string) => (after[key] ?? 0) - (before[key] ?? 0);
-    expect([count("db.client.operation.duration.count"), count("destack.transaction.duration.count")]).toEqual([2, 1]);
+    expect((after["acme.page.save.duration.count"] ?? 0) - (before["acme.page.save.duration.count"] ?? 0)).toBe(1);
 });
 ```
 
