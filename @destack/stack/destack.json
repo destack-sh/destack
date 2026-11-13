@@ -3,14 +3,11 @@
     "id": "package-01a0c80b-614e-739c-9b50-70e5119010b1",
     "role": "builtin",
     "language": "typescript",
-    "entrypoints": ["src/bun/runner.ts", "src/cloudflare/graph.ts", "src/cloudflare/workload.ts"],
+    "entrypoints": ["src/bun/runner.ts", "src/cloudflare/workload.ts"],
     "runtimes": ["browser", "bun", "workerd"],
     "exports": {
         "./inspect": {
             "runtimes": ["bun"]
-        },
-        "./server": {
-            "runtimes": ["bun", "workerd"]
         },
         "./bun": {
             "runtimes": ["bun"]
@@ -22,9 +19,6 @@
             "runtimes": ["bun"]
         },
         "./stack": {
-            "runtimes": ["bun", "workerd"]
-        },
-        "./runtime": {
             "runtimes": ["bun", "workerd"]
         },
         "./workload": {

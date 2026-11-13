@@ -13,19 +13,15 @@
         "./package": "./src/package.ts",
         "./client": "./src/client/index.ts",
         "./workload": "./src/workload/index.ts",
-        "./server": "./src/server/index.ts",
         "./stack": "./src/stack/index.ts",
         "./error": "./src/error/index.ts",
-        "./test": "./src/test/index.ts",
         "./build": "./src/build/index.ts",
         "./bun": "./src/bun/index.ts",
         "./cloudflare": "./src/cloudflare/index.ts",
-        "./runtime": "./src/runtime/index.ts",
         "./setting": "./src/setting/index.ts"
     },
     "scripts": {
-        "typecheck": "tsc --project tsconfig.json && destack-check readme",
-        "test": "bun --bun run vitest run --config vitest.config.ts"
+        "typecheck": "tsc --project tsconfig.json && destack-check readme"
     },
     "dependencies": {
         "@destack/access": "workspace:*",

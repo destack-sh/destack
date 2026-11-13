@@ -50,5 +50,4 @@ export const Database = {
             .read(database.table)
             .findFirst({ where: { scope: spaceId, name: MAIN_DATABASE } });
     },
-
 };

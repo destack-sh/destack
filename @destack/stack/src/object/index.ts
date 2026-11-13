@@ -17,3 +17,4 @@ export * from "./dependency.ts";
 export * from "./git.ts";
 export * from "./reading.ts";
 export * from "./usage.ts";
+export * from "./bindable.ts";
