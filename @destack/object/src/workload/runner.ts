@@ -118,7 +118,7 @@ export class WorkloadRunner implements AsyncDisposable {
             WorkloadRunner.#telemetryOptions(runner, start, build, report),
             runner.environment,
         );
-        const environment = Environment.with(runner.environment, { telemetry: running });
+        const environment = Environment.instrument(runner.environment, running);
 
         // start the instance on the bound resources
         const connections = new AsyncDisposableStack();
