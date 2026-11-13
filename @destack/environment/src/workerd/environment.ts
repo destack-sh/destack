@@ -14,11 +14,11 @@ export type WorkerdEnvironment = Environment;
 export const WorkerdEnvironment = {
     /** The isolate's base, logging to its console and tracing each request's context. */
     get system(): WorkerdEnvironment {
-        system ??= Environment.with(Environment.system, {
-            telemetry: Telemetry.local(
+        // build the isolate's base once: logging to its console, writing errors as errors
+        if (system === undefined) {
+            const telemetry = Telemetry.local(
                 Clock.system,
                 (line, severity) => {
-                    // write errors as errors, so the Worker's logs keep their level
                     const text = line.trimEnd();
                     if (severity >= SeverityNumber.ERROR) {
                         console.error(text);
@@ -27,8 +27,9 @@ export const WorkerdEnvironment = {
                     }
                 },
                 new AsyncLocalStorageContextManager().enable(),
-            ),
-        });
+            );
+            system = Environment.instrument(Environment.system, telemetry);
+        }
 
         return system;
     },

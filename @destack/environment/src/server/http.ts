@@ -1,7 +1,7 @@
 import type { Attributes } from "@opentelemetry/api";
-import { HTTP_SCOPE, HttpMethod, HttpTransport } from "../network/transport.ts";
+import { HttpMethod, HttpTransport } from "../network/transport.ts";
 import type { SocketListener, SocketListenOptions } from "../network/socket/socket.ts";
-import { SpanRunner } from "../telemetry/runner.ts";
+import { ENVIRONMENT_SCOPE, SpanRunner } from "../telemetry/runner.ts";
 import { TraceHeaders } from "../telemetry/headers.ts";
 import type { Telemetry } from "../telemetry/telemetry.ts";
 import type { Listener, ServeOptions, Server } from "./server.ts";
@@ -26,8 +26,8 @@ export class HttpServer implements Server {
         this.source = source;
         this.#telemetry = telemetry;
         this.#span = SpanRunner.of(
-            telemetry.tracers.getTracer(HTTP_SCOPE),
-            telemetry.meters.getMeter(HTTP_SCOPE),
+            telemetry.tracers.getTracer(ENVIRONMENT_SCOPE),
+            telemetry.meters.getMeter(ENVIRONMENT_SCOPE),
             telemetry,
         );
     }

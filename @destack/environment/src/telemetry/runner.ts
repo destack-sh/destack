@@ -1,6 +1,7 @@
 import {
     type Attributes,
     type Histogram,
+    type Link,
     type Meter,
     type MeterProvider,
     type Span,
@@ -14,6 +15,9 @@ import { recordSpanException } from "./exception.ts";
 import type { ReadableSpan } from "@opentelemetry/sdk-trace";
 import { SpanPath } from "./span.ts";
 import type { Telemetry } from "./telemetry.ts";
+
+/** The instrumentation scope of the environment's boundary spans and durations: this package. */
+export const ENVIRONMENT_SCOPE = "@destack/environment";
 
 /** The bucket boundaries of a duration in seconds: from 100 µs, as statements take, to 10 s. */
 export const DURATION_BUCKETS = [
@@ -33,8 +37,10 @@ const NANOSECONDS_PER_SECOND = 1_000_000_000;
 export interface SpanOptions {
     /** The span's kind: the client or server end of a call, internal when absent. */
     readonly kind?: "client" | "server";
-    /** The duration's name and bounded attributes, `<span>.duration` without any by default. */
-    readonly duration?: SpanDuration;
+    /** The duration's name and bounded attributes, `<span>.duration` by default, false for none. */
+    readonly duration?: SpanDuration | false;
+    /** The spans that caused this one apart from its parent, such as the commits waking a pass. */
+    readonly links?: readonly Link[];
 }
 
 /** The duration a span records: its metric's name and its bounded attributes, never identifiers. */
@@ -98,7 +104,8 @@ export const SpanRunner = {
             const parent = context.active();
             const kind = how.kind === undefined ? SpanKind.INTERNAL : SPAN_KINDS[how.kind];
             const startTime = clock.now();
-            const span = tracer.startSpan(name, { attributes, kind, startTime }, parent);
+            const links = [...(how.links ?? [])];
+            const span = tracer.startSpan(name, { attributes, kind, startTime, links }, parent);
             const entered = SpanPath.enter(
                 trace.setSpan(parent, span),
                 SpanPath.label(name, attributes),
@@ -120,13 +127,15 @@ export const SpanRunner = {
                 }
                 span.setAttributes({ ...failed, ...SpanPath.totals(entered) });
                 span.end(clock.now());
-                const seconds = (monotonic.now() - started) / MILLISECONDS_PER_SECOND;
-                const bounded = how.duration?.attributes ?? {};
-                const recorded = typeof bounded === "function" ? bounded() : bounded;
-                durations(how.duration?.name ?? `${name}.duration`).record(seconds, {
-                    ...recorded,
-                    ...failed,
-                });
+                if (how.duration !== false) {
+                    const seconds = (monotonic.now() - started) / MILLISECONDS_PER_SECOND;
+                    const bounded = how.duration?.attributes ?? {};
+                    const recorded = typeof bounded === "function" ? bounded() : bounded;
+                    durations(how.duration?.name ?? `${name}.duration`).record(seconds, {
+                        ...recorded,
+                        ...failed,
+                    });
+                }
             };
 
             // run the work, following a stream it answers until the stream ends

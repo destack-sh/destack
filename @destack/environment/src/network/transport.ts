@@ -1,13 +1,10 @@
 import { type Attributes, type Span, SpanStatusCode } from "@opentelemetry/api";
-import { SpanRunner } from "../telemetry/runner.ts";
+import { ENVIRONMENT_SCOPE, SpanRunner } from "../telemetry/runner.ts";
 import { TraceHeaders } from "../telemetry/headers.ts";
 import type { Telemetry } from "../telemetry/telemetry.ts";
 import type { ClientSocket, FetchOptions, Network } from "./network.ts";
 import { copyRequest } from "./request.ts";
 import type { ConnectOptions, Socket, SocketAddress } from "./socket/socket.ts";
-
-/** The instrumentation scope of HTTP spans and durations: this package. */
-export const HTTP_SCOPE = "@destack/environment";
 
 /** The HTTP methods of RFC 9110 and RFC 5789, which spans and durations state as they are. */
 const HTTP_METHODS: ReadonlySet<string> = new Set([
@@ -50,8 +47,8 @@ export class HttpTransport implements Network {
         this.source = source;
         this.#telemetry = telemetry;
         this.#span = SpanRunner.of(
-            telemetry.tracers.getTracer(HTTP_SCOPE),
-            telemetry.meters.getMeter(HTTP_SCOPE),
+            telemetry.tracers.getTracer(ENVIRONMENT_SCOPE),
+            telemetry.meters.getMeter(ENVIRONMENT_SCOPE),
             telemetry,
         );
     }
@@ -130,7 +127,9 @@ export class HttpTransport implements Network {
     readonly websocket = (url: string, protocols?: string | readonly string[]): ClientSocket =>
         this.source.websocket(url, protocols);
 
-    /** Resolve a host name through the source network. */
+    /** Resolve a host name in a `dns.lookup` span, as OpenTelemetry names it. */
     readonly resolve = (hostname: string): Promise<readonly string[]> =>
-        this.source.resolve(hostname);
+        this.#span("dns.lookup", { "dns.question.name": hostname }, () =>
+            this.source.resolve(hostname),
+        );
 }

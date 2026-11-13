@@ -5,6 +5,8 @@ import type { FileSystem } from "../file/file.ts";
 import { Network } from "../network/network.ts";
 import { HttpTransport } from "../network/transport.ts";
 import { HttpServer } from "../server/http.ts";
+import { InstrumentedFiles } from "../file/instrumented.ts";
+import { InstrumentedProcess } from "../process/instrumented.ts";
 import type { Host } from "../host/host.ts";
 import type { Opener } from "../opener/opener.ts";
 import type { Process } from "../process/process.ts";
@@ -55,11 +57,6 @@ export type Environment<Name extends keyof Capability = never> = {
     readonly timeZone: string;
 } & Pick<Capability, Name>;
 
-/** Report whether an environment accepts connections. */
-function hasServer(environment: Environment): environment is Environment<"server"> {
-    return "server" in environment;
-}
-
 /** The system's base environment, built on its first read. */
 let system: Environment | undefined;
 
@@ -71,34 +68,55 @@ export const Environment = {
         if (system === undefined) {
             const { locale, timeZone } = Intl.DateTimeFormat().resolvedOptions();
             const telemetry = Telemetry.none(Clock.system);
-            system = {
-                clock: Clock.system,
-                scheduler: Scheduler.system,
-                random: Random.system,
-                crypto: Crypto.system,
-                network: new HttpTransport(Network.system, telemetry),
-                compression: Compression.system,
+            system = Environment.instrument(
+                {
+                    clock: Clock.system,
+                    scheduler: Scheduler.system,
+                    random: Random.system,
+                    crypto: Crypto.system,
+                    network: Network.system,
+                    compression: Compression.system,
+                    telemetry,
+                    locale,
+                    timeZone,
+                },
                 telemetry,
-                locale,
-                timeZone,
-            };
+            );
         }
 
         return system;
     },
 
-    /** Emit an environment's signals through a telemetry, its network's and server's spans too. */
-    with<Effects extends Environment>(
+    /** Instrument an environment's boundaries on a telemetry: network, server, files, process. */
+    instrument<Effects extends Partial<Environment<"files" | "process" | "server">> & Environment>(
         environment: Effects,
-        changes: { readonly telemetry: Telemetry },
+        telemetry: Telemetry,
     ): Effects {
-        // trace the network's source, and the server's where the environment accepts connections
-        const { telemetry } = changes;
+        // wrap each boundary the environment has, unwrapping an instrumented one first
         const network = new HttpTransport(HttpTransport.sourceOf(environment.network), telemetry);
-        const server = hasServer(environment)
-            ? { server: new HttpServer(HttpServer.sourceOf(environment.server), telemetry) }
-            : {};
+        const server =
+            environment.server === undefined
+                ? {}
+                : { server: new HttpServer(HttpServer.sourceOf(environment.server), telemetry) };
+        const files =
+            environment.files === undefined
+                ? {}
+                : {
+                      files: new InstrumentedFiles(
+                          InstrumentedFiles.sourceOf(environment.files),
+                          telemetry,
+                      ),
+                  };
+        const process =
+            environment.process === undefined
+                ? {}
+                : {
+                      process: new InstrumentedProcess(
+                          InstrumentedProcess.sourceOf(environment.process),
+                          telemetry,
+                      ),
+                  };
 
-        return { ...environment, telemetry, network, ...server };
+        return { ...environment, telemetry, network, ...server, ...files, ...process };
     },
 };

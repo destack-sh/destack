@@ -3,7 +3,7 @@ import { mkdirSync, realpathSync } from "node:fs";
 import { rm } from "node:fs/promises";
 import { join } from "node:path";
 import { Crypto } from "../crypto/crypto.ts";
-import type { Environment, HostCapability } from "../environment/environment.ts";
+import { Environment, type HostCapability } from "../environment/environment.ts";
 import type { Host } from "../host/host.ts";
 import { BunProcess } from "../process/bun.ts";
 import { SimulatedOpener } from "../opener/opener.ts";
@@ -17,8 +17,8 @@ import { SimulatedClock } from "../clock/simulated.ts";
 import { SeverityNumber } from "@opentelemetry/api";
 import { SIMULATION_SCOPE, SimulatedScheduler } from "../scheduler/simulated.ts";
 import { SimulatedNetwork } from "../network/simulated.ts";
-import { HttpTransport } from "../network/transport.ts";
-import { HttpServer } from "../server/http.ts";
+import { InstrumentedProcess } from "../process/instrumented.ts";
+import type { Process } from "../process/process.ts";
 import { SimulatedRandom } from "../random/simulated.ts";
 import { Random } from "../random/random.ts";
 import type { World, WorldStep } from "../world/world.ts";
@@ -180,8 +180,10 @@ export class SimulatedNode {
     readonly #spawn: () => SimulatedProcess;
     /** Release what the world gives the node once it crashes. */
     readonly #release: () => void;
-    /** The node's current process. */
-    #process: SimulatedProcess;
+    /** The node's current simulated process. */
+    #simulated: SimulatedProcess;
+    /** The node's current process, instrumented. */
+    #process: Process;
     /** The signal stopping the running work, absent while the node runs none. */
     #stop: AbortController | undefined;
 
@@ -198,7 +200,8 @@ export class SimulatedNode {
         this.#simulation = simulation;
         this.#spawn = spawn;
         this.#release = release;
-        this.#process = spawn();
+        this.#simulated = spawn();
+        this.#process = new InstrumentedProcess(this.#simulated, effects.telemetry);
         const read = () => this.#process;
         this.environment = {
             ...effects,
@@ -236,9 +239,10 @@ export class SimulatedNode {
             node: this.name,
         });
         this.#stop?.abort(new Error(`node '${this.name}' crashed`));
-        this.#process.release();
+        this.#simulated.release();
         this.#stop = undefined;
-        this.#process = this.#spawn();
+        this.#simulated = this.#spawn();
+        this.#process = new InstrumentedProcess(this.#simulated, this.environment.telemetry);
         this.#release();
     }
 }
@@ -491,19 +495,20 @@ export class Simulation {
             scheduler,
             random,
             crypto: Crypto.run(BunCrypto, scheduler),
-            network: new HttpTransport(this.network.of(name), this.telemetry),
+            network: this.network.of(name),
             compression: SimulatedCompression,
             telemetry: this.telemetry,
             locale: this.#options.locale ?? LOCALE,
             timeZone: this.#options.timeZone ?? TIME_ZONE,
             workers: this.workers.of(name),
-            server: new HttpServer(this.network.server(name), this.telemetry),
+            server: this.network.server(name),
             files: this.#filesOf(name),
             host: this.#host,
             opener: this.opener.of(name),
         };
         const spawn = () => new SimulatedProcess(this.#process, scheduler);
-        const node = new SimulatedNode(name, this, effects, spawn, () => this.#release(name));
+        const instrumented = Environment.instrument(effects, this.telemetry);
+        const node = new SimulatedNode(name, this, instrumented, spawn, () => this.#release(name));
         this.#nodes.set(name, node);
 
         return node;
