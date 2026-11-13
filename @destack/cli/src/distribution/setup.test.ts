@@ -6,6 +6,7 @@ import { expect, test, refusal } from "@destack/test";
 import { type InstalledRelease, Release, type StagedRelease, UpdateError } from "@destack/update";
 import { Application } from "@destack/desktop/workload";
 import { Setup } from "./setup.ts";
+import { testWorldOptions } from "@destack/test/world";
 
 /** The release the machine runs before the update. */
 const PREVIOUS = installed("2026.9.1");
@@ -27,6 +28,7 @@ const HOME = "/home/ada/.destack";
 
 /** The Mac the device runs on. */
 const environment = new Simulation({
+    world: testWorldOptions(),
     seed: 1,
     start: 0,
     host: {
