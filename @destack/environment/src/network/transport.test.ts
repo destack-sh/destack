@@ -62,3 +62,30 @@ test("trace a request at both ends, the server's span below the client's, by met
         },
     });
 });
+
+test("report a method HTTP does not define as _OTHER at both ends, keeping each duration bounded", async () => {
+    // serve anything, then send a WebDAV method across the world
+    await using simulation = Simulation.of(
+        { seed: 1, start: Date.UTC(2026, 0, 1), steps: [] },
+        { world: testWorldOptions() },
+    );
+    simulation.environment("server").server.http({
+        hostname: "server.test",
+        port: 443,
+        fetch: () => new Response(null, { status: 207 }),
+    });
+    const { network } = simulation.environment("client");
+    await simulation.wait(
+        network.fetch(new Request("https://server.test/notes", { method: "PROPFIND" })),
+    );
+
+    // read each end's span name and method
+    const methods = simulation.telemetry.spans.map((span) => [
+        span.name,
+        span.attributes["http.request.method"],
+    ]);
+    expect(methods).toEqual([
+        ["_OTHER", "_OTHER"],
+        ["_OTHER", "_OTHER"],
+    ]);
+});

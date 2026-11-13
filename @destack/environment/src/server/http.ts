@@ -1,5 +1,5 @@
 import type { Attributes } from "@opentelemetry/api";
-import { HTTP_SCOPE, HttpTransport } from "../network/transport.ts";
+import { HTTP_SCOPE, HttpMethod, HttpTransport } from "../network/transport.ts";
 import type { SocketListener, SocketListenOptions } from "../network/socket/socket.ts";
 import { SpanRunner } from "../telemetry/runner.ts";
 import { TraceHeaders } from "../telemetry/headers.ts";
@@ -44,8 +44,9 @@ export class HttpServer implements Server {
             fetch: (request, peer) => {
                 // describe the request by its method and scheme, its path and peer on the span alone
                 const url = new URL(request.url);
+                const method = HttpMethod.of(request.method);
                 const bounded = {
-                    "http.request.method": request.method,
+                    "http.request.method": method,
                     "url.scheme": url.protocol.slice(0, -1),
                 };
                 const attributes = {
@@ -59,7 +60,7 @@ export class HttpServer implements Server {
                 const parent = TraceHeaders.extract(request.headers, this.#telemetry);
                 const answer = () =>
                     this.#span(
-                        request.method,
+                        method,
                         attributes,
                         async (span) => {
                             // answer the request, an accepted upgrade answering no response

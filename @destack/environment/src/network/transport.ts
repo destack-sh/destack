@@ -9,11 +9,32 @@ import type { ConnectOptions, Socket, SocketAddress } from "./socket/socket.ts";
 /** The instrumentation scope of HTTP spans and durations: this package. */
 export const HTTP_SCOPE = "@destack/environment";
 
+/** The HTTP methods of RFC 9110 and RFC 5789, which spans and durations state as they are. */
+const HTTP_METHODS: ReadonlySet<string> = new Set([
+    "CONNECT",
+    "DELETE",
+    "GET",
+    "HEAD",
+    "OPTIONS",
+    "PATCH",
+    "POST",
+    "PUT",
+    "TRACE",
+]);
+
 /** The lowest status a client counts as failed: any 4xx or 5xx, as OpenTelemetry sets. */
 const CLIENT_ERROR_STATUS = 400;
 
 /** The default ports of URL schemes, which a URL without a port uses. */
 const DEFAULT_PORTS: Readonly<Record<string, number>> = { "http:": 80, "https:": 443 };
+
+/** HTTP methods as OpenTelemetry reports them. */
+export const HttpMethod = {
+    /** Read a request's method, any method RFC 9110 and RFC 5789 do not define as `_OTHER`. */
+    of(method: string): string {
+        return HTTP_METHODS.has(method) ? method : "_OTHER";
+    },
+};
 
 /** A network sending each request in an `http.client` span with its trace, as otelhttp does. */
 export class HttpTransport implements Network {
@@ -64,8 +85,9 @@ export class HttpTransport implements Network {
     readonly fetch = (request: Request, options?: FetchOptions): Promise<Response> => {
         // describe the request by its method and scheme, its server and URL on the span alone
         const url = new URL(request.url);
+        const method = HttpMethod.of(request.method);
         const bounded = {
-            "http.request.method": request.method,
+            "http.request.method": method,
             "url.scheme": url.protocol.slice(0, -1),
         };
         const attributes = {
@@ -78,7 +100,7 @@ export class HttpTransport implements Network {
 
         // send it with its trace in its headers, noting the status it answers
         return this.#span(
-            request.method,
+            method,
             attributes,
             async (span) => {
                 // send the request with the trace in a copy of its headers
