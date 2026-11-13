@@ -241,10 +241,8 @@ export class Server implements AsyncDisposable {
                 throw error;
             }
 
-            // map the failure to its HTTP response
-            const failure = reportError(error, this.#options.environment.telemetry);
-
-            return this.#headers(Response.json(failure.toJSON(), { status: failure.status }));
+            // answer the failure as a refusal, with when to retry
+            return this.#headers(refusal(error, this.#options.environment.telemetry));
         }
     }
 
