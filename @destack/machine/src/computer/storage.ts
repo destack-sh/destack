@@ -1,3 +1,5 @@
+import type {} from "@destack/package/import-meta";
+import { TelemetryScope } from "@destack/telemetry";
 import type { SpaceProvider } from "@destack/stack/object";
 import type { CatalogueBucketHost } from "@destack/bucket/provider";
 import type { Connector } from "@destack/resource";
@@ -131,58 +133,78 @@ export class LocalSpaceStorage implements SpaceStorage, AsyncDisposable {
     }
 
     /** Open a space's volume: its database file migrated to its tables, its events and blobs. */
-    async open(space: Identifier<"space">): Promise<LocalVolume> {
-        // open and migrate the space's database file, closed last
-        const { environment, keyring } = this.#options;
-        const lifetime = new AsyncDisposableStack();
-        try {
-            await environment.files.mkdir(this.#directory("databases"), { recursive: true });
-            const definition = this.main;
-            const file = fileURLToPath(
-                this.#databases.resolve(LocalSpaceStorage.#reference(space)),
-            );
-            const database = await connectBunSqlite(file, definition, { environment });
-            lifetime.defer(() => database.close());
-            await database.migrate(definition.tables, { others: "retain" });
+    open(space: Identifier<"space">): Promise<LocalVolume> {
+        // open the space's volume in its span, timed by the provider
+        return TelemetryScope.of(
+            import.meta.destack.package,
+            this.#options.environment.telemetry,
+        ).span(
+            "destack.volume.open",
+            { "destack.space.id": space, "destack.volume.provider": "local" },
+            async () => {
+                // open and migrate the space's database file, closed last
+                const { environment, keyring } = this.#options;
+                const lifetime = new AsyncDisposableStack();
+                try {
+                    await environment.files.mkdir(this.#directory("databases"), {
+                        recursive: true,
+                    });
+                    const definition = this.main;
+                    const file = fileURLToPath(
+                        this.#databases.resolve(LocalSpaceStorage.#reference(space)),
+                    );
+                    const database = await connectBunSqlite(file, definition, { environment });
+                    lifetime.defer(() => database.close());
+                    await database.migrate(definition.tables, { others: "retain" });
 
-            // open its events, their segments in a bucket of the space's own
-            const segments = lifetime.use(
-                await LocalBucket.open(join(this.#directory("events"), space), space, environment),
-            );
-            const events = new EventStore({
-                environment,
-                database,
-                kinds: this.kinds,
-                files: () => segments,
-                personal: new DatabasePersonalKeyring(database, keyring, environment),
-                settings: Entitlement.capRetention(database, SettingValue.retention(database)),
-            });
+                    // open its events, their segments in a bucket of the space's own
+                    const segments = lifetime.use(
+                        await LocalBucket.open(
+                            join(this.#directory("events"), space),
+                            space,
+                            environment,
+                        ),
+                    );
+                    const events = new EventStore({
+                        environment,
+                        database,
+                        kinds: this.kinds,
+                        files: () => segments,
+                        personal: new DatabasePersonalKeyring(database, keyring, environment),
+                        settings: Entitlement.capRetention(
+                            database,
+                            SettingValue.retention(database),
+                        ),
+                    });
 
-            return new LocalVolume({
-                space,
-                options: this.#options,
-                databases: this.#databases,
-                lifetime,
-                database,
-                events,
-                blobs: await LocalBlobStorage.open(
-                    join(this.#options.directory, "blobs", space),
-                    environment,
-                    { synchronous: "full" },
-                ),
-                sockets: this.#sockets,
-                providers: this.#providers,
-                connectors: [
-                    LocalGitStorage.connector(this.#directory("git"), environment),
-                    this.#options.mail,
-                ],
-            });
-        }
-        // close what the open opened when it fails
-        catch (error) {
-            await lifetime.disposeAsync();
-            throw error;
-        }
+                    return new LocalVolume({
+                        space,
+                        options: this.#options,
+                        databases: this.#databases,
+                        lifetime,
+                        database,
+                        events,
+                        blobs: await LocalBlobStorage.open(
+                            join(this.#options.directory, "blobs", space),
+                            environment,
+                            { synchronous: "full" },
+                        ),
+                        sockets: this.#sockets,
+                        providers: this.#providers,
+                        connectors: [
+                            LocalGitStorage.connector(this.#directory("git"), environment),
+                            this.#options.mail,
+                        ],
+                    });
+                }
+                // close what the open opened when it fails
+                catch (error) {
+                    await lifetime.disposeAsync();
+                    throw error;
+                }
+            },
+            { duration: { attributes: { "destack.volume.provider": "local" } } },
+        );
     }
 
     /** Close the spaces' sockets. */
@@ -304,7 +326,18 @@ export class LocalVolume implements Volume {
     }
 
     /** Close the space's graphs, buckets, events and database. */
-    async close(): Promise<void> {
-        await this.#lifetime.disposeAsync();
+    close(): Promise<void> {
+        // close the space's volume in its span, timed by the provider
+        return TelemetryScope.of(
+            import.meta.destack.package,
+            this.database.state.environment.telemetry,
+        ).span(
+            "destack.volume.close",
+            { "destack.volume.provider": "local" },
+            async () => {
+                await this.#lifetime.disposeAsync();
+            },
+            { duration: { attributes: { "destack.volume.provider": "local" } } },
+        );
     }
 }

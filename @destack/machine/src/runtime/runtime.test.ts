@@ -39,7 +39,7 @@ const spec = {
 
 test("start an instance once for concurrent starts, identifying its secret while it starts", async () => {
     // launch once for two starts at once, reading the secret before the launch resolves
-    const registry = new InstanceRegistry<Running>();
+    const registry = new InstanceRegistry<Running>("test", testSimulation().telemetry);
     const launched: string[] = [];
     const ready = Promise.withResolvers<void>();
     const launch = async (identify: (secret: string) => void) => {
@@ -66,7 +66,7 @@ test("start an instance once for concurrent starts, identifying its secret while
 
 test("drop a failed start's secret, and retain a stopping instance's secret until it drains", async () => {
     // fail a start after identifying its secret
-    const registry = new InstanceRegistry<Running>();
+    const registry = new InstanceRegistry<Running>("test", testSimulation().telemetry);
     const failed = await registry
         .start(spec, async (identify) => {
             identify("failed");
@@ -99,7 +99,7 @@ test("drop a failed start's secret, and retain a stopping instance's secret unti
 
 test("forget only the instance still recorded, leaving one a later start replaced", async () => {
     // start, stop and start again
-    const registry = new InstanceRegistry<Running>();
+    const registry = new InstanceRegistry<Running>("test", testSimulation().telemetry);
     const first = { spec, secret: "first" };
     const second = { spec, secret: "second" };
     await registry.start(spec, async () => first);

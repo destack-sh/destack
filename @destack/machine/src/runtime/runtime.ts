@@ -1,3 +1,6 @@
+import type { Telemetry } from "@destack/environment";
+import type {} from "@destack/package/import-meta";
+import { TelemetryScope, type UpDownCounter } from "@destack/telemetry";
 import type { Random } from "@destack/environment";
 import { type Authentication, CALLER_HEADER, Caller } from "@destack/access";
 import type { DirectoryGrant, PackageId, Sandbox } from "@destack/package";
@@ -279,6 +282,22 @@ export class InstanceRegistry<
     readonly #running = new Map<string, Running>();
     /** The specs of the starting and running instances, by the secret their requests prove. */
     readonly #secrets = new Map<string, Running["spec"]>();
+    /** The running instances, counted by the runtime running them. */
+    readonly #count: UpDownCounter<{ readonly "destack.runtime": string }>;
+    /** The runtime's bounded attribute on the count. */
+    readonly #runtime: { readonly "destack.runtime": string };
+
+    /** Keep a runtime's instances, counting them on its telemetry. */
+    constructor(runtime: string, telemetry: Telemetry) {
+        this.#runtime = { "destack.runtime": runtime };
+        this.#count = TelemetryScope.of(
+            import.meta.destack.package,
+            telemetry,
+        ).metric.upDownCounter("destack.runtime.instance.count", {
+            unit: "{instance}",
+            attributes: { "destack.runtime": [runtime] },
+        });
+    }
 
     /** Start an instance unless it runs, joining a start in progress. */
     start(
@@ -305,6 +324,7 @@ export class InstanceRegistry<
             .then(
                 (running) => {
                     this.#running.set(spec.instanceId, running);
+                    this.#count.add(1, this.#runtime);
                 },
                 (error: unknown) => {
                     secrets.forEach((secret) => this.#secrets.delete(secret));
@@ -334,6 +354,7 @@ export class InstanceRegistry<
             return;
         }
         this.#running.delete(instanceId);
+        this.#count.add(-1, this.#runtime);
 
         // drop its secret once it drains
         try {
@@ -352,6 +373,7 @@ export class InstanceRegistry<
 
         // drop it and its secret
         this.#running.delete(running.spec.instanceId);
+        this.#count.add(-1, this.#runtime);
         this.#secrets.delete(running.secret);
 
         return true;

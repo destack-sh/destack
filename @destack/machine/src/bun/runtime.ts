@@ -110,7 +110,7 @@ export class BunRuntime implements Runtime {
     /** Read the identity of an instance's space, which its installation's root derives from. */
     readonly #identity: (scope: Identifier<"space">) => Promise<Pick<Deriver, "derive">>;
     /** The runners starting and running. */
-    readonly #registry = new InstanceRegistry<Runner>();
+    readonly #registry: InstanceRegistry<Runner>;
     /** Each build's directory and closure roots by digest, shared by its starts and calls. */
     readonly #layouts = new Map<Digest, Promise<PlacedBuild>>();
     /** The host the runners run on: its files, processes and clock. */
@@ -165,6 +165,7 @@ export class BunRuntime implements Runtime {
         this.#environment = options.environment;
         this.#isolation = options.isolation;
         this.#scope = TelemetryScope.of(import.meta.destack.package, options.environment.telemetry);
+        this.#registry = new InstanceRegistry(BUN_RUNTIME, options.environment.telemetry);
     }
 
     /** Load the server a lock's root exports into this process, absent for none. */
@@ -291,9 +292,12 @@ export class BunRuntime implements Runtime {
     }
 
     /** Stop an instance after any start in progress, draining its runner before killing it. */
-    async stop(instanceId: Identifier<"instance">): Promise<void> {
-        // drain the child after any start in progress, killing it once the drain runs out
-        await this.#registry.stop(instanceId, (child) => child.stop());
+    stop(instanceId: Identifier<"instance">): Promise<void> {
+        // stop the instance in its span
+        return this.#scope.span("destack.runtime.stop", {}, async () => {
+            // drain the child after any start in progress, killing it once the drain runs out
+            await this.#registry.stop(instanceId, (child) => child.stop());
+        });
     }
 
     /** Stop every instance, as the machine stops. */

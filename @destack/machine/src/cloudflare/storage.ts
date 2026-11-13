@@ -1,3 +1,5 @@
+import type {} from "@destack/package/import-meta";
+import { TelemetryScope } from "@destack/telemetry";
 import type { SpaceProvider } from "@destack/stack/object";
 import { MachineError } from "../error/index.ts";
 import type { CatalogueBucketHost } from "@destack/bucket/provider";
@@ -173,38 +175,49 @@ export class DurableObjectSpaceStorage implements SpaceStorage {
     }
 
     /** Open the volume of the space the object stores, refusing any other space. */
-    async open(space: Identifier<"space">): Promise<DurableObjectVolume> {
-        // refuse a space other than the object's
-        if (space !== this.#options.space) {
-            throw MachineError.of(
-                "SPACE_NOT_FOUND",
-                `space '${space}' in the object of '${this.#options.space}' not found`,
-            );
-        }
+    open(space: Identifier<"space">): Promise<DurableObjectVolume> {
+        // open the space's volume in its span, timed by the provider
+        return TelemetryScope.of(
+            import.meta.destack.package,
+            this.#options.environment.telemetry,
+        ).span(
+            "destack.volume.open",
+            { "destack.space.id": space, "destack.volume.provider": "durable_object" },
+            async () => {
+                // refuse a space other than the object's
+                if (space !== this.#options.space) {
+                    throw MachineError.of(
+                        "SPACE_NOT_FOUND",
+                        `space '${space}' in the object of '${this.#options.space}' not found`,
+                    );
+                }
 
-        // open the registry of the space's sockets, its memory fresh in the object's storage
-        const host = this.#host;
-        const sockets = await SocketRegistry.open({
-            objects: this.ephemeral,
-            environment: this.#options.environment,
-            tracker: new Tracker(this.#options.environment, undefined),
-            memory: async (tables) => {
-                await host.drop(SOCKETS_NAMESPACE);
+                // open the registry of the space's sockets, its memory fresh in the object's storage
+                const host = this.#host;
+                const sockets = await SocketRegistry.open({
+                    objects: this.ephemeral,
+                    environment: this.#options.environment,
+                    tracker: new Tracker(this.#options.environment, undefined),
+                    memory: async (tables) => {
+                        await host.drop(SOCKETS_NAMESPACE);
 
-                return host.connect(tables, { namespace: SOCKETS_NAMESPACE });
+                        return host.connect(tables, { namespace: SOCKETS_NAMESPACE });
+                    },
+                    report: (error) => this.#options.report(error),
+                });
+
+                return new DurableObjectVolume({
+                    options: this.#options,
+                    kinds: this.kinds,
+                    host,
+                    database: this.database,
+                    databases: this.databases,
+                    files: this.#files,
+                    sockets,
+                });
             },
-            report: (error) => this.#options.report(error),
-        });
-
-        return new DurableObjectVolume({
-            options: this.#options,
-            kinds: this.kinds,
-            host,
-            database: this.database,
-            databases: this.databases,
-            files: this.#files,
-            sockets,
-        });
+            { duration: { attributes: { "destack.volume.provider": "durable_object" } } },
+        );
     }
 
     /** Serve a page of a database replica an installation's object copies. */
@@ -285,10 +298,13 @@ export class DurableObjectVolume implements Volume {
                 ),
                 stackObject.database,
             ),
-            artifactsProvider(artifacts, gitStorage, send),
+            artifactsProvider(artifacts, gitStorage, send, environment.telemetry),
             mailProvider(transport.code, stackObject.mail),
         ];
-        this.connectors = [ArtifactsStorage.connector(artifacts, send), transport];
+        this.connectors = [
+            ArtifactsStorage.connector(artifacts, send, environment.telemetry),
+            transport,
+        ];
     }
 
     /** Open the space's buckets once in the residency's bucket, catalogued in its object. */
@@ -379,7 +395,18 @@ export class DurableObjectVolume implements Volume {
     }
 
     /** Close the space's socket registry once it stops, as the object's storage outlives it. */
-    async close(): Promise<void> {
-        await this.sockets[Symbol.asyncDispose]();
+    close(): Promise<void> {
+        // close the space's volume in its span, timed by the provider
+        return TelemetryScope.of(
+            import.meta.destack.package,
+            this.database.state.environment.telemetry,
+        ).span(
+            "destack.volume.close",
+            { "destack.volume.provider": "durable_object" },
+            async () => {
+                await this.sockets[Symbol.asyncDispose]();
+            },
+            { duration: { attributes: { "destack.volume.provider": "durable_object" } } },
+        );
     }
 }

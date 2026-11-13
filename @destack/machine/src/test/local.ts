@@ -1,4 +1,4 @@
-import type { Scheduler } from "@destack/environment";
+import type { Scheduler, Telemetry } from "@destack/environment";
 import { startSilentTelemetry } from "@destack/telemetry/test";
 import type { Authentication } from "@destack/access";
 import type { Digest, Identifier, JsonValue } from "@destack/schema";
@@ -39,10 +39,12 @@ export class LocalRuntime implements Runtime {
     /** Open a lock's root build, whose module a call imports. */
     readonly #root: (lock: Digest) => Promise<BuildReader>;
     /** The workloads starting and running. */
-    readonly #registry = new InstanceRegistry<Running>();
+    readonly #registry: InstanceRegistry<Running>;
 
     /** Run workloads calling addresses through a machine's egress. */
     constructor(options: {
+        /** The telemetry the runtime's instances are counted on. */
+        readonly telemetry: Telemetry;
         /** Report a failure of a workload's background work. */
         readonly report: (error: unknown) => void;
         /** The machine's egress of a space's instances, below which they call addresses. */
@@ -63,6 +65,7 @@ export class LocalRuntime implements Runtime {
         this.#report = options.report;
         this.#scheduler = options.scheduler;
         this.#root = options.root;
+        this.#registry = new InstanceRegistry("local", options.telemetry);
     }
 
     /** Start an instance's workload in this process. */

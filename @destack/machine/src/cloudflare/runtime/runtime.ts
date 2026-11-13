@@ -1,4 +1,4 @@
-import type { Random } from "@destack/environment";
+import type { Random, Telemetry } from "@destack/environment";
 import { Authentication } from "@destack/access";
 import { Digest, type Identifier, JsonValue } from "@destack/schema";
 import { START_PATH, STOP_PATH } from "@destack/object/cloudflare";
@@ -88,7 +88,7 @@ export class WorkerdRuntime implements Runtime {
     /** Read the space's builds, which map a build's imports and open its dependencies. */
     readonly #served: () => Pick<Space, "imports" | "builds">;
     /** The instances starting and running. */
-    readonly #registry = new InstanceRegistry<Runner>();
+    readonly #registry: InstanceRegistry<Runner>;
 
     /** Run a space's instances in its object's facets, calling out through the space's egress. */
     constructor(options: {
@@ -118,6 +118,8 @@ export class WorkerdRuntime implements Runtime {
         readonly identity: (scope: string) => Promise<Pick<Deriver, "derive">>;
         /** The randomness the instances' secrets draw from. */
         readonly random: Random;
+        /** The telemetry the runtime's instances are counted on. */
+        readonly telemetry: Telemetry;
         /** Read the space's builds, which map a build's imports and open its dependencies. */
         readonly served: () => Pick<Space, "imports" | "builds">;
     }) {
@@ -132,6 +134,7 @@ export class WorkerdRuntime implements Runtime {
         this.#identity = options.identity;
         this.#random = options.random;
         this.#served = options.served;
+        this.#registry = new InstanceRegistry(WORKERD_RUNTIME, options.telemetry);
     }
 
     /** Start an instance in its installation's facet, replacing its previous deployment. */

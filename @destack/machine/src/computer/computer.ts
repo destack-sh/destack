@@ -251,267 +251,299 @@ export class Computer implements AsyncDisposable {
     }
 
     /** Compose and start the machine over its state directory. */
-    static async start(options: ComputerOptions): Promise<Computer> {
-        // close what opened so far once a step fails, and let the tunnel's requests wait until started
-        await using stack = new AsyncDisposableStack();
-        const started = Promise.withResolvers<Computer>();
+    static start(options: ComputerOptions): Promise<Computer> {
+        // boot the computer in its span, from its state to serving
+        return TelemetryScope.of(MACHINE_PACKAGE, options.environment.telemetry).span(
+            "destack.computer.start",
+            {},
+            async () => {
+                // close what opened so far once a step fails, and let the tunnel's requests wait until started
+                await using stack = new AsyncDisposableStack();
+                const started = Promise.withResolvers<Computer>();
 
-        // record the tunnel's statuses one after another, in the order the tunnel tells them
-        let recorded = Promise.resolve();
+                // record the tunnel's statuses one after another, in the order the tunnel tells them
+                let recorded = Promise.resolve();
 
-        // refuse the held requests of a start that fails, which closes the tunnel
-        started.promise.catch(() => undefined);
-        stack.defer(() =>
-            started.reject(
-                MachineError.of(
-                    "MACHINE_UNAVAILABLE",
-                    "the machine is unavailable: it stopped while starting",
-                ),
-            ),
-        );
-        const origin = `http://127.0.0.1:${options.port}`;
-        const endpoint = options.endpoint ?? origin;
+                // refuse the held requests of a start that fails, which closes the tunnel
+                started.promise.catch(() => undefined);
+                stack.defer(() =>
+                    started.reject(
+                        MachineError.of(
+                            "MACHINE_UNAVAILABLE",
+                            "the machine is unavailable: it stopped while starting",
+                        ),
+                    ),
+                );
+                const origin = `http://127.0.0.1:${options.port}`;
+                const endpoint = options.endpoint ?? origin;
 
-        // open the machine's database, the native device's objects, the sessions and the keys
-        const state = await Computer.#openState(stack, options);
-        const { machineId, database } = state;
-        const keyring = await LocalKeyring.open(
-            options.keychain(ROOT_KEYS),
-            machineId,
-            options.environment,
-        );
-        const identity = new MachineKey(
-            machineId,
-            options.keychain(MACHINE_KEYS),
-            options.environment,
-        );
-        const events = await Computer.#openEvents(
-            stack,
-            options,
-            database,
-            "events",
-            keyring,
-            machineId,
-        );
-
-        // read the releases the distribution ships on the host, its builtins linked to the servers the machine loads
-        const platform = DistributionPlatform.of(options.environment.host);
-        const shipped = DistributionManifest.releases(options.shipped, platform);
-        const linked = DistributionManifest.builtins(options.shipped, platform);
-
-        // open the machine's builds over the shipped builds read in place, the compilers and the spaces' storage
-        const builds = await Computer.#openBuilds(options, linked, database);
-
-        // share the builtins with the servers the machine loads, from its compiled table or its files
-        const program = await Program.current(
-            async () =>
-                new Map(
-                    [...linked.values()].map((builtin) => [
-                        builtin.package.name,
-                        import.meta.dirname,
-                    ]),
-                ),
-            options.environment.process.loader,
-        );
-        const compilers = await CompilerPool.open(builds, options.toolchain);
-        stack.defer(() => compilers[Symbol.asyncDispose]());
-        const spaces = stack.use(
-            await LocalSpaceStorage.open({
-                directory: join(options.directory, "spaces"),
-                endpoint: origin,
-                keyring,
-                // print the spaces' mail, as a computer sends none
-                mail: mailConnector(
-                    "print",
-                    new PrintTransport((text) => options.environment.process.stdout.write(text)),
-                ),
-                environment: options.environment,
-                report: (error) => options.report("spaces.failed", error),
-            }),
-        );
-
-        // run the spaces' instances, their WebSockets open through the runtime, and load trusted servers through the Bun processes' builds
-        const { runtime, processes } = Computer.#startRuntime(
-            options,
-            origin,
-            { packages: builds, program },
-            () => machine,
-        );
-        stack.defer(() => runtime.close());
-        const hibernation = new HibernationHost(
-            (instanceId, path, request) =>
-                runtime.deliver(
-                    schema.identifier("instance").parse(instanceId),
-                    path,
-                    new Request(`http://instance${path}`, request),
-                ),
-            options.environment.telemetry,
-        );
-
-        // authenticate the owner, local clients and peers
-        const authenticator = new Authenticator(
-            machineId,
-            state.device,
-            {
-                verify: (request, audience, space) => machine.verify(request, audience, space),
-                requireStanding: (caller) => machine.requireStanding(caller),
-                space: (id) => machine.space(id),
-            },
-            options.environment,
-        );
-
-        // serve the spaces while enrolled
-        const machine: Machine = new Machine({
-            id: machineId,
-            environment: options.environment,
-            identity,
-            keyring,
-            database,
-            enrollment: (view) =>
-                Computer.#enrollment(view ?? Snapshot.live(state.device.database), machineId),
-            partition: () => routed.partition(),
-            describe: async () =>
-                Computer.#describe(
+                // open the machine's database, the native device's objects, the sessions and the keys
+                const state = await Computer.#openState(stack, options);
+                const { machineId, database } = state;
+                const keyring = await LocalKeyring.open(
+                    options.keychain(ROOT_KEYS),
+                    machineId,
+                    options.environment,
+                );
+                const identity = new MachineKey(
+                    machineId,
+                    options.keychain(MACHINE_KEYS),
+                    options.environment,
+                );
+                const events = await Computer.#openEvents(
+                    stack,
                     options,
+                    database,
+                    "events",
+                    keyring,
+                    machineId,
+                );
+
+                // read the releases the distribution ships on the host, its builtins linked to the servers the machine loads
+                const platform = DistributionPlatform.of(options.environment.host);
+                const shipped = DistributionManifest.releases(options.shipped, platform);
+                const linked = DistributionManifest.builtins(options.shipped, platform);
+
+                // open the machine's builds over the shipped builds read in place, the compilers and the spaces' storage
+                const builds = await Computer.#openBuilds(options, linked, database);
+
+                // share the builtins with the servers the machine loads, from its compiled table or its files
+                const program = await Program.current(
+                    async () =>
+                        new Map(
+                            [...linked.values()].map((builtin) => [
+                                builtin.package.name,
+                                import.meta.dirname,
+                            ]),
+                        ),
+                    options.environment.process.loader,
+                );
+                const compilers = await CompilerPool.open(builds, options.toolchain);
+                stack.defer(() => compilers[Symbol.asyncDispose]());
+                const spaces = stack.use(
+                    await LocalSpaceStorage.open({
+                        directory: join(options.directory, "spaces"),
+                        endpoint: origin,
+                        keyring,
+                        // print the spaces' mail, as a computer sends none
+                        mail: mailConnector(
+                            "print",
+                            new PrintTransport((text) =>
+                                options.environment.process.stdout.write(text),
+                            ),
+                        ),
+                        environment: options.environment,
+                        report: (error) => options.report("spaces.failed", error),
+                    }),
+                );
+
+                // run the spaces' instances, their WebSockets open through the runtime, and load trusted servers through the Bun processes' builds
+                const { runtime, processes } = Computer.#startRuntime(
+                    options,
+                    origin,
+                    { packages: builds, program },
+                    () => machine,
+                );
+                stack.defer(() => runtime.close());
+                const hibernation = new HibernationHost(
+                    (instanceId, path, request) =>
+                        runtime.deliver(
+                            schema.identifier("instance").parse(instanceId),
+                            path,
+                            new Request(`http://instance${path}`, request),
+                        ),
+                    options.environment.telemetry,
+                );
+
+                // authenticate the owner, local clients and peers
+                const authenticator = new Authenticator(
+                    machineId,
                     state.device,
-                    await Computer.#enrollment(Snapshot.live(state.device.database), machineId),
-                ),
-            volumes: spaces,
-            builds,
-            targets: COMPUTER_RUNTIMES,
-            ...(options.releases === undefined ? {} : { releases: options.releases }),
-            isBuilding: true,
-            isEnforcingEntitlements: false,
-            // serve accounts' hostnames on a cloud machine, which their DNS points at
-            isServingHostnames: options.enrollment?.kind === "cloud",
-            domain: LOOPBACK_DOMAIN,
-            runtimes: [runtime, new ProcessRuntime()],
-            hibernation,
-            alarm: undefined,
-            server: (lock) => processes.server(lock),
-            linked,
-            shipped,
-            skus: undefined,
-            registry: options.registry,
-            endpoint,
-            destack: { oldest: OLDEST_DESTACK, newest: MACHINE_PACKAGE.version },
-            ...(options.relay === undefined
-                ? {}
-                : {
-                      tunnel: {
-                          ...(options.relay.kind === "url" ? { url: options.relay.url } : {}),
-                          fetch: async (request: Request) => (await started.promise).relay(request),
-                          report: (error: unknown) => options.report("tunnel.failed", error),
-                          changed: (status: TunnelStatus) => {
-                              recorded = recorded
-                                  .then(async () => {
-                                      const { objects } = await started.promise;
-                                      await ComputerServer.link(objects, machineId, status);
-                                  })
-                                  .catch((error: unknown) =>
-                                      options.report("computer.failed", error),
-                                  );
-                          },
-                      },
-                  }),
-            authenticate: (request, audience, partition) =>
-                authenticator.authenticate(request, audience, partition),
-            authorizeSpace: (served) => authenticator.authorizeSpace(served),
-            report: (error) => options.report("spaces.failed", error),
-        });
+                    {
+                        verify: (request, audience, space) =>
+                            machine.verify(request, audience, space),
+                        requireStanding: (caller) => machine.requireStanding(caller),
+                        space: (id) => machine.space(id),
+                    },
+                    options.environment,
+                );
 
-        // serve this machine's objects and origins through the gateway
-        const runner = new BuildRunner(
-            machine,
-            compilers,
-            join(options.directory, "commits"),
-            options.environment,
-        );
-        await options.environment.files.remove(join(options.directory, "commits"), {
-            recursive: true,
-            force: true,
-        });
-        const routed = await Computer.#startServers(stack, options, {
-            ...state,
-            machine,
-            runner,
-            compilers,
-            authenticator,
-            events,
-            packages: builds,
-        });
+                // serve the spaces while enrolled
+                const machine: Machine = new Machine({
+                    id: machineId,
+                    environment: options.environment,
+                    identity,
+                    keyring,
+                    database,
+                    enrollment: (view) =>
+                        Computer.#enrollment(
+                            view ?? Snapshot.live(state.device.database),
+                            machineId,
+                        ),
+                    partition: () => routed.partition(),
+                    describe: async () =>
+                        Computer.#describe(
+                            options,
+                            state.device,
+                            await Computer.#enrollment(
+                                Snapshot.live(state.device.database),
+                                machineId,
+                            ),
+                        ),
+                    volumes: spaces,
+                    builds,
+                    targets: COMPUTER_RUNTIMES,
+                    ...(options.releases === undefined ? {} : { releases: options.releases }),
+                    isBuilding: true,
+                    isEnforcingEntitlements: false,
+                    // serve accounts' hostnames on a cloud machine, which their DNS points at
+                    isServingHostnames: options.enrollment?.kind === "cloud",
+                    domain: LOOPBACK_DOMAIN,
+                    runtimes: [runtime, new ProcessRuntime()],
+                    hibernation,
+                    alarm: undefined,
+                    server: (lock) => processes.server(lock),
+                    linked,
+                    shipped,
+                    skus: undefined,
+                    registry: options.registry,
+                    endpoint,
+                    destack: { oldest: OLDEST_DESTACK, newest: MACHINE_PACKAGE.version },
+                    ...(options.relay === undefined
+                        ? {}
+                        : {
+                              tunnel: {
+                                  ...(options.relay.kind === "url"
+                                      ? { url: options.relay.url }
+                                      : {}),
+                                  fetch: async (request: Request) =>
+                                      (await started.promise).relay(request),
+                                  report: (error: unknown) =>
+                                      options.report("tunnel.failed", error),
+                                  changed: (status: TunnelStatus) => {
+                                      recorded = recorded
+                                          .then(async () => {
+                                              const { objects } = await started.promise;
+                                              await ComputerServer.link(objects, machineId, status);
+                                          })
+                                          .catch((error: unknown) =>
+                                              options.report("computer.failed", error),
+                                          );
+                                  },
+                              },
+                          }),
+                    authenticate: (request, audience, partition) =>
+                        authenticator.authenticate(request, audience, partition),
+                    authorizeSpace: (served) => authenticator.authorizeSpace(served),
+                    report: (error) => options.report("spaces.failed", error),
+                });
 
-        // announce what the machine runs again each time the device's distribution changes, until closed
-        const announcing = new AbortController();
-        const distributed = distribution.table[TABLE].sqlName;
-        const { device } = state;
-        const announced = device.database.log
-            .waitUntil(
-                async (committed) => {
-                    if (committed.has(distributed) && (await machine.isEnrolled())) {
-                        await machine.announce();
-                    }
+                // serve this machine's objects and origins through the gateway
+                const runner = new BuildRunner(
+                    machine,
+                    compilers,
+                    join(options.directory, "commits"),
+                    options.environment,
+                );
+                await options.environment.files.remove(join(options.directory, "commits"), {
+                    recursive: true,
+                    force: true,
+                });
+                const routed = await Computer.#startServers(stack, options, {
+                    ...state,
+                    machine,
+                    runner,
+                    compilers,
+                    authenticator,
+                    events,
+                    packages: builds,
+                });
 
-                    return false;
-                },
-                announcing.signal,
-                device.database.state.commits.generation,
-            )
-            .catch((error: unknown) => options.report("machine.failed", error));
-        stack.defer(async () => {
-            announcing.abort();
-            await announced;
-        });
+                // announce what the machine runs again each time the device's distribution changes, until closed
+                const announcing = new AbortController();
+                const distributed = distribution.table[TABLE].sqlName;
+                const { device } = state;
+                const announced = device.database.log
+                    .waitUntil(
+                        async (committed) => {
+                            if (committed.has(distributed) && (await machine.isEnrolled())) {
+                                await machine.announce();
+                            }
 
-        // stop the spaces' instances first on close, while the spaces' gateways still send their calls
-        stack.defer(() => runtime.close());
+                            return false;
+                        },
+                        announcing.signal,
+                        device.database.state.commits.generation,
+                    )
+                    .catch((error: unknown) => options.report("machine.failed", error));
+                stack.defer(async () => {
+                    announcing.abort();
+                    await announced;
+                });
 
-        // take the composed computer, and let the tunnel's held requests through
-        const composed = new Computer(
-            {
-                ...state,
-                ...routed,
-                machine,
-                authenticator,
-                events,
-                compilers,
-                packages: builds,
-                runtime,
-                hibernation,
+                // stop the spaces' instances first on close, while the spaces' gateways still send their calls
+                stack.defer(() => runtime.close());
+
+                // take the composed computer, and let the tunnel's held requests through
+                const composed = new Computer(
+                    {
+                        ...state,
+                        ...routed,
+                        machine,
+                        authenticator,
+                        events,
+                        compilers,
+                        packages: builds,
+                        runtime,
+                        hibernation,
+                    },
+                    stack.move(),
+                );
+                started.resolve(composed);
+
+                return composed;
             },
-            stack.move(),
         );
-        started.resolve(composed);
-
-        return composed;
     }
 
     /** Erase a machine's state, refusing while it runs. */
-    static async erase(
+    static erase(
         directory: string,
         keychain: (service: string) => Keychain,
         environment: Environment<"files" | "server">,
     ): Promise<void> {
-        // erase nothing before a first start
-        const { files } = environment;
-        if (!(await files.exists(directory))) {
-            return;
-        }
+        // erase the computer's state in its span
+        return TelemetryScope.of(MACHINE_PACKAGE, environment.telemetry).span(
+            "destack.computer.erase",
+            {},
+            async () => {
+                // erase nothing before a first start
+                const { files } = environment;
+                if (!(await files.exists(directory))) {
+                    return;
+                }
 
-        // forget the logins' sessions and client keys and the machine's keys while the directory is locked
-        {
-            await using lock = await files.tryLock(join(directory, LOCK_FILE), "exclusive");
-            if (lock === undefined) {
-                throw MachineError.of(
-                    "MACHINE_BLOCKED",
-                    "cannot erase the Destack machine: it is running, so stop it first",
-                );
-            }
-            await Device.forget(directory, keychain, [MACHINE_KEYS, ROOT_KEYS], environment);
-        }
+                // forget the logins' sessions and client keys and the machine's keys while the directory is locked
+                {
+                    await using lock = await files.tryLock(join(directory, LOCK_FILE), "exclusive");
+                    if (lock === undefined) {
+                        throw MachineError.of(
+                            "MACHINE_BLOCKED",
+                            "cannot erase the Destack machine: it is running, so stop it first",
+                        );
+                    }
+                    await Device.forget(
+                        directory,
+                        keychain,
+                        [MACHINE_KEYS, ROOT_KEYS],
+                        environment,
+                    );
+                }
 
-        // remove the directory
-        await files.remove(directory, { recursive: true, force: true });
+                // remove the directory
+                await files.remove(directory, { recursive: true, force: true });
+            },
+        );
     }
 
     /** Open the machine's database, its native device's database and the people's sessions. */
@@ -1040,7 +1072,7 @@ export class Computer implements AsyncDisposable {
         let running: Computer | undefined;
         const telemetry = await Computer.#startTelemetry(environment, () => running?.machine);
         const instruments = TelemetryScope.of(MACHINE_PACKAGE, telemetry);
-        const recorded = Environment.with(environment, { telemetry });
+        const recorded = Environment.instrument(environment, telemetry);
 
         // compose the machine with the system's keychains, this channel's distribution and its toolchain
         const stopping = new AbortController();
@@ -1269,7 +1301,10 @@ export class Computer implements AsyncDisposable {
     }
 
     /** Stop serving and close what the machine opened, last opened first. */
-    async [Symbol.asyncDispose](): Promise<void> {
-        await this.#stack.disposeAsync();
+    [Symbol.asyncDispose](): Promise<void> {
+        // stop in its span, timing the shutdown
+        return this.machine.scope.span("destack.computer.stop", {}, () =>
+            this.#stack.disposeAsync(),
+        );
     }
 }

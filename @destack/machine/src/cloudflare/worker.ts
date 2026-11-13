@@ -353,6 +353,7 @@ export class PartitionObject {
 
                 return served;
             },
+            telemetry: cloud.environment.telemetry,
         });
 
         // serve the space on the one machine, enrolled by the universe's declaration of it, started now

@@ -522,23 +522,26 @@ export class Machine {
     }
 
     /** Enroll this machine under an account as a personal machine with a new key. */
-    async enroll(
+    enroll(
         accounts: ClientOf<typeof accountPackage>,
         universe: string,
         input: Omit<PersonalEnrollment, "scope" | "requestId" | "kind"> & {
             readonly accountId: Identifier<"account">;
         },
     ): Promise<MachineEnrollment> {
-        // enroll through the approving person's client with a new key
-        const { accountId, ...enrollment } = input;
-        await this.identity.enroll(accounts, {
-            ...enrollment,
-            scope: accountId,
-            requestId: RequestId.create(this.environment),
-            kind: "personal",
-        });
+        // enroll the machine in its span
+        return this.scope.span("destack.machine.enroll", {}, async () => {
+            // enroll through the approving person's client with a new key
+            const { accountId, ...enrollment } = input;
+            await this.identity.enroll(accounts, {
+                ...enrollment,
+                scope: accountId,
+                requestId: RequestId.create(this.environment),
+                kind: "personal",
+            });
 
-        return { kind: "personal", universe, accountId, status: "enrolled" };
+            return { kind: "personal", universe, accountId, status: "enrolled" };
+        });
     }
 
     /** Revoke an enrollment of this machine at its universe as itself and forget its key. */
@@ -560,13 +563,20 @@ export class Machine {
     }
 
     /** Connect to the handoff of a machine that moves a space here, at its stack package. */
-    async handoff(machine: Identifier<"machine">, spaceId: Identifier<"space">) {
-        // call the source machine's stack package in the space, as this machine
-        const fetch = this.fetch(stackPackage.id, { partition: spaceId });
-        const answering = await this.directory.answering(machine, this.clock.now());
-        const url = `${SpaceMount.url(answering, spaceId)}${PackageMount.path(stackPackage.id)}`;
+    handoff(machine: Identifier<"machine">, spaceId: Identifier<"space">) {
+        // hand the space off in its span
+        return this.scope.span(
+            "destack.machine.handoff",
+            { "destack.space.id": spaceId },
+            async () => {
+                // call the source machine's stack package in the space, as this machine
+                const fetch = this.fetch(stackPackage.id, { partition: spaceId });
+                const answering = await this.directory.answering(machine, this.clock.now());
+                const url = `${SpaceMount.url(answering, spaceId)}${PackageMount.path(stackPackage.id)}`;
 
-        return Handoff.connect(url, fetch, this.environment);
+                return Handoff.connect(url, fetch, this.environment);
+            },
+        );
     }
 
     /** Read how this machine's store replicates its chain, absent before it enrolls. */

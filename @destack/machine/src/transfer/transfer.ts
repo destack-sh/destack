@@ -72,6 +72,7 @@ import type { BuildStore } from "@destack/build/store";
 import { retireSnapshots } from "../resource/snapshot.ts";
 import type { SpaceRole } from "../space/placement.ts";
 import type {} from "@destack/package/import-meta";
+import { TelemetryScope } from "@destack/telemetry";
 import { StackError } from "@destack/stack/error";
 
 /** The spaces a machine receives at once. */
@@ -399,36 +400,42 @@ export class SpaceTransfer {
     }
 
     /** Plan the steps of a transfer while its source still serves its space. */
-    static async plan(
+    static plan(
         options: Pick<HandoffOptions, "database" | "blobs">,
         record: Transfer,
     ): Promise<SpaceTransfer> {
-        // refuse a space placed elsewhere now
-        const [located] = await Placement.find(Snapshot.live(options.database), [record.scope]);
-        if (located === undefined || located.machine !== record.sourceId) {
-            throw StackError.of(
-                "PLACEMENT_CONFLICT",
-                `cannot transfer '${record.scope}': it is no longer placed on '${record.sourceId}'`,
+        // plan the transfer in its span
+        return TelemetryScope.of(
+            import.meta.destack.package,
+            options.database.state.environment.telemetry,
+        ).span("destack.transfer.plan", {}, async () => {
+            // refuse a space placed elsewhere now
+            const [located] = await Placement.find(Snapshot.live(options.database), [record.scope]);
+            if (located === undefined || located.machine !== record.sourceId) {
+                throw StackError.of(
+                    "PLACEMENT_CONFLICT",
+                    `cannot transfer '${record.scope}': it is no longer placed on '${record.sourceId}'`,
+                );
+            }
+
+            // plan its move with its main database's tables, refusing a plan waiting for approval
+            const main = await Database.mainMaybe(Snapshot.live(options.database), located.space);
+            const states =
+                main === undefined || main.reference === null
+                    ? []
+                    : await Promise.all(
+                          appliedDigests(main).map((digest) =>
+                              options.blobs.readJson(digest, DatabaseState),
+                          ),
+                      );
+
+            return SpaceTransfer.of(
+                options,
+                located,
+                record.targetId,
+                SpaceTransfer.tables(options.database, states),
             );
-        }
-
-        // plan its move with its main database's tables, refusing a plan waiting for approval
-        const main = await Database.mainMaybe(Snapshot.live(options.database), located.space);
-        const states =
-            main === undefined || main.reference === null
-                ? []
-                : await Promise.all(
-                      appliedDigests(main).map((digest) =>
-                          options.blobs.readJson(digest, DatabaseState),
-                      ),
-                  );
-
-        return SpaceTransfer.of(
-            options,
-            located,
-            record.targetId,
-            SpaceTransfer.tables(options.database, states),
-        );
+        });
     }
 
     /** Read a space's active transfer, refusing a space without one. */
@@ -484,43 +491,52 @@ export class SpaceTransfer {
     }
 
     /** Fence the space against writes unless fenced already, then its resources. */
-    async fence(
-        options: Pick<HandoffOptions, "providers" | "runtimes">,
-        now: number,
-    ): Promise<Fence> {
-        // fence the space once, reading the database's position and the digest of the space's rows at it
-        await Transaction.run(this.space.database, async (transaction) => {
-            const chain = await Scope.chain(transaction.view(), this.placement.space);
-            if (chain.every((link) => link.movedTo === undefined)) {
-                await Scope.fence(transaction, this.placement.space, this.target, now);
-            }
+    fence(options: Pick<HandoffOptions, "providers" | "runtimes">, now: number): Promise<Fence> {
+        // fence the space in its span
+        return TelemetryScope.of(
+            import.meta.destack.package,
+            this.space.database.state.environment.telemetry,
+        ).span("destack.transfer.fence", { "destack.space.id": this.space.spaceId }, async () => {
+            // fence the space once, reading the database's position and the digest of the space's rows at it
+            await Transaction.run(this.space.database, async (transaction) => {
+                const chain = await Scope.chain(transaction.view(), this.placement.space);
+                if (chain.every((link) => link.movedTo === undefined)) {
+                    await Scope.fence(transaction, this.placement.space, this.target, now);
+                }
+            });
+
+            // read the space's latest change, its rows' digest and its subtree
+            const fenced = await this.space.database.transaction(async (database) => {
+                const scopes = await Scope.subtree(Snapshot.live(database), this.placement.space);
+
+                return {
+                    position: await database.log.changed(this.space.tables, scopes),
+                    digest: await SpaceReplica.digest(database, this.space.digestTables(), scopes),
+                    scopes,
+                };
+            });
+
+            // fence each resource's content once its writes in flight finish
+            const fences = await this.#fences(options.providers);
+            await Promise.all(fences.map((resource) => resource.fence.fence(resource.record)));
+
+            // stop the space's instances running here before their resources are captured
+            await this.#stop(options);
+
+            return fenced;
         });
-
-        // read the space's latest change, its rows' digest and its subtree
-        const fenced = await this.space.database.transaction(async (database) => {
-            const scopes = await Scope.subtree(Snapshot.live(database), this.placement.space);
-
-            return {
-                position: await database.log.changed(this.space.tables, scopes),
-                digest: await SpaceReplica.digest(database, this.space.digestTables(), scopes),
-                scopes,
-            };
-        });
-
-        // fence each resource's content once its writes in flight finish
-        const fences = await this.#fences(options.providers);
-        await Promise.all(fences.map((resource) => resource.fence.fence(resource.record)));
-
-        // stop the space's instances running here before their resources are captured
-        await this.#stop(options);
-
-        return fenced;
     }
 
     /** Lift the fences of the space's resources here, once its move was cancelled. */
-    async lift(providers: ProviderIndex): Promise<void> {
-        const fences = await this.#fences(providers);
-        await Promise.all(fences.map((resource) => resource.fence.lift(resource.record)));
+    lift(providers: ProviderIndex): Promise<void> {
+        // lift its fences in its span
+        return TelemetryScope.of(
+            import.meta.destack.package,
+            this.space.database.state.environment.telemetry,
+        ).span("destack.transfer.lift", { "destack.space.id": this.space.spaceId }, async () => {
+            const fences = await this.#fences(providers);
+            await Promise.all(fences.map((resource) => resource.fence.lift(resource.record)));
+        });
     }
 
     /** Remove the source's replica of a space its target serves now. */
@@ -549,26 +565,32 @@ export class SpaceTransfer {
     }
 
     /** Cut over to this machine. */
-    async cutover(
+    cutover(
         source: Handoff,
         signal: AbortSignal,
         options: TransferOptions,
         store: TransferStore,
     ): Promise<void> {
-        // follow the source's rows up to its fence, restoring resources and builds meanwhile
-        const fenced = await this.#followToFence(source, signal, options, store);
+        // cut the space over in its span
+        return TelemetryScope.of(
+            import.meta.destack.package,
+            this.space.database.state.environment.telemetry,
+        ).span("destack.transfer.cutover", { "destack.space.id": this.space.spaceId }, async () => {
+            // follow the source's rows up to its fence, restoring resources and builds meanwhile
+            const fenced = await this.#followToFence(source, signal, options, store);
 
-        // capture the space's rows, copy the blobs they reference and index the builds among them
-        await this.#captureRows(source, fenced, options);
-        await this.#copyBlobs(source, options.blobs, signal);
-        await this.#indexBuilds(options.builds);
+            // capture the space's rows, copy the blobs they reference and index the builds among them
+            await this.#captureRows(source, fenced, options);
+            await this.#copyBlobs(source, options.blobs, signal);
+            await this.#indexBuilds(options.builds);
 
-        // catch each resource up on what changed since its snapshot
-        await this.#catchUp(signal, options, store, store.clock.now());
+            // catch each resource up on what changed since its snapshot
+            await this.#catchUp(signal, options, store, store.clock.now());
 
-        // take over the space's rows and point each resource here
-        await this.#takeOver(store);
-        await this.settle(options, store);
+            // take over the space's rows and point each resource here
+            await this.#takeOver(store);
+            await this.settle(options, store);
+        });
     }
 
     /** Follow the source's rows up to its fence, restoring resources and builds meanwhile. */
@@ -832,30 +854,40 @@ export class SpaceTransfer {
     }
 
     /** Place the space on its target at the next epoch, rekeyed, and serve its replica there. */
-    async place(
+    place(
         options: Pick<TransferOptions, "publisher" | "keystore">,
         database: DatabaseConnection,
         environment: UuidEnvironment,
     ): Promise<Placement> {
-        // place the space here at the next epoch, and replace the keys of its source
-        const placed = { ...this.placement, machine: this.target, epoch: this.placement.epoch + 1 };
-        await options.publisher.receive({
-            id: RequestId.create(environment),
-            calls: [SpaceTransfer.placing(placed)],
-        });
-        await options.keystore.rekey(database, this.spaceId);
+        // place it here in its span
+        return TelemetryScope.of(
+            import.meta.destack.package,
+            this.space.database.state.environment.telemetry,
+        ).span("destack.transfer.place", { "destack.space.id": this.space.spaceId }, async () => {
+            // place the space here at the next epoch, and replace the keys of its source
+            const placed = {
+                ...this.placement,
+                machine: this.target,
+                epoch: this.placement.epoch + 1,
+            };
+            await options.publisher.receive({
+                id: RequestId.create(environment),
+                calls: [SpaceTransfer.placing(placed)],
+            });
+            await options.keystore.rekey(database, this.spaceId);
 
-        // serve the replica and forget the restores the takeover recorded
-        await Transaction.run(database, async (transaction) => {
-            await Scope.unfence(transaction, this.placement.space);
-            for (const row of await transaction
-                .read(restore.table)
-                .findMany({ where: this.#restoring() })) {
-                await this.space.rewrite(transaction, restore.table, row, null);
-            }
-        });
+            // serve the replica and forget the restores the takeover recorded
+            await Transaction.run(database, async (transaction) => {
+                await Scope.unfence(transaction, this.placement.space);
+                for (const row of await transaction
+                    .read(restore.table)
+                    .findMany({ where: this.#restoring() })) {
+                    await this.space.rewrite(transaction, restore.table, row, null);
+                }
+            });
 
-        return placed;
+            return placed;
+        });
     }
 
     /** Call the space's placement at an epoch as the calling machine. */

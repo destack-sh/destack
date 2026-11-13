@@ -643,19 +643,26 @@ export class Space {
     }
 
     /** Start the space's identity where the directory places it here, then key its columns. */
-    async open(): Promise<void> {
-        // start the identity of a space placed here without keys on the machine yet
-        const { keystore } = this;
-        const isRetained = await keystore.hasKeys(this.database, this.id);
-        if ((await this.role()) === "primary" && !isRetained) {
-            await keystore.generate(this.database, this.id);
-        }
+    open(): Promise<void> {
+        // open the space's keys and replicas in its span
+        return this.machine.scope.span(
+            "destack.space.open",
+            { "destack.space.id": this.id },
+            async () => {
+                // start the identity of a space placed here without keys on the machine yet
+                const { keystore } = this;
+                const isRetained = await keystore.hasKeys(this.database, this.id);
+                if ((await this.role()) === "primary" && !isRetained) {
+                    await keystore.generate(this.database, this.id);
+                }
 
-        // key the space's sensitive columns with its identity's column key, once its keys live here
-        if (await keystore.hasKeys(this.database, this.id)) {
-            await keystore.key(this.database, this.id);
-        }
-        this.#identities.clear();
+                // key the space's sensitive columns with its identity's column key, once its keys live here
+                if (await keystore.hasKeys(this.database, this.id)) {
+                    await keystore.key(this.database, this.id);
+                }
+                this.#identities.clear();
+            },
+        );
     }
 
     /** Read the space's identity, refusing a space without keys on this machine. */
@@ -2227,13 +2234,20 @@ export class Space {
     }
 
     /** Stop the space's workload, then release what the machine opened for it. */
-    async close(): Promise<void> {
-        try {
-            await this.#instance?.close();
-        } finally {
-            await this.volume.close();
-            this.health.set("stopped", "the space closed");
-        }
+    close(): Promise<void> {
+        // close the space in its span
+        return this.machine.scope.span(
+            "destack.space.close",
+            { "destack.space.id": this.id },
+            async () => {
+                try {
+                    await this.#instance?.close();
+                } finally {
+                    await this.volume.close();
+                    this.health.set("stopped", "the space closed");
+                }
+            },
+        );
     }
 
     /** Retain the builds the space runs, records and waits for in the machine's builds. */

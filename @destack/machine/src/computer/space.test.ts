@@ -225,6 +225,7 @@ async function openEcho(world: TestWorld, name: string, relay: TestRelay): Promi
         relay: relay.url,
         runtime: (egress, identity, packages) => {
             const runtime = new LocalRuntime({
+                telemetry: world.simulation.telemetry,
                 scheduler: world.simulation.scheduler,
                 egress,
                 identity,
