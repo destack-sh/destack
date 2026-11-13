@@ -3690,7 +3690,7 @@ export class ObjectStore {
         // answer the package's mounts below its path, and the routes of each protocol it implements
         const fetch = ObjectStore.#mountFetch(entry.package, mounts, this);
         const protocols = new Map(
-            (entry.definition.protocols ?? []).map((protocol) => [
+            entry.package.protocols.map((protocol) => [
                 protocol.id,
                 ObjectStore.#protocolRoutes(protocol, entry),
             ]),

@@ -29,8 +29,6 @@ export type ObjectPackage = Package & {
 export type ImplementationInput<Handle extends ObjectPackage = ObjectPackage> = {
     /** The handle's object types with handlers; the others serve their declared defaults. */
     readonly objects?: readonly ObjectType[];
-    /** The other packages' handles whose types and mounts the package answers. */
-    readonly protocols?: readonly Package[];
     /** The controllers beside the objects' controllers, each built over the package's store. */
     readonly controllers?: readonly ((store: ObjectStore) => Controller)[];
     /** The cursors beside the objects' projections, each built over the package's store. */

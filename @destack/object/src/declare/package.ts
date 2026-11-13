@@ -48,6 +48,8 @@ export interface PackageOptions {
     readonly objects?: readonly ObjectDeclaration[];
     /** The tables the package stores below its objects, such as protocol records. */
     readonly tables?: readonly Table[];
+    /** The other packages whose objects and mounts the package serves, such as a registry. */
+    readonly protocols?: readonly Package[];
     /** The views the package offers. */
     readonly views?: readonly Declaration[];
     /** The commands the package declares on its objects. */
@@ -79,6 +81,8 @@ export interface Package<Options extends PackageOptions = PackageOptions> extend
     readonly objects: ByRoute<Options["objects"]>;
     /** The tables the package stores below its objects, such as protocol records. */
     readonly tables: readonly Table[];
+    /** The other packages whose objects and mounts the package serves, such as a registry. */
+    readonly protocols: readonly Package[];
     /** The views the package offers, by name. */
     readonly views: ByName<Options["views"]>;
     /** The commands the package declares on its objects, by name. */
@@ -251,6 +255,7 @@ export const Package = {
                 (each) => each,
             ),
             tables: [...(options.tables ?? [])],
+            protocols: [...(options.protocols ?? [])],
             views: mapValues<typeof views, ByName<Options["views"]>>(views, (each) => each),
             commands: mapValues<typeof commands, ByName<Options["commands"]>>(
                 commands,
