@@ -1,5 +1,4 @@
 import { Caller, principal } from "@destack/access";
-import registryPackage from "@destack/registry/package";
 import { connectionShape, Runner } from "@destack/connection/server";
 import { BuildStore } from "@destack/build/store";
 import type { BuildLayer } from "@destack/package/manifest";
@@ -192,7 +191,6 @@ export class Forge {
 
         return {
             objects: this.handled,
-            protocols: [registryPackage],
             // delete the prereleases past the space's retention
             cursors: [(store) => ReleaseMethod.retention(store)],
             follows: [this.#connectionFollow(), claimFollow],

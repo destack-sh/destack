@@ -1,3 +1,4 @@
+import registryPackage from "@destack/registry/package";
 import { BUILD_STORE_TABLES } from "@destack/build/table";
 import { defineMount, definePackage } from "@destack/object";
 import { githubWebhook } from "./stack/webhook.ts";
@@ -18,6 +19,8 @@ export default definePackage({
     objects: [issuer, appInstallation],
     // the store of pushed builds, indexed beside the forge's objects
     tables: BUILD_STORE_TABLES,
+    // serve the registry's repositories, references, packages and tags
+    protocols: [registryPackage],
     mounts: [defineMount({ name: "builds", path: "/builds" }), githubWebhook],
     resources: [repositoryStorage, credentialVault, githubWebhookSecret, githubPrivateKey],
     capabilities: [
