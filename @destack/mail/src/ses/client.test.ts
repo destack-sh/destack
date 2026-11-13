@@ -12,7 +12,12 @@ const node = testSimulation().environment("ses");
 
 /** The environment of a client sending through a fetch on the simulated node's clock. */
 function environment(fetch: Network["fetch"]): SesOptions["environment"] {
-    return { clock: node.clock, crypto: node.crypto, network: { ...node.network, fetch } };
+    return {
+        clock: node.clock,
+        crypto: node.crypto,
+        network: { ...node.network, fetch },
+        telemetry: node.telemetry,
+    };
 }
 
 /** The credentials every client signs with. */

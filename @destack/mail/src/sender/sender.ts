@@ -32,7 +32,7 @@ export const MailSender = Object.assign(mailSender, {
             /** Write one printed email to the runtime's own log. */
             readonly print: (text: string) => void;
             /** The network, clock and crypto SES sends with. */
-            readonly environment: Pick<Environment, "clock" | "crypto" | "network">;
+            readonly environment: Pick<Environment, "clock" | "crypto" | "network" | "telemetry">;
         },
     ): MailTransport {
         // send through SES in its region

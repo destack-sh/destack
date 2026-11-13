@@ -59,7 +59,7 @@ export interface SesOptions {
     /** The configuration set whose event destinations and suppression apply. */
     readonly configurationSet?: string;
     /** The network sends go through, the clock their timeouts run on, and the signing WebCrypto. */
-    readonly environment: Pick<Environment, "clock" | "crypto" | "network">;
+    readonly environment: Pick<Environment, "clock" | "crypto" | "network" | "telemetry">;
 }
 
 /** A client of the SESv2 HTTP API sending composed messages. */
