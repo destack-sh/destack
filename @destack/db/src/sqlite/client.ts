@@ -1,6 +1,7 @@
 import type { DatabaseEnvironment } from "../database/connection.ts";
 import type { Environment, Scheduler } from "@destack/environment";
-import { PoolTelemetry } from "../database/driver.ts";
+import { TelemetryScope } from "@destack/telemetry";
+import type {} from "@destack/package/import-meta";
 import { DatabaseError } from "../error/error.ts";
 import type { DriverValue } from "../table/column.ts";
 import type { SqlLimits } from "../database/session.ts";
@@ -62,13 +63,51 @@ export class SqliteWorkQueue {
     #running: { readonly scheduler: Scheduler; readonly settled: Promise<unknown> } | undefined;
     /** The worlds waiting for a turn, by their schedulers, with how much of each waits. */
     readonly #waiting = new Map<Scheduler, number>();
-    /** The waits for a turn and the connection's state, as a pool of one connection. */
-    readonly #telemetry: PoolTelemetry;
+    /** The queue's spans and durations, as a pool of one connection. */
+    readonly #scope: TelemetryScope;
+    /** The pool's name, as OpenTelemetry's `db.client.connection.pool.name` reports it. */
+    readonly #pool: string;
+    /** The connections idle and in use. */
+    readonly #connectionStates;
 
     /** Queue a named file's work, failing work whose turn does not come within the wait. */
     constructor(telemetry: Environment["telemetry"], name: string, wait = TURN_WAIT_MILLISECONDS) {
-        this.#telemetry = new PoolTelemetry(telemetry, name, 1);
+        // count the file's one connection idle, then store the wait
+        this.#pool = name;
+        this.#scope = TelemetryScope.of(import.meta.destack.package, telemetry);
+        this.#connectionStates = this.#scope.metric.upDownCounter("db.client.connection.count", {
+            unit: "{connection}",
+            attributes: {
+                "db.client.connection.pool.name": [this.#pool],
+                "db.client.connection.state": ["idle", "used"],
+            },
+        });
+        this.#connectionStates.add(1, {
+            "db.client.connection.pool.name": this.#pool,
+            "db.client.connection.state": "idle",
+        });
         this.#wait = wait;
+    }
+
+    /** Wait for a connection, recording how long the wait took. */
+    #measureWait<Value>(run: () => Promise<Value>): Promise<Value> {
+        const attributes = { "db.client.connection.pool.name": this.#pool };
+
+        return this.#scope.measure("db.client.connection.wait_time", attributes, run);
+    }
+
+    /** Count an idle connection as used. */
+    #use(): void {
+        const pool = { "db.client.connection.pool.name": this.#pool };
+        this.#connectionStates.add(-1, { ...pool, "db.client.connection.state": "idle" });
+        this.#connectionStates.add(1, { ...pool, "db.client.connection.state": "used" });
+    }
+
+    /** Count a used connection as idle. */
+    #release(): void {
+        const pool = { "db.client.connection.pool.name": this.#pool };
+        this.#connectionStates.add(-1, { ...pool, "db.client.connection.state": "used" });
+        this.#connectionStates.add(1, { ...pool, "db.client.connection.state": "idle" });
     }
 
     /** Run work after the earlier work, refusing it once its turn outlasts the wait. */
@@ -78,12 +117,11 @@ export class SqliteWorkQueue {
     ): Promise<Value> {
         // run work at once on an idle queue, and wait a bounded time behind earlier work
         const turn = this.#tail;
-        const waited = this.#pending === 0 ? turn : this.#turn(turn, environment);
-        const queued = this.#telemetry
-            .wait(async () => {
-                await waited;
-            })
-            .then(() => this.#start(work, environment.scheduler));
+        const start = () => this.#start(work, environment.scheduler);
+        const queued =
+            this.#pending === 0
+                ? turn.then(start)
+                : this.#measureWait(() => this.#turn(turn, environment)).then(start);
         this.#pending += 1;
 
         // count it done before its caller continues, so the caller's next work finds the queue idle
@@ -104,7 +142,7 @@ export class SqliteWorkQueue {
     /** Start work in its turn, keeping the time of every other world waiting behind it. */
     #start<Value>(work: () => Promise<Value>, scheduler: Scheduler): Promise<Value> {
         // run the work, remembering its world and counting the connection used until it ends
-        this.#telemetry.use();
+        this.#use();
         const running = work();
         const settled = running.then(
             () => undefined,
@@ -112,7 +150,7 @@ export class SqliteWorkQueue {
         );
         this.#running = { scheduler, settled };
         void settled.then(() => {
-            this.#telemetry.release();
+            this.#release();
             if (this.#running?.settled === settled) {
                 this.#running = undefined;
             }

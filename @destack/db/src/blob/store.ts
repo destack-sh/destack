@@ -89,6 +89,8 @@ export class BlobStore<Storage extends BlobStorage = BlobStorage> implements Con
     readonly environment: Pick<Environment, "clock">;
     /** How long a write's lease lasts, in milliseconds. */
     readonly leaseMilliseconds: number;
+    /** The bytes of blobs read and written, by database and direction. */
+    readonly #io;
 
     /** Store a partition's blobs in a storage, indexed and referenced from its database. */
     constructor(options: BlobStoreOptions<Storage>) {
@@ -97,6 +99,35 @@ export class BlobStore<Storage extends BlobStorage = BlobStorage> implements Con
         this.database = options.database;
         this.environment = options.environment;
         this.leaseMilliseconds = options.leaseMilliseconds ?? LEASE_MILLISECONDS;
+
+        // count the bytes the store moves
+        this.#io = options.database.state.scope.metric.counter("destack.blob.io", {
+            unit: "By",
+            attributes: {
+                "db.namespace": [options.database.state.name],
+                "destack.blob.io.direction": ["read", "write"],
+            },
+        });
+    }
+
+    /** Run a blob verb in its span, recording its duration. */
+    #traced<Value>(
+        verb: "put" | "write" | "fetch" | "collect",
+        run: () => Promise<Value>,
+    ): Promise<Value> {
+        const attributes = { "db.namespace": this.database.state.name };
+
+        return this.database.state.scope.span(`destack.blob.${verb}`, attributes, run, {
+            duration: { attributes },
+        });
+    }
+
+    /** Count the bytes of blobs read or written. */
+    #count(direction: "read" | "write", bytes: number): void {
+        this.#io.add(bytes, {
+            "db.namespace": this.database.state.name,
+            "destack.blob.io.direction": direction,
+        });
     }
 
     /** Lease the stored blobs for a row to reference, and store the missing ones in one pack. */
@@ -104,7 +135,7 @@ export class BlobStore<Storage extends BlobStorage = BlobStorage> implements Con
         uploads: readonly BlobUpload[],
         until: number = this.environment.clock.now() + this.leaseMilliseconds,
     ): Promise<void> {
-        return this.database.state.telemetry.blob("put", () => this.#put(uploads, until));
+        return this.#traced("put", () => this.#put(uploads, until));
     }
 
     /** Lease the stored blobs until a moment, storing the missing ones in one pack. */
@@ -134,7 +165,7 @@ export class BlobStore<Storage extends BlobStorage = BlobStorage> implements Con
 
     /** Stream bytes into a blob before a row refers to it, refusing an unexpected digest. */
     write(body: AsyncIterable<Uint8Array>, expected?: Digest): Promise<Digest> {
-        return this.database.state.telemetry.blob("write", () => this.#write(body, expected));
+        return this.#traced("write", () => this.#write(body, expected));
     }
 
     /** Store streamed bytes and lease their blob, refusing an unexpected digest. */
@@ -163,7 +194,7 @@ export class BlobStore<Storage extends BlobStorage = BlobStorage> implements Con
         yield* this.storage.slice(placement.pack, placement.offset + offset, bytes);
 
         // count the bytes read once the slice is drained
-        this.database.state.telemetry.blobIo("read", bytes);
+        this.#count("read", bytes);
     }
 
     /** Read a blob's whole bytes. */
@@ -203,7 +234,7 @@ export class BlobStore<Storage extends BlobStorage = BlobStorage> implements Con
             }
 
             // count the run's bytes read
-            this.database.state.telemetry.blobIo("read", length);
+            this.#count("read", length);
         }
     }
 
@@ -231,7 +262,7 @@ export class BlobStore<Storage extends BlobStorage = BlobStorage> implements Con
 
     /** Store the blobs this store lacks among some digests, read from another store. */
     fetch(digests: readonly Digest[], source: Pick<ContentStore, "batch">): Promise<void> {
-        return this.database.state.telemetry.blob("fetch", () => this.#fetch(digests, source));
+        return this.#traced("fetch", () => this.#fetch(digests, source));
     }
 
     /** Gather the missing blobs among some digests from another store, writing them in packs. */
@@ -430,7 +461,7 @@ export class BlobStore<Storage extends BlobStorage = BlobStorage> implements Con
 
     /** Delete retired blobs a grace after no row or lease referenced them. */
     collect(grace: number = GRACE_MILLISECONDS): Promise<number | undefined> {
-        return this.database.state.telemetry.blob("collect", () => this.#collect(grace));
+        return this.#traced("collect", () => this.#collect(grace));
     }
 
     /** Retire the blobs of ended leases and delete those a grace after nothing referenced them. */
@@ -542,7 +573,7 @@ export class BlobStore<Storage extends BlobStorage = BlobStorage> implements Con
         // count the bytes of the blobs this writer stored
         const written = placements.filter(({ digest }) => inserted.has(digest));
         const bytes = written.reduce((sum, { size }) => sum + size, 0);
-        this.database.state.telemetry.blobIo("write", bytes);
+        this.#count("write", bytes);
 
         // delete each pack of a blob another writer recorded first, unless a row points into it
         const used = new Set(

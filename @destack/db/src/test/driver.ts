@@ -41,6 +41,8 @@ const note = defineTable(
 export class TestDatabaseDriver implements Driver<typeof databaseInteraction> {
     /** The interaction the driver speaks. */
     static readonly interaction = databaseInteraction;
+    /** The settings of the worlds: test databases commit without flushing to disk. */
+    static readonly configuration = { durability: "off" };
 
     /** The world the database runs in. */
     readonly #simulation: Simulation;

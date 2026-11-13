@@ -371,7 +371,19 @@ export class Log {
 
     /** Read the position of the latest commit, from memory until a commit writes the log. */
     position(): Promise<LogPosition> {
-        return this.database.state.telemetry.log("position", () => this.#position());
+        return this.#traced("position", () => this.#position());
+    }
+
+    /** Run a log verb in its span, recording its duration. */
+    #traced<Value>(
+        verb: "position" | "changed" | "read",
+        run: () => Promise<Value>,
+    ): Promise<Value> {
+        const attributes = { "db.namespace": this.database.state.name };
+
+        return this.database.state.scope.span(`destack.log.${verb}`, attributes, run, {
+            duration: { attributes },
+        });
     }
 
     /** Read the position of the latest commit from the log's head. */
@@ -424,7 +436,7 @@ export class Log {
 
     /** Read the position of some scopes' latest change to some tables, or the horizon. */
     changed(tables: readonly Table[] | "every", scopes: readonly string[]): Promise<LogPosition> {
-        return this.database.state.telemetry.log("changed", () => this.#changed(tables, scopes));
+        return this.#traced("changed", () => this.#changed(tables, scopes));
     }
 
     /** Seek some scopes' latest change to some tables on the log's scope index. */
@@ -550,7 +562,7 @@ export class Log {
     read<Definition extends Table>(
         selection: ChangeSelection<Definition>,
     ): Promise<ChangePage<Definition>> {
-        return this.database.state.telemetry.log("read", () => this.#read(selection));
+        return this.#traced("read", () => this.#read(selection));
     }
 
     /** Read a page of committed changes and its bounds in one statement. */

@@ -1,7 +1,8 @@
 import { expect, test } from "@destack/test";
 import { type Channel, type Commit, DELIVERED } from "../channel/channel.ts";
 import { CommitWatch } from "./watch.ts";
-import { DatabaseTelemetry } from "../database/driver.ts";
+import { TelemetryScope } from "@destack/telemetry";
+import type {} from "@destack/package/import-meta";
 import { Telemetry } from "@destack/environment";
 import { testHost } from "@destack/test/host";
 
@@ -14,8 +15,8 @@ test("announce a commit's tables the database leaves unannounced, nothing when i
         delivery: () => DELIVERED,
         close: async () => {},
     };
-    const telemetry = new DatabaseTelemetry(Telemetry.none(testHost().clock), "test", []);
-    const watch = new CommitWatch(channel, new Set(["cache_note"]), "writer", telemetry);
+    const scope = TelemetryScope.of(import.meta.destack.package, Telemetry.none(testHost().clock));
+    const watch = new CommitWatch(channel, new Set(["cache_note"]), "writer", scope, "test");
     watch.declare(["log_note", "cache_note"], ["log_note"]);
 
     // commit a logged table with an unlogged one, then only the logged one, then both by a script

@@ -12,7 +12,8 @@ import {
     type SQLWrapper,
 } from "../sql/index.ts";
 import { classifyError, DatabaseError, type DeclaredNames } from "../error/error.ts";
-import { DatabaseDriver, DatabaseTelemetry } from "./driver.ts";
+import { DatabaseDriver } from "./driver.ts";
+import { StatementRecords } from "./statements.ts";
 import type { ColumnCipher } from "./cipher.ts";
 import type { Session } from "./session.ts";
 import { type Insert, type Table, TABLE } from "../table/table.ts";
@@ -522,41 +523,35 @@ export class DatabaseConnection<
         }
 
         // forget a lost attempt's writes and token, then announce the written tables once committed
-        return this.state.telemetry.transaction("database", (attempted) =>
-            Transaction.retry(
-                this,
-                "TRANSACTION_CONFLICT",
-                async () => {
-                    // count the attempt, forgetting a lost one's writes and token
-                    attempted();
-                    written.clear();
-                    scripted.clear();
-                    try {
-                        const committed = await this.driver.commit(
-                            execute,
-                            written,
-                            scripted,
-                            TRANSACTION,
-                            () => sequence,
+        return Transaction.retry(
+            this,
+            "TRANSACTION_CONFLICT",
+            async () => {
+                // forget a lost attempt's writes and token
+                written.clear();
+                scripted.clear();
+                try {
+                    const committed = await this.driver.commit(
+                        execute,
+                        written,
+                        scripted,
+                        TRANSACTION,
+                        () => sequence,
+                    );
+                    attempt?.commit();
+                    if (written.size > 0) {
+                        await this.state.compactIfDue(this.log, (error) =>
+                            this.state.scope.captureException(error),
                         );
-                        attempt?.commit();
-                        if (written.size > 0) {
-                            await this.state.compactIfDue(this.log, (error) =>
-                                TelemetryScope.of(
-                                    import.meta.destack.package,
-                                    this.state.environment.telemetry,
-                                ).captureException(error),
-                            );
-                        }
-
-                        return committed;
-                    } catch (error) {
-                        attempt?.abandon();
-                        throw error;
                     }
-                },
-                signal,
-            ),
+
+                    return committed;
+                } catch (error) {
+                    attempt?.abandon();
+                    throw error;
+                }
+            },
+            signal,
         );
     }
 
@@ -622,8 +617,12 @@ export class ConnectionState {
     readonly locality: Locality;
     /** The clock, randomness, crypto and telemetry the connection runs on. */
     readonly environment: DatabaseEnvironment;
-    /** The histogram of each statement's duration on the environment's telemetry. */
-    readonly telemetry: DatabaseTelemetry;
+    /** The database's name, as OpenTelemetry's `db.namespace` reports it. */
+    readonly name: string;
+    /** The spans and durations of the database's package on the environment's telemetry. */
+    readonly scope: TelemetryScope;
+    /** The records of the statements the connection ran, by span path and text. */
+    readonly statementRecords = new StatementRecords();
     /** The SQL names of the tables the database replicates, empty over bare tables. */
     readonly replicated: ReadonlySet<string>;
     /** The tables each operation on each declared table changes, itself first, through cascades. */
@@ -692,10 +691,8 @@ export class ConnectionState {
         const { openChannel, tables } = options;
         this.locality = options.locality;
         this.environment = options.environment;
-        this.telemetry = new DatabaseTelemetry(options.environment.telemetry, options.name, [
-            ...tables.map((table) => table[TABLE].sqlName),
-            ...LOG_TABLES,
-        ]);
+        this.name = options.name;
+        this.scope = TelemetryScope.of(import.meta.destack.package, options.environment.telemetry);
         this.replicated = options.replicated;
         this.openChannel = openChannel;
         this.namespace = options.namespace;
@@ -707,7 +704,8 @@ export class ConnectionState {
             openChannel === undefined ? undefined : typedChannel(openChannel(LOG_TOPIC), Commit),
             this.unlogged,
             options.role,
-            this.telemetry,
+            this.scope,
+            options.name,
         );
         this.declare(tables);
     }

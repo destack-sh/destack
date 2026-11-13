@@ -10,7 +10,7 @@ import { TABLE, type Row, type RowImage, type Select, type Table } from "../tabl
 import { canonicalize, Duration, found, nth, schema, Uuid } from "@destack/schema";
 import { TelemetryScope } from "@destack/telemetry";
 import type {} from "@destack/package/import-meta";
-import { CallErrorCode, Failure } from "@destack/error";
+import { Failure } from "@destack/error";
 import { RetryPolicy, waitAborted, Clock } from "@destack/environment";
 import type { Alarm } from "./alarm.ts";
 import type { Environment } from "@destack/environment";
@@ -262,8 +262,6 @@ export class ControlLoop {
     readonly #report: (controller: Job, key: string, error: unknown) => void;
     /** The loop's spans and captures, on the database's telemetry. */
     readonly #instruments: TelemetryScope;
-    /** The duration of each reconcile and take, by job, kind and failure. */
-    readonly #passes;
     /** The wait of each pass for its key's lock, by job and kind. */
     readonly #waits;
     /** The time each follow took to catch up, by job. */
@@ -361,10 +359,6 @@ export class ControlLoop {
             "destack.controller.kind": ["reconcile", "follow", "take"],
         };
         this.#monotonic = database.state.environment.telemetry.monotonic;
-        this.#passes = instruments.metric.histogram("destack.controller.pass.duration", {
-            unit: "s",
-            attributes: { ...passed, "error.type": CallErrorCode.codes },
-        });
         this.#waits = instruments.metric.histogram("destack.controller.wait.duration", {
             unit: "s",
             attributes: passed,
@@ -1139,16 +1133,14 @@ export class ControlLoop {
         this.#waits.record((this.#monotonic.now() - queued) / MILLISECONDS_PER_SECOND, attributes);
 
         // run it in its span, timing a reconcile or a take, as a follow lasts until stopped
-        const spanned = () =>
-            this.#instruments.span(
-                "destack.controller.pass",
-                { ...attributes, "destack.key": work.key },
-                run,
-            );
+        const isFollow = attributes["destack.controller.kind"] === "follow";
 
-        return attributes["destack.controller.kind"] === "follow"
-            ? spanned()
-            : this.#instruments.measure(this.#passes, attributes, spanned);
+        return this.#instruments.span(
+            "destack.controller.pass",
+            { ...attributes, "destack.key": work.key },
+            run,
+            isFollow ? {} : { duration: { attributes } },
+        );
     }
 
     /** Wrap a follow's report of catching up, recording how long it took to catch up once. */

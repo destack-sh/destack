@@ -5,7 +5,6 @@ import type {} from "@destack/package/import-meta";
 import postgres from "postgres";
 import { quote } from "../dialect/quote.ts";
 import { DatabaseError } from "../error/error.ts";
-import { PoolTelemetry } from "../database/driver.ts";
 
 /** The connections of one pool: five, within the six a Worker opens per Hyperdrive. */
 const POOL_CONNECTIONS = 5;
@@ -47,8 +46,12 @@ export class PostgresPool {
     readonly #holders = new Map<postgres.Sql, Scheduler>();
     /** The callbacks of each listening party, called whenever the listening connection closes. */
     readonly #closings = new Set<() => void>();
-    /** The waits for a connection and the connections by state. */
-    readonly #telemetry: PoolTelemetry;
+    /** The pool's spans and durations. */
+    readonly #scope: TelemetryScope;
+    /** The pool's name, as OpenTelemetry's `db.client.connection.pool.name` reports it. */
+    readonly #pool: string;
+    /** The connections idle and in use. */
+    readonly #connectionStates;
 
     /** Open a pool of a server, passing JSON as text and reporting the server's warnings. */
     constructor(
@@ -85,7 +88,19 @@ export class PostgresPool {
         };
         const connections = options.connections ?? POOL_CONNECTIONS;
         this.#connections = Array.from({ length: connections }, open);
-        this.#telemetry = new PoolTelemetry(environment.telemetry, poolName(address), connections);
+        this.#pool = poolName(address);
+        this.#scope = TelemetryScope.of(import.meta.destack.package, environment.telemetry);
+        this.#connectionStates = this.#scope.metric.upDownCounter("db.client.connection.count", {
+            unit: "{connection}",
+            attributes: {
+                "db.client.connection.pool.name": [this.#pool],
+                "db.client.connection.state": ["idle", "used"],
+            },
+        });
+        this.#connectionStates.add(connections, {
+            "db.client.connection.pool.name": this.#pool,
+            "db.client.connection.state": "idle",
+        });
         this.#idle = [...this.#connections];
         this.listener = open(() => {
             for (const closing of this.#closings) {
@@ -93,6 +108,27 @@ export class PostgresPool {
             }
         });
         this.#wait = options.wait ?? RESERVE_WAIT_MILLISECONDS;
+    }
+
+    /** Wait for a connection, recording how long the wait took. */
+    #measureWait<Value>(run: () => Promise<Value>): Promise<Value> {
+        const attributes = { "db.client.connection.pool.name": this.#pool };
+
+        return this.#scope.measure("db.client.connection.wait_time", attributes, run);
+    }
+
+    /** Count an idle connection as used. */
+    #use(): void {
+        const pool = { "db.client.connection.pool.name": this.#pool };
+        this.#connectionStates.add(-1, { ...pool, "db.client.connection.state": "idle" });
+        this.#connectionStates.add(1, { ...pool, "db.client.connection.state": "used" });
+    }
+
+    /** Count a used connection as idle. */
+    #release(): void {
+        const pool = { "db.client.connection.pool.name": this.#pool };
+        this.#connectionStates.add(-1, { ...pool, "db.client.connection.state": "used" });
+        this.#connectionStates.add(1, { ...pool, "db.client.connection.state": "idle" });
     }
 
     /** Reserve an idle connection for work in a schema, failing once none frees within the wait. */
@@ -126,7 +162,7 @@ export class PostgresPool {
         if (!this.#holders.delete(sql)) {
             throw new TypeError("the connection is not reserved from this pool");
         }
-        this.#telemetry.release();
+        this.#release();
 
         // hand it on
         this.#handOn(sql);
@@ -162,11 +198,11 @@ export class PostgresPool {
         environment: Pick<DatabaseEnvironment, "clock" | "scheduler">,
     ): Promise<postgres.Sql> {
         // take an idle connection or wait for one, counting it used
-        const sql = await this.#telemetry.wait(
+        const sql = await this.#measureWait(
             async () => this.#idle.pop() ?? (await this.#waitReleased(environment)),
         );
         this.#holders.set(sql, environment.scheduler);
-        this.#telemetry.use();
+        this.#use();
 
         return sql;
     }

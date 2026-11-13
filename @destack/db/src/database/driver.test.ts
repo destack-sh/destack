@@ -14,7 +14,7 @@ const note = defineTable("telemetry_note", {
     body: text("body").notNull(),
 });
 
-test("count a database's statements, transactions, attempts, commits and connection waits by their target", async () => {
+test("count a database's statements, transactions, commits and connection waits by their target", async () => {
     // open a database on a recorded telemetry listening for commits, then insert a note and read it back
     await using simulation = testSimulation();
     const world = simulation.environment("test");
@@ -42,8 +42,7 @@ test("count a database's statements, transactions, attempts, commits and connect
     }
 
     // expect the insert's transaction and the log compaction its first write makes due, each attempted once
-    const name = database.state.telemetry.namespace;
-    const { dialect } = database;
+    const name = database.state.name;
     const statements = {
         "destack.watch.wakes": 1,
         "db.client.operation.duration.count": 5,
@@ -52,22 +51,12 @@ test("count a database's statements, transactions, attempts, commits and connect
         [`db.client.operation.duration.count.${name}:SELECT:destack__db__telemetry_note`]: 1,
         [`db.client.operation.duration.count.${name}:SELECT:__destack_log`]: 1,
         [`db.client.operation.duration.count.${name}:TRANSACTION`]: 2,
-        "destack.transaction.attempts.count": 2,
-        [`destack.transaction.attempts.count.${name}:database`]: 2,
         "destack.transaction.duration.count": 2,
         [`destack.transaction.duration.count.${name}:database`]: 2,
     };
 
-    // expect the file's three turns on SQLite, whose connection is the file's, and the commit's one wake
-    expect(grown).toEqual(
-        dialect === "sqlite"
-            ? {
-                  ...statements,
-                  "db.client.connection.wait_time.count": 3,
-                  [`db.client.connection.wait_time.count.${name}`]: 3,
-              }
-            : statements,
-    );
+    // expect the commit's one wake, and no waits for a connection nothing else held
+    expect(grown).toEqual(statements);
 });
 
 test("record each statement text under the span path that ran it, with its runs and rows", async () => {
@@ -91,9 +80,9 @@ test("record each statement text under the span path that ran it, with its runs 
     await database.select().from(note);
 
     // expect one record per text and span path, the inserts' under the span's transaction, leaving out times and hashes
-    const name = database.state.telemetry.namespace;
-    const records = database.state.telemetry
-        .statements()
+    const name = database.state.name;
+    const records = database.state.statementRecords
+        .list()
         .filter(({ summary }) => /^(INSERT|SELECT) destack__db__telemetry_note$/u.test(summary))
         .map(({ path, summary, count, rows }) => ({ path, summary, count, rows }));
     expect(records.toSorted((left, right) => left.path.localeCompare(right.path))).toEqual([

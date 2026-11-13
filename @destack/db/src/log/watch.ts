@@ -2,7 +2,7 @@ import { type Channel, type Commit, DELIVERED, type Delivery } from "../channel/
 import type { LogPosition } from "./position.ts";
 import { LOG_TABLES } from "./schema.ts";
 import type { ConnectionRole } from "../database/connection.ts";
-import type { DatabaseTelemetry } from "../database/driver.ts";
+import type { TelemetryScope } from "@destack/telemetry";
 
 /** Who announces a connection's commits: the connection after commit, or the database inside it. */
 export type Announcer = "connection" | "database";
@@ -13,8 +13,10 @@ export class CommitWatch {
     readonly #channel: Channel<Commit> | undefined;
     /** Whether the connection writes the database, or only reads it, seeing no writer's commits. */
     readonly #role: ConnectionRole;
-    /** The telemetry counting the watch's wakes. */
-    readonly #telemetry: Pick<DatabaseTelemetry, "wake">;
+    /** The wakes of the watch, one per commit it announces to its readers, by database. */
+    readonly #wakes;
+    /** The database's name, as OpenTelemetry's `db.namespace` reports it. */
+    readonly #namespace: string;
     /** The SQL names of the tables whose commits the database announces inside the commit. */
     readonly #announced: Set<string>;
     /** The SQL names of every declared table, which a commit of unknown tables lists. */
@@ -57,11 +59,16 @@ export class CommitWatch {
         channel: Channel<Commit> | undefined,
         unlogged: ReadonlySet<string>,
         role: ConnectionRole,
-        telemetry: Pick<DatabaseTelemetry, "wake">,
+        scope: TelemetryScope,
+        namespace: string,
     ) {
         // store the channel, the role, the unlogged tables and the telemetry, versioning the log's tables from the start
         this.#channel = channel;
-        this.#telemetry = telemetry;
+        this.#namespace = namespace;
+        this.#wakes = scope.metric.counter("destack.watch.wakes", {
+            unit: "{wake}",
+            attributes: { "db.namespace": [namespace] },
+        });
         this.#role = role;
         this.#announced = new Set();
         this.#tables = new Set();
@@ -274,7 +281,7 @@ export class CommitWatch {
     /** Wake the readers of tables here, versioning them, and the log's after a logged write. */
     #wake(tables: readonly string[] | "every"): void {
         // count the wake, then advance the woken tables' versions
-        this.#telemetry.wake();
+        this.#wakes.add(1, { "db.namespace": this.#namespace });
         const woken = tables === "every" ? [...this.#tables] : tables;
         const isLogged = woken.some((table) => !this.#unlogged.has(table));
         this.#advance(woken, isLogged ? [...woken, ...LOG_TABLES] : woken);

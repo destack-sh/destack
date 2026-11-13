@@ -17,12 +17,16 @@ import type { Change } from "./log.ts";
 import type { LogPosition } from "./position.ts";
 import { type Overlay, Snapshot } from "./snapshot.ts";
 import { RelationalQueryBuilder } from "./query.ts";
+import { SpanPath } from "@destack/environment";
 
 /** The runs of a transaction losing races, the first and four reruns, each rerun at once. */
 const TRANSACTION_ATTEMPTS = 5;
 
 /** A race a transaction loses: the engine's serialization failure, or a stale read at commit. */
 export type LostRace = "TRANSACTION_CONFLICT" | "UPDATE_CONFLICT";
+
+/** The transaction each lost race reruns: an optimistic one over the log, or the database's own. */
+const RACE_KINDS = { UPDATE_CONFLICT: "log", TRANSACTION_CONFLICT: "database" } as const;
 
 /** One row a change set writes: its image before the first and after the last write, or null. */
 export interface RowChange {
@@ -558,26 +562,59 @@ export class Transaction {
         attempt: (transaction: Transaction) => Promise<Value>,
         signal?: AbortSignal,
     ): Promise<Value> {
-        return database.state.telemetry.transaction("log", (attempted) =>
-            Transaction.retry(
-                database,
-                "UPDATE_CONFLICT",
-                async () => {
-                    // run the attempt from the log's current position and commit it
-                    attempted();
-                    const transaction = await Transaction.open(database);
-                    const value = await attempt(transaction);
-                    await transaction.commit();
+        return Transaction.retry(
+            database,
+            "UPDATE_CONFLICT",
+            async () => {
+                // run the attempt from the log's current position and commit it
+                const transaction = await Transaction.open(database);
+                const value = await attempt(transaction);
+                await transaction.commit();
 
-                    return value;
-                },
-                signal,
-            ),
+                return value;
+            },
+            signal,
         );
     }
 
-    /** Run an attempt again at once while it loses a race, which another commit won. */
+    /** Run an attempt again at once while it loses a race, in the transaction's span. */
     static async retry<Value>(
+        database: DatabaseConnection,
+        race: LostRace,
+        run: () => Promise<Value>,
+        signal?: AbortSignal,
+    ): Promise<Value> {
+        // run the attempts in the transaction's span, its duration by kind and attempts
+        const { name, scope, environment } = database.state;
+        const attributes = { "db.namespace": name, "destack.transaction.kind": RACE_KINDS[race] };
+        let attempts = 0;
+        const attempted = () => ({ ...attributes, "destack.transaction.attempts": attempts });
+
+        return scope.span(
+            "destack.transaction",
+            attributes,
+            async (span) => {
+                // count the transaction and each attempt in the running spans' totals
+                const { context } = environment.telemetry;
+                SpanPath.add(context.active(), "destack.transaction.count", 1);
+                const attempt = () => {
+                    attempts += 1;
+                    SpanPath.add(context.active(), "destack.transaction.attempts", 1);
+
+                    return run();
+                };
+                try {
+                    return await Transaction.#retry(database, race, attempt, signal);
+                } finally {
+                    span.setAttributes(attempted());
+                }
+            },
+            { duration: { attributes: attempted } },
+        );
+    }
+
+    /** Run an attempt again at once while it loses a race, until the attempts run out. */
+    static async #retry<Value>(
         database: DatabaseConnection,
         race: LostRace,
         run: () => Promise<Value>,
@@ -912,7 +949,14 @@ export class Transaction {
 
     /** Commit the records, batches and changes if no read changed since the base. */
     commit(): Promise<void> {
-        return this.database.state.telemetry.commit(() => this.#commit());
+        const attributes = { "db.namespace": this.database.state.name };
+
+        return this.database.state.scope.span(
+            "destack.transaction.commit",
+            attributes,
+            () => this.#commit(),
+            { duration: { attributes } },
+        );
     }
 
     /** Commit the records, batches and changes, refusing a read that changed since the base. */
