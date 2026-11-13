@@ -1,14 +1,13 @@
 import * as style from "@destack/style";
 import { DEFAULT_DISPLAY } from "@destack/theme";
 import type { ParentProps } from "@destack/view";
-import { AppearanceScript, Font, Viewport } from "@destack/view/document";
+import { AppearanceScript, destackFonts, Font, Viewport } from "@destack/view/document";
 import { HydrationScript } from "@destack/view/static";
 import { skyScript } from "./effect/sky";
-import { mono, sans, sansItalics } from "./font.ts";
-import { theme } from "./theme.ts";
+import { destackTheme } from "@destack/theme/declare";
 
 /** The theme root's custom properties, following the system appearance until one is picked. */
-const themeStyle = theme.variables(DEFAULT_DISPLAY);
+const themeStyle = destackTheme.variables(DEFAULT_DISPLAY);
 
 /** The page's root styles: clip sideways overflow and keep the page from bouncing past its ends. */
 const styles = style.create({
@@ -28,9 +27,9 @@ export default function Document(properties: ParentProps) {
                 <Viewport colorScheme="light dark" />
                 <AppearanceScript />
                 <script innerHTML={skyScript} />
-                <Font font={sans} />
-                <Font font={sansItalics} />
-                <Font font={mono} />
+                {destackFonts.map((font) => (
+                    <Font font={font} />
+                ))}
                 <HydrationScript />
             </head>
             <body {...style.attrs(styles.page)}>

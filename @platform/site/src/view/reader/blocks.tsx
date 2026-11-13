@@ -58,9 +58,7 @@ function Listing(properties: ContentElementProperties) {
         return (
             <figure {...style.attrs(styles.diagram)}>
                 {title === undefined ? undefined : (
-                    <figcaption {...style.attrs(text.subheadline, styles.diagramTitle)}>
-                        {title}
-                    </figcaption>
+                    <figcaption {...style.attrs(text.sm, styles.diagramTitle)}>{title}</figcaption>
                 )}
                 <div
                     data-mermaid
@@ -81,7 +79,7 @@ function Listing(properties: ContentElementProperties) {
             {title === undefined ? undefined : (
                 <CodeBlockHeader>
                     <CodeBlockTitle>{title}</CodeBlockTitle>
-                    <span {...style.attrs(text.footnote, styles.format)}>{format}</span>
+                    <span {...style.attrs(text.xs, styles.format)}>{format}</span>
                     <Copy value={source} />
                 </CodeBlockHeader>
             )}
@@ -147,7 +145,7 @@ function Figure(properties: ContentElementProperties) {
                         />
                     )}
                 </div>
-                <figcaption {...style.attrs(text.subheadline, styles.caption)}>
+                <figcaption {...style.attrs(text.sm, styles.caption)}>
                     <span {...style.attrs(styles.label)}>{label}</span>
                     <span>{captionText}</span>
                 </figcaption>
@@ -202,7 +200,7 @@ function Figure(properties: ContentElementProperties) {
                         </a>
                     )}
                 </div>
-                <figcaption {...style.attrs(text.subheadline, styles.caption, styles.videoCaption)}>
+                <figcaption {...style.attrs(text.sm, styles.caption, styles.videoCaption)}>
                     <span>
                         {title}
                         {caption === undefined || caption.children.length === 0 ? undefined : (
@@ -226,7 +224,7 @@ function Figure(properties: ContentElementProperties) {
 
         return (
             <figure {...style.attrs(styles.diagram)}>
-                <figcaption {...style.attrs(text.subheadline, styles.diagramTitle)}>
+                <figcaption {...style.attrs(text.sm, styles.diagramTitle)}>
                     <span {...style.attrs(styles.label)}>{label}</span>
                     {captionText}
                 </figcaption>

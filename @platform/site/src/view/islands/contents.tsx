@@ -16,7 +16,7 @@ export default function Contents(properties: { readonly children?: JSX.Element }
                 Contents
                 <Icon icon={caretDown} />
             </PopoverTrigger>
-            <PopoverContent side="bottom" align="start" xstyle={text.subheadline}>
+            <PopoverContent side="bottom" align="start" xstyle={text.sm}>
                 <div
                     {...style.attrs(styles.menuBody)}
                     onClick={(event) => {

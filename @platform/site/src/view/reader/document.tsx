@@ -167,7 +167,7 @@ function DocumentPagination(properties: { current: Document }) {
         <Show when={properties.current.kind !== "catalog" && (previous() || next())}>
             <nav
                 aria-label="Chapter pagination"
-                {...style.attrs(text.subheadline, publicationStyles.pagination)}
+                {...style.attrs(text.sm, publicationStyles.pagination)}
             >
                 <Show when={previous()}>
                     {(link) => (

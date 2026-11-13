@@ -41,7 +41,7 @@ export function MissingPage(properties: MissingPageProperties) {
                 <p {...style.attrs(lattice.bandRight, styles.label)}>{properties.label}</p>
                 <div {...style.attrs(styles.message)}>
                     <h1 {...style.attrs(styles.title)}>{properties.title}</h1>
-                    <a {...style.attrs(text.subheadline, styles.action)} href={properties.backHref}>
+                    <a {...style.attrs(text.sm, styles.action)} href={properties.backHref}>
                         ← {properties.backLabel}
                     </a>
                 </div>

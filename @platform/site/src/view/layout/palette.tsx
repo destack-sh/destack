@@ -289,7 +289,7 @@ export function CommandPalette(properties: { appearance: LocalAppearance }) {
                 </CommandList>
 
                 {/* show the keys the palette answers to */}
-                <footer {...style.attrs(text.caption, styles.footer)}>
+                <footer {...style.attrs(text.xs, styles.footer)}>
                     <span {...style.attrs(styles.hint)}>
                         <Kbd>↑</Kbd>
                         <Kbd>↓</Kbd>
@@ -339,7 +339,7 @@ function Row(properties: {
         >
             <Icon icon={command().icon} xstyle={styles.kind} />
             <span {...style.attrs(styles.body)}>
-                <span {...style.attrs(text.callout, styles.label)}>
+                <span {...style.attrs(text.sm, styles.label)}>
                     <Highlight terms={properties.match.terms} text={command().label} />
                 </span>
                 <Show when={detail() !== ""}>
@@ -352,7 +352,7 @@ function Row(properties: {
             </span>
             <span {...style.attrs(styles.end)}>
                 {properties.isCopied ? (
-                    <span {...style.attrs(text.caption, styles.copied)}>
+                    <span {...style.attrs(text.xs, styles.copied)}>
                         <Icon icon={check} xstyle={styles.endIcon} />
                         Copied
                     </span>
@@ -371,7 +371,7 @@ function Row(properties: {
 /** Draw a row's quiet line: a route or version in code, or an excerpt in prose. */
 function Detail(properties: { terms: readonly string[]; text: string; isCode: boolean }) {
     return (
-        <span {...style.attrs(text.caption, styles.detail, properties.isCode && styles.detailCode)}>
+        <span {...style.attrs(text.xs, styles.detail, properties.isCode && styles.detailCode)}>
             <Highlight terms={properties.terms} text={properties.text} />
         </span>
     );

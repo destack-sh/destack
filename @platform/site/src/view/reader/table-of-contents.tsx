@@ -86,10 +86,7 @@ export function TableOfContents(properties: TableOfContentsProperties): JSX.Elem
             aria-label={"On this page"}
             data-slot="table-of-contents"
             {...rest}
-            {...style.attributes(
-                [text.callout, styles.navigation, properties.xstyle],
-                properties.style,
-            )}
+            {...style.attributes([text.sm, styles.navigation, properties.xstyle], properties.style)}
         >
             <SectionList sections={sections()} current={current} isNested={false} />
         </nav>

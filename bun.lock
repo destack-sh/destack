@@ -719,6 +719,7 @@
         "@destack/schema": "workspace:*",
       },
       "devDependencies": {
+        "@destack/locale": "workspace:*",
         "@destack/object": "workspace:*",
         "@destack/test": "workspace:*",
         "@types/bun": "1.4.4",
@@ -1350,6 +1351,8 @@
         "@destack/sync": "workspace:*",
         "@destack/telemetry": "workspace:*",
         "@destack/theme": "workspace:*",
+        "@fontsource-variable/ibm-plex-sans": "5.3.0",
+        "@fontsource/ibm-plex-mono": "5.3.0",
         "@solidjs/meta": "1.0.0-next.2",
         "@solidjs/router": "2.0.0-next.24",
         "@solidjs/signals": "2.0.0-rc.8",
@@ -1364,7 +1367,6 @@
         "@destack/build": "workspace:*",
         "@destack/check": "workspace:*",
         "@destack/test": "workspace:*",
-        "@fontsource/ibm-plex-mono": "5.3.0",
         "rolldown": "1.2.16",
         "vite": "8.3.0",
       },
@@ -1515,10 +1517,6 @@
         "@destack/theme": "workspace:*",
         "@destack/ui": "workspace:*",
         "@destack/view": "workspace:*",
-        "@fontsource-variable/ibm-plex-sans": "5.3.0",
-        "@fontsource/ibm-plex-mono": "5.3.0",
-        "@fontsource/ibm-plex-sans-condensed": "5.3.0",
-        "@fontsource/limelight": "5.3.0",
         "@platform/brand": "workspace:*",
         "@types/hast": "3.0.5",
         "@types/mdast": "4.0.4",
@@ -1910,10 +1908,6 @@
     "@fontsource/ibm-plex-mono": ["@fontsource/ibm-plex-mono@5.3.0", "", {}, "sha512-eTgnZjZEGk1QtD3ZstF+Vclo2HLAni8YMy34/DxllwZvyz1lR/1RF/xTiAquOBO7MvqBx8D2Ig2WCPMVfdZu7Q=="],
 
     "@fontsource/ibm-plex-sans": ["@fontsource/ibm-plex-sans@5.3.0", "", {}, "sha512-CbE4CbbEEZJX860XyUiRpsksXIQR8Rp2XDva2VO53NJox9tVNtusrysd2x5YkUEY3ErQ66W1IiiQL8/wihhw5w=="],
-
-    "@fontsource/ibm-plex-sans-condensed": ["@fontsource/ibm-plex-sans-condensed@5.3.0", "", {}, "sha512-fQyBpwbkguP4azjq7Cw8h/J3C/d8MFAzXOiSoFxyKCUK4x0XKrWEh3tGdTxhDM0HctVRQilQo1zGoyxDHLm5jQ=="],
-
-    "@fontsource/limelight": ["@fontsource/limelight@5.3.0", "", {}, "sha512-jiuuCdbk9/u0TA/bIZfp35cvJrfz1CJFSEFh4lk5Ma8Nh42897GbF0ny85emdYiJ6WJQjnD/BK/X0D5Oe6bxbg=="],
 
     "@gar/promise-retry": ["@gar/promise-retry@1.0.3", "", {}, "sha512-GmzA9ckNokPypTg10pgpeHNQe7ph+iIKKmhKu3Ob9ANkswreCx7R3cKmY781K8QK3AqVL3xVh9A42JvIAbkkSA=="],
 

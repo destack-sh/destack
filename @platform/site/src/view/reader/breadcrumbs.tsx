@@ -27,7 +27,7 @@ type BreadcrumbsProperties = {
 export function Breadcrumbs(properties: BreadcrumbsProperties) {
     return (
         <Breadcrumb>
-            <BreadcrumbList xstyle={text.subheadline}>
+            <BreadcrumbList xstyle={text.sm}>
                 <For each={properties.items}>
                     {(item, index) => (
                         <>

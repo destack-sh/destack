@@ -199,7 +199,7 @@ function DirectoryList(properties: { label: string; entries: readonly ContentEnt
                                 )}
                             </Show>
                             <ItemContent>
-                                <ItemTitle xstyle={[text.title3, styles.title]}>
+                                <ItemTitle xstyle={[text.lg, styles.title]}>
                                     {entry.title}
                                 </ItemTitle>
                                 <Show when={entry.summary}>
@@ -215,7 +215,7 @@ function DirectoryList(properties: { label: string; entries: readonly ContentEnt
                                     {(date) => (
                                         <time
                                             datetime={date()}
-                                            {...style.attrs(text.subheadline, styles.date)}
+                                            {...style.attrs(text.sm, styles.date)}
                                         >
                                             {formatDate(date())}
                                         </time>

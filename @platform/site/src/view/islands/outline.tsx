@@ -11,7 +11,7 @@ export default function Outline(properties: {
         <TableOfContents
             headings={properties.headings}
             offset={properties.offset}
-            xstyle={[text.subheadline, publicationStyles.outline]}
+            xstyle={[text.sm, publicationStyles.outline]}
         />
     );
 }

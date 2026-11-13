@@ -62,7 +62,7 @@ export function Reader(properties: ReaderProperties) {
             data-publication={properties.publication}
         >
             <ReaderBehavior />
-            <aside {...style.attrs(text.subheadline, lattice.bandRight, publicationStyles.sidebar)}>
+            <aside {...style.attrs(text.sm, lattice.bandRight, publicationStyles.sidebar)}>
                 <div {...style.attrs(publicationStyles.sidebarContent)}>
                     {properties.navigation()}
                 </div>
@@ -91,7 +91,7 @@ export function Reader(properties: ReaderProperties) {
 /** Render one toolbar at its responsive DOM position. */
 function ReaderToolbar(properties: ReaderToolbarProperties) {
     return (
-        <header {...style.attrs(text.subheadline, lattice.ruleBottom, styles.toolbar)}>
+        <header {...style.attrs(text.sm, lattice.ruleBottom, styles.toolbar)}>
             <Contents>{properties.navigation()}</Contents>
 
             <div {...style.attrs(styles.location)}>{properties.location()}</div>

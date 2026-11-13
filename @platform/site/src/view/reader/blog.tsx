@@ -80,7 +80,7 @@ function BlogArticleHeader(properties: BlogArticleHeaderProperties) {
             variant="article"
             description={properties.post.subtitle}
         >
-            <div {...style.attrs(text.caption, styles.metadata)}>
+            <div {...style.attrs(text.xs, styles.metadata)}>
                 <span>{properties.post.author}</span>
                 <time datetime={properties.post.date}>{formatDate(properties.post.date)}</time>
             </div>
@@ -108,7 +108,7 @@ function PostNavigation(properties: PostNavigationProperties) {
         <Show when={newer() || older()}>
             <nav
                 aria-label="Post pagination"
-                {...style.attrs(text.subheadline, publicationStyles.pagination)}
+                {...style.attrs(text.sm, publicationStyles.pagination)}
             >
                 <Show when={newer()}>
                     {(post) => <PostNavigationLink direction="newer" post={post()} />}
