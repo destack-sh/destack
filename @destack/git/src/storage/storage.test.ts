@@ -15,6 +15,7 @@ import {
 import { GitLease, LocalGitStorage } from "../local/index.ts";
 import { defineGitStorage, GitAdvertisement } from "./index.ts";
 import { advertise, git, History, temporary, Worktree } from "../test/index.ts";
+import { testWorldOptions } from "@destack/test/world";
 
 /** The host the local repositories live on, a world's node over the host's files and git. */
 const host = testSimulation().environment("storage");
@@ -193,7 +194,7 @@ test("provision a Git storage below its resource in the bound namespace, connect
     await using storage = await connector.connect(
         binding,
         repositoryStorage,
-        new Simulation({ seed: 1, start: 0 }).environment("storage"),
+        new Simulation({ world: testWorldOptions(), seed: 1, start: 0 }).environment("storage"),
     );
     const neighbour = new ArtifactsStorage(namespace, other, unreachable);
     for (const id of ["repository-a", "repository-b", "repository-c"]) {
