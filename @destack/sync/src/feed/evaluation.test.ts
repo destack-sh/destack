@@ -8,6 +8,7 @@ import { Feed } from "./feed.ts";
 import type { Page, RowChange } from "../query/page.ts";
 import { ConditionAudience } from "./test/audience.ts";
 import { SimulatedClock, Simulation } from "@destack/environment/simulation";
+import { testWorldOptions } from "@destack/test/world";
 
 /** An audience deciding by some conditions, then by others once it decides again. */
 class SwitchingAudience implements Audience {
@@ -154,7 +155,11 @@ class ProjectAudience extends ConditionAudience {
 }
 
 test("send a row a transaction changes beside a change of access, deciding every row again", async () => {
-    await using simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = new Simulation({
+        world: testWorldOptions(),
+        seed: 1,
+        start: START,
+    });
     const database = await open({ simulation });
     const feed = new Feed(database, [note, project]);
     await database.transaction(
@@ -189,7 +194,11 @@ test("send a row a transaction changes beside a change of access, deciding every
 });
 
 test("send the rows an audience shows after deciding again at the same position", async () => {
-    await using simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = new Simulation({
+        world: testWorldOptions(),
+        seed: 1,
+        start: START,
+    });
     const database = await open({ simulation });
     const feed = new Feed(database, [note]);
     await database.transaction(
@@ -239,7 +248,11 @@ function imagesOf(changes: readonly RowChange[]) {
 }
 
 test("send only the rows whose image changes when deciding again, their concealment among them", async () => {
-    await using simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = new Simulation({
+        world: testWorldOptions(),
+        seed: 1,
+        start: START,
+    });
     const database = await open({ simulation });
     const feed = new Feed(database, [note]);
     await database.transaction(
@@ -286,7 +299,11 @@ test("send only the rows whose image changes when deciding again, their concealm
 });
 
 test("read shared windows again once their decisions expire, under one key", async () => {
-    await using simulation = new Simulation({ seed: 1, start: 1000 });
+    await using simulation = new Simulation({
+        world: testWorldOptions(),
+        seed: 1,
+        start: 1000,
+    });
     const { clock } = simulation;
     const database = await open({ simulation });
     const feed = new Feed(database, [note]);
@@ -317,7 +334,11 @@ test("read shared windows again once their decisions expire, under one key", asy
 });
 
 test("wake every stream sharing an evaluation at its expiry, after another stream stopped waiting", async () => {
-    await using simulation = new Simulation({ seed: 1, start: 1000 });
+    await using simulation = new Simulation({
+        world: testWorldOptions(),
+        seed: 1,
+        start: 1000,
+    });
     const { clock } = simulation;
     const database = await open({ simulation });
     const feed = new Feed(database, [note]);

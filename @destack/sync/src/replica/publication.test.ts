@@ -7,6 +7,7 @@ import { Simulation } from "@destack/environment/simulation";
 import { note, openReplica } from "../test/fixture.ts";
 import { definePublication, Subscription, Uplink } from "./publication.ts";
 import { Replica } from "./replica.ts";
+import { testWorldOptions } from "@destack/test/world";
 
 /** The package of the notes the scenarios send. */
 const PACKAGE_ID = schema
@@ -74,7 +75,9 @@ test("stream through a client's replica procedures as the follower, and send a f
 
 test("record a follower's request at its source, keeping its latest revision of a log and taking another epoch's", async () => {
     // record a request, a later revision with other parameters, then an earlier revision arriving late
-    const database = await openReplica({ simulation: new Simulation({ seed: 1, start: 1000 }) });
+    const database = await openReplica({
+        simulation: new Simulation({ world: testWorldOptions(), seed: 1, start: 1000 }),
+    });
     const subscription = {
         name: "notes",
         publication: "queries",
@@ -108,7 +111,9 @@ test("record a follower's request at its source, keeping its latest revision of 
 
 test("write a follower's request only when it is new, at a later revision or with other parameters", async () => {
     // record a request, the same one with its parameters' keys reordered, and an earlier revision
-    const database = await openReplica({ simulation: new Simulation({ seed: 1, start: 1000 }) });
+    const database = await openReplica({
+        simulation: new Simulation({ world: testWorldOptions(), seed: 1, start: 1000 }),
+    });
     const subscription = {
         name: "notes",
         publication: "queries",

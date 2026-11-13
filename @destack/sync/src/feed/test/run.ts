@@ -21,6 +21,7 @@ import type { ConditionAudience } from "./audience.ts";
 import { AUDIENCE } from "./query.ts";
 import { Random } from "./random.ts";
 import { Workload } from "./workload.ts";
+import { testWorldOptions } from "@destack/test/world";
 
 /** The tables the workload writes and subscribers replicate. */
 const TABLES: readonly Table[] = [project, task, comment, tag, taskTag, page];
@@ -91,7 +92,11 @@ export function seededRuns(
 /** Follow a run's queries through random writes and match exactly what an oracle selects. */
 async function matchExactly(run: Run): Promise<void> {
     // open the source and seed its rows on the run's one clock
-    await using simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = new Simulation({
+        world: testWorldOptions(),
+        seed: 1,
+        start: START,
+    });
     const source = await open({ simulation });
     const feed = new Feed(
         source,

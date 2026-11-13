@@ -4,6 +4,7 @@ import type { Row, Table } from "@destack/db";
 import { Feed } from "../feed/feed.ts";
 import { ConditionAudience } from "../feed/test/audience.ts";
 import { first, note, open, take, START } from "../test/fixture.ts";
+import { testWorldOptions } from "@destack/test/world";
 
 /** An audience showing every row and recording the rows it decides. */
 class CountingAudience extends ConditionAudience {
@@ -21,7 +22,11 @@ class CountingAudience extends ConditionAudience {
 }
 
 test("decide only the changed rows meeting a query's condition", async () => {
-    await using simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = new Simulation({
+        world: testWorldOptions(),
+        seed: 1,
+        start: START,
+    });
     const database = await open({ simulation });
     const feed = new Feed(database, [note]);
     const audience = new CountingAudience(new Map());
