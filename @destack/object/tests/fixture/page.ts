@@ -1,3 +1,4 @@
+import { testIdentity } from "../../src/test/index.ts";
 import { schema } from "@destack/schema";
 import { defineDatabase } from "@destack/db";
 import { invitation } from "../../src/access/index.ts";
@@ -33,7 +34,10 @@ export const page = defineObject({
 });
 
 /** The package of pages, their trees, sharing, links, trash and sync. */
-export const pagesPackage = definePackage({ objects: [page, invitation] });
+export const pagesPackage = definePackage({
+    ...testIdentity,
+    objects: [page, invitation],
+});
 
 /** The database of one space's pages. */
 export const pageDatabase = defineDatabase({

@@ -1,5 +1,5 @@
 import { FOLLOWER_REVISION } from "@destack/sync/test";
-import { testSimulation } from "../src/test/index.ts";
+import { testSimulation, testIdentity } from "../src/test/index.ts";
 import { MemoryBlobStorage } from "@destack/resource";
 import {
     BLOB_TABLES,
@@ -1042,7 +1042,10 @@ test("serve a woken store only once the replicas it stored are live again", asyn
     // wake a store over the same database, blocking the chain's pages
     const pages = Promise.withResolvers<void>();
     const woken = await open(pages.promise);
-    const handle = definePackage({ objects: [document] });
+    const handle = definePackage({
+        ...testIdentity,
+        objects: [document],
+    });
     const implemented = woken.implement(handle, [], { controllers: [], cursors: [] });
     const ready = present(implemented.ready, "the readiness wait");
     const waking = new AbortController();
@@ -1732,10 +1735,17 @@ test("serve a store once its chain is confirmed while the source of a followed s
         stopping.signal,
     );
     const ready = present(
-        store.implement(definePackage({ objects: [document] }), [], {
-            controllers: [],
-            cursors: [],
-        }).ready,
+        store.implement(
+            definePackage({
+                ...testIdentity,
+                objects: [document],
+            }),
+            [],
+            {
+                controllers: [],
+                cursors: [],
+            },
+        ).ready,
         "the readiness wait",
     );
     await ready(stopping.signal);

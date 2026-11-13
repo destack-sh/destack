@@ -1,4 +1,4 @@
-import { testSimulation } from "../src/test/index.ts";
+import { testSimulation, testIdentity } from "../src/test/index.ts";
 import { defineObject, field, ObjectDescription } from "../src/index.ts";
 import { users } from "./fixture/user.ts";
 import { PackageVersion } from "@destack/package";
@@ -175,7 +175,13 @@ test("read external objects named by their key from the database their files ope
     ]);
 
     // follow the entries in a client's live query, through the external replica
-    const notebooks = definePackage({ objects: [notebook, entry] }, { package: notebook.package });
+    const notebooks = definePackage(
+        {
+            ...testIdentity,
+            objects: [notebook, entry],
+        },
+        { package: notebook.package },
+    );
     const served = TestObjectStore.serve(
         await TestObjectStore.receive(space.reference(Scope.universe.id, spaceId), {
             servers: [

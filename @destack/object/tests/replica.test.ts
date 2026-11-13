@@ -1,5 +1,5 @@
 import { FOLLOWER_REVISION } from "@destack/sync/test";
-import { testSimulation } from "../src/test/index.ts";
+import { testSimulation, testIdentity } from "../src/test/index.ts";
 import { users } from "./fixture/user.ts";
 import {
     AccessContext,
@@ -661,7 +661,15 @@ test("answer a replicated type's query over its replica rows, and refuse its mut
 
     // serve the notes, which make the enclosing realm known
     const store = TestObjectStore.of({
-        servers: [implementPackage(definePackage({ objects: [note] }), {})],
+        servers: [
+            implementPackage(
+                definePackage({
+                    ...testIdentity,
+                    objects: [note],
+                }),
+                {},
+            ),
+        ],
         chain: async () => undefined,
         environment: world,
         principal: spacePrincipal(realmId),

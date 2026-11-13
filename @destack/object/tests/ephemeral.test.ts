@@ -1,6 +1,6 @@
 import { FOLLOWER_REVISION } from "@destack/sync/test";
 import type { Simulation } from "@destack/environment/simulation";
-import { testSimulation } from "../src/test/index.ts";
+import { testSimulation, testIdentity } from "../src/test/index.ts";
 import { users } from "./fixture/user.ts";
 import type { Page } from "@destack/sync";
 import { present, schema, type Identifier } from "@destack/schema";
@@ -109,7 +109,10 @@ const profile = defineObject(
 );
 
 /** The package serving the boards, profiles and presence. */
-const boardsPackage = definePackage({ objects: [presence, board, profile] });
+const boardsPackage = definePackage({
+    ...testIdentity,
+    objects: [presence, board, profile],
+});
 
 test("refuse relating an ephemeral object's creator, as no relationship outlives it", () => {
     expect(() =>

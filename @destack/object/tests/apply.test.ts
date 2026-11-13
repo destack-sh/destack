@@ -5,7 +5,7 @@ import { RequestId, Scope } from "@destack/sync";
 import { expect, test } from "@destack/test";
 import { defineObject, definePackage, field } from "../src/index.ts";
 import { implementPackage } from "../src/server/index.ts";
-import { TestObjectStore, testSimulation } from "../src/test/index.ts";
+import { TestObjectStore, testSimulation, testIdentity } from "../src/test/index.ts";
 import { notesPackage } from "./fixture/note.ts";
 import { pagesPackage } from "./fixture/page.ts";
 import { space } from "./fixture/space.ts";
@@ -35,7 +35,13 @@ const label = defineObject(
 );
 
 /** The package of labels. */
-const labelsPackage = definePackage({ objects: [label] }, { package: LABELS });
+const labelsPackage = definePackage(
+    {
+        ...testIdentity,
+        objects: [label],
+    },
+    { package: LABELS },
+);
 
 test("serve a package applied after the store started, keeping the handlers of the packages after the first", async () => {
     // serve notes and pages over a database that stores labels too

@@ -1,4 +1,4 @@
-import { testSimulation } from "../src/test/index.ts";
+import { testSimulation, testIdentity } from "../src/test/index.ts";
 import { users, userContext } from "./fixture/user.ts";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { principal, relation, union } from "@destack/access";
@@ -54,7 +54,10 @@ const document = defineObject(
 );
 
 /** The documents package. */
-const documentsPackage = definePackage({ objects: [document] });
+const documentsPackage = definePackage({
+    ...testIdentity,
+    objects: [document],
+});
 
 /** The database of one space's documents. */
 const documentsDatabase = defineDatabase({

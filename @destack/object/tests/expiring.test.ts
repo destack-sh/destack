@@ -1,4 +1,4 @@
-import { TestObjectStore } from "../src/test/index.ts";
+import { TestObjectStore, testIdentity } from "../src/test/index.ts";
 import { testSimulation } from "../src/test/index.ts";
 import { expect, onTestFinished, test } from "@destack/test";
 import { testCallKey } from "@destack/object/test";
@@ -256,7 +256,12 @@ test("remove the expired objects of several people at once, one mutation per sco
         traits: [expiring([{ after: { milliseconds: 0 }, from: "expiresAt" }])],
     });
     await using objects = await TestObjectStore.open({
-        packages: [definePackage({ objects: [person, reminder] })],
+        packages: [
+            definePackage({
+                ...testIdentity,
+                objects: [person, reminder],
+            }),
+        ],
         scope: universe.reference(Scope.universe.id, Scope.universe.id),
         scopes: PEOPLE.map((id) => person.reference(Scope.universe.id, id)),
     });

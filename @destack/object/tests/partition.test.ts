@@ -1,4 +1,4 @@
-import { testSimulation } from "../src/test/index.ts";
+import { testSimulation, testIdentity } from "../src/test/index.ts";
 import { MemoryBlobStorage } from "@destack/resource";
 import { defineDatabase, Snapshot } from "@destack/db";
 import { defineObject, field, ObjectDescription, type ObjectType } from "../src/index.ts";
@@ -61,7 +61,10 @@ const room = defineObject({
 const ROOM = "room-01996ab0-0000-7000-8000-0000000000a3";
 
 /** The package of the space's rooms. */
-const roomsPackage = definePackage({ objects: [room] });
+const roomsPackage = definePackage({
+    ...testIdentity,
+    objects: [room],
+});
 
 /** The database of the space's rooms. */
 const roomsDatabase = defineDatabase({

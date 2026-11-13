@@ -9,7 +9,7 @@ import {
     RouterDescription,
 } from "../declare/description.ts";
 import type { ObjectDeclaration } from "../declare/package.ts";
-import type { Package } from "../declare/package.ts";
+import type { Package, PackageIdentity } from "../declare/package.ts";
 
 /** The releases at which a procedure converts earlier callers' inputs. */
 const CONVERSIONS = schema.jsonObject();
@@ -21,8 +21,12 @@ const API_TARGET = "api";
 const MOUNT_TARGET = "mount";
 
 /** Describe a package: the API its objects derive, its objects, mounts and views. */
-export function describePackage(handle: Package): PackageDescription {
+export function describePackage(handle: Package & PackageIdentity): PackageDescription {
     return PackageDescription.parse({
+        title: handle.title,
+        description: handle.description,
+        icon: handle.icon,
+        color: handle.color,
         ...(handle.since === undefined ? {} : { since: handle.since }),
         api: describeRouter(handle.name, handle.router),
         objects: describeObjects(handle.id, handle.objects),
@@ -129,7 +133,7 @@ function compareMounts(
 
 /** List a package's procedures as its member symbols, each served by the package. */
 export function packageSymbols(handle: Package): graph.MemberSymbol[] {
-    return apiSymbols(describePackage(handle).api, undefined);
+    return apiSymbols(describeRouter(handle.name, handle.router), undefined);
 }
 
 /** Plan the changes of an API between releases for the callers of earlier ones. */

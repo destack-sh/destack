@@ -1,5 +1,5 @@
 import { BuildLayer } from "@destack/package/manifest";
-import { testSimulation } from "../src/test/index.ts";
+import { testSimulation, testIdentity } from "../src/test/index.ts";
 import { MemoryBlobStorage } from "@destack/resource";
 import { defineDatabase } from "@destack/db";
 import { AccessError, principal, through } from "@destack/access";
@@ -70,7 +70,10 @@ const probe = defineObject(
 });
 
 /** The package of the probes. */
-const probes = definePackage({ objects: [probe] });
+const probes = definePackage({
+    ...testIdentity,
+    objects: [probe],
+});
 
 test("act with the space's delegation to its installation, refusing without one, and read its capabilities", async () => {
     // run in a world of its own

@@ -1,5 +1,5 @@
 import type { Environment } from "@destack/environment";
-import { testSimulation } from "../src/test/index.ts";
+import { testSimulation, testIdentity } from "../src/test/index.ts";
 import { expect, onTestFinished, test } from "@destack/test";
 import { TestDatabase } from "@destack/db/test";
 import { PackageVersion } from "@destack/package";
@@ -21,12 +21,14 @@ const spaceId = schema.identifier("space").parse(`space-01996ab0-0000-7000-8000-
 
 /** The pages with a feed mount answering below /feed. */
 const pages = definePackage({
+    ...testIdentity,
     objects: [page],
     mounts: [defineMount({ name: "feed", path: "/feed" })],
 });
 
 /** The pages with a feed mount answering the space's installation alone. */
 const customPages = definePackage({
+    ...testIdentity,
     objects: [page],
     mounts: [defineMount({ name: "feed", path: "/feed", callers: "self" })],
 });

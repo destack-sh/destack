@@ -3,7 +3,13 @@ import { PackageVersion } from "@destack/package";
 import { type BuildReader, type OutputContent, PackageManifest } from "@destack/package/manifest";
 import { MemoryBuild } from "@destack/package/test";
 import { ResourceDeclaration } from "@destack/resource";
-import { PACKAGE_KIND, PACKAGE_EXPORT, type Package, SERVER_EXPORT } from "../declare/index.ts";
+import {
+    PACKAGE_KIND,
+    PACKAGE_EXPORT,
+    type Package,
+    type PackageIdentity,
+    SERVER_EXPORT,
+} from "../declare/index.ts";
 import { describePackage } from "../inspect/index.ts";
 import { OBJECT_KIND, ObjectDescription, type ObjectType } from "../object/index.ts";
 
@@ -33,7 +39,7 @@ export type TestBuildOptions = Omit<
 
 /** Write a package's build as its compiler does: its package, object types and resources. */
 export async function testBuild(
-    handle: Package & { readonly objects: Readonly<Record<string, ObjectType>> },
+    handle: Package & PackageIdentity & { readonly objects: Readonly<Record<string, ObjectType>> },
     crypto: Crypto,
     options: TestBuildOptions = {},
 ): Promise<BuildReader> {

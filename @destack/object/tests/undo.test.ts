@@ -1,4 +1,4 @@
-import { testSimulation } from "../src/test/index.ts";
+import { testSimulation, testIdentity } from "../src/test/index.ts";
 import { users } from "./fixture/user.ts";
 import { PackageVersion } from "@destack/package";
 import { expect, onTestFinished, test } from "@destack/test";
@@ -352,7 +352,10 @@ test("undo an update of an exact integer, restoring its value on the device and 
     );
     onTestFinished(() => storage.close());
     await openSpace(storage.database, world, spaceId);
-    const tallies = definePackage({ objects: [tally] });
+    const tallies = definePackage({
+        ...testIdentity,
+        objects: [tally],
+    });
     const served = TestObjectStore.serve(
         await TestObjectStore.receive(space.reference(Scope.universe.id, spaceId), {
             servers: [implementPackage(tallies, {})],
@@ -432,7 +435,10 @@ test("undo an update of a bytes field, restoring its bytes on the device and the
     );
     onTestFinished(() => storage.close());
     await openSpace(storage.database, world, spaceId);
-    const stamps = definePackage({ objects: [stamp] });
+    const stamps = definePackage({
+        ...testIdentity,
+        objects: [stamp],
+    });
     const served = TestObjectStore.serve(
         await TestObjectStore.receive(space.reference(Scope.universe.id, spaceId), {
             servers: [implementPackage(stamps, {})],

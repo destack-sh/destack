@@ -1,6 +1,6 @@
 import type { Clock } from "@destack/environment";
 import { MemoryBlobStorage } from "@destack/resource";
-import { testSimulation } from "../src/test/index.ts";
+import { testSimulation, testIdentity } from "../src/test/index.ts";
 import { defineObject, device, field, ObjectDescription } from "../src/index.ts";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { AccessContext, accessTables, Caller, CONTAINED, principal } from "@destack/access";
@@ -144,7 +144,10 @@ test("refuse to serve local objects at another principal's store, and refuse loc
     const events = await testEvents(database, world);
 
     // refuse a server for a local type, and local types in the universe, in several scopes or with durable traits
-    const draftPackage = definePackage({ objects: [draft] });
+    const draftPackage = definePackage({
+        ...testIdentity,
+        objects: [draft],
+    });
     expect([
         failure(() =>
             nth(

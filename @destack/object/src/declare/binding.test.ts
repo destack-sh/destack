@@ -1,4 +1,4 @@
-import { testSimulation } from "../test/index.ts";
+import { testSimulation, testIdentity } from "../test/index.ts";
 import { Caller, principal } from "@destack/access";
 import { expect, onTestFinished, test } from "@destack/test";
 import { Exchange } from "@destack/access/token";
@@ -41,7 +41,13 @@ const note = <Router extends ProcedureRouter>(owner: PackageVersion, procedures:
 };
 
 /** The notes package, whose note type routes the health procedures. */
-const notes = definePackage({ objects: [note(NOTES, health)] }, { package: NOTES });
+const notes = definePackage(
+    {
+        ...testIdentity,
+        objects: [note(NOTES, health)],
+    },
+    { package: NOTES },
+);
 
 test("call a bound installation at its reference with the credential the host lends, speaking its procedures' release, for the served caller a call passes", async () => {
     // answer health checks

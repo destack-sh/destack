@@ -1,4 +1,4 @@
-import { testSimulation } from "../src/test/index.ts";
+import { testSimulation, testIdentity } from "../src/test/index.ts";
 import { PackageVersion } from "@destack/package";
 import type { CallableName } from "../src/index.ts";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
@@ -244,7 +244,10 @@ test("undo a bulk creation by deleting each created object on the device and the
 
     // serve the labels of a space
     const { storage } = await serveLabels(world);
-    const labels = definePackage({ objects: [label] });
+    const labels = definePackage({
+        ...testIdentity,
+        objects: [label],
+    });
     const served = TestObjectStore.serve(
         await TestObjectStore.receive(space.reference(Scope.universe.id, spaceId), {
             servers: [implementPackage(labels, {})],

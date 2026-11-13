@@ -1,3 +1,4 @@
+import { testIdentity } from "../../src/test/index.ts";
 import { schema } from "@destack/schema";
 import { defineDatabase } from "@destack/db";
 import { definePackage } from "@destack/object";
@@ -67,7 +68,13 @@ export const note = defineObject(
 );
 
 /** Notebooks and notes, with their sharing, trash and sync. */
-export const notesPackage = definePackage({ objects: [notebook, note] }, { package: NOTES });
+export const notesPackage = definePackage(
+    {
+        ...testIdentity,
+        objects: [notebook, note],
+    },
+    { package: NOTES },
+);
 
 /** The database of one space's notebooks and notes. */
 export const notesDatabase = defineDatabase({

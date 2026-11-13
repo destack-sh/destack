@@ -1,4 +1,4 @@
-import { testSimulation } from "../src/test/index.ts";
+import { testSimulation, testIdentity } from "../src/test/index.ts";
 import { defineObject, field, ObjectDescription, ObjectTypePool } from "../src/index.ts";
 import { users } from "./fixture/user.ts";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
@@ -282,7 +282,10 @@ test("read objects of a scope inside the space a client is bound to, refusing a 
     );
     onTestFinished(() => storage.close());
     await openSpace(storage.database, world, spaceId);
-    const shelves = definePackage({ objects: [shelf, bookmark] });
+    const shelves = definePackage({
+        ...testIdentity,
+        objects: [shelf, bookmark],
+    });
     const served = TestObjectStore.serve(
         await TestObjectStore.receive(space.reference(Scope.universe.id, spaceId), {
             servers: [implementPackage(shelves, {})],

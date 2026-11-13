@@ -10,7 +10,9 @@ import {
 } from "@destack/package";
 import type { Declaration, ResourceRequirement } from "@destack/package/declare";
 import { mapValues, Version } from "@destack/schema";
-import { MountPath, Capability } from "./description.ts";
+import type { Message } from "@destack/locale";
+import { SwatchName } from "@destack/theme";
+import { MountPath, Capability, IconName } from "./description.ts";
 import type { Command } from "./command.ts";
 import type { ProcedureRouter } from "../procedure/index.ts";
 import { GrantDeclaration, type Policy } from "@destack/access";
@@ -40,6 +42,18 @@ export interface ObjectDeclaration {
     readonly procedures: ProcedureRouter;
     /** The procedures every declaration of its kind shares. */
     readonly shared: ProcedureRouter;
+}
+
+/** How people recognise a package: its title, description, icon and color. */
+export interface PackageIdentity {
+    /** The package's name as people read it, such as on its app's tile and in a launcher. */
+    readonly title: Message;
+    /** What the package does, in one sentence, such as under its title when installing it. */
+    readonly description: Message;
+    /** The Phosphor icon its app's tile draws, such as `calendar-blank`. */
+    readonly icon: string;
+    /** The swatch the stack draws it in wherever it appears, such as its tile, traces and diagrams. */
+    readonly color: SwatchName;
 }
 
 /** What a package declares: its objects, views and mounts, and what its installations bind. */
@@ -145,144 +159,152 @@ export type PackageRouter<Options extends PackageOptions> = Extract<
     ProcedureRouter
 >;
 
-/** Declare the handle of the package the module belongs to. */
+/** Declare the handle of the package the module belongs to, with how people recognise it. */
 export function definePackage<const Options extends PackageOptions>(
-    options: Options,
+    options: Options & PackageIdentity,
     module?: ModuleMetadata,
-): Package<Options> {
-    return Package.of(
-        PackageVersion.parse(ModuleMetadata.require(module, "definePackage").package),
-        options,
-    );
+): Package<Options> & PackageIdentity {
+    // build the handle with the identity, its icon checked as a Phosphor name
+    const owner = PackageVersion.parse(ModuleMetadata.require(module, "definePackage").package);
+
+    return handleOf(owner, options, {
+        title: options.title,
+        description: options.description,
+        icon: IconName.parse(options.icon),
+        color: SwatchName.parse(options.color),
+    });
 }
 
 /** The handles packages declare, and the ones hosts rebuild from installed descriptions. */
 export const Package = {
-    /** Build a package's handle from its identity and what it declares. */
+    /** Build a package's handle from its version and what it declares. */
     of<const Options extends PackageOptions>(
         owner: PackageVersion,
         options: Options,
     ): Package<Options> {
-        // key what the package lists by name, each kind it leaves out empty, its resources apart from its secrets
-        const listed = options.resources ?? [];
-        const objects = byRoute(options.objects ?? []);
-        const views = byName(options.views ?? []);
-        const commands = byName(options.commands ?? []);
-        const mounts = byName(options.mounts ?? []);
-        const bound = Object.values(byName(listed));
-        const resources = byName(bound.filter((each) => isProvisioned(each)));
-        const secrets = byName(bound.filter((each) => !isProvisioned(each)));
-
-        // refuse an object type another package defines, by its package's name
-        const foreign = Object.values(objects).find((object) => object.package.name !== owner.name);
-        if (foreign !== undefined) {
-            throw PackageError.of(
-                "DEFINITION_INVALID",
-                `object '${foreign.name}' is invalid: '${owner.name}' lists it, but only '${foreign.package.name}' can serve it`,
-            );
-        }
-
-        // refuse a command on an object type the package does not serve, or named as one of its methods
-        const served = new Set<unknown>(Object.values(objects));
-        const stray = Object.values(commands).find((command) => !served.has(command.object));
-        const renaming = Object.values(commands).find(
-            (command) => command.name in command.object.methods,
-        );
-        if (stray !== undefined) {
-            throw PackageError.of(
-                "DEFINITION_INVALID",
-                `command '${stray.name}' is invalid: '${owner.name}' lists it on ${stray.object.name}, which it does not serve`,
-            );
-        } else if (renaming !== undefined) {
-            throw PackageError.of(
-                "DEFINITION_INVALID",
-                `command '${renaming.name}' is invalid: it takes the name of a method of ${renaming.object.name}`,
-            );
-        }
-
-        // refuse a mount answering at or below another's path
-        const paths = Object.values(mounts).map((mount) => mount.path);
-        const overlap = paths.find((path, index) =>
-            paths.some(
-                (other, at) => at !== index && (path === other || path.startsWith(`${other}/`)),
-            ),
-        );
-        if (overlap !== undefined) {
-            throw PackageError.of(
-                "DEFINITION_INVALID",
-                `mount path '${overlap}' is invalid: it overlaps another`,
-            );
-        }
-
-        // refuse a mount answering below an object's routes, which would take its calls
-        const roots = new Set<string | undefined>();
-        const routers: ProcedureRouter[] = Object.values(objects).map(
-            (object) => object.procedures,
-        );
-        for (let router = routers.pop(); router !== undefined; router = routers.pop()) {
-            // take a procedure's first path segment, and walk a nested router
-            if (isContractProcedure(router)) {
-                roots.add(router["~orpc"].route.path?.split("/")[1]);
-            } else {
-                routers.push(...Object.values(router));
-            }
-        }
-        const shadowing = paths.find((path) => roots.has(path.split("/")[1]));
-        if (shadowing !== undefined) {
-            throw PackageError.of(
-                "DEFINITION_INVALID",
-                `mount path '${shadowing}' is invalid: it overlaps an object's routes`,
-            );
-        }
-
-        // route the objects' procedures on first use, which spares a package's import the work
-        let router: PackageRouter<Options> | undefined;
-
-        return Object.freeze({
-            [PACKAGE]: owner,
-            ...owner,
-            ...(options.since === undefined ? {} : { since: Version.parse(options.since) }),
-            get router(): PackageRouter<Options> {
-                router ??= mapValues<Record<string, unknown>, PackageRouter<Options>>(
-                    routeObjects(owner, objects),
-                    (procedures) => procedures,
-                );
-
-                return router;
-            },
-            objects: mapValues<typeof objects, ByRoute<Options["objects"]>>(
-                objects,
-                (each) => each,
-            ),
-            tables: [...(options.tables ?? [])],
-            protocols: [...(options.protocols ?? [])],
-            views: mapValues<typeof views, ByName<Options["views"]>>(views, (each) => each),
-            commands: mapValues<typeof commands, ByName<Options["commands"]>>(
-                commands,
-                (each) => each,
-            ),
-            mounts: mapValues<typeof mounts, ByName<Options["mounts"]>>(mounts, (each) => each),
-            resources: mapValues<typeof resources, Keyed<ResourceOf<Listed<Options["resources"]>>>>(
-                resources,
-                (each) => each,
-            ),
-            secrets: mapValues<
-                typeof secrets,
-                Keyed<
-                    Exclude<Listed<Options["resources"]>, ResourceOf<Listed<Options["resources"]>>>
-                >
-            >(secrets, (each) => each),
-            permissions: GrantDeclaration.parse(options.access?.permissions ?? {}),
-            capabilities: Object.fromEntries(
-                Object.values(byName(options.capabilities ?? [])).map(({ name, ...each }) => [
-                    name,
-                    Capability.parse(each),
-                ]),
-            ),
-            errors: options.errors?.describe() ?? [],
-        });
+        return handleOf(owner, options, {});
     },
 };
+
+/** Build a package's handle from its version and what it declares, with its identity when declared. */
+function handleOf<const Options extends PackageOptions, Identity extends object>(
+    owner: PackageVersion,
+    options: Options,
+    identity: Identity,
+): Package<Options> & Identity {
+    // key what the package lists by name, each kind it leaves out empty, its resources apart from its secrets
+    const listed = options.resources ?? [];
+    const objects = byRoute(options.objects ?? []);
+    const views = byName(options.views ?? []);
+    const commands = byName(options.commands ?? []);
+    const mounts = byName(options.mounts ?? []);
+    const bound = Object.values(byName(listed));
+    const resources = byName(bound.filter((each) => isProvisioned(each)));
+    const secrets = byName(bound.filter((each) => !isProvisioned(each)));
+
+    // refuse an object type another package defines, by its package's name
+    const foreign = Object.values(objects).find((object) => object.package.name !== owner.name);
+    if (foreign !== undefined) {
+        throw PackageError.of(
+            "DEFINITION_INVALID",
+            `object '${foreign.name}' is invalid: '${owner.name}' lists it, but only '${foreign.package.name}' can serve it`,
+        );
+    }
+
+    // refuse a command on an object type the package does not serve, or named as one of its methods
+    const served = new Set<unknown>(Object.values(objects));
+    const stray = Object.values(commands).find((command) => !served.has(command.object));
+    const renaming = Object.values(commands).find(
+        (command) => command.name in command.object.methods,
+    );
+    if (stray !== undefined) {
+        throw PackageError.of(
+            "DEFINITION_INVALID",
+            `command '${stray.name}' is invalid: '${owner.name}' lists it on ${stray.object.name}, which it does not serve`,
+        );
+    } else if (renaming !== undefined) {
+        throw PackageError.of(
+            "DEFINITION_INVALID",
+            `command '${renaming.name}' is invalid: it takes the name of a method of ${renaming.object.name}`,
+        );
+    }
+
+    // refuse a mount answering at or below another's path
+    const paths = Object.values(mounts).map((mount) => mount.path);
+    const overlap = paths.find((path, index) =>
+        paths.some((other, at) => at !== index && (path === other || path.startsWith(`${other}/`))),
+    );
+    if (overlap !== undefined) {
+        throw PackageError.of(
+            "DEFINITION_INVALID",
+            `mount path '${overlap}' is invalid: it overlaps another`,
+        );
+    }
+
+    // refuse a mount answering below an object's routes, which would take its calls
+    const roots = new Set<string | undefined>();
+    const routers: ProcedureRouter[] = Object.values(objects).map((object) => object.procedures);
+    for (let router = routers.pop(); router !== undefined; router = routers.pop()) {
+        // take a procedure's first path segment, and walk a nested router
+        if (isContractProcedure(router)) {
+            roots.add(router["~orpc"].route.path?.split("/")[1]);
+        } else {
+            routers.push(...Object.values(router));
+        }
+    }
+    const shadowing = paths.find((path) => roots.has(path.split("/")[1]));
+    if (shadowing !== undefined) {
+        throw PackageError.of(
+            "DEFINITION_INVALID",
+            `mount path '${shadowing}' is invalid: it overlaps an object's routes`,
+        );
+    }
+
+    // route the objects' procedures on first use, which spares a package's import the work
+    let router: PackageRouter<Options> | undefined;
+
+    const handle: Package<Options> & { readonly [PACKAGE]: PackageVersion } = {
+        [PACKAGE]: owner,
+        ...owner,
+        ...(options.since === undefined ? {} : { since: Version.parse(options.since) }),
+        get router(): PackageRouter<Options> {
+            router ??= mapValues<Record<string, unknown>, PackageRouter<Options>>(
+                routeObjects(owner, objects),
+                (procedures) => procedures,
+            );
+
+            return router;
+        },
+        objects: mapValues<typeof objects, ByRoute<Options["objects"]>>(objects, (each) => each),
+        tables: [...(options.tables ?? [])],
+        protocols: [...(options.protocols ?? [])],
+        views: mapValues<typeof views, ByName<Options["views"]>>(views, (each) => each),
+        commands: mapValues<typeof commands, ByName<Options["commands"]>>(commands, (each) => each),
+        mounts: mapValues<typeof mounts, ByName<Options["mounts"]>>(mounts, (each) => each),
+        resources: mapValues<typeof resources, Keyed<ResourceOf<Listed<Options["resources"]>>>>(
+            resources,
+            (each) => each,
+        ),
+        secrets: mapValues<
+            typeof secrets,
+            Keyed<Exclude<Listed<Options["resources"]>, ResourceOf<Listed<Options["resources"]>>>>
+        >(secrets, (each) => each),
+        permissions: GrantDeclaration.parse(options.access?.permissions ?? {}),
+        capabilities: Object.fromEntries(
+            Object.values(byName(options.capabilities ?? [])).map(({ name, ...each }) => [
+                name,
+                Capability.parse(each),
+            ]),
+        ),
+        errors: options.errors?.describe() ?? [],
+    };
+
+    // add the identity beside the lazily routed procedures, then freeze the handle
+    const identified = Object.assign(handle, identity);
+    Object.freeze(identified);
+
+    return identified;
+}
 
 /** Declare a mount serving a protocol others define below the package. */
 export function defineMount<const Name extends string>(

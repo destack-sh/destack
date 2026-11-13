@@ -1,3 +1,4 @@
+import { testIdentity } from "../test/index.ts";
 import { none, Policy } from "@destack/access";
 import { defineErrorFamily } from "@destack/error";
 import { expect, test } from "@destack/test";
@@ -56,6 +57,7 @@ test("plan a package's API changes between releases, converting narrowed inputs 
     const before = describePackage(
         definePackage(
             {
+                ...testIdentity,
                 objects: [
                     query({
                         search: procedure()
@@ -80,6 +82,7 @@ test("plan a package's API changes between releases, converting narrowed inputs 
         describePackage(
             definePackage(
                 {
+                    ...testIdentity,
                     since: RELEASE,
                     objects: [
                         query({
@@ -168,6 +171,7 @@ test("plan a package's mount changes: adding is safe, removing or moving breaks 
         describePackage(
             definePackage(
                 {
+                    ...testIdentity,
                     mounts: Object.entries(mounts).map(([name, path]) =>
                         defineMount({ name, path }, MODULE),
                     ),
@@ -205,6 +209,7 @@ test("list a package's procedures as members the package serves", () => {
     // describe a package with a nested procedure
     const handle = definePackage(
         {
+            ...testIdentity,
             objects: [
                 query({
                     search: procedure().input(schema.object({ text: schema.string() })),
@@ -246,6 +251,7 @@ test("describe a package's routes, mounts, views, requested permissions, capabil
     const user = new Policy(MODULE.package, { name: "user", permissions: { recipient: none() } });
     const handle = definePackage(
         {
+            ...testIdentity,
             objects: [custom],
             mounts: [defineMount({ name: "npm", path: "/npm" }, MODULE)],
             access: { permissions: { space: { universe: [user.permission("recipient")] } } },
@@ -271,6 +277,7 @@ test("describe a package's routes, mounts, views, requested permissions, capabil
     );
 
     expect(describePackage(handle)).toEqual({
+        ...testIdentity,
         api: { name: handle.name, procedures: [] },
         objects: {
             query: { type: custom.typeReference, hooks: { create: ["authorize"] } },
@@ -306,9 +313,17 @@ test("refuse describing a procedure whose payload JSON Schema cannot describe, a
         ),
     });
 
-    expect(() => describePackage(definePackage({ objects: [refined] }, MODULE))).toThrow(
-        "unsupported schema check: 'custom'",
-    );
+    expect(() =>
+        describePackage(
+            definePackage(
+                {
+                    ...testIdentity,
+                    objects: [refined],
+                },
+                MODULE,
+            ),
+        ),
+    ).toThrow("unsupported schema check: 'custom'");
 });
 
 test("refuse a package listing an object type another package defines, which that package alone serves", () => {
@@ -319,7 +334,15 @@ test("refuse a package listing an object type another package defines, which tha
         typeReference: { packageId: "package-01996ab0-0000-7000-8000-00000000c002", type: "card" },
     };
 
-    expect(() => definePackage({ objects: [foreign] }, MODULE)).toThrow(
+    expect(() =>
+        definePackage(
+            {
+                ...testIdentity,
+                objects: [foreign],
+            },
+            MODULE,
+        ),
+    ).toThrow(
         `object 'card' is invalid: '${PACKAGE.name}' lists it, but only '@destack/board' can serve it`,
     );
 });

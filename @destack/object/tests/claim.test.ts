@@ -1,5 +1,5 @@
 import type { Environment } from "@destack/environment";
-import { testSimulation } from "../src/test/index.ts";
+import { testSimulation, testIdentity } from "../src/test/index.ts";
 import { users } from "./fixture/user.ts";
 import { Scope, RequestId } from "@destack/sync";
 import {
@@ -60,7 +60,10 @@ const unindexed = defineObject(
 );
 
 /** The package of the profiles as first released. */
-const unindexedPackage = definePackage({ objects: [unindexed] });
+const unindexedPackage = definePackage({
+    ...testIdentity,
+    objects: [unindexed],
+});
 
 /** The database of one space's profiles as first released. */
 const unindexedDatabase = defineDatabase({

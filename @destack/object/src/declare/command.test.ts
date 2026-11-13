@@ -1,3 +1,4 @@
+import { testIdentity } from "../test/index.ts";
 import { none, principal } from "@destack/access";
 import { connectBunSqlite } from "@destack/db/bun";
 import { argument, plural, t } from "@destack/locale";
@@ -334,10 +335,35 @@ test("list a package's commands on its own objects, refusing one on a type it do
     );
 
     // list each on a package serving the tasks alone
-    const handle = definePackage({ objects: [task], commands: [markDone] }, owner);
+    const handle = definePackage(
+        {
+            ...testIdentity,
+            objects: [task],
+            commands: [markDone],
+        },
+        owner,
+    );
     const refused = [
-        await refusal(() => definePackage({ objects: [task], commands: [stray] }, owner)),
-        await refusal(() => definePackage({ objects: [task], commands: [named] }, owner)),
+        await refusal(() =>
+            definePackage(
+                {
+                    ...testIdentity,
+                    objects: [task],
+                    commands: [stray],
+                },
+                owner,
+            ),
+        ),
+        await refusal(() =>
+            definePackage(
+                {
+                    ...testIdentity,
+                    objects: [task],
+                    commands: [named],
+                },
+                owner,
+            ),
+        ),
     ];
 
     // expect the command listed, and both others refused by name

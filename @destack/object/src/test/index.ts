@@ -10,3 +10,4 @@ export * from "./world.ts";
 export * from "./build.ts";
 export * from "./audit.ts";
 export * from "./replica.ts";
+export * from "./identity.ts";

@@ -13,7 +13,7 @@ import {
     definePackage,
     field,
 } from "../src/index.ts";
-import { TestObjectStore } from "../src/test/index.ts";
+import { TestObjectStore, testIdentity } from "../src/test/index.ts";
 import { users } from "./fixture/user.ts";
 import { argument, plural, t } from "@destack/locale";
 
@@ -33,7 +33,10 @@ const note = defineObject(
 );
 
 /** Object's package with the space's notes, as this test module belongs to it. */
-const notesPackage = definePackage({ objects: [...Object.values(objectPackage.objects), note] });
+const notesPackage = definePackage({
+    ...testIdentity,
+    objects: [...Object.values(objectPackage.objects), note],
+});
 
 /** Serve alice's space with notes and branches, and read a branch with its changes. */
 async function serveBranches() {

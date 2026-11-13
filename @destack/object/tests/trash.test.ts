@@ -3,7 +3,7 @@ import { schema } from "@destack/schema";
 import { RequestId, Scope } from "@destack/sync";
 import { expect, refusal, test } from "@destack/test";
 import { call, CallEvent, defineObject, definePackage, field } from "../src/index.ts";
-import { TestObjectStore } from "../src/test/index.ts";
+import { TestObjectStore, testIdentity } from "../src/test/index.ts";
 import { space } from "./fixture/space.ts";
 import { users } from "./fixture/user.ts";
 import { nested, recoverable, shareable } from "../src/index.ts";
@@ -40,7 +40,10 @@ const page = defineObject({
 });
 
 /** Folders and their pages. */
-const pagesPackage = definePackage({ objects: [folder, page] });
+const pagesPackage = definePackage({
+    ...testIdentity,
+    objects: [folder, page],
+});
 
 test("trash a folder's pages with it, restore only the ones trashed with it, refuse a page in a trashed folder, and purge it with its pages", async () => {
     // serve alice's folder with two pages, one trashed on its own first

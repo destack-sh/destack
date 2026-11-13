@@ -55,7 +55,13 @@ const task = defineObject({
 });
 
 // declare the package
-const tasks = definePackage({ objects: [project, task] });
+const tasks = definePackage({
+    title: t`Tasks`,
+    description: t`Track tasks in projects.`,
+    icon: "check-square",
+    color: "orange",
+    objects: [project, task],
+});
 
 /** Create a task, finish it, and list the open ones. */
 export async function finishTask(
@@ -194,7 +200,7 @@ An implementation's method takes a `MethodContext`.
 
 ### definePackage
 
-`definePackage({ objects, views, commands, mounts, resources, access, errors })` declares a package's handle.
+`definePackage({ title, description, icon, color, objects, views, commands, mounts, resources, access, errors })` declares a package's handle, with how people recognise it: its title, its description, its Phosphor icon and the swatch the stack draws it in.
 `implementPackage(handle, code)` implements it, from code or per installation.
 
 ## Examples
@@ -228,7 +234,13 @@ const todo = defineObject({
 });
 
 // declare the package
-const todos = definePackage({ objects: [project, todo] });
+const todos = definePackage({
+    title: t`Todos`,
+    description: t`Track todos in projects.`,
+    icon: "check-square",
+    color: "grass",
+    objects: [project, todo],
+});
 
 /** Create a todo, read and finish it, list the open ones, then delete and restore it. */
 export async function walkTodo(
@@ -290,7 +302,13 @@ const notebook = defineObject({
     fields: { name: field.string() },
     traits: [shareable({})],
 });
-const notes = definePackage({ objects: [notebook] });
+const notes = definePackage({
+    title: t`Notes`,
+    description: t`Keep notes.`,
+    icon: "note",
+    color: "yellow",
+    objects: [notebook],
+});
 
 /** Let Bob edit a notebook. */
 export async function shareWithBob(
@@ -379,7 +397,13 @@ const board = defineObject(
 );
 
 // declare the package
-const boards = definePackage({ objects: [project, board] });
+const boards = definePackage({
+    title: t`Boards`,
+    description: t`Plan work on boards.`,
+    icon: "kanban",
+    color: "iris",
+    objects: [project, board],
+});
 
 /** Get the roadmap board by its name, delete it, and create a new one under the same name. */
 export async function replaceRoadmap(
@@ -434,7 +458,13 @@ const article = defineObject({
     fields: { title: field.string(), status: field.enum(["draft", "published"]) },
     traits: [searchable({ text: ["title"], sort: ["title"] })],
 });
-const blog = definePackage({ objects: [article] });
+const blog = definePackage({
+    title: t`Blog`,
+    description: t`Publish articles.`,
+    icon: "article",
+    color: "tomato",
+    objects: [article],
+});
 
 /** List the published articles about Ada, by title. */
 export async function findAboutAda(client: ClientOf<typeof blog>, scope: string) {

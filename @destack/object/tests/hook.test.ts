@@ -1,4 +1,4 @@
-import { testSimulation } from "../src/test/index.ts";
+import { testSimulation, testIdentity } from "../src/test/index.ts";
 import { MemoryBlobStorage } from "@destack/resource";
 import { defineDatabase, TABLE } from "@destack/db";
 import { Failure } from "@destack/error";
@@ -23,7 +23,13 @@ import { TestDatabase } from "@destack/db/test";
 import { ResourceDeclaration } from "@destack/resource";
 import { type Identifier, schema, present, type JsonValue } from "@destack/schema";
 import { graph, PackageVersion } from "@destack/package";
-import { definePackage, OBJECT_KIND, PACKAGE_KIND, Package } from "@destack/object";
+import {
+    definePackage,
+    OBJECT_KIND,
+    PACKAGE_KIND,
+    Package,
+    type PackageIdentity,
+} from "@destack/object";
 import { describePackage } from "@destack/object/inspect";
 import { RequestId, Scope } from "@destack/sync";
 import { testCallKey, testServerContext } from "@destack/object/test";
@@ -128,7 +134,7 @@ function travel(value: unknown): unknown {
 /** Serve cards whose hooks run in a sandbox of the package's installation. */
 async function serveCards(
     world: Environment,
-    cards: Package,
+    cards: Package & PackageIdentity,
     owner: PackageVersion = card.package,
 ) {
     // store the space's cards in memory
@@ -218,7 +224,7 @@ async function serveCards(
 }
 
 /** Describe the card type and the package routing it, as the cards' build declares them. */
-function declarationsOf(cards: Package): Declaration[] {
+function declarationsOf(cards: Package & PackageIdentity): Declaration[] {
     const symbol = graph.Moniker.of({ packageId: cards.id, module: "src/index.ts", name: "cards" });
 
     return [
@@ -263,7 +269,10 @@ const sticker = defineObject(
 const dependency: Declaration = {
     symbol: graph.Moniker.of({ packageId: bundled.id, module: "src/index.ts", name: "default" }),
     ...PACKAGE_KIND.identity,
-    description: describePackage(Package.of(bundled, { objects: [sticker] })),
+    description: describePackage({
+        ...Package.of(bundled, { objects: [sticker] }),
+        ...testIdentity,
+    }),
 };
 
 /** Move the card type of a declaration into another package, its scope left in the platform's. */
@@ -330,6 +339,7 @@ test("run a card's hooks in its sandbox, their reads, nested calls and wrapped b
     const { store, exchange } = await serveCards(
         world,
         definePackage({
+            ...testIdentity,
             objects: [
                 card.implement({
                     methods: {
@@ -432,6 +442,7 @@ test("run a sandboxed hook again in a fresh session once a concurrent commit cha
         const { store, exchange } = await serveCards(
             world,
             definePackage({
+                ...testIdentity,
                 objects: [
                     card.implement({
                         methods: {
@@ -498,6 +509,7 @@ test("read every card of the package in a hook, and read as the caller through a
     const { store } = await serveCards(
         world,
         definePackage({
+            ...testIdentity,
             objects: [
                 card.implement({
                     methods: {
@@ -561,6 +573,7 @@ test("read every card of the package in a hook, and read as the caller through a
 
 /** Cards whose remark stamps the card through its package method. */
 const stamping = definePackage({
+    ...testIdentity,
     objects: [
         card.implement({
             methods: {
@@ -607,6 +620,7 @@ test("decide permissions, take positions, read the start position and act as the
     const { store, exchange } = await serveCards(
         world,
         definePackage({
+            ...testIdentity,
             objects: [
                 card.implement({
                     methods: {
@@ -663,7 +677,13 @@ test("serve the installation's package from its sandbox, never a bundled depende
     // run in a world of its own
     const world = testSimulation().environment("test");
 
-    const { store } = await serveCards(world, definePackage({ objects: [card] }));
+    const { store } = await serveCards(
+        world,
+        definePackage({
+            ...testIdentity,
+            objects: [card],
+        }),
+    );
 
     expect(store.packages.map((served) => served.package.id)).toEqual([card.package.id]);
 });
@@ -700,6 +720,7 @@ test("read the rows of a type the installation serves without hooks", async () =
     const { store } = await serveCards(
         world,
         definePackage({
+            ...testIdentity,
             objects: [
                 card.implement({
                     methods: {
@@ -752,7 +773,10 @@ test("refuse serving the cards of two installations of one package from one stor
         { environment: world, isMigrated: true },
     );
     onTestFinished(() => storage.close());
-    const cards = definePackage({ objects: [card] });
+    const cards = definePackage({
+        ...testIdentity,
+        objects: [card],
+    });
     const installed = await testServerContext(card.package, spaceId, world);
     const sandbox = (id: Identifier<"installation">) =>
         new HookSandbox({
@@ -808,7 +832,10 @@ test("serve the cards of the platform and of an installed package from one store
         { environment: world, isMigrated: true },
     );
     onTestFinished(() => storage.close());
-    const cards = definePackage({ objects: [card] });
+    const cards = definePackage({
+        ...testIdentity,
+        objects: [card],
+    });
     const installed = { ...card.package, id: OTHER_PACKAGE, name: "@app/cards" };
     const sandbox = new HookSandbox({
         server: await testServerContext(installed, spaceId, world),
@@ -858,8 +885,14 @@ test("describe the platform's and an installed package's types from one store, d
         { environment: world, isMigrated: true },
     );
     onTestFinished(() => storage.close());
-    const photos = definePackage({ objects: [photo] });
-    const cards = definePackage({ objects: [card] });
+    const photos = definePackage({
+        ...testIdentity,
+        objects: [photo],
+    });
+    const cards = definePackage({
+        ...testIdentity,
+        objects: [card],
+    });
     const installed = { ...card.package, id: OTHER_PACKAGE, name: "@app/cards" };
     const sandbox = new HookSandbox({
         server: await testServerContext(installed, spaceId, world),

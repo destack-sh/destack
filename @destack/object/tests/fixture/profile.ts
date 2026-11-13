@@ -1,3 +1,4 @@
+import { testIdentity } from "../../src/test/index.ts";
 import { schema } from "@destack/schema";
 import { principal, relation, universe } from "@destack/access";
 import { defineDatabase } from "@destack/db";
@@ -32,7 +33,10 @@ export const profile = defineObject(
 );
 
 /** Profiles, with handles unique across the universe. */
-export const profilesPackage = definePackage({ objects: [profile] });
+export const profilesPackage = definePackage({
+    ...testIdentity,
+    objects: [profile],
+});
 
 /** The database of one space's profiles. */
 export const profilesDatabase = defineDatabase({

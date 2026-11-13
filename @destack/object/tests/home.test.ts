@@ -1,4 +1,4 @@
-import { testSimulation } from "../src/test/index.ts";
+import { testSimulation, testIdentity } from "../src/test/index.ts";
 import { testCallKey } from "@destack/object/test";
 import { TestDatabase } from "@destack/db/test";
 import { FeedPublisher, testEvents, serversOf } from "../src/test/index.ts";
@@ -87,7 +87,10 @@ const preference = defineObject(
 );
 
 /** The package serving the preferences. */
-const preferences = definePackage({ objects: [preference] });
+const preferences = definePackage({
+    ...testIdentity,
+    objects: [preference],
+});
 
 /** Refuse a change sent over the uplink, as the client sends its changes home itself. */
 const refuseChanges = () => Promise.reject(new Error("the replica receives no changes"));

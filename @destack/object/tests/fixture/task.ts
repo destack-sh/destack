@@ -1,3 +1,4 @@
+import { testIdentity } from "../../src/test/index.ts";
 import { schema } from "@destack/schema";
 import { relation, through, union, principal } from "@destack/access";
 import { defineDatabase } from "@destack/db";
@@ -111,7 +112,10 @@ export const comment = defineObject(
 );
 
 /** Projects, tasks and comments, with their sharing and sync. */
-export const tasksPackage = definePackage({ objects: [project, task, comment, invitation] });
+export const tasksPackage = definePackage({
+    ...testIdentity,
+    objects: [project, task, comment, invitation],
+});
 
 /** The database of one space's projects, tasks and comments. */
 export const tasksDatabase = defineDatabase({

@@ -3,6 +3,7 @@ import { ReasonDescription } from "@destack/error";
 import { schema, Version } from "@destack/schema";
 import { GrantDeclaration } from "@destack/access";
 import { defineKind, DeclarationName, type graph, PackageId, Sandbox } from "@destack/package";
+import { SwatchName } from "@destack/theme";
 import type { BuildReader } from "@destack/package/manifest";
 import { ObjectTypeReference } from "@destack/sync";
 
@@ -118,8 +119,19 @@ export const PACKAGE_EXPORT = "default";
 /** The subpath a package's build exports its server under. */
 export const SERVER_EXPORT = "./server";
 
-/** A declared package: the API its objects derive, its mounts and its views. */
+/** A Phosphor icon's name, in kebab case such as `calendar-blank`. */
+export const IconName = schema.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/u);
+
+/** A declared package: its identity, the API its objects derive, its mounts and its views. */
 const packageDescription = schema.object({
+    /** The package's name as people read it. */
+    title: Message,
+    /** What the package does, in one sentence. */
+    description: Message,
+    /** The Phosphor icon its app's tile draws. */
+    icon: IconName,
+    /** The swatch the stack draws it in wherever it appears. */
+    color: SwatchName,
     /** The oldest caller release the package serves, every release when absent. */
     since: Version.exactOptional(),
     /** The procedures its objects derive. */

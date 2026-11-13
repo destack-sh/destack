@@ -1,3 +1,4 @@
+import { testIdentity } from "../test/index.ts";
 import { principal } from "@destack/access";
 import { PackageVersion, PackageId } from "@destack/package";
 import { expect, test, refusal } from "@destack/test";
@@ -39,6 +40,7 @@ test("declare a package handle with its identity, the router its objects derive,
     const hook = defineMount({ name: "hook", path: "/hook", callers: [principal.user] });
     const sync = defineMount({ name: "sync", path: "/sync", callers: "self" });
     const handle = definePackage({
+        ...testIdentity,
         objects: [note],
         mounts: [npm, hook, sync],
         since: "2026.9.0",
@@ -81,12 +83,26 @@ test("refuse mounts at an empty path, and mounts at or below another's path", as
     const npm = defineMount({ name: "npm", path: "/npm" });
     const twin = defineMount({ name: "twin", path: "/npm" });
     const nested = defineMount({ name: "nested", path: "/npm/tarballs" });
-    expect(await refusal(() => definePackage({ mounts: [npm, twin] }))).toEqual([
+    expect(
+        await refusal(() =>
+            definePackage({
+                ...testIdentity,
+                mounts: [npm, twin],
+            }),
+        ),
+    ).toEqual([
         "BAD_REQUEST",
         "DEFINITION_INVALID",
         "mount path '/npm' is invalid: it overlaps another",
     ]);
-    expect(await refusal(() => definePackage({ mounts: [npm, nested] }))).toEqual([
+    expect(
+        await refusal(() =>
+            definePackage({
+                ...testIdentity,
+                mounts: [npm, nested],
+            }),
+        ),
+    ).toEqual([
         "BAD_REQUEST",
         "DEFINITION_INVALID",
         "mount path '/npm/tarballs' is invalid: it overlaps another",
@@ -100,7 +116,15 @@ test("refuse a mount at an object's routes, which would take its calls", async (
     };
     const notes = defineMount({ name: "notes", path: "/notes" });
 
-    expect(await refusal(() => definePackage({ objects: [routed], mounts: [notes] }))).toEqual([
+    expect(
+        await refusal(() =>
+            definePackage({
+                ...testIdentity,
+                objects: [routed],
+                mounts: [notes],
+            }),
+        ),
+    ).toEqual([
         "BAD_REQUEST",
         "DEFINITION_INVALID",
         "mount path '/notes' is invalid: it overlaps an object's routes",
@@ -110,12 +134,30 @@ test("refuse a mount at an object's routes, which would take its calls", async (
 test("refuse a name taken twice in one namespace, resources and secrets sharing one", async () => {
     const npm = defineMount({ name: "npm", path: "/npm" });
     const module = { package: PackageVersion.of(import.meta.destack.package) };
-    const api = defineInstallationBinding("api", definePackage({}), {}, module);
+    const api = defineInstallationBinding(
+        "api",
+        definePackage({
+            ...testIdentity,
+        }),
+        {},
+        module,
+    );
 
     // accept one name in two namespaces, and refuse a resource and a secret sharing one
     expect([
-        await refusal(() => definePackage({ mounts: [npm], views: [npm] })),
-        await refusal(() => definePackage({ resources: [api, api] })),
+        await refusal(() =>
+            definePackage({
+                ...testIdentity,
+                mounts: [npm],
+                views: [npm],
+            }),
+        ),
+        await refusal(() =>
+            definePackage({
+                ...testIdentity,
+                resources: [api, api],
+            }),
+        ),
     ]).toEqual([
         "done",
         ["BAD_REQUEST", "DEFINITION_INVALID", "declaration 'api' is invalid: it is a duplicate"],
@@ -124,17 +166,24 @@ test("refuse a name taken twice in one namespace, resources and secrets sharing 
 
 test("refuse routing an object type under the name of shared procedures, and route each name once", () => {
     // refuse a type taking the shared name
-    expect(() => definePackage({ objects: [{ ...note, name: "replica" }] }).router).toThrow(
-        new TypeError("package '@destack/object' routes two procedures under 'replica'"),
-    );
+    expect(
+        () =>
+            definePackage({
+                ...testIdentity,
+                objects: [{ ...note, name: "replica" }],
+            }).router,
+    ).toThrow(new TypeError("package '@destack/object' routes two procedures under 'replica'"));
 
     // route each type and the shared procedures once
     const notebook = { ...note, name: "notebook" };
-    expect(Object.keys(definePackage({ objects: [note, notebook] }).router)).toEqual([
-        "note",
-        "notebook",
-        "replica",
-    ]);
+    expect(
+        Object.keys(
+            definePackage({
+                ...testIdentity,
+                objects: [note, notebook],
+            }).router,
+        ),
+    ).toEqual(["note", "notebook", "replica"]);
 });
 
 test("bundle what a capability needs: its sandbox abilities, permissions and features", () => {
@@ -151,7 +200,10 @@ test("bundle what a capability needs: its sandbox abilities, permissions and fea
 
     // accept the bundle, and refuse a sandbox entry with a separate reason
     expect([
-        definePackage({ capabilities: [{ name: "gmail-import", ...importing }] }).capabilities,
+        definePackage({
+            ...testIdentity,
+            capabilities: [{ name: "gmail-import", ...importing }],
+        }).capabilities,
         Capability.safeParse(scanning).error?.issues.map((issue) => [
             issue.code,
             issue.path.join("."),
