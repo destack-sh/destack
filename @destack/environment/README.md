@@ -25,7 +25,7 @@ Write code against an environment, then run it on Bun or in a simulation:
 ```ts
 import type { Environment } from "@destack/environment";
 import { BunEnvironment } from "@destack/environment/bun";
-import { Simulation } from "@destack/environment/simulation";
+import { Simulation, WorldOptions } from "@destack/environment/simulation";
 
 /** Copy today's note to the backup folder a second later. */
 export async function backUpNote(environment: Environment<"files">) {
@@ -37,8 +37,9 @@ export async function backUpNote(environment: Environment<"files">) {
 // run it on the system
 await backUpNote(BunEnvironment.system);
 
-// run it in a simulation with files in memory
+// run it in a simulation with files in memory, as the process's settings ask
 await using simulation = new Simulation({
+    world: WorldOptions.of(BunEnvironment.system.process),
     seed: 7,
     start: Date.UTC(2026, 10, 12),
     files: "memory",
@@ -69,11 +70,11 @@ Each effect follows a web or runtime API.
 | `workers`     | `start(create)`                                                                | Web Workers                         |
 
 The last six are host effects, requested in the type, such as `Environment<"files" | "process">`.
-The network and the server trace each request as OpenTelemetry's HTTP conventions do, and `Environment.with(environment, { telemetry })` moves both onto another telemetry.
+`Environment.instrument(environment, telemetry)` instruments an environment's boundaries on a telemetry: HTTP requests at both ends as OpenTelemetry's HTTP conventions do, file reads and writes, and child processes.
 
 ### Simulation
 
-`new Simulation({ seed, start, files })` creates a world of nodes, and `environment(node)` gives one node's environment.
+`new Simulation({ world, seed, start, files })` creates a world of nodes, and `environment(node)` gives one node's environment.
 Its clock moves only while the test waits, so a seed runs the same every time.
 
 | Verb                                 | What it does                                                 |
@@ -154,10 +155,12 @@ export async function readStatus(environment: Environment<"process">, directory:
 A simulation drops, delays and partitions messages between its nodes.
 
 ```ts
-import { Simulation } from "@destack/environment/simulation";
+import { BunEnvironment } from "@destack/environment/bun";
+import { Simulation, WorldOptions } from "@destack/environment/simulation";
 
 // start a world with a laptop and a host
-await using simulation = new Simulation({ seed: 7, start: Date.UTC(2026, 10, 12) });
+const options = WorldOptions.of(BunEnvironment.system.process);
+await using simulation = new Simulation({ world: options, seed: 7, start: Date.UTC(2026, 10, 12) });
 const laptop = simulation.environment("laptop");
 const host = simulation.environment("host");
 
@@ -173,7 +176,8 @@ await simulation.sleep(5000);
 
 ```ts
 import { World } from "@destack/environment";
-import { Simulation } from "@destack/environment/simulation";
+import { BunEnvironment } from "@destack/environment/bun";
+import { Simulation, WorldOptions } from "@destack/environment/simulation";
 
 // describe a minute with the laptop cut off
 const world: World = {
@@ -186,7 +190,9 @@ const world: World = {
 };
 
 // play its shared steps in a simulation
-await using simulation = Simulation.of(world);
+await using simulation = Simulation.of(world, {
+    world: WorldOptions.of(BunEnvironment.system.process),
+});
 for (const step of world.steps) {
     if (World.isStep(step)) {
         await simulation.take(step);
