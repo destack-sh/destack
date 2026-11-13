@@ -196,9 +196,11 @@ test.skipIf(HOST.host.os !== "darwin" || HOST.host.architecture !== "arm64")(
             await using compilers = await CompilerPool.open(store, async () =>
                 Toolchain.workspace(),
             );
-            const workspace = await Workspace.open(TEMPLATE_STACK, compilers);
-            const outputs = outputsOf(workspace.root.packageJson);
-            const dependencies = await workspace.storeDependencies({});
+            const workspacePackage = await (
+                await Workspace.open(TEMPLATE_STACK, compilers)
+            ).package();
+            const outputs = outputsOf(workspacePackage.root.packageJson);
+            const dependencies = await workspacePackage.storeDependencies({});
             await using builder = await Compiler.start(TEMPLATE_STACK, {
                 command: compiler,
                 store,

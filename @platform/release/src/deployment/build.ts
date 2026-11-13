@@ -6,7 +6,6 @@ import { RESIDENCIES } from "@platform/stack";
 import { SERVER_EXPORT } from "@destack/object";
 import { InstallationDefinition } from "@destack/stack/declare";
 import {
-    BuildError,
     CompilerPool,
     LocalBuildStore,
     Workspace,
@@ -102,28 +101,18 @@ export class PlatformBuild implements AsyncDisposable {
         const store = opened.use(await LocalBuildStore.open(join(root, RELEASES_DIRECTORY), host));
         await using compilers = await CompilerPool.open(store, async () => Toolchain.workspace());
 
-        // read the workspaces of the stacks and of the desktop, which runs the machine
-        const workspaces = [
-            await Workspace.open(join(root, STACK), compilers),
-            await Workspace.open(join(root, DESKTOP), compilers),
+        // read the workspace once, and the packages of the stacks and of the desktop, which runs the machine
+        const workspace = await Workspace.open(root, compilers);
+        const packages = [
+            await workspace.package(join(root, STACK)),
+            await workspace.package(join(root, DESKTOP)),
         ];
 
-        // build and lock each unit
+        // build and lock each unit, a unit both packages share once
         const releases = new Map<string, BuildReader>();
         const locks = new Map<string, Digest>();
-        const builds = new Map<string, Digest>();
-        for (const workspace of workspaces) {
-            for (const [name, { build, lock }] of await workspace.lockUnits(options)) {
-                // refuse a unit two workspaces built differently
-                const kept = builds.get(name);
-                if (kept !== undefined && kept !== build.manifest) {
-                    throw BuildError.of(
-                        "SOURCE_CONFLICT",
-                        `cannot build '${name}': two workspaces built it differently`,
-                    );
-                }
-
-                builds.set(name, build.manifest);
+        for (const unitPackage of packages) {
+            for (const [name, { build, lock }] of await unitPackage.lockUnits(options)) {
                 releases.set(name, await store.contents(build.manifest));
                 locks.set(name, lock);
             }
