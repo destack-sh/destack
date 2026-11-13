@@ -7,15 +7,15 @@ import type { TraitBehavior } from "./trait.ts";
 import { callableTrait } from "./trait.ts";
 
 /** The options of versioned objects. */
-export type VersionsDefinition = true;
+export type VersionedDefinition = true;
 
 /** The column numbering versions within their parent. */
-export type VersionBuilderMap<Versions> = Versions extends VersionsDefinition
+export type VersionBuilderMap<Versions> = Versions extends VersionedDefinition
     ? { number: ColumnBuilder<FieldColumn<number, true, false>> }
     : {};
 
 /** Immutable versions of a parent, numbered within it. */
-const versionedTrait: TraitBehavior<VersionsDefinition> & {
+const versionedTrait: TraitBehavior<VersionedDefinition> & {
     /** Read the number following a parent's latest version. */
     readonly next: (
         object: ObjectType,

@@ -95,7 +95,7 @@ import {
     type RecoverableMethodMap,
 } from "../trait/recoverable.ts";
 import { expiring, type ExpiryRule } from "../trait/expiring.ts";
-import { versioned, type VersionsDefinition } from "../trait/versioned.ts";
+import { versioned, type VersionedDefinition } from "../trait/versioned.ts";
 import {
     type RoleFieldsOf,
     type RolePermission,
@@ -137,7 +137,7 @@ import {
     type OrderedFieldsOf,
     type Ordering,
 } from "../trait/orderable.ts";
-import { ObjectSearch, searchable, type SearchDefinition } from "../trait/search.ts";
+import { ObjectSearch, searchable, type SearchableDefinition } from "../trait/search.ts";
 import { Chunk } from "../text/chunk.ts";
 import { chunk, chunkRun } from "../text/table.ts";
 import type {
@@ -364,7 +364,7 @@ export interface ObjectTraits<Permissions extends string = string> {
     /** The objects the scopes inside each object's scope replicate, matching any condition. */
     readonly propagated?: { readonly where?: Condition };
     /** The objects are immutable, numbered versions of their parent. */
-    readonly versioned?: VersionsDefinition;
+    readonly versioned?: VersionedDefinition;
     /** A controller reconciles the objects. */
     readonly controlled?: ControlledDefinition;
     /** Installations bind to the objects, becoming their consumers. */
@@ -388,7 +388,7 @@ export interface ObjectTraits<Permissions extends string = string> {
     /** How the objects are ordered among their siblings. */
     readonly orderable?: OrderableDefinition;
     /** The fields full-text search ranks, lists filter and lists order the objects by. */
-    readonly searchable?: SearchDefinition;
+    readonly searchable?: SearchableDefinition;
 }
 
 /** The definition of an object type. */
@@ -505,7 +505,7 @@ export interface ObjectLifecycle<Permissions extends string = string> {
     /** When their store removes the objects, for expiring objects. */
     readonly expiring: readonly ExpiryRule[] | undefined;
     /** Whether the objects are numbered versions of their parent. */
-    readonly versioned: VersionsDefinition | undefined;
+    readonly versioned: VersionedDefinition | undefined;
     /** How tracked objects record their history. */
     readonly tracked: TrackedDefinition<Permissions> | undefined;
     /** The fields each release computes from stored rows and earlier callers' inputs. */

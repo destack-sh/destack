@@ -30,7 +30,7 @@ export type ObjectSearch = schema.Infer<typeof ObjectSearchSchema>;
 /** How callers find an object type's objects, and how a definition's roles read. */
 export const ObjectSearch = Object.assign(ObjectSearchSchema, {
     /** Read a definition's roles, a role left out pointing at no field. */
-    of(definition: SearchDefinition): ObjectSearch {
+    of(definition: SearchableDefinition): ObjectSearch {
         return ObjectSearchSchema.parse({
             text: [],
             filter: [],
@@ -166,7 +166,7 @@ export const ObjectSearch = Object.assign(ObjectSearchSchema, {
 });
 
 /** How a definition declares its query roles, a role left out pointing at no field. */
-export type SearchDefinition = Partial<ObjectSearch>;
+export type SearchableDefinition = Partial<ObjectSearch>;
 
 /** The field types full-text search reads. */
 const SEARCHED_TYPES: ReadonlySet<string> = new Set(["string", "text", "enum"]);

@@ -23,7 +23,7 @@ export {
     Icon,
     Presentation,
 } from "./presentable.ts";
-export { ObjectSearch, searchable, type SearchDefinition } from "./search.ts";
+export { ObjectSearch, searchable, type SearchableDefinition } from "./search.ts";
 export { orderable, Orderable, type OrderableDefinition, type Ordering } from "./orderable.ts";
 export { readGrant, shareable } from "./shareable.ts";
 export { versioned } from "./versioned.ts";
