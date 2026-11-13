@@ -1,13 +1,12 @@
 /// <reference types="bun" />
-import type { FileSystem } from "@destack/environment";
-import { PackageLocator } from "../locator/index.ts";
-import { DECLARED_MODULE, DECLARED_PASSTHROUGH, transformModule } from "../transform/transform.ts";
+import {
+    DECLARED_MODULE,
+    DECLARED_PASSTHROUGH,
+    type ModuleTransformer,
+} from "../transform/transform.ts";
 
-/** Inject Destack module metadata while Bun loads package sources, read from files. */
-export function modulePlugin(files: FileSystem): Bun.BunPlugin {
-    // look packages up once for every load through the plugin
-    const packages = new PackageLocator(files);
-
+/** Inject Destack module metadata while Bun loads package sources, stamped once per text. */
+export function modulePlugin(transformer: ModuleTransformer): Bun.BunPlugin {
     return {
         name: "destack-module",
         setup(build) {
@@ -17,12 +16,9 @@ export function modulePlugin(files: FileSystem): Bun.BunPlugin {
             // stamp package sources, since runtime loads need contents and bundles take the rest
             const isBundling = build.config !== undefined;
             build.onLoad({ filter: /\.[cm]?tsx?$/u }, async ({ path }) => {
-                // read the source of a Destack package's module
-                const owner = await packages.find(path);
-                const code = await files.readTextFile(path);
-
-                // pass unchanged sources on to later bundler plugins
-                const result = owner && (await transformModule(code, path, owner, packages));
+                // stamp the module's source, passing unchanged sources on to later bundler plugins
+                const code = await transformer.environment.files.readTextFile(path);
+                const result = await transformer.transform(code, path);
                 if (!result && isBundling) {
                     return undefined;
                 }
@@ -32,9 +28,10 @@ export function modulePlugin(files: FileSystem): Bun.BunPlugin {
                 }
 
                 // map stamped sources back to their authored lines
-                const url = result.map.toUrl();
-
-                return { contents: `${result.code}\n//# sourceMappingURL=${url}`, loader };
+                return {
+                    contents: `${result.code}\n//# sourceMappingURL=${result.map.toUrl()}`,
+                    loader,
+                };
             });
         },
     };

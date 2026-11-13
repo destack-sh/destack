@@ -1,6 +1,7 @@
-import type { Environment } from "@destack/environment";
+import { join } from "node:path";
+import { type Environment, FileSystemError } from "@destack/environment";
 import type { Plugin, PluginOption } from "vite";
-import type { Digest } from "@destack/schema";
+import { type Digest, Uuid } from "@destack/schema";
 import type { Sandbox } from "../definition/sandbox.ts";
 import type { PackageVersion } from "../definition/package.ts";
 import type { DeclarationDescription } from "../definition/declaration.ts";
@@ -70,6 +71,37 @@ export interface TransformCache {
     /** Keep bytes under a key for later builds. */
     readonly write: (key: Digest, bytes: Uint8Array<ArrayBuffer>) => Promise<void>;
 }
+
+/** Store transform outputs. */
+export const TransformCache = {
+    /** Store each entry as a file named by its key in a directory, written whole. */
+    directory(
+        directory: string,
+        environment: Pick<Environment<"files">, "files" | "random">,
+    ): TransformCache {
+        const { files } = environment;
+        const path = (key: Digest) => join(directory, key.slice(0, 2), key);
+
+        return {
+            read: (key) =>
+                files.readFile(path(key)).catch((error: unknown) => {
+                    // miss a key nothing stored
+                    if (FileSystemError.is(error, "FILE_NOT_FOUND")) {
+                        return undefined;
+                    }
+                    throw error;
+                }),
+            write: async (key, bytes) => {
+                // write the entry beside its place, then move it in whole
+                const target = path(key);
+                const writing = `${target}.${Uuid.v4(environment.random)}`;
+                await files.mkdir(join(directory, key.slice(0, 2)), { recursive: true });
+                await files.writeFile(writing, bytes);
+                await files.rename(writing, target);
+            },
+        };
+    },
+};
 
 /** One output a package build compiles, as extensions compile and describe it. */
 export interface Compilation {

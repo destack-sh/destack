@@ -1,11 +1,12 @@
-import MagicString from "magic-string";
+import MagicString, { SourceMap } from "magic-string";
 import { parseAst } from "rolldown/parseAst";
 import { type ESTree, Visitor } from "rolldown/utils";
 import { relative, sep } from "node:path";
 import type { DeclarationSite } from "../definition/declaration.ts";
 import { ModuleMetadata } from "../definition/metadata.ts";
-import type { FileSystem } from "@destack/environment";
-import { nth, type Version } from "@destack/schema";
+import type { Environment } from "@destack/environment";
+import { Digest, nth, schema, type Version } from "@destack/schema";
+import type { TransformCache } from "../build/build.ts";
 import { type ModulePackage, PackageLocator, type StampedFunction } from "../locator/index.ts";
 
 /** The module-local binding with injected metadata. */
@@ -22,6 +23,28 @@ const DECLARE = "__destackDeclare";
 
 /** The source of each static import or re-export: one line after a `from` outside a string. */
 const IMPORT_SOURCE = /(?<!["'])\bfrom\s*["']([^"'\n]+)["']/gu;
+
+/** A transform cache entry: the digest of what a module's transform read, and its result. */
+const TransformEntry = schema.object({
+    /** The digest of the module's package, imported stamps and text. */
+    inputs: schema.string(),
+    /** The stamped text and its map, null for a module left unchanged. */
+    result: schema
+        .object({
+            /** The stamped text. */
+            code: schema.string(),
+            /** The map from the stamped text to the authored one, as its JSON. */
+            map: schema.object({
+                version: schema.number(),
+                file: schema.string().exactOptional(),
+                sources: schema.array(schema.string()),
+                sourcesContent: schema.array(schema.string().nullable()).exactOptional(),
+                names: schema.array(schema.string()),
+                mappings: schema.string(),
+            }),
+        })
+        .nullable(),
+});
 
 /** A local import binding of a package with stamped functions. */
 interface Binding {
@@ -43,15 +66,31 @@ export interface ModuleTransform {
 export class ModuleTransformer {
     /** The packages the modules belong to and import stamped functions from. */
     readonly packages: PackageLocator;
+    /** The files and crypto the transforms and their cache keys read. */
+    readonly environment: Environment<"files">;
+    /** The cache of transforms shared across processes, absent for none. */
+    readonly #cache: TransformCache | undefined;
+    /** The digest of the transformer's own code, which every cache key includes. */
+    #transformer: Promise<Digest> | undefined;
     /** Each module's text and its transform, by path. */
     readonly #transformed = new Map<
         string,
         { readonly code: string; readonly result: Promise<ModuleTransform | undefined> }
     >();
 
-    /** Stamp modules of the packages on some files, at a build's versions. */
-    constructor(files: FileSystem, versions: Readonly<Record<string, Version>> = {}) {
-        this.packages = new PackageLocator(files, versions);
+    /** Stamp modules of the packages on an environment's files at a build's versions. */
+    constructor(
+        environment: Environment<"files">,
+        options: {
+            /** The versions a build releases its packages at. */
+            readonly versions?: Readonly<Record<string, Version>>;
+            /** The cache of transforms shared across processes. */
+            readonly cache?: TransformCache;
+        } = {},
+    ) {
+        this.environment = environment;
+        this.#cache = options.cache;
+        this.packages = new PackageLocator(environment.files, options.versions ?? {});
     }
 
     /** Stamp a module of a Destack package, once per text, absent for one that needs no stamps. */
@@ -69,14 +108,77 @@ export class ModuleTransformer {
         return result;
     }
 
-    /** Stamp a module of a Destack package with its map. */
+    /** Stamp a module of a Destack package with its map, reading its entry from the cache. */
     async #transform(code: string, path: string): Promise<ModuleTransform | undefined> {
-        // leave files outside Destack packages unchanged
+        // leave files outside Destack packages unchanged, and stamp the others without a cache
         const owner = await this.packages.find(path);
+        if (owner === undefined) {
+            return undefined;
+        }
+        const cache = this.#cache;
+        if (cache === undefined) {
+            return await transformModule(code, path, owner, this.packages);
+        }
 
-        return owner === undefined
-            ? undefined
-            : await transformModule(code, path, owner, this.packages);
+        // take the module's cache entry while what it read stays the same, one entry per transformer and path
+        this.#transformer ??= this.#identify();
+        const slot = await Digest.json([await this.#transformer, path], this.environment.crypto);
+        const inputs = await this.#inputs(code, path, owner);
+        const stored = await cache.read(slot);
+        const entry =
+            stored === undefined
+                ? undefined
+                : TransformEntry.parse(JSON.parse(new TextDecoder().decode(stored)));
+        if (entry?.inputs === inputs) {
+            const { result } = entry;
+
+            return result === null
+                ? undefined
+                : { code: result.code, map: new SourceMap(result.map) };
+        }
+
+        // stamp it and write its entry, replacing the entry of an earlier text
+        const result = await transformModule(code, path, owner, this.packages);
+        const written = {
+            inputs,
+            result: result === undefined ? null : { code: result.code, map: result.map },
+        };
+        await cache.write(slot, new TextEncoder().encode(JSON.stringify(written)));
+
+        return result;
+    }
+
+    /** Digest what a module's transform reads: its package, imported stamps and text. */
+    async #inputs(code: string, path: string, owner: ModulePackage): Promise<Digest> {
+        // read the stamped functions of each package the module imports from
+        const specifiers = [...code.matchAll(IMPORT_SOURCE)].flatMap(([, specifier]) =>
+            specifier === undefined ? [] : [specifier],
+        );
+        const stamps = await Promise.all(
+            specifiers.map(async (specifier) => [
+                specifier,
+                [...(await this.packages.imported(specifier, path, owner.metadata))],
+            ]),
+        );
+
+        // digest them with the package and the text
+        return await Digest.json({ owner: owner.metadata, stamps, code }, this.environment.crypto);
+    }
+
+    /** Digest the code of the modules that decide every stamp. */
+    async #identify(): Promise<Digest> {
+        // read the transform, the locator, and the parser and editor they run, resolved where a cache runs
+        const modules = [
+            new URL("./transform.ts", import.meta.url),
+            new URL("../locator/locator.ts", import.meta.url),
+            new URL(import.meta.resolve("magic-string")),
+            new URL(import.meta.resolve("rolldown/parseAst")),
+        ];
+        const sources = await Promise.all(
+            modules.map((url) => this.environment.files.readTextFile(url.pathname)),
+        );
+
+        return await Digest.json(sources, this.environment.crypto);
     }
 }
 
