@@ -9,7 +9,7 @@ const ENVIRONMENT_PACKAGE = /[\\/]@destack[\\/]environment[\\/]/u;
 
 /** The Destack settings of a lint configuration, as configure writes them. */
 const lintSettings = schema.object({
-    /** The packages, by directory relative to the settings root ("." for the root), name and description. */
+    /** The packages by directory, relative to the settings root ("." for the root). */
     packages: schema.array(
         schema.object({
             directory: schema.string(),

@@ -1,8 +1,8 @@
 import { isPackageFile, packageOf } from "./package.ts";
-import { isTestFile } from "./word.ts";
+import { isTestFile, isTestKitFile } from "./word.ts";
 import type { Rule } from "@oxlint/plugins";
 
-/** Require one package handle, default-exported from src/package.ts, described as its package.json. */
+/** Require one package handle from src/package.ts, described as its package.json describes it. */
 export const validPackageHandle: Rule = {
     meta: {
         type: "problem",
@@ -16,11 +16,13 @@ export const validPackageHandle: Rule = {
         },
     },
     create(context) {
-        // apply only to Destack packages, leaving tests their handles
-        if (isTestFile(context.filename) || !isPackageFile(context.filename, context.settings)) {
+        // apply only to Destack packages, leaving tests and test kits their handles
+        const isTest = isTestFile(context.filename) || isTestKitFile(context.filename);
+        if (isTest || !isPackageFile(context.filename, context.settings)) {
             return {};
         }
 
+        // find whether the file is the handle module
         const isHandleModule = /[\\/]src[\\/]package\.ts$/u.test(context.filename);
 
         return {

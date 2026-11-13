@@ -45,6 +45,9 @@ const SOURCE = new URL("../src/note/note.ts", import.meta.url).pathname;
 /** A host module path of the environment package, which alone reaches the host's effects. */
 const ENVIRONMENT_HOST = "/workspace/@destack/environment/src/file/bun.ts";
 
+/** A test kit module path of a Destack package, which only its tests import. */
+const TEST_KIT = new URL("../src/test/notes.ts", import.meta.url).pathname;
+
 /** A test module path of a Destack package. */
 const TEST = new URL("../src/note/note.test.ts", import.meta.url).pathname;
 
@@ -902,6 +905,7 @@ tester.run("valid-package-handle", rules["valid-package-handle"], {
     valid: [
         { code: "export default definePackage({});", filename: PACKAGE_HANDLE, settings: SETTINGS },
         { code: "const notes = definePackage({});", filename: TEST, settings: SETTINGS },
+        { code: "export const notes = definePackage({});", filename: TEST_KIT, settings: SETTINGS },
         {
             code: "export default definePackage({ description: t`Check packages.` });",
             filename: PACKAGE_HANDLE,
