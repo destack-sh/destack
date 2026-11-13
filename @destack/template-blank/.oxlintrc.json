@@ -110,7 +110,13 @@
     ],
     "settings": {
         "destack": {
-            "packages": [{ "directory": ".", "name": "@destack/template-blank" }],
+            "packages": [
+                {
+                    "directory": ".",
+                    "name": "@destack/template-blank",
+                    "description": "Start a new Destack package from an empty package with one setting."
+                }
+            ],
             "entrypoints": [],
             "roles": {
                 "@destack/template-blank": "app",

@@ -110,7 +110,13 @@
     ],
     "settings": {
         "destack": {
-            "packages": [{ "directory": ".", "name": "@destack/template-tasks" }],
+            "packages": [
+                {
+                    "directory": ".",
+                    "name": "@destack/template-tasks",
+                    "description": "Track a team's tasks in projects and cycles, on a board."
+                }
+            ],
             "entrypoints": [],
             "roles": {
                 "@destack/template-tasks": "app",

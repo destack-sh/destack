@@ -110,7 +110,13 @@
     ],
     "settings": {
         "destack": {
-            "packages": [{ "directory": ".", "name": "@destack/template-stack" }],
+            "packages": [
+                {
+                    "directory": ".",
+                    "name": "@destack/template-stack",
+                    "description": "Start a space's stack from a template: a files bucket, a credentials vault, the baseline installations and an automatic rollback."
+                }
+            ],
             "entrypoints": [],
             "roles": {
                 "@destack/template-stack": "library",
