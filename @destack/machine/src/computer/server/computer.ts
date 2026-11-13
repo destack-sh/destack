@@ -45,6 +45,9 @@ const NAME_LENGTH = 63;
 /** How long a lookup waits for the directory to sync after the machine enrolls: a minute. */
 const DIRECTORY_SYNC_MILLISECONDS = 60_000;
 
+/** When a caller asks again after the directory missed its sync: 1 s, about a follow's round. */
+const DIRECTORY_RETRY_MILLISECONDS = 1000;
+
 /** The machine package's server on a computer: its record and the machine's own partition. */
 export class ComputerServer {
     /** Authorize the machine's own store: the placements and assignments in its replica. */
@@ -364,6 +367,7 @@ export class ComputerServer {
                         throw ObjectError.of(
                             "REPLICA_UNAVAILABLE",
                             "the machine's directory is unavailable: it has no complete snapshot yet",
+                            { data: { retryAfter: DIRECTORY_RETRY_MILLISECONDS } },
                         );
                     }
 
