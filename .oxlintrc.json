@@ -245,60 +245,276 @@
     "settings": {
         "destack": {
             "packages": [
-                { "directory": "@destack/access", "name": "@destack/access" },
-                { "directory": "@destack/account", "name": "@destack/account" },
-                { "directory": "@destack/bucket", "name": "@destack/bucket" },
-                { "directory": "@destack/build", "name": "@destack/build" },
-                { "directory": "@destack/check", "name": "@destack/check" },
-                { "directory": "@destack/cli", "name": "@destack/cli" },
-                { "directory": "@destack/connection", "name": "@destack/connection" },
-                { "directory": "@destack/control", "name": "@destack/control" },
-                { "directory": "@destack/db", "name": "@destack/db" },
-                { "directory": "@destack/desktop", "name": "@destack/desktop" },
-                { "directory": "@destack/environment", "name": "@destack/environment" },
-                { "directory": "@destack/error", "name": "@destack/error" },
-                { "directory": "@destack/event", "name": "@destack/event" },
-                { "directory": "@destack/finance", "name": "@destack/finance" },
-                { "directory": "@destack/forge", "name": "@destack/forge" },
-                { "directory": "@destack/git", "name": "@destack/git" },
-                { "directory": "@destack/home", "name": "@destack/home" },
-                { "directory": "@destack/icon", "name": "@destack/icon" },
-                { "directory": "@destack/identity", "name": "@destack/identity" },
-                { "directory": "@destack/locale", "name": "@destack/locale" },
-                { "directory": "@destack/machine", "name": "@destack/machine" },
-                { "directory": "@destack/mail", "name": "@destack/mail" },
-                { "directory": "@destack/message", "name": "@destack/message" },
-                { "directory": "@destack/notification", "name": "@destack/notification" },
-                { "directory": "@destack/object", "name": "@destack/object" },
-                { "directory": "@destack/observability", "name": "@destack/observability" },
-                { "directory": "@destack/package", "name": "@destack/package" },
-                { "directory": "@destack/registry", "name": "@destack/registry" },
-                { "directory": "@destack/relay", "name": "@destack/relay" },
-                { "directory": "@destack/resource", "name": "@destack/resource" },
-                { "directory": "@destack/sandbox", "name": "@destack/sandbox" },
-                { "directory": "@destack/schema", "name": "@destack/schema" },
-                { "directory": "@destack/setting", "name": "@destack/setting" },
-                { "directory": "@destack/shader", "name": "@destack/shader" },
-                { "directory": "@destack/social", "name": "@destack/social" },
-                { "directory": "@destack/stack", "name": "@destack/stack" },
-                { "directory": "@destack/style", "name": "@destack/style" },
-                { "directory": "@destack/sync", "name": "@destack/sync" },
-                { "directory": "@destack/telemetry", "name": "@destack/telemetry" },
-                { "directory": "@destack/template-blank", "name": "@destack/template-blank" },
-                { "directory": "@destack/template-stack", "name": "@destack/template-stack" },
-                { "directory": "@destack/template-tasks", "name": "@destack/template-tasks" },
-                { "directory": "@destack/test", "name": "@destack/test" },
-                { "directory": "@destack/theme", "name": "@destack/theme" },
-                { "directory": "@destack/tunnel", "name": "@destack/tunnel" },
-                { "directory": "@destack/ui", "name": "@destack/ui" },
-                { "directory": "@destack/update", "name": "@destack/update" },
-                { "directory": "@destack/vault", "name": "@destack/vault" },
-                { "directory": "@destack/view", "name": "@destack/view" },
-                { "directory": "@destack/workflow", "name": "@destack/workflow" },
-                { "directory": "@platform/pricing", "name": "@platform/pricing" },
-                { "directory": "@platform/release", "name": "@platform/release" },
-                { "directory": "@platform/site", "name": "@platform/site" },
-                { "directory": "@platform/stack", "name": "@platform/stack" },
+                {
+                    "directory": "@destack/access",
+                    "name": "@destack/access",
+                    "description": "Decide who may do what to each object, and share, delegate and revoke that access."
+                },
+                {
+                    "directory": "@destack/account",
+                    "name": "@destack/account",
+                    "description": "Sign people and machines in, and manage their accounts, organizations and spaces."
+                },
+                {
+                    "directory": "@destack/bucket",
+                    "name": "@destack/bucket",
+                    "description": "Store files in buckets on local disk, Cloudflare R2 or any S3 endpoint."
+                },
+                {
+                    "directory": "@destack/build",
+                    "name": "@destack/build",
+                    "description": "Compile Destack packages into one module output per runtime, and keep the builds by content."
+                },
+                {
+                    "directory": "@destack/check",
+                    "name": "@destack/check",
+                    "description": "Lint, format and check Destack packages and their READMEs with one command."
+                },
+                {
+                    "directory": "@destack/cli",
+                    "name": "@destack/cli",
+                    "description": "Use Destack from the terminal: sign in, install packages and work with a space's objects."
+                },
+                {
+                    "directory": "@destack/connection",
+                    "name": "@destack/connection",
+                    "description": "Connect external accounts once, and call their APIs with credentials kept in a vault."
+                },
+                {
+                    "directory": "@destack/control",
+                    "name": "@destack/control",
+                    "description": "Run a universe: the account, object, setting and control packages over one store at one origin."
+                },
+                {
+                    "directory": "@destack/db",
+                    "name": "@destack/db",
+                    "description": "Declare tables, query them on SQLite and PostgreSQL, and log every commit."
+                },
+                {
+                    "directory": "@destack/desktop",
+                    "name": "@destack/desktop",
+                    "description": "Open Destack apps in desktop windows, with banners, a badge, a tray and a command palette."
+                },
+                {
+                    "directory": "@destack/environment",
+                    "name": "@destack/environment",
+                    "description": "Take every effect through one environment: time, randomness and the network, real or simulated."
+                },
+                {
+                    "directory": "@destack/error",
+                    "name": "@destack/error",
+                    "description": "Declare the errors a package's callers receive, each with a stable reason, an HTTP code and typed data."
+                },
+                {
+                    "directory": "@destack/event",
+                    "name": "@destack/event",
+                    "description": "Keep the append-only events of scopes, hot in their database and sealed into their bucket, and query, fold and follow them."
+                },
+                {
+                    "directory": "@destack/finance",
+                    "name": "@destack/finance",
+                    "description": "Sell products with features, bill accounts for subscriptions and usage, and derive their entitlements."
+                },
+                {
+                    "directory": "@destack/forge",
+                    "name": "@destack/forge",
+                    "description": "Host the Git repositories of accounts and publish, resolve and distribute their Destack packages."
+                },
+                {
+                    "directory": "@destack/git",
+                    "name": "@destack/git",
+                    "description": "Declare Git storage in Destack and keep its repositories locally or in Cloudflare Artifacts."
+                },
+                {
+                    "directory": "@destack/home",
+                    "name": "@destack/home",
+                    "description": "Start from Home: see your spaces and their apps, approve their plans, search commands and change your settings."
+                },
+                {
+                    "directory": "@destack/icon",
+                    "name": "@destack/icon",
+                    "description": "Draw Phosphor icons by name, each one loaded only where it is used."
+                },
+                {
+                    "directory": "@destack/identity",
+                    "name": "@destack/identity",
+                    "description": "Prove who a principal is and keep the keys proving it."
+                },
+                {
+                    "directory": "@destack/locale",
+                    "name": "@destack/locale",
+                    "description": "Localise messages and format numbers, money and dates for a person's language and region."
+                },
+                {
+                    "directory": "@destack/machine",
+                    "name": "@destack/machine",
+                    "description": "Run a machine: serve the spaces placed on it with their modules (buckets, vaults, connections, messages, observability, audit), route their installations' calls and keep their builds."
+                },
+                {
+                    "directory": "@destack/mail",
+                    "name": "@destack/mail",
+                    "description": "Send email over SMTP or Amazon SES, or print it on machines without a provider."
+                },
+                {
+                    "directory": "@destack/message",
+                    "name": "@destack/message",
+                    "description": "Send messages on a channel, email, push, webhook or a desktop."
+                },
+                {
+                    "directory": "@destack/notification",
+                    "name": "@destack/notification",
+                    "description": "Declare notifications, notify recipients, watch objects and deliver them as messages."
+                },
+                {
+                    "directory": "@destack/object",
+                    "name": "@destack/object",
+                    "description": "Declare object types with access, methods and sync, and call them from anywhere."
+                },
+                {
+                    "directory": "@destack/observability",
+                    "name": "@destack/observability",
+                    "description": "Query, follow and alert on the telemetry and analytics of Destack scopes, group their failures into issues, and measure what their spaces use."
+                },
+                {
+                    "directory": "@destack/package",
+                    "name": "@destack/package",
+                    "description": "Describe Destack packages, their declarations, builds and source code."
+                },
+                {
+                    "directory": "@destack/registry",
+                    "name": "@destack/registry",
+                    "description": "Publish and resolve packages, releases and tags, and push builds and Git, through the registry a space installs."
+                },
+                {
+                    "directory": "@destack/relay",
+                    "name": "@destack/relay",
+                    "description": "Relay HTTP requests for Destack names to the machines serving them."
+                },
+                {
+                    "directory": "@destack/resource",
+                    "name": "@destack/resource",
+                    "description": "Declare the resources a package uses, bind their clients in a workload, and plan their changes."
+                },
+                {
+                    "directory": "@destack/sandbox",
+                    "name": "@destack/sandbox",
+                    "description": "Launch processes with operating system filesystem and network restrictions."
+                },
+                {
+                    "directory": "@destack/schema",
+                    "name": "@destack/schema",
+                    "description": "Define Destack's portable values: validation schemas, identifiers, versions, time values, digests and canonical JSON."
+                },
+                {
+                    "directory": "@destack/setting",
+                    "name": "@destack/setting",
+                    "description": "Declare, place and resolve scoped settings."
+                },
+                {
+                    "directory": "@destack/shader",
+                    "name": "@destack/shader",
+                    "description": "Draw fragment shader effects in views, colored by the theme."
+                },
+                {
+                    "directory": "@destack/social",
+                    "name": "@destack/social",
+                    "description": "Attach comments, reactions, receipts, favourites and presence to any object, notifying mentioned and participating principals."
+                },
+                {
+                    "directory": "@destack/stack",
+                    "name": "@destack/stack",
+                    "description": "Declare and apply a space's stack: its installations, resources, bindings, deployments, routes, runs and transfers."
+                },
+                {
+                    "directory": "@destack/style",
+                    "name": "@destack/style",
+                    "description": "Style components with StyleX, compiled into one stylesheet per build."
+                },
+                {
+                    "directory": "@destack/sync",
+                    "name": "@destack/sync",
+                    "description": "Synchronize database rows to subscribers and local replicas, as each commit lands."
+                },
+                {
+                    "directory": "@destack/telemetry",
+                    "name": "@destack/telemetry",
+                    "description": "Instrument Destack packages with traces, metrics, logs, exceptions and analytics."
+                },
+                {
+                    "directory": "@destack/template-blank",
+                    "name": "@destack/template-blank",
+                    "description": "Start a new Destack package from an empty package with one setting."
+                },
+                {
+                    "directory": "@destack/template-stack",
+                    "name": "@destack/template-stack",
+                    "description": "Start a space's stack from a template: a files bucket, a credentials vault, the baseline installations and an automatic rollback."
+                },
+                {
+                    "directory": "@destack/template-tasks",
+                    "name": "@destack/template-tasks",
+                    "description": "Track a team's tasks in projects and cycles, on a board."
+                },
+                {
+                    "directory": "@destack/test",
+                    "name": "@destack/test",
+                    "description": "Write and run Destack tests: unit tests on Vitest, simulated worlds, and scenarios played through drivers."
+                },
+                {
+                    "directory": "@destack/theme",
+                    "name": "@destack/theme",
+                    "description": "Theme views with an accent, a base and roles solved for contrast, in light and dark."
+                },
+                {
+                    "directory": "@destack/tunnel",
+                    "name": "@destack/tunnel",
+                    "description": "Carry HTTP requests over one WebSocket session between a machine and a relay, as a tunnel."
+                },
+                {
+                    "directory": "@destack/ui",
+                    "name": "@destack/ui",
+                    "description": "Build views from accessible Solid components styled with StyleX and themed by the person's theme."
+                },
+                {
+                    "directory": "@destack/update",
+                    "name": "@destack/update",
+                    "description": "Update installed Destack distributions from a signed release feed."
+                },
+                {
+                    "directory": "@destack/vault",
+                    "name": "@destack/vault",
+                    "description": "Keep secrets as encrypted versions and rotate them without redeploying."
+                },
+                {
+                    "directory": "@destack/view",
+                    "name": "@destack/view",
+                    "description": "Build a package's views with Solid, reading and changing its space's objects live."
+                },
+                {
+                    "directory": "@destack/workflow",
+                    "name": "@destack/workflow",
+                    "description": "Run durable functions step by step as objects of the space they run in."
+                },
+                {
+                    "directory": "@platform/pricing",
+                    "name": "@platform/pricing",
+                    "description": "Price Destack: its plans and the features they grant, the units its usage is billed in, and the list prices of the providers it runs on."
+                },
+                {
+                    "directory": "@platform/release",
+                    "name": "@platform/release",
+                    "description": "Ship Destack: build, sign and publish the desktop, the CLI and the machine as one distribution, and deploy the operated platform."
+                },
+                {
+                    "directory": "@platform/site",
+                    "name": "@platform/site",
+                    "description": "Read about Destack on its website, documentation and blog."
+                },
+                {
+                    "directory": "@platform/stack",
+                    "name": "@platform/stack",
+                    "description": "Declare the platform Destack operates: its organization, its residencies, and the stacks its spaces follow."
+                },
                 {
                     "directory": "@destack/build/tests/fixture/library/source",
                     "name": "@destack/build-library-fixture"
@@ -363,11 +579,11 @@
                 "@destack/machine/src/cloudflare/tail.ts",
                 "@destack/machine/src/cloudflare/test/scenario.ts",
                 "@destack/machine/src/cloudflare/runtime/test/partition.ts",
+                "@destack/machine/src/cloudflare/graph.ts",
                 "@destack/object/src/browser/database.worker.ts",
                 "@destack/package/src/bun/test/linked.ts",
                 "@destack/sandbox/src/main.ts",
                 "@destack/stack/src/bun/runner.ts",
-                "@destack/stack/src/cloudflare/graph.ts",
                 "@destack/stack/src/cloudflare/workload.ts",
                 "@destack/test/src/host/host.ts",
                 "@destack/theme/src/token/generate.ts",
