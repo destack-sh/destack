@@ -34,9 +34,6 @@
         },
         "./device": {
             "runtimes": ["bun"]
-        },
-        "./test": {
-            "runtimes": ["bun"]
         }
     },
     "check": {

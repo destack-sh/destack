@@ -19,9 +19,6 @@
         },
         "./native": {
             "runtimes": ["bun"]
-        },
-        "./test": {
-            "runtimes": ["bun"]
         }
     },
     "declarations": {

@@ -7,9 +7,6 @@
     "exports": {
         "./server": {
             "runtimes": ["bun", "workerd"]
-        },
-        "./test": {
-            "runtimes": ["bun"]
         }
     }
 }

@@ -22,9 +22,6 @@
         "./cloudflare/durable": {
             "runtimes": ["workerd"]
         },
-        "./test": {
-            "runtimes": ["bun"]
-        },
         "./browser": {
             "runtimes": ["browser"]
         },
@@ -32,9 +29,6 @@
             "runtimes": ["bun"]
         },
         "./channel/socket": {
-            "runtimes": ["bun"]
-        },
-        "./test/run": {
             "runtimes": ["bun"]
         }
     },

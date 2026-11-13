@@ -3,10 +3,5 @@
     "id": "package-01a0c80b-614e-739e-a21a-66fd749e17ca",
     "role": "builtin",
     "language": "typescript",
-    "runtimes": ["browser", "bun", "workerd"],
-    "exports": {
-        "./test": {
-            "runtimes": ["bun"]
-        }
-    }
+    "runtimes": ["browser", "bun", "workerd"]
 }

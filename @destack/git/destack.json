@@ -13,9 +13,6 @@
         },
         "./cloudflare": {
             "runtimes": ["bun", "workerd"]
-        },
-        "./test": {
-            "runtimes": ["bun"]
         }
     },
     "declarations": {

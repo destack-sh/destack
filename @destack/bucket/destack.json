@@ -38,9 +38,6 @@
         },
         "./provider": {
             "runtimes": ["bun", "workerd"]
-        },
-        "./test": {
-            "runtimes": ["bun"]
         }
     },
     "declarations": {

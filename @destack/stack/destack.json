@@ -12,9 +12,6 @@
         "./server": {
             "runtimes": ["bun", "workerd"]
         },
-        "./test": {
-            "runtimes": ["bun"]
-        },
         "./bun": {
             "runtimes": ["bun"]
         },

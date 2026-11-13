@@ -14,9 +14,6 @@
         "./provider/stripe": {
             "runtimes": ["bun", "workerd"]
         },
-        "./test": {
-            "runtimes": ["bun"]
-        },
         "./package": {
             "runtimes": ["bun", "workerd"]
         }

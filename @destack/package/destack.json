@@ -6,7 +6,6 @@
     "runtimes": ["browser", "bun", "workerd"],
     "entrypoints": ["src/bun/test/linked.ts"],
     "exports": {
-        "./test": { "runtimes": ["bun"] },
         "./build": { "runtimes": ["bun"] },
         "./locator": { "runtimes": ["bun"] },
         "./bun": { "runtimes": ["bun"] },
