@@ -1331,7 +1331,7 @@ test("resume a follow after a backoff once its source refuses a fresh credential
     ]).toEqual([[1000, 2000], ["n1"]]);
 });
 
-test("wait out a follower its issuer refuses, backing off and logging until it follows again", async () => {
+test("wait out a follower its issuer refuses, backing off and logging until it follows again, then apply its run in a span", async () => {
     await using simulation = new Simulation({
         world: testWorldOptions(),
         seed: 1,
@@ -1368,10 +1368,20 @@ test("wait out a follower its issuer refuses, backing off and logging until it f
         record.eventName,
         record.attributes["destack.replica.name"],
     ]);
+
+    // apply the one snapshot run in a span attributed to the replica
+    const applied = simulation.telemetry.spans
+        .filter((span) => span.name === "destack.replica.apply")
+        .map((span) => [
+            span.attributes["destack.replica.name"],
+            span.attributes["destack.replica.scope"],
+            span.attributes["destack.replica.snapshot"],
+        ]);
     expect([
         requests,
         (await local.select({ id: note.id }).from(note)).map((row) => row.id),
         logs,
+        applied,
     ]).toEqual([
         [1000, 2000, 4000],
         ["n1"],
@@ -1379,6 +1389,7 @@ test("wait out a follower its issuer refuses, backing off and logging until it f
             ["destack.replica.refused", "notes"],
             ["destack.replica.restored", "notes"],
         ],
+        [["notes", "inbox", true]],
     ]);
 });
 

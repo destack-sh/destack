@@ -1649,6 +1649,10 @@ export class Replica {
         let record = await this.#record(database);
         let reached: ReplicaPosition | undefined;
         let marks: string | undefined;
+        const attributed = {
+            "destack.replica.name": this.name,
+            "destack.replica.scope": this.scope,
+        };
         for await (const page of pages) {
             // register the parameters a reshaped stream reflects from this page on
             parameters = page.parameters ?? parameters;
@@ -1669,7 +1673,7 @@ export class Replica {
                 isSnapshot = page.reset;
             }
 
-            // move past a bare page continuing this stream's run in memory, else apply the run a page completes
+            // move past a bare page continuing this stream's run in memory
             if (
                 page.complete &&
                 reached !== undefined &&
@@ -1687,13 +1691,17 @@ export class Replica {
                 else if (home !== undefined) {
                     Replica.mark(database, this, home);
                 }
-            } else if (page.complete) {
-                ({ position: reached, record } = await this.#complete(
-                    database,
-                    page,
-                    { staged, isSnapshot },
-                    record,
-                    reflected,
+            }
+            // apply the run a page completes in its span, timed by whether it is a snapshot
+            else if (page.complete) {
+                const run = { staged, isSnapshot };
+                const kind = { "destack.replica.snapshot": isSnapshot };
+                const recorded = record;
+                ({ position: reached, record } = await this.#scope(database).span(
+                    "destack.replica.apply",
+                    { ...attributed, ...kind },
+                    () => this.#complete(database, page, run, recorded, reflected),
+                    { duration: { attributes: kind } },
                 ));
 
                 // announce the run's home position at once
@@ -1707,14 +1715,16 @@ export class Replica {
             // stage a page within a run, its first page dropping an earlier stream's
             else {
                 const order = staged;
-                await database.transaction(async (transaction) => {
-                    if (order === 0) {
-                        await transaction.delete(replicaPage).where(this.#match(replicaPage));
-                    }
-                    await transaction
-                        .insert(replicaPage)
-                        .values({ name: this.name, scope: this.scope, index: order, page });
-                });
+                await this.#scope(database).span("destack.replica.stage", attributed, () =>
+                    database.transaction(async (transaction) => {
+                        if (order === 0) {
+                            await transaction.delete(replicaPage).where(this.#match(replicaPage));
+                        }
+                        await transaction
+                            .insert(replicaPage)
+                            .values({ name: this.name, scope: this.scope, index: order, page });
+                    }),
+                );
                 staged += 1;
             }
             yield page;
