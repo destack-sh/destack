@@ -1,3 +1,4 @@
+import { HttpMethod } from "@destack/environment";
 import { Bearer } from "@destack/access/token";
 import type { Environment } from "@destack/environment";
 import { refusal } from "@destack/object";
@@ -137,7 +138,7 @@ export class Tunnel implements SocketHandler {
     readonly machineId: Identifier<"machine">;
     /** What the tunnel runs with. */
     readonly #options: TunnelOptions;
-    /** The tunnel's log records and captures. */
+    /** The tunnel's spans, durations, log records and captures. */
     readonly #instruments: TelemetryScope;
     /** The sockets running a session, oldest first. */
     readonly #sockets: TunnelSocket[] = [];
@@ -217,8 +218,29 @@ export class Tunnel implements SocketHandler {
         this.#closeAll(reason);
     }
 
+    /** Forward a request in its client span, its duration by method and status. */
+    fetch(request: Request): Promise<Response> {
+        // describe the request by its method, noting the status the machine answers
+        const method = { "http.request.method": HttpMethod.of(request.method) };
+        let status = {};
+
+        return this.#instruments.span(
+            "destack.tunnel.fetch",
+            method,
+            async (span) => {
+                // forward it, noting the machine's status
+                const response = await this.#fetch(request);
+                status = { "http.response.status_code": response.status };
+                span.setAttributes(status);
+
+                return response;
+            },
+            { kind: "client", duration: { attributes: () => ({ ...method, ...status }) } },
+        );
+    }
+
     /** Forward a request through the newest socket that stands and has not lapsed. */
-    async fetch(request: Request): Promise<Response> {
+    async #fetch(request: Request): Promise<Response> {
         // close the sockets that no longer stand or lapsed, then require one with room for another request
         await this.sweep();
         const newest = this.#sockets.at(-1);
