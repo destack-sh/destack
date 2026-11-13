@@ -25,6 +25,7 @@ import {
 import { eventTables } from "../stack/db.ts";
 import { EventStore } from "../store/store.ts";
 import { Simulation, type SimulatedClock } from "@destack/environment/simulation";
+import { testWorldOptions } from "@destack/test/world";
 
 /** When every fixture's clock starts: 1 October 2026, UTC. */
 const START = Date.UTC(2026, 9, 1);
@@ -141,7 +142,7 @@ export class TestEventStore implements AsyncDisposable {
     ): Promise<TestEventStore> {
         // migrate the kinds' tables and the control loop's on the fixture's clock
         const tables = [...eventTables(kinds), ...ControlLoop.tables];
-        const simulation = new Simulation({ seed: 1, start: START });
+        const simulation = new Simulation({ world: testWorldOptions(), seed: 1, start: START });
         const environment = simulation.environment("events");
         const database = await TestDatabase.create(tables, { environment });
         await database.database.migrate(tables);
