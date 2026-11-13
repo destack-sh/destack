@@ -162,7 +162,7 @@ export const ObjectError = defineErrorFamily({
         // unavailable
         BUILD_FILE_UNAVAILABLE: {},
         DATABASE_UNAVAILABLE: {},
-        REPLICA_UNAVAILABLE: {},
+        REPLICA_UNAVAILABLE: { data: RetryAfter.partial() },
         SERVER_UNAVAILABLE: { data: RetryAfter.partial() },
         SETTLEMENT_UNAVAILABLE: {},
         WAKE_UP_UNAVAILABLE: {},

@@ -156,6 +156,9 @@ const TRASH_METHODS: ReadonlySet<MethodKind> = new Set([
 /** How long a request waits for its caller's watermarks: 5 s, above sub-second replica lag. */
 const BOOKMARK_TIMEOUT_MILLISECONDS = 5000;
 
+/** When a caller asks again after a replica missed its watermark: 1 s, about a follow's round. */
+const REPLICA_RETRY_MILLISECONDS = 1000;
+
 /** How long a store waits for a key it acquires to replicate: 5 s, above sub-second replica lag. */
 const ACQUIRE_MILLISECONDS = 5000;
 
@@ -1132,6 +1135,7 @@ export class ObjectStore {
             throw ObjectError.of(
                 "REPLICA_UNAVAILABLE",
                 `replica '${shape.name}' of '${scope}' is unavailable: it is still syncing`,
+                { data: { retryAfter: REPLICA_RETRY_MILLISECONDS } },
             );
         }
     }
@@ -2532,6 +2536,7 @@ export class ObjectStore {
                     : ObjectError.of(
                           "REPLICA_UNAVAILABLE",
                           `replica of '${watermark.scope}' is unavailable: it has not reached the required sequence`,
+                          { data: { retryAfter: REPLICA_RETRY_MILLISECONDS } },
                       );
             }
         }
