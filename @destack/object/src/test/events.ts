@@ -13,7 +13,7 @@ import type { Environment } from "@destack/environment";
 /** Open a test store's event log over its database, recording the calls and some kinds. */
 export async function testEvents(
     database: DatabaseConnection,
-    environment: Pick<Environment, "clock" | "crypto" | "random">,
+    environment: Pick<Environment, "clock" | "crypto" | "random" | "telemetry">,
     kinds: readonly EventKind[] = [],
     settings?: SettingRetention,
 ): Promise<EventStore> {
@@ -28,6 +28,6 @@ export async function testEvents(
         files: () => bucket,
         personal: new DatabasePersonalKeyring(database, keyring, environment),
         ...(settings === undefined ? {} : { settings }),
-        clock,
+        environment,
     });
 }

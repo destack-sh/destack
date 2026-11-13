@@ -3,7 +3,7 @@ import { ObjectError } from "../error/error.ts";
 import type { Deriver } from "@destack/identity";
 import { InstallationRoot } from "./root.ts";
 import { Symbolicator } from "@destack/package/stack";
-import { copyRequest } from "@destack/environment";
+import { copyRequest, Environment } from "@destack/environment";
 import type { Uplink } from "@destack/sync";
 import type { Connector, ResourceDeclaration } from "@destack/resource";
 import { ResourceContext } from "@destack/resource/context";
@@ -29,7 +29,6 @@ import {
 import type { Alarm } from "@destack/db";
 import type { EphemeralHost, ServerContext, Workload } from "./workload.ts";
 import { CallKey } from "../audit/key.ts";
-import type { Environment } from "@destack/environment";
 
 /** How long a stopping runner drains its requests: below the host's fifteen-second stop timeout. */
 const DRAIN_MILLISECONDS = 10_000;
@@ -119,7 +118,7 @@ export class WorkloadRunner implements AsyncDisposable {
             WorkloadRunner.#telemetryOptions(runner, start, build, report),
             runner.environment,
         );
-        const environment = { ...runner.environment, telemetry: running };
+        const environment = Environment.with(runner.environment, { telemetry: running });
 
         // start the instance on the bound resources
         const connections = new AsyncDisposableStack();

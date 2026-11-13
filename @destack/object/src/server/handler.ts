@@ -1,5 +1,4 @@
 import type { Environment } from "@destack/environment";
-import { extractContext } from "@destack/telemetry";
 import { isCallError } from "../error/call.ts";
 import { reportError } from "../error/report.ts";
 import { ObjectError } from "../error/error.ts";
@@ -78,15 +77,7 @@ export class RequestHandler<State extends RequestState> extends OpenAPIHandler<S
                 ...(options.clientInterceptors ?? []),
             ],
 
-            adapterInterceptors: [
-                (call) => {
-                    const { telemetry } = options.environment;
-                    const extracted = extractContext(call.request.headers, telemetry);
-
-                    return telemetry.context.with(extracted, () => call.next());
-                },
-                ...(options.adapterInterceptors ?? []),
-            ],
+            adapterInterceptors: [...(options.adapterInterceptors ?? [])],
         });
         this.health = options.health;
     }

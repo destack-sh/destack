@@ -22,7 +22,7 @@ import {
 import { boolean, defineTable, eq, text } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
 import { Jwt, KeyPair } from "@destack/identity";
-import { TokenIssuer, TokenVerifier } from "@destack/access/token";
+import { TokenIssuer, type TokenTrust, TokenVerifier } from "@destack/access/token";
 import { Health } from "./health.ts";
 import { CallError } from "../error/index.ts";
 import { Procedure, eventIterator } from "../procedure/index.ts";
@@ -274,11 +274,12 @@ test.each(["direct", "forwarded"])("host personal notes through %s requests", as
                 world.crypto,
             ),
     });
-    const verifier = new TokenVerifier({
-        issuer: "https://account.example",
+    const trust: TokenTrust = {
         authority: { kind: "universe" },
-        audience: packageId,
         keys: { keys: [{ ...pair.publicKey, kid: "current", alg: "ES256" }] },
+    };
+    const verifier = new TokenVerifier({
+        issuers: async (name) => (name === "https://account.example" ? trust : undefined),
         environment: world,
     });
     const owner: Subject = principal.user.reference("universe", "owner");
@@ -365,7 +366,11 @@ test.each(["direct", "forwarded"])("host personal notes through %s requests", as
             authentications++;
 
             return request.headers.has("authorization") || request.headers.has("cookie")
-                ? verifier.authenticate(request, world.clock.now(), spaceId)
+                ? verifier.authenticate(request, {
+                      audience: packageId,
+                      now: world.clock.now(),
+                      partition: spaceId,
+                  })
                 : undefined;
         },
         authorizeMachine: async () => {

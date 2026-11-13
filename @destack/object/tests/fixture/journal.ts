@@ -161,7 +161,7 @@ export class AuditStorage {
                 files.keyring,
                 simulation.environment("store"),
             ),
-            clock: simulation.clock,
+            environment: { clock: simulation.clock, telemetry: simulation.telemetry },
         });
     }
 

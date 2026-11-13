@@ -1,7 +1,7 @@
 import { type ClientContext, createORPCClient, ErrorEvent, mapEventIterator } from "@orpc/client";
 import { isAsyncIteratorObject } from "@orpc/shared";
 import { CallError } from "../error/call.ts";
-import { injectContext, markCaptured } from "@destack/telemetry";
+import { markCaptured } from "@destack/telemetry";
 import { OpenAPILink, type OpenAPILinkOptions } from "@orpc/openapi-client/fetch";
 import { ClientRetryPlugin } from "@orpc/client/plugins";
 import type { Client, ProcedureRouter } from "../procedure/index.ts";
@@ -77,9 +77,8 @@ export function createClient<
         ],
         adapterInterceptors: [
             async (call) => {
-                // send the trace, the release and the required watermarks
+                // send the release and the required watermarks, the transport sending the trace
                 const headers = call.request.headers;
-                injectContext(headers, environment.telemetry);
                 headers.set(VERSION_HEADER, releaseOf(call.path));
                 const bookmark = options.bookmark;
                 if (bookmark !== undefined && bookmark.watermarks.length > 0) {
