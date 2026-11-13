@@ -2,6 +2,7 @@ import { Simulation } from "@destack/environment/simulation";
 import { Distribution } from "@destack/update";
 import { expect, test } from "@destack/test";
 import { CompilerFingerprint } from "./cache.ts";
+import { testWorldOptions } from "@destack/test/world";
 
 /** The resources of a release's application, beside its helpers. */
 const RESOURCES = "/Applications/Destack.app/Contents/Resources";
@@ -13,6 +14,7 @@ const SCRIPT = `${RESOURCES}/program/destack-build.js`;
 async function identify(revision: string, bundle: string, manifest: string): Promise<string> {
     // start a release's compiler process on the runtime build, its bundle written in place in memory
     await using simulation = new Simulation({
+        world: testWorldOptions(),
         seed: 1,
         start: 0,
         files: "memory",

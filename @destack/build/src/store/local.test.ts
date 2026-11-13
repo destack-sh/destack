@@ -1,4 +1,4 @@
-import { TEST_START } from "@destack/test/world";
+import { TEST_START, testWorldOptions } from "@destack/test/world";
 import type { Crypto } from "@destack/environment";
 import { join } from "node:path";
 import { Simulation } from "@destack/environment/simulation";
@@ -651,6 +651,7 @@ test("refuse an empty cache directory the environment sets for the person's stor
     // run in a world whose cache directory variable is empty
     const host = testHost();
     await using simulation = new Simulation({
+        world: testWorldOptions(),
         seed: 1,
         start: TEST_START,
         host: host.host,
