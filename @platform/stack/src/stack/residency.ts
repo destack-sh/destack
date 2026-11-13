@@ -92,8 +92,8 @@ function residencyStack(edge: {
                 {},
                 { isolation: "host", name: "notification" },
             ),
-            relay: install(relayPackage, {}, { name: "relay" }),
-            home: install(homePackage, {}, { name: HOME_APPLICATION }),
+            relay: install(relayPackage, {}, { name: "relay", selection: { kind: "host" } }),
+            home: install(homePackage, {}, { name: HOME_APPLICATION, selection: { kind: "host" } }),
             ...edge.installations,
             social: install(socialPackage, {}, { isolation: "host", name: "social" }),
             observability: install(
@@ -149,7 +149,9 @@ function edgeOf(code: ResidencyCode) {
     return code === PLATFORM.residencyId
         ? {
               routes: { ...own, ...edge },
-              installations: { site: install(sitePackage, {}, { name: "site" }) },
+              installations: {
+                  site: install(sitePackage, {}, { name: "site", selection: { kind: "host" } }),
+              },
           }
         : { routes: own, installations: {} };
 }

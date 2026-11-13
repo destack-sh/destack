@@ -21,7 +21,7 @@ export const HOME_STACK = defineStack({
             { credentials: "credentials" },
             { isolation: "host", name: CONNECTION_INSTALLATION },
         ),
-        home: install(homePackage, {}, { name: HOME_APPLICATION }),
+        home: install(homePackage, {}, { name: HOME_APPLICATION, selection: { kind: "host" } }),
         message: install(
             messagePackage,
             {},
