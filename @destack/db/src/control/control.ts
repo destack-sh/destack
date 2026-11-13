@@ -359,7 +359,7 @@ export class ControlLoop {
             "destack.controller.kind": ["reconcile", "follow", "take"],
         };
         this.#monotonic = database.state.environment.telemetry.monotonic;
-        this.#waits = instruments.metric.histogram("destack.controller.wait.duration", {
+        this.#waits = instruments.metric.histogram("destack.controller.wait_time", {
             unit: "s",
             attributes: passed,
         });
