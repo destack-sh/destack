@@ -69,8 +69,17 @@ export async function finishTask(
     projectId: string,
     requestId: string,
 ) {
-    const created = await client.task.create({ projectId, title: "Write the README", requestId });
-    await client.task.update({ projectId, id: created.id, isDone: true, requestId });
+    const created = await client.task.create({
+        projectId,
+        title: "Write the README",
+        requestId,
+    });
+    await client.task.update({
+        projectId,
+        id: created.id,
+        isDone: true,
+        requestId,
+    });
     const open = await client.task.list({ projectId, where: { isDone: false } });
 
     return open;
@@ -198,10 +207,58 @@ An implementation's method takes a `MethodContext`.
 | `query`, `read`                    | reads through methods, or reads rows                  |
 | `check`, `require`, `permits`      | decides permissions                                   |
 
+### Call phases
+
+A method's implementation gives a handler, or the phases a call runs in this order.
+
+```text
+authorize(call)          refuse the call before any outside work
+relate(call, object)     a creation's owner and the subjects it starts related to
+expand(call)             the calls to run first, each as its own caller
+prepare(call)            outside work before the transaction, under call.idempotencyKey, returning call.prepared
+handle(call, next)       the rows the call writes inside the transaction, next() running the standard behaviour
+confirm(call, prepared)  after the transaction committed, at least once
+cancel(call, prepared)   after it failed, at least once, prepared absent when prepare crashed before returning
+```
+
 ### definePackage
 
 `definePackage({ title, description, icon, color, objects, views, commands, mounts, resources, access, errors })` declares a package's handle, with how people recognise it: its title, its description, its Phosphor icon and the swatch the stack draws it in.
 `implementPackage(handle, code)` implements it, from code or per installation.
+
+## Where calls run
+
+### On a server
+
+A space's store runs a call: it checks access, runs the phases, writes one transaction, and logs the change for replicas.
+
+```text
+request ─► authorize ─► relate ─► expand ─► prepare (settlement reserved) ─► transaction: handle ─► log ─► confirm or cancel
+                                                                                 └ lost race: run again
+```
+
+A settlement row keeps a prepared call's outside work, so a controller confirms or cancels it after a crash.
+
+### On a client
+
+An `ObjectClient` follows a scope into a local replica, predicts its own writes there, and sends them to the store.
+
+```text
+client.mutate(...)  ─► predicted on the replica at once ─► sent ─► the store's change replaces the prediction
+                                                         └ refused: the prediction is rolled back
+```
+
+`prepare`, `confirm` and `cancel` run on the server only, so a method with outside work is never predicted.
+
+### In a sandbox
+
+An installation running in a sandbox serves its types' phases from its own process, one request per phase in its call's session.
+
+```text
+store ─► sandbox: authorize, relate, expand, prepare, handle(next ─► store) ─► store: confirm, cancel
+```
+
+`confirm` and `cancel` run at the store, where the settlement is kept.
 
 ## Examples
 
@@ -262,7 +319,12 @@ export async function walkTodo(
     const read = await client.todo.get({ projectId, id: created.id });
 
     // finish it, then list the open todos, newest first
-    await client.todo.update({ projectId, id: read.id, isDone: true, requestId: requests.update });
+    await client.todo.update({
+        projectId,
+        id: read.id,
+        isDone: true,
+        requestId: requests.update,
+    });
     const open = await client.todo.list({
         projectId,
         where: { isDone: false },
@@ -271,7 +333,11 @@ export async function walkTodo(
     });
 
     // delete it to the trash, then restore it
-    await client.todo.delete({ projectId, id: read.id, requestId: requests.delete });
+    await client.todo.delete({
+        projectId,
+        id: read.id,
+        requestId: requests.delete,
+    });
     const restored = await client.todo.restore({
         projectId,
         id: read.id,
@@ -412,9 +478,17 @@ export async function replaceRoadmap(
     requests: { readonly deleting: string; readonly creating: string },
 ) {
     const roadmap = await client.board.get({ projectId, id: "roadmap" });
-    await client.board.delete({ projectId, id: roadmap.id, requestId: requests.deleting });
+    await client.board.delete({
+        projectId,
+        id: roadmap.id,
+        requestId: requests.deleting,
+    });
 
-    return await client.board.create({ projectId, name: "roadmap", requestId: requests.creating });
+    return await client.board.create({
+        projectId,
+        name: "roadmap",
+        requestId: requests.creating,
+    });
 }
 ```
 
@@ -502,6 +576,61 @@ export const list = defineObject(
 });
 ```
 
+### Run outside work in a method
+
+A method reserves outside work in `prepare`, records it in `handle`, and confirms or cancels it once its transaction ends.
+
+```ts
+import { argument, plural, t } from "@destack/locale";
+import { defineObject, field, shareable } from "@destack/object";
+import { schema } from "@destack/schema";
+
+/** A print service that reserves, confirms and cancels prints by key. */
+interface Printer {
+    /** Reserve a print once per key, answering its identifier. */
+    readonly reserve: (key: string, text: string) => Promise<string>;
+    /** Print a reserved print. */
+    readonly confirm: (id: string) => Promise<void>;
+    /** Drop a reservation by its key. */
+    readonly cancel: (key: string) => Promise<void>;
+}
+
+/** Declare labels, printed through a print service. */
+export function labels(printer: Printer) {
+    return defineObject(
+        {
+            name: "label",
+            plural: "labels",
+            title: t`${plural(argument("count"), { one: "Label", other: "Labels" })}`,
+            container: "scope",
+            fields: { text: field.string(), printId: field.string().optional() },
+            traits: [shareable({})],
+        },
+        (method) => ({
+            print: method.mutation({
+                title: t`Print`,
+                permission: "write",
+                prepared: schema.string(),
+            }),
+        }),
+    ).implement({
+        methods: {
+            print: {
+                // reserve the print outside the transaction, once per call
+                prepare: async (call) =>
+                    await printer.reserve(call.idempotencyKey, call.target.text),
+                // record the reserved print inside the transaction
+                handle: async (call) => await call.update({ printId: call.prepared }),
+                // print it once the transaction committed
+                confirm: async (_call, printId) => await printer.confirm(printId),
+                // drop the reservation by its key once the transaction failed
+                cancel: async (call) => await printer.cancel(call.idempotencyKey),
+            },
+        },
+    });
+}
+```
+
 ### Follow a query and write offline
 
 An `ObjectClient` replicates a scope into a local database.
@@ -572,12 +701,20 @@ export const contact = defineObject({
 
 Methods, reactive queries and optimistic writes basically follow Convex.
 
-| Convex                 | `@destack/object`                 | Difference                                          |
-| ---------------------- | --------------------------------- | --------------------------------------------------- |
-| `query`, `mutation`    | `method.query`, `method.mutation` | Methods belong to a type, with a permission each.   |
-| functions check access | `access`                          | Access is declared on the type and decided per row. |
-| one app's tables       | the space's database              | Apps read each other's objects.                     |
-| `useQuery`             | clients and replicas              | Clients sync a scope and predict their writes.      |
+| Convex                  | `@destack/object`                 | Difference                                              |
+| ----------------------- | --------------------------------- | ------------------------------------------------------- |
+| `query`, `mutation`     | `method.query`, `method.mutation` | Methods belong to a type, with a permission each.       |
+| functions check access  | `access`                          | Access is declared on the type and decided per row.     |
+| one app's tables        | the space's database              | Apps read each other's objects.                         |
+| `useQuery`              | clients and replicas              | Clients sync a scope and predict their writes.          |
+| `action`                | `prepare`, `confirm`, `cancel`    | Outside work belongs to a mutation, kept until it ends. |
+| durable `action` chains | `@destack/workflow`               | Workflows replay recorded steps.                        |
+| `scheduler.runAfter`    | `workflow.start(..., { when })`   | A method starts a run in its own transaction.           |
+| `crons`                 | workflow schedule triggers        | Cron expressions or intervals, with overlap policy.     |
+| `httpAction`            | package mounts                    | Mounts answer below their package's path.               |
+| `internalMutation`      | `visibility: "package"`           | The same.                                               |
+| `ctx.storage`           | `field.file`, `field.blob`        | Files are fields of their object.                       |
+| vector search           | none yet                          | Text search only.                                       |
 
 ### Google AIP
 
