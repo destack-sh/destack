@@ -8,9 +8,14 @@ import { ObjectClient } from "../src/client/index.ts";
 import { serveNotes, spaceId } from "./fixture/device.ts";
 import { note, notebook } from "./fixture/note.ts";
 import { unmoved } from "./fixture/space.ts";
+import { testWorldOptions } from "@destack/test/world";
 
 test("push again after transient failures, waiting twice as long after each", async () => {
-    await using simulation = new Simulation({ seed: 1, start: Date.UTC(2026, 9, 1) });
+    await using simulation = new Simulation({
+        world: testWorldOptions(),
+        seed: 1,
+        start: Date.UTC(2026, 9, 1),
+    });
     const { endpoint, clock, environment } = await serveNotes({ simulation });
     const alice = endpoint(users.alice);
 

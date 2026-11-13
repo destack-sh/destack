@@ -14,6 +14,7 @@ import type { RequestContext } from "../server/index.ts";
 import type { WorkloadStart } from "./start.ts";
 import { defineWorkload, type EphemeralHost } from "./workload.ts";
 import { SOCKET_HEADER, SOCKET_PATH } from "./socket.ts";
+import { testWorldOptions } from "@destack/test/world";
 
 /** The OTLP logs or traces export the observability service receives. */
 const OtlpExport = schema
@@ -128,7 +129,11 @@ const start: WorkloadStart = {
 };
 
 /** The world the runners' telemetry starts in, its failures and identifiers its own. */
-const world = new Simulation({ seed: 1, start: Date.UTC(2026, 9, 24) });
+const world = new Simulation({
+    world: testWorldOptions(),
+    seed: 1,
+    start: Date.UTC(2026, 9, 24),
+});
 
 afterAll(async () => {
     await world[Symbol.asyncDispose]();

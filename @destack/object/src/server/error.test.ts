@@ -12,6 +12,7 @@ import { Procedure } from "../procedure/index.ts";
 import { reportError } from "../error/report.ts";
 import { fixturePackage } from "../test/fixture.ts";
 import { implement, RequestHandler } from "./handler.ts";
+import { testWorldOptions } from "@destack/test/world";
 
 /** Declare a public read procedure of the fixture package at a path. */
 function declared(path: `/${string}`) {
@@ -30,7 +31,11 @@ test("capture a handler's unknown failure once where it happens, and never again
 }) => {
     const world = testSimulation().environment("test");
     // record the message of each captured exception, in a world
-    await using simulation = new Simulation({ seed: 1, start: Date.UTC(2026, 9, 24) });
+    await using simulation = new Simulation({
+        world: testWorldOptions(),
+        seed: 1,
+        start: Date.UTC(2026, 9, 24),
+    });
     const captured: unknown[] = [];
     const telemetry = await startTelemetry(
         {
@@ -115,7 +120,11 @@ test("answer a host family's failure as an internal error without its message, c
 }) => {
     // record the message of each captured exception, in a world
     const world = testSimulation().environment("test");
-    await using simulation = new Simulation({ seed: 1, start: Date.UTC(2026, 9, 24) });
+    await using simulation = new Simulation({
+        world: testWorldOptions(),
+        seed: 1,
+        start: Date.UTC(2026, 9, 24),
+    });
     const captured: unknown[] = [];
     const telemetry = await startTelemetry(
         {

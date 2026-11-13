@@ -7,6 +7,7 @@ import { note, notebook } from "./fixture/note.ts";
 import { QueriesParameters } from "../src/replica/replica.ts";
 import { present, schema } from "@destack/schema";
 import { Simulation } from "@destack/environment/simulation";
+import { testWorldOptions } from "@destack/test/world";
 
 /** The rows an include adds, read for their titles. */
 const TITLED_ROWS = schema.array(schema.looseObject({ title: schema.string() }));
@@ -293,7 +294,11 @@ test("list and read the notebooks with a starred note outside the trash", async 
 });
 
 test("follow the newest notebooks and notes as one feed", async () => {
-    await using simulation = new Simulation({ seed: 1, start: Date.UTC(2026, 9, 1) });
+    await using simulation = new Simulation({
+        world: testWorldOptions(),
+        seed: 1,
+        start: Date.UTC(2026, 9, 1),
+    });
     const { clock } = simulation;
     const { openDevice } = await serveNotes({ simulation });
     const device = await openDevice(users.alice, []);

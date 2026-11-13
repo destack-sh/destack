@@ -20,6 +20,7 @@ import objectPackage from "../src/package.ts";
 import { TestObjectStore } from "../src/test/index.ts";
 import { shareable } from "../src/index.ts";
 import { argument, plural, t } from "@destack/locale";
+import { testWorldOptions } from "@destack/test/world";
 
 /** A labelled marker of a space, whose label stays editable while the space moves. */
 const marker = defineObject(
@@ -43,7 +44,11 @@ test("send a client's writes on to the machine serving a moved scope", async () 
     const world = testSimulation().environment("test");
 
     // serve the space on its source and on the machine it moves to, and fence the source
-    await using simulation = new Simulation({ seed: 1, start: Date.UTC(2026, 9, 1) });
+    await using simulation = new Simulation({
+        world: testWorldOptions(),
+        seed: 1,
+        start: Date.UTC(2026, 9, 1),
+    });
     const source = await serveNotes({ simulation, node: "source" });
     const target = await serveNotes({ simulation, node: "target" });
     const { clock, environment } = source;

@@ -3,6 +3,7 @@ import { expect, test } from "@destack/test";
 import { Simulation } from "@destack/environment/simulation";
 import { TestTelemetry } from "@destack/telemetry/test";
 import { HibernationHost, SOCKET_HEADER, SOCKET_INSTANCE_HEADER } from "./socket.ts";
+import { testWorldOptions } from "@destack/test/world";
 
 /** The instance of the test's socket. */
 const INSTANCE = "instance-test";
@@ -16,7 +17,11 @@ async function hibernated(host: HibernationHost): Promise<unknown[]> {
 
 test("report a socket close its instance refuses, delivering the close once", async () => {
     // refuse every close, as an instance whose replicas are stale answers 503
-    await using simulation = new Simulation({ seed: 1, start: Date.UTC(2026, 9, 16) });
+    await using simulation = new Simulation({
+        world: testWorldOptions(),
+        seed: 1,
+        start: Date.UTC(2026, 9, 16),
+    });
     using telemetry = new TestTelemetry(simulation.telemetry);
     const delivered: string[] = [];
     const host = new HibernationHost(async (_instanceId, path, request) => {
@@ -60,7 +65,11 @@ test("report a socket close its instance refuses, delivering the close once", as
 
 test("drop an instance's send, store and close to a socket once its client closed it, as a WebSocket discards them", async () => {
     // hibernate a socket the instance accepts, then close it from the client
-    await using simulation = new Simulation({ seed: 1, start: Date.UTC(2026, 9, 16) });
+    await using simulation = new Simulation({
+        world: testWorldOptions(),
+        seed: 1,
+        start: Date.UTC(2026, 9, 16),
+    });
     const host = new HibernationHost(
         async () => new Response(null, { status: 204 }),
         simulation.environment("host").telemetry,
