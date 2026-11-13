@@ -76,6 +76,7 @@
         "@destack/package": "workspace:*",
         "@destack/resource": "workspace:*",
         "@destack/schema": "workspace:*",
+        "@destack/telemetry": "workspace:*",
       },
       "devDependencies": {
         "@aws-sdk/client-s3": "3.1141.0",
@@ -112,6 +113,7 @@
         "@destack/resource": "workspace:*",
         "@destack/sandbox": "workspace:*",
         "@destack/schema": "workspace:*",
+        "@destack/telemetry": "workspace:*",
         "@destack/update": "workspace:*",
         "cjs-module-lexer": "2.3.0",
         "magic-string": "1.4.1",
@@ -900,6 +902,7 @@
         "@destack/resource": "workspace:*",
         "@destack/schema": "workspace:*",
         "@destack/sync": "workspace:*",
+        "@destack/telemetry": "workspace:*",
         "semver": "7.8.5",
       },
       "devDependencies": {
@@ -1065,7 +1068,6 @@
         "@destack/schema": "workspace:*",
         "@destack/setting": "workspace:*",
         "@destack/sync": "workspace:*",
-        "@destack/telemetry": "workspace:*",
         "@destack/view": "workspace:*",
       },
       "devDependencies": {
@@ -1291,6 +1293,7 @@
         "@destack/package": "workspace:*",
         "@destack/schema": "workspace:*",
         "@destack/sync": "workspace:*",
+        "@destack/telemetry": "workspace:*",
         "@tufjs/canonical-json": "2.0.0",
         "@tufjs/models": "5.0.0",
         "tuf-js": "6.0.0",
