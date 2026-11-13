@@ -977,8 +977,8 @@ test("hold the clock while a child writes its whole output, so a timer beside it
 });
 
 test("refuse tracked work that never settles beside a timer, as time cannot move while it is in flight", async () => {
-    // track work that never settles while a timer waits
-    await using simulation = new Simulation({ seed: 1, start: START });
+    // track work that never settles while a timer waits, failing after a short stall
+    await using simulation = new Simulation({ seed: 1, start: START, stallTimeout: 100 });
     void simulation.scheduler.task(
         () =>
             new Promise<void>(() => {

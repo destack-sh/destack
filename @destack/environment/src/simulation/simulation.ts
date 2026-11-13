@@ -32,9 +32,6 @@ const STALL_TIMEOUT = 10_000;
 /** The real time long work may run without progress before a run fails: past a build. */
 const LONG_STALL_TIMEOUT = 120_000;
 
-/** The real time tracked work may wait beside a pending timer without progress: 100 ms. */
-const DEADLOCK_MILLISECONDS = 100;
-
 /** The turns a livelock's report records the call sites of. */
 const RECORDED_TURNS = 100;
 
@@ -250,7 +247,7 @@ export interface SimulationOptions {
     readonly locale?: string;
     /** The time zone each node formats in. */
     readonly timeZone?: string;
-    /** The real milliseconds a short operation may stall in flight before a run fails. */
+    /** The real milliseconds short work may stall in flight before a run fails. */
     readonly stallTimeout?: number;
     /** The real milliseconds long work may run without progress before a run fails. */
     readonly longStallTimeout?: number;
@@ -878,10 +875,10 @@ export class Simulation {
                 );
             }
 
-            // refuse world work waiting on a pending timer, which fires only after the work settles
+            // refuse world work waiting on a pending timer past the short limit, as untracked host work may settle
             const isWaitingOnTime =
                 scheduler.inFlight > 0 && scheduler.real === 0 && clock.next !== undefined;
-            if (isWaitingOnTime && stalled >= DEADLOCK_MILLISECONDS) {
+            if (isWaitingOnTime && stalled >= stallTimeout) {
                 throw new Error(
                     `the world's work waits on simulated time, which cannot move while it is in flight:\n${this.scheduler.pending().join("\n")}`,
                 );
