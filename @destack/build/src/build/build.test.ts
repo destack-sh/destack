@@ -5,7 +5,7 @@ import { outputsOf } from "./build.ts";
 import { readPackageJson } from "../source/index.ts";
 
 test("read one module per runtime the shipped exports compile for", async () => {
-    // declare packages with every runtime, with runtimes per export, with a test layer and without runtimes
+    // declare packages with every runtime, with runtimes per export, with a test kit, with runtimes for it, and without runtimes
     await using simulation = testSimulation();
     const { files } = simulation.environment("test");
     const directory = await files.makeTemporaryDirectory("outputs-");
@@ -50,6 +50,10 @@ test("read one module per runtime the shipped exports compile for", async () => 
             }),
             await read(
                 { ...exports, "./test": "./src/test.ts" },
+                { id, role: "library", language: "typescript", runtimes: ["browser"] },
+            ),
+            await read(
+                { ...exports, "./test": "./src/test.ts" },
                 {
                     id,
                     role: "library",
@@ -70,6 +74,7 @@ test("read one module per runtime the shipped exports compile for", async () => 
                 workerd: { kind: "module", runtime: "workerd" },
             },
             { browser: { kind: "module", runtime: "browser" } },
+            "export './test' is invalid: a test kit compiles for no runtime",
             "export '.' is invalid: it declares no runtimes",
         ]);
     } finally {
