@@ -14,6 +14,8 @@ import {
 } from "../context/index.ts";
 import { isPrincipal, principal } from "../declare/index.ts";
 import { AccessError } from "../error/index.ts";
+import { TelemetryScope } from "@destack/telemetry";
+import type {} from "@destack/package/import-meta";
 
 /** The longest interval between public key refreshes, in milliseconds. */
 export const KEY_CACHE_MILLISECONDS = 60000;
@@ -136,11 +138,14 @@ export class TokenVerifier {
     readonly options: TokenVerifierOptions;
     /** The cached public keys. */
     readonly keys: KeyLookup;
+    /** The verifier's spans and measures. */
+    readonly #scope: TelemetryScope;
 
     /** Create the verifier. */
     constructor(options: TokenVerifierOptions) {
-        // store the options
+        // store the options and the verifier's scope
         this.options = options;
+        this.#scope = TelemetryScope.of(import.meta.destack.package, options.environment.telemetry);
 
         // fetch keys over plain HTTP only from loopback
         for (const url of options.keys instanceof URL ? [options.keys] : []) {
@@ -187,7 +192,17 @@ export class TokenVerifier {
     }
 
     /** Verify an access token at a time, optionally for one partition. */
-    async verify(token: string, now: number, partition?: PartitionId): Promise<Authentication> {
+    verify(token: string, now: number, partition?: PartitionId): Promise<Authentication> {
+        return this.#scope.span(
+            "destack.access.token.verify",
+            {},
+            () => this.#verify(token, now, partition),
+            { duration: { attributes: {} } },
+        );
+    }
+
+    /** Verify a token's signature, claims, partition and client. */
+    async #verify(token: string, now: number, partition?: PartitionId): Promise<Authentication> {
         // verify the signature and registered claims
         const payload = await this.#verifySignature(token, now);
 
@@ -279,7 +294,7 @@ export interface TokenVerifierOptions {
     /** The public keys, an HTTPS JWKS endpoint, or a key set a directory stores. */
     readonly keys: URL | JwkSet | KeyLookup;
     /** The clock caching remote keys, the network fetching them, and the WebCrypto verifying. */
-    readonly environment: Pick<Environment, "clock" | "crypto" | "network">;
+    readonly environment: Pick<Environment, "clock" | "crypto" | "network" | "telemetry">;
     /** The longest lifetime of the tokens it accepts, a minute by default. */
     readonly lifetime?: number;
 }

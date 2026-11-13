@@ -239,147 +239,157 @@ export const Invitation = {
     },
 
     /** Invite a relationship that applies once accepted, asked by its subject or offered. */
-    async create(request: InvitationRequest, authorization: Authorization): Promise<Invitation> {
-        return authorization.transaction.savepoint(async () => {
-            // require a relationship stored here and an inviting principal or the system
-            const invited = request.relationship;
-            const scope = await authorization.authorizer.requireRelationship(
-                authorization.transaction,
-                invited,
-            );
-            const context = authorization.context();
-            const inviter = Caller.principal(context) ?? null;
-
-            // validate the relationship, checking an invited contact's principal once it accepts
-            const { subject, ...validated } = invited;
-            authorization.authorizer.validate(
-                policies.principal.contact.is(subject) ? validated : invited,
-                context.now,
-            );
-            const expiresAt = request.expiresAt ?? context.now + INVITATION_LIFETIME_MILLISECONDS;
-            if (!Number.isFinite(expiresAt) || expiresAt <= context.now) {
-                throw AccessError.of(
-                    "INVITATION_EXPIRY_INVALID",
-                    "invitation expiry is invalid: it must be in the future",
+    create(request: InvitationRequest, authorization: Authorization): Promise<Invitation> {
+        return authorization.trace("invitation.create", async () => {
+            return authorization.transaction.savepoint(async () => {
+                // require a relationship stored here and an inviting principal or the system
+                const invited = request.relationship;
+                const scope = await authorization.authorizer.requireRelationship(
+                    authorization.transaction,
+                    invited,
                 );
-            }
+                const context = authorization.context();
+                const inviter = Caller.principal(context) ?? null;
 
-            // let a principal ask for itself, and require grant authority to offer to anyone else
-            if (inviter === null || !Subject.same(invited.subject, inviter)) {
-                if (
-                    invited.subject.relation !== undefined ||
-                    invited.subject.id === "*" ||
-                    invited.subject.scope === "*"
-                ) {
+                // validate the relationship, checking an invited contact's principal once it accepts
+                const { subject, ...validated } = invited;
+                authorization.authorizer.validate(
+                    policies.principal.contact.is(subject) ? validated : invited,
+                    context.now,
+                );
+                const expiresAt =
+                    request.expiresAt ?? context.now + INVITATION_LIFETIME_MILLISECONDS;
+                if (!Number.isFinite(expiresAt) || expiresAt <= context.now) {
                     throw AccessError.of(
-                        "INVITATION_SUBJECT_DENIED",
-                        "invitation subject is forbidden: it must be one principal",
+                        "INVITATION_EXPIRY_INVALID",
+                        "invitation expiry is invalid: it must be in the future",
                     );
                 }
-                await authorization.authorizeGrant(invited);
-            }
 
-            // store the invitation apart from the relationships that apply
-            const invitation: Invitation = {
-                id: Identifier.create("invitation", authorization.environment),
-                relationship: {
-                    object: invited.object,
-                    ...Relationship.via(invited),
-                    subject: invited.subject,
-                    expiresAt: invited.expiresAt ?? null,
-                },
-                inviter,
-                ...(request.purpose === undefined ? {} : { purpose: request.purpose }),
-                status: "pending",
-                createdAt: context.now,
-                expiresAt,
-            };
-            const row = Table.complete(accessInvitation, Invitation.encode(invitation, scope));
-            await authorization.transaction.write({
-                table: accessInvitation,
-                before: null,
-                after: row,
+                // let a principal ask for itself, and require grant authority to offer to anyone else
+                if (inviter === null || !Subject.same(invited.subject, inviter)) {
+                    if (
+                        invited.subject.relation !== undefined ||
+                        invited.subject.id === "*" ||
+                        invited.subject.scope === "*"
+                    ) {
+                        throw AccessError.of(
+                            "INVITATION_SUBJECT_DENIED",
+                            "invitation subject is forbidden: it must be one principal",
+                        );
+                    }
+                    await authorization.authorizeGrant(invited);
+                }
+
+                // store the invitation apart from the relationships that apply
+                const invitation: Invitation = {
+                    id: Identifier.create("invitation", authorization.environment),
+                    relationship: {
+                        object: invited.object,
+                        ...Relationship.via(invited),
+                        subject: invited.subject,
+                        expiresAt: invited.expiresAt ?? null,
+                    },
+                    inviter,
+                    ...(request.purpose === undefined ? {} : { purpose: request.purpose }),
+                    status: "pending",
+                    createdAt: context.now,
+                    expiresAt,
+                };
+                const row = Table.complete(accessInvitation, Invitation.encode(invitation, scope));
+                await authorization.transaction.write({
+                    table: accessInvitation,
+                    before: null,
+                    after: row,
+                });
+
+                return invitation;
             });
-
-            return invitation;
         });
     },
 
     /** Accept an invitation so its relationship applies. */
-    async accept(id: string, authorization: Authorization): Promise<Relationship> {
-        return authorization.transaction.savepoint(async () => {
-            // read the pending invitation
-            const context = authorization.context();
-            const invitation = await Invitation.read(authorization.transaction, id);
-            if (invitation.expiresAt <= context.now) {
-                throw AccessError.of("INVITATION_DENIED", "invitation is forbidden: it expired");
-            }
-
-            // require a grantor for a request
-            const invited = invitation.relationship;
-            let subject: Subject;
-            if (Invitation.asksForItself(invitation)) {
-                await authorization.authorizeGrant(invited);
-                subject = invitation.relationship.subject;
-            }
-            // require the addressed principal for an offer, and an inviter that still has the grant
-            else {
-                const accepting = Caller.principal(context);
-                if (Caller.isAnonymous(context)) {
+    accept(id: string, authorization: Authorization): Promise<Relationship> {
+        return authorization.trace("invitation.accept", async () => {
+            return authorization.transaction.savepoint(async () => {
+                // read the pending invitation
+                const context = authorization.context();
+                const invitation = await Invitation.read(authorization.transaction, id);
+                if (invitation.expiresAt <= context.now) {
                     throw AccessError.of(
-                        "IDENTITY_DENIED",
-                        "offer is forbidden: accepting it needs an identity",
-                    );
-                } else if (!Invitation.addresses(invitation, accepting, context)) {
-                    throw AccessError.of(
-                        "INVITATION_ADDRESSEE_DENIED",
-                        "invitation is forbidden: it is addressed to someone else",
+                        "INVITATION_DENIED",
+                        "invitation is forbidden: it expired",
                     );
                 }
-                subject = accepting;
-                await requireInviter(invitation, context.now, authorization);
-            }
 
-            // relate the accepting subject in the relationship's scope, and settle the invitation
-            const { expiresAt, ...granted } = invited;
-            const scope = await Relationship.scope(authorization.snapshot, invited);
-            const relationship = await Relationship.create(
-                {
-                    ...granted,
-                    subject,
-                    ...(expiresAt === null ? {} : { expiresAt }),
-                },
-                scope,
-                authorization,
-            );
-            await settle(id, "accepted", context.now, authorization);
+                // require a grantor for a request
+                const invited = invitation.relationship;
+                let subject: Subject;
+                if (Invitation.asksForItself(invitation)) {
+                    await authorization.authorizeGrant(invited);
+                    subject = invitation.relationship.subject;
+                }
+                // require the addressed principal for an offer, and an inviter that still has the grant
+                else {
+                    const accepting = Caller.principal(context);
+                    if (Caller.isAnonymous(context)) {
+                        throw AccessError.of(
+                            "IDENTITY_DENIED",
+                            "offer is forbidden: accepting it needs an identity",
+                        );
+                    } else if (!Invitation.addresses(invitation, accepting, context)) {
+                        throw AccessError.of(
+                            "INVITATION_ADDRESSEE_DENIED",
+                            "invitation is forbidden: it is addressed to someone else",
+                        );
+                    }
+                    subject = accepting;
+                    await requireInviter(invitation, context.now, authorization);
+                }
 
-            return relationship;
+                // relate the accepting subject in the relationship's scope, and settle the invitation
+                const { expiresAt, ...granted } = invited;
+                const scope = await Relationship.scope(authorization.snapshot, invited);
+                const relationship = await Relationship.create(
+                    {
+                        ...granted,
+                        subject,
+                        ...(expiresAt === null ? {} : { expiresAt }),
+                    },
+                    scope,
+                    authorization,
+                );
+                await settle(id, "accepted", context.now, authorization);
+
+                return relationship;
+            });
         });
     },
 
     /** Withdraw an invitation on an object as its inviter, addressee, or a revoking grantor. */
-    async withdraw(id: string, authorization: Authorization): Promise<Invitation> {
-        return authorization.transaction.savepoint(async () => {
-            // let the inviting principal and the addressee withdraw without grant authority
-            const context = authorization.context();
-            const invitation = await Invitation.read(authorization.transaction, id);
-            const acting = Caller.principal(context);
-            const isInviter =
-                acting !== undefined &&
-                invitation.inviter !== null &&
-                Subject.same(acting, invitation.inviter);
-            if (
-                acting === undefined ||
-                (!isInviter && !Invitation.addresses(invitation, acting, context))
-            ) {
-                await authorization.authorizeRevoke(invitation.relationship);
-            }
+    withdraw(id: string, authorization: Authorization): Promise<Invitation> {
+        return authorization.trace("invitation.withdraw", async () => {
+            return authorization.transaction.savepoint(async () => {
+                // let the inviting principal and the addressee withdraw without grant authority
+                const context = authorization.context();
+                const invitation = await Invitation.read(authorization.transaction, id);
+                const acting = Caller.principal(context);
+                const isInviter =
+                    acting !== undefined &&
+                    invitation.inviter !== null &&
+                    Subject.same(acting, invitation.inviter);
+                if (
+                    acting === undefined ||
+                    (!isInviter && !Invitation.addresses(invitation, acting, context))
+                ) {
+                    await authorization.authorizeRevoke(invitation.relationship);
+                }
 
-            // mark the invitation revoked
-            await settle(id, "revoked", context.now, authorization);
+                // mark the invitation revoked
+                await settle(id, "revoked", context.now, authorization);
 
-            return { ...invitation, status: "revoked" };
+                return { ...invitation, status: "revoked" };
+            });
         });
     },
 

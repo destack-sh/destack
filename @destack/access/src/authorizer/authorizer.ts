@@ -1,5 +1,6 @@
 import type { Authority } from "./authority.ts";
 import {
+    type DatabaseConnection,
     type Transaction,
     type SQL,
     type Table,
@@ -62,6 +63,9 @@ import type { Decision, Explanation } from "./decision.ts";
 import { Reader, Tree, type Tuple } from "./tuple.ts";
 import { Lookup } from "./lookup.ts";
 import { TableMapping, type FieldRelation } from "./mapping.ts";
+import type { Environment } from "@destack/environment";
+import { TelemetryScope } from "@destack/telemetry";
+import type {} from "@destack/package/import-meta";
 
 /** The identifier of a wildcard subject, matching every identity of its type. */
 const WILDCARD = "*";
@@ -185,6 +189,8 @@ export class Authorizer {
     readonly #contributions: Map<string, SubjectType[]>;
     /** The table mappings indexed by package and type. */
     readonly #mappings: Map<string, TableMapping>;
+    /** The telemetry scope of each environment the authorizer decides in, by its telemetry. */
+    readonly #scopes = new WeakMap<Environment["telemetry"], TelemetryScope>();
 
     /** Validate the policies, their referenced policies and their tables in this database. */
     constructor(
@@ -1455,7 +1461,24 @@ export class Authorizer {
         links?: readonly ScopeLink[],
         assumed?: number,
     ): Promise<Access> {
-        return Access.resolve(snapshot, scope, context, this, links, assumed);
+        return this.scope(snapshot.database).span(
+            "destack.access.resolve",
+            {},
+            () => Access.resolve(snapshot, scope, context, this, links, assumed),
+            { duration: { attributes: {} } },
+        );
+    }
+
+    /** Read the telemetry scope of the environment a database runs in, made once per telemetry. */
+    scope(database: Pick<DatabaseConnection, "state">): TelemetryScope {
+        // take the scope made for the telemetry, else make it once
+        const { telemetry } = database.state.environment;
+        const scope =
+            this.#scopes.get(telemetry) ??
+            TelemetryScope.of(import.meta.destack.package, telemetry);
+        this.#scopes.set(telemetry, scope);
+
+        return scope;
     }
 
     /** Match a table's rows a caller may hold a permission on: a superset `checkRows` decides. */
@@ -1465,7 +1488,9 @@ export class Authorizer {
         access: Access,
         source?: Table,
     ): Promise<SQL> {
-        return new Lookup(this, snapshot, access).where(permission, source);
+        return this.scope(snapshot.database).span("destack.access.lookup", {}, () =>
+            new Lookup(this, snapshot, access).where(permission, source),
+        );
     }
 
     /** Show a permission's rows to a caller: candidates in SQL, each decided by its tuple tree. */
@@ -1488,7 +1513,42 @@ export class Authorizer {
     }
 
     /** Decide whether a caller has a permission on one object, and until when. */
-    async check(
+    check(
+        snapshot: Snapshot,
+        permission: PermissionReference,
+        target: ObjectReference,
+        access: Access,
+        reader?: Reader,
+    ): Promise<Decision> {
+        // decide in the check's span, its duration by the decision
+        const attributes = {
+            "destack.object.type": permission.type,
+            "destack.access.permission": permission.name,
+        };
+        let decision: Decision | undefined;
+        const decided = () =>
+            decision === undefined
+                ? attributes
+                : {
+                      ...attributes,
+                      "destack.access.decision": decision.isAllowed ? "allowed" : "denied",
+                  };
+
+        return this.scope(snapshot.database).span(
+            "destack.access.check",
+            attributes,
+            async (span) => {
+                decision = await this.#check(snapshot, permission, target, access, reader);
+                span.setAttributes(decided());
+
+                return decision;
+            },
+            { duration: { attributes: decided } },
+        );
+    }
+
+    /** Decide a permission on one object from its row and tuple tree. */
+    async #check(
         snapshot: Snapshot,
         permission: PermissionReference,
         target: ObjectReference,
@@ -1827,13 +1887,27 @@ export class Authorizer {
     }
 
     /** Check a permission on each row, returning the caller's permitted positions and expiry. */
-    async checkRows(
+    checkRows(
         snapshot: Snapshot,
         permission: PermissionReference,
         access: Access,
         rows: readonly Row[],
         reader = this.reader(snapshot, access.scopes),
         below: ReadonlyMap<string, Access> = new Map(),
+    ): Promise<PermittedRows> {
+        return this.scope(snapshot.database).span("destack.access.filter", {}, () =>
+            this.#checkRows(snapshot, permission, access, rows, reader, below),
+        );
+    }
+
+    /** Decide each row's permission by the caller's access in its scope and its grant tree. */
+    async #checkRows(
+        snapshot: Snapshot,
+        permission: PermissionReference,
+        access: Access,
+        rows: readonly Row[],
+        reader: Reader,
+        below: ReadonlyMap<string, Access>,
     ): Promise<PermittedRows> {
         // decide each row by the caller's access in the row's scope
         const mapping = this.requireMapping(permission);
@@ -2760,7 +2834,14 @@ export class Authorizer {
     }
 
     /** Delete the rows whose cascading relation has a deleted subject, as ON DELETE CASCADE. */
-    async cascade(transaction: Transaction, subject: Subject): Promise<void> {
+    cascade(transaction: Transaction, subject: Subject): Promise<void> {
+        return this.scope(transaction.database).span("destack.access.cascade", {}, () =>
+            this.#cascade(transaction, subject),
+        );
+    }
+
+    /** Cascade a removed subject through the field relations that accept it. */
+    async #cascade(transaction: Transaction, subject: Subject): Promise<void> {
         // find the field relations that cascade and accept the subject
         const cascading = [...this.#mappings.values()].flatMap((mapping) =>
             Object.entries(mapping.policy.definition.relations ?? {})

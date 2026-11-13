@@ -49,6 +49,24 @@ export interface Creation {
 /** The clock, randomness and WebCrypto an authorization creates rows and secrets with. */
 export type AuthorizationEnvironment = Pick<Environment, "clock" | "crypto" | "random">;
 
+/** The access verbs traced in a span of their own, beside resolutions and checks. */
+export type AccessVerb =
+    | "relationship.grant"
+    | "relationship.touch"
+    | "relationship.revoke"
+    | "relationship.replace"
+    | "role.create"
+    | "role.update"
+    | "role.delete"
+    | "role.bind"
+    | "role.assign"
+    | "role.declare"
+    | "invitation.create"
+    | "invitation.accept"
+    | "invitation.withdraw"
+    | "grant.create"
+    | "grant.revoke";
+
 /** A caller's authorization under a set of policies in one database. */
 export class Authorization {
     /** The policies deciding the caller's access. */
@@ -125,6 +143,13 @@ export class Authorization {
                 manager,
             },
         );
+    }
+
+    /** Run an access verb, such as a grant, in its span in the call's environment. */
+    trace<Value>(verb: AccessVerb, run: () => Promise<Value>): Promise<Value> {
+        return this.authorizer
+            .scope(this.transaction.database)
+            .span(`destack.access.${verb}`, {}, run);
     }
 
     /** Read the verified caller as it acts now. */

@@ -366,132 +366,140 @@ export const Relationship = {
     },
 
     /** Relate a subject to an object by a relation or bound role, as the caller may grant. */
-    async grant(request: RelationshipRequest, authorization: Authorization): Promise<Relationship> {
-        const relationship = await authorization.transaction.savepoint(async () => {
-            const scope = await authorization.authorizeGrant(request);
+    grant(request: RelationshipRequest, authorization: Authorization): Promise<Relationship> {
+        return authorization.trace("relationship.grant", async () => {
+            const relationship = await authorization.transaction.savepoint(async () => {
+                const scope = await authorization.authorizeGrant(request);
 
-            return Relationship.create(request, scope, authorization);
-        });
-
-        return relationship;
-    },
-
-    /** Relate a subject to an object, or set the expiry of the same relationship. */
-    async touch(request: RelationshipRequest, authorization: Authorization): Promise<Relationship> {
-        return authorization.transaction.savepoint(async () => {
-            // require a valid request and the grant
-            const now = authorization.context().now;
-            authorization.authorizer.validate(request, now);
-            const scope = await authorization.authorizeGrant(request);
-
-            // read the same relationship, whatever its expiry
-            const expiresAt = request.expiresAt ?? null;
-            const probe = Relationship.encode(
-                Relationship.of(request, now, authorization.environment),
-                scope,
-            );
-            const [existing] = await authorization.transaction
-                .read(accessRelationship)
-                .findMany({ where: Relationship.equal(probe), limit: 1 });
-
-            // create it when missing
-            if (existing === undefined) {
                 return Relationship.create(request, scope, authorization);
-            }
-            // keep it when its expiry matches
-            else if (existing.expiresAt === expiresAt) {
-                return Relationship.decode(existing);
-            }
-            // set its expiry otherwise, as its manager allows, advancing its revision
-            else {
-                Manager.requireChangeable(existing, authorization.manager, "relationship");
-                const after = {
-                    ...existing,
-                    expiresAt,
-                    updatedAt: now,
-                    revision: existing.revision + 1,
-                };
-                await authorization.transaction.write({
-                    table: accessRelationship,
-                    before: existing,
-                    after,
-                });
-
-                return Relationship.decode(after);
-            }
-        });
-    },
-
-    /** Revoke one relationship of an object as the caller may, its history left in the log. */
-    async revoke(
-        object: ObjectReference,
-        id: string,
-        authorization: Authorization,
-    ): Promise<Relationship> {
-        return authorization.transaction.savepoint(async () => {
-            // read the object's relationship
-            const key = schema.identifier("relationship").parse(id);
-            const row = await authorization.transaction.read(accessRelationship).findFirst({
-                where: {
-                    ...Relationship.objectColumns(object),
-                    id: key,
-                },
-            });
-            if (!row) {
-                throw AccessError.of("RELATIONSHIP_NOT_FOUND", "relationship not found");
-            }
-
-            // require permission to revoke what it grants, and leave a required relationship
-            const relationship = Relationship.decode(row);
-            await authorization.authorizeRevoke(relationship, row);
-            await requireRemaining(authorization, row);
-            await authorization.transaction.write({
-                table: accessRelationship,
-                before: row,
-                after: null,
             });
 
             return relationship;
         });
     },
 
-    /** Replace a selection's relationships with exactly the wanted ones, as the caller may. */
-    async replace(
-        selection: RelationshipSelection,
-        wanted: readonly RelationshipRequest[],
+    /** Relate a subject to an object, or set the expiry of the same relationship. */
+    touch(request: RelationshipRequest, authorization: Authorization): Promise<Relationship> {
+        return authorization.trace("relationship.touch", async () => {
+            return authorization.transaction.savepoint(async () => {
+                // require a valid request and the grant
+                const now = authorization.context().now;
+                authorization.authorizer.validate(request, now);
+                const scope = await authorization.authorizeGrant(request);
+
+                // read the same relationship, whatever its expiry
+                const expiresAt = request.expiresAt ?? null;
+                const probe = Relationship.encode(
+                    Relationship.of(request, now, authorization.environment),
+                    scope,
+                );
+                const [existing] = await authorization.transaction
+                    .read(accessRelationship)
+                    .findMany({ where: Relationship.equal(probe), limit: 1 });
+
+                // create it when missing
+                if (existing === undefined) {
+                    return Relationship.create(request, scope, authorization);
+                }
+                // keep it when its expiry matches
+                else if (existing.expiresAt === expiresAt) {
+                    return Relationship.decode(existing);
+                }
+                // set its expiry otherwise, as its manager allows, advancing its revision
+                else {
+                    Manager.requireChangeable(existing, authorization.manager, "relationship");
+                    const after = {
+                        ...existing,
+                        expiresAt,
+                        updatedAt: now,
+                        revision: existing.revision + 1,
+                    };
+                    await authorization.transaction.write({
+                        table: accessRelationship,
+                        before: existing,
+                        after,
+                    });
+
+                    return Relationship.decode(after);
+                }
+            });
+        });
+    },
+
+    /** Revoke one relationship of an object as the caller may, its history left in the log. */
+    revoke(
+        object: ObjectReference,
+        id: string,
         authorization: Authorization,
-    ): Promise<void> {
-        await authorization.transaction.savepoint(async () => {
-            // read the relationships the selection covers
-            const related = (
-                await readSelected(authorization.transaction, selection, authorization.manager)
-            ).map((row) => ({
-                row,
-                relationship: Relationship.decode(row),
-            }));
+    ): Promise<Relationship> {
+        return authorization.trace("relationship.revoke", async () => {
+            return authorization.transaction.savepoint(async () => {
+                // read the object's relationship
+                const key = schema.identifier("relationship").parse(id);
+                const row = await authorization.transaction.read(accessRelationship).findFirst({
+                    where: {
+                        ...Relationship.objectColumns(object),
+                        id: key,
+                    },
+                });
+                if (!row) {
+                    throw AccessError.of("RELATIONSHIP_NOT_FOUND", "relationship not found");
+                }
 
-            // refuse a replacement that leaves an object without a required relationship
-            const missing = new Map(wanted.map((request) => [identity(request), request]));
-            const stale = related.filter(
-                ({ relationship }) => !missing.delete(identity(relationship)),
-            );
-            await requireReplaced(authorization, stale, [...missing.values()]);
-
-            // revoke the relationships no longer wanted
-            for (const { row, relationship } of stale) {
+                // require permission to revoke what it grants, and leave a required relationship
+                const relationship = Relationship.decode(row);
                 await authorization.authorizeRevoke(relationship, row);
+                await requireRemaining(authorization, row);
                 await authorization.transaction.write({
                     table: accessRelationship,
                     before: row,
                     after: null,
                 });
-            }
 
-            // grant the wanted relationships missing
-            for (const request of missing.values()) {
-                const scope = await authorization.authorizeGrant(request);
-                await Relationship.create(request, scope, authorization);
-            }
+                return relationship;
+            });
+        });
+    },
+
+    /** Replace a selection's relationships with exactly the wanted ones, as the caller may. */
+    replace(
+        selection: RelationshipSelection,
+        wanted: readonly RelationshipRequest[],
+        authorization: Authorization,
+    ): Promise<void> {
+        return authorization.trace("relationship.replace", async () => {
+            await authorization.transaction.savepoint(async () => {
+                // read the relationships the selection covers
+                const related = (
+                    await readSelected(authorization.transaction, selection, authorization.manager)
+                ).map((row) => ({
+                    row,
+                    relationship: Relationship.decode(row),
+                }));
+
+                // refuse a replacement that leaves an object without a required relationship
+                const missing = new Map(wanted.map((request) => [identity(request), request]));
+                const stale = related.filter(
+                    ({ relationship }) => !missing.delete(identity(relationship)),
+                );
+                await requireReplaced(authorization, stale, [...missing.values()]);
+
+                // revoke the relationships no longer wanted
+                for (const { row, relationship } of stale) {
+                    await authorization.authorizeRevoke(relationship, row);
+                    await authorization.transaction.write({
+                        table: accessRelationship,
+                        before: row,
+                        after: null,
+                    });
+                }
+
+                // grant the wanted relationships missing
+                for (const request of missing.values()) {
+                    const scope = await authorization.authorizeGrant(request);
+                    await Relationship.create(request, scope, authorization);
+                }
+            });
         });
     },
 

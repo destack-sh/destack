@@ -157,104 +157,120 @@ export const Grant = {
     },
 
     /** Grant a delegate some of the caller's authority in its scope, replacing an earlier grant. */
-    async create(
+    create(
         scope: ObjectReference,
         input: schema.Infer<typeof grantInputSchema>,
         authorization: Authorization,
     ): Promise<Grant> {
-        // write only the grants of a homed scope
-        await authorization.authorizer.requireHome(authorization.transaction, scope, scope.id);
+        return authorization.trace("grant.create", async () => {
+            // write only the grants of a homed scope
+            await authorization.authorizer.requireHome(authorization.transaction, scope, scope.id);
 
-        // grant only a principal's authority, in its scope
-        const context = authorization.context();
-        const delegator = Caller.principal(context);
-        if (delegator === undefined || Caller.isDelegated(context) || delegator.id !== scope.id) {
-            throw AccessError.of(
-                "AUTHORITY_DENIED",
-                "authority is forbidden: a principal can grant only its own authority",
-            );
-        }
+            // grant only a principal's authority, in its scope
+            const context = authorization.context();
+            const delegator = Caller.principal(context);
+            if (
+                delegator === undefined ||
+                Caller.isDelegated(context) ||
+                delegator.id !== scope.id
+            ) {
+                throw AccessError.of(
+                    "AUTHORITY_DENIED",
+                    "authority is forbidden: a principal can grant only its own authority",
+                );
+            }
 
-        // grant to one other principal, until a later time
-        const { delegate } = input;
-        if (
-            !isPrincipal(delegate) ||
-            delegate.id === "*" ||
-            delegate.scope === "*" ||
-            Subject.same(delegate, delegator)
-        ) {
-            throw AccessError.of(
-                "DELEGATE_DENIED",
-                "grant is forbidden: it needs one other principal as delegate",
-            );
-        } else if (input.expiresAt !== undefined && input.expiresAt <= context.now) {
-            throw AccessError.of(
-                "GRANT_EXPIRY_INVALID",
-                "grant expiry is invalid: it must be after its creation",
-            );
-        }
+            // grant to one other principal, until a later time
+            const { delegate } = input;
+            if (
+                !isPrincipal(delegate) ||
+                delegate.id === "*" ||
+                delegate.scope === "*" ||
+                Subject.same(delegate, delegator)
+            ) {
+                throw AccessError.of(
+                    "DELEGATE_DENIED",
+                    "grant is forbidden: it needs one other principal as delegate",
+                );
+            } else if (input.expiresAt !== undefined && input.expiresAt <= context.now) {
+                throw AccessError.of(
+                    "GRANT_EXPIRY_INVALID",
+                    "grant expiry is invalid: it must be after its creation",
+                );
+            }
 
-        // replace the delegator's earlier grant to the delegate, live or lapsed
-        const [earlier] = await authorization.snapshot.read(accessGrant).findMany({
-            where: {
+            // replace the delegator's earlier grant to the delegate, live or lapsed
+            const [earlier] = await authorization.snapshot.read(accessGrant).findMany({
+                where: {
+                    ...ObjectReference.columns("delegator", delegator),
+                    ...ObjectReference.columns("delegate", delegate),
+                },
+            });
+            if (earlier !== undefined) {
+                await authorization.transaction.write({
+                    table: accessGrant,
+                    before: earlier,
+                    after: null,
+                });
+            }
+
+            // write the grant
+            const grant = Table.complete(accessGrant, {
+                id: Identifier.create("grant", authorization.environment),
+                createdAt: context.now,
+                scope: scope.id,
                 ...ObjectReference.columns("delegator", delegator),
                 ...ObjectReference.columns("delegate", delegate),
-            },
-        });
-        if (earlier !== undefined) {
+                delegateSpaceId: Grant.spaceId(delegate),
+                permissions: [...input.permissions],
+                expiresAt: input.expiresAt ?? null,
+                sessionId: input.sessionId ?? null,
+            });
             await authorization.transaction.write({
                 table: accessGrant,
-                before: earlier,
-                after: null,
+                before: null,
+                after: grant,
             });
-        }
 
-        // write the grant
-        const grant = Table.complete(accessGrant, {
-            id: Identifier.create("grant", authorization.environment),
-            createdAt: context.now,
-            scope: scope.id,
-            ...ObjectReference.columns("delegator", delegator),
-            ...ObjectReference.columns("delegate", delegate),
-            delegateSpaceId: Grant.spaceId(delegate),
-            permissions: [...input.permissions],
-            expiresAt: input.expiresAt ?? null,
-            sessionId: input.sessionId ?? null,
+            return grant;
         });
-        await authorization.transaction.write({ table: accessGrant, before: null, after: grant });
-
-        return grant;
     },
 
     /** Revoke a grant, as its delegator. */
-    async revoke(
+    revoke(
         scope: ObjectReference,
         id: Identifier<"grant">,
         authorization: Authorization,
     ): Promise<Grant> {
-        // write only the grants of a homed scope
-        await authorization.authorizer.requireHome(authorization.transaction, scope, scope.id);
+        return authorization.trace("grant.revoke", async () => {
+            // write only the grants of a homed scope
+            await authorization.authorizer.requireHome(authorization.transaction, scope, scope.id);
 
-        // require the grant in the scope and its delegator acting as itself
-        const context = authorization.context();
-        const delegator = Caller.principal(context);
-        const grant = await Grant.read(authorization.snapshot, id);
-        if (grant === undefined || grant.scope !== scope.id) {
-            throw AccessError.of("GRANT_NOT_FOUND", `grant '${id}' not found`);
-        } else if (
-            delegator === undefined ||
-            Caller.isDelegated(context) ||
-            !Subject.same(delegator, ObjectReference.at("delegator", grant))
-        ) {
-            throw AccessError.of(
-                "DELEGATOR_DENIED",
-                "grant revocation is forbidden: only the delegator can revoke a grant",
-            );
-        }
+            // require the grant in the scope and its delegator acting as itself
+            const context = authorization.context();
+            const delegator = Caller.principal(context);
+            const grant = await Grant.read(authorization.snapshot, id);
+            if (grant === undefined || grant.scope !== scope.id) {
+                throw AccessError.of("GRANT_NOT_FOUND", `grant '${id}' not found`);
+            } else if (
+                delegator === undefined ||
+                Caller.isDelegated(context) ||
+                !Subject.same(delegator, ObjectReference.at("delegator", grant))
+            ) {
+                throw AccessError.of(
+                    "DELEGATOR_DENIED",
+                    "grant revocation is forbidden: only the delegator can revoke a grant",
+                );
+            }
 
-        // delete it
-        await authorization.transaction.write({ table: accessGrant, before: grant, after: null });
+            // delete it
+            await authorization.transaction.write({
+                table: accessGrant,
+                before: grant,
+                after: null,
+            });
 
-        return grant;
+            return grant;
+        });
     },
 };

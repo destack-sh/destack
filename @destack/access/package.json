@@ -18,7 +18,8 @@
         "@destack/identity": "workspace:*",
         "@destack/package": "workspace:*",
         "@destack/schema": "workspace:*",
-        "@destack/sync": "workspace:*"
+        "@destack/sync": "workspace:*",
+        "@destack/telemetry": "workspace:*"
     },
     "devDependencies": {
         "@destack/environment": "workspace:*",
