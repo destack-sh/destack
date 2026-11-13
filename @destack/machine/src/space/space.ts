@@ -603,6 +603,7 @@ export class Space {
         lock: Digest,
         account: Identifier<"account">,
         tag: string,
+        commit: string | undefined,
         caller: Caller,
         requested: GrantRequest,
     ): Promise<readonly PackageRelease[]> {
@@ -630,7 +631,7 @@ export class Space {
             [...this.machine.shipped.values()],
         );
 
-        return await forges.publish(store, lock, account, tag);
+        return await forges.publish(store, lock, account, tag, commit);
     }
 
     /** Lease a repository of the space's account to read, at the forge in its residency's home. */
@@ -758,8 +759,8 @@ export class Space {
             isServingHostnames: machine.isServingHostnames,
             runtimes: machine.runtimes,
             registry: machine.releases,
-            publish: (store, lock, account, tag, caller, requested) =>
-                this.#publish(store, lock, account, tag, caller, requested),
+            publish: (store, lock, account, tag, commit, caller, requested) =>
+                this.#publish(store, lock, account, tag, commit, caller, requested),
             buckets,
             builds: this.builds,
             blobs: this.blobs,
