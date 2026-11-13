@@ -15,12 +15,18 @@ import type {} from "@destack/package/import-meta";
 import { AccountError } from "../error/error.ts";
 import { StoreRelationship } from "./relationship.ts";
 
+/** The relationship letting every machine verify a machine's keys. */
+const PEERS = {
+    relationships: [{ relation: "peers", subject: principal.machine.reference("*", "*") }],
+};
+
 /** Implement machines. */
 export function implementMachine(): typeof machine {
     return machine.implement({
         methods: {
-            enroll,
-            declare,
+            // let every machine verify a new machine's keys, as its peers in moves
+            enroll: { handle: enroll, creation: () => PEERS },
+            declare: { handle: declare, creation: () => PEERS },
             delete: remove,
             relay,
             enable: (call) => transition(call, "enabled"),

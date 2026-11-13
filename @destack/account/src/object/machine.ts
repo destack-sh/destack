@@ -193,11 +193,18 @@ export const machine = defineObject(
             relations: {
                 tenant: { subjects: [account.members("member")], grantedBy: "share" },
                 self: { subjects: [principal.machine], grantedBy: null },
+                // NOTE #Security: every machine verifies every machine's keys, to check its peers in moves
+                peers: { subjects: [principal.machine.all()] },
             },
             permissions: {
                 read: union(relation("tenant"), relation("self"), permission("relay")),
                 list: union(permission("read"), through("account", "serve")),
-                verify: union(relation("tenant"), relation("self"), through("account", "serve")),
+                verify: union(
+                    relation("tenant"),
+                    relation("self"),
+                    relation("peers"),
+                    through("account", "serve"),
+                ),
                 enroll: none(),
                 rotate: relation("self"),
                 rename: relation("self"),
