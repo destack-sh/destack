@@ -1098,7 +1098,7 @@ export class Computer implements AsyncDisposable {
             shutdown: () => stopping.abort(),
             close: async () => {
                 // note the stop while the machine's telemetry still runs, then close everything
-                note("machine.stopped");
+                note("destack.machine.stopped");
                 await cleanup.disposeAsync();
             },
             ready: async ([address]) => {
@@ -1118,7 +1118,7 @@ export class Computer implements AsyncDisposable {
                     machine: started.machine.id,
                     device: started.device.id,
                 });
-                note("machine.started", {
+                note("destack.machine.started", {
                     "process.pid": environment.process.id,
                     "server.port": listening,
                 });

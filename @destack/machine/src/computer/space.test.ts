@@ -711,7 +711,7 @@ test(
                     { limit: 10 },
                 )
             ).events
-                .filter((entry) => entry.keys.name === "workload.started")
+                .filter((entry) => entry.keys.name === "destack.workload.started")
                 .map((entry) => [
                     entry.keys.installationId,
                     LogData.parse(entry.data).instance,
@@ -933,6 +933,7 @@ test(
         const refused = await computer
             .install(login.id, space, build, "board", { isolation: "host" })
             .catch((error: unknown) => (error instanceof Error ? error.message : String(error)));
+        await world.simulation.idle();
 
         // fail the rollout for good, reporting why once, and serve nothing of the board in the machine's process
         const message =
