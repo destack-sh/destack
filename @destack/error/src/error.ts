@@ -32,6 +32,11 @@ export type CallErrorCode = keyof typeof CALL_ERROR_STATUSES;
 
 /** Recognise call error codes and read them from statuses. */
 export const CallErrorCode = {
+    /** Every call error code. */
+    codes: Object.keys(CALL_ERROR_STATUSES).filter((code): code is CallErrorCode =>
+        Object.hasOwn(CALL_ERROR_STATUSES, code),
+    ),
+
     /** Report whether a code is a call error code. */
     is(code: string): code is CallErrorCode {
         return Object.hasOwn(CALL_ERROR_STATUSES, code);

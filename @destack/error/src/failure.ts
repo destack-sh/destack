@@ -1,9 +1,6 @@
 import { JsonValue, schema } from "@destack/schema";
 import { CALL_ERROR_STATUSES, CallErrorCode, DomainError, ErrorCondition } from "./error.ts";
 
-/** The call error codes, in the order their statuses declare them. */
-const CALL_ERROR_CODES = Object.keys(CALL_ERROR_STATUSES).filter((code) => CallErrorCode.is(code));
-
 /** The conditions a later attempt may get past: a lost race, a move, an outage. */
 const TRANSIENT_CONDITIONS: ReadonlySet<ErrorCondition> = new Set([
     "CONFLICT",
@@ -41,7 +38,7 @@ export const FailureReason = schema
 /** The schema of a call's failure. */
 const failureSchema = schema.object({
     /** The call error code, such as CONFLICT. */
-    code: schema.enum(CALL_ERROR_CODES),
+    code: schema.enum(CallErrorCode.codes),
     /** The failure's stable cause within its domain, such as REVISION_STALE. */
     reason: FailureReason,
     /** The package whose reason it is, such as @destack/object, or http. */
