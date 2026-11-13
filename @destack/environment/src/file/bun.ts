@@ -444,11 +444,12 @@ export class BunFileSystem implements FileSystem {
                 throw new TypeError(`the host reported a change under '${path}' without its path`);
             }
 
-            // classify the change by the names known
+            // classify the change by the names known, a removal once, as a host may report it twice
             const isPresent = await this.exists(join(path, name));
             if (!isPresent) {
-                known.delete(name);
-                yield { kind: "remove", path: name };
+                if (known.delete(name)) {
+                    yield { kind: "remove", path: name };
+                }
             } else if (known.has(name)) {
                 yield { kind: "modify", path: name };
             } else {
