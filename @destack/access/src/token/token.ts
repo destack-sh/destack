@@ -1,7 +1,7 @@
 import { Bearer } from "./bearer.ts";
 import { PackageId } from "@destack/package";
 import type { Environment } from "@destack/environment";
-import { Jwks, type JwkSet, Jwt, type KeyLookup } from "@destack/identity";
+import { IdentityError, Jwk, Jwks, type JwkSet, Jwt, type KeyLookup } from "@destack/identity";
 import { schema } from "@destack/schema";
 import { Scope, Subject } from "@destack/sync";
 import {
@@ -17,10 +17,6 @@ import { AccessError } from "../error/index.ts";
 import { TelemetryScope } from "@destack/telemetry";
 import type {} from "@destack/package/import-meta";
 
-/** The longest interval between public key refreshes, in milliseconds. */
-export const KEY_CACHE_MILLISECONDS = 60000;
-/** The longest key discovery wait and the pause after a failed one, in milliseconds. */
-export const KEY_TIMEOUT_MILLISECONDS = 5000;
 /** The longest lifetime of a token and of the verified identity and membership records in it. */
 export const TOKEN_LIFETIME_MILLISECONDS = 60000;
 /** The credential kind of a machine's key. */
@@ -132,79 +128,44 @@ export const AccessToken = schema
 /** An access token as RFC 9068 shapes it. */
 export type AccessToken = schema.Infer<typeof AccessToken>;
 
-/** Verify partition-bound access tokens. */
+/** Verify partition-bound access tokens from the issuers it trusts, for any audience. */
 export class TokenVerifier {
     /** The verifier configuration. */
     readonly options: TokenVerifierOptions;
-    /** The cached public keys. */
-    readonly keys: KeyLookup;
     /** The verifier's spans and measures. */
     readonly #scope: TelemetryScope;
+    /** Each issuer's last key set and its lookup, importing each key once per set. */
+    readonly #lookups = new Map<
+        string,
+        { readonly set: string; readonly lookup: Promise<KeyLookup> }
+    >();
 
     /** Create the verifier. */
     constructor(options: TokenVerifierOptions) {
-        // store the options and the verifier's scope
         this.options = options;
         this.#scope = TelemetryScope.of(import.meta.destack.package, options.environment.telemetry);
-
-        // fetch keys over plain HTTP only from loopback
-        for (const url of options.keys instanceof URL ? [options.keys] : []) {
-            if (
-                url.protocol !== "https:" &&
-                !(
-                    url.protocol === "http:" &&
-                    ["localhost", "127.0.0.1", "[::1]"].includes(url.hostname)
-                )
-            ) {
-                throw AccessError.of(
-                    "KEYS_BLOCKED",
-                    "cannot authenticate: authentication requires HTTPS outside loopback",
-                );
-            }
-        }
-
-        // cache a remote key set on the clock, or take a key set a directory stores
-        const { environment } = options;
-        this.keys =
-            typeof options.keys === "function"
-                ? options.keys
-                : options.keys instanceof URL
-                  ? Jwks.remote(
-                        options.keys,
-                        {
-                            fetch: (request) => environment.network.fetch(request),
-                            maxAge: KEY_CACHE_MILLISECONDS,
-                            cooldown: KEY_TIMEOUT_MILLISECONDS,
-                            timeout: KEY_TIMEOUT_MILLISECONDS,
-                        },
-                        environment,
-                    )
-                  : Jwks.local(options.keys, environment.crypto);
     }
 
-    /** Verify a request's bearer token at a time, optionally for one partition. */
-    async authenticate(
-        request: Request,
-        now: number,
-        partition?: PartitionId,
-    ): Promise<Authentication> {
-        return this.verify(Bearer.require(request.headers), now, partition);
+    /** Verify a request's bearer token. */
+    async authenticate(request: Request, verification: TokenVerification): Promise<Authentication> {
+        return this.verify(Bearer.require(request.headers), verification);
     }
 
-    /** Verify an access token at a time, optionally for one partition. */
-    verify(token: string, now: number, partition?: PartitionId): Promise<Authentication> {
+    /** Verify an access token for an audience at a time, optionally for one partition. */
+    verify(token: string, verification: TokenVerification): Promise<Authentication> {
         return this.#scope.span(
             "destack.access.token.verify",
             {},
-            () => this.#verify(token, now, partition),
+            () => this.#verify(token, verification),
             { duration: { attributes: {} } },
         );
     }
 
     /** Verify a token's signature, claims, partition and client. */
-    async #verify(token: string, now: number, partition?: PartitionId): Promise<Authentication> {
-        // verify the signature and registered claims
-        const payload = await this.#verifySignature(token, now);
+    async #verify(token: string, verification: TokenVerification): Promise<Authentication> {
+        // verify the signature and registered claims by the token's trusted issuer
+        const { audience, now, partition } = verification;
+        const { payload, issuer } = await this.#verifySignature(token, verification);
 
         // parse the claims and check the partition and the client
         const result = AccessToken.safeParse(payload);
@@ -243,7 +204,7 @@ export class TokenVerifier {
         const credential: Credential = {
             ...presented,
             ...client,
-            audience: this.options.audience,
+            audience,
             ...(claims.partition === undefined ? {} : { scope: claims.partition }),
             verifiedAt,
             expiresAt: Math.min(claims.exp * 1000, verifiedAt + lifetime),
@@ -251,22 +212,56 @@ export class TokenVerifier {
         };
 
         // require it current and within its issuer's authority
-        Credential.requireCurrent(credential, this.options.audience, now, claims.partition);
-        TokenIssuerAuthority.require(this.options.authority, { caller, credential });
+        Credential.requireCurrent(credential, audience, now, claims.partition);
+        TokenIssuerAuthority.require(issuer.authority, { caller, credential });
 
         return { caller, credential };
     }
 
-    /** Verify a token's signature and registered claims, returning its payload. */
-    async #verifySignature(token: string, now: number): Promise<unknown> {
+    /** Find an issuer's lookup of a key set, importing a changed set's keys once. */
+    #lookup(issuer: string, keys: JwkSet): Promise<KeyLookup> {
+        // reuse the lookup of an unchanged set
+        const set = JSON.stringify(keys);
+        const known = this.#lookups.get(issuer);
+        if (known?.set === set) {
+            return known.lookup;
+        }
+
+        // identify each key by its thumbprint unless it has an identifier, then look up the set
+        const { crypto } = this.options.environment;
+        const identified = keys.keys.map(async (jwk) =>
+            jwk.kid === undefined ? { ...jwk, kid: await Jwk.thumbprint(jwk, crypto) } : jwk,
+        );
+        const lookup = Promise.all(identified).then((each) => Jwks.local({ keys: each }, crypto));
+        this.#lookups.set(issuer, { set, lookup });
+
+        return lookup;
+    }
+
+    /** Verify a token's signature and registered claims by its trusted issuer, returning both. */
+    async #verifySignature(
+        token: string,
+        { audience, now }: TokenVerification,
+    ): Promise<{ readonly payload: unknown; readonly issuer: TokenTrust }> {
         try {
+            // resolve the token's issuer, refusing one the verifier does not trust
+            const name = Bearer.issuer(token);
+            const issuer = name === undefined ? undefined : await this.options.issuers(name);
+            if (name === undefined || issuer === undefined) {
+                throw IdentityError.of(
+                    "ISSUER_UNAUTHENTICATED",
+                    "authentication required: the token's issuer is not trusted",
+                );
+            }
+
+            // verify the signature and registered claims by its keys
             const { claims } = await Jwt.verify(
                 token,
-                this.keys,
+                async (header) => (await this.#lookup(name, issuer.keys))(header),
                 {
                     typ: ACCESS_TOKEN_TYPE,
-                    issuer: this.options.issuer,
-                    audience: PackageId.resource(this.options.audience),
+                    issuer: name,
+                    audience: PackageId.resource(audience),
                     algorithms: ["ES256"],
                     requiredClaims: ["iss", "aud", "sub", "client_id", "iat", "exp", "jti"],
                     maxTokenAge: (this.options.lifetime ?? TOKEN_LIFETIME_MILLISECONDS) / 1000,
@@ -276,7 +271,7 @@ export class TokenVerifier {
                 this.options.environment.crypto,
             );
 
-            return claims;
+            return { payload: claims, issuer };
         } catch (error) {
             throw Bearer.refusal(error, "TOKEN_UNAUTHENTICATED", "invalid access token");
         }
@@ -285,18 +280,30 @@ export class TokenVerifier {
 
 /** The configuration of a token verifier. */
 export interface TokenVerifierOptions {
-    /** The identity authority of the trusted keys. */
-    readonly authority: TokenIssuerAuthority;
-    /** The issuer, a URL for a remote key set or a host identifier for its host keys. */
-    readonly issuer: string;
-    /** The receiving package. */
-    readonly audience: PackageId;
-    /** The public keys, an HTTPS JWKS endpoint, or a key set a directory stores. */
-    readonly keys: URL | JwkSet | KeyLookup;
-    /** The clock caching remote keys, the network fetching them, and the WebCrypto verifying. */
-    readonly environment: Pick<Environment, "clock" | "crypto" | "network" | "telemetry">;
+    /** Resolve an issuer to the verifier's trust in it, absent for an untrusted issuer. */
+    readonly issuers: (issuer: string) => Promise<TokenTrust | undefined>;
+    /** The WebCrypto verifying, and the telemetry tracing each verify. */
+    readonly environment: Pick<Environment, "crypto" | "telemetry">;
     /** The longest lifetime of the tokens it accepts, a minute by default. */
     readonly lifetime?: number;
+}
+
+/** The trust in an issuer: the identities it may assert and its current keys. */
+export interface TokenTrust {
+    /** The identities the issuer's keys may assert. */
+    readonly authority: TokenIssuerAuthority;
+    /** The issuer's current keys, identified by thumbprint when they have no identifier. */
+    readonly keys: JwkSet;
+}
+
+/** What one verify checks a token for. */
+export interface TokenVerification {
+    /** The receiving package. */
+    readonly audience: PackageId;
+    /** The time of the verify. */
+    readonly now: number;
+    /** The partition the token must be bound to, any when absent. */
+    readonly partition?: PartitionId;
 }
 
 /** The identities an issuer's keys may assert. */

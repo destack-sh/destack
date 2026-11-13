@@ -45,10 +45,13 @@ test("verify scoped tokens and reject invalid claims and signatures", async () =
         },
     };
     const verifier = new TokenVerifier({
-        authority: { kind: "universe" },
-        issuer,
-        audience,
-        keys: { keys: [publicKey] },
+        issuers: async (name) =>
+            name === issuer
+                ? {
+                      authority: { kind: "universe" },
+                      keys: { keys: [publicKey] },
+                  }
+                : undefined,
         environment: world,
     });
     const signed = await Jwt.sign(
@@ -60,7 +63,11 @@ test("verify scoped tokens and reject invalid claims and signatures", async () =
     const request = new Request("https://notes.example", {
         headers: { authorization: `Bearer ${signed}` },
     });
-    const authentication = await verifier.authenticate(request, issuedAt * 1000, spaceId);
+    const authentication = await verifier.authenticate(request, {
+        audience: audience,
+        now: issuedAt * 1000,
+        partition: spaceId,
+    });
     expect(current(authentication, audience, issuedAt * 1000, spaceId).subject).toEqual(subject);
     expect(() => current(authentication, audience, issuedAt * 1000, "another-space")).toThrow(
         "authentication required: caller authentication has a different audience or scope",
@@ -84,8 +91,7 @@ test("verify scoped tokens and reject invalid claims and signatures", async () =
                     )}`,
                 },
             }),
-            issuedAt * 1000,
-            spaceId,
+            { audience: audience, now: issuedAt * 1000, partition: spaceId },
         );
     const impersonated = current(
         await impersonate(administrator),
@@ -135,8 +141,7 @@ test("verify scoped tokens and reject invalid claims and signatures", async () =
             await refusal(
                 verifier.authenticate(
                     new Request(request, { headers: { authorization: `Bearer ${token}` } }),
-                    issuedAt * 1000,
-                    spaceId,
+                    { audience: audience, now: issuedAt * 1000, partition: spaceId },
                 ),
             ),
         );
@@ -171,8 +176,7 @@ test("verify scoped tokens and reject invalid claims and signatures", async () =
                     authorization: `Bearer ${await Jwt.sign(payload, { alg: "ES256", kid: "current", typ }, keys.privateKey, world.crypto)}`,
                 },
             }),
-            issuedAt * 1000,
-            spaceId,
+            { audience: audience, now: issuedAt * 1000, partition: spaceId },
         );
     const several = await typed(
         { ...claims, aud: [PackageId.resource(audience), "urn:destack:package:other"] },
@@ -200,64 +204,22 @@ test("verify scoped tokens and reject invalid claims and signatures", async () =
         await refusal(
             verifier.authenticate(
                 new Request(request, { headers: { authorization: `Bearer ${forged}` } }),
-                TEST_START,
-                spaceId,
+                { audience: audience, now: TEST_START, partition: spaceId },
             ),
         ),
     ).toEqual(["UNAUTHORIZED", "TOKEN_UNAUTHENTICATED", "invalid access token"]);
-    expect(await refusal(verifier.authenticate(request, (issuedAt + 60) * 1000, spaceId))).toEqual([
+    expect(
+        await refusal(
+            verifier.authenticate(request, {
+                audience: audience,
+                now: (issuedAt + 60) * 1000,
+                partition: spaceId,
+            }),
+        ),
+    ).toEqual([
         "UNAUTHORIZED",
         "SESSION_UNAUTHENTICATED",
         "authentication required: caller authentication is not current",
-    ]);
-
-    // reuse cached public keys during an outage
-    let isAvailable = true;
-    let reads = 0;
-    const remote = new TokenVerifier({
-        authority: { kind: "universe" },
-        issuer,
-        audience,
-        keys: new URL(`${issuer}/jwks`),
-        environment: {
-            ...world,
-            network: {
-                ...world.network,
-                fetch: async () => {
-                    reads++;
-
-                    return isAvailable
-                        ? Response.json({ keys: [publicKey] })
-                        : new Response(null, { status: 503 });
-                },
-            },
-        },
-    });
-    await remote.authenticate(request, issuedAt * 1000, spaceId);
-    isAvailable = false;
-    await remote.authenticate(request, (issuedAt + 30) * 1000, spaceId);
-    expect(reads).toBe(1);
-    expect(await refusal(remote.authenticate(request, (issuedAt + 60) * 1000, spaceId))).toEqual([
-        "UNAUTHORIZED",
-        "SESSION_UNAUTHENTICATED",
-        "authentication required: caller authentication is not current",
-    ]);
-
-    // require discovery without cached public keys
-    const disconnected = new TokenVerifier({
-        authority: { kind: "universe" },
-        issuer,
-        audience,
-        keys: new URL(`${issuer}/jwks`),
-        environment: {
-            ...world,
-            network: { ...world.network, fetch: async () => new Response(null, { status: 503 }) },
-        },
-    });
-    expect(await refusal(disconnected.authenticate(request, issuedAt * 1000, spaceId))).toEqual([
-        "SERVICE_UNAVAILABLE",
-        "KEYS_UNAVAILABLE",
-        "authentication key set is unavailable: the keys did not load",
     ]);
 
     // sign and verify workload identity, delegates and their grants
@@ -307,8 +269,7 @@ test("verify scoped tokens and reject invalid claims and signatures", async () =
         new Request(request, {
             headers: { authorization: `Bearer ${issued.accessToken}` },
         }),
-        issuedAt * 1000,
-        spaceId,
+        { audience: audience, now: issuedAt * 1000, partition: spaceId },
     );
     const access = current(represented, audience, issuedAt * 1000, spaceId);
     expect({
@@ -347,8 +308,7 @@ test("verify scoped tokens and reject invalid claims and signatures", async () =
         new Request(request, {
             headers: { authorization: `Bearer ${chained.accessToken}` },
         }),
-        issuedAt * 1000,
-        spaceId,
+        { audience: audience, now: issuedAt * 1000, partition: spaceId },
     );
     const chainedAccess = current(chainedCaller, audience, issuedAt * 1000, spaceId);
     expect([
@@ -409,8 +369,7 @@ test("verify scoped tokens and reject invalid claims and signatures", async () =
                     new Request(request, {
                         headers: { authorization: `Bearer ${token}` },
                     }),
-                    issuedAt * 1000,
-                    spaceId,
+                    { audience: audience, now: issuedAt * 1000, partition: spaceId },
                 ),
             ),
         );
@@ -446,13 +405,24 @@ test("verify scoped tokens and reject invalid claims and signatures", async () =
         "authentication required: token exceeds issuer authority",
     ]);
     const localVerifier = new TokenVerifier({
-        authority: { kind: "space", space: spaceId },
-        issuer,
-        audience,
-        keys: { keys: [publicKey] },
+        issuers: async (name) =>
+            name === issuer
+                ? {
+                      authority: { kind: "space", space: spaceId },
+                      keys: { keys: [publicKey] },
+                  }
+                : undefined,
         environment: world,
     });
-    expect(await refusal(localVerifier.authenticate(request, issuedAt * 1000, spaceId))).toEqual([
+    expect(
+        await refusal(
+            localVerifier.authenticate(request, {
+                audience: audience,
+                now: issuedAt * 1000,
+                partition: spaceId,
+            }),
+        ),
+    ).toEqual([
         "UNAUTHORIZED",
         "TOKEN_OUTSIDE_AUTHORITY_UNAUTHENTICATED",
         "authentication required: token exceeds issuer authority",
@@ -473,8 +443,7 @@ test("verify scoped tokens and reject invalid claims and signatures", async () =
         new Request(request, {
             headers: { authorization: `Bearer ${workloadToken.accessToken}` },
         }),
-        issuedAt * 1000,
-        spaceId,
+        { audience: audience, now: issuedAt * 1000, partition: spaceId },
     );
     expect(received.caller.subject).toEqual(actor);
     expect(received.credential.deployments).toEqual([{ subject: actor, id: deploymentId }]);
@@ -498,8 +467,7 @@ test("verify scoped tokens and reject invalid claims and signatures", async () =
     const keyedToken = await local.issue(keyed, issuedAt * 1000, world);
     const keyedCaller = await localVerifier.authenticate(
         new Request(request, { headers: { authorization: `Bearer ${keyedToken.accessToken}` } }),
-        issuedAt * 1000,
-        spaceId,
+        { audience: audience, now: issuedAt * 1000, partition: spaceId },
     );
     expect([keyedCaller.caller.subject, keyedCaller.credential.deployments]).toEqual([
         actor,
@@ -535,8 +503,7 @@ test("verify scoped tokens and reject invalid claims and signatures", async () =
         new Request(request, {
             headers: { authorization: `Bearer ${spaceKeyedToken.accessToken}` },
         }),
-        issuedAt * 1000,
-        spaceId,
+        { audience: audience, now: issuedAt * 1000, partition: spaceId },
     );
     expect([spaceKeyedCaller.caller.subject, spaceKeyedCaller.credential.deployments]).toEqual([
         actor,
@@ -591,13 +558,16 @@ test("issue the universe a token of its key, verified without a separate client"
 
     // verify it as the universe with no separate client
     const verifier = new TokenVerifier({
-        authority: { kind: "universe" },
-        issuer,
-        audience,
-        keys: { keys: [publicKey] },
+        issuers: async (name) =>
+            name === issuer
+                ? {
+                      authority: { kind: "universe" },
+                      keys: { keys: [publicKey] },
+                  }
+                : undefined,
         environment: world,
     });
-    const verified = await verifier.verify(issued.accessToken, now);
+    const verified = await verifier.verify(issued.accessToken, { audience: audience, now: now });
     expect([verified.caller.subject, verified.credential.client]).toEqual([subject, undefined]);
 });
 
