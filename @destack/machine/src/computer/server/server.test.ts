@@ -15,7 +15,7 @@ import {
 import * as accountObject from "@destack/account/object";
 import { type DatabaseConnection, eq, or, Snapshot } from "@destack/db";
 import { PackageManifest } from "@destack/package/manifest";
-import { nth, Identifier, present, schema } from "@destack/schema";
+import { nth, Identifier, present, schema, Version } from "@destack/schema";
 import { CallError } from "@destack/object";
 import observabilityPackage from "@destack/observability/package";
 import { createClient } from "@destack/object/client";
@@ -70,6 +70,9 @@ const STACK_CHECKOUT: Readonly<Record<string, string>> = {
     "stack/src/index.ts":
         'import { defineStack } from "@destack/stack";\n\n/** A space\'s stack, installing nothing. */\nexport const personal = defineStack({ types: [] });\n',
 };
+
+/** The author a test's commits carry, as the host's Git configuration may name none. */
+const GIT_IDENTITY = ["-c", "user.name=Test", "-c", "user.email=test@example.test"] as const;
 
 /** The space a watched preview names, which the test never builds in. */
 const PREVIEWED_SPACE = schema
@@ -605,7 +608,7 @@ test("let the machine's local client and its account's owner work its checkouts 
     ]);
 });
 
-test("register a working tree's directory, build its stack in a space as the person, and refuse a directory outside it", async () => {
+test("register a working tree's directory, build its stack in a space as the person, a prerelease while uncommitted and a release once committed, and refuse a directory outside it", async () => {
     // release the stack package with the board's closure, which the working tree installs
     const world = await TestComputer.world({ bundled: [await TestDistribution.fixture("board")] });
     const opened = await TestComputer.open({ world });
@@ -668,12 +671,17 @@ test("register a working tree's directory, build its stack in a space as the per
         throw new TypeError("the build has no lock");
     }
     const reader = await (await machine.space(space)).builds.root(built.lock);
+    const { version } = PackageManifest.package(reader.manifest);
     expect({
         checkout: registered,
         submission: evaluated,
         build,
         built: [built.source, built.outputs, built.state, built.phase, built.failure],
-        stored: [PackageManifest.package(reader.manifest).id, Object.keys(reader.manifest.outputs)],
+        stored: [
+            PackageManifest.package(reader.manifest).id,
+            Object.keys(reader.manifest.outputs),
+            Version.isPrerelease(version),
+        ],
     }).toEqual({
         checkout: {
             id: registered.id,
@@ -697,8 +705,24 @@ test("register a working tree's directory, build its stack in a space as the per
         },
         build: { kind: "build", build: built.id },
         built: [followed, ["bun", "workerd"], "succeeded", null, null],
-        stored: [STACK_CHECKOUT_PACKAGE, ["bun", "workerd"]],
+        stored: [STACK_CHECKOUT_PACKAGE, ["bun", "workerd"], true],
     });
+
+    // commit the working tree and build it again, a release now that its files match a commit
+    const git = (...command: readonly string[]) =>
+        testHost().process.spawn(["git", "-C", root, ...GIT_IDENTITY, ...command]).exited;
+    expect([await git("add", "--all"), await git("commit", "--quiet", "-m", "stack")]).toEqual([
+        0, 0,
+    ]);
+    const committed = (await submit("./stack/")).submission.build;
+    if (committed.kind !== "build") {
+        throw new TypeError("the submission names no build");
+    }
+    const rebuilt = await service.build.get({ spaceId: space, id: committed.build });
+    const released = await (
+        await machine.space(space)
+    ).builds.root(present(rebuilt.lock, "the lock"));
+    expect(Version.isPrerelease(PackageManifest.package(released.manifest).version)).toBe(false);
 
     // refuse a stack directory outside the working tree
     await expect(submit("..")).rejects.toEqual(
