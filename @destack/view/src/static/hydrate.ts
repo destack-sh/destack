@@ -33,7 +33,7 @@ export async function hydrateStatic(
     const page = await StaticPage.open(
         view,
         declared,
-        Environment.with(environment, { telemetry }),
+        Environment.instrument(environment, telemetry),
     );
     const dispose = hydrate(() => page.render(), document);
 
@@ -49,7 +49,7 @@ export async function hydrateIslands(
 ): Promise<void> {
     // load every island's component at once, each root with its module and properties
     const telemetry = await startPageTelemetry(view, environment);
-    const rendered = Environment.with(environment, { telemetry });
+    const rendered = Environment.instrument(environment, telemetry);
     const localization = Localization.of(SOURCE_LOCALE, []);
     const roots = [...document.querySelectorAll<HTMLElement>("[data-island]")];
     const loaded = await Promise.all(roots.map((root) => loadIsland(root, islands)));
