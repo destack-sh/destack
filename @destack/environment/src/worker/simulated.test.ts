@@ -1,5 +1,6 @@
 import { expect, test } from "@destack/test";
 import { Simulation } from "../simulation/simulation.ts";
+import { testWorldOptions } from "@destack/test/world";
 
 /** The start of the world, in UTC epoch milliseconds. */
 const START = Date.UTC(2026, 9, 1);
@@ -9,7 +10,11 @@ const MODULE = new URL("https://app.test/echo.worker.js");
 
 test("run a worker's body on a node of its own, answering messages as the world's work until terminated", async () => {
     // define a body echoing each message with its node's time
-    await using simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = new Simulation({
+        world: testWorldOptions(),
+        seed: 1,
+        start: START,
+    });
     simulation.workers.define(MODULE, (scope, environment) => {
         scope.addEventListener("message", (event) => {
             const echo: unknown = event.data;
@@ -41,7 +46,11 @@ test("run a worker's body on a node of its own, answering messages as the world'
 
 test("tell the parent of a worker whose body fails to run", async () => {
     // define a body failing as it starts, as a worker failing to load does
-    await using simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = new Simulation({
+        world: testWorldOptions(),
+        seed: 1,
+        start: START,
+    });
     const failing = new URL("https://app.test/failing.worker.js");
     simulation.workers.define(failing, () => {
         throw new Error("the database cannot open");

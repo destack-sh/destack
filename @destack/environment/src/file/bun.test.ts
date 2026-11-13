@@ -3,6 +3,7 @@ import { expect, refusal, test } from "@destack/test";
 import type { DirectoryEntry, FileEvent } from "./file.ts";
 import { Simulation } from "../simulation/index.ts";
 import { BunFileSystem } from "./bun.ts";
+import { testWorldOptions } from "@destack/test/world";
 
 /** The simulations' start: 2026-10-24 at midnight UTC. */
 const START = Date.UTC(2026, 9, 24);
@@ -17,7 +18,11 @@ function sorted(entries: readonly DirectoryEntry[]): DirectoryEntry[] {
 
 test("refuse a missing file as not found, a taken path as already existing, and a directory read as a file", async () => {
     // write a file in a temporary directory of a world
-    await using simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = new Simulation({
+        world: testWorldOptions(),
+        seed: 1,
+        start: START,
+    });
     const { files } = simulation.environment("host");
     const directory = await files.makeTemporaryDirectory("files-");
     await files.writeTextFile(join(directory, "present.json"), "{}");
@@ -49,7 +54,11 @@ test("refuse a missing file as not found, a taken path as already existing, and 
 
 test("create a user's private runtime directory once, refusing another user's, one others may open, and a link", async () => {
     // create the user's directory twice, and prepare another's, an opened one and a link
-    await using simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = new Simulation({
+        world: testWorldOptions(),
+        seed: 1,
+        start: START,
+    });
     const { files } = simulation.environment("host");
     const parent = await files.makeTemporaryDirectory("runtime-");
     const own = join(parent, "own");
@@ -111,7 +120,11 @@ test("remove an empty directory without recursion and refuse a full one, and lis
 
 test("remove a missing path when forced, and refuse it as not found otherwise", async () => {
     // remove a path that never existed, forced and then not
-    await using simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = new Simulation({
+        world: testWorldOptions(),
+        seed: 1,
+        start: START,
+    });
     const { files } = simulation.environment("host");
     const missing = join(await files.makeTemporaryDirectory("remove-"), "missing");
 
@@ -126,7 +139,11 @@ test("remove a missing path when forced, and refuse it as not found otherwise", 
 
 test("list a directory's entries by name, and every entry below it by relative path when recursive", async () => {
     // write a file beside a subdirectory with a file inside
-    await using simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = new Simulation({
+        world: testWorldOptions(),
+        seed: 1,
+        start: START,
+    });
     const { files } = simulation.environment("host");
     const directory = await files.makeTemporaryDirectory("list-");
     await files.mkdir(join(directory, "nested"));
@@ -151,7 +168,11 @@ test("list a directory's entries by name, and every entry below it by relative p
 
 test("read and write a file at its cursor after a seek, append at its end, and flush a directory", async () => {
     // write a file, then overwrite one byte at an offset and append after it
-    await using simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = new Simulation({
+        world: testWorldOptions(),
+        seed: 1,
+        start: START,
+    });
     const { files } = simulation.environment("host");
     const directory = await files.makeTemporaryDirectory("cursor-");
     const path = join(directory, "note.txt");
@@ -195,7 +216,11 @@ test("read and write a file at its cursor after a seek, append at its end, and f
 
 test("create a temporary directory inside a given directory", async () => {
     // create one directory inside another temporary one
-    await using simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = new Simulation({
+        world: testWorldOptions(),
+        seed: 1,
+        start: START,
+    });
     const { files } = simulation.environment("host");
     const parent = await files.makeTemporaryDirectory("parent-");
     const child = await files.makeTemporaryDirectory("child-", { directory: parent });
@@ -207,7 +232,11 @@ test("create a temporary directory inside a given directory", async () => {
 
 test("refuse reading below a directory without permissions as denied", async () => {
     // write a file into a directory, then take every permission from the directory
-    await using simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = new Simulation({
+        world: testWorldOptions(),
+        seed: 1,
+        start: START,
+    });
     const { files } = simulation.environment("host");
     const directory = await files.makeTemporaryDirectory("denied-");
     const locked = join(directory, "locked");
@@ -265,7 +294,11 @@ test("watch a host directory from the call on, reading a new file as created, a 
 
 test("watch a world's directory, reading the world's own writes as created, modified and removed, until aborted", async () => {
     // watch a temporary directory of the world's host files
-    await using simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = new Simulation({
+        world: testWorldOptions(),
+        seed: 1,
+        start: START,
+    });
     const { files } = simulation.environment("host");
     const directory = await files.makeTemporaryDirectory("watch-");
     const stopping = new AbortController();

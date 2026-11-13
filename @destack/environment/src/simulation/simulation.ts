@@ -22,6 +22,7 @@ import { Random } from "../random/random.ts";
 import type { World, WorldStep } from "../world/world.ts";
 import { Clock } from "../clock/clock.ts";
 import { yieldToEventLoop } from "../clock/wait.ts";
+import { WorldOptions } from "./options.ts";
 
 /** The turns world work may spin between completions: at about 1 µs a turn, 200 ms. */
 const LIVELOCK_TURNS = 200_000;
@@ -253,8 +254,8 @@ export interface SimulationOptions {
     readonly longStallTimeout?: number;
     /** The turns world work may spin between completions before it fails as busy. */
     readonly livelockTurns?: number;
-    /** Whether real work settles after a seeded random real delay, exposing untracked real work. */
-    readonly jitter?: boolean;
+    /** The options the run gives every world: jitter and readback. */
+    readonly world: WorldOptions;
     /** Whether the world's telemetry records its events and tracked work, off by default. */
     readonly isTracing?: boolean;
     /** The most each node's clock is off the world's and drifts from it, none by default. */
@@ -347,7 +348,7 @@ export class Simulation {
         this.scheduler = new SimulatedScheduler({
             isOrdered: true,
             world: this,
-            ...(options.jitter === true ? { jitter: options.seed } : {}),
+            ...(options.world.isJittered ? { jitter: options.seed } : {}),
             ...(options.isTracing === true ? { telemetry: this.telemetry } : {}),
         });
         this.network = new SimulatedNetwork(this.clock, this.scheduler, this.random, (event) =>
@@ -385,7 +386,7 @@ export class Simulation {
     static fork(
         recorded: { readonly seed: number; readonly start: number },
         label: string,
-        options: SimulationOptions = {},
+        options: SimulationOptions,
     ): Simulation {
         return new Simulation({
             ...options,
@@ -408,6 +409,9 @@ export class Simulation {
 
     /** Stop the world's loop, remove the nodes' files, and stop the telemetry's context. */
     async #dispose(): Promise<void> {
+        // describe what the world spent, when the run asks
+        await this.#options.world.describe(() => this.telemetry.describe());
+
         // stop the loop, completing operations at once from now on, then refuse a failure no wait took
         this.#isRunning = false;
         this.#wake?.();
@@ -497,7 +501,7 @@ export class Simulation {
     }
 
     /** Start a world's simulation from its seed and start, its steps left to take. */
-    static of(world: World<unknown>, options: SimulationOptions = {}): Simulation {
+    static of(world: World<unknown>, options: SimulationOptions): Simulation {
         return new Simulation({ ...options, seed: world.seed, start: world.start });
     }
 

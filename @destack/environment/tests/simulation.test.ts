@@ -6,12 +6,15 @@ import {
     SimulatedClock,
     SimulatedRandom,
     Simulation,
+    WorldOptions,
 } from "../src/simulation/index.ts";
 import type { ServerSocket, Socket } from "../src/index.ts";
 import { BunNetwork } from "../src/network/bun.ts";
 import { BunFileSystem } from "../src/file/bun.ts";
 import type { WorldStep } from "../src/world/world.ts";
 import { join } from "node:path";
+import { testWorldOptions } from "@destack/test/world";
+import { testHost } from "@destack/test/host";
 
 /** The workers racing on host work in a replayed world. */
 const WORKERS = 8;
@@ -98,7 +101,12 @@ function draw(seed: number) {
 
 test("trace work as spans on the world's clock, marking failed work, while tracing", async () => {
     // run an operation, jump a second, then run a world task that fails
-    await using simulation = new Simulation({ seed: 1, start: START, isTracing: true });
+    await using simulation = new Simulation({
+        world: testWorldOptions(),
+        seed: 1,
+        start: START,
+        isTracing: true,
+    });
     const { scheduler } = simulation;
     await scheduler.run(
         () =>
@@ -133,6 +141,7 @@ test("trace work as spans on the world's clock, marking failed work, while traci
 test("skew each node's clock from the seed, wait its own milliseconds on the world's timers, and bump it", async () => {
     // read two skewed nodes' clocks against the world's
     await using simulation = new Simulation({
+        world: testWorldOptions(),
         seed: 1,
         start: START,
         skew: { offset: 500, drift: 100 },
@@ -158,7 +167,7 @@ test("skew each node's clock from the seed, wait its own milliseconds on the wor
     });
 
     // refuse a bump of an unknown node, and of a node in a world without skew
-    await using plain = new Simulation({ seed: 1, start: START });
+    await using plain = new Simulation({ world: testWorldOptions(), seed: 1, start: START });
     expect(() => plain.bump("node", 1)).toThrow(new TypeError("the world has no node 'node'"));
     plain.environment("node");
     expect(() => plain.bump("node", 1)).toThrow(
@@ -168,7 +177,12 @@ test("skew each node's clock from the seed, wait its own milliseconds on the wor
 
 test("share files between nodes in memory, leaving the host's files untouched", async () => {
     // write a file from one node and read it from another in a memory world
-    await using simulation = new Simulation({ seed: 1, start: START, files: "memory" });
+    await using simulation = new Simulation({
+        world: testWorldOptions(),
+        seed: 1,
+        start: START,
+        files: "memory",
+    });
     const writer = simulation.environment("writer").files;
     const reader = simulation.environment("reader").files;
     const directory = await writer.makeTemporaryDirectory("notes-");
@@ -190,7 +204,11 @@ test("draw the same bytes and integers from the same seed, and others from anoth
 
 test("pause one route's bodies across a link until resumed, while other routes cross", async () => {
     // serve a node answering each path, and pause the bodies the server sends the client for /paused
-    await using simulation = new Simulation({ seed: 3, start: START });
+    await using simulation = new Simulation({
+        world: testWorldOptions(),
+        seed: 3,
+        start: START,
+    });
     simulation.network.server("server").http({
         hostname: "server.test",
         port: 443,
@@ -223,7 +241,12 @@ test("pause one route's bodies across a link until resumed, while other routes c
 test("route requests between nodes through latency, partitions and loss, replayed by the seed", async () => {
     const run = async (seed: number) => {
         // request through latency, tracing what happens
-        await using simulation = new Simulation({ seed, start: START, isTracing: true });
+        await using simulation = new Simulation({
+            world: testWorldOptions(),
+            seed,
+            start: START,
+            isTracing: true,
+        });
         simulation.network.server("server").http({
             hostname: "server.test",
             port: 443,
@@ -291,7 +314,11 @@ test("route requests between nodes through latency, partitions and loss, replaye
 
 test("route a name to its exact host first, else to the wildcard of its nearest enclosing name, and refuse the bare domain", async () => {
     // serve a wildcard below the domain, a nearer wildcard below it, and one exact host
-    await using simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = new Simulation({
+        world: testWorldOptions(),
+        seed: 1,
+        start: START,
+    });
     const serve = (node: string, hostname: string) =>
         simulation.network.server(node).http({
             hostname,
@@ -325,7 +352,11 @@ test("route a name to its exact host first, else to the wildcard of its nearest 
 
 test("route localhost and the names below it to the loopback listener of their port, as RFC 6761 reserves them", async () => {
     // serve the loopback on one port, and nothing on another
-    await using simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = new Simulation({
+        world: testWorldOptions(),
+        seed: 1,
+        start: START,
+    });
     simulation.network.server("machine").http({
         hostname: "127.0.0.1",
         port: 4000,
@@ -353,7 +384,11 @@ test("route localhost and the names below it to the loopback listener of their p
 
 test("skip simulated time to each next timer until a condition holds, and refuse a condition idle work never meets", async () => {
     // sleep a day, then wait on nothing
-    await using simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = new Simulation({
+        world: testWorldOptions(),
+        seed: 1,
+        start: START,
+    });
     let isAwake = false;
     void simulation.clock.sleep(24 * 60 * 60_000).then(() => (isAwake = true));
     await simulation.waitUntil(() => isAwake);
@@ -369,7 +404,11 @@ test("skip simulated time to each next timer until a condition holds, and refuse
 
 test("hold time back while tracked work is in flight, move to the next timer once it settles, and run to a time", async () => {
     // start a timer a minute out, and track work that settles on the system's time
-    await using simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = new Simulation({
+        world: testWorldOptions(),
+        seed: 1,
+        start: START,
+    });
     let isFired = false;
     void simulation.clock.sleep(60_000).then(() => (isFired = true));
     const work = Promise.withResolvers<void>();
@@ -410,7 +449,11 @@ async function answerSlowly(): Promise<Response> {
 
 test("hold the clock for an in-process call until its response head, and not for the long poll streamed after it", async () => {
     // answer a long poll at once, its body ending on a timer a minute out, and a slow call after a turn of work
-    await using simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = new Simulation({
+        world: testWorldOptions(),
+        seed: 1,
+        start: START,
+    });
     const longPoll = () =>
         new Response(
             new ReadableStream({
@@ -445,7 +488,11 @@ test("hold the clock for an in-process call until its response head, and not for
 
 test("count a node's WebCrypto operations in flight on the world's clock", async () => {
     // digest on a node's crypto, reading the work in flight at once and once it settled
-    await using simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = new Simulation({
+        world: testWorldOptions(),
+        seed: 1,
+        start: START,
+    });
     const { crypto } = simulation.environment("node");
     const digest = crypto.digest("SHA-256", new Uint8Array(4));
     const during = simulation.scheduler.inFlight;
@@ -457,7 +504,11 @@ test("count a node's WebCrypto operations in flight on the world's clock", async
 
 test("crash a node, losing its memory and stopping its work, and start it again from what it stored", async () => {
     // tick each second, counting starts
-    await using simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = new Simulation({
+        world: testWorldOptions(),
+        seed: 1,
+        start: START,
+    });
     const stored = { starts: 0 };
     let ticks = 0;
     const node = simulation.node("worker");
@@ -493,7 +544,11 @@ test("crash a node, losing its memory and stopping its work, and start it again 
 
 test("bridge the host into the world as a node, reaching an origin's requests and WebSockets at its .localhost name", async () => {
     // serve echo.test's sockets in the world, and bridge the host in as the lab
-    await using simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = new Simulation({
+        world: testWorldOptions(),
+        seed: 1,
+        start: START,
+    });
     const { events } = serveEcho(simulation, "server");
     const bridge = simulation.network.bridge("lab");
     const { port } = bridge.url;
@@ -527,7 +582,11 @@ test("bridge the host into the world as a node, reaching an origin's requests an
 
 test("close a bridged WebSocket at the world's end when the host closes it, and refuse one the world refuses", async () => {
     // open a host WebSocket to the echo through the bridge, then close it from the host
-    await using simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = new Simulation({
+        world: testWorldOptions(),
+        seed: 1,
+        start: START,
+    });
     const { events } = serveEcho(simulation, "server");
     simulation.network.server("server").http({
         hostname: "plain.test",
@@ -602,7 +661,11 @@ function open(simulation: Simulation, node: string, name: string) {
 
 test("carry a socket's messages in order through latency, and close it from either end", async () => {
     // open a socket through 5 to 50 ms of latency and send three messages
-    await using simulation = new Simulation({ seed: 9, start: START });
+    await using simulation = new Simulation({
+        world: testWorldOptions(),
+        seed: 9,
+        start: START,
+    });
     simulation.network.degrade({ delay: { least: 5, most: 50 } });
     const server = serveEcho(simulation, "server");
     const client = open(simulation, "browser", "ada");
@@ -623,7 +686,11 @@ test("carry a socket's messages in order through latency, and close it from eith
 
 test("fail a socket its listener refuses with a plain answer, and discard the answer's body", async () => {
     // refuse every upgrade with a streamed body, recording its cancellation
-    await using simulation = new Simulation({ seed: 9, start: START });
+    await using simulation = new Simulation({
+        world: testWorldOptions(),
+        seed: 9,
+        start: START,
+    });
     const cancelled: string[] = [];
     simulation.network.server("server").http({
         hostname: "echo.test",
@@ -640,7 +707,11 @@ test("fail a socket its listener refuses with a plain answer, and discard the an
 
 test("break sockets across a partition and from a crashed node, and close them on a stopped listener", async () => {
     // serve the echo from a node, and open one socket to be cut off and one to see the crash
-    await using simulation = new Simulation({ seed: 9, start: START });
+    await using simulation = new Simulation({
+        world: testWorldOptions(),
+        seed: 9,
+        start: START,
+    });
     const server = simulation.node("server");
     const serve = async () => serveEcho(simulation, "server").listener;
     await server.start(serve);
@@ -672,7 +743,11 @@ test("break sockets across a partition and from a crashed node, and close them o
 
 test("connect nodes sharing the host's files over a Unix socket through isolation and loss, refusing TLS toward one", async () => {
     // listen at a Unix socket on one node, then isolate both nodes and drop every network delivery
-    await using simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = new Simulation({
+        world: testWorldOptions(),
+        seed: 1,
+        start: START,
+    });
     const listener = await simulation.network.server("database").socket({
         unix: "/run/destack.sock",
         accept: (socket) => void socket.readable.pipeTo(socket.writable).catch(() => undefined),
@@ -758,7 +833,11 @@ function connectUpper(simulation: Simulation, node: string) {
 
 test("carry TCP bytes in order through latency, start TLS on a new socket, and end the connection at both ends", async () => {
     // connect through 5 to 50 ms of latency, and ask for TLS in plain text
-    await using simulation = new Simulation({ seed: 9, start: START });
+    await using simulation = new Simulation({
+        world: testWorldOptions(),
+        seed: 9,
+        start: START,
+    });
     simulation.network.degrade({ delay: { least: 5, most: 50 } });
     await listenUpper(simulation, "mail");
     const client = connectUpper(simulation, "app");
@@ -819,7 +898,11 @@ test("carry TCP bytes in order through latency, start TLS on a new socket, and e
 
 test("half-close a TCP connection, delivering the peer's bytes in flight, and ignore a second close", async () => {
     // serve a node that answers each chunk once and records what it reads
-    await using simulation = new Simulation({ seed: 9, start: START });
+    await using simulation = new Simulation({
+        world: testWorldOptions(),
+        seed: 9,
+        start: START,
+    });
     simulation.network.degrade({ delay: { least: 5, most: 50 } });
     const served: string[] = [];
     let serverRead = "";
@@ -864,7 +947,11 @@ test("half-close a TCP connection, delivering the peer's bytes in flight, and ig
 
 test("refuse a TCP connect nothing listens at, and break connections across a partition, a released node and a stopped listener", async () => {
     // connect an unserved address, then serve and open three connections
-    await using simulation = new Simulation({ seed: 9, start: START });
+    await using simulation = new Simulation({
+        world: testWorldOptions(),
+        seed: 9,
+        start: START,
+    });
     const unserved = connectUpper(simulation, "app");
     const refused = await unserved.socket.opened.catch(coded);
     const server = await listenUpper(simulation, "mail");
@@ -898,7 +985,11 @@ test("refuse a TCP connect nothing listens at, and break connections across a pa
 
 test("await work through its timers on the clock, the world moving time once idle", async () => {
     // await work waiting on the clock in a running world
-    await using simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = new Simulation({
+        world: testWorldOptions(),
+        seed: 1,
+        start: START,
+    });
     const timed = (async () => {
         await simulation.sleep(60_000);
 
@@ -911,7 +1002,12 @@ test("await work through its timers on the clock, the world moving time once idl
 
 test("refuse work that keeps busy without letting time move, naming the call site that kept it busy", async () => {
     // keep tracking work that re-enqueues itself each event loop turn
-    await using simulation = new Simulation({ seed: 1, start: START, livelockTurns: 1000 });
+    await using simulation = new Simulation({
+        world: testWorldOptions(),
+        seed: 1,
+        start: START,
+        livelockTurns: 1000,
+    });
     const stop = new AbortController();
     const spinning = (async () => {
         while (!stop.signal.aborted) {
@@ -953,7 +1049,11 @@ test("settle a slow host round trip without counting its wait as busy", async ()
 
     // wait on the round trip as host work while a timer waits
     try {
-        await using simulation = new Simulation({ seed: 1, start: START });
+        await using simulation = new Simulation({
+            world: testWorldOptions(),
+            seed: 1,
+            start: START,
+        });
         const reply = simulation.scheduler.run(() =>
             fetch(server.url).then((response) => response.text()),
         );
@@ -965,7 +1065,11 @@ test("settle a slow host round trip without counting its wait as busy", async ()
 
 test("hold the clock while a child writes its whole output, so a timer beside it waits", async () => {
     // race a slow child's output against a one-millisecond timer
-    await using simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = new Simulation({
+        world: testWorldOptions(),
+        seed: 1,
+        start: START,
+    });
     const { clock, process } = simulation.environment("host");
     const child = process.spawn(["sh", "-c", "sleep 0.05; echo done"]);
     const first = Promise.race([
@@ -978,7 +1082,12 @@ test("hold the clock while a child writes its whole output, so a timer beside it
 
 test("refuse tracked work that never settles beside a timer, as time cannot move while it is in flight", async () => {
     // track work that never settles while a timer waits, failing after a short stall
-    await using simulation = new Simulation({ seed: 1, start: START, stallTimeout: 100 });
+    await using simulation = new Simulation({
+        world: testWorldOptions(),
+        seed: 1,
+        start: START,
+        stallTimeout: 100,
+    });
     void simulation.scheduler.task(
         () =>
             new Promise<void>(() => {
@@ -1001,11 +1110,13 @@ test("refuse tracked work that never settles beside a timer, as time cannot move
 
 test("fork a world by a label into a world of its own draws, starting at the parent's time", async () => {
     // draw ids in a parent, then fork it twice by one label and once by another
-    await using parent = new Simulation({ seed: 1, start: START });
+    await using parent = new Simulation({ world: testWorldOptions(), seed: 1, start: START });
     const drawn = drawIds(parent);
     await parent.jump(parent.clock.now() + 1000);
     await using first = parent.fork("copy");
-    await using again = Simulation.fork({ seed: 1, start: START + 1000 }, "copy");
+    await using again = Simulation.fork({ seed: 1, start: START + 1000 }, "copy", {
+        world: testWorldOptions(),
+    });
     await using other = parent.fork("other");
     const forked = { first: drawIds(first), again: drawIds(again), other: drawIds(other) };
 
@@ -1030,7 +1141,11 @@ function drawIds(world: Simulation): string[] {
 test("jump a day at once, waking a repeating wait a single time where running steps through every period", async () => {
     // count the beats of a loop waiting ten seconds between beats
     const beats = async (move: (simulation: Simulation) => Promise<void>) => {
-        await using simulation = new Simulation({ seed: 1, start: START });
+        await using simulation = new Simulation({
+            world: testWorldOptions(),
+            seed: 1,
+            start: START,
+        });
         const { clock } = simulation.environment("node");
         let count = 0;
         const stop = new AbortController();
@@ -1059,7 +1174,11 @@ test("jump a day at once, waking a repeating wait a single time where running st
 
 test("jump right after awaited work settles, and refuse a second jump while one jumps", async () => {
     // await a sleep, then jump at once
-    await using simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = new Simulation({
+        world: testWorldOptions(),
+        seed: 1,
+        start: START,
+    });
     const { clock } = simulation.environment("node");
     await simulation.wait(clock.sleep(1000));
     await simulation.jump(START + 60_000);
@@ -1078,7 +1197,11 @@ test("jump right after awaited work settles, and refuse a second jump while one 
 
 test("give up an aborted request, lose a response cut on its way back, and keep a listener a node serves again", async () => {
     // serve a hung origin, and one whose answer the network cuts on its way back
-    await using simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = new Simulation({
+        world: testWorldOptions(),
+        seed: 1,
+        start: START,
+    });
     const server = simulation.network.server("server");
     server.http({ hostname: "hung.test", port: 443, fetch: () => new Promise<Response>(() => {}) });
     server.http({
@@ -1122,7 +1245,11 @@ test("give up an aborted request, lose a response cut on its way back, and keep 
 
 test("fail a streamed response's body once its request aborts, cancelling the listener's stream, as fetch does", async () => {
     // serve a stream that sends one chunk and never ends, noting its cancellation
-    await using simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = new Simulation({
+        world: testWorldOptions(),
+        seed: 1,
+        start: START,
+    });
     let cancelled: Error | undefined;
     simulation.network.server("server").http({
         hostname: "stream.test",
@@ -1163,7 +1290,11 @@ test("fail a streamed response's body once its request aborts, cancelling the li
 
 test("send an upload whole and a response body's chunks across the link, cutting the rest once the link is cut", async () => {
     // echo the uploaded body, then keep the response open for a chunk after it
-    await using simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = new Simulation({
+        world: testWorldOptions(),
+        seed: 1,
+        start: START,
+    });
     const streams: ReadableStreamDefaultController<Uint8Array>[] = [];
     simulation.network.server("server").http({
         hostname: "stream.test",
@@ -1204,7 +1335,11 @@ test("send an upload whole and a response body's chunks across the link, cutting
 
 test("publish a node's listener at a world address for nodes and a host address for host processes", async () => {
     // publish a node's listener, answering each request with its path
-    await using simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = new Simulation({
+        world: testWorldOptions(),
+        seed: 1,
+        start: START,
+    });
     const published = simulation.network.publish("server", {
         hostname: "127.0.0.1",
         port: 0,
@@ -1234,6 +1369,7 @@ test("refuse a short operation stalled past the stall timeout, and a long one pa
     // read a stall's message, its milliseconds and call sites left out
     const stallOf = async (length: "short" | "long") => {
         await using simulation = new Simulation({
+            world: testWorldOptions(),
             seed: 1,
             start: START,
             stallTimeout: 50,
@@ -1269,7 +1405,7 @@ test("refuse a short operation stalled past the stall timeout, and a long one pa
 
 test("refuse world work begun inside an operation with both sites, failing the world, and allow it inside a waited one", async () => {
     // begin world work inside a waited long operation, and inside a run one after a host turn
-    const simulation = new Simulation({ seed: 1, start: START });
+    const simulation = new Simulation({ world: testWorldOptions(), seed: 1, start: START });
     const { scheduler } = simulation;
     const waited = await scheduler.waitUntil(
         Promise.resolve().then(() => scheduler.task(() => Promise.resolve("waited"))),
@@ -1301,7 +1437,11 @@ test("refuse world work begun inside an operation with both sites, failing the w
 
 test("reject work whose start throws before it returns a promise, as its own failure", async () => {
     // start a world task and an operation that throw at once
-    await using simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = new Simulation({
+        world: testWorldOptions(),
+        seed: 1,
+        start: START,
+    });
     const { scheduler } = simulation;
     const thrown = (kind: "task" | "operation") =>
         (kind === "task"
@@ -1320,7 +1460,12 @@ test("reject work whose start throws before it returns a promise, as its own fai
 
 test("complete short operations in the order they began and a long one at idle, recording each completion with its length", async () => {
     // run two short operations settling in reverse, beside a long one that stays running
-    await using simulation = new Simulation({ seed: 1, start: START, isTracing: true });
+    await using simulation = new Simulation({
+        world: testWorldOptions(),
+        seed: 1,
+        start: START,
+        isTracing: true,
+    });
     const { scheduler } = simulation;
     const order: string[] = [];
     const settle = (name: string, after: number) =>
@@ -1365,7 +1510,11 @@ test("complete short operations in the order they began and a long one at idle, 
 
 test("leave a service child untracked, so time moves while it runs", async () => {
     // spawn a sleeping child as a service, then sleep a simulated minute
-    await using simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = new Simulation({
+        world: testWorldOptions(),
+        seed: 1,
+        start: START,
+    });
     const { process, clock } = simulation.environment("node");
     const child = process.spawn(["/bin/sleep", "5"], { isService: true });
     const during = simulation.scheduler.inFlight;
@@ -1380,6 +1529,7 @@ test("leave a service child untracked, so time moves while it runs", async () =>
 test("fork a world with its skew and its memory files", async () => {
     // fork a skewed memory world, and write a file in the fork
     await using simulation = new Simulation({
+        world: testWorldOptions(),
         seed: 1,
         start: START,
         files: "memory",
@@ -1400,6 +1550,7 @@ test("fork a world with its skew and its memory files", async () => {
 test("take every shared world step, recording each as the world's event", async () => {
     // take each step on a skewed world with two nodes
     await using simulation = new Simulation({
+        world: testWorldOptions(),
         seed: 1,
         start: START,
         isTracing: true,
@@ -1443,6 +1594,7 @@ test("take every shared world step, recording each as the world's event", async 
 test("read a drifted node's time in whole milliseconds", async () => {
     // drift a node's clock, then read its time after an odd stretch of world time
     await using simulation = new Simulation({
+        world: testWorldOptions(),
         seed: 3,
         start: START,
         skew: { offset: 0, drift: 100 },
@@ -1455,7 +1607,12 @@ test("read a drifted node's time in whole milliseconds", async () => {
 
 test("release a crashed node's children, workers and file locks", async () => {
     // start a child, a worker and a lock on a node, then crash it
-    await using simulation = new Simulation({ seed: 1, start: START, files: "memory" });
+    await using simulation = new Simulation({
+        world: testWorldOptions(),
+        seed: 1,
+        start: START,
+        files: "memory",
+    });
     simulation.workers.define(new URL("https://app.test/idle.worker.js"), () => {});
     const node = simulation.environment("node");
     const child = node.process.spawn(["/bin/sleep", "5"], { isService: true });
@@ -1481,7 +1638,11 @@ test("release a crashed node's children, workers and file locks", async () => {
 
 test("run timers by deadline and, within one, in start order, a zero-delay timer first and an overflowing one a millisecond later, across many waits", async () => {
     // start a zero-delay timer and an overflowing one after two later ones, and many sleeps of seeded delays
-    await using simulation = new Simulation({ seed: 3, start: START });
+    await using simulation = new Simulation({
+        world: testWorldOptions(),
+        seed: 3,
+        start: START,
+    });
     const { clock, random } = simulation;
     const order: string[] = [];
     clock.setTimeout(() => order.push("later first"), 10);
@@ -1509,7 +1670,11 @@ test("run timers by deadline and, within one, in start order, a zero-delay timer
 
 test("decode a gzip response as Bun's fetch does, and keep its encoding when asked", async () => {
     // serve one gzip-encoded body
-    await using simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = new Simulation({
+        world: testWorldOptions(),
+        seed: 1,
+        start: START,
+    });
     const encoded = await new Response(
         new Blob(["stored"]).stream().pipeThrough(new CompressionStream("gzip")),
     ).bytes();
@@ -1532,7 +1697,11 @@ test("decode a gzip response as Bun's fetch does, and keep its encoding when ask
 
 test("answer idle once the work due now settled, and wait for a condition through the next timer", async () => {
     // chain zero-delay timers around host work at the start, beside a timer a second out
-    await using simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = new Simulation({
+        world: testWorldOptions(),
+        seed: 1,
+        start: START,
+    });
     const { clock } = simulation;
     let done: number | undefined;
     void (async () => {
@@ -1587,8 +1756,8 @@ async function race(simulation: Simulation): Promise<string[]> {
 
 test("replay a seed's racing host work in one order with one fingerprint", async () => {
     // run the same seed and work twice
-    await using first = new Simulation({ seed: 7, start: START });
-    await using second = new Simulation({ seed: 7, start: START });
+    await using first = new Simulation({ world: testWorldOptions(), seed: 7, start: START });
+    await using second = new Simulation({ world: testWorldOptions(), seed: 7, start: START });
     const runs = [await race(first), await race(second)];
 
     // expect the same interleaving, and the same events behind it
@@ -1599,7 +1768,11 @@ test("replay a seed's racing host work in one order with one fingerprint", async
 test("keep one fingerprint across plays whose host work differs, as a warm cache skips work, and tell apart a world event", async () => {
     // play a timer twice, the second play's host skipping the read the first one made
     const play = async (isCached: boolean, wait: number) => {
-        await using simulation = new Simulation({ seed: 3, start: START });
+        await using simulation = new Simulation({
+            world: testWorldOptions(),
+            seed: 3,
+            start: START,
+        });
         const { clock, scheduler } = simulation.environment("node");
         if (!isCached) {
             await scheduler.run(async () => "read");
@@ -1623,7 +1796,11 @@ test("keep one fingerprint across plays whose host work differs, as a warm cache
 
 test("jump a world at once, waking each due timer a single time", async () => {
     // keep a timer every minute, then jump an hour
-    await using simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = new Simulation({
+        world: testWorldOptions(),
+        seed: 1,
+        start: START,
+    });
     const { clock } = simulation.environment("node");
     const fired: number[] = [];
     void (async () => {
@@ -1640,7 +1817,11 @@ test("jump a world at once, waking each due timer a single time", async () => {
 
 test("answer a command run to completion after an earlier operation that settles later, as one operation", async () => {
     // begin a slow operation, then run a quick real command with its input
-    await using simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = new Simulation({
+        world: testWorldOptions(),
+        seed: 1,
+        start: START,
+    });
     const { process } = simulation.environment("node");
     const answered: string[] = [];
     const slow = simulation.scheduler
@@ -1667,7 +1848,11 @@ function throwRefused(kind: string): never {
 
 test("run real work an operation begins as part of it, unordered, and complete the operation whole", async () => {
     // begin an operation whose own short and waited operations settle inside it
-    await using simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = new Simulation({
+        world: testWorldOptions(),
+        seed: 1,
+        start: START,
+    });
     const { scheduler } = simulation;
     const whole = await scheduler.run(async () => {
         const inner = await scheduler.run(() => Promise.resolve("inner"));
@@ -1686,7 +1871,13 @@ test("run real work an operation begins as part of it, unordered, and complete t
 test("observe the same timeline with and without jitter, as the world schedules all its real work", async () => {
     // run operations settling in reverse, a waited one and timers, recording what the world sees when
     const timeline = async (jitter: boolean) => {
-        await using simulation = new Simulation({ seed: 3, start: START, jitter });
+        const variables = jitter ? { DESTACK_SIMULATION_JITTER: "1" } : {};
+        const { stderr } = testHost().process;
+        await using simulation = new Simulation({
+            world: WorldOptions.of({ variables, stderr }),
+            seed: 3,
+            start: START,
+        });
         const { clock, scheduler } = simulation;
         const seen: string[] = [];
         const note = (name: string) => seen.push(`${name}@${clock.now() - START}`);
@@ -1717,7 +1908,11 @@ test("observe the same timeline with and without jitter, as the world schedules 
 
 test("schedule work a settled operation's late callback begins as the world's own, not the operation's", async () => {
     // register a timer inside an operation, firing after the operation settled
-    await using simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = new Simulation({
+        world: testWorldOptions(),
+        seed: 1,
+        start: START,
+    });
     const { clock, scheduler } = simulation;
     let late: Promise<string> | undefined;
     await scheduler.run(async () => {
@@ -1731,7 +1926,11 @@ test("schedule work a settled operation's late callback begins as the world's ow
 
 test("finish world work awaiting native body reads before completing a settled operation", async () => {
     // begin an operation settling at once beside world work reading bodies natively
-    await using simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = new Simulation({
+        world: testWorldOptions(),
+        seed: 1,
+        start: START,
+    });
     const { scheduler } = simulation;
     const seen: string[] = [];
     const completed = scheduler.run(() => Promise.resolve()).then(() => seen.push("operation"));
@@ -1748,7 +1947,11 @@ test("finish world work awaiting native body reads before completing a settled o
 
 test("complete a long operation only after an earlier short one, though the long one settles first", async () => {
     // begin a slow short operation, then a long one settling at once
-    await using simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = new Simulation({
+        world: testWorldOptions(),
+        seed: 1,
+        start: START,
+    });
     const { scheduler } = simulation;
     const seen: string[] = [];
     const operation = scheduler
@@ -1768,7 +1971,11 @@ test("complete a long operation only after an earlier short one, though the long
 
 test("keep a world's time still while its driver works, moving it only while the driver waits", async () => {
     // begin a sleep, then let real time pass without waiting on the world
-    await using simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = new Simulation({
+        world: testWorldOptions(),
+        seed: 1,
+        start: START,
+    });
     const { clock } = simulation;
     const slept = clock.sleep(1000);
     await new Promise<void>((resolve) => {

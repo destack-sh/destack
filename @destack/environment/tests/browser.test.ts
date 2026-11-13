@@ -1,13 +1,18 @@
 import { expect, test } from "@destack/test";
 import { BrowserSimulation } from "../src/browser/simulation.ts";
 import { Simulation } from "../src/simulation/index.ts";
+import { testWorldOptions } from "@destack/test/world";
 
 /** The simulations' start: 2026-10-24 at midnight UTC. */
 const START = Date.UTC(2026, 9, 24);
 
 test("store values and move through session history on a node, telling listeners each move once, within its ends, and record document loads", async () => {
     // store a value, and navigate, replace and traverse while listening
-    await using simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = new Simulation({
+        world: testWorldOptions(),
+        seed: 1,
+        start: START,
+    });
     const browsers = new BrowserSimulation(simulation, { url: "https://notes.test/" });
     const { storage, navigation } = browsers.environment("tab");
     storage.setItem("theme", "dark");
@@ -45,7 +50,11 @@ test("store values and move through session history on a node, telling listeners
 
 test("show frames at 60 Hz on the simulated clock, idle periods and set media", async () => {
     // wait for three frames and an idle period from a moment between frames
-    await using simulation = new Simulation({ seed: 1, start: START + 5 });
+    await using simulation = new Simulation({
+        world: testWorldOptions(),
+        seed: 1,
+        start: START + 5,
+    });
     const browsers = new BrowserSimulation(simulation, {
         media: { "(prefers-color-scheme: dark)": true },
     });
@@ -75,7 +84,11 @@ test("show frames at 60 Hz on the simulated clock, idle periods and set media", 
 
 test("emulate media, telling each listener of a query once its result changes", async () => {
     // follow one query with two listeners
-    await using simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = new Simulation({
+        world: testWorldOptions(),
+        seed: 1,
+        start: START,
+    });
     const { display } = new BrowserSimulation(simulation).environment("tab");
     const received: string[] = [];
     for (const name of ["first", "second"]) {
@@ -96,7 +109,11 @@ test("emulate media, telling each listener of a query once its result changes", 
 
 test("grant one origin's locks across tabs in request order, shared holders together, and run without one when asked", async () => {
     // hold an exclusive lock on one tab while the others ask for it
-    await using simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = new Simulation({
+        world: testWorldOptions(),
+        seed: 1,
+        start: START,
+    });
     const browsers = new BrowserSimulation(simulation);
     const first = browsers.environment("first").locks;
     const second = browsers.environment("second").locks;
@@ -135,7 +152,11 @@ test("grant one origin's locks across tabs in request order, shared holders toge
 
 test("release a crashed tab's locks and ports, failing its waiting requests", async () => {
     // hold one lock on the crashing tab, and wait there for a lock the other tab holds
-    await using simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = new Simulation({
+        world: testWorldOptions(),
+        seed: 1,
+        start: START,
+    });
     const browsers = new BrowserSimulation(simulation);
     const crashing = simulation.node("crashing");
     await crashing.start(async () => undefined);
@@ -180,7 +201,11 @@ test("release a crashed tab's locks and ports, failing its waiting requests", as
 
 test("broadcast copies of a message to every other open port of a channel, and persist storage", async () => {
     // open two tabs' ports of one channel and one of another
-    await using simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = new Simulation({
+        world: testWorldOptions(),
+        seed: 1,
+        start: START,
+    });
     const browsers = new BrowserSimulation(simulation);
     const sender = browsers.environment("sender");
     const receiver = browsers.environment("receiver");
@@ -210,7 +235,11 @@ test("broadcast copies of a message to every other open port of a channel, and p
 
 test("deliver a broadcast to every listener past one that throws, and report what it threw", async () => {
     // listen on two ports, the first listener throwing
-    await using simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = new Simulation({
+        world: testWorldOptions(),
+        seed: 1,
+        start: START,
+    });
     const browsers = new BrowserSimulation(simulation);
     const sending = browsers.environment("sender").broadcast.open("destack:space");
     const failing = browsers.environment("failing").broadcast.open("destack:space");

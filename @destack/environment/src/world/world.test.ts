@@ -1,6 +1,7 @@
 import { expect, test } from "@destack/test";
 import { Simulation } from "../simulation/simulation.ts";
 import { World, type WorldStep } from "./world.ts";
+import { testWorldOptions } from "@destack/test/world";
 
 /** The start of the worlds, in UTC epoch milliseconds. */
 const START = Date.UTC(2026, 9, 1);
@@ -31,7 +32,7 @@ const WORLD: World<FetchStep> = {
 /** Play a world, its shared steps by its simulation and its fetches by hand. */
 async function play(world: World<FetchStep>) {
     // serve each path back
-    await using simulation = Simulation.of(world);
+    await using simulation = Simulation.of(world, { world: testWorldOptions() });
     simulation.network.server("server").http({
         hostname: "server.test",
         port: 443,

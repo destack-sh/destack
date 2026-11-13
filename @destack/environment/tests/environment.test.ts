@@ -4,13 +4,18 @@ import { join, relative } from "node:path";
 import { expect, refusal, test } from "@destack/test";
 import { Crypto, type Host } from "../src/index.ts";
 import { Simulation } from "../src/simulation/index.ts";
+import { testWorldOptions } from "@destack/test/world";
 
 /** The simulations' start: 2026-10-24 at midnight UTC. */
 const START = Date.UTC(2026, 9, 24);
 
 test("write a node's files at their host paths without moving its clock, and remove the world's root on dispose", async () => {
     // write a file in a temporary directory while a later timer waits
-    await using simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = new Simulation({
+        world: testWorldOptions(),
+        seed: 1,
+        start: START,
+    });
     const { files } = simulation.environment("host");
     void simulation.clock.sleep(1);
     let directory = "";
@@ -49,6 +54,7 @@ test("write a node's files at their host paths without moving its clock, and rem
 test("spawn a child with the node's variables in a directory, its lifetime tracked as a peer until it exits", async () => {
     // spawn a shell printing its variable and working directory in a temporary directory
     await using simulation = new Simulation({
+        world: testWorldOptions(),
         seed: 1,
         start: START,
         process: {
@@ -83,7 +89,11 @@ test("spawn a child with the node's variables in a directory, its lifetime track
 
 test("accept requests and TCP connections a node serves from another node", async () => {
     // serve a request and accept a TCP connection on the host
-    await using simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = new Simulation({
+        world: testWorldOptions(),
+        seed: 1,
+        start: START,
+    });
     const host = simulation.environment("host");
     const listener = host.server.http({
         hostname: "notes.test",
@@ -126,6 +136,7 @@ test("read the process and machine a simulation gives", async () => {
         home: "/Users/ada",
     };
     await using simulation = new Simulation({
+        world: testWorldOptions(),
         seed: 1,
         start: START,
         process: {
@@ -172,7 +183,11 @@ test("read the process and machine a simulation gives", async () => {
 
 test("count a node's WebCrypto operations on the clock until they settle, leaving the realm's own alone", async () => {
     // digest, reading the work in flight at once and once it settled
-    await using simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = new Simulation({
+        world: testWorldOptions(),
+        seed: 1,
+        start: START,
+    });
     const subtle = simulation.environment("host").crypto;
     const digest = subtle.digest("SHA-256", new Uint8Array(4));
     const during = simulation.scheduler.inFlight;
@@ -189,7 +204,11 @@ test("count a node's WebCrypto operations on the clock until they settle, leavin
 
 test("compress and decompress gzip in a world at once, without moving its clock or leaving work in flight", async () => {
     // compress a text and decompress it again through a node's compression
-    await using simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = new Simulation({
+        world: testWorldOptions(),
+        seed: 1,
+        start: START,
+    });
     const { compression } = simulation.environment("host");
     const text = "plans for today, plans for tomorrow";
     const compressed = new Blob([text]).stream().pipeThrough(compression.compress("gzip"));
@@ -210,7 +229,12 @@ test("compress and decompress gzip in a world at once, without moving its clock 
 
 test("record a world's spans and log records, and format times in its fixed locale and time zone", async () => {
     // emit a span and a log record from a node, and format the world's start
-    await using simulation = new Simulation({ seed: 1, start: START, timeZone: "Europe/Vienna" });
+    await using simulation = new Simulation({
+        world: testWorldOptions(),
+        seed: 1,
+        start: START,
+        timeZone: "Europe/Vienna",
+    });
     const node = simulation.environment("host");
     node.telemetry.tracers.getTracer("notes").startSpan("open").end();
     node.telemetry.loggers.getLogger("notes").emit({ eventName: "note.open", body: "today" });
@@ -232,7 +256,11 @@ test("record a world's spans and log records, and format times in its fixed loca
 
 test("spawn a detached child in its own process group, its output ignored", async () => {
     // start a sleeping child detached, and read its process group
-    await using simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = new Simulation({
+        world: testWorldOptions(),
+        seed: 1,
+        start: START,
+    });
     const { process } = simulation.environment("host");
     const child = process.spawn(["/bin/sleep", "5"], { isDetached: true });
     const reading = process.spawn(["/bin/ps", "-o", "pgid=", "-p", String(child.id)]);
@@ -245,7 +273,11 @@ test("spawn a detached child in its own process group, its output ignored", asyn
 
 test("kill a detached child's process group by its negated id, read the signal that ended it, and refuse the ended group", async () => {
     // start a sleeping child in its own group, then kill the group
-    await using simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = new Simulation({
+        world: testWorldOptions(),
+        seed: 1,
+        start: START,
+    });
     const { process } = simulation.environment("host");
     const child = process.spawn(["/bin/sleep", "5"], { isDetached: true });
     const running = child.signal;
@@ -275,7 +307,11 @@ test("kill a detached child's process group by its negated id, read the signal t
 
 test("append a detached child's output and errors to one file, created private", async () => {
     // run a detached shell writing a line to each of its outputs, both into one log file
-    await using simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = new Simulation({
+        world: testWorldOptions(),
+        seed: 1,
+        start: START,
+    });
     const { files, process } = simulation.environment("host");
     const directory = await files.makeTemporaryDirectory("log-");
     const log = join(directory, "child.log");
@@ -295,7 +331,11 @@ test("append a detached child's output and errors to one file, created private",
 
 test("hash a stream of chunks as its whole bytes, natively and by gathering, counted on a world's clock", async () => {
     // hash three chunks and their joined bytes with a node's crypto and the system's
-    await using simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = new Simulation({
+        world: testWorldOptions(),
+        seed: 1,
+        start: START,
+    });
     const { crypto } = simulation.environment("host");
     const whole = new TextEncoder().encode("hash these chunks");
 

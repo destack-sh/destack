@@ -2,6 +2,7 @@ import { join } from "node:path";
 import { expect, test } from "@destack/test";
 import { Simulation } from "../simulation/index.ts";
 import { BunProcess } from "./bun.ts";
+import { testWorldOptions } from "@destack/test/world";
 
 /** The start of the simulated clock. */
 const START = Date.UTC(2026, 9, 24);
@@ -17,7 +18,11 @@ await parent.disconnected;
 
 test("echo a message through a connected child, and settle both ends once the parent disconnects", async () => {
     // start the echoing child connected
-    await using simulation = new Simulation({ seed: 1, start: START });
+    await using simulation = new Simulation({
+        world: testWorldOptions(),
+        seed: 1,
+        start: START,
+    });
     const { files } = simulation.environment("host");
     const directory = await files.makeTemporaryDirectory("channel-");
     const script = join(directory, "echo.ts");
