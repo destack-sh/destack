@@ -180,17 +180,3 @@ export interface Touch {
     /** Whether the subscriber had the row before the run. */
     readonly wasPresent: boolean;
 }
-
-/** The cost of one run. */
-export interface RunCost {
-    /** The applied changes. */
-    readonly changes: number;
-    /** The database operations during the run. */
-    readonly operations: number;
-    /** The rows the pipelines decided. */
-    readonly decided: number;
-    /** The row and group decisions of the page. */
-    readonly sent: number;
-    /** The run time, in milliseconds. */
-    readonly milliseconds: number;
-}

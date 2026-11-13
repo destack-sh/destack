@@ -77,7 +77,6 @@ export class Evaluation {
                     feed.changesThrough(watches, after, through, reader),
                 capacity: feed.capacity,
                 pageSize: feed.pageSize,
-                ...(feed.observe === undefined ? {} : { observe: feed.observe }),
             },
         );
 
@@ -243,7 +242,7 @@ export class Evaluation {
         for (const dataflow of added.values()) {
             dataflow.forget(position);
             const run = new Run(view, this.#audience, "snapshot");
-            const batches = dataflow.hydrate(run);
+            const batches = await dataflow.hydrate(run);
             while ((await batches.next()).done !== true) {
                 // select every batch
             }
@@ -387,7 +386,7 @@ export class Evaluation {
             }
 
             // select the query's rows and results
-            const batches = dataflow.hydrate(run);
+            const batches = await dataflow.hydrate(run);
             while ((await batches.next()).done !== true) {
                 if (walk === "snapshot" && run.patch.size >= this.#feed.pageSize) {
                     await this.#feed.scheduler.yield();
@@ -427,7 +426,7 @@ export class Evaluation {
         const patches: Patch[] = [];
         for (const dataflow of this.#dataflows.values()) {
             const run = new Run(view, this.#audience, "collect");
-            const batches = dataflow.hydrate(run);
+            const batches = await dataflow.hydrate(run);
             while ((await batches.next()).done !== true) {
                 // collect every batch
             }

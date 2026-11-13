@@ -31,7 +31,7 @@ import {
 import type { Upstream } from "../dataflow/upstream.ts";
 import { Dataflow, type DataflowInspection } from "../dataflow/dataflow.ts";
 import { PAGE_SIZE } from "../dataflow/selection.ts";
-import { Run, type RunCost } from "../dataflow/run.ts";
+import { Run } from "../dataflow/run.ts";
 import { Memo, View, type Cache, type Window } from "../dataflow/view.ts";
 import { Clock, type Scheduler, waitAborted } from "@destack/environment";
 
@@ -73,8 +73,6 @@ export class Feed implements Cache {
     readonly pageSize: number;
     /** The count of recent changes stored in memory. */
     readonly #memory: number;
-    /** Report each run's cost. */
-    readonly observe: ((cost: RunCost) => void) | undefined;
     /** The wait before a caught-up stream repeats its position, in milliseconds. */
     readonly heartbeat: number;
     /** What a replica knows of its source. */
@@ -126,7 +124,6 @@ export class Feed implements Cache {
             readonly pageSize?: number;
             readonly changes?: number;
             readonly upstream?: Upstream;
-            readonly observe?: (cost: RunCost) => void;
             readonly heartbeat?: number;
         } = {},
     ) {
@@ -156,7 +153,6 @@ export class Feed implements Cache {
         this.capacity = options.capacity ?? CAPACITY;
         this.pageSize = options.pageSize ?? PAGE_SIZE;
         this.#memory = options.changes ?? FEED_CHANGES;
-        this.observe = options.observe;
         this.heartbeat = options.heartbeat ?? HEARTBEAT_MILLISECONDS;
     }
 

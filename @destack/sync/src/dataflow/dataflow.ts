@@ -20,12 +20,19 @@ import { SyncError } from "../error/error.ts";
 import { Materialization } from "./materialization.ts";
 import type { Arrangement } from "./filter.ts";
 import type { Context, Pipeline } from "./pipeline.ts";
-import { Run, type RunCost, type Transition } from "./run.ts";
+import { Run, type Transition } from "./run.ts";
+import { type Span, TelemetryScope } from "@destack/telemetry";
+import type {} from "@destack/package/import-meta";
 import type { View } from "./view.ts";
 import { PAGE_SIZE, Selection } from "./selection.ts";
 import { Sink } from "./sink.ts";
 import { Trace, type Upstream } from "./upstream.ts";
 
+/** The runs of a dataflow: loading its rows, and applying committed changes. */
+const RUN_KINDS = ["hydrate", "update"] as const;
+
+/** The stages a run's rows pass: taken in as changes, decided, and sent. */
+const ROW_STAGES = ["changed", "decided", "sent"] as const;
 /** The rows of an include without a partition, one shared list so equal reads share identity. */
 const NO_ROWS: readonly Item[] = Object.freeze([]);
 
@@ -65,12 +72,10 @@ export class Dataflow implements Arrangement {
     readonly #queries: string;
     /** The most rows and groups the pipelines may know. */
     readonly #capacity: number | undefined;
-    /** Report each run's cost. */
-    readonly #observe: ((cost: RunCost) => void) | undefined;
-    /** The cost of the last run. */
-    #last: RunCost | undefined;
-    /** The summed cost of every run, and the run count. */
-    #total: RunCost & { readonly runs: number };
+    /** The spans and durations of the runs. */
+    readonly #scope: TelemetryScope;
+    /** The rows each run takes in, decides and sends, by kind and stage. */
+    readonly #rows;
 
     /** Compile queries for an audience over a database or a replica. */
     constructor(
@@ -83,7 +88,6 @@ export class Dataflow implements Arrangement {
             readonly isMaterialized?: boolean;
             readonly capacity?: number;
             readonly pageSize?: number;
-            readonly observe?: (cost: RunCost) => void;
         },
     ) {
         // start with empty state
@@ -91,14 +95,12 @@ export class Dataflow implements Arrangement {
         this.#pipelines = new Map<Node, Pipeline>();
         this.#materialized = new Map<Selection, Materialization>();
         this.#deciding = new Map<Table, Pipeline[]>();
-        this.#total = {
-            runs: 0,
-            changes: 0,
-            operations: 0,
-            decided: 0,
-            sent: 0,
-            milliseconds: 0,
-        };
+        const { telemetry } = options.database.state.environment;
+        this.#scope = TelemetryScope.of(import.meta.destack.package, telemetry);
+        this.#rows = this.#scope.metric.counter("destack.feed.rows", {
+            unit: "{row}",
+            attributes: { "destack.feed.kind": RUN_KINDS, "destack.feed.stage": ROW_STAGES },
+        });
 
         // resolve the queries into trees
         const upstream = options.upstream;
@@ -109,7 +111,6 @@ export class Dataflow implements Arrangement {
             this.roots.map((root) => [root.name, Dataflow.#describe(root)]),
         );
         this.#capacity = options.capacity;
-        this.#observe = options.observe;
         this.nodes = this.roots.flatMap((root) => root.nodes());
         this.#trace = upstream === undefined ? undefined : new Trace(upstream);
         this.#context = {
@@ -252,9 +253,18 @@ export class Dataflow implements Arrangement {
     }
 
     /** Select every root's rows and results as of a run's position, yielding after each page. */
-    async *hydrate(run: Run, start?: Row): AsyncGenerator<void> {
+    hydrate(run: Run, start?: Row): Promise<AsyncGenerator<void>> {
+        // run the pages in the run's span, which ends once the reader takes the last page
+        const attributes = { "destack.feed.kind": "hydrate" } as const;
+
+        return this.#scope.span("destack.feed.run", attributes, () => this.#hydrate(run, start), {
+            duration: { attributes },
+        });
+    }
+
+    /** Select the roots' rows a page at a time, measuring every relation first. */
+    async *#hydrate(run: Run, start?: Row): AsyncGenerator<void> {
         // measure every relation first
-        const cost = this.#measure(run);
         for (const relation of this.#relations) {
             await relation.hydrate(run);
         }
@@ -287,8 +297,10 @@ export class Dataflow implements Arrangement {
             }
         }
         this.#position = run.view.position;
-        cost();
         this.#requireCapacity();
+
+        // count the rows on the run's span, active while the pages run
+        this.#count(this.#scope.span.current(), "hydrate", run);
     }
 
     /** Select every root's rows and results as of a view. */
@@ -296,16 +308,43 @@ export class Dataflow implements Arrangement {
         // forget everything and select every batch as of the view
         this.forget(view.position);
         const run = new Run(view, this.#context.audience, "collect");
-        const batches = this.hydrate(run, start);
+        const batches = await this.hydrate(run, start);
         while ((await batches.next()).done !== true) {
             // select every batch
         }
     }
 
     /** Apply a run of committed changes. */
-    async step(run: Run): Promise<void> {
+    step(run: Run): Promise<void> {
+        const attributes = { "destack.feed.kind": "update" } as const;
+
+        return this.#scope.span(
+            "destack.feed.run",
+            attributes,
+            async (span) => {
+                await this.#step(run);
+                this.#count(span, "update", run);
+            },
+            { duration: { attributes } },
+        );
+    }
+
+    /** Count the rows a run took in, decided and sent, on its span and the counter. */
+    #count(span: Span | undefined, kind: (typeof RUN_KINDS)[number], run: Run): void {
+        const rows = [
+            ["changed", run.changes.length],
+            ["decided", run.decided],
+            ["sent", run.patch.size],
+        ] as const;
+        for (const [stage, count] of rows) {
+            span?.setAttribute(`destack.feed.${stage}`, count);
+            this.#rows.add(count, { "destack.feed.kind": kind, "destack.feed.stage": stage });
+        }
+    }
+
+    /** Decide each changed row, then emit the patch. */
+    async #step(run: Run): Promise<void> {
         // take each changed row's first and last image
-        const cost = this.#measure(run);
         const transitions = new Map<Table, Map<string, Transition>>();
         for (const change of run.changes) {
             const rows = transitions.get(change.table) ?? new Map<string, Transition>();
@@ -345,7 +384,6 @@ export class Dataflow implements Arrangement {
         await this.#refreshMirrors(run);
         await this.sink.emit(run);
         this.#position = run.view.position;
-        cost();
         this.#requireCapacity();
     }
 
@@ -455,14 +493,12 @@ export class Dataflow implements Arrangement {
         }
     }
 
-    /** Describe the pipelines and run costs. */
+    /** Describe the pipelines. */
     inspect(): DataflowInspection {
         return {
             ...(this.#position === undefined ? {} : { position: this.#position }),
             size: this.size,
             ...(this.#capacity === undefined ? {} : { capacity: this.#capacity }),
-            ...(this.#last === undefined ? {} : { last: this.#last }),
-            total: this.#total,
             pipelines: [...this.#pipelines.values()].map((pipeline) => ({
                 node: pipeline.node.name,
                 kind: Dataflow.#pipelineKind(pipeline),
@@ -471,37 +507,6 @@ export class Dataflow implements Arrangement {
                 members: pipeline.members.size,
                 size: pipeline.size,
             })),
-        };
-    }
-
-    /** Start measuring a run, returning the function that records its cost. */
-    #measure(run: Run): () => void {
-        // note the operations the run's reader submits, and the time
-        const reader = run.view.database.driver;
-        const { clock } = run.view.database.state;
-        const operations = reader.operations;
-        const started = clock.now();
-
-        return () => {
-            // add up and report the cost
-            const cost = {
-                changes: run.changes.length,
-                operations: reader.operations - operations,
-                decided: run.decided,
-                sent: run.patch.size,
-                milliseconds: clock.now() - started,
-            };
-            const total = this.#total;
-            this.#last = cost;
-            this.#total = {
-                runs: total.runs + 1,
-                changes: total.changes + cost.changes,
-                operations: total.operations + cost.operations,
-                decided: total.decided + cost.decided,
-                sent: total.sent + cost.sent,
-                milliseconds: total.milliseconds + cost.milliseconds,
-            };
-            this.#observe?.(cost);
         };
     }
 
@@ -874,10 +879,6 @@ export interface DataflowInspection {
     readonly size: number;
     /** The most rows and groups they may know. */
     readonly capacity?: number;
-    /** The cost of the last run. */
-    readonly last?: RunCost;
-    /** The summed cost of every run, and the run count. */
-    readonly total: RunCost & { readonly runs: number };
     /** Each node's pipeline. */
     readonly pipelines: readonly {
         /** The node's path of names. */

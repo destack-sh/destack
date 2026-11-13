@@ -3,7 +3,6 @@ import { expect, test } from "@destack/test";
 import { eq } from "@destack/db";
 import { Feed } from "../feed/feed.ts";
 import type { Query } from "../query/query.ts";
-import type { RunCost } from "./run.ts";
 import { open, task, until, START } from "../test/fixture.ts";
 
 /** The distinct ranks of the one measured group. */
@@ -28,10 +27,7 @@ test("measure a group of many distinct values as its extreme, and read its value
                 })),
             ),
     );
-    const costs: RunCost[] = [];
-    const feed = new Feed(database, [task], {
-        observe: (cost) => costs.push(cost),
-    });
+    const feed = new Feed(database, [task], {});
     const query: Query = {
         table: task,
         scopes: ["inbox"],
@@ -44,7 +40,21 @@ test("measure a group of many distinct values as its extreme, and read its value
     await until(pages, (page) => page.complete);
     const dataflow = () => feed.inspect().evaluations[0]?.dataflows[0];
 
-    // delete a task, listing each run's changes and operations until its page has the new extreme
+    // read the runs ended since the last read, from the snapshot's on, each as its changes and statements
+    const runs = () =>
+        simulation.telemetry.spans.filter((span) => span.name === "destack.feed.run");
+    let seen = 0;
+    const ended = () => {
+        const fresh = runs().slice(seen);
+        seen += fresh.length;
+
+        return fresh.map((span) => [
+            span.attributes["destack.feed.changed"],
+            span.attributes["db.client.operation.count"] ?? 0,
+        ]);
+    };
+
+    // delete a task, listing each run's changes and statements until its page has the new extreme
     const remove = async (rank: number) => {
         await database.transaction(
             async (transaction) => await transaction.delete(task).where(eq(task.id, `t${rank}`)),
@@ -52,7 +62,7 @@ test("measure a group of many distinct values as its extreme, and read its value
         const [page] = (await until(pages, (read) => read.complete)).slice(-1);
 
         return {
-            runs: costs.splice(0).map((cost) => [cost.changes, cost.operations]),
+            runs: ended(),
             high: page?.results?.[0]?.values?.["high"],
         };
     };
