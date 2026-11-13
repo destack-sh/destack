@@ -40,6 +40,8 @@ interface Rendered {
 export class ViewDriver implements Driver<typeof viewInteraction> {
     /** The interaction the driver speaks. */
     static readonly interaction = viewInteraction;
+    /** The settings of the worlds: none change a view's numbers. */
+    static readonly configuration = {};
 
     /** The element holding the rendered examples. */
     readonly container: HTMLElement;
