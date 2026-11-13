@@ -1,6 +1,7 @@
 import { join } from "node:path";
 import { schema } from "@destack/schema";
 import { CatalogueBucketHost } from "../catalogue/host.ts";
+import type { CatalogueProvider } from "../catalogue/storage.ts";
 import type { BucketReference, S3Credentials } from "../s3/index.ts";
 import { LocalBucket, type LocalBucketEnvironment } from "./bucket.ts";
 import { syncDirectory } from "./directory.ts";
@@ -25,7 +26,7 @@ export interface LocalBucketHostOptions {
 /** A device host that keeps buckets, one directory each, opened once. */
 export class LocalBucketHost extends CatalogueBucketHost<LocalBucket> {
     /** The provider code of local buckets. */
-    readonly provider: string;
+    readonly provider: CatalogueProvider;
     /** The directory with one directory per bucket. */
     readonly directory: string;
     /** The files the buckets live in, and their catalogues' clock and randomness. */

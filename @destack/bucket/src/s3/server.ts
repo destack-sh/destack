@@ -4,7 +4,7 @@ import { CorsRule } from "./cors.ts";
 import type { S3Credentials } from "./credentials.ts";
 import { S3Answer } from "./error.ts";
 import { S3Object } from "./object.ts";
-import { type CopySource } from "./operation.ts";
+import { type CopySource, S3Action } from "./operation.ts";
 import { S3Request } from "./request.ts";
 import { PAYLOAD_HASH_HEADER, type S3Authorization, S3Signature } from "./signature.ts";
 import { UNSIGNED_PAYLOAD } from "@destack/identity/aws";
@@ -13,6 +13,7 @@ import { S3Upload } from "./upload.ts";
 import { decodeUri } from "./uri.ts";
 import { writeErrorXml } from "./xml.ts";
 import type { Clock, Environment, Random } from "@destack/environment";
+import { TelemetryScope } from "@destack/telemetry";
 import { BucketError, preconditionFailed } from "../error/index.ts";
 
 /** The package serving buckets over S3, which a workload's calls to its buckets address. */
@@ -28,8 +29,8 @@ export interface S3ServerOptions {
     open: (bucketName: string, accessKeyId: string) => Promise<S3Bucket | undefined>;
     /** The CORS rules of every bucket. */
     cors?: CorsRule[];
-    /** The clock signed requests are checked against, and the WebCrypto checking them. */
-    environment: Pick<Environment, "clock" | "crypto" | "random">;
+    /** The clock and WebCrypto checking signed requests, and the telemetry tracing them. */
+    environment: Pick<Environment, "clock" | "crypto" | "random" | "telemetry">;
 }
 
 /** Serve the S3 API path-style over buckets, answering failures with S3 error documents. */
@@ -46,6 +47,8 @@ export class S3Server {
     readonly #clock: Clock;
     /** The randomness of request identifiers. */
     readonly #random: Random;
+    /** The spans and durations of the calls. */
+    readonly #scope: TelemetryScope;
 
     /** Serve buckets in a region. */
     constructor(options: S3ServerOptions) {
@@ -59,6 +62,7 @@ export class S3Server {
         this.#open = options.open;
         this.#clock = options.environment.clock;
         this.#random = options.environment.random;
+        this.#scope = TelemetryScope.of(import.meta.destack.package, options.environment.telemetry);
     }
 
     /** The region clients sign requests for. */
@@ -132,100 +136,92 @@ export class S3Server {
             throw BucketError.of("OPERATION_UNSUPPORTED", "listing buckets is not supported");
         }
 
-        // authorize the request, then open the bucket its access key can use
-        const call = new S3Request(request, bucketName, key, await authorize());
-        const bucket = await this.#bucket(call, bucketName);
+        // select the action, its duration by the status it answers
+        const action = S3Action.select(request, url, key);
+        const attributes = S3Action.attributes(action);
+        const address = {
+            "aws.s3.bucket": bucketName,
+            ...(key === "" ? {} : { "aws.s3.key": key }),
+        };
+        let status: number | undefined;
+        const answered = () =>
+            status === undefined
+                ? attributes
+                : { ...attributes, "http.response.status_code": status };
 
-        return key === ""
-            ? await this.#serveBucket(call, bucket)
-            : await this.#serveObject(call, bucket);
+        return await this.#scope.span(
+            `S3/${action}`,
+            { ...attributes, ...address },
+            async (span) => {
+                // authorize the request, then open the bucket its access key can use
+                const call = new S3Request(request, bucketName, key, await authorize());
+                const bucket = await this.#bucket(call, bucketName);
+
+                // run the action, noting the status it answers
+                const response = await this.#run(action, call, bucket);
+                status = response.status;
+                span.setAttribute("http.response.status_code", status);
+
+                return response;
+            },
+            {
+                kind: "server",
+                duration: { name: "rpc.server.call.duration", attributes: answered },
+            },
+        );
     }
 
-    /** Run an operation on a bucket. */
-    async #serveBucket(call: S3Request, bucket: S3Bucket): Promise<Response> {
-        const { method } = call.request;
-        const { query } = call;
+    /** Run an action on a bucket or one of its objects. */
+    async #run(
+        action: ReturnType<typeof S3Action.select>,
+        call: S3Request,
+        bucket: S3Bucket,
+    ): Promise<Response> {
+        switch (action) {
+            // confirm the bucket exists
+            case "HeadBucket":
+                call.checkParameters([]);
 
-        // list objects with version 2 of the listing API
-        if (method === "GET" && query.get("list-type") === "2") {
-            return await S3Object.list(call, bucket);
-        }
-        // list incomplete multipart uploads
-        else if (method === "GET" && query.has("uploads")) {
-            return await S3Upload.list(call, bucket);
-        }
-        // delete up to 1000 objects
-        else if (method === "POST" && query.has("delete")) {
-            return await S3Object.deleteMany(call, bucket);
-        }
-        // confirm the bucket exists
-        else if (method === "HEAD") {
-            call.checkParameters([]);
-
-            return new Response(null, { headers: { "x-amz-bucket-region": this.region } });
-        }
-        // refuse other bucket operations
-        else {
-            throw BucketError.of(
-                "OPERATION_UNSUPPORTED",
-                `the bucket operation '${method}' is not supported`,
-            );
-        }
-    }
-
-    /** Run an operation on an object. */
-    async #serveObject(call: S3Request, bucket: S3Bucket): Promise<Response> {
-        // select the operation by method, subresource and copy source
-        const { method } = call.request;
-        const { query } = call;
-        const isCopy = call.headers.has("x-amz-copy-source");
-
-        // read an object
-        if (method === "GET" && !query.has("uploadId")) {
-            return await S3Object.get(call, bucket);
-        }
-        // read an object's metadata
-        else if (method === "HEAD" && !query.has("uploadId")) {
-            return await S3Object.head(call, bucket);
-        }
-        // store an object, or copy one
-        else if (method === "PUT" && !query.has("uploadId")) {
-            return isCopy
-                ? await S3Object.copy(call, bucket, await this.#source(call, bucket))
-                : await S3Object.put(call, bucket);
-        }
-        // store a part, or copy one
-        else if (method === "PUT") {
-            return isCopy
-                ? await S3Upload.partCopy(call, bucket, await this.#source(call, bucket))
-                : await S3Upload.part(call, bucket);
-        }
-        // delete an object
-        else if (method === "DELETE" && !query.has("uploadId")) {
-            return await S3Object.delete(call, bucket);
-        }
-        // abort a multipart upload
-        else if (method === "DELETE") {
-            return await S3Upload.abort(call, bucket);
-        }
-        // start a multipart upload
-        else if (method === "POST" && query.has("uploads")) {
-            return await S3Upload.create(call, bucket);
-        }
-        // complete a multipart upload
-        else if (method === "POST" && query.has("uploadId")) {
-            return await S3Upload.complete(call, bucket);
-        }
-        // list the parts of a multipart upload
-        else if (method === "GET") {
-            return await S3Upload.listParts(call, bucket);
-        }
-        // refuse other methods
-        else {
-            throw BucketError.of(
-                "METHOD_UNSUPPORTED",
-                `the method '${method}' on objects is not supported`,
-            );
+                return new Response(null, { headers: { "x-amz-bucket-region": this.region } });
+            case "ListObjectsV2":
+                return await S3Object.list(call, bucket);
+            case "ListMultipartUploads":
+                return await S3Upload.list(call, bucket);
+            case "DeleteObjects":
+                return await S3Object.deleteMany(call, bucket);
+            case "HeadObject":
+                return await S3Object.head(call, bucket);
+            case "GetObject":
+                return await S3Object.get(call, bucket);
+            case "PutObject":
+                return await S3Object.put(call, bucket);
+            case "CopyObject":
+                return await S3Object.copy(call, bucket, await this.#source(call, bucket));
+            case "DeleteObject":
+                return await S3Object.delete(call, bucket);
+            case "CreateMultipartUpload":
+                return await S3Upload.create(call, bucket);
+            case "UploadPart":
+                return await S3Upload.part(call, bucket);
+            case "UploadPartCopy":
+                return await S3Upload.partCopy(call, bucket, await this.#source(call, bucket));
+            case "ListParts":
+                return await S3Upload.listParts(call, bucket);
+            case "CompleteMultipartUpload":
+                return await S3Upload.complete(call, bucket);
+            case "AbortMultipartUpload":
+                return await S3Upload.abort(call, bucket);
+            // refuse other bucket operations and object methods
+            case "_OTHER":
+                throw call.key === ""
+                    ? BucketError.of(
+                          "OPERATION_UNSUPPORTED",
+                          `the bucket operation '${call.request.method}' is not supported`,
+                      )
+                    : BucketError.of(
+                          "METHOD_UNSUPPORTED",
+                          `the method '${call.request.method}' on objects is not supported`,
+                      );
         }
     }
 

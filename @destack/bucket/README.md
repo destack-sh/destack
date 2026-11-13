@@ -137,7 +137,7 @@ Every backend is a `Bucket`.
 | `LocalBucket.open(directory, scope, environment)`     | `@destack/bucket/bun`        | a SQLite catalogue and the files in a directory   |
 | `new R2Bucket(binding)`                               | `@destack/bucket/cloudflare` | the files of an R2 binding                        |
 | `S3Client.of({ location, credentials }, environment)` | `@destack/bucket/s3`         | the files of a bucket at an S3 endpoint, signed   |
-| `new S3Client(url, fetch, crypto)`                    | `@destack/bucket/s3`         | the files at a bucket's URL, sent through a fetch |
+| `new S3Client(url, fetch, environment)`               | `@destack/bucket/s3`         | the files at a bucket's URL, sent through a fetch |
 | `new MemoryBucket(clock)`                             | `@destack/bucket/test`       | the files in memory, without multipart uploads    |
 
 ### S3Server

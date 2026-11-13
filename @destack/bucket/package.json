@@ -24,7 +24,8 @@
         "@destack/identity": "workspace:*",
         "@destack/package": "workspace:*",
         "@destack/resource": "workspace:*",
-        "@destack/schema": "workspace:*"
+        "@destack/schema": "workspace:*",
+        "@destack/telemetry": "workspace:*"
     },
     "scripts": {
         "typecheck": "tsc --project tsconfig.json && destack-check readme",

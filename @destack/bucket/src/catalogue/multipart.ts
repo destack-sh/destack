@@ -156,10 +156,21 @@ export class CatalogueMultipartUpload implements S3MultipartUpload {
     }
 
     /** Write and atomically replace one upload part. */
-    async uploadPart(
+    uploadPart(
         partNumber: number,
         body: BucketBody,
         options: UploadPartOptions = {},
+    ): Promise<Part> {
+        return this.#storage.trace("upload_part", { "destack.bucket.key": this.key }, () =>
+            this.#uploadPart(partNumber, body, options),
+        );
+    }
+
+    /** Write a part's contents, then publish it while the upload remains active. */
+    async #uploadPart(
+        partNumber: number,
+        body: BucketBody,
+        options: UploadPartOptions,
     ): Promise<Part> {
         // validate the part and require the upload's customer key before reading its body
         UploadedPart.checkNumber(partNumber);
@@ -217,10 +228,21 @@ export class CatalogueMultipartUpload implements S3MultipartUpload {
     }
 
     /** Stream a file or a range of it into one upload part. */
-    async uploadPartCopy(
+    uploadPartCopy(
         partNumber: number,
         source: string,
         options: PartCopyOptions = {},
+    ): Promise<Part> {
+        return this.#storage.trace("upload_part_copy", { "destack.bucket.key": this.key }, () =>
+            this.#uploadPartCopy(partNumber, source, options),
+        );
+    }
+
+    /** Read the source under its preconditions and write it as one part. */
+    async #uploadPartCopy(
+        partNumber: number,
+        source: string,
+        options: PartCopyOptions,
     ): Promise<Part> {
         // read the source under its preconditions
         UploadedPart.checkNumber(partNumber);
@@ -229,11 +251,18 @@ export class CatalogueMultipartUpload implements S3MultipartUpload {
             throw BucketError.of("KEY_NOT_FOUND", `source file '${source}' not found`);
         }
 
-        return await this.uploadPart(partNumber, selected.body);
+        return await this.#uploadPart(partNumber, selected.body, {});
     }
 
     /** List the stored parts in part number order. */
-    async listParts(options: PartListOptions = {}): Promise<PartListing> {
+    listParts(options: PartListOptions = {}): Promise<PartListing> {
+        return this.#storage.trace("list_parts", { "destack.bucket.key": this.key }, () =>
+            this.#listParts(options),
+        );
+    }
+
+    /** Read a page of the active upload's parts after a part number. */
+    async #listParts(options: PartListOptions): Promise<PartListing> {
         // validate the page size
         const limit = options.limit ?? MAX_BATCH_FILES;
         BucketListing.checkLimit(limit);
@@ -267,7 +296,16 @@ export class CatalogueMultipartUpload implements S3MultipartUpload {
     }
 
     /** Publish the selected parts as the segments of one file in one catalogue transaction. */
-    async complete(selected: UploadedPart[]): Promise<BucketFile> {
+    complete(selected: UploadedPart[]): Promise<BucketFile> {
+        return this.#storage.trace(
+            "complete_multipart_upload",
+            { "destack.bucket.key": this.key },
+            () => this.#complete(selected),
+        );
+    }
+
+    /** Match the selected parts to the active upload's and publish them as one file. */
+    async #complete(selected: UploadedPart[]): Promise<BucketFile> {
         requireDistinct(selected);
 
         return await this.#storage.exclusive(async () => {
@@ -328,7 +366,16 @@ export class CatalogueMultipartUpload implements S3MultipartUpload {
     }
 
     /** Discard an incomplete upload and retire each uploaded part. */
-    async abort(): Promise<void> {
+    abort(): Promise<void> {
+        return this.#storage.trace(
+            "abort_multipart_upload",
+            { "destack.bucket.key": this.key },
+            () => this.#abort(),
+        );
+    }
+
+    /** Delete an active upload's parts and mark it aborted, passing an upload already ended. */
+    async #abort(): Promise<void> {
         await this.#storage.exclusive(async () => {
             // read the upload of an unfenced bucket
             this.#storage.checkWritable();

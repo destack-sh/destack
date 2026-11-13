@@ -4,6 +4,7 @@ import type { Identifier } from "@destack/schema";
 import { BucketError } from "../error/index.ts";
 import type { BucketEndpoint, BucketHost, BucketReference, S3Credentials } from "../s3/index.ts";
 import type { CatalogueBucket } from "./bucket.ts";
+import type { CatalogueProvider } from "./storage.ts";
 
 /** The databases a host keeps its buckets' catalogues in, one each. */
 export interface CatalogueStore {
@@ -23,7 +24,7 @@ export abstract class CatalogueBucketHost<Opened extends CatalogueBucket = Catal
     implements BucketHost, AsyncDisposable
 {
     /** The provider code of the host's buckets, such as `local` or `r2`. */
-    abstract readonly provider: string;
+    abstract readonly provider: CatalogueProvider;
     /** The URL serving the host's buckets over S3. */
     readonly endpoint: URL;
     /** The region requests are signed for. */

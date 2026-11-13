@@ -126,7 +126,7 @@ function connect(
         return new S3Client(
             "https://s3.test/files/",
             (request) => server.serve(request, ACCESS_KEY_ID),
-            world.crypto,
+            world,
         );
     }
     // sign every request over a local port

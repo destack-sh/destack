@@ -1,4 +1,6 @@
 import type { Environment } from "@destack/environment";
+import type {} from "@destack/package/import-meta";
+import { type Attributes, TelemetryScope } from "@destack/telemetry";
 import {
     and,
     asc,
@@ -41,14 +43,41 @@ const REFERENCE_BATCH_SIZE = 500;
 /** A catalogue transaction. */
 export type CatalogueTransaction = Parameters<Parameters<DatabaseConnection["transaction"]>[0]>[0];
 
-/** The clock, randomness and network a catalogue's writes run on. */
-export type CatalogueEnvironment = Pick<Environment, "clock" | "random" | "network">;
+/** The clock, randomness, network and telemetry a catalogue's writes run on. */
+export type CatalogueEnvironment = Pick<Environment, "clock" | "random" | "network" | "telemetry">;
+
+/** The provider code of a host keeping catalogues, a device's or a cell's. */
+export type CatalogueProvider = "local" | "r2";
+
+/** The verbs a catalogue bucket traces, each a span `destack.bucket.<verb>`. */
+export type CatalogueVerb =
+    | "head"
+    | "get"
+    | "put"
+    | "restore"
+    | "fetch"
+    | "copy"
+    | "clone"
+    | "delete"
+    | "list"
+    | "collect"
+    | "sweep"
+    | "fence"
+    | "create_multipart_upload"
+    | "list_uploads"
+    | "upload_part"
+    | "upload_part_copy"
+    | "list_parts"
+    | "complete_multipart_upload"
+    | "abort_multipart_upload";
 
 /** A bucket's catalogue database, opened by its host only for it, and its blob store. */
 export interface Catalogue extends DatabaseHandle {
     /** The blobs the catalogue's segments and parts reference, indexed in its connection. */
     readonly blobs: BlobStore;
-    /** The clock, randomness and network the catalogue's writes run on. */
+    /** The provider code of the host that opened the catalogue. */
+    readonly provider: CatalogueProvider;
+    /** The clock, randomness, network and telemetry the catalogue's writes run on. */
     readonly environment: CatalogueEnvironment;
     /** Sweep blobs while no other process has the catalogue open, answering whether it ran. */
     readonly reclaim: (deletion: () => Promise<void>) => Promise<boolean>;
@@ -64,8 +93,12 @@ export class CatalogueStorage implements AsyncDisposable {
 
     /** The catalogue, reopened by its host when it gains tables. */
     readonly #catalogue: Catalogue;
+    /** The spans and durations of the bucket's verbs. */
+    readonly #scope: TelemetryScope;
     /** Operations that select or replace blobs. */
     #pending: Promise<void> = Promise.resolve();
+    /** The operations holding or waiting for the lock. */
+    #holders = 0;
     /** The writers admitted and not yet finished, which a fence waits for. */
     #writers = 0;
     /** Whether a transfer fenced the bucket, which refuses new writes. */
@@ -80,9 +113,31 @@ export class CatalogueStorage implements AsyncDisposable {
     /** Retain an opened catalogue and its blobs. */
     constructor(catalogue: Catalogue) {
         this.#catalogue = catalogue;
+        this.#scope = TelemetryScope.of(
+            import.meta.destack.package,
+            catalogue.environment.telemetry,
+        );
     }
 
-    /** The clock, randomness and network the catalogue's writes run on. */
+    /** Run a bucket verb in its span, recording its duration by the provider. */
+    trace<Value>(
+        verb: CatalogueVerb,
+        attributes: Attributes,
+        run: () => Promise<Value>,
+    ): Promise<Value> {
+        const provider = { "destack.bucket.provider": this.#catalogue.provider };
+
+        return this.#scope.span(`destack.bucket.${verb}`, { ...provider, ...attributes }, run, {
+            duration: { attributes: provider },
+        });
+    }
+
+    /** The provider code of the host that opened the catalogue. */
+    get provider(): CatalogueProvider {
+        return this.#catalogue.provider;
+    }
+
+    /** The clock, randomness, network and telemetry the catalogue's writes run on. */
     get environment(): CatalogueEnvironment {
         return this.#catalogue.environment;
     }
@@ -356,16 +411,23 @@ export class CatalogueStorage implements AsyncDisposable {
 
     /** Serialize catalogue changes and opening their selected blobs. */
     async exclusive<Value>(operation: () => Promise<Value>): Promise<Value> {
-        // wait for the previous operation and keep the lock while this one runs
+        // queue behind the previous operation, keeping the lock while this one runs
         const previous = this.#pending;
         const next = Promise.withResolvers<void>();
         this.#pending = next.promise;
-        await previous;
+        this.#holders += 1;
+
+        // wait for a held lock, timing only a real wait as connection pools do
+        if (this.#holders > 1) {
+            const provider = { "destack.bucket.provider": this.#catalogue.provider };
+            await this.#scope.measure("destack.bucket.lock.wait_time", provider, () => previous);
+        }
         try {
             this.checkOpen();
 
             return await operation();
         } finally {
+            this.#holders -= 1;
             next.resolve();
         }
     }

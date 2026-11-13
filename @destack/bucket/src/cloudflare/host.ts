@@ -1,4 +1,6 @@
 import { BlobStore, type Table } from "@destack/db";
+import type {} from "@destack/package/import-meta";
+import { TelemetryScope } from "@destack/telemetry";
 import type { DurableObjectDatabaseHost } from "@destack/db/cloudflare";
 import { schema, type Identifier } from "@destack/schema";
 import type { Bucket } from "../bucket/index.ts";
@@ -6,6 +8,7 @@ import {
     CatalogueBucket,
     CatalogueBucketHost,
     type CatalogueEnvironment,
+    type CatalogueProvider,
     type CatalogueStore,
     CatalogueStorage,
 } from "../catalogue/index.ts";
@@ -30,22 +33,24 @@ export interface R2BucketHostOptions {
     readonly region: string;
     /** Read the S3 credentials of a scope, absent for a scope without credentials on the host. */
     readonly credentials: (scope: string) => Promise<S3Credentials | undefined>;
-    /** The clock, randomness and network the catalogues' writes run on. */
+    /** The clock, randomness, network and telemetry the catalogues' writes run on. */
     readonly environment: CatalogueEnvironment;
 }
 
 /** A cell that keeps buckets, each opened once and served over S3 at one endpoint. */
 export class R2BucketHost extends CatalogueBucketHost {
     /** The provider code of R2 buckets. */
-    readonly provider: string;
+    readonly provider: CatalogueProvider;
     /** The residency's R2 bucket. */
     readonly #files: Bucket;
     /** The name of the residency's R2 bucket. */
     readonly name: string;
     /** The databases of the buckets' catalogues. */
     readonly #catalogues: CatalogueStore;
-    /** The clock, randomness and network the catalogues' writes run on. */
+    /** The clock, randomness, network and telemetry the catalogues' writes run on. */
     readonly #environment: CatalogueEnvironment;
+    /** The spans and durations of the bucket opens. */
+    readonly #scope: TelemetryScope;
 
     /** Keep a cell's buckets in the residency's R2 bucket and the cell's database. */
     constructor(options: R2BucketHostOptions) {
@@ -56,6 +61,7 @@ export class R2BucketHost extends CatalogueBucketHost {
         this.name = options.name;
         this.#catalogues = options.catalogues;
         this.#environment = options.environment;
+        this.#scope = TelemetryScope.of(import.meta.destack.package, options.environment.telemetry);
     }
 
     /** Name where a bucket's blobs live: its prefix in the residency's R2 bucket. */
@@ -102,7 +108,19 @@ export class R2BucketHost extends CatalogueBucketHost {
     }
 
     /** Open a bucket's catalogue, created in its scope once, over its blobs below its prefix. */
-    protected override async load(
+    protected override load(
+        bucket: Pick<BucketReference, "bucketId">,
+        scope: string | undefined,
+    ): Promise<CatalogueBucket> {
+        const provider = { "destack.bucket.provider": this.provider };
+
+        return this.#scope.span("destack.bucket.open", provider, () => this.#load(bucket, scope), {
+            duration: { attributes: provider },
+        });
+    }
+
+    /** Connect and migrate a bucket's catalogue, fenced while its fence file remains. */
+    async #load(
         { bucketId }: Pick<BucketReference, "bucketId">,
         scope: string | undefined,
     ): Promise<CatalogueBucket> {
@@ -143,6 +161,7 @@ export class R2BucketHost extends CatalogueBucketHost {
             get blobs() {
                 return blobs;
             },
+            provider: this.provider,
             environment,
             migrate: async (beside) => {
                 // migrate, then reconnect declaring every table

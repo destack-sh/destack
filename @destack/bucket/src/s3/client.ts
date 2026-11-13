@@ -1,5 +1,7 @@
 import { type Connector, ResourceBinding } from "@destack/resource";
 import { Failure } from "@destack/error";
+import type {} from "@destack/package/import-meta";
+import { TelemetryScope } from "@destack/telemetry";
 import { copyRequest, type Crypto, type Environment, Pipe } from "@destack/environment";
 import {
     type Bucket,
@@ -34,6 +36,7 @@ import {
 } from "./headers.ts";
 import { encodeUri } from "./uri.ts";
 import { writeXml, XmlNode } from "./xml.ts";
+import { S3Action } from "./operation.ts";
 
 /** The provider code of buckets a workload calls over S3 at its host's egress. */
 export const S3_PROVIDER = "s3";
@@ -46,6 +49,8 @@ const STORED = { decompress: false } as const;
 
 /** One S3 request on the bucket. */
 interface S3Call {
+    /** The S3 action. */
+    readonly action: S3Action;
     /** The HTTP method. */
     readonly method: "GET" | "HEAD" | "PUT" | "POST" | "DELETE";
     /** The file key, absent for a request on the bucket. */
@@ -80,7 +85,7 @@ export class S3Client implements Bucket {
                 return environment.network.fetch(copyRequest(request, { headers }), STORED);
             };
 
-            return Object.assign(new S3Client(binding.reference, send, environment.crypto), {
+            return Object.assign(new S3Client(binding.reference, send, environment), {
                 [Symbol.asyncDispose]: () => Promise.resolve(),
             });
         },
@@ -89,7 +94,7 @@ export class S3Client implements Bucket {
     /** Open a bucket at its S3 location, signing every request with its credentials. */
     static of(
         endpoint: BucketEndpoint,
-        environment: Pick<Environment, "clock" | "crypto" | "network">,
+        environment: Pick<Environment, "clock" | "crypto" | "network" | "telemetry">,
     ): S3Client {
         // sign each request for the bucket's region at the time it is sent
         const { location, credentials } = endpoint;
@@ -98,7 +103,7 @@ export class S3Client implements Bucket {
         const send = async (request: Request) =>
             await network.fetch(await signature.sign(request, credentials, clock.now()), STORED);
 
-        return new S3Client(S3Location.url(location).href, send, crypto);
+        return new S3Client(S3Location.url(location).href, send, environment);
     }
 
     /** The bucket's URL, below which keys are addressed path-style. */
@@ -107,16 +112,20 @@ export class S3Client implements Bucket {
     readonly #fetch: (request: Request) => Promise<Response>;
     /** The crypto checksumming request documents. */
     readonly #crypto: Pick<Crypto, "digest">;
+    /** The spans and durations of the calls. */
+    readonly #scope: TelemetryScope;
 
-    /** Reach a bucket at its URL through a fetch, checksumming documents with a crypto. */
+    /** Reach a bucket at its URL through a fetch, checksumming documents and tracing calls. */
     constructor(
         url: string,
         fetch: (request: Request) => Promise<Response>,
-        crypto: Pick<Crypto, "digest">,
+        environment: Pick<Environment, "crypto" | "telemetry">,
     ) {
+        // keep the address, the fetch, the crypto and the scope
         this.url = url.replace(/\/$/u, "");
         this.#fetch = fetch;
-        this.#crypto = crypto;
+        this.#crypto = environment.crypto;
+        this.#scope = TelemetryScope.of(import.meta.destack.package, environment.telemetry);
     }
 
     /** Read metadata; return null when the key does not exist. */
@@ -124,7 +133,7 @@ export class S3Client implements Bucket {
         // read the file's headers with its checksums
         BucketKey.check(key);
         const headers = new Headers({ [CHECKSUM_MODE_HEADER]: "ENABLED" });
-        const answer = await this.#send({ method: "HEAD", key, headers });
+        const answer = await this.#send({ action: "HeadObject", method: "HEAD", key, headers });
 
         // answer nothing for a missing file, and refuse any other failure by its status
         if (answer.status === 404) {
@@ -147,7 +156,7 @@ export class S3Client implements Bucket {
         }
         writeCondition(headers, options.onlyIf);
         writeCustomerKey(headers, options.ssecKey);
-        const answer = await this.#send({ method: "GET", key, headers });
+        const answer = await this.#send({ action: "GetObject", method: "GET", key, headers });
 
         // refuse a failed precondition with the current file, and answer nothing for a missing one
         if (answer.status === 304 || answer.status === 412) {
@@ -187,7 +196,13 @@ export class S3Client implements Bucket {
             }
         }
         const sent = counted(body);
-        const answer = await this.#send({ method: "PUT", key, headers, body: sent.body });
+        const answer = await this.#send({
+            action: "PutObject",
+            method: "PUT",
+            key,
+            headers,
+            body: sent.body,
+        });
 
         // refuse a failed precondition with the current file, absent for a missing If-Match target
         if (answer.status === 412) {
@@ -208,7 +223,10 @@ export class S3Client implements Bucket {
         // delete one file by its key
         if (typeof key === "string") {
             BucketKey.check(key);
-            await this.#expect(await this.#send({ method: "DELETE", key }), key);
+            await this.#expect(
+                await this.#send({ action: "DeleteObject", method: "DELETE", key }),
+                key,
+            );
 
             return;
         }
@@ -234,6 +252,7 @@ export class S3Client implements Bucket {
             "x-amz-checksum-sha256": await sha256(document, this.#crypto),
         });
         const answer = await this.#send({
+            action: "DeleteObjects",
             method: "POST",
             query: { delete: "" },
             headers,
@@ -259,6 +278,7 @@ export class S3Client implements Bucket {
 
         // list one page with version 2 of the listing API
         const answer = await this.#send({
+            action: "ListObjectsV2",
             method: "GET",
             query: {
                 "list-type": "2",
@@ -297,7 +317,13 @@ export class S3Client implements Bucket {
         // start the upload with the metadata its file receives
         BucketKey.check(key);
         const headers = writtenHeaders(options);
-        const answer = await this.#send({ method: "POST", key, query: { uploads: "" }, headers });
+        const answer = await this.#send({
+            action: "CreateMultipartUpload",
+            method: "POST",
+            key,
+            query: { uploads: "" },
+            headers,
+        });
         const document = await this.#document(answer, key);
 
         return this.resumeMultipartUpload(key, required(document, "UploadId"));
@@ -313,7 +339,15 @@ export class S3Client implements Bucket {
             complete: (uploaded) => this.#complete(key, uploadId, uploaded),
             abort: async () => {
                 const query = { uploadId };
-                await this.#expect(await this.#send({ method: "DELETE", key, query }), key);
+                await this.#expect(
+                    await this.#send({
+                        action: "AbortMultipartUpload",
+                        method: "DELETE",
+                        key,
+                        query,
+                    }),
+                    key,
+                );
             },
         };
     }
@@ -332,7 +366,14 @@ export class S3Client implements Bucket {
         writeCustomerKey(headers, options.ssecKey);
         const query = { partNumber: String(partNumber), uploadId };
         const sent = counted(body);
-        const answer = await this.#send({ method: "PUT", key, query, headers, body: sent.body });
+        const answer = await this.#send({
+            action: "UploadPart",
+            method: "PUT",
+            key,
+            query,
+            headers,
+            body: sent.body,
+        });
 
         // read the part's entity tag
         const etag = (await this.#expect(answer, key)).headers.get("etag");
@@ -350,7 +391,13 @@ export class S3Client implements Bucket {
             Part: uploaded.map((part) => ({ PartNumber: part.partNumber, ETag: `"${part.etag}"` })),
         });
         const query = { uploadId };
-        const answer = await this.#send({ method: "POST", key, query, body: document });
+        const answer = await this.#send({
+            action: "CompleteMultipartUpload",
+            method: "POST",
+            key,
+            query,
+            body: document,
+        });
         const version = (await this.#expect(answer, key)).headers.get("x-amz-version-id");
 
         // read the assembled file, whose metadata the upload's creation set, refusing a later version
@@ -379,7 +426,31 @@ export class S3Client implements Bucket {
             ...(call.body instanceof ReadableStream ? { duplex: "half" } : {}),
         });
 
-        return this.#fetch(request);
+        // send it in the action's span, its duration by the status it answers
+        const attributes = S3Action.attributes(call.action);
+        const key = call.key === undefined ? {} : { "aws.s3.key": call.key };
+        let status: number | undefined;
+        const answered = () =>
+            status === undefined
+                ? attributes
+                : { ...attributes, "http.response.status_code": status };
+
+        return this.#scope.span(
+            `S3/${call.action}`,
+            { ...attributes, ...key },
+            async (span) => {
+                // send the request, noting the status it answers
+                const response = await this.#fetch(request);
+                status = response.status;
+                span.setAttribute("http.response.status_code", status);
+
+                return response;
+            },
+            {
+                kind: "client",
+                duration: { name: "rpc.client.call.duration", attributes: answered },
+            },
+        );
     }
 
     /** Require a successful answer, refusing as the bucket or its host refused. */

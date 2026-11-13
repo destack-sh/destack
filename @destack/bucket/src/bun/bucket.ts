@@ -3,7 +3,9 @@ import { BlobStore } from "@destack/db";
 import { connectBunSqlite } from "@destack/db/bun";
 import type { SqliteDatabase } from "@destack/db/sqlite";
 import type { Environment, FileLock, FileSystem } from "@destack/environment";
+import type {} from "@destack/package/import-meta";
 import { present } from "@destack/schema";
+import { TelemetryScope } from "@destack/telemetry";
 import { BucketKey } from "../bucket/index.ts";
 import { BucketError } from "../error/index.ts";
 import { CatalogueBucket } from "../catalogue/bucket.ts";
@@ -29,7 +31,25 @@ export class LocalBucket extends CatalogueBucket {
     }
 
     /** Open a bucket in a directory, or create it in its scope, beside other processes' opens. */
-    static async open(
+    static open(
+        directory: string,
+        scope: string | undefined,
+        environment: LocalBucketEnvironment,
+    ): Promise<LocalBucket> {
+        // trace the open as a local bucket's
+        const provider = { "destack.bucket.provider": "local" };
+        return TelemetryScope.of(import.meta.destack.package, environment.telemetry).span(
+            "destack.bucket.open",
+            provider,
+            () => LocalBucket.#open(directory, scope, environment),
+            {
+                duration: { attributes: provider },
+            },
+        );
+    }
+
+    /** Prepare a directory's catalogue and blob files, holding the bucket's shared lock. */
+    static async #open(
         directory: string,
         scope: string | undefined,
         environment: LocalBucketEnvironment,
@@ -70,7 +90,14 @@ export class LocalBucket extends CatalogueBucket {
     }
 
     /** Clone a plain file's bytes to a path, copying them where the file system cannot clone. */
-    async clone(key: string, destination: string): Promise<void> {
+    clone(key: string, destination: string): Promise<void> {
+        return this.#storage.trace("clone", { "destack.bucket.key": key }, () =>
+            this.#clone(key, destination),
+        );
+    }
+
+    /** Find a plain single-part file's blob, then clone its bytes. */
+    async #clone(key: string, destination: string): Promise<void> {
         // read where the current plain single-part file's blob lies
         BucketKey.check(key);
         const placement = await this.#storage.exclusive(async () => {
@@ -152,6 +179,7 @@ function openedStorage(
         get blobs() {
             return indexed;
         },
+        provider: "local",
         environment,
         migrate: async (beside) => {
             // migrate while no other opener migrates, then reopen the connection declaring every table

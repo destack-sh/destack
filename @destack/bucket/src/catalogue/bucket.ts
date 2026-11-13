@@ -60,6 +60,8 @@ export class CatalogueBucket implements S3Bucket, AsyncDisposable {
             get blobs() {
                 return storage.blobs;
             },
+            provider: storage.provider,
+            environment: storage.environment,
             migrate: (beside) => storage.migrate(beside),
             close: async () => {},
         };
@@ -73,15 +75,24 @@ export class CatalogueBucket implements S3Bucket, AsyncDisposable {
     }
 
     /** Read the current metadata. */
-    async head(key: string): Promise<BucketFile | null> {
-        BucketKey.check(key);
-        const entry = await this.#storage.exclusive(() => this.#storage.entry(key));
+    head(key: string): Promise<BucketFile | null> {
+        return this.#storage.trace("head", { "destack.bucket.key": key }, async () => {
+            BucketKey.check(key);
+            const entry = await this.#storage.exclusive(() => this.#storage.entry(key));
 
-        return entry ? CatalogueFile.describe(entry) : null;
+            return entry ? CatalogueFile.describe(entry) : null;
+        });
     }
 
     /** Open the immutable contents the catalogue selects, refusing a failed precondition. */
-    async get(key: string, options: BucketGetOptions = {}): Promise<BucketFileBody | null> {
+    get(key: string, options: BucketGetOptions = {}): Promise<BucketFileBody | null> {
+        return this.#storage.trace("get", { "destack.bucket.key": key }, () =>
+            this.#get(key, options),
+        );
+    }
+
+    /** Open a file's selected bytes under its preconditions and customer key. */
+    async #get(key: string, options: BucketGetOptions): Promise<BucketFileBody | null> {
         // validate the requested key, customer key and byte selection before entering the catalogue lock
         BucketKey.check(key);
         const customerKey = await CustomerKey.read(options.ssecKey);
@@ -144,16 +155,14 @@ export class CatalogueBucket implements S3Bucket, AsyncDisposable {
     }
 
     /** Write immutable contents, then atomically publish their catalogue entry. */
-    async put(
-        key: string,
-        body: BucketBody | null,
-        options: BucketPutOptions = {},
-    ): Promise<BucketFile> {
-        return this.#write(key, body, options);
+    put(key: string, body: BucketBody | null, options: BucketPutOptions = {}): Promise<BucketFile> {
+        return this.#storage.trace("put", { "destack.bucket.key": key }, () =>
+            this.#write(key, body, options),
+        );
     }
 
     /** Write a file with the entity tag, version and upload time another bucket gave it. */
-    async restore(
+    restore(
         key: string,
         body: BucketBody | null,
         stored: Pick<BucketFile, "etag" | "version" | "uploaded"> &
@@ -161,11 +170,24 @@ export class CatalogueBucket implements S3Bucket, AsyncDisposable {
     ): Promise<BucketFile> {
         const { etag, version, uploaded, ...options } = stored;
 
-        return this.#write(key, body, options, { etag, version, uploaded });
+        return this.#storage.trace("restore", { "destack.bucket.key": key }, () =>
+            this.#write(key, body, options, { etag, version, uploaded }),
+        );
     }
 
     /** Fetch a file from a URL with the identity another bucket gave it. */
-    async fetch(
+    fetch(
+        url: string,
+        source: Pick<BucketFile, "key" | "etag" | "version" | "uploaded"> &
+            Omit<BucketPutOptions, "onlyIf">,
+    ): Promise<void> {
+        return this.#storage.trace("fetch", { "destack.bucket.key": source.key }, () =>
+            this.#fetch(url, source),
+        );
+    }
+
+    /** Stream a file from its source unless the bucket has the same version. */
+    async #fetch(
         url: string,
         source: Pick<BucketFile, "key" | "etag" | "version" | "uploaded"> &
             Omit<BucketPutOptions, "onlyIf">,
@@ -282,10 +304,21 @@ export class CatalogueBucket implements S3Bucket, AsyncDisposable {
     }
 
     /** Publish a new version of the destination that shares the source's immutable content. */
-    async copy(
+    copy(
         source: string,
         destination: string,
         options: BucketCopyOptions = {},
+    ): Promise<BucketFile> {
+        return this.#storage.trace("copy", { "destack.bucket.key": destination }, () =>
+            this.#copy(source, destination, options),
+        );
+    }
+
+    /** Publish the destination over the source's segments under the source's preconditions. */
+    async #copy(
+        source: string,
+        destination: string,
+        options: BucketCopyOptions,
     ): Promise<BucketFile> {
         // validate both keys and the storage class before entering the catalogue lock
         BucketKey.check(source);
@@ -329,7 +362,14 @@ export class CatalogueBucket implements S3Bucket, AsyncDisposable {
     }
 
     /** Remove the current key while retaining contents already opened by readers. */
-    async delete(key: string | string[]): Promise<void> {
+    delete(key: string | string[]): Promise<void> {
+        const attributes = typeof key === "string" ? { "destack.bucket.key": key } : {};
+
+        return this.#storage.trace("delete", attributes, () => this.#delete(key));
+    }
+
+    /** Delete up to 1000 unlocked files and their segments in one transaction. */
+    async #delete(key: string | string[]): Promise<void> {
         // validate the complete request before deleting any keys
         const keys = typeof key === "string" ? [key] : key;
         if (keys.length > MAX_BATCH_FILES) {
@@ -381,18 +421,20 @@ export class CatalogueBucket implements S3Bucket, AsyncDisposable {
     }
 
     /** Delete the retired blobs no row references and no lease covers. */
-    async collect(): Promise<void> {
-        await this.#storage.blobs.collect();
+    collect(): Promise<void> {
+        return this.#storage.trace("collect", {}, async () => {
+            await this.#storage.blobs.collect();
+        });
     }
 
     /** Delete what interrupted writes left, answering false when writers kept it from finishing. */
     sweep(): Promise<boolean> {
-        return this.#storage.sweep();
+        return this.#storage.trace("sweep", {}, () => this.#storage.sweep());
     }
 
     /** Refuse new writes while a transfer copies the bucket. */
     fence(): Promise<boolean> {
-        return this.#storage.fence();
+        return this.#storage.trace("fence", {}, () => this.#storage.fence());
     }
 
     /** Accept writes again after a fence. */
@@ -406,13 +448,17 @@ export class CatalogueBucket implements S3Bucket, AsyncDisposable {
     }
 
     /** List keys in UTF-8 byte order. */
-    async list(options: BucketListOptions = {}): Promise<BucketListing> {
-        return await this.#storage.exclusive(() => this.#storage.list(options));
+    list(options: BucketListOptions = {}): Promise<BucketListing> {
+        return this.#storage.trace("list", {}, () =>
+            this.#storage.exclusive(() => this.#storage.list(options)),
+        );
     }
 
     /** Create a durable multipart upload. */
     createMultipartUpload(key: string, options: MultipartOptions = {}): Promise<S3MultipartUpload> {
-        return CatalogueMultipartUpload.create(this.#storage, this, key, options);
+        return this.#storage.trace("create_multipart_upload", { "destack.bucket.key": key }, () =>
+            CatalogueMultipartUpload.create(this.#storage, this, key, options),
+        );
     }
 
     /** Reference an existing multipart upload. */
@@ -422,7 +468,9 @@ export class CatalogueBucket implements S3Bucket, AsyncDisposable {
 
     /** List active uploads in key and upload identifier order. */
     listUploads(options: UploadListOptions = {}): Promise<UploadListing> {
-        return CatalogueMultipartUpload.list(this.#storage, options);
+        return this.#storage.trace("list_uploads", {}, () =>
+            CatalogueMultipartUpload.list(this.#storage, options),
+        );
     }
 
     /** Close the catalogue, rejecting while readers or writers have blobs open. */
