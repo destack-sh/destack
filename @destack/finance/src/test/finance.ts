@@ -8,9 +8,13 @@ import { reconciliation } from "@destack/db/test";
 import type { Crypto, Clock, Environment } from "@destack/environment";
 import type { Simulation } from "@destack/environment/simulation";
 import { type EventStore, EventTime } from "@destack/event";
-import { packageObject, tag } from "@destack/registry/object";
-import forgePackage from "@destack/forge/package";
-import { publishBuild, resolvedRelease } from "@destack/forge/test";
+import {
+    FORGE,
+    FORGE_HOME_OPTIONS,
+    FORGE_HOME_STACK,
+    FORGE_HOME_TYPES,
+    publishBuild,
+} from "@destack/forge/test";
 import { notification } from "@destack/notification/object";
 import messagePackage from "@destack/message/package";
 import notificationPackage from "@destack/notification/package";
@@ -19,7 +23,7 @@ import { EventView, PACKAGE_KIND, PACKAGE_EXPORT } from "@destack/object";
 import { describePackage } from "@destack/object/inspect";
 import { implementPackage, type ObjectStore } from "@destack/object/server";
 import type { ServerContext } from "@destack/object/workload";
-import { serversOf, type TestObjectStore } from "@destack/object/test";
+import { type TestObjectStore } from "@destack/object/test";
 import { describeMeter } from "@destack/telemetry/inspect";
 import { Meter, METER_KIND } from "@destack/telemetry/meter";
 import { PackageVersion } from "@destack/package";
@@ -29,8 +33,7 @@ import { MemoryBuild } from "@destack/package/test";
 import { Identifier, present, schema } from "@destack/schema";
 import type { StackDocument } from "@destack/stack/declare";
 import { install } from "@destack/stack/declare";
-import { TestPackage, TestSpace } from "@destack/stack/test";
-import vaultPackage from "@destack/vault/package";
+import { TestPackage, TestSpace } from "@destack/machine/test";
 import connectionPackage, { CONNECTION_INSTALLATION } from "@destack/connection/package";
 import { connectionVault } from "@destack/connection/stack";
 import { CONNECTION } from "@destack/connection/test";
@@ -148,26 +151,31 @@ const FINANCE: TestPackage = {
 /** The packages the residency's home installs beside its base ones, as its stack does. */
 const PACKAGES: readonly TestPackage[] = [
     VAULT,
+    FORGE,
     CONNECTION,
     ...(await TestNotification.packages(testHost().crypto)),
     FINANCE,
 ];
 
 /** The packages whose types the home's stack declares. */
-const HOME_TYPES = [vaultPackage, connectionPackage, financePackage] as const;
+const HOME_TYPES = [...FORGE_HOME_TYPES, connectionPackage, financePackage] as const;
 
 /** The home's stack: finance bound to the platform's Stripe connection and webhook secret. */
 const RESIDENCY_STACK = {
-    vaults: { connections: connectionVault.provision() },
+    ...FORGE_HOME_STACK,
+    vaults: { ...FORGE_HOME_STACK.vaults, connections: connectionVault.provision() },
     connections: {
         stripe: {
             ...stripe.provision(),
             protocol: { kind: "key", header: "authorization", scheme: "Bearer" } as const,
         },
     },
-    secrets: { "stripe-webhook": { parent: "connections", name: "stripe-webhook" } },
+    secrets: {
+        ...FORGE_HOME_STACK.secrets,
+        "stripe-webhook": { parent: "connections", name: "stripe-webhook" },
+    },
     installations: {
-        vault: install(vaultPackage, {}, { isolation: "host", name: "vault" }),
+        ...FORGE_HOME_STACK.installations,
         connection: install(
             connectionPackage,
             { credentials: "connections" },
@@ -183,13 +191,15 @@ const RESIDENCY_STACK = {
     },
 };
 
-/** The home the fixture's tests copy: its packages, forge's releases and the publisher. */
+/** The home the fixture's tests copy: forge's residency home with finance and the publisher. */
 const HOME_OPTIONS = {
     ...TestPackage.options(PACKAGES),
+    tables: FORGE_HOME_OPTIONS.tables,
+    follows: FORGE_HOME_OPTIONS.follows,
+    policies: FORGE_HOME_OPTIONS.policies,
+    resources: FORGE_HOME_OPTIONS.resources,
     publishers: ["platform"],
     trustedPublishers: [],
-    packages: [...TestPackage.options(PACKAGES).packages, forgePackage],
-    companions: serversOf([packageObject, resolvedRelease, tag]),
 };
 
 /** What the fixture's world shares: the platform's account. */
