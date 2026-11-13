@@ -867,12 +867,11 @@ export type InstallationRevision = Select<typeof installationRevision.table>;
 
 /** The revisions of an installation: one per distinct build and stack evaluation. */
 export const InstallationRevision = {
-    /** Read the build a revision evaluated from the space's builds. */
-    async reader(
+    /** Read the build row a revision evaluated. */
+    async build(
         snapshot: Pick<Snapshot, "read">,
         revisionId: Identifier<"installation-revision">,
-        builds: { readonly root: (lock: Digest) => Promise<BuildReader> },
-    ): Promise<BuildReader> {
+    ): Promise<Select<typeof build.table> & { readonly lock: Digest }> {
         // read the revision, refusing an unknown one
         const revision = await snapshot
             .read(installationRevision.table)
@@ -881,10 +880,19 @@ export const InstallationRevision = {
             throw StackError.of("REVISION_NOT_FOUND", `revision '${revisionId}' not found`);
         }
 
-        // read its lock's root build
-        const built = await Build.require(snapshot, revision.scope, revision.buildId);
+        return await Build.require(snapshot, revision.scope, revision.buildId);
+    },
 
-        return builds.root(built.lock);
+    /** Read the build a revision of a package evaluated from the space's builds. */
+    async reader(
+        snapshot: Pick<Snapshot, "read">,
+        revisionId: Identifier<"installation-revision">,
+        packageId: PackageId,
+        builds: { readonly root: (packageId: PackageId, lock: Digest) => Promise<BuildReader> },
+    ): Promise<BuildReader> {
+        const built = await InstallationRevision.build(snapshot, revisionId);
+
+        return builds.root(packageId, built.lock);
     },
 
     /** Read the revision an installation follows, absent before its first. */

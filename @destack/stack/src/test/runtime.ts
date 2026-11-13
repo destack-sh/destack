@@ -18,14 +18,14 @@ export class TestRuntime implements Runtime {
     /** The scheduler a call's module import runs on. */
     readonly #scheduler: Scheduler;
     /** The builds whose lock's root module a call imports. */
-    readonly #builds: Pick<SpaceBuildStore, "root">;
+    readonly #builds: Pick<SpaceBuildStore, "open">;
 
     /** Run instances as a server runtime, bun by default, importing on a world's scheduler. */
     constructor(options: {
         /** The scheduler a call's module import runs on. */
         readonly scheduler: Scheduler;
         /** The builds whose lock's root module a call imports. */
-        readonly builds: Pick<SpaceBuildStore, "root">;
+        readonly builds: Pick<SpaceBuildStore, "open">;
         /** The server runtime, bun by default. */
         readonly name?: ServerRuntime;
         /** The instances an earlier process of its machine left running, none by default. */
@@ -80,7 +80,7 @@ export class TestRuntime implements Runtime {
         input: readonly JsonValue[],
     ): Promise<JsonValue> {
         return await callInProcess(
-            await this.#builds.root(lock),
+            await this.#builds.open(lock),
             path,
             name,
             input,

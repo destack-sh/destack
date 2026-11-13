@@ -88,12 +88,20 @@ interface SelectedBuild {
 
 /** The revision a rollout targets: selecting its build, evaluating its stack, recording it. */
 export const RolloutTarget = {
+    /** Read the release this machine links or ships of a package, none for one it lacks. */
+    provided(
+        packageId: PackageId,
+        options: Pick<RevisionOptions, "linked" | "shipped">,
+    ): PackageRelease | undefined {
+        return options.linked.get(packageId) ?? options.shipped.get(packageId);
+    },
+
     /** Read the release this machine provides of a package, which one following the host's runs. */
     host(
         packageId: PackageId,
         options: Pick<RevisionOptions, "linked" | "shipped">,
     ): PackageRelease {
-        const provided = options.linked.get(packageId) ?? options.shipped.get(packageId);
+        const provided = RolloutTarget.provided(packageId, options);
         if (provided === undefined) {
             throw StackError.of(
                 "TARGET_BLOCKED",
@@ -102,6 +110,19 @@ export const RolloutTarget = {
         }
 
         return provided;
+    },
+
+    /** Resolve the lock an installation runs, undefined for a host release the machine lacks. */
+    running(
+        installed: Pick<Installation, "packageId" | "selection">,
+        recorded: Digest,
+        options: Pick<RevisionOptions, "linked" | "shipped">,
+    ): Digest | undefined {
+        const { packageId } = installed;
+
+        return installed.selection.kind === "host"
+            ? RolloutTarget.provided(packageId, options)?.lock
+            : (options.linked.get(packageId)?.lock ?? recorded);
     },
 
     /** Revise each installation: its selected or targeted build at its current bindings. */
@@ -224,7 +245,7 @@ export const RolloutTarget = {
         packageId: PackageId,
         installationId: Identifier<"installation"> | undefined,
         options: Pick<RevisionOptions, "forge" | "registry" | "linked" | "shipped"> & {
-            readonly builds: Pick<SpaceBuildStore, "get" | "pull" | "pullRoot" | "root">;
+            readonly builds: Pick<SpaceBuildStore, "get" | "pull" | "root">;
         },
     ): Promise<BuildReader | undefined> {
         // read the installation's rollout, refusing several of the package unless one is named
@@ -253,17 +274,22 @@ export const RolloutTarget = {
         else if (installed.length === 0 && linked === undefined) {
             return undefined;
         }
+        // read the release the machine provides for a host selection
+        else if (selection?.kind === "host") {
+            return options.builds.root(packageId, RolloutTarget.host(packageId, options).lock);
+        }
         // read the revision's build
         else if (followed?.revisionId !== undefined && followed.revisionId !== null) {
-            return InstallationRevision.reader(snapshot, followed.revisionId, options.builds);
+            return InstallationRevision.reader(
+                snapshot,
+                followed.revisionId,
+                packageId,
+                options.builds,
+            );
         }
         // read the release the machine links, which runs until a revision replaces it
         else if (linked !== undefined) {
-            return options.builds.pullRoot(packageId, linked.lock);
-        }
-        // read the release the machine provides for one following the host's
-        else if (selection?.kind === "host") {
-            return options.builds.pullRoot(packageId, RolloutTarget.host(packageId, options).lock);
+            return options.builds.root(packageId, linked.lock);
         }
         // resolve the release a planned installation selects as its rollout will
         else if (selection?.kind === "release" || selection?.kind === "tag") {
@@ -274,7 +300,7 @@ export const RolloutTarget = {
                 options,
             );
             if (resolved !== undefined) {
-                return options.builds.pullRoot(packageId, resolved.lock);
+                return options.builds.root(packageId, resolved.lock);
             }
         }
 

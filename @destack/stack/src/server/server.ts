@@ -350,11 +350,11 @@ export class SpaceStore {
         }
         // pull a named version
         else if (version !== undefined) {
-            return builds.pullRoot(packageId, await registry.find(packageId, version));
+            return builds.root(packageId, await registry.find(packageId, version));
         }
         // pull the distribution's release of a package the space does not install
         else if (distributed !== undefined) {
-            return builds.pullRoot(packageId, distributed.lock);
+            return builds.root(packageId, distributed.lock);
         }
         // run nothing of a package outside the distribution
         else {
@@ -487,6 +487,7 @@ function ownObjects(
             machine: options.machine,
             runtimes: new Map(options.runtimes.map((runtime) => [runtime.name, runtime])),
             builds,
+            trusted: options.trusted,
         }),
         implementInstance(),
         implementBuild(options),

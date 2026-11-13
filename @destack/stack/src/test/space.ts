@@ -83,7 +83,6 @@ import {
 } from "@destack/schema";
 import objectPackage from "@destack/object/package";
 import { Simulation } from "@destack/environment/simulation";
-import { Database } from "../object/index.ts";
 import { BuildCache, SpaceBuildStore } from "../server/installation/build.ts";
 import { StackDocument, type StackTypes } from "../declare/stack.ts";
 import { Handoff } from "../server/host/handoff.ts";
@@ -94,6 +93,7 @@ import {
     ResourceBindable,
     SpaceStore,
     SpaceHost,
+    type InstallationBuild,
     type SpaceStart,
     type SpaceMachine,
     type SpaceOptions,
@@ -1119,14 +1119,24 @@ export class TestSpace implements AsyncDisposable {
 
         // ship the machine's builds of its servers' packages, fixed before the space serves
         for (const build of options.linked ?? []) {
-            await fixture.registry.release(build);
-            const released = PackageManifest.package(build.manifest);
-            const lock = await fixture.registry.find(released.id, released.version);
-            linked.set(released.id, { package: released, lock });
-            trusted.add(lock);
+            await fixture.link(build);
         }
 
         return fixture;
+    }
+
+    /** Link a build as its package's release on the machine, as a newer distribution does. */
+    async link(build: BuildReader): Promise<void> {
+        // publish the build, then trust its lock in place of the replaced one
+        await this.registry.release(build);
+        const released = PackageManifest.package(build.manifest);
+        const lock = await this.registry.find(released.id, released.version);
+        const replaced = this.#linked.get(released.id);
+        if (replaced !== undefined) {
+            this.#trusted.delete(replaced.lock);
+        }
+        this.#linked.set(released.id, { package: released, lock });
+        this.#trusted.add(lock);
     }
 
     /** Record a failure the space's servers report, failing the waits listening for one. */
@@ -1234,7 +1244,7 @@ export class TestSpace implements AsyncDisposable {
         // apply the installations main applied in place, as the machine's space does
         const signal = new AbortController().signal;
         this.#appliers.set(spaceStore.store, async () => {
-            const current = await this.#installed();
+            const current = await this.installed();
             await this.host.apply(current, start, signal, (servers, sandboxes) => {
                 spaceStore.apply(servers, sandboxes);
             });
@@ -1281,11 +1291,10 @@ export class TestSpace implements AsyncDisposable {
         await present(this.#appliers.get(store), `the running store of space ${this.id}`)();
     }
 
-    /** Read the installed set main applied, each installation at its revision. */
-    #installed(): ReturnType<typeof Database.installed> {
-        return Database.installed(Snapshot.live(this.database), this.id, (packageId, lock) =>
-            this.#builds.pullRoot(packageId, lock),
-        );
+    /** Read the installed set main applied, each at its revision and the lock it runs. */
+    installed(): Promise<InstallationBuild[]> {
+        // open the lock each installation runs, as the machine's start does
+        return this.host.builds((packageId, lock) => this.#builds.root(packageId, lock));
     }
 
     /** Take the distinct refusals the space's servers reported since the last take. */
@@ -1588,7 +1597,7 @@ export class TestSpace implements AsyncDisposable {
         // replicate the registry's release into the build store, and record it as the space's build
         const builds = await this.builds();
         const lock = await this.registry.find(packageId, version);
-        const reader = await builds.pullRoot(packageId, lock);
+        const reader = await builds.root(packageId, lock);
         const release = { package: packageId, version, lock };
 
         return insertRelease(
@@ -1678,7 +1687,7 @@ export class TestSpace implements AsyncDisposable {
         const serving = Promise.withResolvers<TestObjectStore>();
         const stopping = new AbortController();
         const role = given.role ?? (await this.host.options()).role;
-        const installed = role === "primary" ? await this.#installed() : [];
+        const installed = role === "primary" ? await this.installed() : [];
         const start = this.#start(
             serving.promise.then((served) => served.store),
             async (packageId, request, authentication) => {
@@ -1702,7 +1711,7 @@ export class TestSpace implements AsyncDisposable {
             if (role !== "primary") {
                 return;
             }
-            const current = await this.#installed();
+            const current = await this.installed();
             await this.host.apply(current, start, stopping.signal, async (servers, sandboxes) =>
                 (await serving.promise).serve(spaceStore.apply([...servers, ...own], sandboxes)),
             );

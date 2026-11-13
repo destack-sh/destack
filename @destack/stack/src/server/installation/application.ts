@@ -212,11 +212,18 @@ export class ApplicationInstallation {
             .read(rollout.table)
             .findMany({ where: { installationId: target.installationId } });
         const [deployed] = await Rollout.read(snapshot, rows);
-        const { builds } = this.#options;
-        const build =
+        const { builds, trusted } = this.#options;
+        const built =
             deployed?.revisionId === null || deployed === undefined
                 ? undefined
-                : await InstallationRevision.reader(snapshot, deployed.revisionId, builds);
+                : await InstallationRevision.build(snapshot, deployed.revisionId);
+
+        // keep the relations of a superseded host installation until its stack revises it
+        if (built !== undefined && Rollout.isSuperseded(target.installation, built.lock, trusted)) {
+            return undefined;
+        }
+        const { packageId } = target.installation;
+        const build = built === undefined ? undefined : await builds.root(packageId, built.lock);
         const description = build === undefined ? undefined : await PackageDescription.of(build);
         const set = Rollout.permissions((deployed ?? target).installation, description, "space");
 
@@ -302,7 +309,7 @@ export class ApplicationInstallation {
             target.scope,
             input.build,
         );
-        const reader = await this.#options.builds.root(built.lock);
+        const reader = await this.#options.builds.root(target.installation.packageId, built.lock);
         const description = await PackageDescription.of(reader);
         const { stranded } = this.#selectWorkloads(built.lock, reader, description);
         const isRefused =
@@ -357,7 +364,9 @@ export class ApplicationInstallation {
             revision.buildId,
         );
 
-        return this.#readNeeds(await this.#options.builds.root(built.lock), []);
+        const { packageId } = this.#target.installation;
+
+        return this.#readNeeds(await this.#options.builds.root(packageId, built.lock), []);
     }
 
     /** Read the needs of the revisions the installation's live deployments still run. */
@@ -1033,7 +1042,9 @@ export class ApplicationInstallation {
         call: MethodContextOf<typeof rollout, "deploy">,
         revision: Pick<InstallationRevision, "id">,
     ): Promise<BuildReader> {
-        return InstallationRevision.reader(call, revision.id, this.#options.builds);
+        const { packageId } = this.#target.installation;
+
+        return InstallationRevision.reader(call, revision.id, packageId, this.#options.builds);
     }
 
     /** Plan the upgrade steps from an applied build to the next by its kinds' comparisons. */
@@ -1136,7 +1147,7 @@ export class ApplicationInstallation {
                 after.kindPackageId === owner.id
                     ? await builds.cache.store.putLock(lock)
                     : await this.#kindLock(lock, entries, after.kindPackageId);
-            const kind = await builds.root(locked);
+            const kind = await builds.root(after.kindPackageId, locked);
             const reference = await kindCompare(kind, after.kind);
             if (reference === undefined) {
                 continue;

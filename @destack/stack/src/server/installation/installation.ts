@@ -248,7 +248,7 @@ async function requireUnneeded(
                 `the build of ${row.installation.name}`,
             ),
         );
-        const reader = await options.builds.root(lock);
+        const reader = await options.builds.root(row.installation.packageId, lock);
         const description = await PackageDescription.of(reader);
         const needed = Rollout.needed(row.installation, revision, description);
         if (needed.some((entry) => entry.package.id === target.installation.packageId)) {
@@ -828,7 +828,8 @@ async function request(
         );
     }
     const built = await Build.require(context, target.scope, revision.buildId);
-    const declared = await PackageDescription.of(await options.builds.root(built.lock));
+    const { packageId } = target.installation;
+    const declared = await PackageDescription.of(await options.builds.root(packageId, built.lock));
 
     // keep the permission where the package asks it on use or on first use, refusing one it never asks
     const sets = (["user", "optional"] as const).map((delegator) =>
@@ -906,7 +907,7 @@ async function open(
 
     // read the revision's build and the view it mounts
     const built = await Build.require(context, target.scope, revision.buildId);
-    const reader = await options.builds.root(built.lock);
+    const reader = await options.builds.root(target.installation.packageId, built.lock);
     const mounted = ViewDescription.list(reader.manifest)[view];
     if (mounted === undefined) {
         throw StackError.of(

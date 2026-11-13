@@ -435,6 +435,83 @@ test("run a stack's host installation at the release the machine links, as it fo
     });
 });
 
+test("run a host installation at a restarted machine's linked release, then revise it there", async () => {
+    // apply a stack declaring the package on the host while the machine links 2026.10.0
+    const first = await fixtureBuild(ids.package, "2026.10.0", testHost().crypto);
+    const fixture = await TestSpace.open({ linked: [first] });
+    const { database } = fixture;
+    const notes = {
+        packageId: ids.package,
+        selection: { kind: "host" },
+        status: "enabled",
+        name: "notes",
+        bindings: {},
+        compute: {},
+        capabilities: [],
+        directories: [],
+        isolation: "host",
+        tags: {},
+    };
+    const store = await serve(fixture);
+    await submit(fixture, store, await readStack(database), {
+        selection: {
+            kind: "checkout" as const,
+            machine: ids.machine,
+            checkout: ids.checkout,
+            directory: "." as const,
+        },
+        stack: {
+            export: "personal",
+            parameters: {},
+            definition: { ...evaluatePersonal(), installations: { notes } },
+        },
+    });
+
+    // restart the machine linking 2026.10.1, and open the installed set as a start does
+    await fixture.link(await fixtureBuild(ids.package, "2026.10.1", testHost().crypto));
+    const [older, newer] = [
+        await fixture.registry.find(ids.package, "2026.10.0"),
+        await fixture.registry.find(ids.package, "2026.10.1"),
+    ];
+    const revised = async () =>
+        (
+            await database
+                .select({ lock: object.build.table.lock })
+                .from(installation.table)
+                .innerJoin(
+                    object.installationRevision.table,
+                    eq(object.installationRevision.table.id, installation.table.revisionId),
+                )
+                .innerJoin(
+                    object.build.table,
+                    eq(object.build.table.id, object.installationRevision.table.buildId),
+                )
+                .where(eq(installation.table.name, "notes"))
+        )[0]?.lock;
+    const recorded = await revised();
+    const opened = (await fixture.installed()).find(
+        (entry) => entry.rollout.installation.name === "notes",
+    )?.lock;
+
+    // move the revision to the linked release once its rollout reconciles, as each does at a start
+    const restarted = await serve(fixture);
+    const moving = present(
+        (
+            await Snapshot.live(database)
+                .read(installation.table)
+                .findMany({ where: { name: "notes" } })
+        )[0],
+        "the notes installation",
+    );
+    await reconcile(restarted, "rollout", { installationId: moving.id });
+    await settleRollouts(restarted);
+    expect({ recorded, opened, moved: await revised() }).toEqual({
+        recorded: older,
+        opened: newer,
+        moved: newer,
+    });
+});
+
 test("refuse a stack installing on the host at a release, and hold one following the host's release the machine does not provide", async () => {
     // declare the package on the host at a release, which only the host's release may be
     const fixture = await TestSpace.open();

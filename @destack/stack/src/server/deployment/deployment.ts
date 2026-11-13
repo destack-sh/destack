@@ -1,5 +1,6 @@
 import {
     installation,
+    type Installation,
     InstallationName,
     type ObjectReconciliation,
     ObjectWatch,
@@ -44,7 +45,6 @@ import {
 import type { BuildReader } from "@destack/package/manifest";
 import {
     Binding,
-    Build,
     Database,
     Deployment,
     deployment,
@@ -52,8 +52,9 @@ import {
     instance,
     type InstanceCondition,
     installationRevision,
-    type InstallationRevision,
+    InstallationRevision,
     dependency,
+    Rollout,
 } from "../../object/index.ts";
 import { MAIN_DATABASE } from "../../declare/index.ts";
 import { StackError } from "../../error/index.ts";
@@ -81,6 +82,8 @@ export interface DeploymentOptions {
     readonly providers: ProviderIndex;
     /** The kinds of package objects that bindings target other than resources, such as secrets. */
     readonly bindables: readonly ObjectBindable[];
+    /** The locks this machine runs host installations from. */
+    readonly trusted: ReadonlySet<Digest>;
 }
 
 /** A resource a deployment binds, with its kind and readiness. */
@@ -460,18 +463,30 @@ class Reconcile {
             return;
         }
 
+        // wait for the stack to revise a superseded host installation
+        const snapshot = Snapshot.live(reconciliation.database);
+        const built = await InstallationRevision.build(snapshot, this.#current.revisionId);
+        const installed = present(
+            await snapshot
+                .read(installation.table)
+                .findFirst({ where: { id: this.#current.installationId } }),
+            `the installation ${this.#current.installationId}`,
+        );
+        if (Rollout.isSuperseded(installed, built.lock, this.#options.trusted)) {
+            const message =
+                "waiting for the space's stack to move it to a release this machine runs";
+            await this.#observe(recorded, {
+                status: recorded.status === "failed" ? "starting" : recorded.status,
+                ready: ["false", "WaitingForStack", message],
+            });
+
+            return;
+        }
+
         // run the revision's build and restart a failed instance in place
         const restarts = recorded.status === "failed" ? recorded.restarts + 1 : recorded.restarts;
-        const snapshot = Snapshot.live(reconciliation.database);
-        const revision = present(
-            await snapshot
-                .read(installationRevision.table)
-                .findFirst({ where: { id: this.#current.revisionId } }),
-            `revision ${this.#current.revisionId}`,
-        );
-        const built = await Build.require(snapshot, revision.scope, revision.buildId);
         try {
-            await this.#launch(recorded, built.lock, bindings, resources, running);
+            await this.#launch(recorded, installed, built.lock, bindings, resources, running);
         } catch (error) {
             // record the failure on the instance and restart it after its backoff
             return this.#recordFailure(recorded, restarts, error);
@@ -516,6 +531,7 @@ class Reconcile {
     /** Start an instance's workload on its runtime from the revision's build with its resources. */
     async #launch(
         recorded: Instance,
+        installed: Installation,
         lock: Digest,
         bindings: readonly Binding[],
         resources: readonly BoundResource[],
@@ -526,17 +542,7 @@ class Reconcile {
         this.#refuseUnsupported(running);
 
         // start the workload as its installation, by its name, with its bindings, and record an unasked exit
-        const reader = await this.#options.builds.root(lock);
-        const installed = present(
-            await Snapshot.live(this.#reconciliation.database)
-                .read(installation.table)
-                .findFirst({
-                    where: {
-                        id: current.installationId,
-                    },
-                }),
-            `the installation ${current.installationId}`,
-        );
+        const reader = await this.#options.builds.root(installed.packageId, lock);
         await running.start(
             {
                 instanceId: recorded.id,

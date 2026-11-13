@@ -133,11 +133,6 @@ export class BuildCache {
         }
     }
 
-    /** Resolve a release to the lock the machine runs: a builtin's linked one, else its own. */
-    resolve(packageId: PackageId, lock: Digest): Digest {
-        return this.linked.get(packageId)?.lock ?? lock;
-    }
-
     /** Pull what the machine's runtimes load of a published lock, with its runtime closures. */
     pull(
         registry: Pick<Registry, "pull" | "store">,
@@ -145,7 +140,6 @@ export class BuildCache {
         lock: Digest,
     ): Promise<Lock> {
         // pull a lock once
-        lock = this.resolve(packageId, lock);
         const known = this.#pulled.get(lock);
         if (known !== undefined) {
             return known;
@@ -157,12 +151,15 @@ export class BuildCache {
         return pulling;
     }
 
-    /** Read the lock of each builtin the machine links, by package name. */
-    async linkedLocks(): Promise<Map<string, Lock>> {
+    /** Read the lock of each builtin the machine links by package name, pulling missing ones. */
+    async linkedLocks(registry: Pick<Registry, "pull" | "store">): Promise<Map<string, Lock>> {
         const locks = await Promise.all(
             [...this.linked.values()].map(
                 async (release) =>
-                    [release.package.name, await this.store.lock(release.lock)] as const,
+                    [
+                        release.package.name,
+                        await this.pull(registry, release.package.id, release.lock),
+                    ] as const,
             ),
         );
 
@@ -318,20 +315,20 @@ export class SpaceBuildStore {
     async #imports(lock: Digest, runtime: Runtime, base: string): Promise<ImportClosure> {
         // read the lock and the builtins the machine links
         const read = await this.lock(lock);
-        const linked = await this.cache.linkedLocks();
+        const linked = await this.cache.linkedLocks(this.registry);
 
         return await this.cache.store.imports(read, runtime, base, linked, (digest) =>
             this.get(digest),
         );
     }
 
-    /** Open a lock's root build: the space's own, else the machine's copy. */
-    async root(lock: Digest): Promise<BuildReader> {
+    /** Open the root build of a lock the space or the machine has. */
+    async open(lock: Digest): Promise<BuildReader> {
         return await this.contents((await this.lock(lock)).root);
     }
 
-    /** Bring a lock into the machine's cache, then open its root build. */
-    async pullRoot(packageId: PackageId, lock: Digest): Promise<BuildReader> {
+    /** Open a lock's root build, pulling what the space and the machine lack. */
+    async root(packageId: PackageId, lock: Digest): Promise<BuildReader> {
         return await this.contents((await this.pull(packageId, lock)).root);
     }
 

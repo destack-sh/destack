@@ -32,11 +32,14 @@ import {
     PackageDescription,
     InstallationBinding,
     installation,
+    ObjectDescription,
+    Observation,
     type ProcedureRouter,
     type Package,
     PackageMount,
 } from "@destack/object";
 import { InstallationRoot, type ServerContext } from "@destack/object/workload";
+import type { BuildReader } from "@destack/package/manifest";
 import {
     type Connector,
     EGRESS_PROVIDER,
@@ -76,16 +79,16 @@ import {
     installationRevision,
     bucket,
     build,
-    Database,
     database,
     deployment,
     Deployment,
     dependency,
-    InstallationRevision,
     Rollout,
     rollout,
     SPACE_PROVIDER,
     type InstallationRollout,
+    Build,
+    Database,
 } from "../../object/index.ts";
 import { ObjectBindable } from "../resource/binding.ts";
 import { StoreProvider, type SpaceProvider } from "../resource/resource.ts";
@@ -152,6 +155,20 @@ export interface SpaceMachine {
     readonly shipped: ReadonlyMap<PackageId, PackageRelease>;
     /** The locks of the releases the machine runs in its process: those it ships or links. */
     readonly trusted: ReadonlySet<Digest>;
+}
+
+/** An installation with the build it runs: the revision in effect and the lock the machine runs. */
+export interface InstallationBuild {
+    /** The installation's rollout. */
+    readonly rollout: InstallationRollout;
+    /** The revision in effect. */
+    readonly revisionId: Identifier<"installation-revision">;
+    /** The lock the machine runs. */
+    readonly lock: Digest;
+    /** The lock the revision recorded, which differs while a host installation catches up. */
+    readonly recorded: Digest;
+    /** The declarations of the build the machine runs. */
+    readonly declarations: graph.Declaration[];
 }
 
 /** What a hosted space's start lends its installations' servers, as its host decides. */
@@ -458,15 +475,15 @@ export class SpaceHost {
 
     /** Serve each installation main applied: a trusted one in the store, another in its sandbox. */
     async servers(
-        installed: Awaited<ReturnType<typeof Database.installed>>,
+        installed: readonly InstallationBuild[],
         start: SpaceStart,
         signal: AbortSignal,
     ): Promise<SpaceServers> {
-        // keep this start's servers of installations at the revision served before, by installation and revision
+        // keep this start's servers served before, by installation, revision and lock
         const earlier: ReadonlyMap<string, ServedEntry> =
             this.#served?.signal === signal ? this.#served.entries : new Map();
-        const keys = installed.map(({ rollout: row, revisionId }) =>
-            SpaceHost.#key(row.installationId, revisionId),
+        const keys = installed.map(({ rollout: row, revisionId, lock }) =>
+            SpaceHost.#key(row.installationId, revisionId, lock),
         );
 
         // load the server of each other installation the store runs from its build
@@ -479,10 +496,6 @@ export class SpaceHost {
                     return kept.load;
                 } else if (row.installation.isolation !== "host" && !isLinked) {
                     return { kind: "sandbox" } as const;
-                }
-                // leave unserved a stack's host installation on a build this machine no longer runs
-                else if (Rollout.isSuperseded(row.installation, lock, this.machine.trusted)) {
-                    return { kind: "unserved" } as const;
                 }
                 try {
                     return { kind: "host", server: await start.server(lock) } as const;
@@ -571,7 +584,7 @@ export class SpaceHost {
 
     /** Apply an installed set to a start: load its servers, hand a changed set over, record it. */
     async apply(
-        installed: Awaited<ReturnType<typeof Database.installed>>,
+        installed: readonly InstallationBuild[],
         start: SpaceStart,
         signal: AbortSignal,
         handover: (
@@ -600,12 +613,137 @@ export class SpaceHost {
         );
     }
 
-    /** Key an installation's server by the installation and the revision it serves. */
+    /** Read the build each installation of the space runs, at its revision in effect. */
+    async builds(
+        open: (packageId: PackageId, lock: Digest) => Promise<BuildReader | undefined>,
+    ): Promise<InstallationBuild[]> {
+        // read no installations of a space before its birth gives it main
+        const snapshot = Snapshot.live(this.database);
+        const spaceId = this.id;
+        const main = await Database.mainMaybe(snapshot, spaceId);
+        if (main === undefined) {
+            return [];
+        }
+
+        // read the rollouts with their installations, and their revisions with their bindings and builds
+        const installations = await Rollout.read(
+            snapshot,
+            await snapshot.read(rollout.table).findMany({ where: { scope: spaceId } }),
+        );
+        const revisionIds = installations.flatMap((entry) =>
+            [entry.revisionId, entry.appliedRevisionId].filter((id) => id !== null),
+        );
+        const revisions = await snapshot
+            .read(installationRevision.table)
+            .findMany({ where: { scope: spaceId, id: { in: revisionIds } } });
+        const builds = await snapshot.read(build.table).findMany({
+            where: { scope: spaceId, id: { in: revisions.map((entry) => entry.buildId) } },
+        });
+
+        // read each revision's build and its declarations, once
+        const declared = new Map(
+            await Promise.all(
+                revisions.map(async (revision) => {
+                    // open the revision's build by its installation's package and its lock
+                    const built = present(
+                        builds.find((each) => each.id === revision.buildId),
+                        `the build of revision ${revision.id}`,
+                    );
+                    const installed = present(
+                        installations.find(
+                            (entry) =>
+                                entry.revisionId === revision.id ||
+                                entry.appliedRevisionId === revision.id,
+                        ),
+                        `the installation of revision ${revision.id}`,
+                    );
+                    const recorded = Build.lock(built);
+                    const lock = RolloutTarget.running(installed.installation, recorded, this.machine);
+                    const reader =
+                        lock === undefined
+                            ? undefined
+                            : await open(installed.installation.packageId, lock);
+                    if (lock === undefined || reader === undefined) {
+                        return [];
+                    }
+
+                    return [
+                        [
+                            revision.id,
+                            {
+                                lock,
+                                recorded,
+                                declarations: await reader.declarations(),
+                                objects: await ObjectDescription.read(reader),
+                            },
+                        ] as const,
+                    ];
+                }),
+            ).then((entries) => entries.flat()),
+        );
+
+        // serve each installation at its revision once its targets are bound and main applied its tables, else at the revision it deployed last
+        const applied = new Set(main.appliedStates);
+        const served = await Promise.all(
+            installations.map(async (entry) => {
+                // serve a bound revision declaring no object types at once, and one declaring some once main applied them
+                const latest =
+                    entry.revisionId === null ? undefined : declared.get(entry.revisionId);
+                const tables =
+                    entry.revisionId === null
+                        ? undefined
+                        : revisions.find((each) => each.id === entry.revisionId)?.states[
+                              MAIN_DATABASE
+                          ];
+                const isBound =
+                    Observation.isCurrent(entry.installation, "Bound") &&
+                    entry.installation.conditions["Bound"]?.status === "true";
+                const isApplied =
+                    latest !== undefined &&
+                    isBound &&
+                    (latest.objects.length === 0 || (tables !== undefined && applied.has(tables)));
+                const revisionId = isApplied ? entry.revisionId : entry.appliedRevisionId;
+
+                return revisionId === null ? [] : [{ rollout: entry, revisionId }];
+            }),
+        );
+
+        // select each one whose revision binds its own resources, since servers open them at start and read secrets on use
+        return served.flat().flatMap(({ rollout: entry, revisionId }) => {
+            // read the served revision's build and declarations, leaving out one whose build is absent
+            const opened = declared.get(revisionId);
+            if (opened === undefined) {
+                return [];
+            }
+            const { lock, recorded, declarations } = opened;
+
+            // serve a stack at once, which runs nothing and whose resources its document instantiates
+            const isStack = entry.installation.export !== null;
+            const revision = revisions.find((each) => each.id === revisionId);
+            const { packageId } = entry.installation;
+            const hasBindings = declarations
+                .filter((each) => each.provisioned === true)
+                .every(
+                    (each) =>
+                        revision !== undefined &&
+                        revision.bindings.some(
+                            (bound) => bound.packageId === packageId && bound.name === each.name,
+                        ),
+                );
+
+            return isStack || hasBindings
+                ? [{ rollout: entry, revisionId, lock, recorded, declarations }]
+                : [];
+        });
+    }
+
+    /** Key an installation's server by the installation, its served revision and its lock. */
     static #key(
         installationId: Identifier<"installation">,
         revisionId: Identifier<"installation-revision">,
+        lock: Digest,
     ): string {
-        return `${installationId}@${revisionId}`;
+        return `${installationId}@${revisionId}@${lock}`;
     }
 
     /** Serve one installation: a loaded server in the store, else its hooks in a sandbox. */
@@ -613,8 +751,9 @@ export class SpaceHost {
         {
             rollout: row,
             revisionId,
+            lock,
             declarations,
-        }: Awaited<ReturnType<typeof Database.installed>>[number],
+        }: InstallationBuild,
         load: ServedEntry["load"],
         run: {
             readonly start: SpaceStart;
@@ -642,7 +781,7 @@ export class SpaceHost {
                 trusted,
                 bindings,
             );
-            const context = await this.#context(row, revisionId, resources, start, caller);
+            const context = await this.#context(row, lock, resources, start, caller);
             const requested = Rollout.permissions(row.installation, stored.package, "space");
             const isLent = Object.entries(requested).some(
                 ([scope, each]) => scope !== "space" && each.length > 0,
@@ -655,13 +794,7 @@ export class SpaceHost {
         // run another package's hooks in its sandbox, which binds its resources itself
         else {
             const caller = this.#callerOnce(row, { resources: {} }, start, bindings);
-            const context = await this.#context(
-                row,
-                revisionId,
-                new ResourceContext(),
-                start,
-                caller,
-            );
+            const context = await this.#context(row, lock, new ResourceContext(), start, caller);
 
             return { kind: "sandbox", sandbox: start.sandbox(row, context, declarations) };
         }
@@ -986,7 +1119,7 @@ export class SpaceHost {
     /** Describe an installation to its code serving in the store, calling the platform as it. */
     async #context(
         row: InstallationRollout,
-        revisionId: Identifier<"installation-revision">,
+        lock: Digest,
         resources: ResourceContext,
         start: SpaceStart,
         caller: () => Promise<EgressCaller>,
@@ -1014,11 +1147,7 @@ export class SpaceHost {
         });
 
         // describe its build and package, settings, keys rooted in its space's identity, replicas and peers
-        const reader = await InstallationRevision.reader(
-            Snapshot.live(this.database),
-            revisionId,
-            machine.builds,
-        );
+        const reader = await machine.builds.root(row.installation.packageId, lock);
         const description = await PackageDescription.of(reader);
         const identity = present(
             await this.keystore.deriver(this.database, scope),
