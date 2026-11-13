@@ -189,6 +189,13 @@ export interface BuildStoreOptions<StoreEnvironment, Storage extends BlobStorage
     readonly layer?: BuildLayer;
     /** How long a stored build lasts unless a root or a use retains it, by default the blobs'. */
     readonly leaseMilliseconds?: number;
+    /** The stores read through, in order, for builds, locks and files this store lacks. */
+    readonly sources?: readonly BuildStore[];
+    /** Pull a build's file this store and its sources lack, such as from its package's forge. */
+    readonly pullFile?: (
+        build: { readonly digest: Digest; readonly manifest: PackageManifest },
+        file: PackageFile,
+    ) => Promise<void>;
 }
 
 /** Immutable package builds in a partition's blobs, kept while any of its rows references them. */
@@ -221,6 +228,10 @@ export class BuildStore<
     readonly layer: BuildLayer;
     /** How long a stored build lasts before a root or a use retains it, in milliseconds. */
     readonly leaseMilliseconds: number;
+    /** The stores read through, in order, for builds, locks and files this store lacks. */
+    readonly sources: readonly BuildStore[];
+    /** Pull a build's file this store and its sources lack, absent where every file is stored. */
+    readonly #pullFile: BuildStoreOptions<StoreEnvironment, Storage>["pullFile"];
 
     /** Store builds in a partition's blobs, reading some read-only builds in place. */
     constructor(options: BuildStoreOptions<StoreEnvironment, Storage>) {
@@ -229,6 +240,8 @@ export class BuildStore<
         this.environment = options.environment;
         this.layer = options.layer ?? BuildLayer.empty();
         this.leaseMilliseconds = options.leaseMilliseconds ?? options.blobs.leaseMilliseconds;
+        this.sources = options.sources ?? [];
+        this.#pullFile = options.pullFile;
     }
 
     /** Read when a lease taken now ends. */
@@ -345,6 +358,44 @@ export class BuildStore<
     /** Report whether the store has a build, recorded once every blob it references is stored. */
     async contains(digest: Digest): Promise<boolean> {
         return (await this.#recorded(digest))?.isComplete === true;
+    }
+
+    /** Find the store keeping a whole build: this one, else the first source that keeps it. */
+    async storeOf(digest: Digest): Promise<BuildStore | undefined> {
+        // take this store when it has the build whole
+        if (await this.contains(digest)) {
+            return this;
+        }
+
+        // ask each source in order
+        for (const source of this.sources) {
+            const keeper = await source.storeOf(digest);
+            if (keeper !== undefined) {
+                return keeper;
+            }
+        }
+
+        return undefined;
+    }
+
+    /** Report whether a blob lies here or in a source. */
+    async #isReadable(digest: Digest): Promise<boolean> {
+        const isHere = (await this.locate([digest])).has(digest);
+
+        return isHere || (await this.#sourceOf(digest)) !== undefined;
+    }
+
+    /** Find the first source storing a blob this store lacks, through its own sources too. */
+    async #sourceOf(digest: Digest): Promise<BuildStore | undefined> {
+        for (const source of this.sources) {
+            const [isStored] = await source.has([digest]);
+            const storing = isStored === true ? source : await source.#sourceOf(digest);
+            if (storing !== undefined) {
+                return storing;
+            }
+        }
+
+        return undefined;
     }
 
     /** Report whether the store has an output of a build: the whole build, or that output. */
@@ -666,7 +717,15 @@ export class BuildStore<
             return known;
         }
         const reading = (async () => {
-            const location = present((await this.locate([digest])).get(digest), `lock '${digest}'`);
+            // read a lock a source has in place
+            const location = (await this.locate([digest])).get(digest);
+            if (location === undefined) {
+                const source = present(await this.#sourceOf(digest), `lock '${digest}'`);
+
+                return await source.lock(digest);
+            }
+
+            // read the lock's bytes here
             const body = BuildStore.#readable(this.#bytes(digest, location));
 
             return Lock.deserialize(new Uint8Array(await new Response(body).arrayBuffer()));
@@ -744,6 +803,13 @@ export class BuildStore<
             .from(buildReferrer)
             .where(and(eq(buildReferrer.subject, subject), eq(buildReferrer.path, path)));
 
+        // read the referrer the keeping source attached, for a build this store lacks
+        if (row === undefined && !(await this.contains(subject))) {
+            const source = await this.#sourceOf(subject);
+
+            return await source?.referrer(subject, path);
+        }
+
         return row;
     }
 
@@ -774,8 +840,10 @@ export class BuildStore<
 
     /** Open a stored build for selective reads, absent for a build the store does not record. */
     async #find(digest: Digest): Promise<BuildReader | undefined> {
-        // answer absent for a build the store no longer records, whose reader may outlive it
-        const head = await this.#head(digest);
+        // find the build's head here, else in the first source with it
+        const local = await this.#head(digest);
+        const source = local === undefined ? await this.#sourceOf(digest) : undefined;
+        const head = local ?? (source === undefined ? undefined : await source.#head(digest));
         if (head === undefined) {
             return undefined;
         }
@@ -796,11 +864,17 @@ export class BuildStore<
     async #open(head: PackageFile): Promise<BuildReader> {
         // read and verify the manifest, streaming each file the reader finds by its path
         const bytes = await this.file(head);
+        const manifest = PackageManifest.deserialize(bytes);
         const reader: BuildReader = new BuildReader(
-            PackageManifest.deserialize(bytes),
+            manifest,
             async (path, signal) => {
+                // pull a file no store has, then stream it from where it lies
                 signal?.throwIfAborted();
-                const stream = this.#stream(await reader.file(path));
+                const file = await reader.file(path);
+                if (this.#pullFile !== undefined && !(await this.#isReadable(file.digest))) {
+                    await this.#pullFile({ digest: head.digest, manifest }, file);
+                }
+                const stream = this.#stream(file);
 
                 return signal ? Pipe.through(stream, new TransformStream(), signal) : stream;
             },
@@ -1221,7 +1295,7 @@ export class BuildStore<
 
     /** Read one complete file and verify its exact bytes. */
     async file(file: PackageFile): Promise<Uint8Array<ArrayBuffer>> {
-        // read and verify the file bytes
+        // read and verify the file bytes, here or through a source
         const bytes = new Uint8Array(await new Response(this.#stream(file)).arrayBuffer());
         await PackageFile.verify(file, bytes, this.environment.crypto);
 
@@ -1234,8 +1308,12 @@ export class BuildStore<
     ): AsyncIterable<{ readonly file: PackageFile; readonly bytes: Uint8Array<ArrayBuffer> }> {
         const located = await this.locate(files.map((file) => file.digest));
         for (const file of files) {
-            const location = present(located.get(file.digest), `package file '${file.path}'`);
-            const body = BuildStore.#readable(this.#bytes(file.digest, location));
+            const location = located.get(file.digest);
+            const body = BuildStore.#readable(
+                location === undefined
+                    ? this.#slice(file, 0, Number.POSITIVE_INFINITY)
+                    : this.#bytes(file.digest, location),
+            );
             yield { file, bytes: new Uint8Array(await new Response(body).arrayBuffer()) };
         }
     }
@@ -1335,11 +1413,19 @@ export class BuildStore<
 
     /** Read a range of a blob from where it lies, refusing a missing one by its file's path. */
     async *#slice(file: PackageFile, offset: number, length: number): AsyncIterable<Uint8Array> {
+        // read a blob stored here
         const location = (await this.locate([file.digest])).get(file.digest);
-        if (location === undefined) {
-            throw BuildError.of("BLOB_NOT_FOUND", `package file '${file.path}' not found`);
+        if (location !== undefined) {
+            yield* this.#bytes(file.digest, location, offset, length);
         }
-        yield* this.#bytes(file.digest, location, offset, length);
+        // read it through the first source that has it
+        else {
+            const source = await this.#sourceOf(file.digest);
+            if (source === undefined) {
+                throw BuildError.of("BLOB_NOT_FOUND", `package file '${file.path}' not found`);
+            }
+            yield* source.#slice(file, offset, length);
+        }
     }
 
     /** Parse JSON bytes, refusing invalid UTF-8. */

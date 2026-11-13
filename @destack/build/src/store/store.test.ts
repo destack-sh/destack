@@ -416,6 +416,47 @@ test("attach a code index to a build, retain it with the build, and collect it w
     });
 });
 
+test("read a build, its lock, files and referrers through a source, reporting only its own builds as contained", async () => {
+    // store a build with a lock and an attached index in a source, and open an empty store over it
+    await using simulation = testSimulation();
+    const environment = simulation.environment("test");
+    await using kept = await openStore(await temporary(environment.files), environment);
+    await using empty = await openStore(await temporary(environment.files), environment);
+    const source = kept.store;
+    const manifest = await source.put(await written(SOURCES, environment.crypto));
+    const lock = await source.putLock(Lock.of(manifest));
+    const bytes = new TextEncoder().encode("[]");
+    const index = await PackageFile.describe(
+        "code.json",
+        "application/json",
+        bytes,
+        environment.crypto,
+    );
+    await source.write(BuildObject.files([{ digest: index.digest, bytes }]));
+    await source.attach(manifest, index);
+    const store = new BuildStore({ blobs: empty.store.blobs, environment, sources: [source] });
+
+    // read the build, its root through the lock, a file, the index and which store keeps it
+    const reader = await store.contents(manifest);
+    const root = await store.root(lock);
+    const file = await reader.file("src/answer.ts");
+    expect({
+        manifest: reader.manifest,
+        root: root.manifest,
+        file: new TextDecoder().decode(await store.file(file)),
+        referrer: await store.referrer(manifest, "code.json"),
+        isKeeper: (await store.storeOf(manifest)) === source,
+        contains: [await store.contains(manifest), await source.contains(manifest)],
+    }).toEqual({
+        manifest: (await source.contents(manifest)).manifest,
+        root: (await source.contents(manifest)).manifest,
+        file: SOURCES["src/answer.ts"],
+        referrer: index,
+        isKeeper: true,
+        contains: [false, true],
+    });
+});
+
 test("open one reader per stored build, find its manifest, and refuse a collected build or find it absent", async () => {
     // store a build and open it twice
     await using simulation = testSimulation();
