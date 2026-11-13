@@ -46,11 +46,11 @@ export const reading = new EventKind({
 /** Append a reading of a scope, and read back the newest fifty. */
 export async function record(database: DatabaseConnection, bucket: Bucket, scope: string) {
     // open the store
-    const { clock } = BunEnvironment.system;
-    const store = new EventStore({ database, kinds: [reading], files: () => bucket, clock });
+    const environment = BunEnvironment.system;
+    const store = new EventStore({ database, kinds: [reading], files: () => bucket, environment });
 
     // append the reading, then read the newest first
-    const event = { scope, id: "reading-1", time: clock.now() * 1000 };
+    const event = { scope, id: "reading-1", time: environment.clock.now() * 1000 };
     await store.append(reading, [{ ...event, keys: { sensor: "a" }, data: { value: 21.5 } }]);
 
     return await store.query(reading, { scopes: [scope] }, { limit: 50, order: "descending" });
@@ -84,7 +84,7 @@ Events may arrive up to five minutes late.
 
 ### EventStore
 
-`new EventStore({ database, kinds, files, prefix, personal, settings, clock })` stores recent events in the database, and segments in each scope's bucket.
+`new EventStore({ database, kinds, files, prefix, personal, settings, environment })` stores recent events in the database, and segments in each scope's bucket.
 `controllers()` flush, compact and expire segments.
 
 | Verb                                           | What it does                                                                       |
