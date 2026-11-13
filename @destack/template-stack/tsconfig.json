@@ -28,7 +28,8 @@
             "ESNext.Disposable",
             "DOM",
             "DOM.Iterable"
-        ]
+        ],
+        "types": ["bun"]
     },
     "include": ["**/*"],
     "exclude": ["node_modules", "dist", "target", "coverage", "out"]
