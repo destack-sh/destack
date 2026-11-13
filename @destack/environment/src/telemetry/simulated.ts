@@ -28,6 +28,9 @@ import { TraceIdGenerator } from "./generator.ts";
 import { type Telemetry, W3C_PROPAGATOR } from "./telemetry.ts";
 import { SpanPath } from "./span.ts";
 
+/** The span attribute counting the statements run inside a span, as the database totals them. */
+const STATEMENTS = "db.client.operation.count";
+
 /** The milliseconds in a second, as OpenTelemetry records durations in seconds. */
 const MILLISECONDS_PER_SECOND = 1000;
 
@@ -39,6 +42,8 @@ interface SpanTotals {
     world: number;
     /** Their summed host milliseconds, as the machine spent them. */
     host: number;
+    /** The statements run inside them, nested spans included. */
+    statements: number;
     /** The paths below, by span name. */
     readonly children: Map<string, SpanTotals>;
 }
@@ -145,7 +150,13 @@ export class SimulatedTelemetry implements Telemetry {
     async describe(): Promise<string> {
         // sum the spans along their name paths from their roots
         const byId = new Map(this.spans.map((span) => [span.spanContext().spanId, span]));
-        const root: SpanTotals = { count: 0, world: 0, host: 0, children: new Map() };
+        const root: SpanTotals = {
+            count: 0,
+            world: 0,
+            host: 0,
+            statements: 0,
+            children: new Map(),
+        };
         for (const span of this.spans) {
             const names: string[] = [];
             for (let current: ReadableSpan | undefined = span; current !== undefined;) {
@@ -157,7 +168,7 @@ export class SimulatedTelemetry implements Telemetry {
             for (const name of names) {
                 let child = path.children.get(name);
                 if (child === undefined) {
-                    child = { count: 0, world: 0, host: 0, children: new Map() };
+                    child = { count: 0, world: 0, host: 0, statements: 0, children: new Map() };
                     path.children.set(name, child);
                 }
                 path = child;
@@ -166,18 +177,22 @@ export class SimulatedTelemetry implements Telemetry {
             path.count += 1;
             path.world += seconds * MILLISECONDS_PER_SECOND + nanoseconds / 1_000_000;
             path.host += this.#hostTimes.durations.get(span.spanContext().spanId) ?? 0;
+            const statements = span.attributes[STATEMENTS];
+            path.statements += typeof statements === "number" ? statements : 0;
         }
 
         // write the paths, the costliest first, then each histogram's count and summed milliseconds
-        const lines = ["spans: count, world ms, host ms"];
+        const lines = ["spans: count, world ms, host ms, statements"];
         SimulatedTelemetry.#write(root, 0, lines);
-        lines.push("histograms: count, total ms, p50 ms, p95 ms, by target");
+        lines.push("histograms: count, total, p50, p95, in ms for durations, by target");
         for (const { metrics } of (await this.metrics()).scopeMetrics) {
             for (const metric of metrics) {
                 if (metric.dataPointType === DataPointType.HISTOGRAM) {
+                    const scale = metric.descriptor.unit === "s" ? MILLISECONDS_PER_SECOND : 1;
                     SimulatedTelemetry.#writeHistogram(
                         metric.descriptor.name,
                         metric.dataPoints,
+                        scale,
                         lines,
                     );
                 }
@@ -191,6 +206,7 @@ export class SimulatedTelemetry implements Telemetry {
     static #writeHistogram(
         name: string,
         points: readonly DataPoint<Histogram>[],
+        scale: number,
         lines: string[],
     ): void {
         // merge the points by target
@@ -201,22 +217,24 @@ export class SimulatedTelemetry implements Telemetry {
         }
 
         // write the whole, then the groups, the costliest first
-        lines.push(`  ${name}  ${SimulatedTelemetry.#summary([...groups.values()].flat())}`);
+        lines.push(`  ${name}  ${SimulatedTelemetry.#summary([...groups.values()].flat(), scale)}`);
         const ordered = [...groups].toSorted(([, left], [, right]) => summed(right) - summed(left));
         for (const [named, values] of groups.size > 1 ? ordered : []) {
-            lines.push(`    ${named || "(unnamed)"}  ${SimulatedTelemetry.#summary(values)}`);
+            lines.push(
+                `    ${named || "(unnamed)"}  ${SimulatedTelemetry.#summary(values, scale)}`,
+            );
         }
     }
 
     /** Summarise histogram values: their count, total and estimated median and 95th percentile. */
-    static #summary(values: readonly Histogram[]): string {
+    static #summary(values: readonly Histogram[], scale: number): string {
         // read the count and total, then estimate the quantiles from the buckets
         const count = values.reduce((sum, value) => sum + value.count, 0);
-        const milliseconds = summed(values) * MILLISECONDS_PER_SECOND;
-        const p50 = percentile(values, 0.5) * MILLISECONDS_PER_SECOND;
-        const p95 = percentile(values, 0.95) * MILLISECONDS_PER_SECOND;
+        const total = summed(values) * scale;
+        const p50 = percentile(values, 0.5) * scale;
+        const p95 = percentile(values, 0.95) * scale;
 
-        return `${count}  ${milliseconds.toFixed(0)}  ${p50.toFixed(1)}  ${p95.toFixed(1)}`;
+        return `${count}  ${total.toFixed(0)}  ${p50.toFixed(1)}  ${p95.toFixed(1)}`;
     }
 
     /** Write a path's children, the costliest by host time first, indented by depth. */
@@ -227,13 +245,13 @@ export class SimulatedTelemetry implements Telemetry {
         for (const [name, child] of children) {
             const indent = "  ".repeat(depth + 1);
             lines.push(
-                `${indent}${name}  ×${child.count}  ${child.world.toFixed(0)}  ${child.host.toFixed(0)}`,
+                `${indent}${name}  ×${child.count}  ${child.world.toFixed(0)}  ${child.host.toFixed(0)}  ${child.statements}`,
             );
             SimulatedTelemetry.#write(child, depth + 1, lines);
         }
     }
 
-    /** Count each sum, and each histogram's records and seconds, in all and by target. */
+    /** Count each sum, and each histogram's records and sum, in all and by target. */
     async counts(): Promise<Record<string, number>> {
         // add each measurement under its key
         const counts: Record<string, number> = {};
@@ -242,16 +260,17 @@ export class SimulatedTelemetry implements Telemetry {
         };
         for (const { metrics } of (await this.metrics()).scopeMetrics) {
             for (const metric of metrics) {
-                // count a histogram's records and seconds, in all and by target
-                const { name } = metric.descriptor;
+                // count a histogram's records and sum, in all and by target
+                const { name, unit } = metric.descriptor;
                 if (metric.dataPointType === DataPointType.HISTOGRAM) {
+                    const sum = unit === "s" ? "seconds" : "sum";
                     for (const point of metric.dataPoints) {
                         const named = SpanPath.naming(point.attributes);
                         add(`${name}.count`, point.value.count);
-                        add(`${name}.seconds`, point.value.sum ?? 0);
+                        add(`${name}.${sum}`, point.value.sum ?? 0);
                         if (named !== "") {
                             add(`${name}.count.${named}`, point.value.count);
-                            add(`${name}.seconds.${named}`, point.value.sum ?? 0);
+                            add(`${name}.${sum}.${named}`, point.value.sum ?? 0);
                         }
                     }
                 }

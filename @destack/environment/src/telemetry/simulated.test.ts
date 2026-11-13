@@ -10,7 +10,7 @@ test("count each histogram's records and seconds, in all and by the namespace, o
         random: new SimulatedRandom(1),
     });
     const meter = telemetry.meters.getMeter("test");
-    const statements = meter.createHistogram("db.client.operation.duration");
+    const statements = meter.createHistogram("db.client.operation.duration", { unit: "s" });
     const select = {
         "db.namespace": "main.db",
         "db.operation.name": "SELECT",
@@ -25,7 +25,9 @@ test("count each histogram's records and seconds, in all and by the namespace, o
         "db.collection.name": "task",
     });
     statements.record(1, { "db.system.name": "sqlite" });
-    meter.createHistogram("rpc.server.call.duration").record(5, { "rpc.method": "get" });
+    meter
+        .createHistogram("rpc.server.call.duration", { unit: "s" })
+        .record(5, { "rpc.method": "get" });
 
     // count and add up every histogram, and each target apart, a statement naming none only in all
     expect(await telemetry.counts()).toEqual({
