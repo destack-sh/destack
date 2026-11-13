@@ -288,7 +288,7 @@ export class TokenEntry {
 export interface TokenMember {
     /** The constant key, such as `bodyFontSize`. */
     readonly key: string;
-    /** The custom property, such as `--destack-text-body-font-size`. */
+    /** The custom property, such as `--destack-text-base-font-size`. */
     readonly variable: Variable;
 }
 

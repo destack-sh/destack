@@ -54,7 +54,7 @@ const variables = theme.variables({ ...DEFAULT_DISPLAY, appearance: "dark", cont
 | `scaling` | `"90%"`, `"95%"`, `"100%"`, the default, `"105%"` or `"110%"`                                      |
 | `density` | `"compact"`, `"regular"`, the default, or `"spacious"`                                             |
 | `fonts`   | the `text` and `code` font stacks, as CSS `font-family` values                                     |
-| `text`    | the `weight` of text styles, such as lighter headings for a font                                   |
+| `text`    | the `size`, `weight`, `tracking` and `font` of text styles, sizes fixed or fluid                   |
 | `roles`   | your own colors for roles, by `RoleName`                                                           |
 
 A theme answers its colors and custom properties:
@@ -111,22 +111,22 @@ A palette is `base`, `accent`, `destructive`, `success`, `warning`, `info` or `c
 `@destack/theme/tokens.json` has the same tokens in the Design Tokens format, with the default theme's values.
 `text` and `transition` are styles of their own, from `@destack/theme/text` and `@destack/theme/motion`.
 
-| Constant     | Tokens                                                                                                                                            |
-| ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `color`      | every role, such as `color.mutedForeground`                                                                                                       |
-| `surface`    | `base`, `raised` and `overlay`, the background, card and popover                                                                                  |
-| `swatch`     | each preset's `Solid`, `Label`, `Tint` and `Text`, such as `swatch.tealTint`                                                                      |
-| `font`       | `text` and `code`                                                                                                                                 |
-| `weight`     | `regular`, `medium`, `semibold` and `bold`                                                                                                        |
-| `space`      | steps `1` to `9`, scaled by scaling and density                                                                                                   |
-| `size`       | steps `1` to `4`, scaled by scaling and density                                                                                                   |
-| `width`      | `popover`, `hoverCard`, `sidebar`, `sidebarIcon`, `toast`, `prose`, `tile` and `row`                                                              |
-| `radius`     | steps `1` to `6`, scaled by the theme's radius, and `full`                                                                                        |
-| `stroke`     | `border` and `ring`                                                                                                                               |
-| `shadow`     | `edge`, `cast`, `inset`, `raised` and `overlay`                                                                                                   |
-| `motion`     | `durationShort`, `durationMedium`, `durationLong`, `easingStandard`, `easingEmphasised` and `easingSpring`                                        |
-| `text`       | the text styles after Apple's: `caption`, `footnote`, `body`, `callout`, `subheadline`, `headline`, `title1`, `title2`, `title3` and `largeTitle` |
-| `transition` | `enter` and `exit`, which scale with the person's motion                                                                                          |
+| Constant     | Tokens                                                                                                                           |
+| ------------ | -------------------------------------------------------------------------------------------------------------------------------- |
+| `color`      | every role, such as `color.mutedForeground`                                                                                      |
+| `surface`    | `base`, `raised` and `overlay`, the background, card and popover                                                                 |
+| `swatch`     | each preset's `Solid`, `Label`, `Tint` and `Text`, such as `swatch.tealTint`                                                     |
+| `font`       | `text` and `code`                                                                                                                |
+| `weight`     | `regular`, `medium`, `semibold` and `bold`                                                                                       |
+| `space`      | steps `1` to `9`, scaled by scaling and density                                                                                  |
+| `size`       | steps `1` to `4`, scaled by scaling and density                                                                                  |
+| `width`      | `popover`, `hoverCard`, `sidebar`, `sidebarIcon`, `toast`, `prose`, `tile` and `row`                                             |
+| `radius`     | steps `1` to `6`, scaled by the theme's radius, and `full`                                                                       |
+| `stroke`     | `border` and `ring`                                                                                                              |
+| `shadow`     | `edge`, `cast`, `inset`, `raised` and `overlay`                                                                                  |
+| `motion`     | `durationShort`, `durationMedium`, `durationLong`, `easingStandard`, `easingEmphasised` and `easingSpring`                       |
+| `text`       | the text styles after Tailwind's type scale: `xs`, `sm`, `base`, `lg`, `xl` and `2xl` to `9xl`, each a size with its line height |
+| `transition` | `enter` and `exit`, which scale with the person's motion                                                                         |
 
 ## Examples
 
@@ -147,6 +147,24 @@ export const paper = defineTheme({
 });
 ```
 
+### Tune the type scale
+
+`text` changes a style's size, weight, tracking or font, with fluid sizes growing from a 360px to a 1280px window.
+
+```ts
+import { defineTheme } from "@destack/theme/declare";
+
+// set body text a step smaller, headlines fluid, and labels in the code font
+export const publication = defineTheme({
+    name: "publication",
+    text: {
+        base: { size: 15 },
+        "5xl": { size: { min: 32, max: 48 }, weight: "medium", tracking: -0.02 },
+        xs: { font: "code", tracking: 0.1 },
+    },
+});
+```
+
 ### Style with theme tokens
 
 Tokens follow the person's theme and display settings.
@@ -161,7 +179,7 @@ export const styles = style.create({
     tag: { backgroundColor: swatch.tealTint, color: swatch.tealText, padding: space[1] },
     muted: { color: color.mutedForeground },
 });
-export const caption = [text.caption, styles.muted];
+export const caption = [text.xs, styles.muted];
 ```
 
 ### Theme a nested surface

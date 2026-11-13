@@ -19,8 +19,8 @@
         background-color: var(--destack-color-background);
         color: var(--destack-color-foreground);
         font-family: var(--destack-font-text);
-        font-size: var(--destack-text-body-font-size);
-        line-height: var(--destack-text-body-line-height);
+        font-size: var(--destack-text-base-font-size);
+        line-height: var(--destack-text-base-line-height);
         accent-color: var(--destack-color-primary);
     }
 

@@ -47,6 +47,9 @@ const DEFAULT_SCALING = "100%";
 /** The density of a theme that names none. */
 const DEFAULT_DENSITY = "regular";
 
+/** The windows a fluid text size grows between: a small phone, and the 1280px frame. */
+const FLUID_WINDOWS = { min: 360, max: 1280 } as const;
+
 /** The chart series a theme holds after its accent. */
 const SERIES = ["chart2", "chart3", "chart4", "chart5"] as const;
 
@@ -76,16 +79,19 @@ export type Scaling = schema.Infer<typeof Scaling>;
 
 /** A text style of the type scale. */
 export const TextStyleName = schema.enum([
-    "caption",
-    "footnote",
-    "body",
-    "callout",
-    "subheadline",
-    "headline",
-    "title1",
-    "title2",
-    "title3",
-    "largeTitle",
+    "xs",
+    "sm",
+    "base",
+    "lg",
+    "xl",
+    "2xl",
+    "3xl",
+    "4xl",
+    "5xl",
+    "6xl",
+    "7xl",
+    "8xl",
+    "9xl",
 ]);
 /** A text style of the type scale. */
 export type TextStyleName = schema.Infer<typeof TextStyleName>;
@@ -95,10 +101,29 @@ export const WeightName = schema.enum(["regular", "medium", "semibold", "bold"])
 /** A font weight by its token name. */
 export type WeightName = schema.Infer<typeof WeightName>;
 
+/** A font size in pixels at the medium text size, fixed or growing with the window. */
+export const FontSize = schema.union([
+    schema.number().positive(),
+    schema.object({
+        /** The size in the narrowest window. */
+        min: schema.number().positive(),
+        /** The size in the widest window. */
+        max: schema.number().positive(),
+    }),
+]);
+/** A font size in pixels at the medium text size, fixed or growing with the window. */
+export type FontSize = schema.Infer<typeof FontSize>;
+
 /** A theme's change to one text style. */
 export const TextOverride = schema.object({
+    /** The size the style takes instead of its token size. */
+    size: FontSize.exactOptional(),
     /** The weight the style takes instead of its token weight. */
     weight: WeightName.exactOptional(),
+    /** The letter spacing in ems instead of the token spacing. */
+    tracking: schema.number().exactOptional(),
+    /** The font the style sets in instead of the text font. */
+    font: schema.enum(["text", "code"]).exactOptional(),
 });
 /** A theme's change to one text style. */
 export type TextOverride = schema.Infer<typeof TextOverride>;
@@ -400,11 +425,23 @@ export class Theme {
             style[TOKENS.entry(["font", "code"]).variable] = fonts.code;
         }
 
-        // weigh the text styles the theme changes
+        // change the text styles the theme overrides, sizes scaled by the person's text size
+        const scale = present(this.#factor("text", display), "the text factor");
         for (const [name, override] of Object.entries(this.definition.text ?? {})) {
+            const entry = TOKENS.entry(["text", name]);
+            if (override.size !== undefined) {
+                style[entry.member("fontSize")] = sizeOf(override.size, scale);
+            }
             if (override.weight !== undefined) {
                 const weight = TOKENS.entry(["weight", override.weight]).variable;
-                style[TOKENS.entry(["text", name]).member("fontWeight")] = `var(${weight})`;
+                style[entry.member("fontWeight")] = `var(${weight})`;
+            }
+            if (override.tracking !== undefined) {
+                style[entry.member("letterSpacing")] = `${override.tracking}em`;
+            }
+            if (override.font !== undefined) {
+                style[entry.member("fontFamily")] =
+                    `var(${TOKENS.entry(["font", override.font]).variable})`;
             }
         }
 
@@ -423,6 +460,21 @@ export class Theme {
 /** Capitalize a word's first letter, as token keys join a preset and a part such as `tealSolid`. */
 function capitalize(word: string): string {
     return `${word.charAt(0).toUpperCase()}${word.slice(1)}`;
+}
+
+/** Write a text size scaled by the person's text size, a fluid size as a clamp. */
+function sizeOf(size: FontSize, scale: number): string {
+    // write a fixed size in pixels
+    if (typeof size === "number") {
+        return `${size * scale}px`;
+    }
+
+    // grow linearly from the narrowest window to the widest, as Utopia's fluid type scales do
+    const slope = (size.max - size.min) / (FLUID_WINDOWS.max - FLUID_WINDOWS.min);
+    const intercept = size.min - slope * FLUID_WINDOWS.min;
+    const preferred = `calc(${(intercept * scale).toFixed(3)}px + ${(slope * scale * 100).toFixed(4)}vw)`;
+
+    return `clamp(${size.min * scale}px, ${preferred}, ${size.max * scale}px)`;
 }
 
 /** Format a color in both appearances, one color when they agree. */

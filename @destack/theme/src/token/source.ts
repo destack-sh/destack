@@ -51,7 +51,7 @@ export const Source = {
 
                 return [
                     `    /** ${entry.token.$description} */`,
-                    `    ${entry.key}: {`,
+                    `    ${property(entry.key)}: {`,
                     ...declarations,
                     "    },",
                 ];

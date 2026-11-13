@@ -2,86 +2,110 @@
 
 import * as style from "@destack/style";
 
-/** Text styles at the medium text size with 16px body text, scaled by the person's text size. */
+/** Text styles after Tailwind's type scale, scaled by the person's text size. */
 export const text = style.create({
-    /** Captions and labels. */
-    caption: {
-        fontFamily: "var(--destack-text-caption-font-family)",
-        fontSize: "var(--destack-text-caption-font-size)",
-        fontWeight: "var(--destack-text-caption-font-weight)",
-        lineHeight: "var(--destack-text-caption-line-height)",
-        letterSpacing: "var(--destack-text-caption-letter-spacing)",
+    /** Extra small text, such as badges, shortcuts and labels. */
+    xs: {
+        fontFamily: "var(--destack-text-xs-font-family)",
+        fontSize: "var(--destack-text-xs-font-size)",
+        fontWeight: "var(--destack-text-xs-font-weight)",
+        lineHeight: "var(--destack-text-xs-line-height)",
+        letterSpacing: "var(--destack-text-xs-letter-spacing)",
     },
-    /** Footnotes and secondary labels. */
-    footnote: {
-        fontFamily: "var(--destack-text-footnote-font-family)",
-        fontSize: "var(--destack-text-footnote-font-size)",
-        fontWeight: "var(--destack-text-footnote-font-weight)",
-        lineHeight: "var(--destack-text-footnote-line-height)",
-        letterSpacing: "var(--destack-text-footnote-letter-spacing)",
+    /** Small text, the default in controls and lists. */
+    sm: {
+        fontFamily: "var(--destack-text-sm-font-family)",
+        fontSize: "var(--destack-text-sm-font-size)",
+        fontWeight: "var(--destack-text-sm-font-weight)",
+        lineHeight: "var(--destack-text-sm-line-height)",
+        letterSpacing: "var(--destack-text-sm-letter-spacing)",
     },
-    /** Body text. */
-    body: {
-        fontFamily: "var(--destack-text-body-font-family)",
-        fontSize: "var(--destack-text-body-font-size)",
-        fontWeight: "var(--destack-text-body-font-weight)",
-        lineHeight: "var(--destack-text-body-line-height)",
-        letterSpacing: "var(--destack-text-body-letter-spacing)",
+    /** Base text, for reading. */
+    base: {
+        fontFamily: "var(--destack-text-base-font-family)",
+        fontSize: "var(--destack-text-base-font-size)",
+        fontWeight: "var(--destack-text-base-font-weight)",
+        lineHeight: "var(--destack-text-base-line-height)",
+        letterSpacing: "var(--destack-text-base-letter-spacing)",
     },
-    /** Callouts beside body text. */
-    callout: {
-        fontFamily: "var(--destack-text-callout-font-family)",
-        fontSize: "var(--destack-text-callout-font-size)",
-        fontWeight: "var(--destack-text-callout-font-weight)",
-        lineHeight: "var(--destack-text-callout-line-height)",
-        letterSpacing: "var(--destack-text-callout-letter-spacing)",
+    /** Large text, such as a dialog's title. */
+    lg: {
+        fontFamily: "var(--destack-text-lg-font-family)",
+        fontSize: "var(--destack-text-lg-font-size)",
+        fontWeight: "var(--destack-text-lg-font-weight)",
+        lineHeight: "var(--destack-text-lg-line-height)",
+        letterSpacing: "var(--destack-text-lg-letter-spacing)",
     },
-    /** Subheadings and secondary text beside body text. */
-    subheadline: {
-        fontFamily: "var(--destack-text-subheadline-font-family)",
-        fontSize: "var(--destack-text-subheadline-font-size)",
-        fontWeight: "var(--destack-text-subheadline-font-weight)",
-        lineHeight: "var(--destack-text-subheadline-line-height)",
-        letterSpacing: "var(--destack-text-subheadline-letter-spacing)",
+    /** Extra large text. */
+    xl: {
+        fontFamily: "var(--destack-text-xl-font-family)",
+        fontSize: "var(--destack-text-xl-font-size)",
+        fontWeight: "var(--destack-text-xl-font-weight)",
+        lineHeight: "var(--destack-text-xl-line-height)",
+        letterSpacing: "var(--destack-text-xl-letter-spacing)",
     },
-    /** Headlines within body text. */
-    headline: {
-        fontFamily: "var(--destack-text-headline-font-family)",
-        fontSize: "var(--destack-text-headline-font-size)",
-        fontWeight: "var(--destack-text-headline-font-weight)",
-        lineHeight: "var(--destack-text-headline-line-height)",
-        letterSpacing: "var(--destack-text-headline-letter-spacing)",
+    /** Headings. */
+    "2xl": {
+        fontFamily: "var(--destack-text-2xl-font-family)",
+        fontSize: "var(--destack-text-2xl-font-size)",
+        fontWeight: "var(--destack-text-2xl-font-weight)",
+        lineHeight: "var(--destack-text-2xl-line-height)",
+        letterSpacing: "var(--destack-text-2xl-letter-spacing)",
     },
-    /** First-level titles. */
-    title1: {
-        fontFamily: "var(--destack-text-title1-font-family)",
-        fontSize: "var(--destack-text-title1-font-size)",
-        fontWeight: "var(--destack-text-title1-font-weight)",
-        lineHeight: "var(--destack-text-title1-line-height)",
-        letterSpacing: "var(--destack-text-title1-letter-spacing)",
+    /** Headings, such as a view's title. */
+    "3xl": {
+        fontFamily: "var(--destack-text-3xl-font-family)",
+        fontSize: "var(--destack-text-3xl-font-size)",
+        fontWeight: "var(--destack-text-3xl-font-weight)",
+        lineHeight: "var(--destack-text-3xl-line-height)",
+        letterSpacing: "var(--destack-text-3xl-letter-spacing)",
     },
-    /** Second-level titles. */
-    title2: {
-        fontFamily: "var(--destack-text-title2-font-family)",
-        fontSize: "var(--destack-text-title2-font-size)",
-        fontWeight: "var(--destack-text-title2-font-weight)",
-        lineHeight: "var(--destack-text-title2-line-height)",
-        letterSpacing: "var(--destack-text-title2-letter-spacing)",
+    /** Large headings. */
+    "4xl": {
+        fontFamily: "var(--destack-text-4xl-font-family)",
+        fontSize: "var(--destack-text-4xl-font-size)",
+        fontWeight: "var(--destack-text-4xl-font-weight)",
+        lineHeight: "var(--destack-text-4xl-line-height)",
+        letterSpacing: "var(--destack-text-4xl-letter-spacing)",
     },
-    /** Third-level titles. */
-    title3: {
-        fontFamily: "var(--destack-text-title3-font-family)",
-        fontSize: "var(--destack-text-title3-font-size)",
-        fontWeight: "var(--destack-text-title3-font-weight)",
-        lineHeight: "var(--destack-text-title3-line-height)",
-        letterSpacing: "var(--destack-text-title3-letter-spacing)",
+    /** Display text. */
+    "5xl": {
+        fontFamily: "var(--destack-text-5xl-font-family)",
+        fontSize: "var(--destack-text-5xl-font-size)",
+        fontWeight: "var(--destack-text-5xl-font-weight)",
+        lineHeight: "var(--destack-text-5xl-line-height)",
+        letterSpacing: "var(--destack-text-5xl-letter-spacing)",
     },
-    /** Large titles at the top of a view. */
-    largeTitle: {
-        fontFamily: "var(--destack-text-large-title-font-family)",
-        fontSize: "var(--destack-text-large-title-font-size)",
-        fontWeight: "var(--destack-text-large-title-font-weight)",
-        lineHeight: "var(--destack-text-large-title-line-height)",
-        letterSpacing: "var(--destack-text-large-title-letter-spacing)",
+    /** Display text. */
+    "6xl": {
+        fontFamily: "var(--destack-text-6xl-font-family)",
+        fontSize: "var(--destack-text-6xl-font-size)",
+        fontWeight: "var(--destack-text-6xl-font-weight)",
+        lineHeight: "var(--destack-text-6xl-line-height)",
+        letterSpacing: "var(--destack-text-6xl-letter-spacing)",
+    },
+    /** Display text. */
+    "7xl": {
+        fontFamily: "var(--destack-text-7xl-font-family)",
+        fontSize: "var(--destack-text-7xl-font-size)",
+        fontWeight: "var(--destack-text-7xl-font-weight)",
+        lineHeight: "var(--destack-text-7xl-line-height)",
+        letterSpacing: "var(--destack-text-7xl-letter-spacing)",
+    },
+    /** Display text. */
+    "8xl": {
+        fontFamily: "var(--destack-text-8xl-font-family)",
+        fontSize: "var(--destack-text-8xl-font-size)",
+        fontWeight: "var(--destack-text-8xl-font-weight)",
+        lineHeight: "var(--destack-text-8xl-line-height)",
+        letterSpacing: "var(--destack-text-8xl-letter-spacing)",
+    },
+    /** Display text, the largest. */
+    "9xl": {
+        fontFamily: "var(--destack-text-9xl-font-family)",
+        fontSize: "var(--destack-text-9xl-font-size)",
+        fontWeight: "var(--destack-text-9xl-font-weight)",
+        lineHeight: "var(--destack-text-9xl-line-height)",
+        letterSpacing: "var(--destack-text-9xl-letter-spacing)",
     },
 });

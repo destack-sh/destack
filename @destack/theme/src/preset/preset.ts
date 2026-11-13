@@ -88,3 +88,8 @@ export type AccentPreset = Exclude<Preset, GrayPreset>;
 export const ACCENT_PRESETS = PRESET_NAMES.filter(
     (name): name is AccentPreset => !GRAY_PRESETS.some((gray) => gray === name),
 );
+
+/** A preset the swatch tokens draw, such as a package's color: one of the colorful presets. */
+export const SwatchName = schema.enum(ACCENT_PRESETS);
+/** A preset the swatch tokens draw. */
+export type SwatchName = schema.Infer<typeof SwatchName>;
