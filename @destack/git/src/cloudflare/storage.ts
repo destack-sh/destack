@@ -1,3 +1,6 @@
+import type {} from "@destack/package/import-meta";
+import type { Telemetry } from "@destack/environment";
+import { TelemetryScope } from "@destack/telemetry";
 import type { Connector, Lease, LeaseMode } from "@destack/resource";
 import { schema } from "@destack/schema";
 import type { Fetch } from "@destack/object";
@@ -66,22 +69,33 @@ export class ArtifactsStorage implements GitStorage {
     readonly #prefix: string;
     /** The fetch reading Git's advertisement. */
     readonly #fetch: Fetch;
+    /** The spans and durations of the storage's verbs. */
+    readonly #scope: TelemetryScope;
 
     /** Store repositories in a namespace below a name prefix. */
-    constructor(namespace: ArtifactsNamespace, prefix: string, fetch: Fetch) {
+    constructor(namespace: ArtifactsNamespace, prefix: string, fetch: Fetch, telemetry: Telemetry) {
+        // keep the storage's place and transport, instrumenting on the host's telemetry
         this.#namespace = namespace;
         this.#prefix = prefix;
         this.#fetch = fetch;
+        this.#scope = TelemetryScope.of(import.meta.destack.package, telemetry);
     }
 
     /** Build the connector opening the storages a host binds to a namespace. */
-    static connector(namespace: ArtifactsNamespace, fetch: Fetch): Connector<GitStorage> {
+    static connector(
+        namespace: ArtifactsNamespace,
+        fetch: Fetch,
+        telemetry: Telemetry,
+    ): Connector<GitStorage> {
         return {
             code: ARTIFACTS_PROVIDER,
             connect: async (binding) =>
-                Object.assign(new ArtifactsStorage(namespace, binding.reference, fetch), {
-                    [Symbol.asyncDispose]: async () => {},
-                }),
+                Object.assign(
+                    new ArtifactsStorage(namespace, binding.reference, fetch, telemetry),
+                    {
+                        [Symbol.asyncDispose]: async () => {},
+                    },
+                ),
         };
     }
 
@@ -90,39 +104,50 @@ export class ArtifactsStorage implements GitStorage {
         return `${prefix}${NAME_SEPARATOR}${id}`;
     }
 
+    /** Run a storage verb in its span, recording its duration by the provider. */
+    #span<Value>(name: string, run: () => Promise<Value>): Promise<Value> {
+        const provider = { "destack.git.provider": ARTIFACTS_PROVIDER };
+
+        return this.#scope.span(name, provider, run, { duration: { attributes: provider } });
+    }
+
     /** Create an empty repository, or leave an existing one, and answer its remote. */
-    async create(id: string): Promise<string> {
-        // create the repository under its name, answering an existing one's remote
-        const name = ArtifactsStorage.name(this.#prefix, id);
-        const answered = await this.#namespace.create(name).catch(async (error: unknown) => {
-            if (
-                typeof error === "object" &&
-                error !== null &&
-                "code" in error &&
-                error.code === "ALREADY_EXISTS"
-            ) {
-                using existing = await this.#namespace.get(name);
+    create(id: string): Promise<string> {
+        return this.#span("destack.git.create", async () => {
+            // create the repository under its name, answering an existing one's remote
+            const name = ArtifactsStorage.name(this.#prefix, id);
+            const answered = await this.#namespace.create(name).catch(async (error: unknown) => {
+                if (
+                    typeof error === "object" &&
+                    error !== null &&
+                    "code" in error &&
+                    error.code === "ALREADY_EXISTS"
+                ) {
+                    using existing = await this.#namespace.get(name);
 
-                return { name, remote: existing.remote };
+                    return { name, remote: existing.remote };
+                }
+                throw error;
+            });
+            const created = ArtifactsRepository.parse(answered);
+
+            // refuse a repository created under another name
+            if (created.name !== name) {
+                throw GitError.of(
+                    "ARTIFACT_NAME_UNREACHABLE",
+                    `could not create cloudflare artifact '${name}': got '${created.name}'`,
+                );
             }
-            throw error;
+
+            return created.remote;
         });
-        const created = ArtifactsRepository.parse(answered);
-
-        // refuse a repository created under another name
-        if (created.name !== name) {
-            throw GitError.of(
-                "ARTIFACT_NAME_UNREACHABLE",
-                `could not create cloudflare artifact '${name}': got '${created.name}'`,
-            );
-        }
-
-        return created.remote;
     }
 
     /** Delete a repository and its tokens, accepting one already gone. */
-    async delete(id: string): Promise<void> {
-        await this.#namespace.delete(ArtifactsStorage.name(this.#prefix, id));
+    delete(id: string): Promise<void> {
+        return this.#span("destack.git.delete", async () => {
+            await this.#namespace.delete(ArtifactsStorage.name(this.#prefix, id));
+        });
     }
 
     /** Delete every repository below the prefix, listing them all before deleting any. */
@@ -147,31 +172,37 @@ export class ArtifactsStorage implements GitStorage {
     }
 
     /** List the branches and tags of Git's advertisement. */
-    async references(id: string): Promise<GitListing> {
-        return GitAdvertisement.read(await this.open(id, "read"), this.#fetch);
+    references(id: string): Promise<GitListing> {
+        return this.#span("destack.git.references", async () => {
+            return GitAdvertisement.read(await this.open(id, "read"), this.#fetch);
+        });
     }
 
     /** Lease a Git client a Bearer token scoped to the repository and mode for an hour. */
-    async open(id: string, mode: LeaseMode): Promise<Lease> {
-        // issue a token for the repository and mode at its remote
-        using repository = await this.#namespace.get(ArtifactsStorage.name(this.#prefix, id));
-        const remote = schema.url().parse(repository.remote);
-        const issued = ArtifactsToken.parse(await repository.createToken(mode, TOKEN_TTL_SECONDS));
-
-        // refuse an unreadable expiry
-        const expiresAt = Date.parse(issued.expiresAt);
-        if (Number.isNaN(expiresAt)) {
-            throw GitError.of(
-                "TOKEN_EXPIRY_UNREACHABLE",
-                `could not read token expiry '${issued.expiresAt}' from cloudflare artifacts`,
+    open(id: string, mode: LeaseMode): Promise<Lease> {
+        return this.#span("destack.git.open", async () => {
+            // issue a token for the repository and mode at its remote
+            using repository = await this.#namespace.get(ArtifactsStorage.name(this.#prefix, id));
+            const remote = schema.url().parse(repository.remote);
+            const issued = ArtifactsToken.parse(
+                await repository.createToken(mode, TOKEN_TTL_SECONDS),
             );
-        }
 
-        return {
-            url: remote,
-            mode,
-            headers: { authorization: `Bearer ${issued.plaintext}` },
-            expiresAt,
-        };
+            // refuse an unreadable expiry
+            const expiresAt = Date.parse(issued.expiresAt);
+            if (Number.isNaN(expiresAt)) {
+                throw GitError.of(
+                    "TOKEN_EXPIRY_UNREACHABLE",
+                    `could not read token expiry '${issued.expiresAt}' from cloudflare artifacts`,
+                );
+            }
+
+            return {
+                url: remote,
+                mode,
+                headers: { authorization: `Bearer ${issued.plaintext}` },
+                expiresAt,
+            };
+        });
     }
 }

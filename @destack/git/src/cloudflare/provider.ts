@@ -1,4 +1,5 @@
 import { type Provider, ResourceRecord } from "@destack/resource";
+import type { Telemetry } from "@destack/environment";
 import type { Fetch } from "@destack/object";
 import { GitStorageKind } from "../storage/index.ts";
 import { ARTIFACTS_PROVIDER, type ArtifactsNamespace, ArtifactsStorage } from "./storage.ts";
@@ -8,6 +9,7 @@ export function artifactsProvider<Object>(
     namespace: ArtifactsNamespace,
     object: Object,
     fetch: Fetch,
+    telemetry: Telemetry,
 ): Provider<typeof GitStorageKind, Object> {
     return {
         kind: GitStorageKind,
@@ -22,6 +24,7 @@ export function artifactsProvider<Object>(
                     namespace,
                     ResourceRecord.reference(resource),
                     fetch,
+                    telemetry,
                 ).deleteAll(),
         },
     };

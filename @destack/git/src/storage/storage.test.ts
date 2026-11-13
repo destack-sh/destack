@@ -106,7 +106,7 @@ test("create, list, lease and delete an Artifacts repository through its namespa
 
     // create the repository, leave it on a second create, list its branch, lease push access and delete it twice
     const namespace = new TestArtifactsNamespace();
-    const storage = new ArtifactsStorage(namespace, "git-site", fetch);
+    const storage = new ArtifactsStorage(namespace, "git-site", fetch, host.telemetry);
     const remote = await storage.create("repository-site");
     const again = await storage.create("repository-site");
     const listing = await storage.references("repository-site");
@@ -155,13 +155,15 @@ test("refuse a repository Artifacts created under another name, and a token with
     // rename created repositories in one namespace, and issue tokens without a date in another
     const renaming = new TestArtifactsNamespace({ rename: true });
     const undated = new TestArtifactsNamespace({ expiresAt: "soon" });
-    const storage = new ArtifactsStorage(undated, "git-site", unreachable);
+    const storage = new ArtifactsStorage(undated, "git-site", unreachable, host.telemetry);
     await storage.create("repository-site");
 
     // refuse both answers as bad gateways
     expect([
         await refusal(
-            new ArtifactsStorage(renaming, "git-site", unreachable).create("repository-site"),
+            new ArtifactsStorage(renaming, "git-site", unreachable, host.telemetry).create(
+                "repository-site",
+            ),
         ),
         await refusal(storage.open("repository-site", "read")),
     ]).toEqual([
@@ -181,7 +183,7 @@ test("refuse a repository Artifacts created under another name, and a token with
 test("provision a Git storage below its resource in the bound namespace, connect to it and destroy only its repositories across pages", async () => {
     // provision two resources in one namespace, each named by its identifier
     const namespace = new TestArtifactsNamespace();
-    const provider = artifactsProvider(namespace, "git", unreachable);
+    const provider = artifactsProvider(namespace, "git", unreachable, host.telemetry);
     const provision = present(provider.provision, "the artifacts provisioner");
     const resource = ResourceId.parse("git-01996ab0-0000-7000-8000-000000000003");
     const other = ResourceId.parse("git-01996ab0-0000-7000-8000-000000000004");
@@ -189,14 +191,14 @@ test("provision a Git storage below its resource in the bound namespace, connect
     const placement = await provision.provision(record);
 
     // connect to the first resource through its binding, and create repositories in both
-    const connector = ArtifactsStorage.connector(namespace, unreachable);
+    const connector = ArtifactsStorage.connector(namespace, unreachable, host.telemetry);
     const binding = { resource, kind: "git", provider: ARTIFACTS_PROVIDER, ...placement };
     await using storage = await connector.connect(
         binding,
         repositoryStorage,
         new Simulation({ world: testWorldOptions(), seed: 1, start: 0 }).environment("storage"),
     );
-    const neighbour = new ArtifactsStorage(namespace, other, unreachable);
+    const neighbour = new ArtifactsStorage(namespace, other, unreachable, host.telemetry);
     for (const id of ["repository-a", "repository-b", "repository-c"]) {
         await storage.create(id);
     }
@@ -339,3 +341,37 @@ class TestArtifactsNamespace implements ArtifactsNamespace {
 function artifactsError(code: string, name: string): Error {
     return Object.assign(new Error(`'${code}': '${name}'`), { code });
 }
+
+test("instrument each storage verb as a span by its provider, timing it", async () => {
+    // create and delete a repository in a fake namespace on a world of its own
+    await using simulation = testSimulation();
+    const { telemetry } = simulation.environment("storage");
+    const storage = new ArtifactsStorage(
+        new TestArtifactsNamespace(),
+        "git-site",
+        unreachable,
+        telemetry,
+    );
+    await storage.create("repository-site");
+    await storage.delete("repository-site");
+
+    // read the verbs' spans by their provider, and their durations
+    const spans = simulation.telemetry.spans
+        .filter((span) => span.name.startsWith("destack.git."))
+        .map((span) => [span.name, span.attributes["destack.git.provider"]]);
+    const counts = await simulation.telemetry.counts();
+
+    // expect each verb once, by the Artifacts provider, each timed
+    expect({
+        spans,
+        create: counts["destack.git.create.duration.count"],
+        delete: counts["destack.git.delete.duration.count"],
+    }).toEqual({
+        spans: [
+            ["destack.git.create", ARTIFACTS_PROVIDER],
+            ["destack.git.delete", ARTIFACTS_PROVIDER],
+        ],
+        create: 1,
+        delete: 1,
+    });
+});

@@ -1,3 +1,5 @@
+import type {} from "@destack/package/import-meta";
+import { TelemetryScope } from "@destack/telemetry";
 import { pathToFileURL } from "node:url";
 import { join } from "node:path";
 import { type Environment, FileSystemError } from "@destack/environment";
@@ -47,11 +49,15 @@ export class LocalGitStorage implements GitStorage {
     readonly directory: string;
     /** The host's files and processes. */
     readonly environment: LocalGitEnvironment;
+    /** The spans and durations of the storage's verbs. */
+    readonly #scope: TelemetryScope;
 
     /** Store repositories in a directory of a host. */
     constructor(directory: string, environment: LocalGitEnvironment) {
+        // keep the storage's place and transport, instrumenting on the host's telemetry
         this.directory = directory;
         this.environment = environment;
+        this.#scope = TelemetryScope.of(import.meta.destack.package, environment.telemetry);
     }
 
     /** Open storages at their references below a host directory, as the local provider does. */
@@ -68,114 +74,134 @@ export class LocalGitStorage implements GitStorage {
         };
     }
 
+    /** Run a storage verb in its span, recording its duration by the provider. */
+    #span<Value>(name: string, run: () => Promise<Value>): Promise<Value> {
+        const provider = { "destack.git.provider": LOCAL_PROVIDER };
+
+        return this.#scope.span(name, provider, run, { duration: { attributes: provider } });
+    }
+
     /** Create an empty bare repository with HEAD at main, or leave an existing one. */
-    async create(id: string): Promise<string> {
-        // stage the repository in a directory outside the repository names
-        const path = this.#path(id);
-        const { files, random } = this.environment;
-        const staging = join(this.directory, `${STAGING_PREFIX}${Uuid.v4(random)}`);
-        await files.mkdir(staging, { recursive: true });
+    create(id: string): Promise<string> {
+        return this.#span("destack.git.create", async () => {
+            // stage the repository in a directory outside the repository names
+            const path = this.#path(id);
+            const { files, random } = this.environment;
+            const staging = join(this.directory, `${STAGING_PREFIX}${Uuid.v4(random)}`);
+            await files.mkdir(staging, { recursive: true });
 
-        // initialize it there and move it into place in one rename, dropping it where another create finished first
-        try {
-            await Git.run(
-                this.directory,
-                ["init", "--bare", "--quiet", `--initial-branch=${INITIAL_BRANCH}`, staging],
-                this.environment,
-            );
-            await files.rename(staging, path);
-        } catch (error) {
-            // drop the staging directory, accepting a repository another create finished
-            await files.remove(staging, { recursive: true, force: true });
-            if (!FileSystemError.is(error, "FILE_EXISTS")) {
-                throw error;
+            // initialize it there and move it into place in one rename, dropping it where another create finished first
+            try {
+                await Git.run(
+                    this.directory,
+                    ["init", "--bare", "--quiet", `--initial-branch=${INITIAL_BRANCH}`, staging],
+                    this.environment,
+                );
+                await files.rename(staging, path);
+            } catch (error) {
+                // drop the staging directory, accepting a repository another create finished
+                await files.remove(staging, { recursive: true, force: true });
+                if (!FileSystemError.is(error, "FILE_EXISTS")) {
+                    throw error;
+                }
             }
-        }
 
-        return this.#remote(id);
+            return this.#remote(id);
+        });
     }
 
     /** Delete a repository's directory after moving it away in one rename. */
-    async delete(id: string): Promise<void> {
-        // move the repository away from its name and skip one already gone
-        const { files, random } = this.environment;
-        const trash = join(this.directory, `${DELETION_PREFIX}${Uuid.v4(random)}`);
-        try {
-            await files.rename(this.#path(id), trash);
-        } catch (error) {
-            if (FileSystemError.is(error, "FILE_NOT_FOUND")) {
-                return;
+    delete(id: string): Promise<void> {
+        return this.#span("destack.git.delete", async () => {
+            // move the repository away from its name and skip one already gone
+            const { files, random } = this.environment;
+            const trash = join(this.directory, `${DELETION_PREFIX}${Uuid.v4(random)}`);
+            try {
+                await files.rename(this.#path(id), trash);
+            } catch (error) {
+                if (FileSystemError.is(error, "FILE_NOT_FOUND")) {
+                    return;
+                }
+                throw error;
             }
-            throw error;
-        }
 
-        // remove it where nothing else opens it
-        await files.remove(trash, { recursive: true, force: true });
+            // remove it where nothing else opens it
+            await files.remove(trash, { recursive: true, force: true });
+        });
     }
 
     /** List the branches and tags with HEAD. */
-    async references(id: string): Promise<GitListing> {
-        // list the branches and tags beside HEAD's branch
-        const path = this.#path(id);
-        const [listed, symbolic] = await Promise.all([
-            Git.run(
-                path,
-                [
-                    "for-each-ref",
-                    "--format=%(refname) %(objectname) %(objecttype) %(*objectname) %(*objecttype)",
-                    "refs/heads",
-                    "refs/tags",
-                ],
-                this.environment,
-            ),
-            Git.run(path, ["symbolic-ref", "HEAD"], this.environment),
-        ]);
+    references(id: string): Promise<GitListing> {
+        return this.#span("destack.git.references", async () => {
+            // list the branches and tags beside HEAD's branch
+            const path = this.#path(id);
+            const [listed, symbolic] = await Promise.all([
+                Git.run(
+                    path,
+                    [
+                        "for-each-ref",
+                        "--format=%(refname) %(objectname) %(objecttype) %(*objectname) %(*objecttype)",
+                        "refs/heads",
+                        "refs/tags",
+                    ],
+                    this.environment,
+                ),
+                Git.run(path, ["symbolic-ref", "HEAD"], this.environment),
+            ]);
 
-        // read each reference with its object and tagged object
-        const rows = listed
-            .split("\n")
-            .filter((line) => line !== "")
-            .map((line) => LocalGitStorage.#row(line));
+            // read each reference with its object and tagged object
+            const rows = listed
+                .split("\n")
+                .filter((line) => line !== "")
+                .map((line) => LocalGitStorage.#row(line));
 
-        // peel tags of tags in one batch
-        const nested = rows.filter((row) => row.taggedType === "tag").map((row) => row.name);
-        const peeled =
-            nested.length === 0
-                ? ""
-                : await Git.run(
-                      path,
-                      ["cat-file", "--batch-check=%(objectname) %(objecttype)"],
-                      this.environment,
-                      { input: nested.map((name) => `${name}^{commit}\n`).join("") },
-                  );
+            // peel tags of tags in one batch
+            const nested = rows.filter((row) => row.taggedType === "tag").map((row) => row.name);
+            const peeled =
+                nested.length === 0
+                    ? ""
+                    : await Git.run(
+                          path,
+                          ["cat-file", "--batch-check=%(objectname) %(objecttype)"],
+                          this.environment,
+                          { input: nested.map((name) => `${name}^{commit}\n`).join("") },
+                      );
 
-        // map each tag of tags to its final commit or to none
-        const answers = peeled.split("\n").filter((line) => line !== "");
-        const commits = new Map(
-            zip(nested, answers).map(([name, answer]) => {
-                const [object, type] = answer.split(" ");
+            // map each tag of tags to its final commit or to none
+            const answers = peeled.split("\n").filter((line) => line !== "");
+            const commits = new Map(
+                zip(nested, answers).map(([name, answer]) => {
+                    const [object, type] = answer.split(" ");
 
-                return [name, type === "commit" && object !== undefined ? object : null] as const;
-            }),
-        );
+                    return [
+                        name,
+                        type === "commit" && object !== undefined ? object : null,
+                    ] as const;
+                }),
+            );
 
-        // resolve each reference to its commit
-        const references: GitReference[] = rows.map((row) => ({
-            name: row.name,
-            object: row.object,
-            commit: LocalGitStorage.#commit(row, commits),
-        }));
-        const head = symbolic.trim();
+            // resolve each reference to its commit
+            const references: GitReference[] = rows.map((row) => ({
+                name: row.name,
+                object: row.object,
+                commit: LocalGitStorage.#commit(row, commits),
+            }));
+            const head = symbolic.trim();
 
-        return {
-            defaultReference: references.some((reference) => reference.name === head) ? head : null,
-            references,
-        };
+            return {
+                defaultReference: references.some((reference) => reference.name === head)
+                    ? head
+                    : null,
+                references,
+            };
+        });
     }
 
     /** Lease a repository through its local path, which needs no credential and never lapses. */
-    async open(id: string, mode: LeaseMode): Promise<Lease> {
-        return { url: this.#remote(id), mode, headers: {} };
+    open(id: string, mode: LeaseMode): Promise<Lease> {
+        return this.#span("destack.git.open", async () => {
+            return { url: this.#remote(id), mode, headers: {} };
+        });
     }
 
     /** Build a repository's directory as a file URL. */
