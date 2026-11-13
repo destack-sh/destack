@@ -1,6 +1,6 @@
 import { join } from "node:path";
 import { testHost } from "@destack/test/host";
-import { expect, test } from "@destack/test";
+import { expect, onTestFinished, test } from "@destack/test";
 
 /** The program that links its own @destack/schema for the modules it loads. */
 const PROGRAM = join(import.meta.dirname, "test", "linked.ts");
@@ -9,6 +9,7 @@ test("link a compiled program's own module instance for a module it loads from d
     // compile the program and write a module that imports @destack/schema outside any workspace
     const host = testHost();
     const directory = await host.files.makeTemporaryDirectory("link-");
+    onTestFinished(() => host.files.remove(directory, { recursive: true, force: true }));
     const outfile = join(directory, "program");
     const command = [
         host.process.executable,

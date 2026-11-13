@@ -134,6 +134,11 @@ export class BuildLayer {
         await files.writeTextFile(files.join(directory, LAYER_INDEX), JSON.stringify(index));
     }
 
+    /** Report whether the layer ships no builds. */
+    get isEmpty(): boolean {
+        return this.#source === undefined;
+    }
+
     /** List the locks of the releases the layer ships, each with what it runs. */
     get releases(): readonly Digest[] {
         return this.#index.releases;
@@ -232,25 +237,33 @@ export class BuildLayer {
             : Lock.serialize(lock).byteLength;
     }
 
-    /** Stream a layered blob, absent for one outside the layer. */
-    stream(digest: Digest): ReadableStream<Uint8Array> | undefined {
-        // serve a lock's canonical bytes, else find a manifest's path or a file's below the layer
+    /** Read a layered blob whole, absent for one outside the layer. */
+    read(digest: Digest): Promise<Uint8Array<ArrayBuffer>> | undefined {
+        // serve a lock's canonical bytes, else read a manifest's or a file's path below the layer
         const lock = this.#index.locks[digest];
         const path = this.hasBuild(digest)
             ? this.#manifestPath(digest)
             : this.#index.files[digest]?.path;
-        if (lock === undefined && path === undefined) {
+        if (lock !== undefined) {
+            return Promise.resolve(Lock.serialize(lock));
+        } else if (path !== undefined) {
+            return this.#read(path);
+        } else {
             return undefined;
         }
-        const read = async () =>
-            lock === undefined
-                ? await this.#read(present(path, "a layered path"))
-                : Lock.serialize(lock);
+    }
 
+    /** Stream a layered blob, absent for one outside the layer. */
+    stream(digest: Digest): ReadableStream<Uint8Array> | undefined {
         // read it whole as the stream starts
+        const reading = this.read(digest);
+        if (reading === undefined) {
+            return undefined;
+        }
+
         return new ReadableStream<Uint8Array>({
             async start(controller) {
-                controller.enqueue(await read());
+                controller.enqueue(await reading);
                 controller.close();
             },
         });
