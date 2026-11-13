@@ -1,4 +1,4 @@
-import { testSimulation } from "@destack/test/world";
+import { testSimulation, testWorldOptions } from "@destack/test/world";
 import { nth, present } from "@destack/schema";
 import { createHash } from "node:crypto";
 import { expect, refusal, test } from "@destack/test";
@@ -277,7 +277,11 @@ function digestOf(text: string): string {
 
 test("expire an upload at its seven days as the next upload starts or the bucket closes, reclaiming its parts, and keep it through writes", async () => {
     // start an upload with a part
-    await using simulation = new Simulation({ seed: 1, start: Date.parse("2026-10-01T00:00:00Z") });
+    await using simulation = new Simulation({
+        world: testWorldOptions(),
+        seed: 1,
+        start: Date.parse("2026-10-01T00:00:00Z"),
+    });
     const { clock } = simulation;
     const world = simulation.environment("bucket");
     const directory = await world.files.makeTemporaryDirectory("multipart-expiry-");

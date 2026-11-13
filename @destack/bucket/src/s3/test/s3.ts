@@ -7,6 +7,7 @@ import { Readable } from "node:stream";
 import { S3Client } from "@aws-sdk/client-s3";
 import { LocalBucket } from "../../bun/index.ts";
 import { S3Server } from "../server.ts";
+import { testWorldOptions } from "@destack/test/world";
 
 /** The credentials the test server accepts. */
 export const CREDENTIALS = { accessKeyId: "AKIDLOCAL", secretAccessKey: "local-secret" };
@@ -60,7 +61,11 @@ export class TestS3 implements AsyncDisposable {
         // start the world at the host's time, disposing it and every opened bucket if an open fails
         await using opening = new AsyncDisposableStack();
         const simulation = opening.use(
-            new Simulation({ seed: 1, start: Clock.system.now() + offset }),
+            new Simulation({
+                world: testWorldOptions(),
+                seed: 1,
+                start: Clock.system.now() + offset,
+            }),
         );
         const environment = simulation.environment("host");
         const directory = await environment.files.makeTemporaryDirectory("s3-");
