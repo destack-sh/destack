@@ -26,7 +26,7 @@ import type {
 import type { MethodKind } from "./kind.ts";
 import type { Step } from "./step.ts";
 import type { BranchEntry } from "../branch/entry.ts";
-import type { Settled, SettlementContext } from "./settlement.ts";
+import type { SettlementContext } from "./settlement.ts";
 import type { Execution, StoreExecution } from "./execution.ts";
 import type { MethodLimits } from "./limits.ts";
 import type { Message } from "@destack/locale";
@@ -43,7 +43,15 @@ const LISTED = schema.looseObject({
 });
 
 /** The phases a method's handler may name, in the order a call runs them. */
-export const PHASES = ["authorize", "creation", "expand", "prepare", "handle", "settle"] as const;
+export const PHASES = [
+    "authorize",
+    "relate",
+    "expand",
+    "prepare",
+    "handle",
+    "confirm",
+    "cancel",
+] as const;
 
 /** A phase of a method's handler. */
 export type Phase = (typeof PHASES)[number];
@@ -217,19 +225,26 @@ export interface Method<Configuration extends MethodConfiguration = MethodConfig
     ) => Promise<unknown>;
     /** Authorize a call before its external work, where it executes. */
     readonly authorize?: (context: MethodContext, execution: StoreExecution) => Promise<void>;
-    /** Derive a created object's first relationships and a new scope's owner, for creations. */
-    readonly creation?: (
+    /** Relate a new object to its owner and the subjects it starts with, for creations. */
+    readonly relate?: (
         context: MethodContext,
         object: sync.ObjectReference,
     ) => Creation | Promise<Creation>;
     /** List the calls a mutation runs before this one as their callers, before the transaction. */
     readonly expand?: (context: MethodContext) => Promise<readonly BranchEntry[]>;
     /** Do external work before the transaction, on the server only. */
-    readonly prepare?: (context: MethodContext) => Promise<unknown>;
+    readonly prepare?: (
+        context: MethodContext & {
+            /** The key the work runs under, the same across the call's retries. */
+            readonly idempotencyKey: string;
+        },
+    ) => Promise<unknown>;
     /** The builder call a declared method came from, absent for a method a trait derives. */
     readonly source?: MethodSource;
-    /** Settle the prepared work once the transaction committed or failed, at least once. */
-    readonly settle?: (context: SettlementContext, settled: Settled) => Promise<void>;
+    /** Confirm the prepared work once the transaction committed, at least once. */
+    readonly confirm?: (context: SettlementContext, prepared: unknown) => Promise<void>;
+    /** Cancel the prepared work once the transaction failed, at least once. */
+    readonly cancel?: (context: SettlementContext, prepared: unknown) => Promise<void>;
     /** Who may call the method: its package's code, any installation's, or clients when absent. */
     readonly visibility?: OptionOf<Configuration, "visibility", MethodVisibility>;
     /** Whether a bulk update takes items, each an object's identifier and revision. */
@@ -305,9 +320,9 @@ export const Method = {
         return declared.target === undefined || declared.target === "object";
     },
 
-    /** Decide whether a method settles its prepared work. */
+    /** Decide whether a method confirms or cancels its prepared work. */
     settles(declared: Method): boolean {
-        return declared.settle !== undefined;
+        return declared.confirm !== undefined || declared.cancel !== undefined;
     },
 
     /** List the phases an implementation attaches to a method, in the order a call runs them. */
@@ -367,16 +382,14 @@ export const Method = {
         );
     },
 
-    /** Decide whether a settlement settles the work a method declares. */
-    isSettled<Configuration extends MethodConfiguration>(
+    /** Decide whether a value is the prepared work a method declares. */
+    isPreparedWork<Configuration extends MethodConfiguration>(
         declared: Method<Configuration>,
-        settled: Settled,
-    ): settled is Settled<PreparedOf<Configuration>> {
-        const prepared = declared.prepared;
+        value: unknown,
+    ): value is PreparedOf<Configuration> {
+        const { prepared } = declared;
 
-        return settled.prepared === undefined
-            ? settled.status === "rolledBack" || prepared === undefined
-            : prepared !== undefined && prepared.safeParse(settled.prepared).success;
+        return prepared !== undefined && prepared.safeParse(value).success;
     },
 
     /** Decide whether a value is what a method returns: its output, a page, else a row. */
@@ -424,6 +437,27 @@ export const Method = {
         return context;
     },
 
+    /** Read a prepare phase's context with the key its work runs under, refusing one without. */
+    requireKeyed<Context extends MethodContext>(
+        context: Context,
+    ): Context & { readonly idempotencyKey: string } {
+        // refuse a prepare outside a reserved settlement, which keys every prepare
+        if (!Method.isKeyed(context)) {
+            throw new TypeError(
+                `'${context.object.name}.${context.name}' prepares without an idempotency key`,
+            );
+        }
+
+        return context;
+    },
+
+    /** Decide whether a call runs under an idempotency key. */
+    isKeyed<Context extends MethodContext>(
+        context: Context,
+    ): context is Context & { readonly idempotencyKey: string } {
+        return context.idempotencyKey !== undefined;
+    },
+
     /** Read a result as a method types it, refusing one the method does not return. */
     requireResult<Configuration extends MethodConfiguration>(
         declared: Method<Configuration>,
@@ -441,16 +475,16 @@ export const Method = {
     },
 
     /** Read prepared work as a method types it, refusing work off the method's schema. */
-    requireSettled<Configuration extends MethodConfiguration>(
+    requirePreparedWork<Configuration extends MethodConfiguration>(
         declared: Method<Configuration>,
-        settled: Settled,
-    ): Settled<PreparedOf<Configuration>> {
+        value: unknown,
+    ): PreparedOf<Configuration> {
         // refuse prepared work off the method's schema
-        if (!Method.isSettled(declared, settled)) {
-            throw new TypeError("settled work does not match the method's declared prepared work");
+        if (!Method.isPreparedWork(declared, value)) {
+            throw new TypeError("prepared work does not match the method's declared prepared work");
         }
 
-        return settled;
+        return value;
     },
 
     /** Wrap a method in an object's handler or phases. */
@@ -465,12 +499,15 @@ export const Method = {
         if (unknown !== undefined) {
             throw new TypeError(`a method's handler has no phase '${unknown}'`);
         }
-        if (typed.settle !== undefined && typed.prepare === undefined) {
-            throw new TypeError("a method with a settle phase needs a prepare phase");
+        if (
+            (typed.confirm !== undefined || typed.cancel !== undefined) &&
+            typed.prepare === undefined
+        ) {
+            throw new TypeError("a method confirming or cancelling work needs a prepare phase");
         } else if (typed.prepare !== undefined && declared.prepared === undefined) {
             throw new TypeError("a method with a prepare phase must declare prepared work");
-        } else if (typed.creation !== undefined && declared.creation !== undefined) {
-            throw new TypeError("a method cannot have both a creator relation and a creation");
+        } else if (typed.relate !== undefined && declared.relate !== undefined) {
+            throw new TypeError("a method cannot have both a creator relation and a relate hook");
         }
 
         // run each phase on the call as the method types it
@@ -506,9 +543,10 @@ export const Method = {
             ...(handling.prepare === undefined
                 ? {}
                 : { prepare: handling.prepare, isPredicted: false }),
-            ...(handling.settle === undefined ? {} : { settle: handling.settle }),
+            ...(handling.confirm === undefined ? {} : { confirm: handling.confirm }),
+            ...(handling.cancel === undefined ? {} : { cancel: handling.cancel }),
             ...(handling.expand === undefined ? {} : { expand: handling.expand }),
-            ...(handling.creation === undefined ? {} : { creation: handling.creation }),
+            ...(handling.relate === undefined ? {} : { relate: handling.relate }),
             ...(authorize === undefined ? {} : { authorize }),
         };
 
@@ -520,18 +558,20 @@ export const Method = {
         declared: Method<Configuration>,
         handler: MethodHooks<Configuration>,
     ): MethodHooks {
-        const { authorize, creation, expand, prepare, handle, settle } = handler;
+        const { authorize, relate, expand, prepare, handle, confirm, cancel } = handler;
         const before = (context: MethodContext) => Method.requireContext(declared, context);
 
         return {
             ...(authorize === undefined
                 ? {}
                 : { authorize: (context) => authorize(before(context)) }),
-            ...(creation === undefined
+            ...(relate === undefined
                 ? {}
-                : { creation: (context, object) => creation(before(context), object) }),
+                : { relate: (context, object) => relate(before(context), object) }),
             ...(expand === undefined ? {} : { expand: (context) => expand(before(context)) }),
-            ...(prepare === undefined ? {} : { prepare: (context) => prepare(before(context)) }),
+            ...(prepare === undefined
+                ? {}
+                : { prepare: (context) => prepare(Method.requireKeyed(before(context))) }),
             ...(handle === undefined
                 ? {}
                 : {
@@ -540,11 +580,22 @@ export const Method = {
                               Method.requireResult(declared, context, await next(changed)),
                           ),
                   }),
-            ...(settle === undefined
+            ...(confirm === undefined
                 ? {}
                 : {
-                      settle: (context, settled) =>
-                          settle(context, Method.requireSettled(declared, settled)),
+                      confirm: (context, prepared) =>
+                          confirm(context, Method.requirePreparedWork(declared, prepared)),
+                  }),
+            ...(cancel === undefined
+                ? {}
+                : {
+                      cancel: (context, prepared) =>
+                          cancel(
+                              context,
+                              prepared === undefined
+                                  ? undefined
+                                  : Method.requirePreparedWork(declared, prepared),
+                          ),
                   }),
         };
     },

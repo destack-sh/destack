@@ -129,7 +129,7 @@ export const HandlerRequest = schema.object({
     /** The phase the hook runs, with the phase's arguments. */
     hook: schema.discriminatedUnion("phase", [
         schema.object({ phase: schema.literal("authorize") }),
-        schema.object({ phase: schema.literal("creation"), object: ObjectReference }),
+        schema.object({ phase: schema.literal("relate"), object: ObjectReference }),
         schema.object({ phase: schema.literal("expand") }),
         schema.object({ phase: schema.literal("prepare") }),
         schema.object({ phase: schema.literal("handle") }),

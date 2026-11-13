@@ -160,14 +160,14 @@ export const Settlement = {
         });
         const prepared = row.prepared === null ? undefined : declared.parse(row.prepared.value);
 
-        // settle a committed call's work as committed, and any other's as rolled back
+        // confirm a committed call's work, and cancel any other's
         if (row.committedAt !== null) {
             if (prepared === undefined) {
                 throw new TypeError(`settlement '${row.id}' committed without its prepared value`);
             }
-            await method.settle?.(call, { status: "committed", prepared });
+            await method.confirm?.(call, prepared);
         } else {
-            await method.settle?.(call, { status: "rolledBack", prepared });
+            await method.cancel?.(call, prepared);
         }
         await Settlement.forget(store.database, row.id);
     },

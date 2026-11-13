@@ -3145,7 +3145,8 @@ export class ObjectStore {
                 `'${context.object.name}.${context.name}' declares no prepared work`,
             );
         }
-        const value: unknown = await method.prepare(context.with({ run: this.#alone(context) }));
+        const keyed = Method.requireKeyed(context.with({ run: this.#alone(context) }));
+        const value: unknown = await method.prepare(keyed);
 
         // store the value as a settlement reads it back
         if (settlement === undefined) {

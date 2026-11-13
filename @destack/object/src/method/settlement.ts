@@ -127,8 +127,3 @@ export class SettlementContext {
         return this.id;
     }
 }
-
-/** How prepared work settles: committed, or rolled back with its recorded value, if recorded. */
-export type Settled<Prepared = unknown> =
-    | { readonly status: "committed"; readonly prepared: Prepared }
-    | { readonly status: "rolledBack"; readonly prepared: Prepared | undefined };

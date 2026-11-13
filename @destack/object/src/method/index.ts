@@ -33,7 +33,7 @@ export {
 } from "./procedure.ts";
 export { CallSite } from "./site.ts";
 export { Step } from "./step.ts";
-export { settlement, SettlementContext, type Settled } from "./settlement.ts";
+export { settlement, SettlementContext } from "./settlement.ts";
 export * from "./reader.ts";
 export { type LimitKey, Limits, type LimitSubject, type MethodLimits } from "./limits.ts";
 export { type TableReader, ViewSubscriber } from "./query.ts";

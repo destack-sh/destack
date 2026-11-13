@@ -1,3 +1,4 @@
+import { Method } from "../method/method.ts";
 import { AccessContext, Caller, Decision, principal } from "@destack/access";
 import { BranchEntry } from "../branch/entry.ts";
 import { RelationGraph } from "../query/query.ts";
@@ -70,8 +71,8 @@ export class HookServer implements HookHandler {
                 return null;
             }
             // derive a creation's first relationships
-            else if (hook.phase === "creation" && code?.creation !== undefined) {
-                return schema.json().parse(await code.creation(call, hook.object));
+            else if (hook.phase === "relate" && code?.relate !== undefined) {
+                return schema.json().parse(await code.relate(call, hook.object));
             }
             // list the calls the mutation runs first
             else if (hook.phase === "expand" && code?.expand !== undefined) {
@@ -79,7 +80,7 @@ export class HookServer implements HookHandler {
             }
             // do the external work before the transaction
             else if (hook.phase === "prepare" && code?.prepare !== undefined) {
-                return schema.json().parse(await code.prepare(call));
+                return schema.json().parse(await code.prepare(Method.requireKeyed(call)));
             }
             // change rows, the wrapped behaviour run at the store
             else if (hook.phase === "handle" && code?.handle !== undefined) {

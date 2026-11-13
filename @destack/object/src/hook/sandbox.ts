@@ -36,8 +36,10 @@ interface Session {
     lost?: FamilyFailure<DatabaseReason>;
 }
 
-/** The phases a sandbox runs: every phase but settle, which runs where the settlement is stored. */
-const SANDBOXED: readonly Phase[] = PHASES.filter((phase) => phase !== "settle");
+/** The phases a sandbox runs: all but confirm and cancel, which run where the settlement is. */
+const SANDBOXED: readonly Phase[] = PHASES.filter(
+    (phase) => phase !== "confirm" && phase !== "cancel",
+);
 
 /** An installation's object hooks, run in its sandbox and answered in their sessions. */
 export class HookSandbox {
@@ -270,10 +272,10 @@ export class HookSandbox {
                       },
                   }
                 : {}),
-            ...(listed.has("creation")
+            ...(listed.has("relate")
                 ? {
-                      creation: async (context: MethodContext, object: ObjectReference) =>
-                          CreationRecord.parse(await run(context, { phase: "creation", object })),
+                      relate: async (context: MethodContext, object: ObjectReference) =>
+                          CreationRecord.parse(await run(context, { phase: "relate", object })),
                   }
                 : {}),
             ...(listed.has("expand")

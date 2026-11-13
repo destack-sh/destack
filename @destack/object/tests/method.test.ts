@@ -787,7 +787,7 @@ test("refuse inviting to and accepting an invitation on an object in the trash, 
     }).toEqual({ invited: trashed, accepted: trashed, withdrawn: "revoked" });
 });
 
-test("prepare external work after the access check, settle it after commit, compensate on failure and skip it on replay", async () => {
+test("prepare external work after the access check, confirm it after commit, cancel it on failure and skip it on replay", async () => {
     // run in a world of its own
     const simulation = testSimulation();
     const { clock } = simulation;
@@ -824,12 +824,11 @@ test("prepare external work after the access check, settle it after commit, comp
                         title: `${context.target.title} (${context.prepared})`,
                     });
                 },
-                settle: async (_call, settled) => {
-                    external.push(
-                        settled.status === "committed"
-                            ? `confirm ${settled.prepared}`
-                            : `release ${String(settled.prepared)}`,
-                    );
+                confirm: async (_call, prepared) => {
+                    external.push(`confirm ${prepared}`);
+                },
+                cancel: async (_call, prepared) => {
+                    external.push(`release ${String(prepared)}`);
                 },
             },
         },
@@ -950,7 +949,7 @@ test("prepare external work after the access check, settle it after commit, comp
     expect(external).toEqual([]);
 });
 
-test("run a prepare and a settle phase's calls as the store in separate requests, committed apart from the mutation", async () => {
+test("run a prepare and a cancel phase's calls as the store in separate requests, committed apart from the mutation", async () => {
     // run in a world of its own
     const world = testSimulation().environment("test");
 
@@ -961,7 +960,7 @@ test("run a prepare and a settle phase's calls as the store in separate requests
     onTestFinished(() => storage.close());
     await openSpace(storage.database, world, spaceId);
 
-    // rename a log task as the store while preparing and settling an export, then fail the export
+    // rename a log task as the store while preparing and cancelling an export, then fail the export
     const log: { id?: string } = {};
     const seen: string[] = [];
     const rename = (title: string) =>
@@ -980,8 +979,8 @@ test("run a prepare and a settle phase's calls as the store in separate requests
                     seen.push(present(read, "the log task").title);
                     throw new Error("export failed");
                 },
-                settle: async (context) => {
-                    await context.mutate(context.self, [rename("settled")]);
+                cancel: async (context) => {
+                    await context.mutate(context.self, [rename("cancelled")]);
                 },
             },
         },
@@ -1011,16 +1010,16 @@ test("run a prepare and a settle phase's calls as the store in separate requests
     });
     log.id = created.id;
 
-    // see the prepared rename inside the failing mutation, and the settled one after it
+    // see the prepared rename inside the failing mutation, and the cancelled one after it
     await expect(
         execute("export", { requestId: RequestId.create(world), id: plan.id }),
     ).rejects.toThrow("export failed");
     const after = await execute("get", { id: created.id });
 
-    expect({ seen, title: after.title }).toEqual({ seen: ["prepared"], title: "settled" });
+    expect({ seen, title: after.title }).toEqual({ seen: ["prepared"], title: "cancelled" });
 });
 
-test("authorize a creation before its external work, and settle committed work through the settlement controller once settling fails", async () => {
+test("authorize a creation before its external work, and confirm committed work through the settlement controller once confirming fails", async () => {
     // run in a world of its own
     const simulation = testSimulation();
     const world = simulation.environment("test");
@@ -1043,17 +1042,16 @@ test("authorize a creation before its external work, and settle committed work t
 
                     return `copy-${present(context.id, "the version's identifier")}`;
                 },
-                settle: async (_call, settled) => {
-                    // fail the first confirmation, then confirm or release
-                    if (settled.status === "committed" && !isSettling) {
+                confirm: async (_call, prepared) => {
+                    // fail the first confirmation, then confirm
+                    if (!isSettling) {
                         isSettling = true;
                         throw new Error("confirmation failed");
                     }
-                    external.push(
-                        settled.status === "committed"
-                            ? `confirm ${settled.prepared}`
-                            : `release ${String(settled.prepared)}`,
-                    );
+                    external.push(`confirm ${prepared}`);
+                },
+                cancel: async (_call, prepared) => {
+                    external.push(`release ${String(prepared)}`);
                 },
             },
         },
@@ -1202,12 +1200,11 @@ test("cancel a call that outlasts its settlement grace by its key, and refuse to
 
                     return present(context.idempotencyKey, "the copy's key");
                 },
-                settle: async (_call, settled) => {
-                    external.push(
-                        settled.status === "committed"
-                            ? "confirm prepared"
-                            : `cancel ${settled.prepared === undefined ? "by key" : "prepared"}`,
-                    );
+                confirm: async () => {
+                    external.push("confirm prepared");
+                },
+                cancel: async (_call, prepared) => {
+                    external.push(`cancel ${prepared === undefined ? "by key" : "prepared"}`);
                 },
             },
         },
@@ -1506,7 +1503,7 @@ test("send a key of the call's place in its request, the same for every retry of
 
                     return key;
                 },
-                settle: async () => {},
+                confirm: async () => {},
             },
         },
     });
@@ -1573,8 +1570,8 @@ test("settle each call's prepared work once under a separate key in its request"
         methods: {
             create: {
                 prepare: async (context) => present(context.idempotencyKey, "the call's key"),
-                settle: async (_call, settled) => {
-                    confirmed.push(settled.prepared);
+                confirm: async (_call, prepared) => {
+                    confirmed.push(prepared);
                 },
             },
         },

@@ -2524,7 +2524,7 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
 
         // refuse relationships on objects outside the durable database, which deletes them with their object
         const relating = Object.entries(ObjectType.#methodsOf(this)).find(
-            ([, declared]) => declared.creation !== undefined,
+            ([, declared]) => declared.relate !== undefined,
         );
         if (this.storage !== "durable" && relating !== undefined) {
             throw new TypeError(

@@ -1493,7 +1493,7 @@ export const RecordMethod = {
             context.object.roles !== undefined && context.object.policy.definition.scope === true;
 
         return (
-            context.method.creation ??
+            context.method.relate ??
             (hasOwnerRelation ? RecordMethod.relateCreator("owner") : undefined)
         );
     },
@@ -1605,7 +1605,7 @@ export class MethodBuilder<
             target: "scope",
             result: "object",
             procedure: (name, schemas) => RecordMethod.createProcedure(name, schemas, options),
-            ...(creator === undefined ? {} : { creation: RecordMethod.relateCreator(creator) }),
+            ...(creator === undefined ? {} : { relate: RecordMethod.relateCreator(creator) }),
             handler: (context, execution) => RecordMethod.createObject(context, execution),
             authorize: (context, execution) => RecordMethod.authorizeCreate(context, execution),
             inverse: (step) => {
@@ -1703,7 +1703,7 @@ export class MethodBuilder<
                 output: BatchIds,
             }),
             validate: (object) => RecordMethod.requireUnrecorded(object),
-            ...(creator === undefined ? {} : { creation: RecordMethod.relateCreator(creator) }),
+            ...(creator === undefined ? {} : { relate: RecordMethod.relateCreator(creator) }),
             handler: (context, execution) => RecordMethod.createItems(context, execution),
             authorize: (context, execution) => RecordMethod.authorizeItems(context, execution),
             inverse: (step) => RecordMethod.deleteCreated(step),

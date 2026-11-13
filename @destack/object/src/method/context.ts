@@ -55,7 +55,7 @@ import type { OptionOf, Method, MethodConfiguration } from "./method.ts";
 import { CallSite } from "./site.ts";
 import type { MethodKind } from "./kind.ts";
 import type { ServerContext } from "../workload/workload.ts";
-import type { Settled, SettlementContext } from "./settlement.ts";
+import type { SettlementContext } from "./settlement.ts";
 import { type IsSum, RecordMethod } from "./record.ts";
 import type { list } from "../query/list.ts";
 import { ParentReference } from "../trait/nested.ts";
@@ -1333,8 +1333,8 @@ export type MethodHooks<Configuration extends MethodConfiguration = MethodConfig
     readonly authorize?: (
         context: MethodContext<Configuration, PreparedOf<Configuration> | undefined>,
     ) => Promise<void>;
-    /** Derive a created object's first relationships and a new scope's owner, for creations. */
-    readonly creation?: (
+    /** Relate a new object to its owner and the subjects it starts with, for creations. */
+    readonly relate?: (
         context: MethodContext<Configuration, PreparedOf<Configuration> | undefined>,
         object: ObjectReference,
     ) => Creation | Promise<Creation>;
@@ -1344,13 +1344,21 @@ export type MethodHooks<Configuration extends MethodConfiguration = MethodConfig
     ) => Promise<readonly BranchEntry[]>;
     /** Do external work before the transaction, returning `call.prepared`. */
     readonly prepare?: (
-        context: MethodContext<Configuration, PreparedOf<Configuration> | undefined>,
+        context: MethodContext<Configuration, PreparedOf<Configuration> | undefined> & {
+            /** The key the work runs under, the same across the call's retries. */
+            readonly idempotencyKey: string;
+        },
     ) => Promise<PreparedOf<Configuration>>;
     /** Change rows inside the transaction, wrapping next. */
     readonly handle?: HandleFunction<Configuration>;
-    /** Settle the prepared work once the transaction committed or failed, at least once. */
-    readonly settle?: (
+    /** Confirm the prepared work once the transaction committed, at least once. */
+    readonly confirm?: (
         context: SettlementContext,
-        settled: Settled<PreparedOf<Configuration>>,
+        prepared: PreparedOf<Configuration>,
+    ) => Promise<void>;
+    /** Cancel the prepared work once the transaction failed, at least once. */
+    readonly cancel?: (
+        context: SettlementContext,
+        prepared: PreparedOf<Configuration> | undefined,
     ) => Promise<void>;
 };
