@@ -150,7 +150,7 @@ export class Control implements AsyncDisposable {
             kinds: [call.eventKind()],
             files: () => options.events,
             personal: new DatabasePersonalKeyring(database, keyring, options.environment),
-            clock,
+            environment: options.environment,
         });
 
         // bind the parts that need the store once it exists: the account server's sign-in stores
