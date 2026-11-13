@@ -1,0 +1,29 @@
+{
+    "name": "@destack/template-tasks",
+    "version": "2026.11.0",
+    "license": "Apache-2.0",
+    "type": "module",
+    "description": "Start a team's issue tracker with projects, cycles, labels and a board.",
+    "exports": {
+        "./package": "./src/package.ts",
+        "./object": "./src/object/index.ts",
+        "./view": "./src/view/index.ts"
+    },
+    "scripts": {
+        "typecheck": "tsc --project tsconfig.json && destack-check readme"
+    },
+    "devDependencies": {
+        "@destack/check": "2026.11.0",
+        "@destack/build": "2026.11.0"
+    },
+    "dependencies": {
+        "@destack/access": "2026.11.0",
+        "@destack/account": "2026.11.0",
+        "@destack/locale": "workspace:*",
+        "@destack/object": "2026.11.0",
+        "@destack/package": "2026.11.0",
+        "@destack/schema": "2026.11.0",
+        "@destack/ui": "2026.11.0",
+        "@destack/view": "2026.11.0"
+    }
+}
