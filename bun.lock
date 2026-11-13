@@ -204,7 +204,7 @@
     },
     "@destack/cli/tests/fixture/notebooks": {
       "name": "@acme/notebooks",
-      "version": "2026.11.0-dev.1",
+      "version": "2026.11.0",
       "dependencies": {
         "@destack/access": "workspace:*",
         "@destack/account": "workspace:*",
@@ -1180,6 +1180,24 @@
         "@destack/check": "2026.11.0",
       },
     },
+    "@destack/template-tasks": {
+      "name": "@destack/template-tasks",
+      "version": "2026.11.0",
+      "dependencies": {
+        "@destack/access": "2026.11.0",
+        "@destack/account": "2026.11.0",
+        "@destack/locale": "workspace:*",
+        "@destack/object": "2026.11.0",
+        "@destack/package": "2026.11.0",
+        "@destack/schema": "2026.11.0",
+        "@destack/ui": "2026.11.0",
+        "@destack/view": "2026.11.0",
+      },
+      "devDependencies": {
+        "@destack/build": "2026.11.0",
+        "@destack/check": "2026.11.0",
+      },
+    },
     "@destack/test": {
       "name": "@destack/test",
       "version": "2026.11.0",
@@ -1533,6 +1551,9 @@
         "@destack/schema": "workspace:*",
         "@destack/social": "workspace:*",
         "@destack/stack": "workspace:*",
+        "@destack/template-blank": "workspace:*",
+        "@destack/template-stack": "workspace:*",
+        "@destack/template-tasks": "workspace:*",
         "@destack/vault": "workspace:*",
         "@platform/pricing": "workspace:*",
         "@platform/site": "workspace:*",
@@ -1795,6 +1816,8 @@
     "@destack/template-blank": ["@destack/template-blank@workspace:@destack/template-blank"],
 
     "@destack/template-stack": ["@destack/template-stack@workspace:@destack/template-stack"],
+
+    "@destack/template-tasks": ["@destack/template-tasks@workspace:@destack/template-tasks"],
 
     "@destack/test": ["@destack/test@workspace:@destack/test"],
 
