@@ -48,6 +48,9 @@ export const CACHE_MILLISECONDS = 7 * 24 * 60 * 60_000;
 /** How often a store records a use: daily, a seventh of a cache entry's or build's lifetime. */
 export const USE_MILLISECONDS = 24 * 60 * 60_000;
 
+/** The layered files a read keeps in flight, overlapping file reads within bounded memory. */
+const LAYER_READS = 64;
+
 /** The prefix of the root a cache entry retains its blobs by, followed by its key. */
 const CACHE_ROOT_PREFIX = "cache:";
 
@@ -165,6 +168,16 @@ export const BuildObject = {
         return { kind, digest: digest.data };
     },
 };
+
+/** An object with its bytes, as a store packs it. */
+interface StoredObject {
+    /** What the object is. */
+    readonly kind: BuildObject["kind"];
+    /** The object's digest. */
+    readonly digest: Digest;
+    /** The object's bytes. */
+    readonly bytes: Uint8Array<ArrayBuffer>;
+}
 
 /** The blobs a store stores builds in, and the environment it runs in. */
 export interface BuildStoreOptions<StoreEnvironment, Storage extends BlobStorage> {
@@ -366,40 +379,77 @@ export class BuildStore<
         const located = await this.locate(
             objects.filter((object) => object.kind === "file").map((object) => object.digest),
         );
-        let packed: Digest[] = [];
+        let run: { kind: BlobLocation["kind"]; digests: Digest[] } = {
+            kind: "packed",
+            digests: [],
+        };
+        const flush = () =>
+            run.kind === "packed" ? this.#batch(run.digests) : this.#layered(run.digests);
         for (const object of objects) {
-            const path = BuildObject.path(object);
             const location = object.kind === "file" ? located.get(object.digest) : undefined;
 
-            // gather a packed file, read with its neighbours in one batch
-            if (location?.kind === "packed") {
-                packed.push(object.digest);
+            // gather a file with its neighbours that lie alike, read in one run
+            if (location !== undefined) {
+                if (run.kind !== location.kind) {
+                    yield* flush();
+                    run = { kind: location.kind, digests: [] };
+                }
+                run.digests.push(object.digest);
                 continue;
             }
-            yield* this.#batch(packed);
-            packed = [];
+            yield* flush();
+            run = { kind: "packed", digests: [] };
+
+            // refuse a missing file
+            if (object.kind === "file") {
+                throw BuildError.of("BLOB_NOT_FOUND", `package file '${object.digest}' not found`);
+            }
 
             // stream a manifest or lock as recorded
-            if (object.kind !== "file") {
-                const head = await this.head(object.digest);
-                yield { path, size: head.size, body: this.#stream(head) };
-            }
-            // stream a layered file from its layer
-            else {
-                if (location === undefined) {
-                    throw BuildError.of(
-                        "BLOB_NOT_FOUND",
-                        `package file '${object.digest}' not found`,
-                    );
-                }
-                yield {
-                    path,
-                    size: location.size,
-                    body: BuildStore.#readable(this.#bytes(object.digest, location)),
-                };
-            }
+            const head = await this.head(object.digest);
+            yield { path: BuildObject.path(object), size: head.size, body: this.#stream(head) };
         }
-        yield* this.#batch(packed);
+        yield* flush();
+    }
+
+    /** Read layered files in order as tarball entries. */
+    async *#layered(digests: readonly Digest[]): AsyncIterable<TarballEntry> {
+        const files = digests.map((digest) => ({ kind: "file" as const, digest }));
+        for await (const { kind, digest, bytes } of this.#readLayered(files)) {
+            const body = new ReadableStream<Uint8Array>({
+                start(controller) {
+                    controller.enqueue(bytes);
+                    controller.close();
+                },
+            });
+            yield { path: BuildObject.path({ kind, digest }), size: bytes.byteLength, body };
+        }
+    }
+
+    /** Read layered objects in order, keeping some reads in flight to overlap them. */
+    async *#readLayered(
+        objects: readonly Pick<BuildObject, "kind" | "digest">[],
+    ): AsyncIterable<StoredObject> {
+        // start the first reads, each later one as an earlier one is taken
+        const reads: Promise<Uint8Array<ArrayBuffer>>[] = [];
+        const start = (digest: Digest) => {
+            const reading = present(this.layer.read(digest), `the layered blob ${digest}`);
+            reading.catch(() => undefined);
+            reads.push(reading);
+        };
+        for (const object of objects.slice(0, LAYER_READS)) {
+            start(object.digest);
+        }
+
+        // take each read in order
+        for (const [index, object] of objects.entries()) {
+            const bytes = await present(reads[index], `the read of ${object.digest}`);
+            const next = objects[index + LAYER_READS];
+            if (next !== undefined) {
+                start(next.digest);
+            }
+            yield { kind: object.kind, digest: object.digest, bytes };
+        }
     }
 
     /** Read packed files in one batch of their blobs, as tarball entries in order. */
@@ -411,19 +461,41 @@ export class BuildStore<
 
     /** Write objects files first, recording the manifests and locks of each pack once stored. */
     async write(entries: AsyncIterable<TarballEntry>): Promise<void> {
+        await this.#pack(BuildStore.#parsed(entries), "verify");
+    }
+
+    /** Store objects in packs of at most the write limit, then record their manifests and locks. */
+    async #pack(objects: AsyncIterable<StoredObject>, digests: "verify" | "trust"): Promise<void> {
         // gather objects into packs of at most the write limit
-        let gathered: { readonly digest: Digest; readonly bytes: Uint8Array<ArrayBuffer> }[] = [];
-        let recorded: Pick<BuildObject, "kind" | "digest">[] = [];
+        let gathered: StoredObject[] = [];
         let size = 0;
         const flush = async () => {
-            // store the pack, then record its manifests and locks from their bytes
-            await this.#putVerified(gathered);
+            // store the pack, verifying digests from outside, then record its manifests and locks from their bytes
+            if (digests === "verify") {
+                await this.#verify(gathered);
+            }
+            await this.#put(gathered);
             const buffers = new Map(gathered.map(({ digest, bytes }) => [digest, bytes]));
-            await this.#recordObjects(recorded, buffers);
+            await this.#recordObjects(
+                gathered.filter((object) => object.kind !== "file"),
+                buffers,
+            );
             gathered = [];
-            recorded = [];
             size = 0;
         };
+        for await (const object of objects) {
+            // write the pack before an object that would take it past the limit, then gather it
+            if (gathered.length > 0 && size + object.bytes.byteLength > MAX_WRITE_BYTES) {
+                await flush();
+            }
+            gathered.push(object);
+            size += object.bytes.byteLength;
+        }
+        await flush();
+    }
+
+    /** Read tarball entries as objects, refusing one past the write limit. */
+    static async *#parsed(entries: AsyncIterable<TarballEntry>): AsyncIterable<StoredObject> {
         for await (const entry of entries) {
             // refuse an object past the limit
             const object = BuildObject.parse(entry.path);
@@ -434,18 +506,13 @@ export class BuildStore<
                 );
             }
 
-            // write the pack before an object that would take it past the limit, then gather it
-            const bytes = await TarballEntry.bytes(entry);
-            if (gathered.length > 0 && size + bytes.byteLength > MAX_WRITE_BYTES) {
-                await flush();
-            }
-            gathered.push({ digest: object.digest, bytes });
-            if (object.kind !== "file") {
-                recorded.push(object);
-            }
-            size += bytes.byteLength;
+            // read its bytes
+            yield {
+                kind: object.kind,
+                digest: object.digest,
+                bytes: await TarballEntry.bytes(entry),
+            };
         }
-        await flush();
     }
 
     /** Pull a lock's or build's objects for some runtimes from another store, a read per round. */
@@ -825,6 +892,62 @@ export class BuildStore<
         await this.retain(name, new Set());
     }
 
+    /** Copy in what builds and locks have only through the layer, as overlayfs does. */
+    async copyUp(roots: readonly Pick<BuildObject, "kind" | "digest">[]): Promise<void> {
+        // copy nothing without a layer
+        if (this.layer.isEmpty || roots.length === 0) {
+            return;
+        }
+
+        // list each build's objects and each lock's own record, of the roots the store has
+        const unique = [...new Map(roots.map((root) => [root.digest, root])).values()];
+        const heads = await Promise.all(
+            unique.map(async (root) => ({ ...root, head: await this.#head(root.digest) })),
+        );
+        const builds = heads.filter((root) => root.kind === "manifest" && root.head !== undefined);
+        const locks = heads.flatMap((root): BuildObject[] =>
+            root.kind === "lock" && root.head !== undefined
+                ? [{ kind: "lock", digest: root.digest, size: root.head.size }]
+                : [],
+        );
+        const objects = [...(await BuildObject.of(this, builds, "all")), ...locks];
+
+        // find the layered objects the store lacks: files without a pack, records not complete
+        const layered = objects.filter((object) =>
+            object.kind === "file"
+                ? this.layer.size(object.digest) !== undefined
+                : this.layer.head(object.digest) !== undefined,
+        );
+        const files = layered
+            .filter((object) => object.kind === "file")
+            .map((object) => object.digest);
+        const packed = new Set((await this.blobs.placements(files)).map(({ digest }) => digest));
+        const records = layered
+            .filter((object) => object.kind !== "file")
+            .map((object) => object.digest);
+        const rows = new Set<Digest>();
+        for (let start = 0; start < records.length; start += BATCH_ROWS) {
+            const stored = await this.database
+                .select({ digest: buildManifest.digest })
+                .from(buildManifest)
+                .where(
+                    and(
+                        inArray(buildManifest.digest, records.slice(start, start + BATCH_ROWS)),
+                        eq(buildManifest.isComplete, true),
+                    ),
+                );
+            for (const row of stored) {
+                rows.add(row.digest);
+            }
+        }
+        const copied = layered.filter((object) =>
+            object.kind === "file" ? !packed.has(object.digest) : !rows.has(object.digest),
+        );
+
+        // store them from the layer, trusted as the host's own
+        await this.#pack(this.#readLayered(copied), "trust");
+    }
+
     /** Read the builds each root retains, by root name, the cache entries' roots left out. */
     async roots(): Promise<ReadonlyMap<string, ReadonlySet<string>>> {
         // group the root rows by name, the cache entries' roots left out
@@ -1185,8 +1308,7 @@ export class BuildStore<
     ): AsyncIterable<Uint8Array> {
         // cut the range from a layered blob's bytes
         if (location.kind === "layered") {
-            const layered = present(this.layer.stream(digest), `the layered blob ${digest}`);
-            const bytes = new Uint8Array(await new Response(layered).arrayBuffer());
+            const bytes = await present(this.layer.read(digest), `the layered blob ${digest}`);
             yield bytes.subarray(offset, Math.min(bytes.byteLength, offset + length));
         }
         // read the range from its pack
@@ -1226,9 +1348,7 @@ export class BuildStore<
     }
 
     /** Lease and store blobs, refusing bytes of another digest. */
-    async #putVerified(
-        blobs: readonly { readonly digest: Digest; readonly bytes: Uint8Array<ArrayBuffer> }[],
-    ): Promise<void> {
+    async #verify(blobs: readonly StoredObject[]): Promise<void> {
         for (const { digest, bytes } of blobs) {
             if ((await Digest.of(bytes, this.environment.crypto)) !== digest) {
                 throw BuildError.of(
@@ -1237,6 +1357,10 @@ export class BuildStore<
                 );
             }
         }
+    }
+
+    /** Store blobs in one pack, leased until the store's lease ends. */
+    async #put(blobs: readonly StoredObject[]): Promise<void> {
         await this.blobs.put(
             blobs.map(({ digest, bytes }) => ({
                 digest,

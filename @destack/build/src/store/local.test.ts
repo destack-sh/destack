@@ -170,6 +170,43 @@ test("place a stored file by its blob and a layered one from where its layer kee
     ]).toEqual(["stored", "export const answer = 42;"]);
 });
 
+test("keep a lock copied up from the layer once the next layer drops it", async () => {
+    // copy up a lock and its build a store has only through its layer
+    await using simulation = testSimulation();
+    const environment = simulation.environment("test");
+    const { files, crypto } = environment;
+    const directory = await files.makeTemporaryDirectory("test-stores-");
+    await using store = await LocalBuildStore.open(join(directory, "store"), environment);
+    await using distributor = await LocalBuildStore.temporary(environment);
+    const release = await distributor.put(await written("export const answer = 42;", crypto));
+    const lock = await lockAlone(distributor, release);
+    const distribution = join(directory, "distribution");
+    await distributor.writeLayer([lock], ["bun"], distribution, "linked");
+    {
+        await using layered = await LocalBuildStore.of({
+            blobs: store.blobs,
+            directory: join(directory, "layered"),
+            environment,
+            layer: await BuildLayer.open(distribution, environment),
+        });
+        await layered.copyUp([
+            { kind: "lock", digest: lock },
+            { kind: "manifest", digest: release },
+        ]);
+    }
+
+    // read the lock and its build's module over an empty layer
+    await using reopened = await LocalBuildStore.of({
+        blobs: store.blobs,
+        directory: join(directory, "layered"),
+        environment,
+    });
+    const read = await reopened.contents((await reopened.lock(lock)).root);
+    expect(new TextDecoder().decode(await read.load("src/answer.ts"))).toBe(
+        "export const answer = 42;",
+    );
+});
+
 test("ship a build in a layer with its output's maps, reading a map from the layer", async () => {
     // store a release whose output has a map, and write a layer of it
     await using simulation = testSimulation();
