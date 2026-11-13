@@ -152,10 +152,12 @@ export class WorkloadRunner implements AsyncDisposable {
             const packages = new Map(instance.packages.map((handle) => [handle.id, handle]));
 
             // set the instance
-            TelemetryScope.of(import.meta.destack.package, running).log.info("workload.started", {
-                workload: runner.workload.name,
-                instance: start.instance,
-            });
+            TelemetryScope.of(import.meta.destack.package, running).log.info(
+                "destack.workload.started",
+                {
+                    "destack.workload.name": runner.workload.name,
+                },
+            );
 
             // export the start's traces and logs
             const started = new WorkloadRunner(

@@ -254,7 +254,7 @@ test("start the workload with its installation's settings, serve a forwarded cal
         other: other.status,
         exported: exported.filter((request) => request.events.length > 0),
     }).toEqual({
-        started: [["workload.started"]],
+        started: [["destack.workload.started"]],
         settings: { [`${notes.id}/language`]: "de" },
         unauthorized: [
             401,
@@ -280,7 +280,7 @@ test("start the workload with its installation's settings, serve a forwarded cal
                         "service.version": notes.version,
                     },
                 ],
-                events: ["workload.started"],
+                events: ["destack.workload.started"],
             },
         ],
     });

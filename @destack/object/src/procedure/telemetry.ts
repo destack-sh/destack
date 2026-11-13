@@ -1,4 +1,4 @@
-import type { Clock, Environment } from "@destack/environment";
+import { type Clock, type Environment, SpanPath } from "@destack/environment";
 import {
     type ContextManager,
     type Histogram,
@@ -58,15 +58,14 @@ export class CallTelemetry {
 
         // run the call in its span, a child of the active one
         const parent = this.#context.active();
-        const span = this.#tracer.startSpan(
-            path.join("/"),
-            { kind: this.#kind, attributes },
-            parent,
+        const name = path.join("/");
+        const span = this.#tracer.startSpan(name, { kind: this.#kind, attributes }, parent);
+        const entered = SpanPath.enter(
+            trace.setSpan(parent, span),
+            SpanPath.label(name, attributes),
         );
 
-        return this.#context.with(trace.setSpan(parent, span), () =>
-            this.#invoke(next, attributes, span),
-        );
+        return this.#context.with(entered, () => this.#invoke(next, attributes, span));
     }
 
     /** Trace a call until its value or stream completes. */
