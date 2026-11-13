@@ -28,6 +28,7 @@ import type {
     TemplateTables,
     TestTemplate,
 } from "./template.ts";
+import { testWorldOptions } from "@destack/test/world";
 
 /** The host the harness keeps files and schemas on, shared by the test processes of a run. */
 const HOST = testHost();
@@ -154,7 +155,9 @@ export class TestDatabase<
 
         // fork the template's world by the label, its databases running as the write's node
         const recorded = { seed: template.world.seed, start: image.end };
-        const simulation = Simulation.fork(recorded, options.label);
+        const simulation = Simulation.fork(recorded, options.label, {
+            world: testWorldOptions(),
+        });
         onTestFinished(() => simulation[Symbol.asyncDispose]());
         const environment = simulation.environment(TEMPLATE_NODE);
 
@@ -200,7 +203,10 @@ export class TestDatabase<
         run: { readonly id: string; readonly directory: string },
     ): Promise<TemplateImage> {
         // open the template's world, then each database migrated in turn, named by the digest of the template's name and its own
-        await using simulation = new Simulation(template.world);
+        await using simulation = new Simulation({
+            ...template.world,
+            world: testWorldOptions(),
+        });
         const environment = simulation.environment(TEMPLATE_NODE);
         const opened = new Map<string, ImageDatabase>();
         let value: Value;

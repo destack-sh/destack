@@ -7,7 +7,7 @@ import { TestDatabase } from "../../test/database.ts";
 import { Change, DatabaseError, eq, LogPosition, type LogCursor, TABLE } from "../../index.ts";
 import { changeTables, first, lease, note, reading, revision } from "./fixture.ts";
 import { setting } from "../../bun/test/setting.ts";
-import { testSimulation } from "@destack/test/world";
+import { testSimulation, testWorldOptions } from "@destack/test/world";
 
 /** A reader of the notes. */
 function reader(name: string): LogCursor {
@@ -492,7 +492,11 @@ test("claim a consumer's page once from where its checkpoint stands at the first
 
 test("stamp each logged change at its connection's clock as the clock moves between transactions", async () => {
     // write a note at one time, and rename it later
-    await using simulation = new Simulation({ seed: 1, start: Date.UTC(2026, 0, 1) });
+    await using simulation = new Simulation({
+        world: testWorldOptions(),
+        seed: 1,
+        start: Date.UTC(2026, 0, 1),
+    });
     const environment = simulation.environment("store");
     const storage = await TestDatabase.create(changeTables, { environment });
     onTestFinished(() => storage.close());
@@ -514,7 +518,11 @@ test("stamp each logged change at its connection's clock as the clock moves betw
 
 test("keep a transaction's stamp through a failed savepoint after its first write, logging one time for both writes", async () => {
     // write a note, fail a nested transaction, then rename the note, the clock moving between
-    await using simulation = new Simulation({ seed: 1, start: Date.UTC(2026, 0, 1) });
+    await using simulation = new Simulation({
+        world: testWorldOptions(),
+        seed: 1,
+        start: Date.UTC(2026, 0, 1),
+    });
     const environment = simulation.environment("store");
     const storage = await TestDatabase.create(changeTables, { environment });
     onTestFinished(() => storage.close());

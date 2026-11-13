@@ -2,12 +2,13 @@ import { expect, onTestFinished, test } from "@destack/test";
 import { type Channel, channelHub } from "../channel/index.ts";
 import { Tracker, TRACKER_CHANNEL, type TrackerEvent, type TrackerMessage } from "./tracker.ts";
 import { Simulation } from "@destack/environment/simulation";
+import { testWorldOptions } from "@destack/test/world";
 
 /** The heartbeat interval of the test trackers, in milliseconds of their clocks. */
 const HEARTBEAT = 5;
 
 test("replicate which instance tracks an owner, released everywhere at its last release or once its instance stops", async () => {
-    await using simulation = new Simulation({ seed: 1, start: 0 });
+    await using simulation = new Simulation({ world: testWorldOptions(), seed: 1, start: 0 });
     const join = channelHub<TrackerMessage>();
     const east = open(join(TRACKER_CHANNEL), simulation);
     const west = open(join(TRACKER_CHANNEL), simulation);
@@ -38,7 +39,7 @@ test("replicate which instance tracks an owner, released everywhere at its last 
 });
 
 test("hand a late instance the tracked owners, and count a silent instance stopped after three missed heartbeats", async () => {
-    await using simulation = new Simulation({ seed: 1, start: 0 });
+    await using simulation = new Simulation({ world: testWorldOptions(), seed: 1, start: 0 });
     const join = channelHub<TrackerMessage>();
     const east = open(join(TRACKER_CHANNEL), simulation);
     east.track("alice");
@@ -75,7 +76,7 @@ test("hand a late instance the tracked owners, and count a silent instance stopp
 });
 
 test("count an unknown instance live only until this one could receive from it, and report each instance that stops", async () => {
-    await using simulation = new Simulation({ seed: 1, start: 0 });
+    await using simulation = new Simulation({ world: testWorldOptions(), seed: 1, start: 0 });
     const join = channelHub<TrackerMessage>();
     const east = open(join(TRACKER_CHANNEL), simulation);
     const west = open(join(TRACKER_CHANNEL), simulation);
@@ -102,7 +103,7 @@ test("count an unknown instance live only until this one could receive from it, 
 });
 
 test("deliver a broadcast on every instance with its sender, and track alone without a channel", async () => {
-    await using simulation = new Simulation({ seed: 1, start: 0 });
+    await using simulation = new Simulation({ world: testWorldOptions(), seed: 1, start: 0 });
     const join = channelHub<TrackerMessage>();
     const east = open(join(TRACKER_CHANNEL), simulation);
     const west = open(join(TRACKER_CHANNEL), simulation);
@@ -135,7 +136,7 @@ test("deliver a broadcast on every instance with its sender, and track alone wit
 });
 
 test("skip the messages a channel echoes back to their sender, as PostgreSQL's does", async () => {
-    await using simulation = new Simulation({ seed: 1, start: 0 });
+    await using simulation = new Simulation({ world: testWorldOptions(), seed: 1, start: 0 });
     const join = channelHub<TrackerMessage>();
     const east = open(join(TRACKER_CHANNEL), simulation);
     const echo = join(TRACKER_CHANNEL);
@@ -154,7 +155,7 @@ test("skip the messages a channel echoes back to their sender, as PostgreSQL's d
 });
 
 test("announce a mark at once and a refresh with the next heartbeat, hand a late instance the marks, and forget unmarked and stopped ones", async () => {
-    await using simulation = new Simulation({ seed: 1, start: 0 });
+    await using simulation = new Simulation({ world: testWorldOptions(), seed: 1, start: 0 });
     const join = channelHub<TrackerMessage>();
     const east = open(join(TRACKER_CHANNEL), simulation);
     const west = open(join(TRACKER_CHANNEL), simulation);

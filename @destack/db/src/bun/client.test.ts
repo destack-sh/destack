@@ -1,4 +1,4 @@
-import { TEST_START, testSimulation } from "@destack/test/world";
+import { TEST_START, testSimulation, testWorldOptions } from "@destack/test/world";
 import { join } from "node:path";
 import { Simulation } from "@destack/environment/simulation";
 import { expect, test } from "@destack/test";
@@ -16,7 +16,11 @@ const note = defineTable("note", {
 test("serialize two worlds' writes to one file in the process, the second once the first commits", async () => {
     // open one file from two worlds, each on its own clock
     await using first = testSimulation();
-    await using second = new Simulation({ seed: 2, start: TEST_START });
+    await using second = new Simulation({
+        world: testWorldOptions(),
+        seed: 2,
+        start: TEST_START,
+    });
     const { files } = first.environment("first");
     const directory = await files.makeTemporaryDirectory("destack-sqlite-worlds-");
     const path = join(directory, "database.db");

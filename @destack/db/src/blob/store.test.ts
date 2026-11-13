@@ -7,6 +7,7 @@ import { MemoryBlobStorage } from "@destack/resource";
 import { Digest } from "@destack/schema";
 import { expect, onTestFinished, test } from "@destack/test";
 import { BLOB_TABLES, BlobStore } from "./store.ts";
+import { testWorldOptions } from "@destack/test/world";
 
 /** When every blob store test starts: 1 October 2026, UTC. */
 const START = Date.UTC(2026, 9, 1);
@@ -48,7 +49,7 @@ const member = defineTable("member", {
 
 /** Open a blob store over memory storage and a test database with attachments and bundles. */
 async function openBlobs() {
-    const simulation = new Simulation({ seed: 1, start: START });
+    const simulation = new Simulation({ world: testWorldOptions(), seed: 1, start: START });
     const environment = simulation.environment("bucket");
     const opened = await TestDatabase.create([attachment, bundle, member, ...BLOB_TABLES], {
         environment,
