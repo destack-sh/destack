@@ -61,8 +61,9 @@ test("export a log record inside its span as OTLP/JSON, correlated by trace", as
         await telemetry.shutdown();
     }
 
-    // export the span and the record correlated by trace, each whole
-    expect(delivered).toMatchInlineSnapshot(`
+    // export the span and the record correlated by trace, each whole, apart from the span's duration
+    const correlated = delivered.filter(({ signal }) => signal !== "metrics");
+    expect(correlated).toMatchInlineSnapshot(`
       [
         {
           "body": {

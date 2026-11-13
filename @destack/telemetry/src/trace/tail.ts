@@ -24,12 +24,12 @@ const PENDING_SIGNALS = 1000;
 /** Declare the tail sampler's counters on a meter. */
 function counters(metric: MetricFactory) {
     return {
-        evicted: metric.counter("telemetry.tail.evicted", {
+        evicted: metric.counter("destack.telemetry.tail.evicted", {
             unit: "{trace}",
             description: "Traces dropped because too many local roots ran at once.",
             attributes: {},
         }),
-        dropped: metric.counter("telemetry.tail.dropped", {
+        dropped: metric.counter("destack.telemetry.tail.dropped", {
             unit: "{signal}",
             description:
                 "Spans and log records of undecided traces dropped beyond each trace's bound.",

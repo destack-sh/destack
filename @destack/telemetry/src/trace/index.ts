@@ -2,6 +2,7 @@ export {
     AlwaysOffSampler,
     AlwaysOnSampler,
     BatchSpanProcessor,
+    InMemorySpanExporter,
     ParentBasedSampler,
     RandomIdGenerator,
     SamplingDecision,

@@ -1,6 +1,5 @@
 import {
     type Attributes,
-    SpanKind,
     type Counter,
     type Gauge,
     type UpDownCounter,
@@ -8,37 +7,23 @@ import {
     type Logger,
     type Meter,
     SeverityNumber,
-    type Span,
-    SpanStatusCode,
-    trace,
     type Tracer,
 } from "@opentelemetry/api";
-import { type Environment, SpanPath } from "@destack/environment";
+import {
+    DURATION_BUCKETS,
+    EXCEPTION_EVENT,
+    type Environment,
+    exceptionAttributes,
+    SpanRunner,
+} from "@destack/environment";
 import type { PackageVersion } from "@destack/package";
-import { DomainError, Failure } from "@destack/error";
+
 import {
     ACTION_EVENT,
     ANALYTICS_ATTRIBUTES,
     VISIT_EVENT,
     type VisitDetail,
 } from "../otlp/analytics.ts";
-
-/** The bucket boundaries of a duration in seconds: from 100 µs, as statements take, to 10 s. */
-const DURATION_BUCKETS = [
-    0.0001, 0.00025, 0.0005, 0.001, 0.0025, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10,
-];
-
-/** The OpenTelemetry span kind of each end of a call. */
-const SPAN_KINDS = { client: SpanKind.CLIENT, server: SpanKind.SERVER } as const;
-
-/** The milliseconds in a second, as OpenTelemetry records durations in seconds. */
-const MILLISECONDS_PER_SECOND = 1000;
-
-/** The event name of an exception on a log record or a span, as OpenTelemetry names it. */
-const EXCEPTION_EVENT = "exception";
-
-/** The causes a captured failure's stack trace lists at most, below its own stack. */
-const MAX_CAUSES = 8;
 
 /** The log severity of each capture level. */
 const LEVELS: Readonly<Record<CaptureLevel, readonly [SeverityNumber, string]>> = {
@@ -184,35 +169,6 @@ export class MetricFactory {
     }
 }
 
-/** How a span runs: its kind, and the duration it records. */
-export interface SpanOptions {
-    /** The span's kind: the client or server end of a call, internal when absent. */
-    readonly kind?: "client" | "server";
-    /** The duration the span records in seconds, `<span>.duration` unless named otherwise. */
-    readonly duration?: SpanDuration;
-}
-
-/** The duration a span records: its metric's name and its bounded attributes, never identifiers. */
-export interface SpanDuration {
-    /** The metric's name, such as `rpc.server.call.duration`, else `<span>.duration`. */
-    readonly name?: string;
-    /** The bounded attributes, or a function reading them once the work ends. */
-    readonly attributes: Attributes | (() => Attributes);
-}
-
-/** Run work in a child span named by a literal name, or read the active span to add attributes. */
-export interface SpanRunner {
-    /** Run work in a child span of the active one, recording its failure and, if asked, seconds. */
-    <Result>(
-        name: string,
-        attributes: Attributes,
-        run: (span: Span) => Result | Promise<Result>,
-        options?: SpanOptions,
-    ): Promise<Result>;
-    /** Read the active span, such as the call the platform traces. */
-    readonly current: () => Span | undefined;
-}
-
 /** Structured log records of one package, each named by a literal event name under its scope. */
 export class Log {
     /** The package's logger. */
@@ -280,45 +236,19 @@ function instrument(
     logger: Logger,
     telemetry: Pick<Environment["telemetry"], "context" | "clock" | "monotonic">,
 ): TelemetryScope {
-    // read the telemetry's context and clocks
-    const { context, clock, monotonic } = telemetry;
+    // read the telemetry's context and clock
+    const { context, clock } = telemetry;
 
-    // declare each span's duration once, on its first record
-    const declared = new Map<string, Histogram>();
-    const durations = (name: string): Histogram => {
-        const histogram =
-            declared.get(name) ??
-            meter.createHistogram(name, {
-                unit: "s",
-                advice: { explicitBucketBoundaries: DURATION_BUCKETS },
-            });
-        declared.set(name, histogram);
-
-        return histogram;
-    };
+    // run the package's spans and timings through the one span runner
+    const span = SpanRunner.of(tracer, meter, telemetry);
 
     return {
         tracer,
         meter,
         logger,
         log: new Log(source, logger, telemetry),
-        span: runner(tracer, telemetry, durations),
-        measure: async (name, attributes, run) => {
-            // time the work on the host, noting the failure it ends in by its call error code
-            const started = monotonic.now();
-            let failure: unknown;
-            try {
-                return await run();
-            } catch (error) {
-                failure = error;
-                throw error;
-            } finally {
-                const seconds = (monotonic.now() - started) / MILLISECONDS_PER_SECOND;
-                const failed =
-                    failure === undefined ? {} : { "error.type": Failure.of(failure).code };
-                durations(name).record(seconds, { ...attributes, ...failed });
-            }
-        },
+        span,
+        measure: span.measure,
         metric: new MetricFactory(meter),
         captureException: (error, capture) => {
             // skip a failure captured where it happened
@@ -406,133 +336,6 @@ export function emitException(
     });
 }
 
-/** Run work in child spans of a tracer, each active in a context manager's flow. */
-function runner(
-    tracer: Tracer,
-    telemetry: Pick<Environment["telemetry"], "context" | "clock" | "monotonic">,
-    durations: (name: string) => Histogram,
-): SpanRunner {
-    // run the work in a child span on the clock, ending it with the work or with the stream it answers
-    const { context, clock, monotonic } = telemetry;
-    const run = async <Result>(
-        name: string,
-        attributes: Attributes,
-        work: (span: Span) => Result | Promise<Result>,
-        how: SpanOptions = {},
-    ): Promise<Result> => {
-        // start the span below the active one, entered in the span path
-        const parent = context.active();
-        const kind = how.kind === undefined ? SpanKind.INTERNAL : SPAN_KINDS[how.kind];
-        const span = tracer.startSpan(name, { attributes, kind, startTime: clock.now() }, parent);
-        const entered = SpanPath.enter(
-            trace.setSpan(parent, span),
-            SpanPath.label(name, attributes),
-        );
-        const started = monotonic.now();
-        let isEnded = false;
-
-        // end once, writing the totals and recording the duration
-        const end = (failure?: unknown) => {
-            if (isEnded) {
-                return;
-            }
-            isEnded = true;
-            const failed = failure === undefined ? {} : { "error.type": Failure.of(failure).code };
-            if (failure !== undefined) {
-                recordSpanException(span, failure);
-                span.setStatus({ code: SpanStatusCode.ERROR });
-            }
-            span.setAttributes({ ...failed, ...SpanPath.totals(entered) });
-            span.end(clock.now());
-            if (how.duration !== undefined) {
-                const seconds = (monotonic.now() - started) / MILLISECONDS_PER_SECOND;
-                const bounded = how.duration.attributes;
-                const recorded = typeof bounded === "function" ? bounded() : bounded;
-                durations(how.duration.name ?? `${name}.duration`).record(seconds, {
-                    ...recorded,
-                    ...failed,
-                });
-            }
-        };
-
-        // run the work, following a stream it answers until the stream ends
-        try {
-            const result = await context.with(entered, () => work(span));
-            if (isAsyncIterable(result)) {
-                return follow(result, (step) => context.with(entered, step), end);
-            }
-            end();
-
-            return result;
-        } catch (error) {
-            end(error);
-            throw error;
-        }
-    };
-
-    return Object.assign(run, { current: () => trace.getSpan(context.active()) });
-}
-
-/** Pass a stream through in its span, ending the span once it ends, fails or closes early. */
-function follow<Stream extends AsyncIterable<unknown>>(
-    stream: Stream,
-    inSpan: <Value>(step: () => Value) => Value,
-    end: (failure?: unknown) => void,
-): Stream {
-    // step the stream's iterator in the span, ending it at the stream's end or failure
-    let iterator: AsyncIterator<unknown> | undefined;
-    const source = () => (iterator ??= stream[Symbol.asyncIterator]());
-    const step = async (next: () => Promise<IteratorResult<unknown>>) => {
-        try {
-            const result = await inSpan(next);
-            if (result.done === true) {
-                end();
-            }
-
-            return result;
-        } catch (error) {
-            end(error);
-            throw error;
-        }
-    };
-    const steps = {
-        next: (...values: [] | [unknown]) => step(() => source().next(...values)),
-        throw: (error?: unknown) => step(() => source().throw?.(error) ?? Promise.reject(error)),
-        return: async (value?: unknown) => {
-            // close the stream early, as a reader closing it before its end
-            try {
-                return await inSpan(
-                    () => source().return?.(value) ?? Promise.resolve({ done: true, value }),
-                );
-            } finally {
-                end(
-                    Failure.error(
-                        Failure.http("CLIENT_CLOSED_REQUEST", "the reader closed the stream"),
-                    ),
-                );
-            }
-        },
-    };
-
-    // answer the stream itself, its iterator and its steps in the span
-    return new Proxy(stream, {
-        get(target, key, receiver: Stream) {
-            if (key === Symbol.asyncIterator) {
-                return () => receiver;
-            } else if (key === "next" || key === "throw" || key === "return") {
-                return steps[key];
-            }
-
-            return Reflect.get(target, key, receiver);
-        },
-    });
-}
-
-/** Report whether a value is a stream. */
-function isAsyncIterable(value: unknown): value is AsyncIterable<unknown> {
-    return value !== null && typeof value === "object" && Symbol.asyncIterator in value;
-}
-
 /** Read the instrument options of a metric definition. */
 function options(definition: MetricDefinition<AttributeDomain>) {
     return {
@@ -541,48 +344,10 @@ function options(definition: MetricDefinition<AttributeDomain>) {
     };
 }
 
-/** Describe a failure by the OpenTelemetry exception attributes, its causes below its stack. */
-export function exceptionAttributes(error: unknown, isEscaped: boolean): Attributes {
-    // write each cause below the stack as a `Caused by:` section, as Java's traces do
-    const exception = error instanceof Error ? error : new Error(String(error));
-    const sections = [exception.stack ?? `${exception.name}: ${exception.message}`];
-    let cause = exception.cause;
-    while (cause !== undefined && sections.length <= MAX_CAUSES) {
-        // write an error's stack, else a value's JSON, ending at a value
-        const section =
-            cause instanceof Error
-                ? (cause.stack ?? `${cause.name}: ${cause.message}`)
-                : JSON.stringify(cause);
-        sections.push(`Caused by: ${section}`);
-        cause = cause instanceof Error ? cause.cause : undefined;
-    }
-
-    return {
-        "error.type": errorType(exception),
-        "exception.type": exception.name,
-        "exception.message": exception.message,
-        "exception.stacktrace": sections.join("\n"),
-        "exception.escaped": isEscaped,
-    };
-}
-
-/** Annotate a span with an escaping failure, as the exception event its captured log carries. */
-export function recordSpanException(span: Span, error: unknown): void {
-    span.addEvent(EXCEPTION_EVENT, exceptionAttributes(error, true));
-}
-
-/** Read a failure's error type: its call error code, else its own code, else its name. */
-function errorType(exception: Error): string {
-    // the call error code a domain error reports
-    if (DomainError.is(exception)) {
-        return exception.toCallError().code;
-    }
-    // the failure's own code, such as a system error's
-    else if ("code" in exception && typeof exception.code === "string") {
-        return exception.code;
-    }
-    // the failure's name
-    else {
-        return exception.name;
-    }
-}
+export {
+    exceptionAttributes,
+    recordSpanException,
+    type SpanDuration,
+    type SpanOptions,
+    SpanRunner,
+} from "@destack/environment";

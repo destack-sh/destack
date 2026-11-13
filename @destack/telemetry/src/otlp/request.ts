@@ -1,3 +1,8 @@
+import type { Attributes, HrTime } from "@opentelemetry/api";
+import { hrTimeDuration } from "@opentelemetry/core";
+import { JsonTraceSerializer } from "@opentelemetry/otlp-transformer";
+import { resourceFromAttributes } from "@opentelemetry/resources";
+import type { ReadableSpan } from "@opentelemetry/sdk-trace";
 import { schema } from "@destack/schema";
 import { StackFrame } from "@destack/package/stack";
 import { TelemetryError } from "../error/error.ts";
@@ -282,6 +287,63 @@ export class OtlpExport {
         this.body = body;
     }
 
+    /** Export ended spans as an OTLP/JSON traces request. */
+    static traces(spans: readonly ReadableSpan[]): OtlpExport {
+        const bytes = JsonTraceSerializer.serializeRequest([...spans]);
+        const body: unknown = JSON.parse(new TextDecoder().decode(bytes));
+
+        return new OtlpExport("traces", body);
+    }
+
+    /** Read a traces export's spans as ended spans, keeping their identifiers and times. */
+    spans(): ReadableSpan[] {
+        // read each scope's spans below its resource
+        const request = this.#read(OtlpTracesRequest);
+
+        return request.resourceSpans.flatMap(({ resource, scopeSpans }) => {
+            const described = resourceFromAttributes(attributesOf(resource.attributes));
+
+            return scopeSpans.flatMap(({ scope, spans }) =>
+                spans.map((span): ReadableSpan => {
+                    // read the span's context, its parent's, and its times
+                    const context = { traceId: span.traceId, spanId: span.spanId, traceFlags: 1 };
+                    const parent =
+                        span.parentSpanId === undefined || span.parentSpanId === ""
+                            ? undefined
+                            : { traceId: span.traceId, spanId: span.parentSpanId, traceFlags: 1 };
+                    const startTime = hrTimeOf(span.startTimeUnixNano);
+                    const endTime = hrTimeOf(span.endTimeUnixNano);
+
+                    return {
+                        name: span.name,
+                        kind: Math.max(0, (span.kind ?? 1) - 1),
+                        spanContext: () => context,
+                        ...(parent === undefined ? {} : { parentSpanContext: parent }),
+                        startTime,
+                        endTime,
+                        duration: hrTimeDuration(startTime, endTime),
+                        status: { code: span.status.code },
+                        attributes: attributesOf(span.attributes),
+                        links: span.links.map((link) => ({
+                            context: { traceId: link.traceId, spanId: link.spanId, traceFlags: 1 },
+                        })),
+                        events: span.events.map((event) => ({
+                            name: event.name,
+                            time: hrTimeOf(event.timeUnixNano),
+                            attributes: attributesOf(event.attributes),
+                        })),
+                        ended: true,
+                        resource: described,
+                        instrumentationScope: { name: scope.name, version: scope.version },
+                        droppedAttributesCount: 0,
+                        droppedEventsCount: 0,
+                        droppedLinksCount: 0,
+                    };
+                }),
+            );
+        });
+    }
+
     /** Read the request by a schema of its signal, refusing a body it does not match. */
     #read<Request>(shape: schema.Schema<Request>): Request {
         // refuse it naming each mismatch at its path
@@ -394,4 +456,58 @@ async function attributeFrames(
             return { ...entry, value: { stringValue: JSON.stringify(await attribute(read)) } };
         }),
     );
+}
+
+/** The nanoseconds in a second, as OTLP times count nanoseconds since the epoch. */
+const NANOSECONDS_PER_SECOND = 1_000_000_000n;
+
+/** Read an OTLP time in nanoseconds as seconds and nanoseconds. */
+function hrTimeOf(nanoseconds: string | number): HrTime {
+    const total = BigInt(nanoseconds);
+
+    return [Number(total / NANOSECONDS_PER_SECOND), Number(total % NANOSECONDS_PER_SECOND)];
+}
+
+/** Read OTLP attributes as span attributes, leaving out values spans cannot hold. */
+function attributesOf(attributes: OtlpAttributes): Attributes {
+    return Object.fromEntries(
+        attributes.flatMap(({ key, value }) => {
+            const read = value === undefined ? undefined : valueOf(value);
+
+            return read === undefined ? [] : [[key, read]];
+        }),
+    );
+}
+
+/** Read an OTLP value as an attribute value: a scalar, or an array of scalars. */
+function valueOf(value: OtlpValue): Attributes[string] {
+    // read a scalar
+    if (value.stringValue !== undefined) {
+        return value.stringValue;
+    } else if (value.boolValue !== undefined) {
+        return value.boolValue;
+    } else if (value.intValue !== undefined) {
+        return Number(value.intValue);
+    } else if (value.doubleValue !== undefined) {
+        return value.doubleValue;
+    }
+    // read an array of strings, numbers or booleans alike
+    else if (value.arrayValue !== undefined) {
+        const items = (value.arrayValue.values ?? []).map((item) => valueOf(item));
+        const strings = items.filter((item) => typeof item === "string");
+        const numbers = items.filter((item) => typeof item === "number");
+        const booleans = items.filter((item) => typeof item === "boolean");
+
+        return strings.length === items.length
+            ? strings
+            : numbers.length === items.length
+              ? numbers
+              : booleans.length === items.length
+                ? booleans
+                : undefined;
+    }
+    // leave bytes and key-value lists out
+    else {
+        return undefined;
+    }
 }

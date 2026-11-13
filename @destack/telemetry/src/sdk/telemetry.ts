@@ -10,8 +10,19 @@ import {} from "@opentelemetry/core";
 import { resourceFromAttributes } from "@opentelemetry/resources";
 import { LoggerProvider, type LoggerProviderOptions } from "@opentelemetry/sdk-logs";
 import { MeterProvider, type MeterProviderOptions } from "@opentelemetry/sdk-metrics";
-import { TracerProvider, type TracerProviderOptions } from "@opentelemetry/sdk-trace";
-import { Clock, type Environment, TraceIdGenerator, W3C_PROPAGATOR } from "@destack/environment";
+import {
+    type ReadableSpan,
+    type SpanProcessor,
+    TracerProvider,
+    type TracerProviderOptions,
+} from "@opentelemetry/sdk-trace";
+import {
+    recordSpanDuration,
+    Clock,
+    type Environment,
+    TraceIdGenerator,
+    W3C_PROPAGATOR,
+} from "@destack/environment";
 import { emitException, exceptionAttributes } from "../scope/index.ts";
 import type { OtlpSignal } from "../otlp/index.ts";
 import { Diagnostics } from "./diagnostic.ts";
@@ -86,6 +97,9 @@ export class Telemetry {
         | { readonly signals: ReadonlySet<OtlpSignal>; readonly flushing: Promise<void> }
         | undefined;
 
+    /** The processors every ended span passes, another process's included. */
+    readonly #spanProcessors: readonly SpanProcessor[];
+
     /** Construct providers on an environment's clock and randomness, in a context manager. */
     constructor(
         options: TelemetryOptions,
@@ -108,10 +122,11 @@ export class Telemetry {
         });
         this.meters = new MeterProvider({ ...options.metrics, resource });
         const { traces, logs } = options.signals(this.meters);
+        this.#spanProcessors = [this.#sessionProcessor.spans, ...(traces.spanProcessors ?? [])];
         this.tracers = new TracerProvider({
             idGenerator: new TraceIdGenerator(environment),
             ...traces,
-            spanProcessors: [this.#sessionProcessor.spans, ...(traces.spanProcessors ?? [])],
+            spanProcessors: [...this.#spanProcessors],
             resource,
         });
         this.loggers = new LoggerProvider({
@@ -129,6 +144,16 @@ export class Telemetry {
                 description: "The sessions that ended, by how they ended.",
                 valueType: ValueType.INT,
             });
+    }
+
+    /** Take another process's ended spans through the span processors, with their durations. */
+    ingest(spans: readonly ReadableSpan[]): void {
+        for (const span of spans) {
+            for (const processor of this.#spanProcessors) {
+                processor.onEnd(span);
+            }
+            recordSpanDuration(this.meters, span);
+        }
     }
 
     /** Record an uncaught failure as an error log record in the active trace. */

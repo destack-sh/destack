@@ -1,4 +1,3 @@
-export * from "./context.ts";
 export {
     CompositePropagator,
     W3CBaggagePropagator,
