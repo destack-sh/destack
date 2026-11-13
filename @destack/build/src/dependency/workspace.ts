@@ -112,6 +112,8 @@ export class Workspace {
     readonly #builds = new Map<WorkspaceUnit, Map<string, Promise<DependencyBuild>>>();
     /** Each unit's lock, by the options that shape its build. */
     readonly #locks = new Map<WorkspaceUnit, Map<string, Promise<Digest>>>();
+    /** Each manifest read, by its digest, which names its content. */
+    readonly #manifests = new Map<Digest, Promise<PackageManifest>>();
 
     /** Store what every package of the workspace shares. */
     private constructor(
@@ -207,6 +209,17 @@ export class Workspace {
         const visited = await Workspace.#visit(root, walk);
 
         return new WorkspacePackage(Workspace.#ordered(visited, units), this);
+    }
+
+    /** Read a stored build's manifest once per workspace, as its digest names its content. */
+    manifest(digest: Digest): Promise<PackageManifest> {
+        let read = this.#manifests.get(digest);
+        if (read === undefined) {
+            read = this.compilers.store.get(digest);
+            this.#manifests.set(digest, read);
+        }
+
+        return read;
     }
 
     /** Take a unit's stored build once per workspace and options, starting it when first asked. */
@@ -400,7 +413,7 @@ export class WorkspacePackage {
         // take each package the host provides as a builtin from its lock
         const releases = new Map<string, WorkspaceRelease>();
         for (const lock of this.workspace.host) {
-            const { name } = (await this.#store.get(lock.root)).package;
+            const { name } = (await this.workspace.manifest(lock.root)).package;
             const root = present((await this.#store.entriesOf(lock))[name], `the root of ${name}`);
             releases.set(name, { lock, root, source: "host" });
         }
@@ -494,7 +507,7 @@ export class WorkspacePackage {
         const destack = new Map<string, Digest>();
         const builtins = new Set<string>();
         for (const [name, dependency] of Object.entries(await this.#inputs(unit, units))) {
-            if ((await this.#store.get(dependency.manifest)).role === "builtin") {
+            if ((await this.workspace.manifest(dependency.manifest)).role === "builtin") {
                 builtins.add(name);
             } else {
                 destack.set(name, dependency.manifest);
@@ -562,7 +575,7 @@ export class WorkspacePackage {
         }
         // link an npm unit to what its build requires
         else if (unit !== undefined) {
-            const manifest = await this.#store.get(digest);
+            const manifest = await this.workspace.manifest(digest);
             const peers = Object.values(manifest.outputs).flatMap((output) =>
                 Object.keys(output.peers),
             );
@@ -576,7 +589,7 @@ export class WorkspacePackage {
         // link a workspace unit to Destack builds and the npm packages it installs
         else {
             const member = present(index.members.get(digest), `the workspace unit of ${digest}`);
-            const required = Object.keys((await this.#store.get(digest)).requires);
+            const required = Object.keys((await this.workspace.manifest(digest)).requires);
             for (const name of required.filter((each) => !index.builtins.has(each))) {
                 const directory = member.npm.get(name);
                 const destack = index.destack.get(name);
@@ -600,14 +613,14 @@ export class WorkspacePackage {
     ): Promise<Readonly<Record<string, Digest>>> {
         // find the peers of the unit's build its links leave out
         const links = { ...builds.get(digest) };
-        const manifest = await this.#store.get(digest);
+        const manifest = await this.workspace.manifest(digest);
         const peers = Object.values(manifest.outputs).flatMap((output) =>
             Object.keys(output.peers),
         );
         for (const peer of peers.filter((each) => links[each] === undefined)) {
             // take the first dependent providing the peer
             for (const dependent of dependents) {
-                const isPeer = (await this.#store.get(dependent)).package.name === peer;
+                const isPeer = (await this.workspace.manifest(dependent)).package.name === peer;
                 const provided = isPeer ? dependent : builds.get(dependent)?.[peer];
                 if (provided !== undefined && links[peer] === undefined) {
                     links[peer] = provided;
@@ -730,7 +743,7 @@ export class WorkspacePackage {
         const { isPrerelease = false, ...given } = shared;
         const options = await this.#options(unit, { ...given, outputs }, dependencies);
         const manifest = await this.#cachedPut(unit, options, isPrerelease);
-        const built = PackageManifest.package(await this.#store.get(manifest));
+        const built = PackageManifest.package(await this.workspace.manifest(manifest));
 
         // root the build as the unit's latest
         await this.#store.rootDirectory(unit.directory, new Set([manifest]));
@@ -874,7 +887,7 @@ export class WorkspacePackage {
         const interfaces = await Promise.all(
             Object.entries(options.dependencies).map(
                 async ([name, dependency]) =>
-                    [name, (await this.#store.get(dependency.manifest)).interface] as const,
+                    [name, (await this.workspace.manifest(dependency.manifest)).interface] as const,
             ),
         );
 
