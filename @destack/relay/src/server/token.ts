@@ -3,7 +3,7 @@ import { TokenVerifier } from "@destack/access/token";
 import { Identity } from "@destack/account/object";
 import type { Snapshot } from "@destack/db";
 import type { Environment } from "@destack/environment";
-import { Jwks, Jws } from "@destack/identity";
+import { Jws } from "@destack/identity";
 import { schema } from "@destack/schema";
 import { Scope } from "@destack/sync";
 import { RelayError } from "../error/index.ts";
@@ -27,26 +27,22 @@ export class TunnelToken {
     ) {
         this.#replica = replica;
         this.#crypto = environment.crypto;
+        // verify the universe's tokens alone, by its current keys
         this.#verifier = new TokenVerifier({
-            authority: { kind: "universe" },
-            issuer,
-            audience: relayPackage.id,
-            lifetime: TUNNEL_TOKEN_LIFETIME_MILLISECONDS,
+            issuers: async (name) =>
+                name === issuer ? await Identity.trust(replica, name, issuer) : undefined,
             environment,
-            // read the current keys at each verify
-            keys: async (header) => {
-                const { crypto } = environment;
-                const keys = await Identity.keys(replica, Scope.universe.id, crypto);
-
-                return Jwks.local(keys, crypto)(header);
-            },
+            lifetime: TUNNEL_TOKEN_LIFETIME_MILLISECONDS,
         });
     }
 
     /** Verify a machine's token, answering the machine, its token's lapse and its signing key. */
     async verify(token: string, now: number): Promise<TunnelAttachment> {
         // require a machine's token
-        const { caller, credential } = await this.#verifier.verify(token, now);
+        const { caller, credential } = await this.#verifier.verify(token, {
+            audience: relayPackage.id,
+            now,
+        });
         const { subject } = caller;
         if (!principal.machine.is(subject)) {
             throw RelayError.of(
