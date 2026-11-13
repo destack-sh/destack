@@ -12,6 +12,7 @@
         "./setting": "./src/setting/index.ts"
     },
     "scripts": {
+        "postinstall": "destack-check configure",
         "typecheck": "tsc --project tsconfig.json && destack-check readme"
     },
     "devDependencies": {
