@@ -79,6 +79,7 @@
         "destack/no-overload-cast": "error",
         "destack/no-partial-assertions": "error",
         "destack/no-system-environment": "error",
+        "destack/no-test-timeout": "error",
         "destack/padding-before-return": "error",
         "destack/package-layout": "error",
         "destack/prevent-abbreviations": "error",
