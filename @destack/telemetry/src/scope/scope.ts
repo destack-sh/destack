@@ -2,6 +2,7 @@ import {
     type Attributes,
     type Counter,
     type Gauge,
+    type UpDownCounter,
     type Histogram,
     type Logger,
     type Meter,
@@ -11,16 +12,23 @@ import {
     trace,
     type Tracer,
 } from "@opentelemetry/api";
-import type { Environment } from "@destack/environment";
+import { type Environment, SpanPath } from "@destack/environment";
 import type { PackageVersion } from "@destack/package";
-import { DomainError } from "@destack/error";
+import { DomainError, Failure } from "@destack/error";
 import {
     ACTION_EVENT,
     ANALYTICS_ATTRIBUTES,
-    RESERVED_EVENT_PREFIX,
     VISIT_EVENT,
     type VisitDetail,
 } from "../otlp/analytics.ts";
+
+/** The bucket boundaries of a duration in seconds: from 100 µs, as statements take, to 10 s. */
+const DURATION_BUCKETS = [
+    0.0001, 0.00025, 0.0005, 0.001, 0.0025, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10,
+];
+
+/** The milliseconds in a second, as OpenTelemetry records durations in seconds. */
+const MILLISECONDS_PER_SECOND = 1000;
 
 /** The event name of an exception on a log record or a span, as OpenTelemetry names it. */
 const EXCEPTION_EVENT = "exception";
@@ -37,7 +45,10 @@ const LEVELS: Readonly<Record<CaptureLevel, readonly [SeverityNumber, string]>> 
 };
 
 /** The instruments a package creates on its meter: the synchronous ones. */
-export type PackageMeter = Pick<Meter, "createCounter" | "createHistogram" | "createGauge">;
+export type PackageMeter = Pick<
+    Meter,
+    "createCounter" | "createUpDownCounter" | "createHistogram" | "createGauge"
+>;
 
 /** The property a failure carries once captured: here, or by the service that answered with it. */
 const CAPTURED = Symbol.for("destack.telemetry.captured");
@@ -54,6 +65,12 @@ export interface TelemetryScope {
     readonly log: Log;
     /** Run work in a child span, or read the active span. */
     readonly span: SpanRunner;
+    /** Run work, recording its duration in seconds on a histogram, with the failure it ends in. */
+    readonly measure: <Value>(
+        histogram: Histogram,
+        attributes: Attributes,
+        run: () => Promise<Value>,
+    ) => Promise<Value>;
     /** Declare metric instruments whose attributes take bounded values. */
     readonly metric: MetricFactory;
     /** Record a failure the package handled as an exception in the active trace. */
@@ -71,6 +88,7 @@ export const TelemetryScope = {
     /** Attribute instrumentation to a package on an environment's telemetry. */
     of(source: PackageVersion, telemetry: Environment["telemetry"]): TelemetryScope {
         return instrument(
+            source,
             telemetry.tracers.getTracer(source.name, source.version),
             telemetry.meters.getMeter(source.name, source.version),
             telemetry.loggers.getLogger(source.name, source.version),
@@ -132,12 +150,25 @@ export class MetricFactory {
         return this.#meter.createCounter(name, options(definition));
     }
 
-    /** Declare a histogram of measurements. */
+    /** Declare a counter of things open, which rises and falls. */
+    upDownCounter<const Domain extends AttributeDomain>(
+        name: string,
+        definition: MetricDefinition<Domain>,
+    ): UpDownCounter<DomainAttributes<Domain>> {
+        return this.#meter.createUpDownCounter(name, options(definition));
+    }
+
+    /** Declare a histogram of measurements, a duration in seconds on the conventions' buckets. */
     histogram<const Domain extends AttributeDomain>(
         name: string,
         definition: MetricDefinition<Domain>,
     ): Histogram<DomainAttributes<Domain>> {
-        return this.#meter.createHistogram(name, options(definition));
+        const advice =
+            definition.unit === "s"
+                ? { advice: { explicitBucketBoundaries: DURATION_BUCKETS } }
+                : {};
+
+        return this.#meter.createHistogram(name, { ...options(definition), ...advice });
     }
 
     /** Declare a gauge of current values. */
@@ -161,16 +192,23 @@ export interface SpanRunner {
     readonly current: () => Span | undefined;
 }
 
-/** Structured log records of one package, each named by a literal event name. */
+/** Structured log records of one package, each named by a literal event name under its scope. */
 export class Log {
     /** The package's logger. */
     readonly #logger: Logger;
+    /** The prefix of the package's event names: its scope, such as `destack.` for `@destack/db`. */
+    readonly #prefix: string;
     /** The context the records belong to, and the clock they are stamped on. */
     readonly #telemetry: Pick<Environment["telemetry"], "context" | "clock">;
 
     /** Emit through a package's logger in a telemetry's active context, on its clock. */
-    constructor(logger: Logger, telemetry: Pick<Environment["telemetry"], "context" | "clock">) {
+    constructor(
+        source: PackageVersion,
+        logger: Logger,
+        telemetry: Pick<Environment["telemetry"], "context" | "clock">,
+    ) {
         this.#logger = logger;
+        this.#prefix = `${source.name.replace(/^@/u, "").split("/")[0] ?? source.name}.`;
         this.#telemetry = telemetry;
     }
 
@@ -189,11 +227,6 @@ export class Log {
         this.#emit(SeverityNumber.WARN, "WARN", name, attributes);
     }
 
-    /** Emit an error record. */
-    error(name: string, attributes: Attributes = {}): void {
-        this.#emit(SeverityNumber.ERROR, "ERROR", name, attributes);
-    }
-
     /** Emit one record in the active span's context. */
     #emit(
         severityNumber: SeverityNumber,
@@ -201,11 +234,9 @@ export class Log {
         eventName: string,
         attributes: Attributes,
     ): void {
-        // refuse a name the platform reserves for its own records
-        if (eventName.startsWith(RESERVED_EVENT_PREFIX)) {
-            throw new TypeError(
-                `log record names under '${RESERVED_EVENT_PREFIX}' are reserved: '${eventName}'`,
-            );
+        // refuse a name outside the package's scope
+        if (!eventName.startsWith(this.#prefix)) {
+            throw new TypeError(`log record names start with '${this.#prefix}': '${eventName}'`);
         }
         const { context, clock } = this.#telemetry;
         this.#logger.emit({
@@ -222,19 +253,36 @@ export class Log {
 
 /** Bundle a package's tracer, meter and logger with its log records and spans in a context. */
 function instrument(
+    source: PackageVersion,
     tracer: Tracer,
     meter: PackageMeter,
     logger: Logger,
-    telemetry: Pick<Environment["telemetry"], "context" | "clock">,
+    telemetry: Pick<Environment["telemetry"], "context" | "clock" | "monotonic">,
 ): TelemetryScope {
-    const { context, clock } = telemetry;
+    const { context, clock, monotonic } = telemetry;
 
     return {
         tracer,
         meter,
         logger,
-        log: new Log(logger, telemetry),
+        log: new Log(source, logger, telemetry),
         span: runner(tracer, telemetry),
+        measure: async (histogram, attributes, run) => {
+            // time the work on the host, noting the failure it ends in by its call error code
+            const started = monotonic.now();
+            let failure: unknown;
+            try {
+                return await run();
+            } catch (error) {
+                failure = error;
+                throw error;
+            } finally {
+                const seconds = (monotonic.now() - started) / MILLISECONDS_PER_SECOND;
+                const failed =
+                    failure === undefined ? {} : { "error.type": Failure.of(failure).code };
+                histogram.record(seconds, { ...attributes, ...failed });
+            }
+        },
         metric: new MetricFactory(meter),
         captureException: (error, capture) => {
             // skip a failure captured where it happened
@@ -337,7 +385,12 @@ function runner(
         const parent = context.active();
         const span = tracer.startSpan(name, { attributes, startTime: clock.now() }, parent);
         try {
-            return await context.with(trace.setSpan(parent, span), () => work(span));
+            const entered = SpanPath.enter(
+                trace.setSpan(parent, span),
+                SpanPath.label(name, attributes),
+            );
+
+            return await context.with(entered, () => work(span));
         } catch (error) {
             recordSpanException(span, error);
             span.setStatus({ code: SpanStatusCode.ERROR });

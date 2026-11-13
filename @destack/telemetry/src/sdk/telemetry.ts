@@ -11,7 +11,7 @@ import { resourceFromAttributes } from "@opentelemetry/resources";
 import { LoggerProvider, type LoggerProviderOptions } from "@opentelemetry/sdk-logs";
 import { MeterProvider, type MeterProviderOptions } from "@opentelemetry/sdk-metrics";
 import { TracerProvider, type TracerProviderOptions } from "@opentelemetry/sdk-trace";
-import { type Environment, TraceIdGenerator, W3C_PROPAGATOR } from "@destack/environment";
+import { Clock, type Environment, TraceIdGenerator, W3C_PROPAGATOR } from "@destack/environment";
 import { emitException, exceptionAttributes } from "../scope/index.ts";
 import type { OtlpSignal } from "../otlp/index.ts";
 import { Diagnostics } from "./diagnostic.ts";
@@ -67,6 +67,8 @@ export class Telemetry {
     readonly loggers: LoggerProvider;
     /** The clock the sessions start on and the spans and log records are stamped on. */
     readonly clock: Environment["clock"];
+    /** The clock durations are measured on, the host's as the sessions' is. */
+    readonly monotonic: Environment["telemetry"]["monotonic"];
     /** The application's own logger, recording uncaught failures and sessions. */
     readonly #logger: Logger;
     /** The counter of ended sessions by status. */
@@ -96,6 +98,7 @@ export class Telemetry {
         this.report = (error) =>
             options.report(error instanceof Error ? error : new Error(String(error)));
         this.clock = environment.clock;
+        this.monotonic = Clock.monotonic;
         this.#sessionProcessor = new SessionProcessor(environment.random);
 
         // identify every signal with the same application resource

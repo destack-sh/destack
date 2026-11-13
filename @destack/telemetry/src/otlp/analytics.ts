@@ -4,9 +4,6 @@ export const VISIT_EVENT = "destack.visit";
 /** The event name of a log record recording an action a person took. */
 export const ACTION_EVENT = "destack.action";
 
-/** The prefix of the event names the platform reserves for its own records. */
-export const RESERVED_EVENT_PREFIX = "destack.";
-
 /** The attributes of visit and action records, by what they carry. */
 export const ANALYTICS_ATTRIBUTES = {
     /** The view's route pattern, as the semantic conventions name a URL template. */

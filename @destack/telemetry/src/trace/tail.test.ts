@@ -114,28 +114,28 @@ async function exportThroughTail(
 test("keep failed and slow unsampled traces with their records, warnings alone, and records outside traces", async () => {
     // run a quiet trace, a failed one, a slow one and a quiet one with a warning, and log outside any trace
     const exported = await exportThroughTail(async ({ log, span }, clock) => {
-        await span("quiet", {}, () => log.info("quiet.saved"));
+        await span("quiet", {}, () => log.info("example.quiet.saved"));
         await span("failed", {}, () => {
-            log.info("failed.started");
+            log.info("example.failed.started");
             throw new Error("broken");
         }).catch(() => {});
         await span("slow", {}, async () => {
-            log.debug("slow.waiting");
+            log.debug("example.slow.waiting");
             await clock.sleep(30);
         });
-        await span("warned", {}, () => log.warn("warned.conflict"));
-        log.info("outside.started");
+        await span("warned", {}, () => log.warn("example.warned.conflict"));
+        log.info("example.outside.started");
     });
 
     // keep the failed and slow traces whole, the warning without its span, and the record outside traces
     expect(exported.toSorted()).toEqual(
         [
             "span failed",
-            "log failed.started",
+            "log example.failed.started",
             "span slow",
-            "log slow.waiting",
-            "log warned.conflict",
-            "log outside.started",
+            "log example.slow.waiting",
+            "log example.warned.conflict",
+            "log example.outside.started",
         ].toSorted(),
     );
 });
@@ -145,7 +145,7 @@ test("keep a failed trace's root and its first spans and records up to its bound
     const exported = await exportThroughTail(async ({ log, span }) => {
         await span("failed", {}, async () => {
             for (let index = 0; index < 1001; index += 1) {
-                await span("child", {}, () => log.info("child.saved"));
+                await span("child", {}, () => log.info("example.child.saved"));
             }
             throw new Error("broken");
         }).catch(() => {});
@@ -157,7 +157,7 @@ test("keep a failed trace's root and its first spans and records up to its bound
         Object.fromEntries(Object.entries(counts).map(([name, all]) => [name, all?.length])),
     ).toEqual({
         "span child": 1000,
-        "log child.saved": 1000,
+        "log example.child.saved": 1000,
         "span failed": 1,
     });
 });

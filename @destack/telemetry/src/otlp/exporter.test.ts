@@ -53,7 +53,9 @@ test("export a log record inside its span as OTLP/JSON, correlated by trace", as
     // log inside a span and export both
     try {
         const { log, span } = TelemetryScope.of(source, telemetry);
-        await span("note.render", { blocks: 12 }, () => log.info("note.saved", { length: 5 }));
+        await span("note.render", { blocks: 12 }, () =>
+            log.info("example.note.saved", { length: 5 }),
+        );
         await telemetry.flush();
     } finally {
         await telemetry.shutdown();
@@ -158,7 +160,7 @@ test("export a log record inside its span as OTLP/JSON, correlated by trace", as
                         ],
                         "body": {},
                         "droppedAttributesCount": 0,
-                        "eventName": "note.saved",
+                        "eventName": "example.note.saved",
                         "flags": 1,
                         "observedTimeUnixNano": "1790812800000000000",
                         "severityNumber": 9,
@@ -209,7 +211,7 @@ test("post each signal below a target's endpoint through the target's fetch", as
 
     // log once and export it
     try {
-        TelemetryScope.of(source, telemetry).log.info("note.saved", { length: 5 });
+        TelemetryScope.of(source, telemetry).log.info("example.note.saved", { length: 5 });
         await telemetry.flush();
     } finally {
         await telemetry.shutdown();

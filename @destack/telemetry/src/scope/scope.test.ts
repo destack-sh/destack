@@ -249,7 +249,7 @@ test("record visits and actions as the platform's destack.visit and destack.acti
     );
     const telemetry = await startTelemetry(exporter.options(source), environment);
 
-    // record a visit and an action, then try a log record under the platform's names
+    // record a visit and an action, then try a log record outside the package's scope
     let refused: unknown;
     try {
         const scope = TelemetryScope.of(source, telemetry);
@@ -278,7 +278,7 @@ test("record visits and actions as the platform's destack.visit and destack.acti
             ],
             ["destack.action", { audience: "space", "destack.action.name": "note.shared" }],
         ],
-        refused: "log record names under 'destack.' are reserved: 'destack.visit'",
+        refused: "log record names start with 'example.': 'destack.visit'",
     });
 });
 

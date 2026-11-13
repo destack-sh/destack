@@ -164,7 +164,7 @@ test("export a page's uncaught errors and unhandled rejections to its origin at 
         const rejected = await exported();
 
         // log a note, exported once the page hides
-        TelemetryScope.of(source, telemetry).log.info("note.saved", { length: "short" });
+        TelemetryScope.of(source, telemetry).log.info("example.note.saved", { length: "short" });
         page.document.visibilityState = "hidden";
         page.dispatchEvent(new Event("visibilitychange"));
         const hidden = await exported();
@@ -216,7 +216,9 @@ test("export a page's uncaught errors and unhandled rejections to its origin at 
             {
                 url: `${ORIGIN}/.destack/telemetry/v1/logs`,
                 resources: [resource],
-                records: [["note.saved", "INFO", { length: "short", "session.id": "session" }]],
+                records: [
+                    ["example.note.saved", "INFO", { length: "short", "session.id": "session" }],
+                ],
             },
             {
                 url: `${ORIGIN}/.destack/telemetry/v1/logs`,
