@@ -97,6 +97,8 @@ interface Member {
 export class WorldDriver implements Driver<typeof worldInteraction> {
     /** The interaction the driver speaks. */
     static readonly interaction = worldInteraction;
+    /** The settings of the worlds: SQLite in WAL with synchronous NORMAL, as in production. */
+    static readonly configuration = { durability: "normal" };
 
     /** The residency's cloud computer serving the owner's home. */
     readonly home: TestComputer;
