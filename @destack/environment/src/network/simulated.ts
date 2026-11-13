@@ -66,6 +66,28 @@ export interface NetworkFaults {
     readonly delay?: { readonly least: number; readonly most: number };
 }
 
+/** A pause of the bodies crossing a link for matching requests, until it resumes. */
+export interface NetworkPause {
+    /** Settle once a paused body's first chunk waits. */
+    readonly waiting: Promise<void>;
+    /** Resume the waiting chunks and every later one. */
+    readonly resume: () => void;
+}
+
+/** A pause the network applies: the link, the requests it matches, and its waits. */
+interface PausedLink {
+    /** The node the paused bodies come from. */
+    readonly from: string;
+    /** The node the paused bodies go to. */
+    readonly to: string;
+    /** Report whether a request's target, its method and URL, is paused. */
+    readonly matches: (target: string) => boolean;
+    /** Settled once a chunk waits. */
+    readonly waiting: PromiseWithResolvers<void>;
+    /** Settled once resumed. */
+    readonly resumed: PromiseWithResolvers<void>;
+}
+
 /** A direction of a connection. */
 type Direction = "toServer" | "toClient";
 
@@ -255,6 +277,8 @@ export class SimulatedNetwork {
     #port = FIRST_DYNAMIC_PORT;
     /** The faults every delivery meets. */
     #faults: NetworkFaults = {};
+    /** The links paused for matching requests, until resumed. */
+    readonly #pauses = new Set<PausedLink>();
     /** The simulation's clock, which latency waits on. */
     readonly #clock: SimulatedClock;
     /** The scheduler the network's work runs under. */
@@ -529,6 +553,26 @@ export class SimulatedNetwork {
         // record the healing
         const nodes = left === undefined || right === undefined ? [] : [left, right];
         this.#record({ kind: "heal", at: this.#clock.now(), nodes });
+    }
+
+    /** Pause the bodies crossing from one node to another for matching requests, until resumed. */
+    pause(from: string, to: string, matches: (target: string) => boolean): NetworkPause {
+        const paused: PausedLink = {
+            from,
+            to,
+            matches,
+            waiting: Promise.withResolvers(),
+            resumed: Promise.withResolvers(),
+        };
+        this.#pauses.add(paused);
+
+        return {
+            waiting: paused.waiting.promise,
+            resume: () => {
+                this.#pauses.delete(paused);
+                paused.resumed.resolve();
+            },
+        };
     }
 
     /** Set the faults every delivery meets, recording them. */
@@ -968,8 +1012,9 @@ export class SimulatedNetwork {
                         "ConnectionClosed",
                     );
                 }
-                // deliver the chunk, counted as sent and delivered
+                // deliver the chunk once no pause on the link matches it, counted as sent and delivered
                 else {
+                    await this.#waitPaused(server, client, target);
                     this.#sent += 1;
                     this.#delivered += 1;
                     controller.enqueue(value);
@@ -977,6 +1022,16 @@ export class SimulatedNetwork {
             },
             cancel: (reason) => reader.cancel(reason),
         });
+    }
+
+    /** Wait while a pause on a link matches a request's body, as a stalled link does. */
+    async #waitPaused(from: string, to: string, target: string): Promise<void> {
+        for (const paused of this.#pauses) {
+            if (paused.from === from && paused.to === to && paused.matches(target)) {
+                paused.waiting.resolve();
+                await paused.resumed.promise;
+            }
+        }
     }
 
     /** Open a node's socket to a listener. */

@@ -188,6 +188,38 @@ test("draw the same bytes and integers from the same seed, and others from anoth
     expect(other).not.toEqual(first);
 });
 
+test("pause one route's bodies across a link until resumed, while other routes cross", async () => {
+    // serve a node answering each path, and pause the bodies the server sends the client for /paused
+    await using simulation = new Simulation({ seed: 3, start: START });
+    simulation.network.server("server").http({
+        hostname: "server.test",
+        port: 443,
+        fetch: (request) => Response.json({ path: new URL(request.url).pathname }),
+    });
+    const client = simulation.environment("client").network;
+    const paused = simulation.network.pause("server", "client", (target) =>
+        target.endsWith("/paused"),
+    );
+    const read = async (path: string): Promise<unknown> => {
+        const response = await client.fetch(new Request(`https://server.test${path}`));
+        const body: unknown = await response.json();
+
+        return body;
+    };
+
+    // read another route while the paused one waits, then resume it
+    const waiting = read("/paused");
+    await simulation.wait(paused.waiting);
+    const crossed: unknown = await simulation.wait(read("/free"));
+    paused.resume();
+    const resumed: unknown = await simulation.wait(waiting);
+
+    expect({ crossed, resumed }).toEqual({
+        crossed: { path: "/free" },
+        resumed: { path: "/paused" },
+    });
+});
+
 test("route requests between nodes through latency, partitions and loss, replayed by the seed", async () => {
     const run = async (seed: number) => {
         // request through latency, tracing what happens
