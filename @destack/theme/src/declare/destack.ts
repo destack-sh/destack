@@ -1,6 +1,6 @@
 import { defineTheme } from "./theme.ts";
 
-/** Destack's look, which every package's views take: paper by day, night water by night, signal orange. */
+/** Destack's look for every package's views: paper by day, night water by night, signal orange. */
 export const destackTheme = defineTheme({
     name: "destack",
     base: "#8d8d89",
