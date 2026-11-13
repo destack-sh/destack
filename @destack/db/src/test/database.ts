@@ -44,6 +44,9 @@ const TEST_POOL_CONNECTIONS = 20;
 /** How long an unclaimed test schema stays for reuse, in milliseconds: an hour of runs. */
 const SCHEMA_RETENTION_MILLISECONDS = 60 * 60 * 1000;
 
+/** The mark a schema's stamp ends with once its release emptied it. */
+const CLEAN_STAMP = "clean";
+
 /** The run's provided values the test databases read. */
 declare module "vitest" {
     /** The values a run's setup provides to its tests. */
@@ -573,21 +576,24 @@ class TestSchema {
         const layout = JSON.stringify([state, createLog("postgresql")]);
         const prefix = `test_s${(await digestOf(layout, environment.crypto)).slice(0, 16)}_`;
 
-        // claim a free schema of the same state whose shape still matches its stamp
+        // claim a free schema of the same state whose shape still matches its stamp, clean ones first
         const listed = await session<{ name: string }[]>`
-            SELECT nspname AS name FROM pg_namespace WHERE starts_with(nspname, ${prefix})`;
+            SELECT nspname AS name FROM pg_namespace WHERE starts_with(nspname, ${prefix})
+            ORDER BY obj_description(oid, 'pg_namespace') LIKE ${`% ${CLEAN_STAMP}`} DESC`;
         for (const { name } of listed) {
             if (await server.claimListed(name)) {
                 // read the shape of a schema whose migration finished, which its stamp marks last
                 const stamp = await readStamp(session, name);
                 const shape = stamp === undefined ? undefined : await readShape(session, name);
                 if (
+                    stamp !== undefined &&
                     shape !== undefined &&
-                    stamp === (await digestOf(shape.fingerprint, environment.crypto))
+                    stamp.digest === (await digestOf(shape.fingerprint, environment.crypto))
                 ) {
+                    // mark it dirty while claimed, then fill it, emptying it first unless its release did
                     const schema = new TestSchema(server, name, shape);
-                    await schema.#stamp();
-                    await schema.#reset(state, environment, template);
+                    await schema.#stamp(false);
+                    await schema.#reset(state, environment, template, stamp.isClean);
 
                     return schema;
                 }
@@ -603,9 +609,9 @@ class TestSchema {
         await database.apply(await database.plan({ declared: state }));
         await database.close();
         const schema = new TestSchema(server, name, await readShape(session, name));
-        await schema.#stamp();
+        await schema.#stamp(false);
         if (template !== undefined) {
-            await schema.#reset(state, environment, template);
+            await schema.#reset(state, environment, template, false);
         }
 
         return schema;
@@ -638,26 +644,31 @@ class TestSchema {
         return this.server.connect(this.name, tables, environment);
     }
 
-    /** Release the claim, leaving the schema for the next test of its state. */
+    /** Release the claim once the schema is emptied in the background, off the test's time. */
     release(): Promise<void> {
-        return this.server.release(this.name);
+        // empty it, mark it clean and release it, a failure staying unhandled and the schema dirty
+        void (async () => {
+            await this.server.session.unsafe(`SET LOCAL session_replication_role = replica;
+                ${this.#emptying().join("\n")}`);
+            await this.#stamp(true);
+            await this.server.release(this.name);
+        })();
+
+        return Promise.resolve();
     }
 
-    /** Stamp the schema with its claim time and its shape's digest. */
-    async #stamp(): Promise<void> {
+    /** Stamp the schema with its claim time, its shape's digest, and whether it is empty. */
+    async #stamp(isClean: boolean): Promise<void> {
         const digest = await digestOf(this.shape.fingerprint, HOST.crypto);
+        const clean = isClean ? ` ${CLEAN_STAMP}` : "";
         await this.server.session.unsafe(
-            `COMMENT ON SCHEMA "${this.name}" IS '${HOST.clock.now()} ${digest}'`,
+            `COMMENT ON SCHEMA "${this.name}" IS '${HOST.clock.now()} ${digest}${clean}'`,
         );
     }
 
-    /** Replace the rows with a template's and its log identity, or start a new epoch. */
-    async #reset(
-        state: readonly TableState[],
-        environment: DatabaseEnvironment,
-        template?: PostgresImage,
-    ): Promise<void> {
-        // pick the tables to empty and the sequences to restart
+    /** Write the statements emptying the tables and restarting the sequences and horizon. */
+    #emptying(): string[] {
+        // empty every table but the state and the log's identity, then restart the counters
         const quoted = (name: string) => `"${this.name}"."${name}"`;
         const emptied = this.shape.relations.filter(
             (relation) =>
@@ -667,6 +678,24 @@ class TestSchema {
                 relation.name !== LOG_HORIZON,
         );
         const sequences = this.shape.relations.filter((relation) => relation.kind === "S");
+
+        return [
+            ...emptied.map((table) => `DELETE FROM ${quoted(table.name)};`),
+            ...sequences.map((sequence) => `ALTER SEQUENCE ${quoted(sequence.name)} RESTART;`),
+            `UPDATE ${quoted(LOG_HORIZON)} SET sequence = 0 WHERE slot = 1;`,
+        ];
+    }
+
+    /** Replace the rows with a template's and its log identity, or start a new epoch. */
+    async #reset(
+        state: readonly TableState[],
+        environment: DatabaseEnvironment,
+        template: PostgresImage | undefined,
+        isClean: boolean,
+    ): Promise<void> {
+        // empty the schema unless its release did
+        const quoted = (name: string) => `"${this.name}"."${name}"`;
+        const emptying = isClean ? [] : this.#emptying();
 
         // empty the tables, restart sequences and horizon, then copy template or predefined rows
         const copied =
@@ -685,9 +714,7 @@ class TestSchema {
         // run the batch as one implicit transaction without triggers
         await this.server.session.unsafe(`SET LOCAL session_replication_role = replica;
             SET LOCAL search_path = "${this.name}";
-            ${emptied.map((table) => `DELETE FROM ${quoted(table.name)};`).join("\n")}
-            ${sequences.map((sequence) => `ALTER SEQUENCE ${quoted(sequence.name)} RESTART;`).join("\n")}
-            UPDATE ${quoted(LOG_HORIZON)} SET sequence = 0 WHERE slot = 1;
+            ${emptying.join("\n")}
             ${copied.join("\n")}
             ${epoch}`);
     }
@@ -852,12 +879,17 @@ async function digestOf(text: string, crypto: DigestCrypto): Promise<string> {
 }
 
 /** Read a schema's shape digest once its migration finished, absent before. */
-async function readStamp(session: postgres.Sql, name: string): Promise<string | undefined> {
+async function readStamp(
+    session: postgres.Sql,
+    name: string,
+): Promise<{ readonly digest: string; readonly isClean: boolean } | undefined> {
+    // read the comment's digest and clean mark
     const comment: unknown = (
         await session`SELECT obj_description(to_regnamespace(${name}), 'pg_namespace')`.values()
     )[0]?.[0];
+    const [, digest, mark] = typeof comment === "string" ? comment.split(" ") : [];
 
-    return typeof comment === "string" ? comment.split(" ")[1] : undefined;
+    return digest === undefined ? undefined : { digest, isClean: mark === CLEAN_STAMP };
 }
 
 /** Read the stored columns of a schema's tables, quoted and listed in declared order. */
