@@ -6,7 +6,12 @@ import { UniverseOrigin } from "@destack/account/address";
 import type { ArtifactsNamespace } from "@destack/git/cloudflare";
 import type { DatabaseConnection, Snapshot } from "@destack/db";
 import { DurableObjectReader, Jurisdiction } from "@destack/db/cloudflare";
-import { copyRequest, type Environment, type FetchOptions } from "@destack/environment";
+import {
+    HttpTransport,
+    copyRequest,
+    type Environment,
+    type FetchOptions,
+} from "@destack/environment";
 import { WorkerdEnvironment } from "@destack/environment/workerd";
 import { type LocalKeyring, MemoryKeychain } from "@destack/identity";
 import { Envelope, EnvelopeConfiguration } from "@destack/identity/aws";
@@ -179,22 +184,28 @@ export class CloudMachine {
     static async read(bindings: MachineBindings, system: Environment): Promise<CloudMachine> {
         // send the universe's and peers' requests through their bindings, others out
         const peers = peersOf(bindings);
+        const source = HttpTransport.sourceOf(system.network);
         const environment: Environment = {
             ...system,
-            network: {
-                ...system.network,
-                fetch: (request: Request, options?: FetchOptions) => {
-                    // call the universe, and a peer machine or its relay, through their bindings
-                    const peer = peers.get(new URL(request.url).host);
-                    if (UniverseOrigin.of(request.url, bindings.DESTACK_UNIVERSE) !== undefined) {
-                        return bindings.UNIVERSE.fetch(request);
-                    } else if (peer !== undefined) {
-                        return peer.fetch(internal(request));
-                    }
+            network: new HttpTransport(
+                {
+                    ...source,
+                    fetch: (request: Request, options?: FetchOptions) => {
+                        // call the universe, and a peer machine or its relay, through their bindings
+                        const peer = peers.get(new URL(request.url).host);
+                        if (
+                            UniverseOrigin.of(request.url, bindings.DESTACK_UNIVERSE) !== undefined
+                        ) {
+                            return bindings.UNIVERSE.fetch(request);
+                        } else if (peer !== undefined) {
+                            return peer.fetch(internal(request));
+                        }
 
-                    return system.network.fetch(request, options);
+                        return source.fetch(request, options);
+                    },
                 },
-            },
+                system.telemetry,
+            ),
         };
 
         // unseal the machine's root keys and its key

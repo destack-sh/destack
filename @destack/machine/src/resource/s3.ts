@@ -9,7 +9,7 @@ import type { Environment } from "@destack/environment";
 export function serveS3(
     host: CatalogueBucketHost,
     database: DatabaseConnection,
-    environment: Pick<Environment, "clock" | "crypto" | "random">,
+    environment: Pick<Environment, "clock" | "crypto" | "random" | "telemetry">,
 ): S3Server {
     return new S3Server({
         region: host.region,

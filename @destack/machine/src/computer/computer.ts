@@ -605,7 +605,7 @@ export class Computer implements AsyncDisposable {
 
         return new EventStore({
             database,
-            clock: options.environment.clock,
+            environment: options.environment,
             kinds,
             files: () => bucket,
             personal: new DatabasePersonalKeyring(database, keyring, options.environment),
@@ -1040,7 +1040,7 @@ export class Computer implements AsyncDisposable {
         let running: Computer | undefined;
         const telemetry = await Computer.#startTelemetry(environment, () => running?.machine);
         const instruments = TelemetryScope.of(MACHINE_PACKAGE, telemetry);
-        const recorded = { ...environment, telemetry };
+        const recorded = Environment.with(environment, { telemetry });
 
         // compose the machine with the system's keychains, this channel's distribution and its toolchain
         const stopping = new AbortController();

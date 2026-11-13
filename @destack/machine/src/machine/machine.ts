@@ -329,13 +329,8 @@ export class Machine {
             return known;
         }
 
-        // pull it once in its span, forgetting a failed pull
-        const pulling = this.scope.span(
-            "destack.machine.pull",
-            { "destack.package.id": packageId },
-            () => this.releases.pull(this.builds, packageId, lock, this.targets),
-            { duration: { attributes: {} } },
-        );
+        // pull it once, forgetting a failed pull, the registry tracing the transfer
+        const pulling = this.releases.pull(this.builds, packageId, lock, this.targets);
         this.#pulled.set(lock, pulling);
         pulling.catch(() => this.#pulled.delete(lock));
 
@@ -347,25 +342,20 @@ export class Machine {
         build: { readonly digest: Digest; readonly manifest: PackageManifest },
         file: PackageFile,
     ): Promise<void> {
-        return this.scope.span(
-            "destack.machine.pull_file",
-            {},
-            async () => {
-                // refuse a build without a forge, such as an npm unit
-                const owner = build.manifest.package;
-                if (!("id" in owner)) {
-                    throw StackError.of("BLOB_NOT_FOUND", `package file '${file.path}' not found`);
-                }
+        return this.scope.span("destack.machine.pull_file", {}, async () => {
+            // refuse a build without a forge, such as an npm unit
+            const owner = build.manifest.package;
+            if (!("id" in owner)) {
+                throw StackError.of("BLOB_NOT_FOUND", `package file '${file.path}' not found`);
+            }
 
-                // write the file from the build's forge
-                const forge = await this.releases.store(owner.id, {
-                    kind: "manifest",
-                    digest: build.digest,
-                });
-                await this.builds.write(forge.read([{ kind: "file", digest: file.digest }]));
-            },
-            { duration: { attributes: {} } },
-        );
+            // write the file from the build's forge
+            const forge = await this.releases.store(owner.id, {
+                kind: "manifest",
+                digest: build.digest,
+            });
+            await this.builds.write(forge.read([{ kind: "file", digest: file.digest }]));
+        });
     }
 
     /** Retain the builds a space runs in the machine's builds. */

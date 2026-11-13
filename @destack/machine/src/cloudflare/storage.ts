@@ -262,7 +262,7 @@ export class DurableObjectVolume implements Volume {
         // store the space's events and blobs in the residency's files
         const { environment, space } = options;
         this.events = new EventStore({
-            clock: environment.clock,
+            environment,
             database,
             kinds: fields.kinds,
             files: () => fields.files,

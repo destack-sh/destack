@@ -150,7 +150,7 @@ export class LocalSpaceStorage implements SpaceStorage, AsyncDisposable {
                 await LocalBucket.open(join(this.#directory("events"), space), space, environment),
             );
             const events = new EventStore({
-                clock: environment.clock,
+                environment,
                 database,
                 kinds: this.kinds,
                 files: () => segments,
