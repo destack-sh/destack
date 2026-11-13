@@ -1,6 +1,6 @@
 import { testHost } from "@destack/test/host";
 import { Digest, schema } from "@destack/schema";
-import { ids } from "@destack/stack/test";
+import { ids } from "@destack/machine/test";
 import { refusal, expect, test } from "@destack/test";
 import {
     ACTION_EVENT,

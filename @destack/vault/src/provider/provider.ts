@@ -1,6 +1,6 @@
 import { AccessContext, Caller, principal } from "@destack/access";
 import type { Provider, Provisioner } from "@destack/resource";
-import type { StoreProvider } from "@destack/stack/server";
+import type { StoreProvider } from "@destack/stack/object";
 import { SecretReading } from "@destack/resource";
 import type { Vault } from "../secret/secret.ts";
 import { VAULT_PROVIDER, VaultKind } from "../declare/kind.ts";

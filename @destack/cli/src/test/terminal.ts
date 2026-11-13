@@ -1,7 +1,7 @@
 import { SpaceAddress } from "@destack/account/address";
 import type { Login } from "@destack/account/native";
 import { Device, type MachineCredential } from "@destack/machine/device";
-import { type TestInstall, TestComputer, TestDistribution } from "@destack/machine/test";
+import { type TestInstall, TestComputer, TestDistribution } from "@destack/machine/computer/test";
 import { type DatabaseConnection, Snapshot } from "@destack/db";
 import type { ObjectType } from "@destack/object";
 import { type InstallationRollout, Rollout, rollout } from "@destack/stack/object";

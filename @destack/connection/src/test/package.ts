@@ -1,6 +1,6 @@
 import { testHost } from "@destack/test/host";
 import { testBuild } from "@destack/object/test";
-import { TestPackage } from "@destack/stack/test";
+import { TestPackage } from "@destack/machine/test";
 import connectionPackage from "../package.ts";
 import connectionServer from "../server.ts";
 

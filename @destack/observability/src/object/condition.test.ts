@@ -1,4 +1,4 @@
-import { ids } from "@destack/stack/test";
+import { ids } from "@destack/machine/test";
 import { expect, refusal, test } from "@destack/test";
 import { type AlertCondition, AlertRule, log, metric, NO_PENDING } from "./index.ts";
 

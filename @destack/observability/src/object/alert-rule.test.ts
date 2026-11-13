@@ -3,7 +3,7 @@ import { announcement } from "@destack/notification/object";
 import { installation } from "@destack/object";
 import { present } from "@destack/schema";
 import objectPackage from "@destack/object/package";
-import { ids } from "@destack/stack/test";
+import { ids } from "@destack/machine/test";
 import { ObjectReference, RequestId } from "@destack/sync";
 import { expect, refusal, test } from "@destack/test";
 import observabilityPackage from "../package.ts";

@@ -2,7 +2,7 @@ import { SECRET_KIND } from "@destack/stack/declare";
 import { AccessContext, Caller, principal } from "@destack/access";
 import { Duration, nth, schema } from "@destack/schema";
 import { Binding } from "@destack/stack/object";
-import type { ObjectBindable } from "@destack/stack/server";
+import type { ObjectBindable } from "@destack/stack/object";
 import { VAULT_PROVIDER } from "../declare/kind.ts";
 import { SecretDescription } from "../declare/secret.ts";
 import { ROTATION_OVERLAP, secret, secretVersion } from "../object/index.ts";

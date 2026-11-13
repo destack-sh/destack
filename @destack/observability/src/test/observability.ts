@@ -14,7 +14,7 @@ import { describeSetting } from "@destack/setting/inspect";
 import settingPackage from "@destack/setting/package";
 import { SOCIAL } from "@destack/social/test";
 import type { StackDocument, StackTypes } from "@destack/stack/declare";
-import { TestPackage, TestSpace } from "@destack/stack/test";
+import { TestPackage, TestSpace } from "@destack/machine/test";
 import { Scope } from "@destack/sync";
 import { FRAMES_ATTRIBUTE, type OtlpSignal } from "@destack/telemetry/otlp";
 import {

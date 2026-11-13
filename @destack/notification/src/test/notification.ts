@@ -18,7 +18,7 @@ import { type Identifier, present, schema } from "@destack/schema";
 import type { Setting } from "@destack/setting";
 import { describeSetting } from "@destack/setting/inspect";
 import settingPackage from "@destack/setting/package";
-import { ids, TestPackage, TestSpace } from "@destack/stack/test";
+import { ids, TestPackage, TestSpace } from "@destack/machine/test";
 import { type Call, RequestId, type Subject } from "@destack/sync";
 import { testHost } from "@destack/test/host";
 import germanCatalog from "../../locale/de.json" with { type: "json" };

@@ -232,6 +232,7 @@
       },
       "devDependencies": {
         "@destack/event": "workspace:*",
+        "@destack/machine": "workspace:*",
         "@destack/resource": "workspace:*",
         "@destack/stack": "workspace:*",
         "@destack/test": "workspace:*",
@@ -425,6 +426,7 @@
       },
       "devDependencies": {
         "@destack/environment": "workspace:*",
+        "@destack/machine": "workspace:*",
         "@destack/test": "workspace:*",
         "@types/bun": "1.4.4",
       },
@@ -464,6 +466,7 @@
       "devDependencies": {
         "@destack/check": "workspace:*",
         "@destack/identity": "workspace:*",
+        "@destack/machine": "workspace:*",
         "@destack/test": "workspace:*",
         "@types/bun": "1.4.4",
       },
@@ -743,6 +746,7 @@
         "@destack/workflow": "workspace:*",
       },
       "devDependencies": {
+        "@destack/machine": "workspace:*",
         "@destack/test": "workspace:*",
         "@types/bun": "1.4.4",
       },
@@ -773,6 +777,7 @@
       },
       "devDependencies": {
         "@destack/environment": "workspace:*",
+        "@destack/machine": "workspace:*",
         "@destack/resource": "workspace:*",
         "@destack/test": "workspace:*",
         "@types/bun": "1.4.4",
@@ -845,6 +850,7 @@
       "devDependencies": {
         "@destack/environment": "workspace:*",
         "@destack/identity": "workspace:*",
+        "@destack/machine": "workspace:*",
         "@destack/test": "workspace:*",
         "@types/node": "26.6.1",
       },
@@ -1026,6 +1032,7 @@
       },
       "devDependencies": {
         "@destack/environment": "workspace:*",
+        "@destack/machine": "workspace:*",
         "@destack/resource": "workspace:*",
         "@destack/setting": "workspace:*",
         "@destack/test": "workspace:*",
@@ -1309,6 +1316,7 @@
       "devDependencies": {
         "@destack/control": "workspace:*",
         "@destack/environment": "workspace:*",
+        "@destack/machine": "workspace:*",
         "@destack/test": "workspace:*",
       },
       "peerDependencies": {

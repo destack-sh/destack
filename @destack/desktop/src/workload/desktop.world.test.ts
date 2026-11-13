@@ -1,4 +1,4 @@
-import { OWNER_EMAIL, SCENARIO_MILLISECONDS, TestComputer } from "@destack/machine/test";
+import { OWNER_EMAIL, SCENARIO_MILLISECONDS, TestComputer } from "@destack/machine/computer/test";
 import { schema } from "@destack/schema";
 import { expect, test } from "@destack/test";
 import { testHost } from "@destack/test/host";

@@ -51,8 +51,9 @@
         "test": "bun --bun run vitest run --config vitest.config.ts"
     },
     "devDependencies": {
+        "@destack/control": "workspace:*",
         "@destack/environment": "workspace:*",
-        "@destack/test": "workspace:*",
-        "@destack/control": "workspace:*"
+        "@destack/machine": "workspace:*",
+        "@destack/test": "workspace:*"
     }
 }

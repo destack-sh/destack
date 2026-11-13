@@ -1,6 +1,6 @@
 import { Snapshot } from "@destack/db";
 import { Binding, Rollout, rollout } from "@destack/stack/object";
-import { ids } from "@destack/stack/test";
+import { ids } from "@destack/machine/test";
 import { expect, refusal, single, test } from "@destack/test";
 import { vault } from "../object/index.ts";
 import { CONSUMER, CREDENTIAL, CREDENTIALS, TestVault } from "../test/index.ts";

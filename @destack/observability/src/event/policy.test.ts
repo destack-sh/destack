@@ -1,6 +1,6 @@
 import type { EventKind } from "@destack/event";
 import { SettingValue } from "@destack/setting/object";
-import { ids } from "@destack/stack/test";
+import { ids } from "@destack/machine/test";
 import { expect, test } from "@destack/test";
 import { log, metric, span, visit } from "../object/index.ts";
 import { telemetryRetention } from "../setting/index.ts";

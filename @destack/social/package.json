@@ -32,6 +32,7 @@
     },
     "devDependencies": {
         "@destack/environment": "workspace:*",
+        "@destack/machine": "workspace:*",
         "@destack/resource": "workspace:*",
         "@destack/setting": "workspace:*",
         "@destack/test": "workspace:*",

@@ -3,7 +3,7 @@ import { card } from "@destack/machine-board-fixture/object";
 import { schema } from "@destack/schema";
 import { expect, onTestFinished, single, test } from "@destack/test";
 import { testHost } from "@destack/test/host";
-import { type TestInstall, WORK_BOARD } from "@destack/machine/test";
+import { type TestInstall, WORK_BOARD } from "@destack/machine/computer/test";
 import { jsonLines, TerminalFixture } from "../test/terminal.ts";
 
 /** A printed object's identifier. */

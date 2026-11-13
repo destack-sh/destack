@@ -1,6 +1,6 @@
 import { currentLogin, currentSpace } from "@destack/account/native";
 import { Account } from "@destack/account/object";
-import { OWNER_EMAIL } from "@destack/machine/test";
+import { OWNER_EMAIL } from "@destack/machine/computer/test";
 import { schema } from "@destack/schema";
 import { expect, test } from "@destack/test";
 import { TerminalFixture } from "../test/terminal.ts";

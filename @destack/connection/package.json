@@ -59,9 +59,10 @@
     },
     "devDependencies": {
         "@destack/event": "workspace:*",
-        "@destack/test": "workspace:*",
-        "@types/bun": "1.4.4",
+        "@destack/machine": "workspace:*",
+        "@destack/resource": "workspace:*",
         "@destack/stack": "workspace:*",
-        "@destack/resource": "workspace:*"
+        "@destack/test": "workspace:*",
+        "@types/bun": "1.4.4"
     }
 }

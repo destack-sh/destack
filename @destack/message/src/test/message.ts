@@ -9,7 +9,13 @@ import type { ObjectStore, PackageImplementation } from "@destack/object/server"
 import type { TestCaller, TestObjectStore } from "@destack/object/test";
 import { testBuild } from "@destack/object/test";
 import { type Identifier, present, schema } from "@destack/schema";
-import { fixtureOutputs, OWNER_EMAIL, TestPackage, TestSpace, workload } from "@destack/stack/test";
+import {
+    fixtureOutputs,
+    OWNER_EMAIL,
+    TestPackage,
+    TestSpace,
+    workload,
+} from "@destack/machine/test";
 import { testHost } from "@destack/test/host";
 import { HOOK_WORKLOAD } from "@destack/stack/workload";
 import { ObjectReference, RequestId } from "@destack/sync";

@@ -14,7 +14,7 @@ import { type TestCaller, type TestObjectStore, testBuild } from "@destack/objec
 import { PackageVersion } from "@destack/package";
 import { MemoryBuild } from "@destack/package/test";
 import { nth, schema } from "@destack/schema";
-import { ids, TestPackage, TestSpace } from "@destack/stack/test";
+import { ids, TestPackage, TestSpace } from "@destack/machine/test";
 import { type Call, Scope } from "@destack/sync";
 import { Table } from "@destack/db";
 import { connectBunSqlite } from "@destack/db/bun";

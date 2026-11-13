@@ -41,6 +41,7 @@
     "devDependencies": {
         "@destack/environment": "workspace:*",
         "@destack/identity": "workspace:*",
+        "@destack/machine": "workspace:*",
         "@destack/test": "workspace:*",
         "@types/node": "26.6.1"
     }

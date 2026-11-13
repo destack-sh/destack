@@ -1,7 +1,7 @@
 import type { EventFilter } from "@destack/event";
 import { Digest, present, schema } from "@destack/schema";
 import stackPackage from "@destack/stack/package";
-import { ids } from "@destack/stack/test";
+import { ids } from "@destack/machine/test";
 import { RequestId } from "@destack/sync";
 import {
     ACTION_EVENT,
