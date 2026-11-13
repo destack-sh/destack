@@ -512,7 +512,7 @@ test("run a host installation at a restarted machine's linked release, then revi
     });
 });
 
-test("refuse a stack installing on the host at a release, and hold one following the host's release the machine does not provide", async () => {
+test("refuse a stack installing on the host at a release, allow a sandbox following the host's release, and hold one the machine does not provide", async () => {
     // declare the package on the host at a release, which only the host's release may be
     const fixture = await TestSpace.open();
     const { database } = fixture;
@@ -561,12 +561,12 @@ test("refuse a stack installing on the host at a release, and hold one following
         .where(eq(object.deployment.table.installationId, found.id));
     expect({
         pinned: pinned.error?.issues.map((issue) => issue.message),
+        sandboxed: InstallationDefinition.safeParse({ ...notes, isolation: "sandbox" }).success,
         synced: (await readStack(database)).installation.conditions["Synced"]?.message,
         deployments,
     }).toEqual({
-        pinned: [
-            "a host installation follows the host's release, and only a host installation does",
-        ],
+        pinned: ["a host installation follows the host's release"],
+        sandboxed: true,
         synced: `@destack/stack TARGET_BLOCKED: cannot follow the host's release of '${ids.package}': this machine provides none`,
         deployments: [],
     });

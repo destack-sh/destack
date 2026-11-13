@@ -50,8 +50,8 @@ export const InstallationDefinition = schema
         tags: schema.record(schema.string().min(1), schema.string()),
     })
     .refine(
-        (installed) => (installed.isolation === "host") === (installed.selection.kind === "host"),
-        "a host installation follows the host's release, and only a host installation does",
+        (installed) => installed.isolation !== "host" || installed.selection.kind === "host",
+        "a host installation follows the host's release",
     );
 /** A package installation declared in a configuration. */
 export type InstallationDefinition = schema.Infer<typeof InstallationDefinition>;
