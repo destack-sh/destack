@@ -1,6 +1,7 @@
 import { Simulation } from "@destack/environment/simulation";
 import { expect, test } from "@destack/test";
 import { Outcome } from "./provider.ts";
+import { testWorldOptions } from "@destack/test/world";
 
 /** The time every answer is read at. */
 const NOW = Date.UTC(2026, 9, 5);
@@ -49,7 +50,7 @@ test("read an endpoint's answers as sent, gone, retried after their wait, or rej
 
 test("retry a post the network failed to deliver or its timeout ended, and rethrow any other failure", async () => {
     // post to an origin nothing serves, and to one that never answers before the timeout
-    await using simulation = new Simulation({ seed: 1, start: NOW });
+    await using simulation = new Simulation({ world: testWorldOptions(), seed: 1, start: NOW });
     const { clock } = simulation;
     const network = simulation.network.of("sender");
     const unserved = await Outcome.post(network.fetch, new Request(`${ORIGIN}/a`), clock);
