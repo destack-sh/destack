@@ -12,7 +12,7 @@ import {
 import { and, eq, isNull, Snapshot, type DatabaseConnection } from "@destack/db";
 import type { PackageId } from "@destack/package";
 import { Digest } from "@destack/schema";
-import { Bearer, TokenVerifier } from "@destack/access/token";
+import { Bearer, type TokenVerification, TokenVerifier } from "@destack/access/token";
 import { ObjectReference, Scope } from "@destack/sync";
 import { Identity } from "../object/identity.ts";
 import { client } from "../object/client.ts";
@@ -23,21 +23,24 @@ import { AccountError } from "../error/error.ts";
 
 /** The callers of account's packages: access tokens, and the credentials exchanged for them. */
 export const AccountAuthentication = {
-    /** Verify a request's bearer access token for a package by the universe's keys. */
+    /** Verify the universe's access tokens by its current keys in a reader of its identities. */
+    universe(
+        reader: Pick<Snapshot, "read">,
+        issuer: string,
+        environment: Pick<Environment, "crypto" | "telemetry">,
+    ): TokenVerifier {
+        return new TokenVerifier({
+            issuers: async (name) =>
+                name === issuer ? await Identity.trust(reader, name, issuer) : undefined,
+            environment,
+        });
+    },
+
+    /** Verify a request's bearer access token, leaving a request without one to its protocol. */
     async bearer(
         request: Request,
-        verifier: {
-            /** The account database with the universe's identity. */
-            readonly database: DatabaseConnection;
-            /** The universe's issuer. */
-            readonly issuer: string;
-            /** The package receiving the call. */
-            readonly audience: PackageId;
-            /** The time of the verification. */
-            readonly now: number;
-            /** The clock, WebCrypto and network verifying the token. */
-            readonly environment: Pick<Environment, "clock" | "crypto" | "network" | "telemetry">;
-        },
+        verifier: TokenVerifier,
+        verification: TokenVerification,
     ): Promise<Authentication | undefined> {
         // leave a request without a bearer token to the protocol it speaks, such as a client's credentials
         const authorization = request.headers.get("authorization");
@@ -45,21 +48,7 @@ export const AccountAuthentication = {
             return undefined;
         }
 
-        // verify the access token by the universe's current keys
-        const keys = await Identity.keys(
-            Snapshot.live(verifier.database),
-            Scope.universe.id,
-            verifier.environment.crypto,
-        );
-        const tokens = new TokenVerifier({
-            authority: { kind: "universe" },
-            issuer: verifier.issuer,
-            audience: verifier.audience,
-            keys,
-            environment: verifier.environment,
-        });
-
-        return tokens.verify(Bearer.require(request.headers), verifier.now);
+        return verifier.verify(Bearer.require(request.headers), verification);
     },
 
     /** Authenticate a person signed in through an active session, with its assurance and email. */

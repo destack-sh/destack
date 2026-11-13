@@ -82,6 +82,7 @@ import { sudo } from "../authentication/sudo.ts";
 import type { Mail, MailTransport } from "@destack/mail/transport";
 import { Simulation, type SimulatedClock } from "@destack/environment/simulation";
 import { Pkce } from "@destack/access/token";
+import { testWorldOptions } from "@destack/test/world";
 
 /** The universe's origin. */
 export const ORIGIN = "http://localhost:3210";
@@ -1260,6 +1261,11 @@ export class TestAccountStore implements AsyncDisposable {
         const fetch = (request: Request) => TestAccountStore.#route(store, served, request);
         const issuer = new Issuer(ISSUER, fetch, environment, new Bookmark());
         const identities = new Map<string, Identity>();
+        const verifier = AccountAuthentication.universe(
+            Snapshot.live(database),
+            ISSUER,
+            environment,
+        );
         const served: TestObjectStore = TestObjectStore.serve(store, {
             credential: {
                 sign: async (request, signer) => {
@@ -1278,13 +1284,7 @@ export class TestAccountStore implements AsyncDisposable {
                     return new Request(request, { headers });
                 },
                 authenticate: (request, audience) =>
-                    AccountAuthentication.bearer(request, {
-                        database,
-                        issuer: ISSUER,
-                        audience,
-                        now: clock.now(),
-                        environment,
-                    }),
+                    AccountAuthentication.bearer(request, verifier, { audience, now: clock.now() }),
             },
         });
         await served.ready();
@@ -1473,7 +1473,11 @@ export class TestAccountStore implements AsyncDisposable {
 
     /** Open the simulated world a fixture runs in, paused at its start. */
     static #world(): Simulation {
-        return new Simulation({ seed: WORLD_SEED, start: WORLD_START });
+        return new Simulation({
+            world: testWorldOptions(),
+            seed: WORLD_SEED,
+            start: WORLD_START,
+        });
     }
 
     /** Stop serving the packages, then close the database. */

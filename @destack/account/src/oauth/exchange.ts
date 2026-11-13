@@ -19,7 +19,6 @@ import { GrantPermission } from "@destack/access";
 import { ObjectReference, Scope, Subject } from "@destack/sync";
 import { AccountAuthentication } from "../better-auth/authentication.ts";
 import { account, type Account } from "../object/account.ts";
-import { Identity } from "../object/identity.ts";
 import { session } from "../object/session.ts";
 import { type Client, client } from "../object/client.ts";
 import { Revocation } from "../credential/revocation.ts";
@@ -112,6 +111,13 @@ export interface ExchangeOptions {
 
 /** Exchange a person's, machine's or installation's token for a token of a package (RFC 8693). */
 export function exchangeGrant(options: ExchangeOptions): GrantType {
+    // verify subject tokens by the universe's current keys
+    const verifier = AccountAuthentication.universe(
+        Snapshot.live(options.database),
+        options.issuer,
+        options.environment,
+    );
+
     return async ({ body }) => {
         // read the request and the package it asks a token for
         const request = ExchangeRequest.safeParse(body);
@@ -132,7 +138,7 @@ export function exchangeGrant(options: ExchangeOptions): GrantType {
 
         // describe the subject token's caller toward the package, refusing an invalid token
         const now = options.environment.clock.now();
-        const { authentication, lapse } = await describe(options, asked, audience, now);
+        const { authentication, lapse } = await describe(options, verifier, asked, audience, now);
 
         // end the credential at its session's or grants' lapse
         const credential = {
@@ -162,12 +168,13 @@ export function exchangeGrant(options: ExchangeOptions): GrantType {
 /** Describe the caller a token exchange asks a token for, and when its session or grant lapses. */
 async function describe(
     options: ExchangeOptions,
+    verifier: TokenVerifier,
     asked: schema.Infer<typeof ExchangeRequest>,
     audience: PackageId,
     now: number,
 ): Promise<{ readonly authentication: Authentication; readonly lapse?: number }> {
     // verify the subject token before the transaction, a session or a token lapsing with its credential
-    const verified = await subjectOf(options, asked, now);
+    const verified = await subjectOf(options, verifier, asked, now);
     const isAccessToken = asked.subject_token_type === ACCESS_TOKEN_TYPE;
     const lapses = isAccessToken ? [] : [verified.credential.expiresAt];
     const subject = asked.subject === undefined ? undefined : Subject.read(asked.subject);
@@ -285,6 +292,7 @@ async function describe(
 /** Verify a subject token: an access token the endpoint issued, or a personal access token. */
 async function subjectOf(
     options: ExchangeOptions,
+    verifier: TokenVerifier,
     asked: schema.Infer<typeof ExchangeRequest>,
     now: number,
 ): Promise<Authentication> {
@@ -300,22 +308,8 @@ async function subjectOf(
         );
     }
 
-    // verify an access token for the account package by the universe's current keys, refusing a machine's
-    const keys = await Identity.keys(
-        Snapshot.live(options.database),
-        Scope.universe.id,
-        options.environment.crypto,
-    );
-    const verifier = new TokenVerifier({
-        authority: { kind: "universe" },
-        issuer: options.issuer,
-        audience: accountPackage.id,
-        keys,
-        environment: options.environment,
-    });
-
-    // refuse a token for the machine itself, which it asks with its assertion
-    const verified = await verifier.verify(token, now);
+    // verify an access token for the account package, refusing a machine's, which asks with its assertion
+    const verified = await verifier.verify(token, { audience: accountPackage.id, now });
     if (principal.machine.is(verified.caller.subject)) {
         throw AccountError.of(
             "MACHINE_ASSERTION_DENIED",

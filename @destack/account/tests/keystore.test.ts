@@ -1,3 +1,4 @@
+import { AccountAuthentication } from "../src/better-auth/authentication.ts";
 import type { Environment } from "@destack/environment";
 import { SpaceMount } from "@destack/object";
 import { Jwks, Jws, Jwt, LocalKeyring, MemoryKeychain, Recipient } from "@destack/identity";
@@ -205,16 +206,23 @@ test("sign an installation's request for the space it goes to by its space's key
 
     // verify what arrives by the space's keys, as a receiver in another space does
     const verifier = new TokenVerifier({
-        authority: { kind: "space", space },
-        issuer: space,
-        audience,
-        keys: await Identity.keys(Snapshot.live(database), space, keystore.environment.crypto),
+        issuers: async (name) =>
+            name === space
+                ? {
+                      authority: { kind: "space", space },
+                      keys: await Identity.keys(
+                          Snapshot.live(database),
+                          space,
+                          keystore.environment.crypto,
+                      ),
+                  }
+                : undefined,
         environment: accounts.environment,
     });
-    const verified = await verifier.authenticate(
-        present(received, "the sent request"),
-        keystore.environment.clock.now(),
-    );
+    const verified = await verifier.authenticate(present(received, "the sent request"), {
+        audience: audience,
+        now: keystore.environment.clock.now(),
+    });
     expect([
         verified.caller.subject,
         verified.credential.kind,
@@ -313,21 +321,15 @@ test("send a request as the universe bound to the space it goes to, which a veri
 
     // verify it as the universe in that space, refuse it in another, and refuse a request to no space
     const verify = (spaceId: Identifier<"space">) =>
-        new TokenVerifier({
-            authority: { kind: "universe" },
+        AccountAuthentication.universe(
+            Snapshot.live(database),
             issuer,
+            accounts.environment,
+        ).authenticate(present(received[0], "the sent request").clone(), {
             audience,
-            keys: async (header) =>
-                Jwks.local(
-                    await Identity.keys(
-                        Snapshot.live(database),
-                        Scope.universe.id,
-                        accounts.environment.crypto,
-                    ),
-                    accounts.environment.crypto,
-                )(header),
-            environment: accounts.environment,
-        }).authenticate(present(received[0], "the sent request").clone(), clock.now(), spaceId);
+            now: clock.now(),
+            partition: spaceId,
+        });
     const verified = await verify(space);
     expect({
         verified: [verified.caller.subject, verified.credential.kind, verified.credential.scope],

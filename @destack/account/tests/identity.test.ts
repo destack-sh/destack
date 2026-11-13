@@ -31,11 +31,11 @@ import { ANY_STRING } from "./fixture.ts";
 /** The token endpoint every assertion is for. */
 const ENDPOINT = `${ISSUER}${TOKEN_PATH}`;
 
-/** The refusal of an assertion without a standing key behind it. */
+/** The refusal of an assertion without a standing key, as failed client authentication. */
 const NO_STANDING_KEY = [
-    400,
+    401,
     {
-        error: "invalid_grant",
+        error: "invalid_client",
         error_description: "authentication required: assertion has no standing key",
     },
 ];
@@ -290,21 +290,24 @@ test("grant a cloud machine a token for a minute as itself alone, by its enrolle
 
     // verify the token as the machine alone, by its key's thumbprint
     const verifier = new TokenVerifier({
-        authority: { kind: "universe" },
-        issuer: ISSUER,
-        audience: AUDIENCE,
-        keys: await Identity.keys(
-            Snapshot.live(accounts.database),
-            Scope.universe.id,
-            accounts.environment.crypto,
-        ),
+        issuers: async (name) =>
+            name === ISSUER
+                ? {
+                      authority: { kind: "universe" },
+                      keys: await Identity.keys(
+                          Snapshot.live(accounts.database),
+                          Scope.universe.id,
+                          accounts.environment.crypto,
+                      ),
+                  }
+                : undefined,
         environment: accounts.environment,
     });
     const verified = await verifier.authenticate(
         new Request("https://edge.test/spaces", {
             headers: { authorization: `Bearer ${accessToken}` },
         }),
-        accounts.clock.now(),
+        { audience: AUDIENCE, now: accounts.clock.now() },
     );
     const { credential } = verified;
     expect([
@@ -405,21 +408,24 @@ test("issue a machine's token at the store clock's time, verifiable after the cl
 
     // verify it at the clock's time, with exactly the provider's claims
     const verifier = new TokenVerifier({
-        authority: { kind: "universe" },
-        issuer: ISSUER,
-        audience: AUDIENCE,
-        keys: await Identity.keys(
-            Snapshot.live(fixture.database),
-            Scope.universe.id,
-            fixture.environment.crypto,
-        ),
+        issuers: async (name) =>
+            name === ISSUER
+                ? {
+                      authority: { kind: "universe" },
+                      keys: await Identity.keys(
+                          Snapshot.live(fixture.database),
+                          Scope.universe.id,
+                          fixture.environment.crypto,
+                      ),
+                  }
+                : undefined,
         environment: fixture.environment,
     });
     const verified = await verifier.authenticate(
         new Request("https://edge.test/spaces", {
             headers: { authorization: `Bearer ${accessToken}` },
         }),
-        fixture.clock.now(),
+        { audience: AUDIENCE, now: fixture.clock.now() },
     );
     const declared = present(
         await Snapshot.live(fixture.database)
@@ -688,17 +694,17 @@ test("authenticate a machine's token in a space it serves while its key stands, 
     const token = TokenResponse.parse(await response.json()).access_token;
 
     // authenticate the token in the space, before and after the owner revokes the machine
+    const snapshot = Snapshot.live(accounts.database);
+    const verifier = new TokenVerifier({
+        issuers: (issuer) => Identity.trust(snapshot, issuer, ISSUER),
+        environment: accounts.environment,
+    });
     const authenticate = () =>
         Identity.authenticate(
-            Snapshot.live(accounts.database),
+            snapshot,
             new Request("https://machine.test/", { headers: { authorization: `Bearer ${token}` } }),
-            {
-                audience: AUDIENCE,
-                universe: ISSUER,
-                partition: spaceId,
-                now: accounts.clock.now(),
-                environment: accounts.environment,
-            },
+            verifier,
+            { audience: AUDIENCE, partition: spaceId, now: accounts.clock.now() },
         );
     const standing = present(await authenticate(), "the standing machine's authentication");
     await owner.client(accountPackage).machine.delete({

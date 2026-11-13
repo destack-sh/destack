@@ -1,7 +1,12 @@
 import { type Authentication, none, principal, through } from "@destack/access";
-import { type AssertionKey, Bearer, type PartitionId, TokenVerifier } from "@destack/access/token";
-import type { PackageId } from "@destack/package";
-import type { Crypto, Environment } from "@destack/environment";
+import {
+    type AssertionKey,
+    Bearer,
+    type TokenTrust,
+    type TokenVerification,
+    type TokenVerifier,
+} from "@destack/access/token";
+import type { Crypto } from "@destack/environment";
 import { Scope } from "@destack/sync";
 import type { Select, Snapshot } from "@destack/db";
 import { defineObject, field } from "@destack/object";
@@ -106,20 +111,6 @@ export const operation = defineObject(
 /** An identity operation as its table stores it. */
 export type Operation = Select<typeof operation.table>;
 
-/** What a token is verified against: the receiving package, issuer, space and time. */
-export interface Verification {
-    /** The package receiving the call. */
-    readonly audience: PackageId;
-    /** The universe's issuer, which its tokens include. */
-    readonly universe: string;
-    /** The partition the call targets, absent for a call outside any one partition. */
-    readonly partition?: PartitionId;
-    /** The time the token is verified at. */
-    readonly now: number;
-    /** The clock, WebCrypto and network verifying the token. */
-    readonly environment: Pick<Environment, "clock" | "crypto" | "network" | "telemetry">;
-}
-
 /** The reads of identities from their logs. */
 export const Identity = {
     /** List an identity's log in order, nullified operations included. */
@@ -184,11 +175,45 @@ export const Identity = {
         return PublicKey.keySet(found.signingKeys, crypto);
     },
 
+    /** Resolve an issuer to the universe's or a space's trust in its current keys, else absent. */
+    async trust(
+        reader: Pick<Snapshot, "read">,
+        issuer: string,
+        universe: string,
+    ): Promise<TokenTrust | undefined> {
+        // read the issuing universe or space, distrusting any other issuer
+        const space = schema.identifier("space").safeParse(issuer);
+        const signer =
+            issuer === universe
+                ? { authority: { kind: "universe" } as const, subject: Scope.universe.id }
+                : space.success
+                  ? {
+                        authority: { kind: "space", space: space.data } as const,
+                        subject: space.data,
+                    }
+                  : undefined;
+        if (signer === undefined) {
+            return undefined;
+        }
+
+        // trust its current signing keys, refusing an identity without operations
+        const found = Identity.current(await Identity.log(reader, signer.subject));
+        if (found === undefined) {
+            throw AccountError.of(
+                "IDENTITY_NOT_FOUND",
+                `identity of '${signer.subject}' not found`,
+            );
+        }
+
+        return { authority: signer.authority, keys: { keys: found.signingKeys } };
+    },
+
     /** Verify a request's bearer token and a machine token's key, absent without a token. */
     async authenticate(
         snapshot: Snapshot,
         request: Request,
-        options: Verification,
+        verifier: TokenVerifier,
+        verification: TokenVerification,
     ): Promise<Authentication | undefined> {
         // call anonymously without a bearer token
         const token = Bearer.token(request.headers.get("authorization"));
@@ -197,46 +222,9 @@ export const Identity = {
         }
 
         // verify the token, and the key of a machine's token
-        const authentication = await Identity.verify(snapshot, token, options);
-        await Key.requireStanding(snapshot, authentication.credential, options.now);
+        const authentication = await verifier.verify(token, verification);
+        await Key.requireStanding(snapshot, authentication.credential, verification.now);
 
         return authentication;
-    },
-
-    /** Verify a token by its issuer's identity keys: the universe's, or a space's. */
-    async verify(
-        snapshot: Snapshot,
-        token: string,
-        options: Verification,
-    ): Promise<Authentication> {
-        // read the issuing universe or space, refusing any other issuer
-        const issuer = schema.string().safeParse(Bearer.issuer(token));
-        const space = schema.identifier("space").safeParse(issuer.data);
-        const signer =
-            issuer.data === options.universe
-                ? { authority: { kind: "universe" } as const, subject: Scope.universe.id }
-                : space.success
-                  ? {
-                        authority: { kind: "space", space: space.data } as const,
-                        subject: space.data,
-                    }
-                  : undefined;
-        if (!issuer.success || signer === undefined) {
-            throw AccountError.of(
-                "TOKEN_UNAUTHENTICATED",
-                "authentication required: the access token is invalid",
-            );
-        }
-
-        // verify the token by the signer's keys
-        const verifier = new TokenVerifier({
-            authority: signer.authority,
-            issuer: issuer.data,
-            audience: options.audience,
-            keys: await Identity.keys(snapshot, signer.subject, options.environment.crypto),
-            environment: options.environment,
-        });
-
-        return verifier.verify(token, options.now, options.partition);
     },
 };

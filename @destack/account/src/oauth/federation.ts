@@ -1,10 +1,5 @@
 import { type Authentication, Caller, CLOCK_TOLERANCE_MILLISECONDS } from "@destack/access";
-import {
-    FEDERATED_TOKEN,
-    KEY_CACHE_MILLISECONDS,
-    KEY_TIMEOUT_MILLISECONDS,
-    Nonce,
-} from "@destack/access/token";
+import { FEDERATED_TOKEN, Nonce } from "@destack/access/token";
 import { type DatabaseConnection, Snapshot } from "@destack/db";
 import type { Environment } from "@destack/environment";
 import { JwsAlgorithm, Jwks, Jwt, type KeyLookup } from "@destack/identity";
@@ -12,6 +7,12 @@ import type { PackageId } from "@destack/package";
 import { Digest, schema } from "@destack/schema";
 import { OAuthError } from "../authentication/token.ts";
 import { trustedPublisher } from "../object/trusted-publisher.ts";
+
+/** The longest interval between public key refreshes, in milliseconds. */
+const KEY_CACHE_MILLISECONDS = 60000;
+
+/** The longest key discovery wait and the pause after a failed one, in milliseconds. */
+const KEY_TIMEOUT_MILLISECONDS = 5000;
 
 /** The path of an OIDC issuer's discovery document (OpenID Connect Discovery 1.0, 4). */
 const DISCOVERY_PATH = "/.well-known/openid-configuration";

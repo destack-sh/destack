@@ -1,3 +1,4 @@
+import { AccessError } from "@destack/access";
 import { CONTAINED, principal } from "@destack/access";
 import { Scope, type Subject } from "@destack/sync";
 import { type DatabaseConnection, Snapshot } from "@destack/db";
@@ -94,7 +95,11 @@ export function bearerGrant(options: BearerOptions): GrantType {
         const now = options.environment.clock.now();
         const { caller: asserted, credential } = FederatedVerifier.isFederated(assertion)
             ? await federated.verify(assertion, audience, now)
-            : (await assertions.verify(assertion, now)).authentication;
+            : (
+                  await assertions
+                      .verify(assertion, now)
+                      .catch((error: unknown) => BearerGrant.refusal(error))
+              ).authentication;
 
         // read the partitions the subject acts in: a machine its own and any space, a space or a trusted publisher any space, an installation its space
         const { subject } = asserted;
@@ -201,3 +206,15 @@ async function containment(database: DatabaseConnection, subject: Subject): Prom
         })),
     ];
 }
+
+/** The refusals of the jwt-bearer grant. */
+const BearerGrant = {
+    /** Refuse a key without standing as failed client authentication (RFC 6749 5.2). */
+    refusal(error: unknown): never {
+        if (AccessError.is(error, "ASSERTION_KEY_UNAUTHENTICATED")) {
+            throw OAuthError.of("CLIENT_UNAUTHENTICATED", error.message, { cause: error });
+        }
+
+        throw error;
+    },
+};

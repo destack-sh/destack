@@ -4,7 +4,8 @@ import { copyRequest, type Environment } from "@destack/environment";
 import { TokenCache } from "@destack/access/token";
 import { canonicalize } from "@destack/schema";
 import { TOKEN_PATH } from "../authentication/path.ts";
-import { TokenResponse } from "../authentication/token.ts";
+import { OAuthError, TokenResponse } from "../authentication/token.ts";
+import { SyncError } from "@destack/sync";
 import type { TokenBinding } from "./issuer.ts";
 import { JWT_BEARER } from "../oauth/bearer.ts";
 
@@ -89,9 +90,13 @@ export class IssuerCredential implements Credential {
         });
         const response = await this.#fetch(new Request(endpoint, { method: "POST", body }));
 
-        // refuse as the endpoint refused
+        // refuse as the endpoint refused, a key it no longer authenticates ending the follower
         if (!response.ok) {
-            throw await TokenResponse.refusal(response);
+            const refusal = await TokenResponse.refusal(response);
+            if (OAuthError.is(refusal, "CLIENT_UNAUTHENTICATED")) {
+                throw SyncError.of("FOLLOWER_UNAUTHENTICATED", refusal.message, { cause: refusal });
+            }
+            throw refusal;
         }
 
         return TokenResponse.parse(await response.json()).access_token;

@@ -1,3 +1,5 @@
+import { TokenVerifier } from "@destack/access/token";
+
 import { FOLLOWER_REVISION } from "@destack/sync/test";
 import objectPackage from "@destack/object/package";
 import { type GrantPermission, principal } from "@destack/access";
@@ -432,16 +434,21 @@ test("authenticate a person's universe token in the space it is bound to, refusi
     const { accessToken: token } = await person.exchange(accountPackage.id, { partition: spaceId });
 
     // authenticate calls to the home and to another space over the universe's directory
+    const snapshot = Snapshot.live(fixture.database);
+    const { environment } = fixture.store;
+    const verifier = new TokenVerifier({
+        issuers: (issuer) => Identity.trust(snapshot, issuer, ISSUER),
+        environment,
+    });
     const authenticate = (partition: Identifier<"space">, headers: Record<string, string>) =>
         Identity.authenticate(
-            Snapshot.live(fixture.database),
+            snapshot,
             new Request("https://machine.test/", { headers }),
+            verifier,
             {
                 audience: accountPackage.id,
-                universe: ISSUER,
                 partition,
                 now: fixture.store.clock.now(),
-                environment: fixture.store.environment,
             },
         );
     const bearer = { authorization: `Bearer ${token}` };
