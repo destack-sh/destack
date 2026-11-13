@@ -71,8 +71,8 @@ export class PackageCopy implements AsyncDisposable {
         }
 
         // store the units it depends on
-        const workspace = await Workspace.open(source, compilers);
-        const dependencies = await workspace.storeDependencies({});
+        const workspacePackage = await (await Workspace.open(source, compilers)).package();
+        const dependencies = await workspacePackage.storeDependencies({});
 
         return new PackageCopy(directory, source, dependencies, compilers);
     }

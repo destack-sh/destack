@@ -86,61 +86,66 @@ export interface WorkspaceOptions {
     readonly host?: readonly Lock[];
 }
 
-/** The Destack packages of a checkout as read once, each built on its dependencies' builds. */
+/** A checkout's Destack workspace as read once: its members, files, npm releases and toolchain. */
 export class Workspace {
-    /** The units of the root package's closure, each after the units it requires, the root last. */
-    readonly units: readonly WorkspaceUnit[];
-    /** The package the workspace builds, on the builds of the units before it. */
-    readonly root: WorkspaceUnit;
-    /** The units, by package name. */
-    readonly #named: ReadonlyMap<string, WorkspaceUnit>;
+    /** The directory the workspace was opened at, whose package `package` takes by default. */
+    readonly directory: string;
     /** The compilers the units compile with, and the store they build into. */
-    readonly #compilers: WorkspaceCompilers;
+    readonly compilers: WorkspaceCompilers;
     /** The fingerprint of the toolchain building the units. */
-    readonly #toolchain: Digest;
+    readonly toolchain: Digest;
     /** The files of the git checkout enclosing the workspace, which the units' keys read. */
-    readonly #checkout: Checkout;
+    readonly checkout: Checkout;
     /** The npm packages the lockfile locks, each stored once as a unit. */
-    readonly #npm: NpmInstallation;
+    readonly npm: NpmInstallation;
     /** Find the releases the units require from outside the workspace, absent for none. */
-    readonly #resolver: ReleaseResolver | undefined;
+    readonly resolver: ReleaseResolver | undefined;
     /** The locks of the builtins the host provides. */
-    readonly #host: readonly Lock[];
-    /** The releases resolved once a build first needs them, each with its lock and root. */
-    #releases: Promise<ReadonlyMap<string, WorkspaceRelease>> | undefined;
+    readonly host: readonly Lock[];
+    /** The real directories of the workspace's members. */
+    readonly #members: ReadonlySet<string>;
+    /** Which members compile as units: all of them, or those of each package's account. */
+    readonly #selection: WorkspaceSelection;
+    /** The units visited so far, by compiled account and directory. */
+    readonly #units = new Map<string, Map<string, WorkspaceUnit>>();
+    /** Each unit's stored build, by the options that shape it. */
+    readonly #builds = new Map<WorkspaceUnit, Map<string, Promise<DependencyBuild>>>();
+    /** Each unit's lock, by the options that shape its build. */
+    readonly #locks = new Map<WorkspaceUnit, Map<string, Promise<Digest>>>();
 
-    /** Store a closure's units in build order, the root last, with what their keys read. */
+    /** Store what every package of the workspace shares. */
     private constructor(
-        units: readonly WorkspaceUnit[],
+        directory: string,
         compilers: WorkspaceCompilers,
-        toolchain: Digest,
-        checkout: Checkout,
-        npm: NpmInstallation,
-        resolver: ReleaseResolver | undefined,
-        host: readonly Lock[],
+        shared: {
+            readonly toolchain: Digest;
+            readonly checkout: Checkout;
+            readonly npm: NpmInstallation;
+            readonly members: ReadonlySet<string>;
+        },
+        options: WorkspaceOptions,
     ) {
-        // store the units and the compilers
-        this.units = units;
-        this.root = nth(units, units.length - 1);
-        this.#named = new Map(units.map((unit) => [unit.name, unit]));
-        this.#compilers = compilers;
+        // store the directory, the compilers and what the units' keys read
+        this.directory = directory;
+        this.compilers = compilers;
+        this.toolchain = shared.toolchain;
+        this.checkout = shared.checkout;
+        this.npm = shared.npm;
+        this.#members = shared.members;
 
-        // store what the units' keys read
-        this.#toolchain = toolchain;
-        this.#checkout = checkout;
-        this.#npm = npm;
-        this.#resolver = resolver;
-        this.#host = host;
+        // store how packages resolve outside releases and select their units
+        this.resolver = options.resolver;
+        this.host = options.host ?? [];
+        this.#selection = options.selection ?? "all";
     }
 
-    /** Read the closure of Destack workspace members a package requires, in build order. */
+    /** Read a checkout's workspace once: its members, files, npm installation and toolchain. */
     static async open(
         directory: string,
         compilers: WorkspaceCompilers,
         options: WorkspaceOptions = {},
     ): Promise<Workspace> {
         // read the workspace's members by their real directories, refusing a missing one
-        const { resolver, selection = "all", host = [] } = options;
         const { environment } = compilers.store;
         const { files } = environment;
         const lockfile = await readLockfile(directory, files);
@@ -164,16 +169,6 @@ export class Workspace {
             ),
         );
 
-        // walk the Destack members the root requires through their installed links
-        const units = new Map<string, WorkspaceUnit>();
-        const locator = new PackageLocator(files);
-        const root = await files.realPath(directory);
-        const account = PackageName.split((await readPackageJson(root, files)).package.name).handle;
-        const compiled = (name: string) =>
-            selection === "all" || PackageName.split(name).handle === account;
-        const walk = { locator, files, members, compiled, units, visiting: new Set<string>() };
-        await Workspace.#visit(root, walk);
-
         // read the toolchain, the checkout and the locked npm releases the units' keys read
         const toolchain = await compilers.fingerprint.digest();
         const checkout = await Checkout.list(workspace, environment);
@@ -181,61 +176,115 @@ export class Workspace {
         const conversion = await compilers.fingerprint.conversion();
         const npm = new NpmInstallation(locked, compilers.store, conversion, environment);
 
-        return new Workspace(
-            [...units.values()],
-            compilers,
-            toolchain,
-            checkout,
-            npm,
-            resolver,
-            host,
-        );
+        return new Workspace(directory, compilers, { toolchain, checkout, npm, members }, options);
     }
 
-    /** Resolve each release the units require once a build first needs them. */
-    #resolvedReleases(): Promise<ReadonlyMap<string, WorkspaceRelease>> {
-        this.#releases ??= this.#resolveReleases();
+    /** Read the closure of Destack members a package requires, in build order, the package last. */
+    async package(directory: string = this.directory): Promise<WorkspacePackage> {
+        // select the units the package's account compiles, all of them unless selected by account
+        const { files } = this.compilers.store.environment;
+        const root = await files.realPath(directory);
+        const account = PackageName.split((await readPackageJson(root, files)).package.name).handle;
+        const scope = this.#selection === "all" ? "" : account;
+        const compiled = (name: string) =>
+            this.#selection === "all" || PackageName.split(name).handle === account;
 
-        return this.#releases;
+        // walk the Destack members it requires through their installed links, each member once per workspace
+        let units = this.#units.get(scope);
+        if (units === undefined) {
+            units = new Map();
+            this.#units.set(scope, units);
+        }
+        const locator = new PackageLocator(files);
+        const walk = {
+            locator,
+            files,
+            members: this.#members,
+            compiled,
+            units,
+            visiting: new Set<string>(),
+        };
+        const visited = await Workspace.#visit(root, walk);
+
+        return new WorkspacePackage(Workspace.#ordered(visited, units), this);
     }
 
-    /** Resolve each release the units require, and each builtin the host provides, to its lock. */
-    async #resolveReleases(): Promise<ReadonlyMap<string, WorkspaceRelease>> {
-        // take each package the host provides as a builtin from its lock
-        const releases = new Map<string, WorkspaceRelease>();
-        for (const lock of this.#host) {
-            const { name } = (await this.#store.get(lock.root)).package;
-            const root = present((await this.#store.entriesOf(lock))[name], `the root of ${name}`);
-            releases.set(name, { lock, root, source: "host" });
+    /** Take a unit's stored build once per workspace and options, starting it when first asked. */
+    unitBuild(
+        unit: WorkspaceUnit,
+        shared: WorkspaceUnitOptions,
+        start: () => Promise<DependencyBuild>,
+    ): Promise<DependencyBuild> {
+        return Workspace.#once(this.#builds, unit, shared, start);
+    }
+
+    /** Take a unit's lock once per workspace and options, starting it when first asked. */
+    unitLock(
+        unit: WorkspaceUnit,
+        shared: WorkspaceUnitOptions,
+        start: () => Promise<Digest>,
+    ): Promise<Digest> {
+        return Workspace.#once(this.#locks, unit, shared, start);
+    }
+
+    /** Take a unit's value started once per options that shape its build: versions and stamping. */
+    static #once<Value>(
+        started: Map<WorkspaceUnit, Map<string, Promise<Value>>>,
+        unit: WorkspaceUnit,
+        shared: WorkspaceUnitOptions,
+        start: () => Promise<Value>,
+    ): Promise<Value> {
+        // key the options that shape the build
+        const shaping = JSON.stringify({
+            versions: shared.versions ?? {},
+            isPrerelease: shared.isPrerelease ?? false,
+        });
+
+        // start it unless another package started it already
+        let byOptions = started.get(unit);
+        if (byOptions === undefined) {
+            byOptions = new Map();
+            started.set(unit, byOptions);
+        }
+        let value = byOptions.get(shaping);
+        if (value === undefined) {
+            value = start();
+            byOptions.set(shaping, value);
         }
 
-        // refuse the other required releases to a workspace without a resolver
-        const resolver = this.#resolver;
-        const required = new Map(
-            this.units
-                .flatMap((unit) => unit.releases)
-                .filter((each) => !releases.has(each.name))
-                .map((each) => [each.name, each] as const),
-        );
-        if (required.size > 0 && resolver === undefined) {
-            const names = [...required.keys()].toSorted().join(", ");
-            throw BuildError.of(
-                "DEPENDENCY_INVALID",
-                `workspace is invalid: it requires Destack packages '${names}' outside it and has no release resolver for them`,
-            );
+        return value;
+    }
+
+    /** Order a unit's closure so each unit comes after the units it requires, the unit last. */
+    static #ordered(
+        unit: WorkspaceUnit,
+        units: ReadonlyMap<string, WorkspaceUnit>,
+    ): WorkspaceUnit[] {
+        // walk the requirements depth first by name, placing each unit once its requirements are placed
+        const named = new Map([...units.values()].map((each) => [each.name, each] as const));
+        const ordered: WorkspaceUnit[] = [];
+        const placed = new Set<string>();
+        const pending: { readonly unit: WorkspaceUnit; readonly isExpanded: boolean }[] = [
+            { unit, isExpanded: false },
+        ];
+        for (let next = pending.pop(); next !== undefined; next = pending.pop()) {
+            // place an expanded unit once
+            if (next.isExpanded) {
+                if (!placed.has(next.unit.name)) {
+                    placed.add(next.unit.name);
+                    ordered.push(next.unit);
+                }
+            }
+            // expand an unplaced unit: itself after its requirements
+            else if (!placed.has(next.unit.name)) {
+                pending.push({ unit: next.unit, isExpanded: true });
+                for (const name of next.unit.requires.toReversed()) {
+                    pending.push({ unit: found(named, name), isExpanded: false });
+                }
+            }
         }
 
-        // resolve each other release to its lock and its root build
-        for (const dependency of required.values()) {
-            const lock = await this.#store.lock(
-                await present(resolver, "the release resolver")(dependency),
-            );
-            const entries = await this.#store.entriesOf(lock);
-            const root = present(entries[dependency.name], `the root of ${dependency.name}`);
-            releases.set(dependency.name, { lock, root, source: "resolver" });
-        }
-
-        return releases;
+        return ordered;
     }
 
     /** Visit a member and the Destack members it requires, each before the members requiring it. */
@@ -315,10 +364,79 @@ export class Workspace {
     static async #locate(lockfile: BunLockfile, files: FileSystem): Promise<string> {
         return dirname(await files.realPath(join(lockfile.directory, "bun.lock")));
     }
+}
+
+/** A package of a workspace with the units it requires, each built on its dependencies' builds. */
+export class WorkspacePackage {
+    /** The units of the package's closure, each after the units it requires, the package last. */
+    readonly units: readonly WorkspaceUnit[];
+    /** The package the units build up to, on the builds of the units before it. */
+    readonly root: WorkspaceUnit;
+    /** The workspace the package belongs to, whose state its units share. */
+    readonly workspace: Workspace;
+    /** The units, by package name. */
+    readonly #named: ReadonlyMap<string, WorkspaceUnit>;
+    /** The releases resolved once a build first needs them, each with its lock and root. */
+    #releases: Promise<ReadonlyMap<string, WorkspaceRelease>> | undefined;
+
+    /** Store a closure's units in build order, the package last, in its workspace. */
+    constructor(units: readonly WorkspaceUnit[], workspace: Workspace) {
+        // store the units, the package and its workspace
+        this.units = units;
+        this.root = nth(units, units.length - 1);
+        this.workspace = workspace;
+        this.#named = new Map(units.map((unit) => [unit.name, unit]));
+    }
+
+    /** Resolve each release the units require once a build first needs them. */
+    #resolvedReleases(): Promise<ReadonlyMap<string, WorkspaceRelease>> {
+        this.#releases ??= this.#resolveReleases();
+
+        return this.#releases;
+    }
+
+    /** Resolve each release the units require, and each builtin the host provides, to its lock. */
+    async #resolveReleases(): Promise<ReadonlyMap<string, WorkspaceRelease>> {
+        // take each package the host provides as a builtin from its lock
+        const releases = new Map<string, WorkspaceRelease>();
+        for (const lock of this.workspace.host) {
+            const { name } = (await this.#store.get(lock.root)).package;
+            const root = present((await this.#store.entriesOf(lock))[name], `the root of ${name}`);
+            releases.set(name, { lock, root, source: "host" });
+        }
+
+        // refuse the other required releases to a workspace without a resolver
+        const resolver = this.workspace.resolver;
+        const required = new Map(
+            this.units
+                .flatMap((unit) => unit.releases)
+                .filter((each) => !releases.has(each.name))
+                .map((each) => [each.name, each] as const),
+        );
+        if (required.size > 0 && resolver === undefined) {
+            const names = [...required.keys()].toSorted().join(", ");
+            throw BuildError.of(
+                "DEPENDENCY_INVALID",
+                `workspace is invalid: it requires Destack packages '${names}' outside it and has no release resolver for them`,
+            );
+        }
+
+        // resolve each other release to its lock and its root build
+        for (const dependency of required.values()) {
+            const lock = await this.#store.lock(
+                await present(resolver, "the release resolver")(dependency),
+            );
+            const entries = await this.#store.entriesOf(lock);
+            const root = present(entries[dependency.name], `the root of ${dependency.name}`);
+            releases.set(dependency.name, { lock, root, source: "resolver" });
+        }
+
+        return releases;
+    }
 
     /** The store the workspace's units build into. */
     get #store(): LocalBuildStore {
-        return this.#compilers.store;
+        return this.workspace.compilers.store;
     }
 
     /** Build the root on its dependencies' builds with the given outputs, read from the store. */
@@ -352,12 +470,15 @@ export class Workspace {
     async lockUnits(
         shared: WorkspaceUnitOptions,
     ): Promise<ReadonlyMap<string, { readonly build: DependencyBuild; readonly lock: Digest }>> {
-        // build every unit once, then lock each
+        // build every unit once, then lock each once per workspace
         const units = await this.#storeEach(shared, this.units);
         const locks = new Map<string, { readonly build: DependencyBuild; readonly lock: Digest }>();
         for (const unit of this.units) {
             const build = found(units, unit.name);
-            locks.set(unit.name, { build, lock: await this.#lock(unit, build.manifest, units) });
+            const lock = await this.workspace.unitLock(unit, shared, () =>
+                this.#lock(unit, build.manifest, units),
+            );
+            locks.set(unit.name, { build, lock });
         }
 
         return locks;
@@ -462,7 +583,7 @@ export class Workspace {
                 if (destack !== undefined) {
                     links[name] = destack;
                 } else if (directory !== undefined) {
-                    const dependency = await this.#npm.open(directory);
+                    const dependency = await this.workspace.npm.open(directory);
                     links[name] = await this.#installed(dependency, index.installed);
                 }
             }
@@ -499,7 +620,7 @@ export class Workspace {
 
     /** Store an npm unit's build once, recording which unit each stored build is. */
     async #installed(unit: NpmUnit, installed: Map<Digest, NpmUnit>): Promise<Digest> {
-        const { manifest } = await this.#npm.store(unit);
+        const { manifest } = await this.workspace.npm.store(unit);
         installed.set(manifest, unit);
 
         return manifest;
@@ -554,7 +675,7 @@ export class Workspace {
     ): Promise<Result> {
         const dependencies = await this.storeDependencies({});
 
-        return await this.#compilers.use(this.root.directory, (compiler) =>
+        return await this.workspace.compilers.use(this.root.directory, (compiler) =>
             work(compiler, dependencies),
         );
     }
@@ -569,10 +690,13 @@ export class Workspace {
         shared: WorkspaceUnitOptions,
         units: readonly WorkspaceUnit[],
     ): Promise<ReadonlyMap<string, DependencyBuild>> {
-        // start every unit at once after the units it requires, as the pool leases compilers in turn
+        // start every unit at once after the units it requires, each once per workspace, as the pool leases compilers in turn
         const started = new Map<string, Promise<DependencyBuild>>();
         for (const unit of units) {
-            started.set(unit.name, this.#storeUnit(unit, started, shared));
+            const build = this.workspace.unitBuild(unit, shared, () =>
+                this.#storeUnit(unit, started, shared),
+            );
+            started.set(unit.name, build);
         }
         // let every started unit settle, as Cargo drains running jobs, then refuse the first failure
         const settled = await Promise.allSettled(
@@ -621,7 +745,7 @@ export class Workspace {
         isPrerelease: boolean,
     ): Promise<Digest> {
         // key the unit by its sources as they read now
-        const sources = await this.#checkout.identify(unit.directory);
+        const sources = await this.workspace.checkout.identify(unit.directory);
         const key = await this.#key(unit, options, sources, isPrerelease);
 
         // build it once when missing
@@ -629,7 +753,7 @@ export class Workspace {
             // stamp a dev build at its time and key
             const at = this.#store.environment.clock.now();
             const version = Version.dev(unit.packageJson.package.version, at, key);
-            const versions = { ...Workspace.#versionsOf(options), [unit.name]: version };
+            const versions = { ...WorkspacePackage.#versionsOf(options), [unit.name]: version };
             const stamped = isPrerelease ? { ...options, versions } : options;
 
             // evaluate its declarations and compile it on them, in one request
@@ -698,7 +822,7 @@ export class Workspace {
         // open each npm dependency and list its closure's releases by name, version and integrity
         const releases = new Set<string>();
         for (const directory of unit.npm.values()) {
-            for (const each of (await this.#npm.open(directory)).closure()) {
+            for (const each of (await this.workspace.npm.open(directory)).closure()) {
                 const { package: released, integrity } = each.release;
                 releases.add(`${released.name}@${released.version} ${integrity}`);
             }
@@ -772,8 +896,8 @@ export class Workspace {
         checkout: Digest,
     ): Promise<Record<string, unknown>> {
         return {
-            toolchain: this.#toolchain,
-            conversion: this.#npm.conversion,
+            toolchain: this.workspace.toolchain,
+            conversion: this.workspace.npm.conversion,
             checkout,
             outputs: options.outputs,
             configuration:
@@ -790,7 +914,7 @@ export class Workspace {
         unit: WorkspaceUnit,
         work: (compiler: Compiler) => Promise<Result>,
     ): Promise<Result> {
-        return await this.#compilers.use(unit.directory, work).catch((cause: unknown) => {
+        return await this.workspace.compilers.use(unit.directory, work).catch((cause: unknown) => {
             // keep a declared failure as it is
             if (DomainError.is(cause)) {
                 throw cause;
@@ -806,7 +930,7 @@ export class Workspace {
 
     /** Digest a file's bytes, null for a missing file. */
     async #digestFile(path: string): Promise<string | null> {
-        const { files, crypto } = this.#compilers.store.environment;
+        const { files, crypto } = this.workspace.compilers.store.environment;
         try {
             return await Digest.of(await files.readFile(path), crypto);
         } catch (error) {

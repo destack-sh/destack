@@ -330,7 +330,9 @@ test("load a listed package's extension without walking its dependencies, and bu
     await using store = await LocalBuildStore.temporary(environment);
     await using compilers = await CompilerPool.open(store, async () => Toolchain.workspace());
     const units = async () =>
-        (await Workspace.open(directory, compilers)).units.map((unit) => unit.name);
+        (await (await Workspace.open(directory, compilers)).package()).units.map(
+            (unit) => unit.name,
+        );
     // build the development dependencies as no units
     const developed = await units();
 
@@ -425,11 +427,11 @@ test("refuse what a module an extension generates imports until the package decl
     );
     await using store = await LocalBuildStore.temporary(environment);
     const compilers = await CompilerPool.open(store, async () => Toolchain.workspace());
-    const workspace = await Workspace.open(directory, compilers);
-    const build = await workspace.build({ outputs: request.outputs });
+    const workspacePackage = await (await Workspace.open(directory, compilers)).package();
+    const build = await workspacePackage.build({ outputs: request.outputs });
 
     // run the generated entry with the leaf's locked build placed beside it
-    const lock = await workspace.lock(await build.digest());
+    const lock = await workspacePackage.lock(await build.digest());
     const entries = await store.entriesOf(await store.lock(lock));
     const leaf = present(entries["@fixture/leaf"], "the leaf build");
     const destination = join(root, "deployed");
@@ -545,7 +547,7 @@ test("compile each output with its own exports' declarations alone", async () =>
     await using store = await LocalBuildStore.temporary(environment);
     await using compilers = await CompilerPool.open(store, async () => Toolchain.workspace());
     const build = await (
-        await Workspace.open(directory, compilers)
+        await (await Workspace.open(directory, compilers)).package()
     ).build({
         outputs: {
             bun: { kind: "module", runtime: "bun" },

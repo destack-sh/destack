@@ -157,15 +157,15 @@ test("refuse an unsupported dependency in a build as the development server does
     );
     await using store = await LocalBuildStore.temporary(environment);
     const compilers = await CompilerPool.open(store, async () => Toolchain.workspace());
-    const workspace = await Workspace.open(directory, compilers);
-    const build = await workspace.build({
+    const workspacePackage = await (await Workspace.open(directory, compilers)).package();
+    const build = await workspacePackage.build({
         outputs: { bun: { kind: "module", runtime: "bun" } },
     });
     expect({
         outputs: Object.keys(build.manifest.outputs),
         server: build.manifest.requires["@fixture/server"],
     }).toEqual({ outputs: ["bun"], server: "2026.9.0" });
-    const dependencies = await workspace.storeDependencies({});
+    const dependencies = await workspacePackage.storeDependencies({});
     expect(
         await refusal(
             compilers.use(directory, (compiler) =>
@@ -251,8 +251,8 @@ test("build a browser-safe export whose entry re-exports a sibling of a package 
     );
     await using store = await LocalBuildStore.temporary(environment);
     const compilers = await CompilerPool.open(store, async () => Toolchain.workspace());
-    const workspace = await Workspace.open(directory, compilers);
-    const build = await workspace.build({
+    const workspacePackage = await (await Workspace.open(directory, compilers)).package();
+    const build = await workspacePackage.build({
         outputs: { browser: { kind: "module", runtime: "browser" } },
     });
 

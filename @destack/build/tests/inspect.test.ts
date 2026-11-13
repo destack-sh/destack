@@ -27,8 +27,8 @@ test("inspect test bodies and fixture extensions without declaring what they con
     await files.symlink(VITEST, join(directory, "node_modules", "vitest"));
     await using store = await LocalBuildStore.temporary(environment);
     await using compilers = await CompilerPool.open(store, async () => Toolchain.workspace());
-    const workspace = await Workspace.open(directory, compilers);
-    const dependencies = await workspace.storeDependencies({});
+    const workspacePackage = await (await Workspace.open(directory, compilers)).package();
+    const dependencies = await workspacePackage.storeDependencies({});
     const inspect = async () =>
         await compilers.use(directory, (compiler) =>
             compiler.inspect({ directory, runtime: "bun", dependencies, links: {} }),
@@ -84,7 +84,9 @@ async function inspectApp(app: string): Promise<readonly string[]> {
     // inspect it on its dependencies' builds
     await using store = await LocalBuildStore.temporary(environment);
     await using compilers = await CompilerPool.open(store, async () => Toolchain.workspace());
-    const dependencies = await (await Workspace.open(directory, compilers)).storeDependencies({});
+    const dependencies = await (
+        await (await Workspace.open(directory, compilers)).package()
+    ).storeDependencies({});
     const inspected = await compilers.use(directory, (compiler) =>
         compiler.inspect({ directory, runtime: "bun", dependencies, links: {} }),
     );

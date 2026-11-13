@@ -79,9 +79,9 @@ test("build a workspace's units once, keep the application's build on a library 
     const { directory, workspace, library, application } = await layOut(environment);
     await using store = await LocalBuildStore.temporary(environment);
     await using compilers = await CompilerPool.open(store, async () => Toolchain.workspace());
-    const units = await Workspace.open(application, compilers);
+    const units = await (await Workspace.open(application, compilers)).package();
     const build = async () => {
-        const opened = await Workspace.open(application, compilers);
+        const opened = await (await Workspace.open(application, compilers)).package();
         const built = await opened.build({ outputs: OUTPUTS });
         const inputs = await opened.storeDependencies({});
         const unit = present(inputs[LIBRARY], "the library unit");
@@ -173,14 +173,14 @@ test("refuse to cache a unit whose committed sources changed after listing, buil
     ];
     await using store = await LocalBuildStore.temporary(environment);
     await using compilers = await CompilerPool.open(store, async () => Toolchain.workspace());
-    const stale = await Workspace.open(application, compilers);
+    const stale = await (await Workspace.open(application, compilers)).package();
     const greeting = join(library, "src", "greeting.ts");
     const edited = (await files.readTextFile(greeting)).replace("hello", "hi");
     await files.writeTextFile(greeting, edited);
 
     // build from the stale listing, then from a fresh one
     const refused = await refusal(stale.build({ outputs: OUTPUTS }));
-    const fresh = await Workspace.open(application, compilers);
+    const fresh = await (await Workspace.open(application, compilers)).package();
     const built = await fresh.build({ outputs: OUTPUTS });
     const lock = await store.lock(await fresh.lock(await built.digest()));
     const dependency = present(Lock.resolve(lock, lock.root, LIBRARY), "the library build");
@@ -214,7 +214,7 @@ test("build and lock a package against a release from outside its workspace, ref
     await initializeWorkspace(join(directory, "library"), { library: LIBRARY }, environment);
     await using store = await LocalBuildStore.temporary(environment);
     const compilers = await CompilerPool.open(store, async () => Toolchain.workspace());
-    const releasing = await Workspace.open(library, compilers);
+    const releasing = await (await Workspace.open(library, compilers)).package();
     const released = await releasing.build({ outputs: OUTPUTS });
     const manifest = await BuildStore.digest(released.manifest, crypto);
     const release = await releasing.lock(manifest);
@@ -231,7 +231,9 @@ test("build and lock a package against a release from outside its workspace, ref
 
     // refuse it without a resolver, then build it against the resolved release
     const refused = await refusal(
-        (await Workspace.open(application, compilers)).build({ outputs: OUTPUTS }),
+        (await (await Workspace.open(application, compilers)).package()).build({
+            outputs: OUTPUTS,
+        }),
     );
     const asked: string[] = [];
     const resolver = async (dependency: { readonly name: string }) => {
@@ -239,7 +241,7 @@ test("build and lock a package against a release from outside its workspace, ref
 
         return release;
     };
-    const resolving = await Workspace.open(application, compilers, { resolver });
+    const resolving = await (await Workspace.open(application, compilers, { resolver })).package();
     const built = await resolving.build({ outputs: OUTPUTS });
 
     // require the release's range
@@ -287,7 +289,7 @@ test("declare a builtin release in a build's requirements, leaving it out of its
     await initializeWorkspace(join(directory, "library"), { library: LIBRARY }, environment);
     await using store = await LocalBuildStore.temporary(environment);
     const compilers = await CompilerPool.open(store, async () => Toolchain.workspace());
-    const releasing = await Workspace.open(library, compilers);
+    const releasing = await (await Workspace.open(library, compilers)).package();
     const released = await releasing.build({ outputs: OUTPUTS });
     const release = await releasing.lock(await BuildStore.digest(released.manifest, crypto));
 
@@ -300,9 +302,11 @@ test("declare a builtin release in a build's requirements, leaving it out of its
         { application: "@destack/build-unit-application-fixture" },
         environment,
     );
-    const resolving = await Workspace.open(application, compilers, {
-        resolver: async () => release,
-    });
+    const resolving = await (
+        await Workspace.open(application, compilers, {
+            resolver: async () => release,
+        })
+    ).package();
     const built = await resolving.build({ outputs: OUTPUTS });
 
     // require the builtin, and lock nothing
@@ -326,7 +330,7 @@ test("declare a builtin workspace member in a build's requirements, leaving it o
     await using compilers = await CompilerPool.open(store, async () => Toolchain.workspace());
 
     // build both units
-    const opened = await Workspace.open(application, compilers);
+    const opened = await (await Workspace.open(application, compilers)).package();
     const built = await opened.build({ outputs: OUTPUTS });
     const root = await built.digest();
     expect({

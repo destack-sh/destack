@@ -8,7 +8,7 @@ Compile Destack packages into one module output per runtime, and keep the builds
 
 Workspaces build packages:
 
-- `Workspace`: a checkout's packages, each built on its dependencies' builds.
+- `Workspace`: a checkout's packages, each built once on its dependencies' builds.
 - `CompilerPool`: warm, sandboxed compilers, leased one package at a time.
 - `BuildExtension`: Vite plugins a dependency adds to the packages using it.
 - `Template`: a template package, written out as a new package.
@@ -31,12 +31,13 @@ export async function buildAndLock(store: LocalBuildStore, directory: string) {
     // build the root on its dependencies' builds
     await using compilers = await CompilerPool.open(store, async () => Toolchain.workspace());
     const workspace = await Workspace.open(directory, compilers);
-    const build = await workspace.build({ outputs: outputsOf(workspace.root.packageJson) });
+    const opened = await workspace.package();
+    const build = await opened.build({ outputs: outputsOf(opened.root.packageJson) });
 
     // store it, and lock it with every build it runs with
     const root = await store.put(build);
 
-    return await workspace.lock(root);
+    return await opened.lock(root);
 }
 ```
 
@@ -44,9 +45,8 @@ export async function buildAndLock(store: LocalBuildStore, directory: string) {
 
 ### Workspace
 
-`Workspace.open(directory, compilers, { resolver, selection, host })` reads the closure of packages a checkout's root requires, in build order.
-Each unit is keyed by its toolchain, sources and its inputs' interfaces, and compiles only on a miss.
-A package the host provides resolves to the host's lock as a builtin, and every other release to the resolver.
+`Workspace.open(directory, compilers, { resolver, selection, host })` reads a checkout once, and `workspace.package(directory)` takes a package with the units it requires.
+Each unit compiles only on a key miss, once per workspace, and the host's packages resolve to its locks.
 
 | Verb                     | What it does                                    |
 | ------------------------ | ----------------------------------------------- |
@@ -85,11 +85,11 @@ A `LocalBuildStore` also lays out a lock's tree for a runtime with `runTree`, an
 Each output is a module for one runtime, and a browser output bundles its dependencies.
 
 ```ts
-import type { Workspace } from "@destack/build";
+import type { WorkspacePackage } from "@destack/build";
 
 /** Build a library for Bun and a bundle for browsers, at a dev version. */
-export async function buildBoth(workspace: Workspace) {
-    return await workspace.build({
+export async function buildBoth(opened: WorkspacePackage) {
+    return await opened.build({
         outputs: {
             library: { kind: "module", runtime: "bun" },
             browser: { kind: "module", runtime: "browser" },
