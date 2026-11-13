@@ -132,7 +132,9 @@ postgres action:
     if [ "{{action}}" = start ] && [ ! -d "$data" ]; then
         "$bin/initdb" --pgdata "$data" --username postgres --auth trust --encoding UTF8 >/dev/null
     fi
-    "$bin/pg_ctl" --pgdata "$data" --log "$data/server.log" --options "-p 55432 -k /tmp" --wait "{{action}}"
+    # run without durability, as the test cluster's data is disposable
+    options="-p 55432 -k /tmp -c fsync=off -c synchronous_commit=off -c full_page_writes=off"
+    "$bin/pg_ctl" --pgdata "$data" --log "$data/server.log" --options "$options" --wait "{{action}}"
 
 # serve the local universe, a cloud machine per residency and the local stage's machine (local reset drops their state)
 local *arguments: (postgres "up")

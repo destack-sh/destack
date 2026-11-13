@@ -92,6 +92,11 @@ jobs:
               uses: ./.github/actions/setup-apt
               with:
                   packages: zsh age
+            - name: Run the test PostgreSQL without durability
+              env:
+                  POSTGRES: ${{ job.services.postgres.id }}
+              run: |
+                  docker exec "$POSTGRES" psql -U postgres -c "ALTER SYSTEM SET fsync = off" -c "ALTER SYSTEM SET synchronous_commit = off" -c "ALTER SYSTEM SET full_page_writes = off" -c "SELECT pg_reload_conf()"
             - name: Run the gates
               env:
                   PACKAGE: ${{ matrix.package }}
