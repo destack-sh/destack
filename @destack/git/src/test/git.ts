@@ -133,6 +133,11 @@ export class History {
         return mark;
     }
 
+    /** Point a reference at a commit already written. */
+    reset(name: string, commit: string): void {
+        this.#commands += `reset ${name}\nfrom ${commit}\n\n`;
+    }
+
     /** Delete a reference. */
     delete(name: string): void {
         this.#commands += `reset ${name}\nfrom ${ZERO}\n\n`;
