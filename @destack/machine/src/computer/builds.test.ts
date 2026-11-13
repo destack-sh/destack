@@ -114,10 +114,8 @@ async function servedForge(home: TestComputer, residency: Identifier<"space">, p
     const database = (await machine.space(residency)).database;
     const deployed = async () =>
         (
-            await stackObject.Database.installed(
-                Snapshot.live(database),
-                residency,
-                async (_packageId, lock) => (await machine.space(residency)).builds.root(lock),
+            await (await machine.space(residency)).host.builds(async (_packageId, lock) =>
+                (await machine.space(residency)).builds.open(lock),
             )
         ).find(
             (entry) =>
@@ -309,7 +307,7 @@ test(
         const packages = await Promise.all(
             builds.map(async (row) => {
                 const lock = present(row.lock, "the lock");
-                const reader = await (await machine.space(space)).builds.root(lock);
+                const reader = await (await machine.space(space)).builds.open(lock);
 
                 return PackageManifest.package(reader.manifest).id;
             }),

@@ -325,7 +325,7 @@ export class CheckoutServer {
         const client = await this.connect(stackPackage, login, spaceId);
         const built = await this.build(client, spaceId, selection);
         const { builds } = await this.machine.space(spaceId);
-        const reader = await builds.root(built.lock);
+        const reader = await builds.open(built.lock);
 
         return { selection, built, client, builds, reader };
     }

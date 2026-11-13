@@ -86,7 +86,7 @@ export class WorkerdRuntime implements Runtime {
     /** The randomness the instances' secrets draw from. */
     readonly #random: Random;
     /** Read the space's builds, which map a build's imports and open its dependencies. */
-    readonly #builds: () => Pick<SpaceBuildStore, "imports" | "contents" | "root">;
+    readonly #builds: () => Pick<SpaceBuildStore, "imports" | "contents" | "open">;
     /** The instances starting and running. */
     readonly #registry = new InstanceRegistry<Runner>();
 
@@ -119,7 +119,7 @@ export class WorkerdRuntime implements Runtime {
         /** The randomness the instances' secrets draw from. */
         readonly random: Random;
         /** Read the space's builds, which map a build's imports and open its dependencies. */
-        readonly builds: () => Pick<SpaceBuildStore, "imports" | "contents" | "root">;
+        readonly builds: () => Pick<SpaceBuildStore, "imports" | "contents" | "open">;
     }) {
         // set the objects and facets, the space, its egress, the sampling and the spaces' identities
         this.#instances = options.instances;
@@ -217,7 +217,7 @@ export class WorkerdRuntime implements Runtime {
         input: readonly JsonValue[],
     ): Promise<JsonValue> {
         // load the root's modules beside a module calling the export
-        const build = await this.#builds().root(lock);
+        const build = await this.#builds().open(lock);
         const modules = await this.#modules(build, lock);
         const main = JSON.stringify(`./${await build.digest()}/${path}`);
         const isolate = this.#loader.get(this.#random.bytes(SECRET_BYTES).toHex(), async () => ({

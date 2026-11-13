@@ -193,7 +193,9 @@ export class BuildRunner {
 
     /** Read the locks of the builtins the machine links. */
     async #builtins(): Promise<readonly Lock[]> {
-        return [...(await this.#machine.cache.linkedLocks()).values()];
+        const { cache, releases } = this.#machine;
+
+        return [...(await cache.linkedLocks(releases)).values()];
     }
 
     /** Pull a required release's lock from its publisher's forge, with every build it lists. */

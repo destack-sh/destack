@@ -104,7 +104,7 @@ export type GatewaySpace = Pick<
     /** The space's builds, read through to the machine's cache. */
     readonly builds: Pick<
         SpaceBuildStore,
-        "pullRoot" | "contents" | "referrer" | "file" | "imports" | "get"
+        "root" | "contents" | "referrer" | "file" | "imports" | "get"
     >;
     /** The space's identity and its link to the universe, which the gateway signs with. */
     readonly host: Pick<SpaceHost, "identityOf" | "contain" | "database"> & {

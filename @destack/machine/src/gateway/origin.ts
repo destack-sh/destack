@@ -571,7 +571,7 @@ export class ViewOrigin {
                 revision.buildId,
             );
             const packageId = PackageId.parse(found.installation.packageId);
-            const root = await this.#space.builds.pullRoot(packageId, built.lock);
+            const root = await this.#space.builds.root(packageId, built.lock);
 
             return { lock: built.lock, reader: root };
         });

@@ -93,7 +93,7 @@ export function openGateway(
                 },
             },
             builds: {
-                pullRoot: refuse("pull builds"),
+                root: refuse("pull builds"),
                 contents: refuse("read builds"),
                 referrer: refuse("read code indexes"),
                 file: refuse("read code indexes"),

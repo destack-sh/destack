@@ -32,7 +32,7 @@ import { ResourceContext } from "@destack/resource/context";
 import { Health, type PackageHandler } from "@destack/object/server";
 import { defineWorkload, type WorkloadContext, WorkloadInstance } from "@destack/object/workload";
 import { type Digest, type Identifier, present } from "@destack/schema";
-import { Database, Rollout, rollout } from "@destack/stack/object";
+import { Rollout, rollout } from "@destack/stack/object";
 import stackPackage, { STACK_INSTALLATION } from "@destack/stack/package";
 import {
     type PublishStore,
@@ -42,6 +42,7 @@ import {
     SpaceStore,
     type SpaceStart,
     SpaceHost,
+    type InstallationBuild,
     type SpaceMachine,
     type SpaceRole,
 } from "@destack/stack/server";
@@ -86,7 +87,7 @@ export interface SpaceRun {
     /** The space's role on the machine this start serves. */
     readonly role: SpaceRole;
     /** Apply a changed installed set in this start, the unchanged installations served on. */
-    readonly apply: (installed: Awaited<ReturnType<typeof Database.installed>>) => Promise<void>;
+    readonly apply: (installed: readonly InstallationBuild[]) => Promise<void>;
     /** Start the workload again, once the space's role here changed. */
     readonly restart: () => void;
 }
@@ -381,16 +382,13 @@ export class Space {
         return this.host.controller(() => this.#reconcile());
     }
 
-    /** Retain the builds the space runs and waits for in the machine's cache. */
+    /** Retain the builds the space runs, records and waits for in the machine's cache. */
     async #root(
-        installed: Awaited<ReturnType<typeof Database.installed>>,
+        installed: readonly InstallationBuild[],
         unavailable: readonly Digest[],
     ): Promise<void> {
-        const { cache } = this.machine;
-        const locks = installed.map((each) =>
-            cache.resolve(each.rollout.installation.packageId, each.lock),
-        );
-        await cache.retain(this.id, [...locks, ...unavailable]);
+        const locks = installed.flatMap((each) => [each.lock, each.recorded]);
+        await this.machine.cache.retain(this.id, [...locks, ...unavailable]);
     }
 
     /** Apply a primary's installed set in place, then report whether it serves each revision. */
@@ -420,25 +418,24 @@ export class Space {
 
     /** Read a primary's installed set from the cache or its forges, leaving out absent builds. */
     async #installed(source: "cache" | "forges"): Promise<{
-        readonly installed: Awaited<ReturnType<typeof Database.installed>>;
+        readonly installed: readonly InstallationBuild[];
         readonly unavailable: readonly Digest[];
     }> {
-        // open each build the cache has, or pull it, noting one that is absent or a forge answers as unavailable
+        // open the lock each installation runs, noting an unavailable one
         const unavailable: Digest[] = [];
         const open = async (packageId: PackageId, lock: Digest) => {
             // open a cached lock's root
             if (source === "cache") {
-                const resolved = this.builds.cache.resolve(packageId, lock);
-                const isCached = await this.builds.contains(resolved);
+                const isCached = await this.builds.contains(lock);
                 if (!isCached) {
                     unavailable.push(lock);
                 }
 
-                return isCached ? await this.builds.root(resolved) : undefined;
+                return isCached ? await this.builds.open(lock) : undefined;
             }
             // pull a lock
             else {
-                return await this.builds.pullRoot(packageId, lock).catch((error: unknown) => {
+                return await this.builds.root(packageId, lock).catch((error: unknown) => {
                     if (!PackageError.is(error, "FILE_UNAVAILABLE")) {
                         throw error;
                     }
@@ -448,7 +445,7 @@ export class Space {
                 });
             }
         };
-        const installed = await Database.installed(Snapshot.live(this.database), this.id, open);
+        const installed = await this.host.builds(open);
 
         return { installed, unavailable };
     }
@@ -561,7 +558,7 @@ export class Space {
 
     /** Serve an installed set in this start: load, apply and record its changed servers. */
     async #apply(
-        installed: Awaited<ReturnType<typeof Database.installed>>,
+        installed: readonly InstallationBuild[],
         start: SpaceStart,
         context: WorkloadContext,
     ): Promise<void> {
@@ -576,7 +573,7 @@ export class Space {
     }
 
     /** Read the mounts the installed set's packages declare. */
-    static #mounts(installed: Awaited<ReturnType<typeof Database.installed>>): Mount[] {
+    static #mounts(installed: readonly InstallationBuild[]): Mount[] {
         return installed.flatMap((entry) => {
             // read the mounts the package declares, none for a library
             const { installationId } = entry.rollout;
