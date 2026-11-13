@@ -9,8 +9,14 @@ const ENVIRONMENT_PACKAGE = /[\\/]@destack[\\/]environment[\\/]/u;
 
 /** The Destack settings of a lint configuration, as configure writes them. */
 const lintSettings = schema.object({
-    /** The packages, by directory relative to the settings root ("." for the root) and name. */
-    packages: schema.array(schema.object({ directory: schema.string(), name: schema.string() })),
+    /** The packages, by directory relative to the settings root ("." for the root), name and description. */
+    packages: schema.array(
+        schema.object({
+            directory: schema.string(),
+            name: schema.string(),
+            description: schema.string().exactOptional(),
+        }),
+    ),
     /** The role of each Destack package the packages are or depend on, by name. */
     roles: schema.record(schema.string(), PackageRole),
     /** The modules the packages start: `bin`, entrypoints, Bun scripts and preloads. */
@@ -39,14 +45,16 @@ export function isPackageFile(filename: string, settings: unknown): boolean {
 }
 
 /** Find the package of a source file among those the lint settings list, the innermost one. */
-export function packageOf(filename: string, settings: unknown): string | undefined {
+export function packageOf(
+    filename: string,
+    settings: unknown,
+): LintSettings["packages"][number] | undefined {
     const path = filename.replaceAll("\\", "/");
     const containing = LintSettings.read(settings).packages.filter(
         ({ directory }) => directory === "." || path.includes(`/${directory}/`),
     );
 
-    return containing.toSorted((left, right) => right.directory.length - left.directory.length)[0]
-        ?.name;
+    return containing.toSorted((left, right) => right.directory.length - left.directory.length)[0];
 }
 
 /** Report whether a source file is a program entrypoint or a tool's configuration module. */

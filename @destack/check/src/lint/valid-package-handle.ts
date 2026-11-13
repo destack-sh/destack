@@ -1,8 +1,8 @@
-import { isPackageFile } from "./package.ts";
+import { isPackageFile, packageOf } from "./package.ts";
 import { isTestFile } from "./word.ts";
 import type { Rule } from "@oxlint/plugins";
 
-/** Require one package handle, default-exported from src/package.ts. */
+/** Require one package handle, default-exported from src/package.ts, described as its package.json. */
 export const validPackageHandle: Rule = {
     meta: {
         type: "problem",
@@ -11,6 +11,8 @@ export const validPackageHandle: Rule = {
         messages: {
             location: "declare the package handle in src/package.ts",
             missing: "export default definePackage(...) from src/package.ts",
+            description:
+                "set package.json's description to the handle's, '{{ handle }}', or write the handle's as plain t`...` text",
         },
     },
     create(context) {
@@ -29,6 +31,35 @@ export const validPackageHandle: Rule = {
                 }
                 if (!isHandleModule || node.parent?.type !== "ExportDefaultDeclaration") {
                     context.report({ node, messageId: "location" });
+                    return;
+                }
+
+                // require package.json's description to read as the handle's in the source locale
+                const [options] = node.arguments;
+                const property =
+                    options?.type === "ObjectExpression"
+                        ? options.properties.find(
+                              (each) =>
+                                  each.type === "Property" &&
+                                  each.key.type === "Identifier" &&
+                                  each.key.name === "description",
+                          )
+                        : undefined;
+                const value = property?.type === "Property" ? property.value : undefined;
+                const handle =
+                    value?.type === "TaggedTemplateExpression" &&
+                    value.tag.type === "Identifier" &&
+                    value.tag.name === "t" &&
+                    value.quasi.expressions.length === 0
+                        ? value.quasi.quasis[0]?.value.cooked
+                        : undefined;
+                const manifest = packageOf(context.filename, context.settings)?.description;
+                if (value !== undefined && (handle === undefined || handle !== manifest)) {
+                    context.report({
+                        node: value,
+                        messageId: "description",
+                        data: { handle: handle ?? "" },
+                    });
                 }
             },
             Program(node) {

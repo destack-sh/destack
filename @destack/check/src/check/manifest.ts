@@ -6,6 +6,8 @@ import { schema } from "@destack/schema";
 export const Manifest = schema.looseObject({
     /** The package name. */
     name: schema.string().exactOptional(),
+    /** What the package does, in one sentence. */
+    description: schema.string().exactOptional(),
     /** The runtime dependencies. */
     dependencies: schema.record(schema.string(), schema.string()).exactOptional(),
     /** The development dependencies. */

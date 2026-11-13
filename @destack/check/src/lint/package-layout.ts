@@ -16,7 +16,7 @@ export const packageLayout: Rule = {
     },
     create(context) {
         // apply only to files of the listed packages
-        const name = packageOf(context.filename, context.settings);
+        const name = packageOf(context.filename, context.settings)?.name;
         if (name === undefined) {
             return {};
         }

@@ -247,6 +247,9 @@ export async function lintSettings(directory: string, files: FileSystem): Promis
         packages: members.map((member) => ({
             directory: relative(directory, member.directory).split(sep).join("/") || ".",
             name: present(member.manifest.name, `the name of ${member.directory}`),
+            ...(member.manifest.description === undefined
+                ? {}
+                : { description: member.manifest.description }),
         })),
         roles,
         entrypoints: [

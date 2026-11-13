@@ -25,6 +25,16 @@ const SETTINGS = {
 /** The module this package's bin runs. */
 const ENTRYPOINT = new URL("../src/main.ts", import.meta.url).pathname;
 
+/** The settings of a package whose package.json describes it as checking packages. */
+const DESCRIBED = {
+    destack: {
+        ...SETTINGS.destack,
+        packages: [
+            { directory: "@destack/check", name: "@destack/check", description: "Check packages." },
+        ],
+    },
+};
+
 /** The handle module path of a Destack package. */
 const PACKAGE_HANDLE = new URL("../src/package.ts", import.meta.url).pathname;
 /** The index module path of a Destack package. */
@@ -892,6 +902,11 @@ tester.run("valid-package-handle", rules["valid-package-handle"], {
     valid: [
         { code: "export default definePackage({});", filename: PACKAGE_HANDLE, settings: SETTINGS },
         { code: "const notes = definePackage({});", filename: TEST, settings: SETTINGS },
+        {
+            code: "export default definePackage({ description: t`Check packages.` });",
+            filename: PACKAGE_HANDLE,
+            settings: DESCRIBED,
+        },
     ],
     invalid: [
         {
@@ -905,6 +920,18 @@ tester.run("valid-package-handle", rules["valid-package-handle"], {
             filename: SOURCE,
             settings: SETTINGS,
             errors: [{ messageId: "location" }],
+        },
+        {
+            code: "export default definePackage({ description: t`Lint packages.` });",
+            filename: PACKAGE_HANDLE,
+            settings: DESCRIBED,
+            errors: [{ messageId: "description", data: { handle: "Lint packages." } }],
+        },
+        {
+            code: "export default definePackage({ description: t`Check ${count} packages.` });",
+            filename: PACKAGE_HANDLE,
+            settings: DESCRIBED,
+            errors: [{ messageId: "description", data: { handle: "" } }],
         },
     ],
 });
