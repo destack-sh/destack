@@ -272,7 +272,7 @@ const styles = style.create({
         margin: 0,
         padding: 0,
         rowGap: "1rem",
-        width: "min(22rem, calc(100vw - 2rem))",
+        width: "min(26rem, calc(100vw - 2rem))",
     },
     item: {
         display: "grid",
