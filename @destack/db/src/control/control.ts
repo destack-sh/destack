@@ -1139,7 +1139,7 @@ export class ControlLoop {
             "destack.controller.pass",
             { ...attributes, "destack.key": work.key },
             run,
-            isFollow ? {} : { duration: { attributes } },
+            { duration: isFollow ? false : { attributes } },
         );
     }
 
