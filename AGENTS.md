@@ -217,8 +217,9 @@ Name the thing itself, plainly:
 - **WN01** Names MUST be obvious, clear and idiomatic to their language and topic.
 - **WN02** Names SHOULD use shorter, stronger nouns and verbs.
 - **WN03** Names SHOULD name the thing itself, not where it came from, what it is for or what stage it has reached (e.g., `Permission`, not `DeclaredPermission`; `Log`, not `ChangeLog`).
-- **WN04** Idiomatic, independent / namespaced nouns SHOULD be preferred over "verbed" nouns (e.g., `Outcome` over `SettledMutation`, `Submission` over `Pending`, `Advance` over `Applied`, `Call` over `Invocation`); participle nouns generally imply that the model is over-reified in the state dimension.
-- **WN05** Names MUST describe actual behavior or purpose, and where applicable shouuld immediately reveal their purpose and mechanism (e.g., a function that creates or updates is `upsert*`, one that allocates conditionally is `allocate*_maybe` or `allocate*_if*`).
+- **WN04** Idiomatic, independent, shorter / namespaced nouns SHOULD be preferred over "verbed nouns" (e.g., `Outcome` over `SettledMutation`, `Submission` over `Pending`, `Advance` over `Applied`, `Call` over `Invocation`); participle nouns generally imply that the model is over-reified in the state dimension.
+- **WN05** Relatedly, typestate or "adjective nouns" SHOULD be discouraged for the same reason and general, composable nouns SHOULD be preferred (e.g. `Mutation` with a status field over separate `PendingMutation` and `CompletedMutation`).
+- **WN06** Names MUST describe actual behavior or purpose, and where applicable shouuld immediately reveal their purpose and mechanism (e.g., a function that creates or updates is `upsert*`, one that allocates conditionally is `allocate*_maybe` or `allocate*_if*`).
 
 Use the idiomatic vocabulary with zero fluff:
 - **WN10** Names SHOULD follow Simplified Technical English (STE).
