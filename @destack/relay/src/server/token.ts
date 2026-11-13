@@ -23,7 +23,7 @@ export class TunnelToken {
     constructor(
         issuer: string,
         replica: Pick<Snapshot, "read">,
-        environment: Pick<Environment, "clock" | "crypto" | "network">,
+        environment: Pick<Environment, "clock" | "crypto" | "network" | "telemetry">,
     ) {
         this.#replica = replica;
         this.#crypto = environment.crypto;
