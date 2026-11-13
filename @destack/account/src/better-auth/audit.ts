@@ -1,3 +1,4 @@
+import { HttpMethod } from "@destack/environment";
 import { CallErrorCode, Failure } from "@destack/error";
 import { AuditCaller, defineAuditAction } from "@destack/object";
 import type { Outcome } from "@destack/sync";
@@ -29,19 +30,6 @@ const READS = new Set([
     "/oauth2/userinfo",
     ...METADATA_PATHS,
     "/ok",
-]);
-
-/** The HTTP methods a request's span and duration state, any other as `_OTHER` (OpenTelemetry). */
-const METHODS: ReadonlySet<string> = new Set([
-    "CONNECT",
-    "DELETE",
-    "GET",
-    "HEAD",
-    "OPTIONS",
-    "PATCH",
-    "POST",
-    "PUT",
-    "TRACE",
 ]);
 
 /** Authentication log severity in the shared telemetry model. */
@@ -178,7 +166,7 @@ export class BetterAuthAudit {
         }
 
         // run the route in its span below the request's server span, timed by route, method and status
-        const method = METHODS.has(request.method) ? request.method : "_OTHER";
+        const method = HttpMethod.of(request.method);
         const attributes = {
             "http.route": `${this.basePath}${route}`,
             "http.request.method": method,
