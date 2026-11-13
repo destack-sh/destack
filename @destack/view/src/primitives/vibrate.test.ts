@@ -1,4 +1,4 @@
-import { TEST_START } from "@destack/test/world";
+import { TEST_START, testWorldOptions } from "@destack/test/world";
 import { testWorld } from "../test/browser.ts";
 import { BrowserSimulation } from "@destack/environment/browser/simulation";
 import { Simulation } from "@destack/environment/simulation";
@@ -36,7 +36,11 @@ afterEach(() => {
 
 test("vibrate once, or every interval until stopped", async () => {
     // vibrate once, then every half second for a second
-    await using simulation = new Simulation({ seed: 1, start: TEST_START });
+    await using simulation = new Simulation({
+        world: testWorldOptions(),
+        seed: 1,
+        start: TEST_START,
+    });
     const [once] = makeVibrate(200, {}, simulation.clock);
     once();
     const [start, stop] = makeVibrate([100, 50], { interval: 500 }, simulation.clock);
@@ -73,7 +77,11 @@ test("turn a frequency into one cycle of vibration and pause", () => {
 
 test("pulse a number of times a second, restarting at a changed frequency", async () => {
     // pulse at a fixed frequency
-    await using simulation = new Simulation({ seed: 1, start: TEST_START });
+    await using simulation = new Simulation({
+        world: testWorldOptions(),
+        seed: 1,
+        start: TEST_START,
+    });
     const [start, stop] = makePulse(2, {}, simulation.clock);
     start();
     stop();

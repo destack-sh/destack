@@ -1,4 +1,4 @@
-import { TEST_START } from "@destack/test/world";
+import { TEST_START, testWorldOptions } from "@destack/test/world";
 import { testWorld } from "../test/browser.ts";
 import { BrowserSimulation } from "@destack/environment/browser/simulation";
 import { Simulation } from "@destack/environment/simulation";
@@ -12,7 +12,11 @@ const BREAKPOINTS = { sm: "640px", lg: "1024px", xl: "1280px" };
 
 test("match each breakpoint whose minimum width the viewport reaches, keyed by the last", async () => {
     // match nothing, then small, then small and large
-    await using simulation = new Simulation({ seed: 1, start: TEST_START });
+    await using simulation = new Simulation({
+        world: testWorldOptions(),
+        seed: 1,
+        start: TEST_START,
+    });
     const media = [
         {},
         { "(min-width: 640px)": true },
@@ -39,7 +43,11 @@ test("match each breakpoint whose minimum width the viewport reaches, keyed by t
 
 test("query breakpoints as minimum widths by default, or as another feature", async () => {
     // record the queries each feature asks the display
-    await using simulation = new Simulation({ seed: 1, start: TEST_START });
+    await using simulation = new Simulation({
+        world: testWorldOptions(),
+        seed: 1,
+        start: TEST_START,
+    });
     const queries = [undefined, "max-width"].map((mediaFeature, index) => {
         const tab = new BrowserSimulation(simulation).environment(`${index}`);
         const media = vi.spyOn(tab.display, "media");
