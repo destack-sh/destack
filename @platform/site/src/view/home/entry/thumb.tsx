@@ -2,7 +2,7 @@ import * as style from "@destack/style";
 import { media } from "@destack/style/media.stylex";
 import { color, font, motion } from "@destack/theme/tokens.stylex";
 
-import { frame } from "../../layout/frame.stylex";
+import { measure } from "../../layout/measure.stylex";
 import { present } from "@destack/schema";
 import { createMemo } from "@destack/view";
 import { createFolio, folioNumber } from "../../layout/folio";
@@ -22,7 +22,7 @@ const TAB = 44;
 /** How far apart two tabs' middles sit, in CSS pixels. */
 const STEP = TAB + 3;
 
-/** The line a section's top rests on once scrolled to: the top bar, 56px as `frame.bar` sets. */
+/** The line a section's top rests on once scrolled to: the top bar, 56px as `measure.bar` sets. */
 const LINE = 56;
 
 /** Tab the page's sections down the left margin, the current tab level with its headword. */
@@ -118,7 +118,7 @@ const styles = style.create({
         display: { default: "none", [WIDE]: "grid" },
         justifyItems: "end",
         position: "fixed",
-        right: `calc(50% + ${frame.width} / 2)`,
+        right: `calc(50% + ${measure.width} / 2)`,
         rowGap: "3px",
         // rest tab 01 level with the first headword before the page is measured: the top bar,
         //  the entry's padding and half the headword's line, less half a tab

@@ -1,4 +1,5 @@
-import { frame } from "./frame.stylex";
+import { measure } from "./measure.stylex";
+import { frame } from "@destack/style/frame.stylex";
 import { color, font, stroke } from "@destack/theme/tokens.stylex";
 import * as style from "@destack/style";
 import { media } from "@destack/style/media.stylex";
@@ -42,8 +43,8 @@ const TICK_INK = `color-mix(in srgb, ${color.foreground} 32%, ${color.background
 
 /** A ruler's ticks across the frame: one per column, and quarter columns between. */
 const TICKS = {
-    column: `repeating-linear-gradient(to right, ${TICK_INK} 0 ${stroke.border}, transparent 0 calc(${frame.width} / 12))`,
-    quarter: `repeating-linear-gradient(to right, ${TICK_INK} 0 ${stroke.border}, transparent 0 calc(${frame.width} / 48))`,
+    column: `repeating-linear-gradient(to right, ${TICK_INK} 0 ${stroke.border}, transparent 0 calc(${measure.width} / ${frame.columns}))`,
+    quarter: `repeating-linear-gradient(to right, ${TICK_INK} 0 ${stroke.border}, transparent 0 calc(${measure.width} / ${frame.columns} / 4))`,
 };
 
 /** A crop mark's stroke, in the ruler's ink. */
@@ -86,10 +87,10 @@ const RING_START = `radial-gradient(circle at calc(${MARK} / 2) 50%, transparent
 const RING_END = `radial-gradient(circle at calc(100% - ${MARK} / 2) 50%, transparent 3px, ${MARK_INK} 3.5px 4.25px, transparent 4.75px)`;
 
 /** The width of a row of crossing marks' arms, reaching half an arm past each rail. */
-const ARMS_WIDTH = `calc(${frame.width} + ${MARK} - ${stroke.border})`;
+const ARMS_WIDTH = `calc(${measure.width} + ${MARK} - ${stroke.border})`;
 
 /** The width of each margin beside the frame. */
-const MARGIN = `calc((100% - ${frame.width}) / 2)`;
+const MARGIN = `calc((100% - ${measure.width}) / 2)`;
 
 /** A margin of the dot grid beside the frame, under the page's content, tiled from the rails. */
 const margin = {
@@ -152,12 +153,9 @@ export const lattice = style.create({
         borderInlineStyle: "solid",
         borderInlineWidth: { default: stroke.border, [media.maxMd]: 0 },
         display: "grid",
-        gridTemplateColumns: {
-            default: "repeat(12, minmax(0, 1fr))",
-            [media.maxMd]: "repeat(4, minmax(0, 1fr))",
-        },
+        gridTemplateColumns: `repeat(${frame.columns}, minmax(0, 1fr))`,
         marginInline: "auto",
-        maxWidth: frame.width,
+        maxWidth: measure.width,
         minWidth: 0,
         position: "relative",
         width: "100%",
@@ -165,7 +163,7 @@ export const lattice = style.create({
 
     /** A homepage section one screen tall on desktop, so every section shares one height. */
     section: {
-        height: { default: frame.section, [screen.belowDesktop]: "auto" },
+        height: { default: measure.section, [media.maxLg]: "auto" },
     },
 
     /** A band whose cells sit a hatched band apart. */
@@ -207,7 +205,7 @@ export const lattice = style.create({
         gap: "0.75rem",
         gridTemplateRows: "auto minmax(0, 1fr) auto",
         minHeight: 0,
-        padding: `1.5rem ${frame.inset}`,
+        padding: `1.5rem ${measure.inset}`,
     },
 
     /** The space between two sections: a closing rule, a blank gap, then the next head on dots. */
@@ -282,15 +280,15 @@ export const lattice = style.create({
                 `${ARMS_WIDTH} ${stroke.border}`,
                 `${ARMS_WIDTH} ${stroke.border}`,
                 `${ARMS_WIDTH} ${stroke.border}`,
-                `${frame.width} ${MARK}`,
-                `${frame.width} ${MARK}`,
-                `${frame.width} ${MARK}`,
+                `${measure.width} ${MARK}`,
+                `${measure.width} ${MARK}`,
+                `${measure.width} ${MARK}`,
                 `100% ${stroke.border}`,
                 `100% ${stroke.border}`,
                 `100% ${stroke.border}`,
-                `calc(${frame.width} - 2 * ${stroke.border}) calc(${GAP} - ${stroke.border})`,
-                `${frame.width} 8px`,
-                `${frame.width} 4px`,
+                `calc(${measure.width} - 2 * ${stroke.border}) calc(${GAP} - ${stroke.border})`,
+                `${measure.width} 8px`,
+                `${measure.width} 4px`,
             ].join(", "),
             [media.maxMd]: [
                 `100% ${stroke.border}`,
@@ -329,7 +327,7 @@ export const lattice = style.create({
             pointerEvents: "none",
             position: "absolute",
             transform: "translateX(-50%)",
-            width: frame.width,
+            width: measure.width,
         },
     },
 
@@ -352,13 +350,13 @@ export const lattice = style.create({
 
     /** The cut left of the left rail, its stroke reaching for the rail. */
     cutStart: {
-        right: `calc(50% + ${frame.width} / 2 + 8px)`,
+        right: `calc(50% + ${measure.width} / 2 + 8px)`,
     },
 
     /** The cut right of the right rail, drawn as the left one's mirror. */
     cutEnd: {
         flexDirection: "row-reverse",
-        left: `calc(50% + ${frame.width} / 2 + 8px)`,
+        left: `calc(50% + ${measure.width} / 2 + 8px)`,
     },
 
     /** The end of a cut line: a short hatched block in the signal orange. */
@@ -393,7 +391,7 @@ export const lattice = style.create({
         backgroundRepeat: "no-repeat",
         backgroundSize: `100% 8px, 100% 4px, 100% ${rule.bandHeight}`,
         display: { default: "grid", [media.maxMd]: "none" },
-        gridTemplateColumns: "repeat(12, minmax(0, 1fr))",
+        gridTemplateColumns: `repeat(${frame.columns}, minmax(0, 1fr))`,
         height: "1.75rem",
     },
 
@@ -421,8 +419,8 @@ export const lattice = style.create({
         insetInline: 0,
         justifyContent: "space-between",
         marginInline: "auto",
-        maxWidth: frame.width,
-        paddingInline: frame.inset,
+        maxWidth: measure.width,
+        paddingInline: measure.inset,
         position: "absolute",
     },
 
@@ -454,7 +452,7 @@ export const lattice = style.create({
         backgroundImage: `${RING_START}, ${RING_END}, ${MARK_ARMS}, ${MARK_STEMS}`,
         backgroundPosition: "center",
         backgroundRepeat: "no-repeat",
-        backgroundSize: `${ARMS_WIDTH} ${MARK}, ${ARMS_WIDTH} ${MARK}, ${ARMS_WIDTH} ${stroke.border}, ${frame.width} ${MARK}`,
+        backgroundSize: `${ARMS_WIDTH} ${MARK}, ${ARMS_WIDTH} ${MARK}, ${ARMS_WIDTH} ${stroke.border}, ${measure.width} ${MARK}`,
         display: { default: "block", [media.maxMd]: "none" },
         height: MARK,
         insetInline: 0,

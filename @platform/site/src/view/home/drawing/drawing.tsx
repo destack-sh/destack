@@ -1,3 +1,4 @@
+import { media } from "@destack/style/media.stylex";
 import * as style from "@destack/style";
 import { color } from "@destack/theme/tokens.stylex";
 import { createEffect, createSignal, type JSX, onSettled, useEnvironment } from "@destack/view";
@@ -6,9 +7,8 @@ import { createEventListener } from "@destack/view/primitives/event-listener";
 import { createVisibilityObserver } from "@destack/view/primitives/intersection-observer";
 import { loopFrames } from "@destack/view/primitives/raf";
 
-import { frame } from "../../layout/frame.stylex";
+import { measure } from "../../layout/measure.stylex";
 import { planet } from "../../layout/mark";
-import { screen } from "../../layout/screen.stylex";
 
 /** The seconds every drawing takes to change between stacked and de-stacked. */
 export const CHANGE = 2.2;
@@ -143,17 +143,17 @@ export function DrawingFrame(properties: {
     let drawing: HTMLDivElement | undefined;
     let stage: HTMLDivElement | undefined;
     const [height, setHeight] = createSignal<number | undefined>(undefined);
-    const measure = () => {
+    const measureHeight = () => {
         const entry = drawing?.parentElement?.querySelector("header");
         setHeight(entry === null || entry === undefined ? undefined : entry.offsetHeight);
     };
-    createEventListener(() => window, "resize", measure, { passive: true });
+    createEventListener(() => window, "resize", measureHeight, { passive: true });
 
     // shift the drawing by how far the middle of its lines sits from its box's, once drawn
     const [shift, setShift] = createSignal({ x: 0, y: 0 });
     onSettled(() => {
         // size the frame to its entry first
-        measure();
+        measureHeight();
 
         // measure the lines of the drawing as first drawn, at the stage's scale
         const sketch = stage?.querySelector("svg");
@@ -308,17 +308,17 @@ export function RingedPlanet(properties: { id: string; radius: number; spacing: 
 /** The drawing styles. */
 export const styles = style.create({
     drawing: {
-        display: { default: "grid", [screen.belowDesktop]: "none" },
+        display: { default: "grid", [media.maxLg]: "none" },
         gridTemplateColumns: "minmax(0, 1fr)",
         gridTemplateRows: "minmax(0, 1fr)",
-        height: frame.entry,
+        height: measure.entry,
         insetInlineStart: 0,
         overflow: "visible",
         placeItems: "center",
         pointerEvents: "none",
         position: "absolute",
         top: 0,
-        width: `calc(${frame.inset} + ${frame.word} + 1rem)`,
+        width: `calc(${measure.inset} + ${measure.word} + 1rem)`,
     },
     stage: {
         position: "relative",

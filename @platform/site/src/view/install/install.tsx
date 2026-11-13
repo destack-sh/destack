@@ -1,4 +1,4 @@
-import { frame } from "../layout/frame.stylex";
+import { measure } from "../layout/measure.stylex";
 import { media } from "@destack/style/media.stylex";
 import { color, font, stroke } from "@destack/theme/tokens.stylex";
 import * as style from "@destack/style";
@@ -10,7 +10,6 @@ import { press } from "../layout/press";
 import { type Download, type System, systems } from "./catalog";
 import { createDownloads } from "./download";
 import { Glyph } from "../home/figure/glyph";
-import { screen } from "../layout/screen.stylex";
 import { createCopy } from "../layout/copy";
 import { tracking, typeScale } from "../layout/type.stylex";
 import { brand } from "../brand";
@@ -202,7 +201,7 @@ const styles = style.create({
         gridColumn: "1 / -1",
         gridTemplateColumns: {
             default: "repeat(3, minmax(0, 1fr))",
-            [screen.belowDesktop]: "minmax(0, 1fr)",
+            [media.maxLg]: "minmax(0, 1fr)",
         },
         listStyle: "none",
         margin: 0,
@@ -214,17 +213,17 @@ const styles = style.create({
         borderWidth: 0,
         borderInlineStartWidth: {
             default: 0,
-            ":not(:first-child)": { default: stroke.border, [screen.belowDesktop]: 0 },
+            ":not(:first-child)": { default: stroke.border, [media.maxLg]: 0 },
         },
         borderTopWidth: {
             default: 0,
-            ":not(:first-child)": { default: 0, [screen.belowDesktop]: stroke.border },
+            ":not(:first-child)": { default: 0, [media.maxLg]: stroke.border },
         },
         display: "grid",
         gap: "0.75rem",
         minWidth: 0,
         paddingBottom: "1.5rem",
-        paddingInline: { default: "2.25rem", [screen.belowDesktop]: frame.inset },
+        paddingInline: { default: "2.25rem", [media.maxLg]: measure.inset },
         paddingTop: "1.25rem",
         position: "relative",
     },

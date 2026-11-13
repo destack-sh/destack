@@ -24,7 +24,6 @@ import { palette } from "../../palette.stylex";
 import { accentOf, type Entry, type Line } from "../figure/item";
 import { chrome } from "../figure/chrome.stylex";
 import { browserStyles } from "../figure/browser";
-import { screen } from "../../layout/screen.stylex";
 import { isMotionReduced } from "@destack/view/motion";
 import { type Category, type Tool, toolOf, tools } from "../tool/tool";
 import { typeScale, tracking } from "../../layout/type.stylex";
@@ -505,7 +504,7 @@ const styles = style.create({
         display: "grid",
         containerType: "inline-size",
         gridTemplateRows: "auto minmax(0, 1fr)",
-        minHeight: { default: 0, [screen.belowDesktop]: "30rem", [media.maxMd]: 0 },
+        minHeight: { default: 0, [media.maxLg]: "30rem", [media.maxMd]: 0 },
         overflow: "hidden",
     },
     headLine: {

@@ -1,8 +1,8 @@
+import { media } from "@destack/style/media.stylex";
 import * as style from "@destack/style";
 
 import { lattice } from "../../layout/lattice.stylex";
 import { Constellation } from "../drawing/constellation";
-import { screen } from "../../layout/screen.stylex";
 import { Entry, type Form } from "../entry/entry";
 import { InstallWays } from "../../install/install";
 import type { Tool } from "../tool/tool";
@@ -53,7 +53,7 @@ const styles = style.create({
     section: {
         gridTemplateRows: {
             default: "auto auto minmax(0, 1fr) auto",
-            [screen.belowDesktop]: "auto",
+            [media.maxLg]: "auto",
         },
     },
     install: {

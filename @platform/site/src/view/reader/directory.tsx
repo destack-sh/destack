@@ -1,3 +1,4 @@
+import { media } from "@destack/style/media.stylex";
 import { Icon } from "@destack/icon";
 import arrowRight from "@destack/icon/phosphor/arrow-right";
 import { text } from "@destack/theme/text";
@@ -23,7 +24,6 @@ import { parseAsInteger, useQueryState } from "@destack/view/router";
 import { type ContentEntry, formatDate } from "../content/presentation";
 import { PageHeader } from "./header";
 import { publicationStyles } from "./publication.stylex";
-import { screen } from "../layout/screen.stylex";
 import { Picture } from "@destack/view/media";
 
 /** The width a cover takes: the column on phones, a third of it on wider screens. */
@@ -276,7 +276,7 @@ const styles = style.create({
     filter: {
         justifySelf: "start",
         marginBottom: "1.5rem",
-        display: { default: "inline-flex", [screen.reader]: "none" },
+        display: { default: "inline-flex", [media.lg]: "none" },
     },
     list: {
         borderBlockWidth: stroke.border,

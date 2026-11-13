@@ -1,4 +1,4 @@
-import { frame } from "../../layout/frame.stylex";
+import { measure } from "../../layout/measure.stylex";
 import { color, font, motion, stroke } from "@destack/theme/tokens.stylex";
 import { present } from "@destack/schema";
 import * as style from "@destack/style";
@@ -427,7 +427,7 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
 
     // keep the drawing's place within the water canvas, measured only when the layout changes
     const board = { offset: 0, shift: 0, width: 0, height: 0, depth: 0 };
-    const measure = () => {
+    const measureBoard = () => {
         // read the drawing's offset and size within the water canvas
         const bounds = elements().drawing.getBoundingClientRect();
         const origin = elements().water.getBoundingClientRect();
@@ -530,7 +530,7 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
     // rest the water on its line, and again through resizes
     const rest = () => {
         // place the bergs and the waterline, and reveal the rows above it
-        measure();
+        measureBoard();
         waterline.place(waterlineOf(stack()));
         setMoves(moves() + 1);
         follow(waterline.level());
@@ -686,9 +686,9 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
                                     <div
                                         data-reveal-row={dryRows + index}
                                         style={{
-                                            left: `calc(${frame.cell} * ${left})`,
-                                            width: `calc(${frame.cell} * ${columnWidth})`,
-                                            top: `calc(${frame.cellRow} * ${(dryRows + index) * 9 + 4.5})`,
+                                            left: `calc(${measure.cell} * ${left})`,
+                                            width: `calc(${measure.cell} * ${columnWidth})`,
+                                            top: `calc(${measure.cellRow} * ${(dryRows + index) * 9 + 4.5})`,
                                             opacity: `calc(1 - var(--reveal-${dryRows + index}))`,
                                         }}
                                         {...style.attrs(styles.column, styles.sunkSlot)}
@@ -720,7 +720,7 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
                                     label={tapeLabel(index, present(todayScenes[today()], "scene"))}
                                     gap={index}
                                     turn={tapeTurns[index] ?? 0}
-                                    left={`calc(${frame.cell} * ${(centreOf(index) + centreOf(index + 1)) / 2})`}
+                                    left={`calc(${measure.cell} * ${(centreOf(index) + centreOf(index + 1)) / 2})`}
                                     xstyle={[
                                         styles.tape,
                                         isOpen() ? styles.tapeGone : styles.tapeBack,
@@ -771,9 +771,9 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
                                 <div
                                     data-reveal-row={5}
                                     style={{
-                                        left: `calc(${frame.cell} * ${quarterLefts[index]})`,
-                                        top: `calc(${frame.cellRow} * 49.5)`,
-                                        width: `calc(${frame.cell} * ${quarterWidth})`,
+                                        left: `calc(${measure.cell} * ${quarterLefts[index]})`,
+                                        top: `calc(${measure.cellRow} * 49.5)`,
+                                        width: `calc(${measure.cell} * ${quarterWidth})`,
                                         opacity: "var(--reveal-5)",
                                         "pointer-events": isOpen() ? "auto" : "none",
                                         translate: "0 calc((1 - var(--reveal-5)) * 40%)",
@@ -930,9 +930,9 @@ function growOutOfPlates(reveal: string): JSX.CSSProperties {
     const windows = columnLefts.map((left, index) => {
         // find the window's edges as the reveal moves them
         const end = index * third - 0.2;
-        const start = `calc(${frame.cell} * (${left} + (${end - left}) * ${reveal}))`;
+        const start = `calc(${measure.cell} * (${left} + (${end - left}) * ${reveal}))`;
         const width = `(${columnWidth} + (${third + 0.4 - columnWidth}) * ${reveal})`;
-        const stop = `calc(${frame.cell} * (${left} + (${end - left}) * ${reveal} + ${width}))`;
+        const stop = `calc(${measure.cell} * (${left} + (${end - left}) * ${reveal} + ${width}))`;
 
         // trace the window as a rectangle starting and ending on the top edge, so windows chain along it
         return `${start} 0, ${stop} 0, ${stop} 100%, ${start} 100%, ${start} 0`;
@@ -1041,8 +1041,8 @@ const styles = style.create({
     },
     shell: {
         backgroundColor: color.background,
-        paddingBlock: `1.125rem ${frame.inset}`,
-        paddingInline: frame.inset,
+        paddingBlock: `1.125rem ${measure.inset}`,
+        paddingInline: measure.inset,
         rowGap: "0.75rem",
     },
     labels: {
@@ -1054,12 +1054,12 @@ const styles = style.create({
         },
     },
     drawingLabel: {
-        gridColumn: { default: "1 / 9", [screen.belowDesktop]: "1 / -1" },
+        gridColumn: { default: "1 / 9", [media.maxLg]: "1 / -1" },
     },
     layersLabel: {
-        display: { default: "block", [screen.belowDesktop]: "none" },
+        display: { default: "block", [media.maxLg]: "none" },
         gridColumn: "9 / -1",
-        paddingInlineStart: frame.inset,
+        paddingInlineStart: measure.inset,
     },
     window: {
         backgroundColor: color.card,
@@ -1086,7 +1086,7 @@ const styles = style.create({
             default: "repeat(12, minmax(0, 1fr))",
             [media.maxMd]: "repeat(4, minmax(0, 1fr))",
         },
-        gridTemplateRows: `repeat(6, ${frame.stage})`,
+        gridTemplateRows: `repeat(6, ${measure.stage})`,
         margin: 0,
         minWidth: 0,
         position: "relative",
@@ -1108,7 +1108,7 @@ const styles = style.create({
     },
     list: {
         backgroundColor: color.background,
-        display: { default: "none", [screen.belowDesktop]: "grid" },
+        display: { default: "none", [media.maxLg]: "grid" },
         position: "relative",
         zIndex: 4,
         gridColumn: "1 / -1",
@@ -1117,7 +1117,7 @@ const styles = style.create({
         margin: 0,
         paddingBottom: "1rem",
         paddingTop: "0.5rem",
-        paddingInline: frame.inset,
+        paddingInline: measure.inset,
     },
     listItem: {
         borderTopColor: color.border,
@@ -1138,18 +1138,18 @@ const styles = style.create({
         lineHeight: "1.125rem",
     },
     claim: {
-        display: { default: "flex", [screen.belowDesktop]: "none" },
-        flexDirection: { default: "column", [screen.belowDesktop]: "row" },
+        display: { default: "flex", [media.maxLg]: "none" },
+        flexDirection: { default: "column", [media.maxLg]: "row" },
         gap: "0.25rem",
-        gridColumn: { default: "9 / span 4", [screen.belowDesktop]: "1 / -1" },
+        gridColumn: { default: "9 / span 4", [media.maxLg]: "1 / -1" },
         justifyContent: { default: "center", [media.maxMd]: "flex-start" },
-        paddingInline: { default: frame.inset, [media.maxMd]: "0.75rem" },
+        paddingInline: { default: measure.inset, [media.maxMd]: "0.75rem" },
         position: "relative",
         zIndex: 3,
-        alignItems: { default: null, [screen.belowDesktop]: "baseline" },
-        alignSelf: { default: null, [screen.belowDesktop]: "start" },
-        columnGap: { default: null, [screen.belowDesktop]: "1rem", [media.maxMd]: "0.625rem" },
-        paddingTop: { default: null, [screen.belowDesktop]: "0.625rem" },
+        alignItems: { default: null, [media.maxLg]: "baseline" },
+        alignSelf: { default: null, [media.maxLg]: "start" },
+        columnGap: { default: null, [media.maxLg]: "1rem", [media.maxMd]: "0.625rem" },
+        paddingTop: { default: null, [media.maxLg]: "0.625rem" },
     },
     claimLine: {
         alignItems: "baseline",
@@ -1158,7 +1158,7 @@ const styles = style.create({
         flexWrap: "wrap",
         justifyContent: "space-between",
         rowGap: "0.375rem",
-        flexGrow: { default: null, [screen.belowDesktop]: 1 },
+        flexGrow: { default: null, [media.maxLg]: 1 },
     },
     number: {
         color: color.mutedForeground,
@@ -1191,7 +1191,7 @@ const styles = style.create({
         pointerEvents: "none",
         transition: `opacity ${motion.durationShort} ${motion.easingStandard}`,
         zIndex: 3,
-        display: { default: null, [screen.belowDesktop]: "none" },
+        display: { default: null, [media.maxLg]: "none" },
     },
     litGone: {
         opacity: 0,
@@ -1205,17 +1205,17 @@ const styles = style.create({
         pointerEvents: "none",
         position: "relative",
         zIndex: 6,
-        display: { default: null, [screen.belowDesktop]: "none" },
+        display: { default: null, [media.maxLg]: "none" },
     },
     drawing: {
         display: "grid",
-        gridColumn: { default: "1 / span 8", [screen.belowDesktop]: "1 / -1" },
+        gridColumn: { default: "1 / span 8", [media.maxLg]: "1 / -1" },
         gridRow: "1 / span 6",
         gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
         gridTemplateRows: "repeat(6, minmax(0, 1fr))",
         minWidth: 0,
         position: "relative",
-        borderRightWidth: { default: stroke.border, [screen.belowDesktop]: 0 },
+        borderRightWidth: { default: stroke.border, [media.maxLg]: 0 },
     },
     fill: {
         width: "100%",
@@ -1236,7 +1236,7 @@ const styles = style.create({
         alignItems: "center",
         display: "grid",
         gridColumn: "1 / -1",
-        paddingInline: `calc(${frame.cell} * 3)`,
+        paddingInline: `calc(${measure.cell} * 3)`,
         position: "relative",
         zIndex: 1,
     },
@@ -1248,7 +1248,7 @@ const styles = style.create({
         zIndex: 1,
     },
     tape: {
-        top: `calc(${frame.cellRow} * 13.5)`,
+        top: `calc(${measure.cellRow} * 13.5)`,
         display: { default: null, [media.maxMd]: "none" },
     },
     plates: {
@@ -1270,7 +1270,7 @@ const styles = style.create({
         fontSize: typeScale.small,
         lineHeight: "1.125rem",
         opacity: 0.8,
-        display: { default: "grid", [screen.belowDesktop]: "none" },
+        display: { default: "grid", [media.maxLg]: "none" },
     },
     detailText: {
         marginLeft: "auto",
@@ -1294,7 +1294,7 @@ const styles = style.create({
         pointerEvents: "none",
         position: "absolute",
         right: 0,
-        top: `calc(${frame.stage} * ${dryRows} - 1px)`,
+        top: `calc(${measure.stage} * ${dryRows} - 1px)`,
         transition: `opacity ${motion.durationMedium} ${motion.easingStandard}`,
         zIndex: 2,
     },

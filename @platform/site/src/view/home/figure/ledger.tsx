@@ -10,7 +10,6 @@ import { ItemBadge, type ItemMark } from "./item";
 import { InlinePicker, type Option, PickerName } from "./picker";
 import { chrome } from "./chrome.stylex";
 import { ledgerVariables } from "./ledger.stylex";
-import { screen } from "../../layout/screen.stylex";
 import { typeScale, tracking } from "../../layout/type.stylex";
 import { cast } from "./cast";
 
@@ -355,7 +354,7 @@ const styles = style.create({
     ledger: {
         containerType: "inline-size",
         display: "grid",
-        minHeight: { default: 0, [screen.belowDesktop]: "30rem", [media.maxMd]: 0 },
+        minHeight: { default: 0, [media.maxLg]: "30rem", [media.maxMd]: 0 },
     },
     frame: {
         [ledgerVariables.surface]: color.background,

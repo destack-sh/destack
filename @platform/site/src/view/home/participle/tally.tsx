@@ -1,9 +1,9 @@
+import { media } from "@destack/style/media.stylex";
 import * as style from "@destack/style";
 import { createSignal } from "@destack/view";
 import { createReducedMotion } from "@destack/view/motion";
 
 import { lattice } from "../../layout/lattice.stylex";
-import { screen } from "../../layout/screen.stylex";
 import { FigureLabel } from "../entry/entry";
 import { Label, LabelRow } from "../entry/label";
 import { StackSwitch } from "../entry/switch";
@@ -80,11 +80,11 @@ export function Tally(properties: {
 /** The tally styles. */
 const styles = style.create({
     stage: {
-        gridColumn: { default: "1 / 8", [screen.belowDesktop]: "1 / -1" },
+        gridColumn: { default: "1 / 8", [media.maxLg]: "1 / -1" },
         gridTemplateRows: "auto minmax(0, 1fr)",
     },
     key: {
-        gridColumn: { default: "8 / -1", [screen.belowDesktop]: "1 / -1" },
+        gridColumn: { default: "8 / -1", [media.maxLg]: "1 / -1" },
         gridTemplateRows: "auto minmax(0, 1fr)",
     },
 });

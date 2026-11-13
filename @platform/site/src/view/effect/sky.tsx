@@ -4,7 +4,7 @@ import type { JSX } from "@destack/view";
 
 import { night } from "../theme.ts";
 import { palette } from "../palette.stylex";
-import { frame } from "../layout/frame.stylex";
+import { measure } from "../layout/measure.stylex";
 import { surface } from "../layout/lattice.stylex";
 import { Mark } from "../layout/mark";
 import { type Body, ORBITS, writeSky } from "./ephemeris";
@@ -25,13 +25,13 @@ const HOURS = "var(--sky-hours, 0)";
 const MOON_LIGHT = "var(--sky-moon-light, 1)";
 
 /** The plate's left edge in its layer, which starts a viewport left of the band's centre. */
-const PLATE_X = `calc(100vw - (24 - ${HOURS}) / 24 * ${frame.width})`;
+const PLATE_X = `calc(100vw - (24 - ${HOURS}) / 24 * ${measure.width})`;
 
 /** The height of the whole plate in the strip, 180 degrees at the scale of 360 across the frame. */
-const STRIP_HEIGHT = `calc(${frame.width} / 2)`;
+const STRIP_HEIGHT = `calc(${measure.width} / 2)`;
 
 /** The plate's top in the strip, which centres the strip on the zenith of Zurich. */
-const STRIP_Y = `calc(${frame.bar} / 2 - ${(90 - ZURICH.latitude) / 180} * ${STRIP_HEIGHT})`;
+const STRIP_Y = `calc(${measure.bar} / 2 - ${(90 - ZURICH.latitude) / 180} * ${STRIP_HEIGHT})`;
 
 /** The planets the plate draws as discs. */
 const DISCS = ["mercury", "venus", "mars", "jupiter"] as const satisfies readonly Body[];
@@ -76,7 +76,7 @@ function Place(properties: { body: Body; children: JSX.Element }) {
     return (
         <span
             style={{
-                left: `calc(50% + var(--sky-${properties.body}-x, 0) * ${frame.width})`,
+                left: `calc(50% + var(--sky-${properties.body}-x, 0) * ${measure.width})`,
                 top: `calc(var(--sky-${properties.body}-y, 0.5) * 100%)`,
             }}
             {...style.attrs(styles.place)}
@@ -166,10 +166,10 @@ const tints = style.create({
 const views = style.create({
     strip: {
         backgroundPositionY: STRIP_Y,
-        backgroundSize: `${frame.width} ${STRIP_HEIGHT}`,
+        backgroundSize: `${measure.width} ${STRIP_HEIGHT}`,
     },
     plate: {
-        backgroundSize: `${frame.width} 100%`,
+        backgroundSize: `${measure.width} 100%`,
     },
 });
 

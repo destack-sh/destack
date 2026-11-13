@@ -1,4 +1,5 @@
-import { frame } from "../layout/frame.stylex";
+import { media } from "@destack/style/media.stylex";
+import { measure } from "../layout/measure.stylex";
 import { color, font } from "@destack/theme/tokens.stylex";
 import { formatReadTime } from "../content/presentation";
 import { text } from "@destack/theme/text";
@@ -12,7 +13,6 @@ import * as style from "@destack/style";
 import type { PageSource } from "../content/source";
 import { lattice } from "../layout/lattice.stylex";
 import { publicationStyles } from "./publication.stylex";
-import { screen } from "../layout/screen.stylex";
 import { requestFrame } from "@destack/view/primitives/raf";
 
 /** Properties for the shared reading frame. */
@@ -165,10 +165,10 @@ const styles = style.create({
         gap: "0.75rem",
         gridTemplateColumns: {
             default: "minmax(0, 1fr) auto",
-            [screen.belowReader]: "auto minmax(0, 1fr) auto",
+            [media.maxLg]: "auto minmax(0, 1fr) auto",
         },
-        height: frame.bar,
-        paddingInline: frame.inset,
+        height: measure.bar,
+        paddingInline: measure.inset,
         position: "relative",
     },
     toolbarTools: {

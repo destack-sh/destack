@@ -1,4 +1,4 @@
-import { frame } from "../../layout/frame.stylex";
+import { measure } from "../../layout/measure.stylex";
 import { color, font, motion } from "@destack/theme/tokens.stylex";
 import * as style from "@destack/style";
 import { Crossfade } from "../figure/crossfade";
@@ -7,7 +7,6 @@ import { makeIntersectionObserver } from "@destack/view/primitives/intersection-
 
 import { lattice } from "../../layout/lattice.stylex";
 import { media } from "@destack/style/media.stylex";
-import { screen } from "../../layout/screen.stylex";
 import { typeScale, tracking } from "../../layout/type.stylex";
 
 /** How far beyond the screen a figure starts rendering: one screen, a quick flick's travel. */
@@ -234,23 +233,23 @@ const styles = style.create({
         display: "grid",
         alignContent: "start",
         gridColumn: "1 / -1",
-        minHeight: { default: frame.entry, [screen.belowDesktop]: "auto" },
+        minHeight: { default: measure.entry, [media.maxLg]: "auto" },
         paddingBlockStart: { default: "2.75rem", [media.maxMd]: "2.25rem" },
         paddingBlockEnd: { default: "1.75rem", [media.maxMd]: "1.5rem" },
-        paddingInline: frame.inset,
+        paddingInline: measure.inset,
         position: "relative",
         alignItems: "baseline",
-        columnGap: { default: "2rem", [screen.belowDesktop]: "0.75rem" },
+        columnGap: { default: "2rem", [media.maxLg]: "0.75rem" },
         gridTemplateAreas: {
             default: `"word title" "word sentence"`,
-            [screen.belowDesktop]: `"word" "title" "sentence"`,
+            [media.maxLg]: `"word" "title" "sentence"`,
         },
         gridTemplateColumns: {
-            default: `${frame.word} minmax(0, 1fr)`,
-            [screen.belowDesktop]: "minmax(0, 1fr)",
+            default: `${measure.word} minmax(0, 1fr)`,
+            [media.maxLg]: "minmax(0, 1fr)",
         },
-        rowGap: { default: "0.875rem", [screen.belowDesktop]: "0.5rem" },
-        scrollMarginTop: frame.bar,
+        rowGap: { default: "0.875rem", [media.maxLg]: "0.5rem" },
+        scrollMarginTop: measure.bar,
     },
     title: {
         display: "inline-block",
@@ -269,7 +268,7 @@ const styles = style.create({
         gridColumn: "1 / -1",
         margin: 0,
         paddingBlock: "0.875rem",
-        paddingInline: frame.inset,
+        paddingInline: measure.inset,
     },
     labelControl: {
         marginLeft: "auto",
@@ -309,8 +308,8 @@ const styles = style.create({
     rule: {
         backgroundImage: `repeating-linear-gradient(to bottom, ${color.border} 0 4px, transparent 0 8px)`,
         bottom: 0,
-        display: { default: "block", [screen.belowDesktop]: "none" },
-        insetInlineStart: `calc(${frame.inset} + ${frame.word} + 1rem)`,
+        display: { default: "block", [media.maxLg]: "none" },
+        insetInlineStart: `calc(${measure.inset} + ${measure.word} + 1rem)`,
         position: "absolute",
         top: 0,
         width: "1px",
@@ -318,7 +317,7 @@ const styles = style.create({
     word: {
         alignItems: "baseline",
         columnGap: "0.75rem",
-        display: { default: "grid", [screen.belowDesktop]: "flex" },
+        display: { default: "grid", [media.maxLg]: "flex" },
         flexWrap: "wrap",
         gridArea: "word",
         justifyItems: "start",
@@ -327,7 +326,7 @@ const styles = style.create({
     },
     meta: {
         color: color.mutedForeground,
-        fontSize: { default: typeScale.lead, [screen.belowDesktop]: typeScale.body },
+        fontSize: { default: typeScale.lead, [media.maxLg]: typeScale.body },
         lineHeight: 1.45,
     },
     partOfSpeech: {
@@ -339,8 +338,8 @@ const styles = style.create({
     },
     headword: {
         color: color.primary,
-        fontSize: { default: typeScale.display, [screen.belowDesktop]: typeScale.headword },
-        fontWeight: { default: 500, [screen.belowDesktop]: 600 },
+        fontSize: { default: typeScale.display, [media.maxLg]: typeScale.headword },
+        fontWeight: { default: 500, [media.maxLg]: 600 },
         letterSpacing: tracking.display,
         lineHeight: 1.15,
         whiteSpace: "nowrap",

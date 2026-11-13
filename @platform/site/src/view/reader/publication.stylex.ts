@@ -1,8 +1,7 @@
-import { frame } from "../layout/frame.stylex";
+import { measure } from "../layout/measure.stylex";
 import { media } from "@destack/style/media.stylex";
 import { color, font, stroke, weight } from "@destack/theme/tokens.stylex";
 import * as style from "@destack/style";
-import { screen } from "../layout/screen.stylex";
 
 /** The site's reading size, 17px, a step above the theme's 16px body for long articles. */
 const READING_SIZE = "1.0625rem";
@@ -18,7 +17,7 @@ export const publicationStyles = style.create({
     },
     sidebar: {
         gridColumn: "1 / span 3",
-        display: { default: null, [screen.belowReader]: "none" },
+        display: { default: null, [media.maxLg]: "none" },
     },
     sidebarContent: {
         maxHeight: "100svh",
@@ -32,17 +31,17 @@ export const publicationStyles = style.create({
         alignContent: "start",
         color: color.foreground,
         display: "grid",
-        gridColumn: { default: "4 / span 9", [screen.belowReader]: "1 / -1" },
+        gridColumn: { default: "4 / span 9", [media.maxLg]: "1 / -1" },
         minWidth: 0,
     },
     body: {
         display: "grid",
         justifySelf: "start",
-        maxWidth: `calc(44rem + ${frame.inset} * 2)`,
+        maxWidth: `calc(44rem + ${measure.inset} * 2)`,
         minWidth: 0,
         width: "100%",
         paddingBottom: "4rem",
-        paddingInline: frame.inset,
+        paddingInline: measure.inset,
     },
     reading: {
         fontSize: READING_SIZE,
@@ -63,9 +62,9 @@ export const publicationStyles = style.create({
         alignItems: "center",
         display: "flex",
         gap: "1rem",
-        height: frame.bar,
+        height: measure.bar,
         justifyContent: "space-between",
-        paddingInline: frame.inset,
+        paddingInline: measure.inset,
     },
     contextTitle: {
         color: {
@@ -84,7 +83,7 @@ export const publicationStyles = style.create({
         display: "grid",
         listStyle: "none",
         margin: 0,
-        padding: `2.5rem ${frame.inset}`,
+        padding: `2.5rem ${measure.inset}`,
     },
     collectionLink: {
         color: {
@@ -110,8 +109,8 @@ export const publicationStyles = style.create({
         rowGap: "1rem",
         columnGap: "2rem",
         justifyContent: "space-between",
-        minHeight: frame.column,
-        paddingInline: frame.inset,
+        minHeight: measure.column,
+        paddingInline: measure.inset,
     },
     paginationLink: {
         color: {

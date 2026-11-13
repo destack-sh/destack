@@ -1,3 +1,4 @@
+import { media } from "@destack/style/media.stylex";
 import * as style from "@destack/style";
 import { createEffect, createSignal } from "@destack/view";
 import { createReducedMotion } from "@destack/view/motion";
@@ -6,7 +7,6 @@ import { createVisibilityObserver } from "@destack/view/primitives/intersection-
 import { lattice } from "../../layout/lattice.stylex";
 import { BlackBox } from "../drawing/blackbox";
 import { layerCount } from "../past/stack";
-import { screen } from "../../layout/screen.stylex";
 import { Entry, FigureLabel, type Form } from "../entry/entry";
 import { Label, LabelRow } from "../entry/label";
 import { Picker } from "../figure/picker";
@@ -141,18 +141,18 @@ const styles = style.create({
     section: {
         gridTemplateRows: {
             default: "auto auto minmax(0, 1fr)",
-            [screen.belowDesktop]: "auto",
+            [media.maxLg]: "auto",
         },
     },
     app: {
-        gridColumn: { default: "1 / 8", [screen.belowDesktop]: "1 / -1" },
+        gridColumn: { default: "1 / 8", [media.maxLg]: "1 / -1" },
         gridTemplateRows: "auto minmax(0, 1fr)",
-        minHeight: { default: 0, [screen.belowDesktop]: "44rem" },
+        minHeight: { default: 0, [media.maxLg]: "44rem" },
     },
     console: {
-        gridColumn: { default: "8 / -1", [screen.belowDesktop]: "1 / -1" },
+        gridColumn: { default: "8 / -1", [media.maxLg]: "1 / -1" },
         gridTemplateRows: "auto minmax(0, 1fr)",
-        height: { default: null, [screen.belowDesktop]: "36rem" },
+        height: { default: null, [media.maxLg]: "36rem" },
         minHeight: 0,
     },
 });

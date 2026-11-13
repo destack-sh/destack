@@ -16,7 +16,7 @@ import { createAppearance } from "@destack/view/document";
 import { agentPrompt, product } from "../content/site";
 import { InstallList } from "../install/install";
 import { CommandPalette } from "./palette";
-import { frame } from "./frame.stylex";
+import { measure } from "./measure.stylex";
 import { Sky } from "../effect/sky";
 import { Mark } from "./mark";
 import { lattice } from "./lattice.stylex";
@@ -46,7 +46,7 @@ export function TopBar(properties: { readonly path: string }) {
     const appearance = createAppearance();
 
     // dismiss the phone menu when the desktop navigation becomes available
-    const isDesktop = createMediaQuery("(min-width: 768px)");
+    const isDesktop = createMediaQuery("(width >= 64rem)");
     createEffect(isDesktop, (desktop) => {
         if (desktop) {
             setIsMenuOpen(false);
@@ -263,11 +263,11 @@ const styles = style.create({
         zIndex: 1,
     },
     band: {
-        minHeight: frame.bar,
+        minHeight: measure.bar,
     },
     bar: {
         fontFamily: font.text,
-        height: frame.bar,
+        height: measure.bar,
     },
     brand: {
         alignItems: "center",
@@ -291,14 +291,14 @@ const styles = style.create({
         display: "flex",
         gridColumn: "1 / -1",
         minWidth: 0,
-        paddingInline: frame.inset,
+        paddingInline: measure.inset,
         position: "relative",
     },
     navigation: {
         alignItems: "baseline",
         color: color.foreground,
         columnGap: "1.75rem",
-        display: { default: "flex", [media.maxMd]: "none" },
+        display: { default: "flex", [media.maxLg]: "none" },
         fontFamily: font.code,
         fontSize: "0.75rem",
         letterSpacing: tracking.label,
@@ -352,11 +352,11 @@ const styles = style.create({
     },
     social: {
         color: color.foreground,
-        display: { default: "inline-flex", [media.maxMd]: "none" },
+        display: { default: "inline-flex", [media.maxLg]: "none" },
     },
     product: {
         alignItems: "center",
-        display: { default: "inline-flex", [media.maxMd]: "none" },
+        display: { default: "inline-flex", [media.maxLg]: "none" },
         gap: "0.25rem",
         paddingInline: "0.625rem",
     },
@@ -366,7 +366,7 @@ const styles = style.create({
         borderWidth: 0,
         color: color.foreground,
         cursor: "pointer",
-        display: { default: "none", [media.maxMd]: "inline-flex" },
+        display: { default: "none", [media.maxLg]: "inline-flex" },
         height: "2.75rem",
         justifyContent: "center",
         marginInlineEnd: "-0.75rem",
@@ -384,7 +384,7 @@ const styles = style.create({
         maxHeight: "100dvh",
         maxWidth: "100vw",
         overscrollBehavior: "contain",
-        padding: `0 ${frame.inset} 2rem`,
+        padding: `0 ${measure.inset} 2rem`,
         width: "100vw",
         "::backdrop": { backgroundColor: color.background },
     },
@@ -394,7 +394,7 @@ const styles = style.create({
         borderBottomStyle: "solid",
         borderBottomWidth: stroke.border,
         display: "flex",
-        height: frame.bar,
+        height: measure.bar,
         justifyContent: "space-between",
     },
     menuBrand: {

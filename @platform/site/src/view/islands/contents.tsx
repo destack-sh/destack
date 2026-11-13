@@ -1,10 +1,10 @@
+import { media } from "@destack/style/media.stylex";
 import { Icon } from "@destack/icon";
 import caretDown from "@destack/icon/phosphor/caret-down";
 import { text } from "@destack/theme/text";
 import { Popover, PopoverContent, PopoverTrigger } from "@destack/ui/popover";
 import { createSignal, type JSX } from "@destack/view";
 import * as style from "@destack/style";
-import { screen } from "../layout/screen.stylex";
 
 /** Open the article's contents from a narrow toolbar, closing once a link is followed. */
 export default function Contents(properties: { readonly children?: JSX.Element }) {
@@ -37,7 +37,7 @@ export default function Contents(properties: { readonly children?: JSX.Element }
 const styles = style.create({
     menu: {
         minWidth: 0,
-        display: { default: "inline-flex", [screen.reader]: "none" },
+        display: { default: "inline-flex", [media.lg]: "none" },
     },
     menuBody: {
         display: "grid",

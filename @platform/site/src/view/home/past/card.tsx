@@ -1,4 +1,4 @@
-import { frame } from "../../layout/frame.stylex";
+import { measure } from "../../layout/measure.stylex";
 import { font, motion } from "@destack/theme/tokens.stylex";
 import * as style from "@destack/style";
 import { createMemo, For } from "@destack/view";
@@ -12,7 +12,7 @@ import { screen } from "../../layout/screen.stylex";
 import { typeScale, tracking } from "../../layout/type.stylex";
 
 /** The height of a card: five hole rows, kept between a readable least and a most. */
-const cardHeight = `clamp(2.75rem, calc(${frame.cellRow} * 5), 4rem)`;
+const cardHeight = `clamp(2.75rem, calc(${measure.cellRow} * 5), 4rem)`;
 /** The orange corner marks around a card on the open stack: two strokes at each corner. */
 const cornerMarks = ["0 0", "100% 0", "0 100%", "100% 100%"]
     .flatMap((corner) => [

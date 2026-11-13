@@ -10,9 +10,8 @@ import { product } from "../content/site";
 import { FigureLabel } from "../home/entry/entry";
 import { Toggle } from "../home/entry/switch";
 import { Glyph } from "../home/figure/glyph";
-import { frame } from "../layout/frame.stylex";
+import { measure } from "../layout/measure.stylex";
 import { lattice } from "../layout/lattice.stylex";
-import { screen } from "../layout/screen.stylex";
 import { type Feature, features } from "./feature";
 import { FeatureHint, Hint } from "./hint";
 import { type Currency, money } from "./money";
@@ -458,7 +457,7 @@ const styles = style.create({
         display: "grid",
         gridRow: `span ${CARD_ROWS}`,
         gridTemplateRows: "subgrid",
-        padding: `2rem ${frame.inset} 2rem`,
+        padding: `2rem ${measure.inset} 2rem`,
         rowGap: "0.875rem",
     },
     quarter: {
@@ -522,7 +521,7 @@ const styles = style.create({
         rowGap: "0.75rem",
     },
     kept: {
-        display: { default: "grid", [screen.belowDesktop]: "none" },
+        display: { default: "grid", [media.maxLg]: "none" },
         visibility: "hidden",
     },
     threshold: {

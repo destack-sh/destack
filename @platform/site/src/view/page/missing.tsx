@@ -1,4 +1,4 @@
-import { frame } from "../layout/frame.stylex";
+import { measure } from "../layout/measure.stylex";
 import { media } from "@destack/style/media.stylex";
 import { text } from "@destack/theme/text";
 import { color, font, stroke, weight } from "@destack/theme/tokens.stylex";
@@ -69,7 +69,7 @@ const styles = style.create({
     page: {
         flexGrow: 1,
         gridTemplateRows: "1fr auto",
-        minHeight: `calc(${frame.column} * 3)`,
+        minHeight: `calc(${measure.column} * 3)`,
     },
     label: {
         color: color.mutedForeground,
@@ -78,7 +78,7 @@ const styles = style.create({
         gridColumn: { default: "1 / span 3", [media.maxMd]: "1 / -1" },
         letterSpacing: tracking.label,
         margin: 0,
-        padding: frame.inset,
+        padding: measure.inset,
         textTransform: "uppercase",
         borderRightWidth: { default: stroke.border, [media.maxMd]: 0 },
     },
@@ -87,7 +87,7 @@ const styles = style.create({
         display: "grid",
         gap: "1.25rem",
         gridColumn: { default: "4 / span 9", [media.maxMd]: "1 / -1" },
-        padding: frame.inset,
+        padding: measure.inset,
     },
     shallows: {
         gridColumn: "1 / -1",

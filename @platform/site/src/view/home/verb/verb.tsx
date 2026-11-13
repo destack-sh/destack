@@ -1,3 +1,4 @@
+import { media } from "@destack/style/media.stylex";
 import { present } from "@destack/schema";
 import * as style from "@destack/style";
 import { color } from "@destack/theme/tokens.stylex";
@@ -32,7 +33,6 @@ import { StackSwitch } from "../entry/switch";
 import { sources } from "./source";
 import { type Lineup, lineupAt, type Tool, toolsOf } from "../tool/tool";
 import type { Option } from "../figure/picker";
-import { screen } from "../../layout/screen.stylex";
 import { tagline } from "../../content/site";
 
 /** The milliseconds the pointer rests on a holding before the browser turns to its page. */
@@ -357,15 +357,15 @@ export function Verb(properties: {
 /** The verb section styles. */
 const styles = style.create({
     section: {
-        gridTemplateRows: { default: "auto auto minmax(0, 1fr)", [screen.belowDesktop]: "auto" },
+        gridTemplateRows: { default: "auto auto minmax(0, 1fr)", [media.maxLg]: "auto" },
     },
     stage: {
         containerType: "inline-size",
-        gridColumn: { default: "1 / 8", [screen.belowDesktop]: "1 / -1" },
-        gridTemplateRows: { default: "auto minmax(0, 1fr)", [screen.belowDesktop]: "auto 30rem" },
+        gridColumn: { default: "1 / 8", [media.maxLg]: "1 / -1" },
+        gridTemplateRows: { default: "auto minmax(0, 1fr)", [media.maxLg]: "auto 30rem" },
     },
     key: {
-        gridColumn: { default: "8 / -1", [screen.belowDesktop]: "1 / -1" },
+        gridColumn: { default: "8 / -1", [media.maxLg]: "1 / -1" },
         position: "relative",
         gridTemplateRows: "auto minmax(0, 1fr)",
     },

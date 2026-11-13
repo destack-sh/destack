@@ -6,7 +6,7 @@ import { color, font, stroke, weight } from "@destack/theme/tokens.stylex";
 import { machines, units } from "../content/generated/pricing";
 import { FigureLabel } from "../home/entry/entry";
 import { Glyph, type GlyphName } from "../home/figure/glyph";
-import { frame } from "../layout/frame.stylex";
+import { measure } from "../layout/measure.stylex";
 import { lattice } from "../layout/lattice.stylex";
 import { typeScale, tracking } from "../layout/type.stylex";
 import { FairUseHint } from "./hint";
@@ -195,7 +195,7 @@ const styles = style.create({
         alignContent: "start",
         display: "grid",
         gridColumn: { default: "span 3", [media.maxLg]: "span 6", [media.maxMd]: "1 / -1" },
-        padding: `2rem ${frame.inset}`,
+        padding: `2rem ${measure.inset}`,
         rowGap: "0.25rem",
     },
     title: {
@@ -267,7 +267,7 @@ const styles = style.create({
         alignContent: "start",
         display: "grid",
         gridColumn: { default: "span 3", [media.maxLg]: "1 / -1" },
-        paddingInline: frame.inset,
+        paddingInline: measure.inset,
         rowGap: "0.5rem",
     },
     lede: {
@@ -280,8 +280,8 @@ const styles = style.create({
         borderCollapse: "collapse",
         fontSize: typeScale.body,
         gridColumn: { default: "span 9", [media.maxLg]: "1 / -1" },
-        marginInline: frame.inset,
-        width: `calc(100% - 2 * ${frame.inset})`,
+        marginInline: measure.inset,
+        width: `calc(100% - 2 * ${measure.inset})`,
     },
     head: {
         borderBottomColor: color.border,

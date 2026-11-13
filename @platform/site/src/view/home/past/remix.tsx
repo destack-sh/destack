@@ -1,4 +1,4 @@
-import { frame } from "../../layout/frame.stylex";
+import { measure } from "../../layout/measure.stylex";
 import { color, motion } from "@destack/theme/tokens.stylex";
 import { present } from "@destack/schema";
 import * as style from "@destack/style";
@@ -1070,8 +1070,8 @@ export function Remix(properties: {
         <div
             ref={layer}
             style={{
-                height: `calc(${frame.cellRow} * ${layerRows})`,
-                width: `calc(${frame.cell} * ${boardCells})`,
+                height: `calc(${measure.cellRow} * ${layerRows})`,
+                width: `calc(${measure.cell} * ${boardCells})`,
             }}
             {...style.attrs(styles.layer)}
         >
@@ -1156,12 +1156,12 @@ const moveFadeOdd = style.keyframes({
 /** Return a card's place, as offsets a transform moves it by, and its width within the layer. */
 function span(place: Placement) {
     return {
-        "--x": `calc(${frame.cell} * ${place.left})`,
+        "--x": `calc(${measure.cell} * ${place.left})`,
         "--y":
             place.row === 0
-                ? `calc(${frame.cellRow} * ${layerRows} / 6 + ${userDrop}px)`
-                : `calc(${frame.cellRow} * ${layerRows} / 2)`,
-        width: `calc(${frame.cell} * ${place.width})`,
+                ? `calc(${measure.cellRow} * ${layerRows} / 6 + ${userDrop}px)`
+                : `calc(${measure.cellRow} * ${layerRows} / 2)`,
+        width: `calc(${measure.cell} * ${place.width})`,
     };
 }
 

@@ -1,21 +1,15 @@
 import * as style from "@destack/style";
 
-/** The site's breakpoints beside Tailwind's in `media.stylex`. */
+/** The site's ranges between the breakpoints of `media.stylex`, and its content conditions. */
 export const screen = style.defineConsts({
-    /** Windows below the homepage's desktop width. */
-    belowDesktop: "@media (max-width: 1099px)",
-    /** Windows below the desktop width that are wider than phones. */
-    tablet: "@media (min-width: 768px) and (max-width: 1099px)",
-    /** Phones wider than the smallest ones. */
-    phone: "@media (min-width: 400px) and (max-width: 767px)",
-    /** The smallest phones. */
-    smallPhone: "@media (max-width: 399px)",
-    /** Windows wide enough for the reader's side column. */
-    reader: "@media (width >= 60rem)",
-    /** Desktop windows too narrow to set the stack legend's details beside its claims. */
-    narrowDesktop: "@media (min-width: 1100px) and (max-width: 1299px)",
-    /** Desktop windows too short for a homepage section to hold every line of its figures. */
-    short: "@media (min-width: 1100px) and (max-height: 880px)",
-    /** Windows too narrow for the reader's side column. */
-    belowReader: "@media (width < 60rem)",
+    /** Tablets: from md up to lg. */
+    tablet: "@media (48rem <= width < 64rem)",
+    /** Phones wider than the smallest ones, below md. */
+    phone: "@media (400px <= width < 48rem)",
+    /** The smallest phones, whose narrow tiles wrap onto more lines. */
+    smallPhone: "@media (width < 400px)",
+    /** Desktops below xl, too narrow to set the stack legend's details beside its claims. */
+    narrowDesktop: "@media (64rem <= width < 80rem)",
+    /** Desktops too short for a homepage section to hold every line of its figures. */
+    short: "@media (width >= 64rem) and (height <= 880px)",
 });

@@ -1,4 +1,4 @@
-import { frame } from "./frame.stylex";
+import { measure } from "./measure.stylex";
 import { media } from "@destack/style/media.stylex";
 import { color, font, weight } from "@destack/theme/tokens.stylex";
 import * as style from "@destack/style";
@@ -168,7 +168,7 @@ const styles = style.create({
         zIndex: 1,
     },
     band: {
-        minHeight: frame.bar,
+        minHeight: measure.bar,
     },
     colophon: {
         color: color.foreground,
@@ -180,7 +180,7 @@ const styles = style.create({
         display: "grid",
         minWidth: 0,
         paddingBlock: { default: "3rem", [media.maxMd]: "2rem" },
-        paddingInline: frame.inset,
+        paddingInline: measure.inset,
         rowGap: "0.75rem",
     },
     column: {

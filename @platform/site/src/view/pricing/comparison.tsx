@@ -4,7 +4,7 @@ import * as style from "@destack/style";
 
 import { FigureLabel } from "../home/entry/entry";
 import { Glyph } from "../home/figure/glyph";
-import { frame } from "../layout/frame.stylex";
+import { measure } from "../layout/measure.stylex";
 import { lattice, paper } from "../layout/lattice.stylex";
 import { typeScale, tracking } from "../layout/type.stylex";
 import { plans } from "../content/generated/pricing";
@@ -191,7 +191,7 @@ const styles = style.create({
         gridColumn: "1 / -1",
         paddingBlockEnd: "2rem",
         paddingBlockStart: "0.5rem",
-        paddingInline: frame.inset,
+        paddingInline: measure.inset,
     },
     table: {
         display: "block",

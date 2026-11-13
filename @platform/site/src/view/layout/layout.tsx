@@ -9,7 +9,7 @@ import { origin, tagline } from "../content/site";
 import Shortcuts from "../islands/shortcuts";
 import TopBarIsland from "../islands/topbar";
 import { Footer } from "./footer";
-import { frame } from "./frame.stylex";
+import { measure } from "./measure.stylex";
 import { Zones } from "./sheet";
 import { paper } from "./lattice.stylex";
 
@@ -69,7 +69,7 @@ const styles = style.create({
         display: "flex",
         flexDirection: "column",
         // start the footer near the end of the first screen on short pages
-        minHeight: `calc(100svh - 2 * ${frame.bar})`,
+        minHeight: `calc(100svh - 2 * ${measure.bar})`,
         minWidth: 0,
     },
 });

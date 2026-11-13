@@ -1,3 +1,4 @@
+import { media } from "@destack/style/media.stylex";
 import * as style from "@destack/style";
 import { createSignal, onSettled, useEnvironment } from "@destack/view";
 import { createEventListener } from "@destack/view/primitives/event-listener";
@@ -10,7 +11,6 @@ import type { Tool } from "../home/tool/tool";
 import { commandEvents } from "../layout/command";
 import { Interval } from "../layout/sheet";
 import { lattice } from "../layout/lattice.stylex";
-import { screen } from "../layout/screen.stylex";
 import { type Currency, currencyOf } from "../pricing/money";
 import { Comparison, ComparisonLabel } from "../pricing/comparison";
 import { type Audience, Plans, PlansLabel } from "../pricing/plan";
@@ -157,13 +157,13 @@ const styles = style.create({
     },
     // the entry, the figure's label, then the figure taking the rest
     figure: {
-        gridTemplateRows: { default: "auto auto minmax(0, 1fr)", [screen.belowDesktop]: "auto" },
+        gridTemplateRows: { default: "auto auto minmax(0, 1fr)", [media.maxLg]: "auto" },
     },
     // the entry, the label, then the plan rows
     plans: {
         gridTemplateRows: {
             default: "auto auto repeat(4, auto) minmax(auto, 1fr)",
-            [screen.belowDesktop]: "auto",
+            [media.maxLg]: "auto",
         },
     },
 });

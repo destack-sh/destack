@@ -32,7 +32,6 @@ import { type Option, Picker } from "../figure/picker";
 import { createSteps } from "../figure/stagger";
 import { BASE_USERS, workloadOf } from "../figure/price";
 import { StackSwitch } from "../entry/switch";
-import { screen } from "../../layout/screen.stylex";
 import { createReducedMotion } from "@destack/view/motion";
 
 /** The milliseconds a row holds its service before the next row turns to its next one. */
@@ -262,19 +261,19 @@ function keyOf(rented: number) {
 /** The noun section styles. */
 const styles = style.create({
     section: {
-        gridTemplateRows: { default: "auto auto minmax(0, 1fr)", [screen.belowDesktop]: "auto" },
+        gridTemplateRows: { default: "auto auto minmax(0, 1fr)", [media.maxLg]: "auto" },
     },
     stage: {
         containerType: "inline-size",
-        gridColumn: { default: "1 / 8", [screen.belowDesktop]: "1 / -1" },
+        gridColumn: { default: "1 / 8", [media.maxLg]: "1 / -1" },
         gridTemplateRows: "auto minmax(0, 1fr)",
     },
     key: {
-        gridColumn: { default: "8 / -1", [screen.belowDesktop]: "1 / -1" },
+        gridColumn: { default: "8 / -1", [media.maxLg]: "1 / -1" },
         gridTemplateRows: "auto minmax(0, 1fr)",
     },
     window: {
         minHeight: 0,
-        height: { default: "100%", [screen.belowDesktop]: "34rem", [media.maxMd]: "36rem" },
+        height: { default: "100%", [media.maxLg]: "34rem", [media.maxMd]: "36rem" },
     },
 });

@@ -1,12 +1,10 @@
 import * as style from "@destack/style";
+import { frame } from "@destack/style/frame.stylex";
 import { screen } from "./screen.stylex";
 import { typeScale } from "./type.stylex";
 
-/** The frame width on desktop: the common 80rem container, less 24px a side when narrower. */
-const WIDTH = "min(1280px, calc(100vw - 48px))";
-
-/** The frame width on phones: the whole window. */
-const PHONE_WIDTH = "100vw";
+/** The frame's width: the window less its margins, at most the frame's widest. */
+const WIDTH = `min(${frame.max}, 100vw - 2 * ${frame.margin})`;
 
 /** The height of the top bar, the footer and toolbar rows. */
 const BAR = "56px";
@@ -24,7 +22,7 @@ const LABEL = "50px";
 const WINDOW_WIDTH = `calc(${WIDTH} - 50px)`;
 
 /** The stack figure window's inner width on phones, with their narrower inset. */
-const PHONE_WINDOW_WIDTH = `calc(${PHONE_WIDTH} - 42px)`;
+const PHONE_WINDOW_WIDTH = `calc(${WIDTH} - 42px)`;
 
 /** The stack figure's row on desktop, after its labels and its window's strip and margins. */
 const STAGE = `calc((${SECTION} - ${ENTRY} - ${LABEL} - 72px) / 6)`;
@@ -38,16 +36,12 @@ const PHONE_STAGE = "120px";
 /** The stack figure's row on the smallest phones, whose narrow tiles wrap onto more lines. */
 const SMALL_PHONE_STAGE = "136px";
 
-/** The site's twelve-column frame on desktop and four on phones, and the homepage's rhythm. */
-export const frame = style.defineVars({
+/** The site's measures on the frame: its width and columns, and the homepage's rhythm. */
+export const measure = style.defineVars({
     /** The frame width shared by every page. */
-    width: { default: WIDTH, [screen.phone]: PHONE_WIDTH, [screen.smallPhone]: PHONE_WIDTH },
-    /** One of the twelve frame columns, or four on phones; also the square module height. */
-    column: {
-        default: `calc(${WIDTH} / 12)`,
-        [screen.phone]: `calc(${PHONE_WIDTH} / 4)`,
-        [screen.smallPhone]: `calc(${PHONE_WIDTH} / 4)`,
-    },
+    width: WIDTH,
+    /** One of the frame's columns, also the square module height. */
+    column: `calc(${WIDTH} / ${frame.columns})`,
     /** The height of the top bar, the footer and toolbar rows. */
     bar: BAR,
     /** The homepage stack figure's row height, a fixed share of a column. */
