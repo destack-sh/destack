@@ -370,7 +370,12 @@ export class Log {
     }
 
     /** Read the position of the latest commit, from memory until a commit writes the log. */
-    async position(): Promise<LogPosition> {
+    position(): Promise<LogPosition> {
+        return this.database.state.telemetry.log("position", () => this.#position());
+    }
+
+    /** Read the position of the latest commit from the log's head. */
+    async #position(): Promise<LogPosition> {
         // read the head, with the tables written since the watch caught up on a shared log
         const { commits } = this.database.state;
         const caught = commits.caughtUp;
@@ -418,7 +423,12 @@ export class Log {
     }
 
     /** Read the position of some scopes' latest change to some tables, or the horizon. */
-    async changed(
+    changed(tables: readonly Table[] | "every", scopes: readonly string[]): Promise<LogPosition> {
+        return this.database.state.telemetry.log("changed", () => this.#changed(tables, scopes));
+    }
+
+    /** Seek some scopes' latest change to some tables on the log's scope index. */
+    async #changed(
         tables: readonly Table[] | "every",
         scopes: readonly string[],
     ): Promise<LogPosition> {
@@ -537,7 +547,14 @@ export class Log {
     }
 
     /** Read committed changes after a sequence, ending each page with a whole transaction. */
-    async read<Definition extends Table>(
+    read<Definition extends Table>(
+        selection: ChangeSelection<Definition>,
+    ): Promise<ChangePage<Definition>> {
+        return this.database.state.telemetry.log("read", () => this.#read(selection));
+    }
+
+    /** Read a page of committed changes and its bounds in one statement. */
+    async #read<Definition extends Table>(
         selection: ChangeSelection<Definition>,
     ): Promise<ChangePage<Definition>> {
         // read the entries and bounds in one statement

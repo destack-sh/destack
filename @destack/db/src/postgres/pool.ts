@@ -5,6 +5,7 @@ import type {} from "@destack/package/import-meta";
 import postgres from "postgres";
 import { quote } from "../dialect/quote.ts";
 import { DatabaseError } from "../error/error.ts";
+import { PoolTelemetry } from "../database/driver.ts";
 
 /** The connections of one pool: five, within the six a Worker opens per Hyperdrive. */
 const POOL_CONNECTIONS = 5;
@@ -46,6 +47,8 @@ export class PostgresPool {
     readonly #holders = new Map<postgres.Sql, Scheduler>();
     /** The callbacks of each listening party, called whenever the listening connection closes. */
     readonly #closings = new Set<() => void>();
+    /** The waits for a connection and the connections by state. */
+    readonly #telemetry: PoolTelemetry;
 
     /** Open a pool of a server, passing JSON as text and reporting the server's warnings. */
     constructor(
@@ -80,7 +83,9 @@ export class PostgresPool {
 
             return sql;
         };
-        this.#connections = Array.from({ length: options.connections ?? POOL_CONNECTIONS }, open);
+        const connections = options.connections ?? POOL_CONNECTIONS;
+        this.#connections = Array.from({ length: connections }, open);
+        this.#telemetry = new PoolTelemetry(environment.telemetry, poolName(address), connections);
         this.#idle = [...this.#connections];
         this.listener = open(() => {
             for (const closing of this.#closings) {
@@ -121,6 +126,7 @@ export class PostgresPool {
         if (!this.#holders.delete(sql)) {
             throw new TypeError("the connection is not reserved from this pool");
         }
+        this.#telemetry.release();
 
         // hand it on
         this.#handOn(sql);
@@ -155,8 +161,12 @@ export class PostgresPool {
     async #take(
         environment: Pick<DatabaseEnvironment, "clock" | "scheduler">,
     ): Promise<postgres.Sql> {
-        const sql = this.#idle.pop() ?? (await this.#waitReleased(environment));
+        // take an idle connection or wait for one, counting it used
+        const sql = await this.#telemetry.wait(
+            async () => this.#idle.pop() ?? (await this.#waitReleased(environment)),
+        );
         this.#holders.set(sql, environment.scheduler);
+        this.#telemetry.use();
 
         return sql;
     }
@@ -224,6 +234,13 @@ export class PostgresPool {
     }
 }
 
+/** Name a pool by its server's host, port and database, leaving out its credentials. */
+function poolName(address: string): string {
+    const url = new URL(address);
+
+    return `${url.host}${url.pathname}`;
+}
+
 /** Make the reporter of a server's warnings on a telemetry, dropping informational notices. */
 export function reportNotices(
     telemetry: Environment["telemetry"],
@@ -232,7 +249,10 @@ export function reportNotices(
 
     return (notice) => {
         if (notice["severity"] === "WARNING") {
-            log.warn("postgresql.warning", { message: String(notice["message"]) });
+            log.warn("destack.postgres.warned", {
+                "db.response.status_code": String(notice["code"]),
+                "destack.postgres.message": String(notice["message"]),
+            });
         }
     };
 }

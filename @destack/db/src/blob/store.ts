@@ -100,10 +100,15 @@ export class BlobStore<Storage extends BlobStorage = BlobStorage> implements Con
     }
 
     /** Lease the stored blobs for a row to reference, and store the missing ones in one pack. */
-    async put(
+    put(
         uploads: readonly BlobUpload[],
         until: number = this.environment.clock.now() + this.leaseMilliseconds,
     ): Promise<void> {
+        return this.database.state.telemetry.blob("put", () => this.#put(uploads, until));
+    }
+
+    /** Lease the stored blobs until a moment, storing the missing ones in one pack. */
+    async #put(uploads: readonly BlobUpload[], until: number): Promise<void> {
         // lease each blob once, the stored ones by their rows
         const unique = [...new Map(uploads.map((upload) => [upload.digest, upload])).values()];
         await this.lease(
@@ -128,7 +133,12 @@ export class BlobStore<Storage extends BlobStorage = BlobStorage> implements Con
     }
 
     /** Stream bytes into a blob before a row refers to it, refusing an unexpected digest. */
-    async write(body: AsyncIterable<Uint8Array>, expected?: Digest): Promise<Digest> {
+    write(body: AsyncIterable<Uint8Array>, expected?: Digest): Promise<Digest> {
+        return this.database.state.telemetry.blob("write", () => this.#write(body, expected));
+    }
+
+    /** Store streamed bytes and lease their blob, refusing an unexpected digest. */
+    async #write(body: AsyncIterable<Uint8Array>, expected?: Digest): Promise<Digest> {
         // store them, then record where they lie under a lease
         const until = this.environment.clock.now() + this.leaseMilliseconds;
         const placements = await this.storage.write([
@@ -146,13 +156,14 @@ export class BlobStore<Storage extends BlobStorage = BlobStorage> implements Con
 
     /** Read a range of a blob's bytes from its pack. */
     async *slice(digest: Digest, offset: number, length: number): AsyncIterable<Uint8Array> {
+        // read the range from its pack
         const placement = present((await this.placements([digest]))[0], `blob ${digest}`);
         const end = Math.min(placement.size, offset + length);
-        yield* this.storage.slice(
-            placement.pack,
-            placement.offset + offset,
-            Math.max(0, end - offset),
-        );
+        const bytes = Math.max(0, end - offset);
+        yield* this.storage.slice(placement.pack, placement.offset + offset, bytes);
+
+        // count the bytes read once the slice is drained
+        this.database.state.telemetry.blobIo("read", bytes);
     }
 
     /** Read a blob's whole bytes. */
@@ -190,6 +201,9 @@ export class BlobStore<Storage extends BlobStorage = BlobStorage> implements Con
                     // drain what the reader left
                 }
             }
+
+            // count the run's bytes read
+            this.database.state.telemetry.blobIo("read", length);
         }
     }
 
@@ -216,7 +230,12 @@ export class BlobStore<Storage extends BlobStorage = BlobStorage> implements Con
     }
 
     /** Store the blobs this store lacks among some digests, read from another store. */
-    async fetch(digests: readonly Digest[], source: Pick<ContentStore, "batch">): Promise<void> {
+    fetch(digests: readonly Digest[], source: Pick<ContentStore, "batch">): Promise<void> {
+        return this.database.state.telemetry.blob("fetch", () => this.#fetch(digests, source));
+    }
+
+    /** Gather the missing blobs among some digests from another store, writing them in packs. */
+    async #fetch(digests: readonly Digest[], source: Pick<ContentStore, "batch">): Promise<void> {
         // gather the missing blobs in order, writing a pack each time they reach a pack's bytes
         const missing = await this.missing([...new Set(digests)]);
         let gathering: BlobEntry[] = [];
@@ -410,7 +429,12 @@ export class BlobStore<Storage extends BlobStorage = BlobStorage> implements Con
     }
 
     /** Delete retired blobs a grace after no row or lease referenced them. */
-    async collect(grace: number = GRACE_MILLISECONDS): Promise<number | undefined> {
+    collect(grace: number = GRACE_MILLISECONDS): Promise<number | undefined> {
+        return this.database.state.telemetry.blob("collect", () => this.#collect(grace));
+    }
+
+    /** Retire the blobs of ended leases and delete those a grace after nothing referenced them. */
+    async #collect(grace: number): Promise<number | undefined> {
         // retire the blobs of the ended leases, writing only when one ended
         const now = this.environment.clock.now();
         const [ending] = await this.database
@@ -514,6 +538,11 @@ export class BlobStore<Storage extends BlobStorage = BlobStorage> implements Con
             placements.map(({ digest }) => digest),
             until,
         );
+
+        // count the bytes of the blobs this writer stored
+        const written = placements.filter(({ digest }) => inserted.has(digest));
+        const bytes = written.reduce((sum, { size }) => sum + size, 0);
+        this.database.state.telemetry.blobIo("write", bytes);
 
         // delete each pack of a blob another writer recorded first, unless a row points into it
         const used = new Set(

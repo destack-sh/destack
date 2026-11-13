@@ -6,6 +6,7 @@ import {
     SQLITE_LIMITS,
     SqliteSavepoint,
     SqliteWorkQueue,
+    MEMORY_POOL,
     type SqliteConnectionClient,
     type SqliteQueryClient,
 } from "../sqlite/client.ts";
@@ -104,18 +105,18 @@ export class BunClient extends BunQuery implements SqliteConnectionClient {
     /** Create the client, its turns waited for in an environment. */
     constructor(database: bun.Database, environment: DatabaseEnvironment) {
         // share the file's queue, each turn waited for in the client's environment
-        const queue = BunClient.queue(database);
+        const queue = BunClient.queue(database, environment);
         super(database, new BunStatementCache(database), { work: queue, environment });
         this.#queue = queue;
         this.#environment = environment;
     }
 
     /** Read the work queue of a database's file by its real path, or a separate one in memory. */
-    static queue(database: bun.Database): SqliteWorkQueue {
+    static queue(database: bun.Database, environment: DatabaseEnvironment): SqliteWorkQueue {
         // give each memory database a separate queue
         const file = BunClient.file(database);
         if (file === "") {
-            return new SqliteWorkQueue();
+            return new SqliteWorkQueue(environment.telemetry, MEMORY_POOL);
         }
 
         // share one queue per file, however its path was spelled
@@ -123,7 +124,8 @@ export class BunClient extends BunQuery implements SqliteConnectionClient {
         if (known !== undefined) {
             return known;
         }
-        const queue = new SqliteWorkQueue();
+        const name = file.slice(file.lastIndexOf("/") + 1);
+        const queue = new SqliteWorkQueue(environment.telemetry, name);
         FILE_QUEUES.set(file, queue);
 
         return queue;

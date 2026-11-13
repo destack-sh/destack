@@ -1,5 +1,6 @@
 import type { DatabaseEnvironment } from "../database/connection.ts";
-import type { Scheduler } from "@destack/environment";
+import type { Environment, Scheduler } from "@destack/environment";
+import { PoolTelemetry } from "../database/driver.ts";
 import { DatabaseError } from "../error/error.ts";
 import type { DriverValue } from "../table/column.ts";
 import type { SqlLimits } from "../database/session.ts";
@@ -46,6 +47,9 @@ export interface SqliteConnectionClient extends SqliteQueryClient {
     };
 }
 
+/** The pool name of an in-memory database's queue, as SQLite names such a database. */
+export const MEMORY_POOL = ":memory:";
+
 /** Work run one piece at a time, in arrival order, each waiting for its turn a bounded time. */
 export class SqliteWorkQueue {
     /** How long work waits for its turn before failing, in milliseconds. */
@@ -58,9 +62,12 @@ export class SqliteWorkQueue {
     #running: { readonly scheduler: Scheduler; readonly settled: Promise<unknown> } | undefined;
     /** The worlds waiting for a turn, by their schedulers, with how much of each waits. */
     readonly #waiting = new Map<Scheduler, number>();
+    /** The waits for a turn and the connection's state, as a pool of one connection. */
+    readonly #telemetry: PoolTelemetry;
 
-    /** Queue work, failing work whose turn does not come within the wait. */
-    constructor(wait = TURN_WAIT_MILLISECONDS) {
+    /** Queue a named file's work, failing work whose turn does not come within the wait. */
+    constructor(telemetry: Environment["telemetry"], name: string, wait = TURN_WAIT_MILLISECONDS) {
+        this.#telemetry = new PoolTelemetry(telemetry, name, 1);
         this.#wait = wait;
     }
 
@@ -71,9 +78,12 @@ export class SqliteWorkQueue {
     ): Promise<Value> {
         // run work at once on an idle queue, and wait a bounded time behind earlier work
         const turn = this.#tail;
-        const start = () => this.#start(work, environment.scheduler);
-        const queued =
-            this.#pending === 0 ? turn.then(start) : this.#waited(turn, start, environment);
+        const waited = this.#pending === 0 ? turn : this.#turn(turn, environment);
+        const queued = this.#telemetry
+            .wait(async () => {
+                await waited;
+            })
+            .then(() => this.#start(work, environment.scheduler));
         this.#pending += 1;
 
         // count it done before its caller continues, so the caller's next work finds the queue idle
@@ -93,7 +103,8 @@ export class SqliteWorkQueue {
 
     /** Start work in its turn, keeping the time of every other world waiting behind it. */
     #start<Value>(work: () => Promise<Value>, scheduler: Scheduler): Promise<Value> {
-        // run the work, remembering its world until it ends
+        // run the work, remembering its world and counting the connection used until it ends
+        this.#telemetry.use();
         const running = work();
         const settled = running.then(
             () => undefined,
@@ -101,6 +112,7 @@ export class SqliteWorkQueue {
         );
         this.#running = { scheduler, settled };
         void settled.then(() => {
+            this.#telemetry.release();
             if (this.#running?.settled === settled) {
                 this.#running = undefined;
             }
@@ -116,12 +128,11 @@ export class SqliteWorkQueue {
         return running;
     }
 
-    /** Run work in its turn after earlier work, or refuse it once the wait ends first. */
-    #waited<Value>(
+    /** Wait for a turn after earlier work, or refuse it once the wait ends first. */
+    #turn(
         turn: Promise<unknown>,
-        start: () => Promise<Value>,
         environment: Pick<DatabaseEnvironment, "clock" | "scheduler">,
-    ): Promise<Value> {
+    ): Promise<void> {
         // keep this world's time while another world's work runs ahead
         const { clock, scheduler } = environment;
         this.#waiting.set(scheduler, (this.#waiting.get(scheduler) ?? 0) + 1);
@@ -149,7 +160,7 @@ export class SqliteWorkQueue {
             this.#leave(scheduler);
         });
 
-        // run the work in its turn, or refuse it
+        // take the turn, or refuse it
         return settled.then((isTurn) => {
             if (!isTurn) {
                 throw DatabaseError.of(
@@ -157,8 +168,6 @@ export class SqliteWorkQueue {
                     `the connection is unavailable: a transaction still had it after ${this.#wait} ms`,
                 );
             }
-
-            return start();
         });
     }
 

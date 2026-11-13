@@ -10,9 +10,13 @@ import { TABLE, type Row, type RowImage, type Select, type Table } from "../tabl
 import { canonicalize, Duration, found, nth, schema, Uuid } from "@destack/schema";
 import { TelemetryScope } from "@destack/telemetry";
 import type {} from "@destack/package/import-meta";
-import { Failure } from "@destack/error";
+import { CallErrorCode, Failure } from "@destack/error";
 import { RetryPolicy, waitAborted, Clock } from "@destack/environment";
 import type { Alarm } from "./alarm.ts";
+import type { Environment } from "@destack/environment";
+
+/** The milliseconds in a second, as OpenTelemetry records durations in seconds. */
+const MILLISECONDS_PER_SECOND = 1000;
 
 /** The tracker topic a loop announces releasing its locks on. */
 const RELEASED_TOPIC = "control/released";
@@ -258,6 +262,14 @@ export class ControlLoop {
     readonly #report: (controller: Job, key: string, error: unknown) => void;
     /** The loop's spans and captures, on the database's telemetry. */
     readonly #instruments: TelemetryScope;
+    /** The duration of each reconcile and take, by job, kind and failure. */
+    readonly #passes;
+    /** The wait of each pass for its key's lock, by job and kind. */
+    readonly #waits;
+    /** The time each follow took to catch up, by job. */
+    readonly #catchUps;
+    /** The host clock the waits and catch-ups read. */
+    readonly #monotonic: Environment["telemetry"]["monotonic"];
     /** How a transiently failed key retries. */
     readonly #retry: RetryPolicy;
     /** The keys due, by controller and key, with the time each is due at. */
@@ -344,6 +356,23 @@ export class ControlLoop {
             database.state.environment.telemetry,
         );
         this.#instruments = instruments;
+        const passed = {
+            "destack.controller.name": jobs.map((job) => job.name),
+            "destack.controller.kind": ["reconcile", "follow", "take"],
+        };
+        this.#monotonic = database.state.environment.telemetry.monotonic;
+        this.#passes = instruments.metric.histogram("destack.controller.pass.duration", {
+            unit: "s",
+            attributes: { ...passed, "error.type": CallErrorCode.codes },
+        });
+        this.#waits = instruments.metric.histogram("destack.controller.wait.duration", {
+            unit: "s",
+            attributes: passed,
+        });
+        this.#catchUps = instruments.metric.histogram("destack.controller.catch_up.duration", {
+            unit: "s",
+            attributes: passed,
+        });
         this.#report = (controller, key, error) => {
             // record the failure with the controller and the failed key, then report it
             instruments.captureException(error, {
@@ -1103,6 +1132,57 @@ export class ControlLoop {
         return this.database.select().from(table).where(where).limit(KEY_ROWS);
     }
 
+    /** Run one pass of a job over a key in its span, recording its lock wait and duration. */
+    #pass(work: Due, queued: number, run: () => Promise<void>): Promise<void> {
+        // record how long the pass waited for the key's lock
+        const attributes = ControlLoop.#attributes(work);
+        this.#waits.record((this.#monotonic.now() - queued) / MILLISECONDS_PER_SECOND, attributes);
+
+        // run it in its span, timing a reconcile or a take, as a follow lasts until stopped
+        const spanned = () =>
+            this.#instruments.span(
+                "destack.controller.pass",
+                { ...attributes, "destack.key": work.key },
+                run,
+            );
+
+        return attributes["destack.controller.kind"] === "follow"
+            ? spanned()
+            : this.#instruments.measure(this.#passes, attributes, spanned);
+    }
+
+    /** Wrap a follow's report of catching up, recording how long it took to catch up once. */
+    #caughtUp(work: Due, synced: () => void): () => void {
+        // time the follow from its start
+        const started = this.#monotonic.now();
+        let isCaughtUp = false;
+
+        return () => {
+            // record the first catch-up, then report it
+            if (!isCaughtUp) {
+                isCaughtUp = true;
+                const seconds = (this.#monotonic.now() - started) / MILLISECONDS_PER_SECOND;
+                this.#catchUps.record(seconds, ControlLoop.#attributes(work));
+            }
+            synced();
+        };
+    }
+
+    /** Name a job and its kind as its signals' attributes. */
+    static #attributes(work: Due): {
+        readonly "destack.controller.name": string;
+        readonly "destack.controller.kind": "reconcile" | "follow" | "take";
+    } {
+        const { controller } = work;
+        const kind = ControlLoop.#isCursor(controller)
+            ? "take"
+            : "follow" in controller
+              ? "follow"
+              : "reconcile";
+
+        return { "destack.controller.name": controller.name, "destack.controller.kind": kind };
+    }
+
     /** Reconcile one key's pending rows, or follow them until they leave, retrying failures. */
     async #reconcile(work: Due, stop: AbortController, synced: () => void): Promise<void> {
         // reconcile under the lock
@@ -1110,59 +1190,60 @@ export class ControlLoop {
         const failures = found(this.#failures, controller);
         const stopped = stop.signal;
         try {
-            await this.#locked(work, stopped, async (reconciliation) => {
-                // take a cursor's changes, then again while changes remain past its checkpoint
-                if (ControlLoop.#isCursor(controller)) {
-                    await controller.take(reconciliation);
-                    if (controller.isClaimed === true) {
-                        await this.#readUntaken(controller);
+            const queued = this.#monotonic.now();
+            await this.#locked(work, stopped, (reconciliation) =>
+                this.#pass(work, queued, async () => {
+                    // take a cursor's changes, then again while changes remain past its checkpoint
+                    if (ControlLoop.#isCursor(controller)) {
+                        await controller.take(reconciliation);
+                        if (controller.isClaimed === true) {
+                            await this.#readUntaken(controller);
+                        }
+
+                        return;
                     }
 
-                    return;
-                }
-
-                // leave a key without pending rows
-                const compiled = found(this.#compiled, controller);
-                const rows = await this.#rows(compiled, key);
-                if (rows.length === 0) {
-                    return;
-                }
-
-                // follow until stopped or the key leaves pending, reporting once caught up
-                if ("follow" in controller) {
-                    const ended = new AbortController();
-                    const watched = {
-                        ...reconciliation,
-                        signal: AbortSignal.any([reconciliation.signal, ended.signal]),
-                    };
-                    const watching = this.#stopWhenSettled(compiled, key, watched, stop);
-                    try {
-                        await controller.follow(rows, { ...reconciliation, synced });
-                    } finally {
-                        ended.abort();
-                        await watching.catch(() => undefined);
-                    }
-                    if (!reconciliation.signal.aborted) {
-                        throw DatabaseError.of(
-                            "FOLLOW_BROKEN",
-                            `'${controller.name}' stopped following '${key}' without an abort`,
-                        );
+                    // leave a key without pending rows
+                    const compiled = found(this.#compiled, controller);
+                    const rows = await this.#rows(compiled, key);
+                    if (rows.length === 0) {
+                        return;
                     }
 
-                    return;
-                }
+                    // follow until stopped or the key leaves pending, reporting once caught up
+                    if ("follow" in controller) {
+                        const ended = new AbortController();
+                        const watched = {
+                            ...reconciliation,
+                            signal: AbortSignal.any([reconciliation.signal, ended.signal]),
+                        };
+                        const watching = this.#stopWhenSettled(compiled, key, watched, stop);
+                        try {
+                            const caughtUp = this.#caughtUp(work, synced);
+                            await controller.follow(rows, { ...reconciliation, synced: caughtUp });
+                        } finally {
+                            ended.abort();
+                            await watching.catch(() => undefined);
+                        }
+                        if (!reconciliation.signal.aborted) {
+                            throw DatabaseError.of(
+                                "FOLLOW_BROKEN",
+                                `'${controller.name}' stopped following '${key}' without an abort`,
+                            );
+                        }
 
-                // trace each reconciliation as a separate root span
-                const attributes = { "destack.controller": controller.name, "destack.key": key };
-                await this.#instruments.span("controller.reconcile", attributes, () =>
-                    controller.reconcile(rows, reconciliation),
-                );
+                        return;
+                    }
 
-                // take the key's next page of pending rows after a full one
-                if (rows.length === KEY_ROWS) {
-                    this.enqueue(controller, key);
-                }
-            });
+                    // reconcile the rows
+                    await controller.reconcile(rows, reconciliation);
+
+                    // take the key's next page of pending rows after a full one
+                    if (rows.length === KEY_ROWS) {
+                        this.enqueue(controller, key);
+                    }
+                }),
+            );
             failures.delete(key);
             this.#transient.get(controller)?.delete(key);
         }

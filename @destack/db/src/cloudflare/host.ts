@@ -24,6 +24,9 @@ import { DurableObjectContentStore } from "./content.ts";
 /** The provider code of databases in Durable Objects' SQLite storage. */
 export const DURABLE_OBJECT_PROVIDER = "durable-object";
 
+/** The pool name of an object's storage queue, its one connection. */
+const DURABLE_OBJECT_POOL = "durable_object";
+
 /** The path below which an object answers operations on its databases. */
 export const DATABASE_PATH = "/.destack/database";
 
@@ -163,7 +166,7 @@ export class DurableObjectDatabaseHost implements DatabaseHost {
     constructor(storage: DurableObjectStorage, environment: DatabaseEnvironment) {
         this.storage = storage;
         this.environment = environment;
-        this.queue = new SqliteWorkQueue();
+        this.queue = new SqliteWorkQueue(environment.telemetry, DURABLE_OBJECT_POOL);
     }
 
     /** Open a database in the storage in the host's environment, the object its sole writer. */

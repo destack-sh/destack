@@ -7,7 +7,7 @@ import { SqliteWorkQueue } from "./client.ts";
 test("run queued work in arrival order, one piece at a time", async () => {
     // queue three pieces, the first finishing last
     const environment = environmentOn(new SimulatedClock(TEST_START));
-    const queue = new SqliteWorkQueue();
+    const queue = new SqliteWorkQueue(environment.telemetry, "memory");
     const order: string[] = [];
     const slow = Promise.withResolvers<void>();
     const first = queue.run(async () => {
@@ -26,7 +26,7 @@ test("run queued work in arrival order, one piece at a time", async () => {
 test("run work awaited one piece after another at once, arming no wait for its turn", async () => {
     // await one piece, then queue the next as a caller's following statement does
     const environment = environmentOn(new SimulatedClock(TEST_START));
-    const queue = new SqliteWorkQueue();
+    const queue = new SqliteWorkQueue(environment.telemetry, "memory");
     await queue.run(async () => "first", environment);
     const second = queue.run(async () => "second", environment);
     const armed = environment.clock.next;
@@ -38,7 +38,7 @@ test("run work awaited one piece after another at once, arming no wait for its t
 test("refuse work whose turn does not come within the wait", async () => {
     // occupy the connection, as a transaction does whose code queues a statement outside it
     const environment = environmentOn(new SimulatedClock(TEST_START));
-    const queue = new SqliteWorkQueue(1);
+    const queue = new SqliteWorkQueue(environment.telemetry, "memory", 1);
     const held = Promise.withResolvers<void>();
     const holding = queue.run(() => held.promise, environment);
     const refused = queue.run(async () => "never", environment);

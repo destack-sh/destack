@@ -5,6 +5,7 @@ import {
     SQLITE_LIMITS,
     SqliteSavepoint,
     SqliteWorkQueue,
+    MEMORY_POOL,
     type SqliteConnectionClient,
     type SqliteQueryClient,
 } from "../sqlite/client.ts";
@@ -83,7 +84,7 @@ export class WasmClient extends WasmQuery implements SqliteConnectionClient {
     /** Create the client, its turns waited for in an environment. */
     constructor(database: Database, environment: DatabaseEnvironment) {
         // queue the database's work, each turn waited for in the client's environment
-        const queue = new SqliteWorkQueue();
+        const queue = new SqliteWorkQueue(environment.telemetry, MEMORY_POOL);
         super(database, { work: queue, environment });
         this.#queue = queue;
         this.#environment = environment;

@@ -558,18 +558,21 @@ export class Transaction {
         attempt: (transaction: Transaction) => Promise<Value>,
         signal?: AbortSignal,
     ): Promise<Value> {
-        return Transaction.retry(
-            database,
-            "UPDATE_CONFLICT",
-            async () => {
-                // run the attempt from the log's current position and commit it
-                const transaction = await Transaction.open(database);
-                const value = await attempt(transaction);
-                await transaction.commit();
+        return database.state.telemetry.transaction("log", (attempted) =>
+            Transaction.retry(
+                database,
+                "UPDATE_CONFLICT",
+                async () => {
+                    // run the attempt from the log's current position and commit it
+                    attempted();
+                    const transaction = await Transaction.open(database);
+                    const value = await attempt(transaction);
+                    await transaction.commit();
 
-                return value;
-            },
-            signal,
+                    return value;
+                },
+                signal,
+            ),
         );
     }
 
@@ -908,7 +911,12 @@ export class Transaction {
     }
 
     /** Commit the records, batches and changes if no read changed since the base. */
-    async commit(): Promise<void> {
+    commit(): Promise<void> {
+        return this.database.state.telemetry.commit(() => this.#commit());
+    }
+
+    /** Commit the records, batches and changes, refusing a read that changed since the base. */
+    async #commit(): Promise<void> {
         // commit nothing for a transaction that wrote nothing
         if (
             this.changes.writes("every") === 0 &&
