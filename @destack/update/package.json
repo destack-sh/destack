@@ -27,6 +27,7 @@
         "@destack/package": "workspace:*",
         "@destack/schema": "workspace:*",
         "@destack/sync": "workspace:*",
+        "@destack/telemetry": "workspace:*",
         "@tufjs/canonical-json": "2.0.0",
         "@tufjs/models": "5.0.0",
         "tuf-js": "6.0.0"

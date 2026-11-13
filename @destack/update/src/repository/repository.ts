@@ -8,6 +8,8 @@ import { Release, type Target, TargetCustom } from "../release/release.ts";
 import { type Environment, FileSystemError, type FileSystem } from "@destack/environment";
 import { type DownloadOptions, Fetcher } from "./download.ts";
 import { Manifest } from "../manifest/manifest.ts";
+import { TelemetryScope } from "@destack/telemetry";
+import type {} from "@destack/package/import-meta";
 
 /** The largest manifest the feed signs, in bytes: 16 MiB, far above a release's 2,000 files. */
 const MANIFEST_MAX_BYTES = 16 * 1024 ** 2;
@@ -42,11 +44,14 @@ export class UpdateRepository {
     readonly blobs: URL;
     /** The directory with the downloaded manifests and each release's checked-out files. */
     private readonly downloads: string;
+    /** The update's spans and durations. */
+    readonly #scope: TelemetryScope;
 
     /** Configure a repository after initializing its trusted root. */
     private constructor(directory: string, url: URL, environment: Environment<"files">) {
         // locate the feed's blobs and metadata, and this cache's downloads
         this.environment = environment;
+        this.#scope = TelemetryScope.of(import.meta.destack.package, environment.telemetry);
         this.blobs = new URL("targets/blobs/", url);
         this.downloads = join(directory, "downloads");
         this.locations = {
@@ -202,10 +207,23 @@ export class UpdateRepository {
     }
 
     /** Download a release's signed manifest, then check its files out into the download cache. */
-    async download(
+    download(
         release: Release,
         sources: readonly string[],
         options: DownloadOptions = {},
+    ): Promise<Download> {
+        const attributes = { "destack.update.version": release.version };
+
+        return this.#scope.span("destack.update.download", attributes, () =>
+            this.#download(release, sources, options),
+        );
+    }
+
+    /** Check a release's files out from its verified manifest, copying what the sources have. */
+    async #download(
+        release: Release,
+        sources: readonly string[],
+        options: DownloadOptions,
     ): Promise<Download> {
         // require the selected release and its signed size and digest
         options.signal?.throwIfAborted();

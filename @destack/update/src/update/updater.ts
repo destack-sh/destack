@@ -6,6 +6,8 @@ import { Release, type Target } from "../release/release.ts";
 import { type Download, UpdateRepository } from "../repository/repository.ts";
 import { Update } from "./update.ts";
 import { schema } from "@destack/schema";
+import { TelemetryScope } from "@destack/telemetry";
+import type {} from "@destack/package/import-meta";
 
 /** Maximum time allowed for a staged executable to report its version, in milliseconds. */
 const VERIFY_TIMEOUT_MILLISECONDS = 60_000;
@@ -30,6 +32,8 @@ export class Updater implements AsyncDisposable {
     private isClosed = false;
     /** Whether an operation is accessing metadata or installation files. */
     private operation: PromiseWithResolvers<void> | undefined;
+    /** The update's spans, durations and log records. */
+    readonly #scope: TelemetryScope;
 
     /** Construct an updater after acquiring its installation lock. */
     private constructor(options: UpdaterOptions, lock: FileLock, repository: UpdateRepository) {
@@ -38,6 +42,7 @@ export class Updater implements AsyncDisposable {
         this.lock = lock;
         this.repository = repository;
         this.installer = new Installer(options.directory, options.environment);
+        this.#scope = TelemetryScope.of(import.meta.destack.package, options.environment.telemetry);
     }
 
     /** Lock the installation and open trusted metadata. */
@@ -109,7 +114,12 @@ export class Updater implements AsyncDisposable {
     }
 
     /** Check for a newer authenticated release, or a first installation. */
-    async check(): Promise<Update | undefined> {
+    check(): Promise<Update | undefined> {
+        return this.#scope.span("destack.update.check", {}, () => this.#check());
+    }
+
+    /** Refresh the feed's metadata and compare its latest release with the installed one. */
+    async #check(): Promise<Update | undefined> {
         // read the latest and installed releases on this target
         using operation = this.begin();
         const latest = await this.repository.latest(this.options.target);
@@ -149,7 +159,14 @@ export class Updater implements AsyncDisposable {
     }
 
     /** Verify and stage a downloaded distribution while the current release remains active. */
-    async stage(download: Download): Promise<StagedRelease> {
+    stage(download: Download): Promise<StagedRelease> {
+        const attributes = { "destack.update.version": download.release.version };
+
+        return this.#scope.span("destack.update.stage", attributes, () => this.#stage(download));
+    }
+
+    /** Authenticate a download again, then stage and remember its verified release. */
+    async #stage(download: Download): Promise<StagedRelease> {
         // require the downloaded release for this target
         using operation = this.begin();
         if (download.release.target !== this.options.target) {
@@ -169,7 +186,7 @@ export class Updater implements AsyncDisposable {
         const verified = await this.repository.download(download.release, [download.directory]);
         const previous = await this.installer.current();
         const installed = await this.installer.stage(verified, (directory) =>
-            verifyRelease(directory, verified.release, this.options.environment),
+            this.#verify(directory, verified.release),
         );
         const staged = {
             ...installed,
@@ -185,6 +202,21 @@ export class Updater implements AsyncDisposable {
 
     /** Activate a staged distribution after callers have stopped affected processes. */
     async activate(staged: StagedRelease): Promise<InstalledRelease> {
+        // activate in a span, then log the release now installed
+        const attributes = { "destack.update.version": staged.release.version };
+        const installed = await this.#scope.span("destack.update.activate", attributes, () =>
+            this.#activate(staged),
+        );
+        this.#scope.log.info("destack.update.activated", {
+            ...attributes,
+            "destack.update.target": installed.release.target,
+        });
+
+        return installed;
+    }
+
+    /** Check a staged release against the feed and the installation, then switch to it. */
+    async #activate(staged: StagedRelease): Promise<InstalledRelease> {
         // refuse a release older than the running version
         using operation = this.begin();
         if (this.options.current && staged.release.compare(this.options.current) < 0) {
@@ -218,7 +250,7 @@ export class Updater implements AsyncDisposable {
         const sources = [current?.directory, staged.directory].filter((each) => each !== undefined);
         const download = await this.repository.download(latest, sources);
         const installed = await this.installer.stage(download, (directory) =>
-            verifyRelease(directory, latest, this.options.environment),
+            this.#verify(directory, latest),
         );
         await this.installer.activate(
             installed,
@@ -227,6 +259,15 @@ export class Updater implements AsyncDisposable {
         );
 
         return installed;
+    }
+
+    /** Run a staged release's executable to check its version, in a span. */
+    #verify(directory: string, release: Release): Promise<void> {
+        const attributes = { "destack.update.version": release.version };
+
+        return this.#scope.span("destack.update.verify", attributes, () =>
+            verifyRelease(directory, release, this.options.environment),
+        );
     }
 
     /** Release the installation lock. */

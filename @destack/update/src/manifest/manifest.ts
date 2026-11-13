@@ -1,4 +1,4 @@
-import { type Environment, FileSystemError, Pipe } from "@destack/environment";
+import { type Environment, FileSystemError, Pipe, SpanPath } from "@destack/environment";
 import { Digest, schema } from "@destack/schema";
 import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { CALL_ERROR_STATUSES } from "@destack/error";
@@ -9,6 +9,12 @@ const CONCURRENCY = 16;
 
 /** The longest a blob's fetch takes, in milliseconds: 5 minutes, the 120 MB runtime at 0.4 MB/s. */
 const FETCH_TIMEOUT_MILLISECONDS = 300_000;
+
+/** The span total of the bytes a checkout copies from a source, as the files' sizes add up. */
+const COPIED = "destack.update.download.copied";
+
+/** The span total of the bytes a checkout fetches from the feed, decompressed. */
+const FETCHED = "destack.update.download.fetched";
 
 /** The mode of an executable file. */
 const EXECUTABLE_MODE = 0o755;
@@ -232,6 +238,8 @@ export class Manifest {
                 await using copy = await files.open(join(source, file.path), { read: true });
                 const digest = await Manifest.#write(path, copy.readable(), file, environment);
                 if (digest === file.digest) {
+                    SpanPath.add(environment.telemetry.context.active(), COPIED, file.size);
+
                     return;
                 }
                 await files.remove(path);
@@ -272,6 +280,9 @@ export class Manifest {
                 `could not verify blob '${file.path}': its digest does not match`,
             );
         }
+
+        // add the fetched bytes to the running spans' totals
+        SpanPath.add(environment.telemetry.context.active(), FETCHED, file.size);
     }
 
     /** Write a file's bytes up to its size while digesting them, answering their digest. */
