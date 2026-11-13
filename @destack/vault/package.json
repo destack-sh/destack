@@ -54,6 +54,7 @@
         "@destack/control": "workspace:*",
         "@destack/environment": "workspace:*",
         "@destack/machine": "workspace:*",
-        "@destack/test": "workspace:*"
+        "@destack/test": "workspace:*",
+        "@types/bun": "1.4.4"
     }
 }
