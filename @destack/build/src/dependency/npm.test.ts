@@ -112,6 +112,7 @@ test("build an npm unit with an output per runtime", async () => {
         package: reader.manifest.package,
         outputs: Object.keys(reader.manifest.outputs),
         requires: reader.manifest.requires,
+        imports: reader.manifest.outputs["browser"]?.exports["."]?.imports,
         greeting: [await run("bun"), await run("workerd")],
         stored: { ...stored, manifest: "" },
         isReused: again.manifest === stored.manifest,
@@ -119,6 +120,7 @@ test("build an npm unit with an output per runtime", async () => {
         package: { name: "greeting", version: "1.0.0", integrity: "sha512-greeting" },
         outputs: ["browser", "bun", "workerd"],
         requires: { word: "1.0.0" },
+        imports: ["word"],
         greeting: ["hello, world", "hello, world"],
         stored: {
             kind: "npm",

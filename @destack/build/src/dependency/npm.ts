@@ -365,7 +365,8 @@ export class NpmUnit {
             [...converted.files].map(([path, bytes]) => writer.write(`${runtime}/${path}`, bytes)),
         );
 
-        // describe its exports
+        // describe its exports, each importing the packages its converted modules import
+        const imports = [...converted.imported].toSorted();
         const output: OutputContent = {
             runtime,
             emit: true,
@@ -375,7 +376,7 @@ export class NpmUnit {
             exports: Object.fromEntries(
                 Object.entries(converted.exports).map(([subpath, module]) => [
                     subpath,
-                    { path: `${runtime}/${module}`, imports: [] },
+                    { path: `${runtime}/${module}`, imports },
                 ]),
             ),
             peers: Object.fromEntries(
