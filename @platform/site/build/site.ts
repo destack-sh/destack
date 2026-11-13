@@ -19,12 +19,12 @@ export async function run(
     // open the site's workspace on the person's development store
     await using store = await LocalBuildStore.user("development", environment);
     await using compilers = await CompilerPool.open(store, async () => Toolchain.workspace());
-    const workspace = await Workspace.open(directory, compilers);
+    const workspacePackage = await (await Workspace.open(directory, compilers)).package();
 
     // serve the view, rendering each page on request, until the process receives a shutdown signal
     if (command === "dev") {
         await using development = await DevelopmentServer.start({
-            workspace,
+            workspace: workspacePackage,
             view: VIEW,
             environment,
             server: { port: 3737, strictPort: true, watch: { ignored: ["**/.output/**"] } },
@@ -37,7 +37,9 @@ export async function run(
     }
     // build the site and write its build, which a machine serves, into the output directory
     else if (command === "build") {
-        const build = await workspace.build({ outputs: outputsOf(workspace.root.packageJson) });
+        const build = await workspacePackage.build({
+            outputs: outputsOf(workspacePackage.root.packageJson),
+        });
         const output = join(directory, ".output");
         await environment.files.remove(output, { recursive: true }).catch(FileSystemError.absent);
         await build.writeDirectory(output, environment.files);
