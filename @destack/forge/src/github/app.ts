@@ -7,6 +7,8 @@ import type { Fetch } from "@destack/object";
 import { ForgeError } from "../error/index.ts";
 import type { Lease, LeaseMode } from "@destack/resource";
 import { GitCredential } from "@destack/git";
+import { TelemetryScope } from "@destack/telemetry";
+import type {} from "@destack/package/import-meta";
 
 /** The host of github.com remotes. */
 const GITHUB_HOST = "github.com";
@@ -38,20 +40,22 @@ export interface GitHubAppOptions {
     readonly api: URL;
     /** The fetch calling the API. */
     readonly fetch: Fetch;
-    /** The WebCrypto and randomness signing the app's tokens. */
-    readonly environment: Pick<Environment, "crypto" | "random">;
+    /** The WebCrypto and randomness signing the app's tokens, and the telemetry of its calls. */
+    readonly environment: Pick<Environment, "crypto" | "random" | "telemetry">;
 }
 
 /** A GitHub App: the repositories its installations open. */
 export class GitHubApp {
     /** The app's client ID or app ID. */
     readonly id: string;
-    /** The WebCrypto and randomness signing the app's tokens. */
-    readonly environment: Pick<Environment, "crypto" | "random">;
+    /** The WebCrypto and randomness signing the app's tokens, and the telemetry of its calls. */
+    readonly environment: Pick<Environment, "crypto" | "random" | "telemetry">;
     /** The app's private key. */
     readonly #key: Secret;
     /** The issuer of the installations' tokens, which also sends the REST API's requests. */
     readonly #issuer: GitHubIssuer;
+    /** The forge's spans and durations. */
+    readonly #scope: TelemetryScope;
 
     /** Use an app's identity and key. */
     constructor(options: GitHubAppOptions) {
@@ -64,6 +68,7 @@ export class GitHubApp {
             fetch: options.fetch,
             environment: options.environment,
         });
+        this.#scope = TelemetryScope.of(import.meta.destack.package, options.environment.telemetry);
     }
 
     /** Read a github.com remote's owner and name. */
@@ -112,38 +117,52 @@ export class GitHubApp {
         fullName: string,
         now: number,
     ): Promise<GitHubRepository> {
-        // issue a metadata token for the repository by name
-        const token = await this.issue(
-            installationId,
-            {
-                resources: { names: [nth(fullName.split("/"), 1)] },
-                permissions: { metadata: "read" },
+        return this.#scope.span(
+            "destack.github_app.identify",
+            { "destack.github.installation": installationId },
+            async () => {
+                // issue a metadata token for the repository by name
+                const token = await this.issue(
+                    installationId,
+                    {
+                        resources: { names: [nth(fullName.split("/"), 1)] },
+                        permissions: { metadata: "read" },
+                    },
+                    now,
+                );
+
+                // read its identifier
+                const path = `/repos/${fullName}`;
+                const response = await this.#issuer.request("GET", path, token.accessToken);
+                const repository = Repository.parse(await response.json());
+
+                return { id: String(repository.id), fullName: repository.full_name };
             },
-            now,
         );
-
-        // read its identifier
-        const path = `/repos/${fullName}`;
-        const response = await this.#issuer.request("GET", path, token.accessToken);
-        const repository = Repository.parse(await response.json());
-
-        return { id: String(repository.id), fullName: repository.full_name };
     }
 
     /** Issue an installation's token now, narrowed to a grant. */
-    async issue(installationId: string, grant: InstallationGrant, now: number): Promise<Token> {
-        const key = SecretReading.text(await this.#key.read());
+    issue(installationId: string, grant: InstallationGrant, now: number): Promise<Token> {
+        return this.#scope.span(
+            "destack.github_app.issue",
+            { "destack.github.installation": installationId },
+            async () => {
+                const key = SecretReading.text(await this.#key.read());
 
-        return this.#issuer.token(this.id, installationId, key, grant, now);
+                return this.#issuer.token(this.id, installationId, key, grant, now);
+            },
+        );
     }
 
     /** Remove the app from an installation's account now. */
-    async uninstall(installationId: string, now: number): Promise<void> {
-        await this.#issuer.revoke(
-            this.id,
-            installationId,
-            SecretReading.text(await this.#key.read()),
-            now,
+    uninstall(installationId: string, now: number): Promise<void> {
+        return this.#scope.span(
+            "destack.github_app.uninstall",
+            { "destack.github.installation": installationId },
+            async () => {
+                const key = SecretReading.text(await this.#key.read());
+                await this.#issuer.revoke(this.id, installationId, key, now);
+            },
         );
     }
 

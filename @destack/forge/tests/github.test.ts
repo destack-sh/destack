@@ -175,6 +175,63 @@ test("read an installation from GitHub's setup redirect, refuse a redirect witho
     ]);
 });
 
+test("trace the app's identification, token issues and uninstall, each issue within its call", async () => {
+    // identify the repository, lease writing to it, and uninstall the app
+    await using simulation = testSimulation();
+    const host = simulation.environment("github");
+    const github = new GitHubStandIn(host);
+    site(github);
+    const app = new GitHubApp({
+        id: APP_ID,
+        environment: host,
+        key: Secret.of(githubPrivateKey()),
+        api: GITHUB_API,
+        fetch: github.fetch,
+    });
+    const installation = String(INSTALLATION);
+    const now = host.clock.now();
+    await app.repository(installation, "acme/site", now);
+    await app.open(
+        installation,
+        String(REPOSITORY_ID),
+        "https://github.com/acme/site.git",
+        "read",
+        now,
+    );
+    await app.uninstall(installation, now);
+
+    // read the forge's spans in the order they ended, each under its parent, and its durations
+    const spans = simulation.telemetry.spans.filter(
+        (span) => span.instrumentationScope.name === forgePackage.name,
+    );
+    const names = new Map(spans.map((span) => [span.spanContext().spanId, span.name]));
+    const tree = spans.map((span) => {
+        const parent = span.parentSpanContext?.spanId;
+
+        return [parent === undefined ? undefined : names.get(parent), span.name];
+    });
+    const counts = Object.fromEntries(
+        Object.entries(await simulation.telemetry.counts()).filter(
+            ([key]) => key.startsWith("destack.github_app.") && key.endsWith(".count"),
+        ),
+    );
+
+    // expect the identification's issue inside it, the lease's issue alone, then the uninstall
+    expect({ tree, counts }).toEqual({
+        tree: [
+            ["destack.github_app.identify", "destack.github_app.issue"],
+            [undefined, "destack.github_app.identify"],
+            [undefined, "destack.github_app.issue"],
+            [undefined, "destack.github_app.uninstall"],
+        ],
+        counts: {
+            "destack.github_app.identify.duration.count": 1,
+            "destack.github_app.issue.duration.count": 2,
+            "destack.github_app.uninstall.duration.count": 1,
+        },
+    });
+});
+
 /** Connect the tenant's installation, and host acme/site in it at GitHub. */
 async function connected(forge: TestForge) {
     site(forge.github);
