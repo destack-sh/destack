@@ -20,6 +20,8 @@ import type { Lease } from "@destack/resource";
 import { RequestId } from "@destack/sync";
 import { TarballEntry } from "@destack/package/archive";
 import type { Runtime } from "@destack/package/runtime";
+import { TelemetryScope } from "@destack/telemetry";
+import type {} from "@destack/package/import-meta";
 
 /** The forge a caller calls for a package. */
 type ForgeEndpoint = {
@@ -50,6 +52,8 @@ export class Registry {
     readonly #releases: readonly PackageRelease[];
     /** The reader of each build opened so far, by package and manifest, as builds never change. */
     readonly #readers = new Map<string, Promise<BuildReader>>();
+    /** The registry's spans and durations. */
+    readonly #scope: TelemetryScope;
 
     /** Call the forge of each package's publisher and each account, after the shipped releases. */
     constructor(
@@ -57,9 +61,11 @@ export class Registry {
         environment: Environment,
         releases: readonly PackageRelease[] = [],
     ) {
+        // take the forges, the environment and the shipped releases, and trace on its telemetry
         this.#find = find;
         this.#environment = environment;
         this.#releases = releases;
+        this.#scope = TelemetryScope.of(import.meta.destack.package, environment.telemetry);
     }
 
     /** Call forges through the universe directory's replica, signing for each forge's home. */
@@ -150,13 +156,19 @@ export class Registry {
         account: Identifier<"account">,
         signal?: AbortSignal,
     ): Promise<void> {
-        // push the lock's objects below the account's handle
-        const read = await store.lock(lock);
-        const { handle } = PackageName.split(
-            PackageManifest.package(await store.get(read.root)).name,
+        return this.#scope.span(
+            "destack.registry.push",
+            { "destack.account.id": account },
+            async () => {
+                // push the lock's objects below the account's handle
+                const read = await store.lock(lock);
+                const { handle } = PackageName.split(
+                    PackageManifest.package(await store.get(read.root)).name,
+                );
+                const forge = await this.#find({ account });
+                await Registry.#uploads(forge, handle).push(store, [lock], signal);
+            },
         );
-        const forge = await this.#find({ account });
-        await Registry.#uploads(forge, handle).push(store, [lock], signal);
     }
 
     /** Release stored locks' roots under a tag at their account's forge, required ones first. */
@@ -167,42 +179,48 @@ export class Registry {
         tag: string,
         commit?: string,
     ): Promise<readonly PackageRelease[]> {
-        // read each lock and its root's package
-        const read = await Promise.all(locks.map((lock) => store.lock(lock)));
-        const roots = new Map<Digest, PackageRelease>();
-        for (const [index, each] of read.entries()) {
-            const own = PackageManifest.package(await store.get(each.root));
-            roots.set(each.root, { lock: nth(locks, index), package: own });
-        }
-        if (roots.size === 0) {
-            return [];
-        }
+        return this.#scope.span(
+            "destack.registry.release",
+            { "destack.account.id": account },
+            async () => {
+                // read each lock and its root's package
+                const read = await Promise.all(locks.map((lock) => store.lock(lock)));
+                const roots = new Map<Digest, PackageRelease>();
+                for (const [index, each] of read.entries()) {
+                    const own = PackageManifest.package(await store.get(each.root));
+                    roots.set(each.root, { lock: nth(locks, index), package: own });
+                }
+                if (roots.size === 0) {
+                    return [];
+                }
 
-        // push every lock's objects once below the account's handle
-        const { handle } = PackageName.split(nth([...roots.values()], 0).package.name);
-        const forge = await this.#find({ account });
-        await Registry.#uploads(forge, handle).push(store, locks);
-        const merged = Lock.of(
-            nth(read, 0).root,
-            Object.fromEntries(read.flatMap((each) => Object.entries(each.builds))),
+                // push every lock's objects once below the account's handle
+                const { handle } = PackageName.split(nth([...roots.values()], 0).package.name);
+                const forge = await this.#find({ account });
+                await Registry.#uploads(forge, handle).push(store, locks);
+                const merged = Lock.of(
+                    nth(read, 0).root,
+                    Object.fromEntries(read.flatMap((each) => Object.entries(each.builds))),
+                );
+
+                // publish a layer at a time
+                const released: PackageRelease[] = [];
+                for (const layer of Lock.layers(merged)) {
+                    const outcomes = await Promise.all(
+                        layer.flatMap((digest) => {
+                            const root = roots.get(digest);
+
+                            return root === undefined
+                                ? []
+                                : [this.#publish(forge, root, account, tag, commit)];
+                        }),
+                    );
+                    released.push(...outcomes);
+                }
+
+                return released;
+            },
         );
-
-        // publish a layer at a time
-        const released: PackageRelease[] = [];
-        for (const layer of Lock.layers(merged)) {
-            const outcomes = await Promise.all(
-                layer.flatMap((digest) => {
-                    const root = roots.get(digest);
-
-                    return root === undefined
-                        ? []
-                        : [this.#publish(forge, root, account, tag, commit)];
-                }),
-            );
-            released.push(...outcomes);
-        }
-
-        return released;
     }
 
     /** Release the account's packages in a stored lock under a tag, each under its own lock. */
@@ -213,23 +231,29 @@ export class Registry {
         tag: string,
         commit?: string,
     ): Promise<readonly PackageRelease[]> {
-        // lock each of the account's Destack builds within the lock
-        const read = await store.lock(lock);
-        const { handle } = PackageName.split(
-            PackageManifest.package(await store.get(read.root)).name,
-        );
-        const owned: Digest[] = [];
-        for (const digest of Lock.builds(read)) {
-            const manifest = await store.get(digest);
-            if (
-                PackageManifest.isPackage(manifest) &&
-                PackageName.split(manifest.package.name).handle === handle
-            ) {
-                owned.push(await store.putLock(Lock.at(read, digest)));
-            }
-        }
+        return this.#scope.span(
+            "destack.registry.publish",
+            { "destack.account.id": account },
+            async () => {
+                // lock each of the account's Destack builds within the lock
+                const read = await store.lock(lock);
+                const { handle } = PackageName.split(
+                    PackageManifest.package(await store.get(read.root)).name,
+                );
+                const owned: Digest[] = [];
+                for (const digest of Lock.builds(read)) {
+                    const manifest = await store.get(digest);
+                    if (
+                        PackageManifest.isPackage(manifest) &&
+                        PackageName.split(manifest.package.name).handle === handle
+                    ) {
+                        owned.push(await store.putLock(Lock.at(read, digest)));
+                    }
+                }
 
-        return await this.release(store, owned, account, tag, commit);
+                return await this.release(store, owned, account, tag, commit);
+            },
+        );
     }
 
     /** Publish a pushed lock as its package's release, creating the package the first time. */
@@ -268,29 +292,35 @@ export class Registry {
         lock: Digest,
         runtimes: readonly Runtime[] | "all",
     ): Promise<Lock> {
-        // pull the lock, reaching its package's forge only for what the store lacks
-        const root = { kind: "lock", digest: lock } as const;
-        const open = () => this.store(packageId, root);
-        const source = {
-            async *read(objects: readonly Pick<BuildObject, "kind" | "digest">[]) {
-                if (objects.length > 0) {
-                    yield* (await open()).read(objects);
+        return this.#scope.span(
+            "destack.registry.pull",
+            { "destack.package.id": packageId },
+            async () => {
+                // pull the lock, reaching its package's forge only for what the store lacks
+                const root = { kind: "lock", digest: lock } as const;
+                const open = () => this.store(packageId, root);
+                const source = {
+                    async *read(objects: readonly Pick<BuildObject, "kind" | "digest">[]) {
+                        if (objects.length > 0) {
+                            yield* (await open()).read(objects);
+                        }
+                    },
+                };
+                await store.pull(source, root, runtimes);
+                const pulled = await store.lock(lock);
+
+                // require its root to be a build of the package
+                const built = PackageManifest.package(await store.get(pulled.root));
+                if (built.id !== packageId) {
+                    throw RegistryError.of(
+                        "MANIFEST_INVALID",
+                        `lock '${lock}' is invalid: its root is a build of '${built.name}' instead of the requested package`,
+                    );
                 }
+
+                return pulled;
             },
-        };
-        await store.pull(source, root, runtimes);
-        const pulled = await store.lock(lock);
-
-        // require its root to be a build of the package
-        const built = PackageManifest.package(await store.get(pulled.root));
-        if (built.id !== packageId) {
-            throw RegistryError.of(
-                "MANIFEST_INVALID",
-                `lock '${lock}' is invalid: its root is a build of '${built.name}' instead of the requested package`,
-            );
-        }
-
-        return pulled;
+        );
     }
 
     /** Locate the files of a package's published build by its manifest's digest. */
@@ -364,11 +394,17 @@ export class Registry {
     }
 
     /** Open a build the forge serves by its digest, among the builds a package's locks list. */
-    async #open(packageId: PackageId, manifest: Digest): Promise<BuildReader> {
-        // read the build the forge serves by its manifest's digest
-        const { location, fetch } = await this.locate(packageId, manifest);
+    #open(packageId: PackageId, manifest: Digest): Promise<BuildReader> {
+        return this.#scope.span(
+            "destack.registry.read",
+            { "destack.package.id": packageId },
+            async () => {
+                // read the build the forge serves by its manifest's digest
+                const { location, fetch } = await this.locate(packageId, manifest);
 
-        return await BuildReader.open(location, fetch, this.#environment.crypto);
+                return await BuildReader.open(location, fetch, this.#environment.crypto);
+            },
+        );
     }
 
     /** The releases the machine's distribution ships, run by scopes that install none of them. */
@@ -377,23 +413,30 @@ export class Registry {
     }
 
     /** Open the build of a package's published release, by its version or a distribution tag. */
-    async open(packageId: PackageId, release: string): Promise<BuildReader> {
-        // read the release's lock from its forge, then open its root build
-        const digest = await this.find(packageId, release);
-        const source = await this.store(packageId, { kind: "lock", digest });
-        let bytes: Uint8Array<ArrayBuffer> | undefined;
-        for await (const entry of source.read([{ kind: "lock", digest }])) {
-            bytes = await TarballEntry.bytes(entry);
-        }
-        const read = present(bytes, `lock '${digest}'`);
-        if ((await Digest.of(read, this.#environment.crypto)) !== digest) {
-            throw RegistryError.of(
-                "MANIFEST_INVALID",
-                `lock '${digest}' is invalid: its bytes do not match its digest`,
-            );
-        }
-        const lock = Lock.parse(JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(read)));
+    open(packageId: PackageId, release: string): Promise<BuildReader> {
+        return this.#scope.span(
+            "destack.registry.open",
+            { "destack.package.id": packageId },
+            async () => {
+                // read the release's lock from its forge, then open its root build
+                const digest = await this.find(packageId, release);
+                const source = await this.store(packageId, { kind: "lock", digest });
+                let bytes: Uint8Array<ArrayBuffer> | undefined;
+                for await (const entry of source.read([{ kind: "lock", digest }])) {
+                    bytes = await TarballEntry.bytes(entry);
+                }
+                const read = present(bytes, `lock '${digest}'`);
+                if ((await Digest.of(read, this.#environment.crypto)) !== digest) {
+                    throw RegistryError.of(
+                        "MANIFEST_INVALID",
+                        `lock '${digest}' is invalid: its bytes do not match its digest`,
+                    );
+                }
+                const text = new TextDecoder("utf-8", { fatal: true }).decode(read);
+                const lock = Lock.parse(JSON.parse(text));
 
-        return this.read(packageId, lock.root);
+                return await this.read(packageId, lock.root);
+            },
+        );
     }
 }
