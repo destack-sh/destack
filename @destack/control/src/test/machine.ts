@@ -1,3 +1,4 @@
+import type { DatabaseConnection } from "@destack/db";
 import type { Simulation } from "@destack/environment/simulation";
 import { principal } from "@destack/access";
 import { defineDatabase, type LogPosition, Snapshot } from "@destack/db";
@@ -44,7 +45,7 @@ export class TestMachine implements AsyncDisposable {
     /** The account package's URL at the universe, and the universe's issuer. */
     readonly universe: { readonly accounts: string; readonly issuer: string };
     /** The machine's proven identity, signing its calls to the universe. */
-    readonly #identity: MachineKey;
+    readonly identity: MachineKey;
     /** Send a request to the universe in process. */
     readonly #send: Fetch;
     /** The store following the directory, its identities and the machine's assignments. */
@@ -84,7 +85,7 @@ export class TestMachine implements AsyncDisposable {
         this.environment = fields.environment;
         this.keyring = fields.keyring;
         this.universe = { accounts, issuer: UniverseOrigin.issuer(fields.origin) };
-        this.#identity = fields.identity;
+        this.identity = fields.identity;
         this.#send = fields.send;
         this.#replica = fields.replica;
         this.#storage = fields.storage;
@@ -111,6 +112,11 @@ export class TestMachine implements AsyncDisposable {
     /** The clock the machine runs at, its environment's. */
     get clock(): Clock {
         return this.environment.clock;
+    }
+
+    /** The replica's database, which the machine's directory reads. */
+    get database(): DatabaseConnection {
+        return this.#storage.database;
     }
 
     /** Start a declared cloud machine of a universe, following the directory as the machine. */
@@ -194,7 +200,7 @@ export class TestMachine implements AsyncDisposable {
         const { issuer } = this.universe;
 
         return TestMachine.#session(
-            this.#identity,
+            this.identity,
             issuer,
             issuer,
             this.#send,
@@ -204,7 +210,7 @@ export class TestMachine implements AsyncDisposable {
 
     /** Read the machine's access token for a package, as the universe grants it. */
     token(audience: PackageId): Promise<string> {
-        return this.#identity.at(this.universe.issuer, this.#send).token(audience, {});
+        return this.identity.at(this.universe.issuer, this.#send).token(audience, {});
     }
 
     /** Call packages as a machine, with the tokens the universe's issuer grants its key. */
