@@ -967,11 +967,13 @@ export class Authorizer {
         if (isScoped) {
             return this.isHome(transaction.view(), object.scope);
         }
-        // store another type's access where its rows are local
+        // store another type's access where its rows are local, or where this database homes the row's scope
         else {
-            return this.local.some(
+            const isLocalType = this.local.some(
                 (type) => type.packageId === object.packageId && type.type === object.type,
             );
+
+            return isLocalType || (await this.isHome(transaction.view(), object.scope));
         }
     }
 
