@@ -1,3 +1,4 @@
+import { TokenVerifier } from "@destack/access/token";
 import { CLOUD_RUNTIMES } from "./cloud.ts";
 import { DistributionManifest } from "@destack/package";
 import { WorkerdDistribution } from "@destack/package/workerd";
@@ -309,6 +310,11 @@ export class PartitionObject {
         // run the space's instances in the object's facets, rooted in the space's identity
         let served: Space | undefined;
         const directory = new Directory(Snapshot.live(cloud.replica));
+        const verifier = new TokenVerifier({
+            issuers: (issuer) =>
+                accountObject.Identity.trust(directory.snapshot, issuer, cloud.issuer),
+            environment: cloud.environment,
+        });
         const { database } = host;
         const runtime = new WorkerdRuntime({
             instances: Jurisdiction.narrow(bindings.PARTITION, bindings.DESTACK_JURISDICTION),
@@ -385,12 +391,8 @@ export class PartitionObject {
                 const verified = await accountObject.Identity.authenticate(
                     directory.snapshot,
                     request,
-                    {
-                        audience,
-                        universe: cloud.issuer,
-                        now: cloud.environment.clock.now(),
-                        environment: cloud.environment,
-                    },
+                    verifier,
+                    { audience, now: cloud.environment.clock.now() },
                 );
                 if (verified === undefined) {
                     return undefined;

@@ -4,6 +4,7 @@ import { expect, test } from "@destack/test";
 import { Autostart } from "./autostart.ts";
 import { LaunchAgent } from "./launchd.ts";
 import { SystemdService } from "./systemd.ts";
+import { testWorldOptions } from "@destack/test/world";
 
 /** A machine directory with native configuration metacharacters. */
 const DIRECTORY = '/tmp/destack & "dev" %state';
@@ -21,7 +22,12 @@ async function autostart(os: OperatingSystem) {
         hostname: "host",
         home: "/home/ada",
     } as const;
-    await using simulation = new Simulation({ seed: 1, start: 0, host });
+    await using simulation = new Simulation({
+        world: testWorldOptions(),
+        seed: 1,
+        start: 0,
+        host,
+    });
     const environment = simulation.environment("host");
     const variables = { APPDATA: "C:/Users/ada/AppData/Roaming" };
 

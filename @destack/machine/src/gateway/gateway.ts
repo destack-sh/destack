@@ -3,7 +3,6 @@ import type { PageCredential } from "./credential.ts";
 import { ViewState } from "@destack/view/declare";
 import * as accountObject from "@destack/account/object";
 import type { WorkloadInstance } from "@destack/object/workload";
-import { Identity } from "@destack/account/object";
 import { OtlpExport } from "@destack/telemetry/otlp";
 import { DeclarationName, PackageId, PackageName } from "@destack/package";
 import { canonicalize, type Digest, type Identifier, schema, Version } from "@destack/schema";
@@ -201,6 +200,7 @@ export type GatewaySpace = Pick<
         | "domain"
         | "directory"
         | "traffic"
+        | "verifier"
     >;
 };
 
@@ -251,9 +251,7 @@ export class Gateway {
     static #exchange(space: GatewaySpace): TokenExchange {
         // reuse the tokens exchanged for installations' subjects while most of their life remains
         const exchanged = new TokenCache();
-        const { universe } = space;
-        const { directory } = space.machine;
-        const { clock, environment } = space.machine;
+        const { clock } = space.machine;
 
         return {
             exchange: (acting, asked, target) =>
@@ -268,12 +266,10 @@ export class Gateway {
                     }),
                 ),
             verify: (token, target) =>
-                Identity.verify(directory.snapshot, token, {
+                space.machine.verifier.verify(token, {
                     audience: target.audience,
-                    universe: universe.issuer,
                     ...(target.scope === undefined ? {} : { partition: target.scope }),
                     now: clock.now(),
-                    environment,
                 }),
         };
     }

@@ -1,3 +1,5 @@
+import { Identity } from "@destack/account/object";
+import { TokenVerifier } from "@destack/access/token";
 import { Directory } from "@destack/account/address";
 import type { S3Server } from "@destack/bucket/s3";
 import { installation, type Package } from "@destack/object";
@@ -55,6 +57,10 @@ export function openGateway(
     // locate spaces through the given directory, or the hosting machine's replica of it
     const { database } = space;
     const directory = options.directory ?? space.machine.directory;
+    const verifier = new TokenVerifier({
+        issuers: (issuer) => Identity.trust(directory.snapshot, issuer, `${ACCOUNTS}/oauth`),
+        environment: space.machine.environment,
+    });
     const borrow = options.borrow ?? refuse("lend connections");
 
     return new Gateway(
@@ -103,6 +109,7 @@ export function openGateway(
                 serve: refuse("serve the machine's own spaces"),
                 locate: refuse("locate spaces"),
                 environment: space.machine.environment,
+                verifier,
                 runtimes: options.runtimes ?? [],
                 hibernation: undefined,
                 send: options.send ?? refuse("call other origins"),

@@ -14,9 +14,12 @@ import {
 import { LEASE_LIFETIME_SECONDS } from "@destack/bucket/s3";
 import { TestBucket, NOW, PRESIGNED } from "../test/index.ts";
 import { Simulation } from "@destack/environment/simulation";
+import { testWorldOptions } from "@destack/test/world";
 
 /** The world the scenarios run in, its clock at the presigning time. */
-const world = new Simulation({ seed: 1, start: NOW }).environment("space");
+const world = new Simulation({ world: testWorldOptions(), seed: 1, start: NOW }).environment(
+    "space",
+);
 
 /** The spaces database for the scenarios' own spaces. */
 let storage: TestDatabase;

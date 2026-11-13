@@ -1,3 +1,4 @@
+import { AccountAuthentication } from "@destack/account/better-auth";
 import { SpaceStorage } from "../space/storage.ts";
 import * as accountObject from "@destack/account/object";
 import { type MachineOptions } from "../machine/machine.ts";
@@ -27,7 +28,7 @@ import {
     TABLE,
 } from "@destack/db";
 import { type BuildReader, Lock } from "@destack/package/manifest";
-import { RequestId, Scope } from "@destack/sync";
+import { RequestId } from "@destack/sync";
 import {
     TestBearer,
     TestCaller,
@@ -36,20 +37,12 @@ import {
     TestObjectStore,
     type TestServed,
 } from "@destack/object/test";
-import { TokenVerifier } from "@destack/access/token";
 import { TestDatabase, TestTemplate, type TemplateStorage } from "@destack/db/test";
 import { expect, onTestFinished, single } from "@destack/test";
 import { Failure } from "@destack/error";
 import { SettingValue } from "@destack/setting/object";
 import { principal } from "@destack/access";
-import {
-    Account,
-    Identity,
-    placement,
-    Residency,
-    type ResidencyCode,
-} from "@destack/account/object";
-import { Jwks, type KeyLookup } from "@destack/identity";
+import { Account, placement, Residency, type ResidencyCode } from "@destack/account/object";
 import { OPERATOR_EMAIL, STACKS } from "@destack/account/test";
 import accountPackage from "@destack/account/package";
 import {
@@ -117,6 +110,7 @@ import type { StackRelease } from "@destack/account/object";
 import { BuildObject, PackageClient, BuildStore } from "@destack/build/store";
 import { TestBuildStore } from "@destack/build/test";
 import { RolloutTarget } from "../installation/target.ts";
+import { testWorldOptions } from "@destack/test/world";
 
 /** The Destack version the fixture machine runs: this checkout's. */
 const DESTACK_VERSION = import.meta.destack.package.version;
@@ -900,7 +894,7 @@ export class TestSpace implements AsyncDisposable {
 
     /** Start the simulated world a template writes or a restore runs in, its clock at a start. */
     static #world(start: number): Simulation {
-        return new Simulation({ seed: WORLD_SEED, start });
+        return new Simulation({ world: testWorldOptions(), seed: WORLD_SEED, start });
     }
 
     /** Build the releases a test machine links with the fixture's space, with a world's crypto. */
@@ -1776,20 +1770,11 @@ export class TestSpace implements AsyncDisposable {
     #credential(store: ObjectStore): TestCredential {
         // verify a universe token for its package and this space, against the keys the machine's directory has
         const { environment } = this.machine;
-        const keys: KeyLookup = async (header) => {
-            const { snapshot } = this.machine.directory;
-            const set = await Identity.keys(snapshot, Scope.universe.id, environment.crypto);
-
-            return Jwks.local(set, environment.crypto)(header);
-        };
+        const { issuer } = this.machine.universe;
+        const { snapshot } = this.machine.directory;
+        const verifier = AccountAuthentication.universe(snapshot, issuer, environment);
         const verify = (audience: PackageId, token: string) =>
-            new TokenVerifier({
-                authority: { kind: "universe" },
-                issuer: this.machine.universe.issuer,
-                audience,
-                keys,
-                environment,
-            }).verify(token, store.clock.now());
+            verifier.verify(token, { audience, now: store.clock.now() });
 
         return {
             sign: async (request, { subject, isSteppedUp }) => {

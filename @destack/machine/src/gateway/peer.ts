@@ -1,6 +1,6 @@
 import { type Authentication, Caller } from "@destack/access";
 import { Bearer } from "@destack/access/token";
-import { Identity, space } from "@destack/account/object";
+import { space } from "@destack/account/object";
 import { PackageId } from "@destack/package";
 import { schema } from "@destack/schema";
 import { Rollout, type InstallationRollout } from "@destack/stack/object";
@@ -40,12 +40,10 @@ export class PeerCall {
     }> {
         // verify the token for the stack package receiving calls to the space's installations, before reading any
         const { machine } = receiving;
-        const verified = await Identity.verify(machine.directory.snapshot, this.token, {
+        const verified = await machine.verifier.verify(this.token, {
             audience: stackPackage.id,
-            universe: receiving.universe.issuer,
             partition: schema.identifier("space").parse(installed.spaceId),
             now: machine.environment.clock.now(),
-            environment: machine.environment,
         });
 
         // require the installation the space serves

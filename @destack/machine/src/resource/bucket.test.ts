@@ -12,13 +12,18 @@ import * as bucketObject from "@destack/stack/object";
 import { LEASE_LIFETIME_SECONDS } from "@destack/bucket/s3";
 import { TestBucket, NOW, PRESIGNED } from "../test/index.ts";
 import { Simulation } from "@destack/environment/simulation";
+import { testWorldOptions } from "@destack/test/world";
 
 /** The base64 MD5 of the customer key of 32 bytes of 7, as SSE-C sends it. */
 const KEY_MD5 = "y4HAEFCYWuvAXWFTtA1Qpg==";
 
 /** Open a bucket fixture over a spaces database in a world of its own, at the presigning time. */
 async function openBucket(): Promise<TestBucket> {
-    const world = new Simulation({ seed: 1, start: NOW }).environment("space");
+    const world = new Simulation({
+        world: testWorldOptions(),
+        seed: 1,
+        start: NOW,
+    }).environment("space");
     const storage = await TestBucket.database(world);
     onTestFinished(() => storage.close());
 

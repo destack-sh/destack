@@ -52,7 +52,7 @@ import type {
 } from "@destack/object/server";
 import { PackageId, type PackageRelease } from "@destack/package";
 import { TUNNEL_PATH, TunnelClient, type TunnelStatus } from "@destack/tunnel";
-import { Bearer, type PartitionId, SPACE_KEY } from "@destack/access/token";
+import { type PartitionId, SPACE_KEY, TokenVerifier } from "@destack/access/token";
 import { createClient, type ClientOf } from "@destack/object/client";
 import { Health } from "@destack/object/server";
 import type { Alarm } from "@destack/db";
@@ -75,6 +75,7 @@ import { Handoff } from "../transfer/handoff.ts";
 import { computer, MachineEnrollment } from "../computer/device/object/index.ts";
 import { Space, type SpaceStorage, SpaceRequest } from "../space/index.ts";
 import type {} from "@destack/package/import-meta";
+import { TelemetryScope } from "@destack/telemetry";
 import { MachineError } from "../error/index.ts";
 
 /** How long the machine's and its spaces' services drain accepted requests at a stop. */
@@ -171,6 +172,10 @@ export class Machine {
     readonly id: Identifier<"machine">;
     /** The clock the machine runs at, and the network it sends through. */
     readonly environment: Environment;
+    /** The verifier of the universe's and the spaces' tokens, by the directory replica's keys. */
+    readonly verifier: TokenVerifier;
+    /** The machine package's spans and durations, which its spaces, gateway and runtimes share. */
+    readonly scope: TelemetryScope;
     /** The identity the machine proves with the key the universe enrolled. */
     readonly identity: MachineKey;
     /** The machine's root keys, wrapping vault and space keys. */
@@ -253,10 +258,17 @@ export class Machine {
         this.health = new Health(options.id);
         this.health.set("starting", "it has not read its enrollment yet");
         this.environment = options.environment;
+        this.scope = TelemetryScope.of(import.meta.destack.package, options.environment.telemetry);
         this.identity = options.identity;
         this.keyring = options.keyring;
         this.database = options.database;
         this.directory = new Directory(Snapshot.live(options.database));
+        const { snapshot } = this.directory;
+        this.verifier = new TokenVerifier({
+            issuers: async (issuer) =>
+                Identity.trust(snapshot, issuer, (await this.universe()).issuer),
+            environment: options.environment,
+        });
 
         // set the spaces' storage, the builds and what the machine builds and enforces
         this.volumes = options.volumes;
@@ -311,12 +323,19 @@ export class Machine {
 
     /** Pull a published lock with its closures once, from its package's forge. */
     pull(packageId: PackageId, lock: Digest): Promise<Lock> {
-        // pull a lock once, forgetting a failed pull
+        // take a lock pulled or pulling already
         const known = this.#pulled.get(lock);
         if (known !== undefined) {
             return known;
         }
-        const pulling = this.releases.pull(this.builds, packageId, lock, this.targets);
+
+        // pull it once in its span, forgetting a failed pull
+        const pulling = this.scope.span(
+            "destack.machine.pull",
+            { "destack.package.id": packageId },
+            () => this.releases.pull(this.builds, packageId, lock, this.targets),
+            { duration: { attributes: {} } },
+        );
         this.#pulled.set(lock, pulling);
         pulling.catch(() => this.#pulled.delete(lock));
 
@@ -324,22 +343,29 @@ export class Machine {
     }
 
     /** Pull a file of a published build into the machine's builds from its package's forge. */
-    async pullFile(
+    pullFile(
         build: { readonly digest: Digest; readonly manifest: PackageManifest },
         file: PackageFile,
     ): Promise<void> {
-        // refuse a build without a forge, such as an npm unit
-        const owner = build.manifest.package;
-        if (!("id" in owner)) {
-            throw StackError.of("BLOB_NOT_FOUND", `package file '${file.path}' not found`);
-        }
+        return this.scope.span(
+            "destack.machine.pull_file",
+            {},
+            async () => {
+                // refuse a build without a forge, such as an npm unit
+                const owner = build.manifest.package;
+                if (!("id" in owner)) {
+                    throw StackError.of("BLOB_NOT_FOUND", `package file '${file.path}' not found`);
+                }
 
-        // write the file from the build's forge
-        const forge = await this.releases.store(owner.id, {
-            kind: "manifest",
-            digest: build.digest,
-        });
-        await this.builds.write(forge.read([{ kind: "file", digest: file.digest }]));
+                // write the file from the build's forge
+                const forge = await this.releases.store(owner.id, {
+                    kind: "manifest",
+                    digest: build.digest,
+                });
+                await this.builds.write(forge.read([{ kind: "file", digest: file.digest }]));
+            },
+            { duration: { attributes: {} } },
+        );
     }
 
     /** Retain the builds a space runs in the machine's builds. */
@@ -572,16 +598,9 @@ export class Machine {
         // follow the universe and this machine's own chain at the account package, once enrolled
         if (scope === Scope.universe.id || scope === this.id) {
             const accounts = () => this.accounts();
-            const isEnrolled = () => this.isEnrolled();
 
             return {
                 stream: async function* (subscription, signal) {
-                    // follow nothing while unenrolled, as a revoked machine's store drops the follow
-                    if (!(await isEnrolled())) {
-                        await waitAborted(signal);
-
-                        return;
-                    }
                     yield* await (await accounts()).store.stream(subscription, { signal });
                 },
                 request: async (subscription) => {
@@ -662,17 +681,10 @@ export class Machine {
         partition?: PartitionId,
     ): Promise<Authentication> {
         // verify the token toward the package
-        const { issuer } = await this.universe();
-        const verified = await Identity.verify(
-            this.directory.snapshot,
-            Bearer.require(request.headers),
-            {
-                audience,
-                universe: issuer,
-                now: this.clock.now(),
-                environment: this.environment,
-            },
-        );
+        const verified = await this.verifier.authenticate(request, {
+            audience,
+            now: this.clock.now(),
+        });
 
         // place another space's caller inside its account's chain, as the space records it
         const isSpaceSigned = verified.credential.kind === SPACE_KEY;

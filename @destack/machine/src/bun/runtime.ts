@@ -21,6 +21,7 @@ import {
 import { Failure } from "@destack/error";
 import { type BunInstanceLayout, BunWorkloadSandbox } from "./sandbox.ts";
 import type {} from "@destack/package/import-meta";
+import { TelemetryScope } from "@destack/telemetry";
 import { MachineError } from "../error/index.ts";
 import { PackageImplementation } from "@destack/object/server";
 
@@ -117,6 +118,9 @@ export class BunRuntime implements Runtime {
     /** How the runners are isolated. */
     readonly #isolation: BunIsolation;
 
+    /** The runtime's spans and durations. */
+    readonly #scope: TelemetryScope;
+
     /** Run instances below a directory, calling addresses through the machine's egress. */
     constructor(options: {
         /** The directory of each instance's files. */
@@ -160,6 +164,7 @@ export class BunRuntime implements Runtime {
         this.#identity = options.identity;
         this.#environment = options.environment;
         this.#isolation = options.isolation;
+        this.#scope = TelemetryScope.of(import.meta.destack.package, options.environment.telemetry);
     }
 
     /** Load the server a lock's root exports into this process, absent for none. */
@@ -190,36 +195,45 @@ export class BunRuntime implements Runtime {
     }
 
     /** Import an export of a lock's root's Bun output, with this process's builtins. */
-    async import(lock: Digest, specifier: string): Promise<unknown> {
-        // find the export in the root's Bun output
-        const read = await this.#packages.lock(lock);
-        const build = await this.#packages.contents(read.root);
-        const output = present(
-            Object.values(build.manifest.outputs).find((each) => each.runtime === BUN_RUNTIME),
-            `the ${BUN_RUNTIME} output of ${build.manifest.package.name}`,
+    import(lock: Digest, specifier: string): Promise<unknown> {
+        return this.#scope.span(
+            "destack.runtime.import",
+            {},
+            async () => {
+                // find the export in the root's Bun output
+                const read = await this.#packages.lock(lock);
+                const build = await this.#packages.contents(read.root);
+                const output = present(
+                    Object.values(build.manifest.outputs).find(
+                        (each) => each.runtime === BUN_RUNTIME,
+                    ),
+                    `the ${BUN_RUNTIME} output of ${build.manifest.package.name}`,
+                );
+                const exported = present(
+                    output.exports[specifier],
+                    `the ${specifier} export of ${build.manifest.package.name}`,
+                );
+
+                // import a builtin's export as this process's own instance, never a second copy from its build
+                const shared = BunRuntime.#shared(build.manifest.package.name, specifier);
+                if (this.#program.shares(shared)) {
+                    return await this.#program.module(shared);
+                }
+
+                // place the build, link the builtin modules its closure may load to this process's own, and import the export
+                const { build: placed } = await this.#write(lock);
+                const imports = await this.#imports(read);
+
+                // load the modules as one real operation, completed in order whether the host loaded them before or not
+                return await this.#environment.scheduler.run(async () => {
+                    await this.#program.link(imports);
+                    const module: unknown = await import(join(placed, exported.path));
+
+                    return module;
+                });
+            },
+            { duration: { attributes: {} } },
         );
-        const exported = present(
-            output.exports[specifier],
-            `the ${specifier} export of ${build.manifest.package.name}`,
-        );
-
-        // import a builtin's export as this process's own instance, never a second copy from its build
-        const shared = BunRuntime.#shared(build.manifest.package.name, specifier);
-        if (this.#program.shares(shared)) {
-            return await this.#program.module(shared);
-        }
-
-        // place the build, link the builtin modules its closure may load to this process's own, and import the export
-        const { build: placed } = await this.#write(lock);
-        const imports = await this.#imports(read);
-
-        // load the modules as one real operation, completed in order whether the host loaded them before or not
-        return await this.#environment.scheduler.run(async () => {
-            await this.#program.link(imports);
-            const module: unknown = await import(join(placed, exported.path));
-
-            return module;
-        });
     }
 
     /** List the modules a lock's closure may load: its imports and each build's Bun exports. */
@@ -266,9 +280,18 @@ export class BunRuntime implements Runtime {
     }
 
     /** Start an instance's runner and resolve when it serves. */
-    async start(spec: InstanceSpec, exited: (exit: InstanceExit) => Promise<void>): Promise<void> {
-        // spawn the runner or join a start in progress
-        return this.#registry.start(spec, (identify) => this.#spawn(spec, exited, identify));
+    start(spec: InstanceSpec, exited: (exit: InstanceExit) => Promise<void>): Promise<void> {
+        return this.#scope.span(
+            "destack.runtime.start",
+            {},
+            async () => {
+                // spawn the runner or join a start in progress
+                return this.#registry.start(spec, (identify) =>
+                    this.#spawn(spec, exited, identify),
+                );
+            },
+            { duration: { attributes: {} } },
+        );
     }
 
     /** Report whether an instance's runner serves now. */

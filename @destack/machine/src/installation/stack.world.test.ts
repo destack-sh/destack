@@ -52,6 +52,7 @@ import {
 import { gauge, meter } from "../test/schema.ts";
 import { RequestId } from "@destack/sync";
 import { Simulation } from "@destack/environment/simulation";
+import { testWorldOptions } from "@destack/test/world";
 
 /** A database a stack declares for its own use, in addition to the space's main database. */
 const archiveDatabase = defineDatabase({ name: "archive", tables: [] });
@@ -911,7 +912,11 @@ test("install a package and declare records of its type in one approved plan, ap
 
 test("install the packages a stack declares without its libraries, refusing a missing installable dependency and a package outside the stack's lock", async () => {
     // publish an installable dependency and a library
-    const world = new Simulation({ seed: 1, start: Date.UTC(2026, 9, 1) }).environment("test");
+    const world = new Simulation({
+        world: testWorldOptions(),
+        seed: 1,
+        start: Date.UTC(2026, 9, 1),
+    }).environment("test");
     const vault = await fixtureRelease("@acme/vault", "2026.10.0", true, [], world);
     const library = await fixtureRelease("@acme/library", "2026.10.0", false, [], world);
 
@@ -954,7 +959,11 @@ test("install the packages a stack declares without its libraries, refusing a mi
 
 test("keep a stack's installation selections as declared, by tag and by release version", async () => {
     // publish notes depending on an installable vault, and declare notes following its latest tag beside vault
-    const world = new Simulation({ seed: 1, start: Date.UTC(2026, 9, 1) }).environment("test");
+    const world = new Simulation({
+        world: testWorldOptions(),
+        seed: 1,
+        start: Date.UTC(2026, 9, 1),
+    }).environment("test");
     const vault = await fixtureRelease("@acme/vault", "2026.10.0", true, [], world);
     const notes = await fixtureRelease("@acme/notes", "2026.10.0", true, [vault], world);
     const builds = new Map([vault, notes].map((each) => [each.manifest, each.build]));

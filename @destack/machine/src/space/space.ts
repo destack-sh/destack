@@ -338,120 +338,136 @@ export class Space {
     }
 
     /** Open a space on its machine and start its workload. */
-    static async start(machine: Machine, id: Identifier<"space">): Promise<Space> {
-        // open the space's volume and its blobs
-        const volume = await machine.volumes.open(id);
-        try {
-            const { environment } = machine;
-            const blobs = new BlobStore({
-                storage: volume.blobs,
-                database: volume.database,
-                environment,
-            });
-            const space = new Space({
-                id,
-                machine,
-                volume,
-                universe: await machine.universe(),
-                identities: await machine.identities(),
-                blobs,
-            });
+    static start(machine: Machine, id: Identifier<"space">): Promise<Space> {
+        return machine.scope.span(
+            "destack.space.start",
+            { "destack.space.id": id },
+            async () => {
+                // open the space's volume and its blobs
+                const volume = await machine.volumes.open(id);
+                try {
+                    const { environment } = machine;
+                    const blobs = new BlobStore({
+                        storage: volume.blobs,
+                        database: volume.database,
+                        environment,
+                    });
+                    const space = new Space({
+                        id,
+                        machine,
+                        volume,
+                        universe: await machine.universe(),
+                        identities: await machine.identities(),
+                        blobs,
+                    });
 
-            // start the machine workload serving the space
-            space.#instance = await WorkloadInstance.start(spaceWorkload, {
-                environment,
-                resources: new ResourceContext().bind(machineSpace, space),
-                callKey: () => space.callKey(),
-                ...(machine.alarm === undefined ? {} : { alarm: machine.alarm }),
-                report: (error) => machine.report(error),
-                serverOptions: (handle) => ({
-                    environment,
-                    authenticate: (request) => machine.authenticate(request, handle.id, id),
-                    authorizeMachine: (call) => machine.authorizeSpace(call),
-                    drainTimeout: DRAIN_TIMEOUT_MILLISECONDS,
-                    instance: id,
-                }),
-            });
+                    // start the machine workload serving the space
+                    space.#instance = await WorkloadInstance.start(spaceWorkload, {
+                        environment,
+                        resources: new ResourceContext().bind(machineSpace, space),
+                        callKey: () => space.callKey(),
+                        ...(machine.alarm === undefined ? {} : { alarm: machine.alarm }),
+                        report: (error) => machine.report(error),
+                        serverOptions: (handle) => ({
+                            environment,
+                            authenticate: (request) => machine.authenticate(request, handle.id, id),
+                            authorizeMachine: (call) => machine.authorizeSpace(call),
+                            drainTimeout: DRAIN_TIMEOUT_MILLISECONDS,
+                            instance: id,
+                        }),
+                    });
 
-            return space;
-        }
-        // close the space's volume when its start fails, as a close does
-        catch (error) {
-            await volume.close();
-            throw error;
-        }
+                    return space;
+                }
+                // close the space's volume when its start fails, as a close does
+                catch (error) {
+                    await volume.close();
+                    throw error;
+                }
+            },
+            { duration: { attributes: {} } },
+        );
     }
 
     /** Prepare a start of the space's workload: its role, buckets, forge, uplink and jobs. */
-    async prepare(context: WorkloadContext): Promise<SpaceStart> {
-        // open the space's keys, and serve its buckets over S3 with credentials its root secret derives
-        const { volume, machine } = this;
-        await this.open();
-        const buckets = volume.buckets(async (scope) => {
-            const root =
-                scope === this.id ? await this.keystore.deriver(this.database, scope) : undefined;
+    prepare(context: WorkloadContext): Promise<SpaceStart> {
+        return this.machine.scope.span(
+            "destack.space.prepare",
+            { "destack.space.id": this.id },
+            async () => {
+                // open the space's keys, and serve its buckets over S3 with credentials its root secret derives
+                const { volume, machine } = this;
+                await this.open();
+                const buckets = volume.buckets(async (scope) => {
+                    const root =
+                        scope === this.id
+                            ? await this.keystore.deriver(this.database, scope)
+                            : undefined;
 
-            return root === undefined ? undefined : S3Credentials.derive(root, scope);
-        });
+                    return root === undefined ? undefined : S3Credentials.derive(root, scope);
+                });
 
-        // start serving a primary's applied installations, following the forge's references on a building machine
-        const role = await this.role();
-        const { installed, unavailable } =
-            role === "primary"
-                ? await this.installed("machine")
-                : { installed: [], unavailable: [] };
-        await this.#root(installed, unavailable);
-        const forge = this.forge();
-        const accounts = this.accounts();
-        const isMetered = machine.skus !== undefined && role !== "standby";
-        const start: SpaceStart = {
-            role,
-            context,
-            partitions: await this.partitions(),
-            buckets,
-            s3: serveS3(buckets, this.database, machine.environment),
-            forge,
-            uplink: this.uplink(),
-            claims: {
-                object: accountObject.claim,
-                home: RemoteStore.of(accounts.store, Scope.universe.id),
+                // start serving a primary's applied installations, following the forge's references on a building machine
+                const role = await this.role();
+                const { installed, unavailable } =
+                    role === "primary"
+                        ? await this.installed("machine")
+                        : { installed: [], unavailable: [] };
+                await this.#root(installed, unavailable);
+                const forge = this.forge();
+                const accounts = this.accounts();
+                const isMetered = machine.skus !== undefined && role !== "standby";
+                const start: SpaceStart = {
+                    role,
+                    context,
+                    partitions: await this.partitions(),
+                    buckets,
+                    s3: serveS3(buckets, this.database, machine.environment),
+                    forge,
+                    uplink: this.uplink(),
+                    claims: {
+                        object: accountObject.claim,
+                        home: RemoteStore.of(accounts.store, Scope.universe.id),
+                    },
+                    external: volume.graphs(this.builds),
+                    follows: forge === null ? [] : forge.follows(),
+                    controllers: [
+                        () => this.controller(),
+                        ...(isMetered
+                            ? [
+                                  (store: ObjectStore) =>
+                                      new SpaceMeter(store, {
+                                          space: this.id,
+                                          measure: (from, to) => this.measure(from, to),
+                                          skus: present(machine.skus, "the SKUs rating the space"),
+                                          account: () => this.account(),
+                                          traffic: (signal) => machine.traffic.next(signal),
+                                      }).controller(),
+                              ]
+                            : []),
+                    ],
+                    cursors: isMetered
+                        ? [
+                              // append each account's uses of a page an hour at a time, kept while a billing call may retry
+                              stackObject.reading.cursor("metering", (page) => this.append(page), {
+                                  hold: { milliseconds: REQUEST_LIFETIME_MILLISECONDS },
+                                  batch: { hours: 1 },
+                              }),
+                          ]
+                        : [],
+                    installed,
+                    mounts: Space.#mounts(installed),
+                    store: Promise.withResolvers(),
+                    gateway: Promise.withResolvers(),
+                };
+                this.#start = start;
+                this.#reads = new Map();
+                this.#own = undefined;
+
+                return start;
             },
-            external: volume.graphs(this.builds),
-            follows: forge === null ? [] : forge.follows(),
-            controllers: [
-                () => this.controller(),
-                ...(isMetered
-                    ? [
-                          (store: ObjectStore) =>
-                              new SpaceMeter(store, {
-                                  space: this.id,
-                                  measure: (from, to) => this.measure(from, to),
-                                  skus: present(machine.skus, "the SKUs rating the space"),
-                                  account: () => this.account(),
-                                  traffic: (signal) => machine.traffic.next(signal),
-                              }).controller(),
-                      ]
-                    : []),
-            ],
-            cursors: isMetered
-                ? [
-                      // append each account's uses of a page an hour at a time, kept while a billing call may retry
-                      stackObject.reading.cursor("metering", (page) => this.append(page), {
-                          hold: { milliseconds: REQUEST_LIFETIME_MILLISECONDS },
-                          batch: { hours: 1 },
-                      }),
-                  ]
-                : [],
-            installed,
-            mounts: Space.#mounts(installed),
-            store: Promise.withResolvers(),
-            gateway: Promise.withResolvers(),
-        };
-        this.#start = start;
-        this.#reads = new Map();
-        this.#own = undefined;
-
-        return start;
+            { duration: { attributes: {} } },
+        );
     }
 
     /** Open the forge installations follow, none on a machine that builds nothing. */
@@ -465,27 +481,35 @@ export class Space {
     }
 
     /** Serve one start of the space's workload: its store, installations, gateway and meters. */
-    async serve(
-        context: WorkloadContext,
-    ): Promise<{ readonly packages: readonly PackageHandler[] }> {
-        // prepare the start, then serve the store and route the installations' calls through the gateway
-        const start = await this.prepare(context);
-        try {
-            const { servers, sandboxes } = await this.#servers(start.installed, context.signal);
-            const store = openStore(this, start, this.#storeServers(servers), sandboxes);
-            start.store.resolve(store);
-            start.gateway.resolve(new Gateway(this, start, store));
+    serve(context: WorkloadContext): Promise<{ readonly packages: readonly PackageHandler[] }> {
+        return this.machine.scope.span(
+            "destack.space.serve",
+            { "destack.space.id": this.id },
+            async () => {
+                // prepare the start, then serve the store and route the installations' calls through the gateway
+                const start = await this.prepare(context);
+                try {
+                    const { servers, sandboxes } = await this.#servers(
+                        start.installed,
+                        context.signal,
+                    );
+                    const store = openStore(this, start, this.#storeServers(servers), sandboxes);
+                    start.store.resolve(store);
+                    start.gateway.resolve(new Gateway(this, start, store));
 
-            return { packages: store.packages };
-        }
-        // reject the waits, each handled here as well as by its callers
-        catch (error) {
-            start.store.reject(error);
-            start.gateway.reject(error);
-            start.store.promise.catch(() => undefined);
-            start.gateway.promise.catch(() => undefined);
-            throw error;
-        }
+                    return { packages: store.packages };
+                }
+                // reject the waits, each handled here as well as by its callers
+                catch (error) {
+                    start.store.reject(error);
+                    start.gateway.reject(error);
+                    start.store.promise.catch(() => undefined);
+                    start.gateway.promise.catch(() => undefined);
+                    throw error;
+                }
+            },
+            { duration: { attributes: {} } },
+        );
     }
 
     /** Read the current start's store, once it serves. */

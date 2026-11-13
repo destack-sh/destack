@@ -110,12 +110,15 @@ export class TestGateway {
 
         // verify the universe's or a space's token, placing another space's caller in its account's chain
         const { machine } = host;
-        const verified = await Identity.authenticate(machine.directory.snapshot, request, {
-            audience,
-            universe: host.universe.issuer,
-            now: machine.environment.clock.now(),
-            environment: machine.environment,
-        });
+        const verified = await Identity.authenticate(
+            machine.directory.snapshot,
+            request,
+            machine.verifier,
+            {
+                audience,
+                now: machine.environment.clock.now(),
+            },
+        );
         if (verified === undefined) {
             return undefined;
         }
