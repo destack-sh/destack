@@ -1003,6 +1003,7 @@
       },
       "devDependencies": {
         "@destack/test": "workspace:*",
+        "@types/bun": "1.4.4",
       },
     },
     "@destack/shader": {
@@ -1172,6 +1173,7 @@
       },
       "devDependencies": {
         "@destack/check": "2026.11.0",
+        "@types/bun": "1.4.4",
       },
     },
     "@destack/template-stack": {
@@ -1193,6 +1195,7 @@
       },
       "devDependencies": {
         "@destack/check": "2026.11.0",
+        "@types/bun": "1.4.4",
       },
     },
     "@destack/template-tasks": {
@@ -1327,6 +1330,7 @@
         "@destack/environment": "workspace:*",
         "@destack/machine": "workspace:*",
         "@destack/test": "workspace:*",
+        "@types/bun": "1.4.4",
       },
       "peerDependencies": {
         "@destack/control": "workspace:*",
