@@ -3,6 +3,8 @@ import { Compression } from "../compression/compression.ts";
 import { Crypto } from "../crypto/crypto.ts";
 import type { FileSystem } from "../file/file.ts";
 import { Network } from "../network/network.ts";
+import { HttpTransport } from "../network/transport.ts";
+import { HttpServer } from "../server/http.ts";
 import type { Host } from "../host/host.ts";
 import type { Opener } from "../opener/opener.ts";
 import type { Process } from "../process/process.ts";
@@ -53,6 +55,11 @@ export type Environment<Name extends keyof Capability = never> = {
     readonly timeZone: string;
 } & Pick<Capability, Name>;
 
+/** Report whether an environment accepts connections. */
+function hasServer(environment: Environment): environment is Environment<"server"> {
+    return "server" in environment;
+}
+
 /** The system's base environment, built on its first read. */
 let system: Environment | undefined;
 
@@ -63,19 +70,35 @@ export const Environment = {
         // read the host's locale and time zone, and build the providers, once
         if (system === undefined) {
             const { locale, timeZone } = Intl.DateTimeFormat().resolvedOptions();
+            const telemetry = Telemetry.none(Clock.system);
             system = {
                 clock: Clock.system,
                 scheduler: Scheduler.system,
                 random: Random.system,
                 crypto: Crypto.system,
-                network: Network.system,
+                network: new HttpTransport(Network.system, telemetry),
                 compression: Compression.system,
-                telemetry: Telemetry.none(Clock.system),
+                telemetry,
                 locale,
                 timeZone,
             };
         }
 
         return system;
+    },
+
+    /** Emit an environment's signals through a telemetry, its network's and server's spans too. */
+    with<Effects extends Environment>(
+        environment: Effects,
+        changes: { readonly telemetry: Telemetry },
+    ): Effects {
+        // trace the network's source, and the server's where the environment accepts connections
+        const { telemetry } = changes;
+        const network = new HttpTransport(HttpTransport.sourceOf(environment.network), telemetry);
+        const server = hasServer(environment)
+            ? { server: new HttpServer(HttpServer.sourceOf(environment.server), telemetry) }
+            : {};
+
+        return { ...environment, telemetry, network, ...server };
     },
 };

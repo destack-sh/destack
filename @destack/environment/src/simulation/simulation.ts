@@ -17,6 +17,8 @@ import { SimulatedClock } from "../clock/simulated.ts";
 import { SeverityNumber } from "@opentelemetry/api";
 import { SIMULATION_SCOPE, SimulatedScheduler } from "../scheduler/simulated.ts";
 import { SimulatedNetwork } from "../network/simulated.ts";
+import { HttpTransport } from "../network/transport.ts";
+import { HttpServer } from "../server/http.ts";
 import { SimulatedRandom } from "../random/simulated.ts";
 import { Random } from "../random/random.ts";
 import type { World, WorldStep } from "../world/world.ts";
@@ -58,6 +60,9 @@ const FNV = { basis: 0x811c9dc5, prime: 0x01000193 } as const;
 
 /** Parts per million, the unit clock drift is given in. */
 const PARTS_PER_MILLION = 1_000_000;
+
+/** The label splitting the telemetry's identifiers from the world's seed. */
+const TELEMETRY_LABEL = "telemetry";
 
 /** The locale every node of a simulation formats in unless it gives another. */
 const LOCALE = "en-US";
@@ -343,7 +348,11 @@ export class Simulation {
         this.clock = owned.clock;
         this.#setTime = owned.move;
         this.random = new SimulatedRandom(options.seed);
-        this.telemetry = new SimulatedTelemetry({ clock: this.clock, random: this.random });
+        // draw the telemetry's identifiers from a split seed, so tracing never shifts the world's draws
+        const identifiers = new SimulatedRandom(
+            SimulatedRandom.split(options.seed, TELEMETRY_LABEL),
+        );
+        this.telemetry = new SimulatedTelemetry({ clock: this.clock, random: identifiers });
         this.#options = options;
         this.scheduler = new SimulatedScheduler({
             isOrdered: true,
@@ -482,13 +491,13 @@ export class Simulation {
             scheduler,
             random,
             crypto: Crypto.run(BunCrypto, scheduler),
-            network: this.network.of(name),
+            network: new HttpTransport(this.network.of(name), this.telemetry),
             compression: SimulatedCompression,
             telemetry: this.telemetry,
             locale: this.#options.locale ?? LOCALE,
             timeZone: this.#options.timeZone ?? TIME_ZONE,
             workers: this.workers.of(name),
-            server: this.network.server(name),
+            server: new HttpServer(this.network.server(name), this.telemetry),
             files: this.#filesOf(name),
             host: this.#host,
             opener: this.opener.of(name),

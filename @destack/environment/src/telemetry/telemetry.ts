@@ -39,6 +39,8 @@ export interface Telemetry {
     readonly clock: Clock;
     /** The clock durations are measured on: the host's, also in a simulated world. */
     readonly monotonic: Pick<Clock, "now">;
+    /** Take spans another process ended, such as a sandboxed worker's, into this pipeline. */
+    readonly ingest: (spans: readonly traces.ReadableSpan[]) => void;
 }
 
 /** Telemetry sources. */
@@ -53,6 +55,8 @@ export const Telemetry = {
             context,
             clock,
             monotonic: Clock.monotonic,
+            // drop another process's spans, as this telemetry exports nothing
+            ingest: () => {},
         };
     },
 

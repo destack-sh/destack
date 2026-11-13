@@ -69,6 +69,7 @@ Each effect follows a web or runtime API.
 | `workers`     | `start(create)`                                                                | Web Workers                         |
 
 The last six are host effects, requested in the type, such as `Environment<"files" | "process">`.
+The network and the server trace each request as OpenTelemetry's HTTP conventions do, and `Environment.with(environment, { telemetry })` moves both onto another telemetry.
 
 ### Simulation
 

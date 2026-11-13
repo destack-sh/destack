@@ -9,6 +9,8 @@ import { BunHost } from "./host/bun.ts";
 import { BunProcess } from "./process/bun.ts";
 import { BunNetwork } from "./network/bun.ts";
 import { BunServer } from "./server/bun.ts";
+import { HttpTransport } from "./network/transport.ts";
+import { HttpServer } from "./server/http.ts";
 import { ProcessOpener } from "./opener/opener.ts";
 
 /** The system's environment on Bun, built on its first read. */
@@ -29,17 +31,19 @@ export const BunEnvironment = {
 
 /** Build the system's environment on Bun, its context manager enabled. */
 function buildSystem() {
+    // build the process, the telemetry and the host, the network and server traced on the telemetry
     const process = new BunProcess();
+    const telemetry = Telemetry.none(Clock.system, new AsyncLocalStorageContextManager().enable());
     const host = BunHost.read();
 
     return {
         ...Environment.system,
         crypto: BunCrypto,
-        network: BunNetwork,
-        telemetry: Telemetry.none(Clock.system, new AsyncLocalStorageContextManager().enable()),
+        network: new HttpTransport(BunNetwork, telemetry),
+        telemetry,
         files: new BunFileSystem(),
         process,
-        server: BunServer,
+        server: new HttpServer(BunServer, telemetry),
         host,
         opener: new ProcessOpener(process, host.os),
         workers: WorkerHost.system,

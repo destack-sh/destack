@@ -27,6 +27,7 @@ import type { Random } from "../random/random.ts";
 import { TraceIdGenerator } from "./generator.ts";
 import { type Telemetry, W3C_PROPAGATOR } from "./telemetry.ts";
 import { SpanPath } from "./span.ts";
+import { recordSpanDuration } from "./runner.ts";
 
 /** The span attribute counting the statements run inside a span, as the database totals them. */
 const STATEMENTS = "db.client.operation.count";
@@ -127,6 +128,14 @@ export class SimulatedTelemetry implements Telemetry {
         this.loggers = new LoggerProvider({
             processors: [new SimpleLogRecordProcessor({ exporter: this.#logs })],
         });
+    }
+
+    /** Take another process's ended spans into the readback, recording their durations. */
+    ingest(spans: readonly ReadableSpan[]): void {
+        for (const span of spans) {
+            this.#spans.export([span], () => {});
+            recordSpanDuration(this.meters, span);
+        }
     }
 
     /** The spans ended so far, oldest first. */
