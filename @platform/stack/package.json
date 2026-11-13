@@ -17,7 +17,6 @@
         "@destack/finance": "workspace:*",
         "@destack/forge": "workspace:*",
         "@destack/home": "workspace:*",
-        "@platform/site": "workspace:*",
         "@destack/message": "workspace:*",
         "@destack/notification": "workspace:*",
         "@destack/observability": "workspace:*",
@@ -26,8 +25,12 @@
         "@destack/schema": "workspace:*",
         "@destack/social": "workspace:*",
         "@destack/stack": "workspace:*",
+        "@destack/template-blank": "workspace:*",
+        "@destack/template-stack": "workspace:*",
+        "@destack/template-tasks": "workspace:*",
         "@destack/vault": "workspace:*",
-        "@platform/pricing": "workspace:*"
+        "@platform/pricing": "workspace:*",
+        "@platform/site": "workspace:*"
     },
     "devDependencies": {
         "@destack/check": "workspace:*",
