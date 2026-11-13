@@ -113,7 +113,7 @@ export async function openNotes(loginId: Identifier<"login">) {
 `WorldDriver` acts out a world's steps.
 
 ```ts
-import { WorldDriver } from "@destack/machine/test";
+import { WorldDriver } from "@destack/machine/computer/test";
 
 // start a universe and a person's computer, then run a minute
 const driver = await WorldDriver.start();
