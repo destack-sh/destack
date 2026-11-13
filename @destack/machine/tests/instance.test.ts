@@ -24,6 +24,7 @@ import {
     Observation,
 } from "@destack/object";
 import { MemoryBuild } from "@destack/package/test";
+import { testIdentity } from "@destack/object/test";
 import { Plan } from "@destack/resource";
 import { ObjectReference, Scope, RequestId } from "@destack/sync";
 import { expect, refusal, single, test } from "@destack/test";
@@ -180,6 +181,7 @@ function requesting(permissions: GrantDeclaration): Declaration {
         definer: objectPackage,
         name: "notes",
         description: {
+            ...testIdentity,
             api: { name: "notes", procedures: [] },
             objects: {},
             mounts: {},
@@ -1196,6 +1198,7 @@ test("deploy nothing of a build routing hooks without serving them, and report w
     const hooked: Declaration = {
         ...requesting({}),
         description: {
+            ...testIdentity,
             api: { name: "notes", procedures: [] },
             objects: {
                 notes: {
@@ -1239,6 +1242,7 @@ test("deploy nothing of a build declaring mounts without a workload answering th
     const adapted: Declaration = {
         ...requesting({}),
         description: {
+            ...testIdentity,
             api: { name: "notes", procedures: [] },
             objects: {},
             mounts: { inbox: { path: "/inbox" } },
@@ -1880,6 +1884,7 @@ test("serve a release while a caller is pinned to it, and retire it once the cal
             name: "notes",
             description: {
                 since: "2026.10.0",
+                ...testIdentity,
                 api: { name: "notes", procedures: [] },
                 objects: {},
                 mounts: {},
