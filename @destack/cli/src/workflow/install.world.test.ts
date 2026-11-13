@@ -1,12 +1,12 @@
 import { fileURLToPath } from "node:url";
 import { present, schema, Version } from "@destack/schema";
 import { expect, test } from "@destack/test";
-import { jsonLines, TerminalFixture } from "../test/terminal.ts";
+import { isUncommitted, jsonLines, TerminalFixture } from "../test/terminal.ts";
 
 /** The checkout Acme publishes the notebooks package from. */
 const NOTEBOOKS = fileURLToPath(new URL("../../tests/fixture/notebooks/", import.meta.url));
 
-/** The version the checkout declares, which its uncommitted tree releases a prerelease of. */
+/** The version the checkout declares, a prerelease of it while the tree is uncommitted. */
 const RELEASE = "2026.11.0";
 
 /** How long the scenario takes at most: a build of the checkout, a publish and a rollout. */
@@ -102,7 +102,7 @@ test(
                 package: "@acme/notebooks",
                 version: released.package.version,
             },
-            version: [RELEASE, true],
+            version: [RELEASE, await isUncommitted(NOTEBOOKS)],
             watched: [130, [[], [JSON.parse(created.output)]], ""],
             calls: ["notebook.create"],
         });

@@ -7,6 +7,7 @@ import type { ObjectType } from "@destack/object";
 import { type InstallationRollout, Rollout, rollout } from "@destack/stack/object";
 import { type Identifier, type JsonObject, present, schema } from "@destack/schema";
 import { onTestFinished } from "@destack/test";
+import { testHost } from "@destack/test/host";
 import { testSimulation } from "@destack/test/world";
 import type { Scheduler } from "@destack/environment";
 import { type Simulation, SimulatedProcess } from "@destack/environment/simulation";
@@ -343,6 +344,15 @@ export function jsonLines(output: string): unknown[] {
         .split("\n")
         .filter((each) => each !== "")
         .map((each): unknown => JSON.parse(each));
+}
+
+/** Report whether a checkout has uncommitted changes, untracked files included. */
+export async function isUncommitted(directory: string): Promise<boolean> {
+    const status = await testHost().process.run(["git", "status", "--porcelain"], {
+        workingDirectory: directory,
+    });
+
+    return status.stdout.byteLength > 0;
 }
 
 /** Decode the chunks a process wrote to one of its standard streams. */

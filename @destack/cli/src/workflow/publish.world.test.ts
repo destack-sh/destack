@@ -3,12 +3,12 @@ import { fileURLToPath } from "node:url";
 import { type JsonValue, present, schema, Version } from "@destack/schema";
 import type { InstallationRollout } from "@destack/stack/object";
 import { expect, test } from "@destack/test";
-import { TerminalFixture, type TerminalInput } from "../test/terminal.ts";
+import { isUncommitted, TerminalFixture, type TerminalInput } from "../test/terminal.ts";
 
 /** The checkout Acme publishes the notebooks package from. */
 const NOTEBOOKS = fileURLToPath(new URL("../../tests/fixture/notebooks/", import.meta.url));
 
-/** The notebooks package as its checkout declares it, released as a prerelease of its version. */
+/** The notebooks package its checkout declares, a prerelease while the tree is uncommitted. */
 const PACKAGE = {
     id: "package-01996ab0-0000-7000-8000-0000000000d4",
     name: "@acme/notebooks",
@@ -166,7 +166,7 @@ test(
                 },
             },
             tagged: [0, `Tagged ${PACKAGE.name}@${version} stable.\n`, ""],
-            version: [PACKAGE.version, true],
+            version: [PACKAGE.version, await isUncommitted(NOTEBOOKS)],
             installations: [
                 { name: "notebooks", selection: { kind: "tag", tag: "stable" }, ready },
                 {
