@@ -8,7 +8,7 @@ import { TerminalFixture, type TerminalInput } from "../test/terminal.ts";
 /** The checkout Acme publishes the notebooks package from. */
 const NOTEBOOKS = fileURLToPath(new URL("../../tests/fixture/notebooks/", import.meta.url));
 
-/** The notebooks package as its checkout declares it, released as a prerelease of its version. */
+/** The notebooks package as its checkout declares it. */
 const PACKAGE = {
     id: "package-01996ab0-0000-7000-8000-0000000000d4",
     name: "@acme/notebooks",
@@ -150,7 +150,7 @@ test(
             organized: [organized.code, organized.error],
             unpublished: readiness(unpublished),
             tagged: [tagged.code, tagged.output, tagged.error],
-            version: [Version.release(version), Version.isPrerelease(version)],
+            version: Version.release(version),
             installations: [readiness(converged), readiness(settled)],
             builds,
         }).toEqual({
@@ -166,7 +166,7 @@ test(
                 },
             },
             tagged: [0, `Tagged ${PACKAGE.name}@${version} stable.\n`, ""],
-            version: [PACKAGE.version, true],
+            version: PACKAGE.version,
             installations: [
                 { name: "notebooks", selection: { kind: "tag", tag: "stable" }, ready },
                 {

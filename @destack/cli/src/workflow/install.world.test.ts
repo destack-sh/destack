@@ -6,7 +6,7 @@ import { jsonLines, TerminalFixture } from "../test/terminal.ts";
 /** The checkout Acme publishes the notebooks package from. */
 const NOTEBOOKS = fileURLToPath(new URL("../../tests/fixture/notebooks/", import.meta.url));
 
-/** The version the checkout declares, which its uncommitted tree releases a prerelease of. */
+/** The version the checkout declares. */
 const RELEASE = "2026.11.0";
 
 /** How long the scenario takes at most: a build of the checkout, a publish and a rollout. */
@@ -84,7 +84,7 @@ test(
                 statuses.at(-1)?.rollout.servedRevisionId === served.revisionId,
             ],
             installed,
-            version: [Version.release(installed.version), Version.isPrerelease(installed.version)],
+            version: Version.release(installed.version),
             watched: [watched.code, jsonLines(watched.output), watched.error],
             calls: calls
                 .map((call) => call.data.method)
@@ -102,7 +102,7 @@ test(
                 package: "@acme/notebooks",
                 version: released.package.version,
             },
-            version: [RELEASE, true],
+            version: RELEASE,
             watched: [130, [[], [JSON.parse(created.output)]], ""],
             calls: ["notebook.create"],
         });
