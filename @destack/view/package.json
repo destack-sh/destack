@@ -97,6 +97,8 @@
         "@destack/sync": "workspace:*",
         "@destack/telemetry": "workspace:*",
         "@destack/theme": "workspace:*",
+        "@fontsource-variable/ibm-plex-sans": "5.3.0",
+        "@fontsource/ibm-plex-mono": "5.3.0",
         "@solidjs/meta": "1.0.0-next.2",
         "@solidjs/router": "2.0.0-next.24",
         "@solidjs/signals": "2.0.0-rc.8",
@@ -128,7 +130,6 @@
         "@destack/build": "workspace:*",
         "@destack/check": "workspace:*",
         "@destack/test": "workspace:*",
-        "@fontsource/ibm-plex-mono": "5.3.0",
         "rolldown": "1.2.16",
         "vite": "8.3.0"
     }

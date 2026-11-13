@@ -15,6 +15,7 @@ export {
     type FontProperties,
     type FontSource,
 } from "./font.tsx";
+export { destackFonts } from "./typeface.ts";
 export { Script, type ScriptProperties, type ScriptStrategy } from "./script.tsx";
 export {
     AppearanceScript,
