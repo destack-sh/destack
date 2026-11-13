@@ -11,6 +11,7 @@ import { Simulation } from "@destack/environment/simulation";
 import type { UpdaterOptions } from "../update/updater.ts";
 import type { Metadata, Root } from "@tufjs/models";
 import { type ReleaseKeys, SignedRepository, SigningKey, TrustedRoot } from "../publish/index.ts";
+import { testWorldOptions } from "@destack/test/world";
 
 /** The host the fixture command is built on and runs on, as the updater starts it. */
 const HOST = testHost();
@@ -160,7 +161,11 @@ export class TestUpdate implements AsyncDisposable {
 
     /** Open a world paused at the system's time, near the wall clock tuf-js checks expiry on. */
     static world(): Simulation {
-        return new Simulation({ seed: WORLD_SEED, start: HOST.clock.now() });
+        return new Simulation({
+            world: testWorldOptions(),
+            seed: WORLD_SEED,
+            start: HOST.clock.now(),
+        });
     }
 
     /** Publish a compiled fixture as a version into a fresh repository listening in a world. */

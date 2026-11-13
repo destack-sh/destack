@@ -4,6 +4,7 @@ import { Stage } from "../release/index.ts";
 import { testSimulation } from "@destack/object/test";
 import { expect, onTestFinished, test } from "@destack/test";
 import { ShellPath } from "./path.ts";
+import { testWorldOptions } from "@destack/test/world";
 
 test("register the terminal command once in the user's shell file, keeping their configuration, and remove exactly it", async () => {
     // give a zsh user on macOS a home with a shell file of their own
@@ -11,6 +12,7 @@ test("register the terminal command once in the user's shell file, keeping their
     const home = await files.makeTemporaryDirectory("destack-shell-");
     onTestFinished(() => files.remove(home, { recursive: true }));
     await using simulation = new Simulation({
+        world: testWorldOptions(),
         seed: 1,
         start: 0,
         host: { os: "darwin", architecture: "arm64", version: "24.1.0", hostname: "mac", home },

@@ -4,6 +4,7 @@ import { Release, Stage } from "../release/index.ts";
 import { testSimulation } from "@destack/object/test";
 import { expect, onTestFinished, test } from "@destack/test";
 import { Distribution, type DistributionEnvironment } from "./distribution.ts";
+import { testWorldOptions } from "@destack/test/world";
 
 test("link and unlink independent Linux desktop entries and link handlers for production and local archives", async () => {
     // give a Linux person a home with an activated archive release
@@ -12,6 +13,7 @@ test("link and unlink independent Linux desktop entries and link handlers for pr
     onTestFinished(() => files.remove(directory, { recursive: true, force: true }));
     const data = join(directory, "share");
     await using simulation = new Simulation({
+        world: testWorldOptions(),
         seed: 1,
         start: 0,
         host: {
