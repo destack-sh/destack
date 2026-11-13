@@ -107,7 +107,7 @@ const orientations = style.create({
 });
 
 /** The text style of a legend in each variant. */
-const legends = { legend: text.callout, label: text.footnote } as const;
+const legends = { legend: text.sm, label: text.xs } as const;
 
 /** The direction a field lays out its label and control in. */
 export type FieldOrientation = "vertical" | "horizontal" | "responsive";
@@ -205,7 +205,7 @@ export function FieldDescription(
     const id = createUniqueId();
     useFieldControl()?.describe(id, () => true);
 
-    return renderPart("p", "field-description", properties, [text.footnote, styles.description], {
+    return renderPart("p", "field-description", properties, [text.xs, styles.description], {
         id,
     });
 }
@@ -231,10 +231,7 @@ export function FieldError(properties: FieldErrorProperties): JSX.Element {
                 role="alert"
                 data-slot="field-error"
                 {...rest}
-                {...style.attributes(
-                    [text.footnote, styles.error, properties.xstyle],
-                    properties.style,
-                )}
+                {...style.attributes([text.xs, styles.error, properties.xstyle], properties.style)}
             >
                 <Show when={content.toArray().length === 0} fallback={content()}>
                     <Show when={messages().length > 1} fallback={messages()[0]}>
@@ -286,7 +283,7 @@ export function FieldTitle(properties: FieldElementProperties<HTMLDivElement>): 
     const control = useFieldControl();
 
     return renderPart("div", "field-label", properties, () => [
-        text.callout,
+        text.sm,
         styles.title,
         control?.isDisabled() === true && styles.disabled,
     ]);
@@ -302,10 +299,7 @@ export function FieldSeparator(properties: FieldElementProperties<HTMLDivElement
             data-slot="field-separator"
             data-content={content.toArray().length > 0 ? "true" : "false"}
             {...rest}
-            {...style.attributes(
-                [text.footnote, styles.separator, properties.xstyle],
-                properties.style,
-            )}
+            {...style.attributes([text.xs, styles.separator, properties.xstyle], properties.style)}
         >
             <Separator xstyle={styles.line} />
             <Show when={content.toArray().length > 0}>

@@ -192,7 +192,7 @@ export function AvatarFallback(
 
     return (
         <Show when={state.status() !== "loaded"}>
-            {renderPart("span", "avatar-fallback", properties, [text.footnote, styles.fallback])}
+            {renderPart("span", "avatar-fallback", properties, [text.xs, styles.fallback])}
         </Show>
     );
 }
@@ -219,7 +219,7 @@ export function AvatarGroup(
 export function AvatarGroupCount(
     properties: AvatarElementProperties<JSX.HTMLAttributes<HTMLDivElement>>,
 ): JSX.Element {
-    return renderPart("div", "avatar-group-count", properties, [text.footnote, styles.count]);
+    return renderPart("div", "avatar-group-count", properties, [text.xs, styles.count]);
 }
 
 /** Read the image state of the nearest avatar. */

@@ -351,10 +351,7 @@ export function GridListSectionHeader(properties: GridListSectionHeaderPropertie
         <div
             data-slot="grid-list-section-header"
             {...rest}
-            {...style.attributes(
-                [text.caption, styles.header, properties.xstyle],
-                properties.style,
-            )}
+            {...style.attributes([text.xs, styles.header, properties.xstyle], properties.style)}
         >
             <span role="columnheader">{properties.label}</span>
         </div>

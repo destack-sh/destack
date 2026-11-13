@@ -107,15 +107,15 @@ export function EmptyMedia(properties: EmptyMediaProperties): JSX.Element {
 
 /** Render the title of an empty state. */
 export function EmptyTitle(properties: EmptyElementProperties): JSX.Element {
-    return renderPart("div", "empty-title", properties, [text.headline, styles.title]);
+    return renderPart("div", "empty-title", properties, [text.lg, styles.title]);
 }
 
 /** Render the description under an empty state's title. */
 export function EmptyDescription(properties: EmptyElementProperties): JSX.Element {
-    return renderPart("div", "empty-description", properties, [text.footnote, styles.description]);
+    return renderPart("div", "empty-description", properties, [text.xs, styles.description]);
 }
 
 /** Render the actions and links under an empty state's header. */
 export function EmptyContent(properties: EmptyElementProperties): JSX.Element {
-    return renderPart("div", "empty-content", properties, [text.footnote, styles.content]);
+    return renderPart("div", "empty-content", properties, [text.xs, styles.content]);
 }

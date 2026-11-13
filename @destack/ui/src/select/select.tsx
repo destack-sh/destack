@@ -220,7 +220,7 @@ export function SelectGroup(
 export function SelectLabel(
     properties: SelectElementProperties<JSX.HTMLAttributes<HTMLLegendElement>>,
 ): JSX.Element {
-    return renderPart("legend", "select-label", properties, [text.caption, styles.label]);
+    return renderPart("legend", "select-label", properties, [text.xs, styles.label]);
 }
 
 /** Render a line between a select's options. */

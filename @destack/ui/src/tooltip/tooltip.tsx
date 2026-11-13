@@ -217,7 +217,7 @@ export function TooltipContent(properties: TooltipContentProperties): JSX.Elemen
                 onPointerLeave={() => tooltip.closeLater()}
                 {...style.attributes(
                     [
-                        text.caption,
+                        text.xs,
                         styles.content,
                         Position.beside(content.side, content.align),
                         Position.offset(content.sideOffset),

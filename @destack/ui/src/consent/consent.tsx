@@ -91,7 +91,7 @@ export interface PermissionGroupProperties {
 export function PermissionGroup(properties: PermissionGroupProperties): JSX.Element {
     return (
         <Stack space="1" role="group" aria-label={properties.title}>
-            <p {...style.attributes([text.caption, styles.title])}>{properties.title}</p>
+            <p {...style.attributes([text.xs, styles.title])}>{properties.title}</p>
             <ul {...style.attributes(styles.list)}>{properties.children}</ul>
         </Stack>
     );
@@ -110,7 +110,7 @@ export function Permission(properties: PermissionProperties): JSX.Element {
     const locale = useLocale();
 
     return (
-        <li {...style.attributes([text.callout, styles.permission])}>
+        <li {...style.attributes([text.sm, styles.permission])}>
             {properties.description}
             <Show when={properties.isGranted === true}>
                 <Badge variant="secondary">{locale.render(t`Already allowed`)}</Badge>

@@ -22,5 +22,5 @@ export type LabelProperties = Omit<JSX.LabelHTMLAttributes<HTMLLabelElement>, "c
 
 /** Render a native label that names its control. */
 export function Label(properties: LabelProperties): JSX.Element {
-    return renderPart("label", "label", properties, [text.callout, styles.label]);
+    return renderPart("label", "label", properties, [text.sm, styles.label]);
 }

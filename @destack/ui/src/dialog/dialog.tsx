@@ -313,7 +313,7 @@ export function DialogFooter(properties: DialogElementProperties<HTMLDivElement>
 export function DialogTitle(properties: DialogElementProperties<HTMLHeadingElement>): JSX.Element {
     const control = useDialog();
 
-    return renderPart("h2", "dialog-title", properties, [text.headline, styles.title], {
+    return renderPart("h2", "dialog-title", properties, [text.lg, styles.title], {
         id: control.titleId,
     });
 }
@@ -326,7 +326,7 @@ export function DialogDescription(
     const control = useDialog();
     control.describe();
 
-    return renderPart("p", "dialog-description", properties, [text.footnote, styles.description], {
+    return renderPart("p", "dialog-description", properties, [text.xs, styles.description], {
         id: control.descriptionId,
     });
 }

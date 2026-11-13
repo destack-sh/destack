@@ -328,7 +328,7 @@ export function ComboboxContent(
                 {...properties}
                 ref={(element) => control.setContent(element)}
                 xstyle={[
-                    text.footnote,
+                    text.xs,
                     styles.content,
                     Position.beside("bottom", "start"),
                     properties.xstyle,

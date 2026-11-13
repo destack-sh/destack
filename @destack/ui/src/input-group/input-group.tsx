@@ -186,7 +186,7 @@ export function InputGroupAddon(properties: InputGroupAddonProperties): JSX.Elem
                 }
             }}
             {...style.attributes(
-                [text.callout, styles.addon, alignments[addon.align], addonMarker, addon.xstyle],
+                [text.sm, styles.addon, alignments[addon.align], addonMarker, addon.xstyle],
                 addon.style,
             )}
         />
@@ -214,7 +214,7 @@ export function InputGroupButton(properties: InputGroupButtonProperties): JSX.El
 export function InputGroupText(
     properties: InputGroupElementProperties<JSX.HTMLAttributes<HTMLSpanElement>>,
 ): JSX.Element {
-    return renderPart("span", "input-group-text", properties, [text.callout, styles.text]);
+    return renderPart("span", "input-group-text", properties, [text.sm, styles.text]);
 }
 
 /** Render a group's input, tied to its field like any input. */

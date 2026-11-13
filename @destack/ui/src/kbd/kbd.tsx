@@ -34,7 +34,7 @@ export type KbdProperties = Omit<JSX.HTMLAttributes<HTMLElement>, "class"> & Ele
 
 /** Render a key of a keyboard shortcut. */
 export function Kbd(properties: KbdProperties): JSX.Element {
-    return renderPart("kbd", "kbd", properties, [text.caption, styles.kbd]);
+    return renderPart("kbd", "kbd", properties, [text.xs, styles.kbd]);
 }
 
 /** Render the keys of one shortcut side by side. */

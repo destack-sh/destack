@@ -21,42 +21,42 @@
     }
 
     [data-slot="prose"] :where(h1) {
-        font-family: var(--destack-text-title1-font-family);
-        font-size: var(--destack-text-title1-font-size);
-        font-weight: var(--destack-text-title1-font-weight);
-        line-height: var(--destack-text-title1-line-height);
-        letter-spacing: var(--destack-text-title1-letter-spacing);
+        font-family: var(--destack-text-2xl-font-family);
+        font-size: var(--destack-text-2xl-font-size);
+        font-weight: var(--destack-text-2xl-font-weight);
+        line-height: var(--destack-text-2xl-line-height);
+        letter-spacing: var(--destack-text-2xl-letter-spacing);
     }
 
     [data-slot="prose"] :where(h2) {
-        font-family: var(--destack-text-title2-font-family);
-        font-size: var(--destack-text-title2-font-size);
-        font-weight: var(--destack-text-title2-font-weight);
-        line-height: var(--destack-text-title2-line-height);
-        letter-spacing: var(--destack-text-title2-letter-spacing);
+        font-family: var(--destack-text-xl-font-family);
+        font-size: var(--destack-text-xl-font-size);
+        font-weight: var(--destack-text-xl-font-weight);
+        line-height: var(--destack-text-xl-line-height);
+        letter-spacing: var(--destack-text-xl-letter-spacing);
     }
 
     [data-slot="prose"] :where(h3) {
-        font-family: var(--destack-text-title3-font-family);
-        font-size: var(--destack-text-title3-font-size);
-        font-weight: var(--destack-text-title3-font-weight);
-        line-height: var(--destack-text-title3-line-height);
-        letter-spacing: var(--destack-text-title3-letter-spacing);
+        font-family: var(--destack-text-lg-font-family);
+        font-size: var(--destack-text-lg-font-size);
+        font-weight: var(--destack-text-lg-font-weight);
+        line-height: var(--destack-text-lg-line-height);
+        letter-spacing: var(--destack-text-lg-letter-spacing);
     }
 
     [data-slot="prose"] :where(h4) {
-        font-family: var(--destack-text-headline-font-family);
-        font-size: var(--destack-text-headline-font-size);
-        font-weight: var(--destack-text-headline-font-weight);
-        line-height: var(--destack-text-headline-line-height);
-        letter-spacing: var(--destack-text-headline-letter-spacing);
+        font-family: var(--destack-text-base-font-family);
+        font-size: var(--destack-text-base-font-size);
+        font-weight: var(--destack-text-base-font-weight);
+        line-height: var(--destack-text-base-line-height);
+        letter-spacing: var(--destack-text-base-letter-spacing);
     }
 
     /* set the first paragraph of a lead-in prose as its lead: larger and muted */
     [data-slot="prose"][data-lead] > :where(p:first-of-type) {
         color: var(--destack-color-muted-foreground);
-        font-size: var(--destack-text-title3-font-size);
-        line-height: var(--destack-text-title3-line-height);
+        font-size: var(--destack-text-lg-font-size);
+        line-height: var(--destack-text-lg-line-height);
     }
 
     /* break long words in running text rather than overflow */
@@ -128,8 +128,8 @@
         border-radius: var(--destack-radius-3);
         background-color: var(--destack-color-muted);
         font-family: var(--destack-font-code);
-        font-size: var(--destack-text-footnote-font-size);
-        line-height: var(--destack-text-footnote-line-height);
+        font-size: var(--destack-text-xs-font-size);
+        line-height: var(--destack-text-xs-line-height);
     }
 
     [data-slot="prose"] :where(pre > code) {
@@ -159,8 +159,8 @@
         max-inline-size: 100%;
         overflow-x: auto;
         border-collapse: collapse;
-        font-size: var(--destack-text-callout-font-size);
-        line-height: var(--destack-text-callout-line-height);
+        font-size: var(--destack-text-sm-font-size);
+        line-height: var(--destack-text-sm-line-height);
     }
 
     [data-slot="prose"] :where(th, td) {
@@ -189,8 +189,8 @@
     [data-slot="prose"] :where(figcaption) {
         margin-block-start: var(--destack-space-3);
         color: var(--destack-color-muted-foreground);
-        font-size: var(--destack-text-footnote-font-size);
-        line-height: var(--destack-text-footnote-line-height);
+        font-size: var(--destack-text-xs-font-size);
+        line-height: var(--destack-text-xs-line-height);
     }
 
     /* raise footnote references, and list the notes under a hairline, as GitHub renders them */
@@ -207,8 +207,8 @@
     [data-slot="prose"] :where(section[data-footnotes]) {
         padding-block-start: var(--destack-space-4);
         border-block-start: var(--destack-stroke-border) solid var(--destack-color-border);
-        font-size: var(--destack-text-footnote-font-size);
-        line-height: var(--destack-text-footnote-line-height);
+        font-size: var(--destack-text-xs-font-size);
+        line-height: var(--destack-text-xs-line-height);
     }
 
     [data-slot="prose"] :where(section[data-footnotes] li:target) {

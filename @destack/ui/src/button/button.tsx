@@ -7,8 +7,8 @@ import { type PartAttributes, type Render, useRender } from "../part/index.ts";
 import { useJoin } from "../join/index.ts";
 import { Spinner } from "../spinner/index.ts";
 
-/** The sizes that set their text in the footnote style. */
-const FOOTNOTE_SIZES: ReadonlySet<ButtonSize> = new Set(["xs", "icon-xs"]);
+/** The sizes that set their text in the extra small style. */
+const SMALL_SIZES: ReadonlySet<ButtonSize> = new Set(["xs", "icon-xs"]);
 
 /** The variant and size of a button that sets neither. */
 const DEFAULTS: Required<Pick<ButtonProperties, "variant" | "size">> = {
@@ -164,7 +164,7 @@ export function buttonVariants(options: ButtonVariantProperties): style.Styles {
     const height = options.size ?? DEFAULTS.size;
 
     return [
-        FOOTNOTE_SIZES.has(height) ? text.footnote : text.callout,
+        SMALL_SIZES.has(height) ? text.xs : text.sm,
         styles.button,
         variants[options.variant ?? DEFAULTS.variant],
         sizes[height],

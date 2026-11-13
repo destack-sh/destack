@@ -68,7 +68,7 @@ export function Breadcrumb(
 export function BreadcrumbList(
     properties: BreadcrumbElementProperties<JSX.OlHTMLAttributes<HTMLOListElement>>,
 ): JSX.Element {
-    return renderPart("ol", "breadcrumb-list", properties, [text.footnote, styles.list]);
+    return renderPart("ol", "breadcrumb-list", properties, [text.xs, styles.list]);
 }
 
 /** Render one step of the trail. */

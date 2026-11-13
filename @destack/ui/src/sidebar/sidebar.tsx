@@ -503,7 +503,7 @@ export function Sidebar(properties: SidebarProperties): JSX.Element {
                 {...rest}
                 {...style.attributes(
                     [
-                        text.footnote,
+                        text.xs,
                         styles.sidebar,
                         styles[sidebar.side],
                         sidebar.variant === "sidebar" ? null : styles.floating,
@@ -624,7 +624,7 @@ export function SidebarGroupLabel(
     const control = useSidebar();
 
     return renderPart("div", "sidebar-group-label", properties, () => [
-        text.caption,
+        text.xs,
         styles.groupLabel,
         !control.isOpen() && !control.isMobile() && styles.fade,
     ]);
@@ -784,7 +784,7 @@ export function SidebarMenuAction(properties: ButtonProperties): JSX.Element {
 export function SidebarMenuBadge(
     properties: SidebarElementProperties<JSX.HTMLAttributes<HTMLDivElement>>,
 ): JSX.Element {
-    return renderPart("div", "sidebar-menu-badge", properties, [text.caption, styles.menuBadge]);
+    return renderPart("div", "sidebar-menu-badge", properties, [text.xs, styles.menuBadge]);
 }
 
 /** Render a nested list of an entry's sub-entries. */

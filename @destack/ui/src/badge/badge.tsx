@@ -65,7 +65,7 @@ export interface BadgeVariantProperties {
 
 /** Return the StyleX styles of a badge in a variant. */
 export function badgeVariants(options: BadgeVariantProperties): style.Styles {
-    return [text.caption, styles.badge, variants[options.variant ?? DEFAULTS.variant]];
+    return [text.xs, styles.badge, variants[options.variant ?? DEFAULTS.variant]];
 }
 
 /** Render a short label such as a status or count in a variant. */

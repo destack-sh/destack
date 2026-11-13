@@ -61,7 +61,7 @@ export interface InputStyleOptions {
 
 /** Return the StyleX styles of an input's box. */
 export function inputStyle(options: InputStyleOptions = {}): style.Styles {
-    return [text.callout, styles.box, options.invalid === true && styles.invalid];
+    return [text.sm, styles.box, options.invalid === true && styles.invalid];
 }
 
 /** The properties of an input, the native input's attributes included. */

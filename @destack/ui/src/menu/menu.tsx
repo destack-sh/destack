@@ -442,7 +442,7 @@ export function MenuContent(properties: MenuContentProperties): JSX.Element {
                 onFocusOut={(event) => control.list.focus.focusOut(event)}
                 {...style.attributes(
                     [
-                        text.footnote,
+                        text.xs,
                         styles.content,
                         Position.beside(content.side, content.align),
                         Position.offset(content.sideOffset),
@@ -687,7 +687,7 @@ export function MenuSeparator(properties: MenuElementProperties<HTMLDivElement>)
 
 /** Render the keyboard shortcut of an item at its end. */
 export function MenuShortcut(properties: MenuElementProperties<HTMLSpanElement>): JSX.Element {
-    return renderPart("span", "menu-shortcut", properties, [text.caption, styles.shortcut]);
+    return renderPart("span", "menu-shortcut", properties, [text.xs, styles.shortcut]);
 }
 
 /** Render the item that opens a submenu on hover, Enter, Space or the arrow key toward it. */

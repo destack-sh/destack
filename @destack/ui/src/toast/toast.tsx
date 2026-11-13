@@ -470,7 +470,7 @@ function ToastItem(properties: {
             onPointerUp={(event) => swipe.release(event)}
             onPointerCancel={() => swipe.cancel()}
             {...style.attrs(
-                text.footnote,
+                text.xs,
                 styles.toast,
                 properties.isRich && richOf(entry.type),
                 swipeStyle(swipe.translate()),

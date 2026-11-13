@@ -206,7 +206,7 @@ export function MenubarTrigger(
         "button",
         "menubar-trigger",
         properties,
-        () => [text.footnote, styles.trigger, menu.isOpen() && styles.open],
+        () => [text.xs, styles.trigger, menu.isOpen() && styles.open],
         {
             type: "button",
             id: menu.triggerId,

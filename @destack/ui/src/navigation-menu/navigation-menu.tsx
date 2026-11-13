@@ -309,7 +309,7 @@ export type NavigationMenuProperties = NavigationMenuElementProperties<
 
 /** Return the StyleX styles of a navigation menu's trigger, for its top-level links. */
 export function navigationMenuTriggerStyle(): style.Styles {
-    return [text.footnote, styles.trigger];
+    return [text.xs, styles.trigger];
 }
 
 /** Read the navigation menu around an element, refusing elements outside one. */
@@ -481,7 +481,7 @@ export function NavigationMenuTrigger(
             }}
             {...style.attributes(
                 [
-                    text.footnote,
+                    text.xs,
                     styles.trigger,
                     isOpen() && styles.open,
                     isOpen() && styles.anchor,
@@ -604,7 +604,7 @@ export function NavigationMenuLink(properties: NavigationMenuLinkProperties): JS
                 }
             },
         },
-        () => style.attributes([text.footnote, styles.link, properties.xstyle], properties.style),
+        () => style.attributes([text.xs, styles.link, properties.xstyle], properties.style),
     );
 
     return useRender({

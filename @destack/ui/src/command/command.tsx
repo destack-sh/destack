@@ -189,7 +189,7 @@ export function Command(properties: CommandProperties): JSX.Element {
                     data-slot="command"
                     {...rest}
                     {...style.attributes(
-                        [text.footnote, styles.command, properties.xstyle],
+                        [text.xs, styles.command, properties.xstyle],
                         properties.style,
                     )}
                 />
@@ -215,7 +215,7 @@ export function CommandInput(
                 "input",
                 "command-input",
                 properties,
-                [text.callout, styles.input],
+                [text.sm, styles.input],
                 merge(autocomplete.input(() => locale.direction)),
             )}
         </div>
@@ -295,7 +295,7 @@ export function CommandSeparator(
 export function CommandShortcut(
     properties: CommandElementProperties<JSX.HTMLAttributes<HTMLSpanElement>>,
 ): JSX.Element {
-    return renderPart("span", "command-shortcut", properties, [text.caption, styles.shortcut]);
+    return renderPart("span", "command-shortcut", properties, [text.xs, styles.shortcut]);
 }
 
 /** Render a command in a modal dialog near the viewport's top, titled for assistive technology. */

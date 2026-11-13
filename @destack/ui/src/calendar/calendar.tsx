@@ -407,7 +407,7 @@ function CalendarMonths(properties: {
             data-slot="calendar"
             {...omit(calendar, ...CALENDAR_OPTIONS)}
             onFocusOut={(event) => control.focus.focusOut(event)}
-            {...style.attributes([text.footnote, styles.calendar, calendar.xstyle], calendar.style)}
+            {...style.attributes([text.xs, styles.calendar, calendar.xstyle], calendar.style)}
         >
             <CalendarHeader
                 direction={locale.direction}
@@ -490,7 +490,7 @@ function CalendarMonth(properties: {
                 id={captionId}
                 aria-live="polite"
                 data-slot="calendar-caption"
-                {...style.attrs(text.footnote, styles.caption)}
+                {...style.attrs(text.xs, styles.caption)}
             >
                 <Show
                     when={properties.layout === "dropdown"}
@@ -581,7 +581,7 @@ function CalendarGrid(properties: CalendarGridProperties): JSX.Element {
                     {(week) => (
                         <tr>
                             <Show when={properties.weekNumbers}>
-                                <th scope="row" {...style.attrs(text.caption, styles.week)}>
+                                <th scope="row" {...style.attrs(text.xs, styles.week)}>
                                     {Day.isoWeek(week[3] ?? week[0] ?? properties.month)}
                                 </th>
                             </Show>
@@ -633,7 +633,7 @@ function CalendarWeekdays(properties: {
                     <th
                         scope="col"
                         aria-label={locale.render(t`Week`)}
-                        {...style.attrs(text.caption, styles.weekday)}
+                        {...style.attrs(text.xs, styles.weekday)}
                     />
                 </Show>
                 <For each={properties.week}>
@@ -641,7 +641,7 @@ function CalendarWeekdays(properties: {
                         <th
                             scope="col"
                             abbr={locale.date(Day.time(day), { weekday: "long", timeZone: "UTC" })}
-                            {...style.attrs(text.caption, styles.weekday)}
+                            {...style.attrs(text.xs, styles.weekday)}
                         >
                             {locale.date(Day.time(day), { weekday: "short", timeZone: "UTC" })}
                         </th>

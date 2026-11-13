@@ -87,7 +87,7 @@ export function Alert(properties: AlertProperties): JSX.Element {
                 role="alert"
                 {...rest}
                 {...style.attributes(
-                    [text.callout, styles.alert, variants[alert.variant], alert.xstyle],
+                    [text.sm, styles.alert, variants[alert.variant], alert.xstyle],
                     alert.style,
                 )}
             />

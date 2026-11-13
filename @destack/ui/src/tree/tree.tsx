@@ -270,10 +270,7 @@ export function Tree(properties: TreeProperties): JSX.Element {
                 {...rest}
                 onKeyDown={(event) => navigate(event, control, locale.direction)}
                 onFocusOut={(event) => control.focus.focusOut(event)}
-                {...style.attributes(
-                    [text.footnote, styles.tree, properties.xstyle],
-                    properties.style,
-                )}
+                {...style.attributes([text.xs, styles.tree, properties.xstyle], properties.style)}
             />
         </TreeContext>
     );

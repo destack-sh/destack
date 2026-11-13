@@ -321,7 +321,7 @@ export function TabsTrigger(properties: TabsTriggerProperties): JSX.Element {
         },
         () =>
             style.attributes(
-                [text.footnote, styles.trigger, isSelected() && styles.selected, properties.xstyle],
+                [text.xs, styles.trigger, isSelected() && styles.selected, properties.xstyle],
                 properties.style,
             ),
     );

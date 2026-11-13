@@ -446,7 +446,7 @@ export function DataTablePagination<Features extends TableFeatures, Row extends 
     const canNext = (): boolean => follow(table.tracked, () => table.getCanNextPage());
 
     return (
-        <div data-slot="data-table-pagination" {...style.attrs(text.footnote, styles.pagination)}>
+        <div data-slot="data-table-pagination" {...style.attrs(text.xs, styles.pagination)}>
             <span {...style.attrs(styles.count)}>
                 <Show when={selected()}>
                     {(rows) => (

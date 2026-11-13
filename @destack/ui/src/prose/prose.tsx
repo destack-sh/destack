@@ -26,5 +26,5 @@ export type ProseProperties = Omit<JSX.HTMLAttributes<HTMLDivElement>, "class"> 
 
 /** Style rendered HTML, such as converted Markdown, by its semantic elements. */
 export function Prose(properties: ProseProperties): JSX.Element {
-    return renderPart("div", "prose", properties, [text.body, styles.prose]);
+    return renderPart("div", "prose", properties, [text.base, styles.prose]);
 }

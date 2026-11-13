@@ -84,7 +84,7 @@ export interface DateSegmentBoxOptions {
 /** Return the StyleX styles of the input-like box around segments. */
 export function dateSegmentBoxStyle(options: DateSegmentBoxOptions = {}): style.Styles {
     return [
-        text.callout,
+        text.sm,
         styles.box,
         options.invalid === true && styles.invalid,
         options.disabled === true && styles.disabled,

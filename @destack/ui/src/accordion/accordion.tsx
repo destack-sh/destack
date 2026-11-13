@@ -277,10 +277,7 @@ export function AccordionTrigger(
                 refuseDisabled(summary, isDisabled);
             }}
             onFocus={() => accordion.list.focus.focusIn(item.value)}
-            {...style.attributes(
-                [text.callout, styles.trigger, properties.xstyle],
-                properties.style,
-            )}
+            {...style.attributes([text.sm, styles.trigger, properties.xstyle], properties.style)}
         >
             {properties.children}
             <span {...style.attrs(styles.chevron)}>
@@ -295,7 +292,7 @@ export function AccordionContent(
 ): JSX.Element {
     const item = useContext(AccordionItemContext);
 
-    return renderPart("div", "accordion-content", properties, [text.footnote, styles.content], {
+    return renderPart("div", "accordion-content", properties, [text.xs, styles.content], {
         get "data-state"() {
             return item?.isOpen() === true ? "open" : "closed";
         },

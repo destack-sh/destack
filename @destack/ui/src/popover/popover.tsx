@@ -449,7 +449,7 @@ export function PopoverContent(properties: PopoverContentProperties): JSX.Elemen
                         }}
                         {...style.attributes(
                             [
-                                text.callout,
+                                text.sm,
                                 styles.content,
                                 Position.beside(content.side, content.align),
                                 Position.offset(content.sideOffset),
@@ -476,7 +476,7 @@ export function PopoverContent(properties: PopoverContentProperties): JSX.Elemen
                     onClose={() => popover.dismiss()}
                     {...style.attributes(
                         [
-                            text.callout,
+                            text.sm,
                             styles.content,
                             styles.modal,
                             Position.area(content.side, content.align),
@@ -536,7 +536,7 @@ export function PopoverTitle(
     const popover = usePopover();
     popover.title();
 
-    return renderPart("h2", "popover-title", properties, [text.callout, styles.title], {
+    return renderPart("h2", "popover-title", properties, [text.sm, styles.title], {
         get id() {
             return `${popover.id}-title`;
         },
@@ -551,7 +551,7 @@ export function PopoverDescription(
     const popover = usePopover();
     popover.describe();
 
-    return renderPart("p", "popover-description", properties, [text.footnote, styles.description], {
+    return renderPart("p", "popover-description", properties, [text.xs, styles.description], {
         get id() {
             return `${popover.id}-description`;
         },

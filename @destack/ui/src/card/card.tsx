@@ -68,12 +68,12 @@ export function CardHeader(properties: CardProperties): JSX.Element {
 
 /** Render the title of a card. */
 export function CardTitle(properties: CardProperties): JSX.Element {
-    return renderPart("div", "card-title", properties, [text.headline, styles.title]);
+    return renderPart("div", "card-title", properties, [text.base, styles.title]);
 }
 
 /** Render the description under a card's title. */
 export function CardDescription(properties: CardProperties): JSX.Element {
-    return renderPart("div", "card-description", properties, [text.footnote, styles.description]);
+    return renderPart("div", "card-description", properties, [text.xs, styles.description]);
 }
 
 /** Render an action in the top corner of a card's header. */

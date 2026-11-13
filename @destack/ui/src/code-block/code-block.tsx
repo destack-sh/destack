@@ -82,7 +82,7 @@ export function CodeBlock(
 export function CodeBlockHeader(
     properties: CodeBlockElementProperties<JSX.HTMLAttributes<HTMLDivElement>>,
 ): JSX.Element {
-    return renderPart("div", "code-block-header", properties, [text.footnote, styles.header]);
+    return renderPart("div", "code-block-header", properties, [text.xs, styles.header]);
 }
 
 /** Render the code's title, such as its file name, captioning the figure. */
@@ -109,7 +109,7 @@ export type CodeBlockContentProperties = CodeBlockElementProperties<
 export function CodeBlockContent(properties: CodeBlockContentProperties): JSX.Element {
     const rest = omit(properties, "isNumbered", "label", "children");
 
-    return renderPart("pre", "code-block-content", rest, [text.callout, styles.content], {
+    return renderPart("pre", "code-block-content", rest, [text.sm, styles.content], {
         tabindex: 0,
         get "aria-label"() {
             return properties.label ?? "Code";

@@ -187,7 +187,7 @@ export function itemVariants(options: ItemVariantProperties): style.Styles {
     const variant = options.variant ?? DEFAULTS.variant;
 
     return [
-        text.callout,
+        text.sm,
         styles.item,
         variants[variant],
         links[variant],
@@ -210,7 +210,7 @@ export function Item(properties: ItemProperties): JSX.Element {
             role={isGrouped ? "listitem" : undefined}
             {...rest}
             {...style.attributes(
-                [text.callout, styles.item, variants[item.variant], sizes[item.size], item.xstyle],
+                [text.sm, styles.item, variants[item.variant], sizes[item.size], item.xstyle],
                 item.style,
             )}
         />

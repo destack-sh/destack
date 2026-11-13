@@ -449,18 +449,12 @@ export function ListBoxSectionHeading(
     }
     section.label();
 
-    return renderPart(
-        "div",
-        "list-box-section-heading",
-        properties,
-        [text.caption, styles.heading],
-        {
-            get id() {
-                return `${section.key}-heading`;
-            },
-            "aria-hidden": "true",
+    return renderPart("div", "list-box-section-heading", properties, [text.xs, styles.heading], {
+        get id() {
+            return `${section.key}-heading`;
         },
-    );
+        "aria-hidden": "true",
+    });
 }
 
 /** Render an option the search filters and a click or Enter chooses. */

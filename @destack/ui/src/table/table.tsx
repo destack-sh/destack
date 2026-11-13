@@ -62,7 +62,7 @@ export function Table(
 ): JSX.Element {
     return (
         <div data-slot="table-container" {...style.attrs(styles.container)}>
-            {renderPart("table", "table", properties, [text.footnote, styles.table])}
+            {renderPart("table", "table", properties, [text.xs, styles.table])}
         </div>
     );
 }

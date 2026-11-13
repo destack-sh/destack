@@ -157,7 +157,7 @@ export function Chart<
             data-slot="chart"
             {...rest}
             {...style.attributes(
-                [text.footnote, styles.chart, size(), properties.xstyle],
+                [text.xs, styles.chart, size(), properties.xstyle],
                 properties.style,
             )}
         >

@@ -87,11 +87,7 @@ export function ButtonGroup(properties: ButtonGroupProperties): JSX.Element {
 export function ButtonGroupText(properties: ButtonGroupElementProperties): JSX.Element {
     const join = useJoin();
 
-    return renderPart("div", "button-group-text", properties, () => [
-        text.callout,
-        styles.text,
-        join(),
-    ]);
+    return renderPart("div", "button-group-text", properties, () => [text.sm, styles.text, join()]);
 }
 
 /** Render a line between a group's buttons, vertical by default. */

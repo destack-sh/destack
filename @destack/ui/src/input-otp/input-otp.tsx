@@ -293,7 +293,7 @@ export function InputOTPSlot(properties: InputOTPSlotProperties): JSX.Element {
             {...rest}
             {...style.attributes(
                 [
-                    text.body,
+                    text.base,
                     styles.slot,
                     control.isActive(properties.index) && styles.active,
                     control.isInvalid() && styles.invalid,

@@ -98,7 +98,7 @@ export interface ToggleProperties
 /** Return the StyleX styles of a toggle in a variant, size and state. */
 export function toggleVariants(options: ToggleVariantProperties): style.Styles {
     return [
-        text.callout,
+        text.sm,
         styles.toggle,
         variants[options.variant ?? "default"],
         sizes[options.size ?? "default"],
