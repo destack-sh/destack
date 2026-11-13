@@ -484,6 +484,7 @@
         "@destack/package": "workspace:*",
         "@destack/resource": "workspace:*",
         "@destack/schema": "workspace:*",
+        "@destack/telemetry": "workspace:*",
       },
       "devDependencies": {
         "@destack/test": "workspace:*",
@@ -720,6 +721,7 @@
         "@destack/package": "workspace:*",
         "@destack/resource": "workspace:*",
         "@destack/schema": "workspace:*",
+        "@destack/telemetry": "workspace:*",
       },
       "devDependencies": {
         "@destack/locale": "workspace:*",
@@ -965,6 +967,7 @@
         "@destack/error": "workspace:*",
         "@destack/package": "workspace:*",
         "@destack/schema": "workspace:*",
+        "@destack/telemetry": "workspace:*",
       },
       "devDependencies": {
         "@destack/test": "workspace:*",
