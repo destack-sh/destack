@@ -33,7 +33,7 @@ export const Render = {
             return named;
         }
 
-        // take the identifier and the first declared fields that fit a cell
+        // take the identifier, the title and the first other declared fields that fit a cell
         const referenceColumns = new Set(
             Object.values(type.fields).flatMap((field) => {
                 const columns =
@@ -53,8 +53,13 @@ export const Render = {
             )
             .map(([property]) => property)
             .filter((property) => Object.hasOwn(type.table[TABLE].columns, property));
+        const title = type.presentation?.title;
+        const ordered =
+            title === undefined || !declared.includes(title)
+                ? declared
+                : [title, ...declared.filter((property) => property !== title)];
 
-        return ["id", ...declared.slice(0, DEFAULT_COLUMNS)];
+        return ["id", ...ordered.slice(0, DEFAULT_COLUMNS)];
     },
 
     /** Read --sort, fields separated by commas with a minus for descending, into an order. */
