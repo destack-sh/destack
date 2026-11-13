@@ -202,7 +202,7 @@ test("enforce independent network permissions for concurrent workloads", async (
     }
 });
 
-test("stop a running workload and complete graceful shutdown", async () => {
+test("stop a running workload and complete graceful shutdown, instrumenting its start and exit", async () => {
     // start a workload that prints once it runs, and again once it stops
     const { simulation, environment, directory } = await world("destack-sandbox-stop-");
     await using _simulation = simulation;
@@ -242,6 +242,18 @@ test("stop a running workload and complete graceful shutdown", async () => {
     expect(sandbox.stop(0)).toBe(stopping);
     expect(await stopping, await errors).toEqual({ code: 0, signal: null });
     expect(await output.whole).toBe("ready\nstopped\n");
+
+    // instrument the start as one span and the exit as one record with its code
+    const started = simulation.telemetry.spans.filter(
+        (span) => span.name === "destack.sandbox.start",
+    );
+    const exits = simulation.telemetry.logs
+        .filter((record) => record.eventName === "destack.sandbox.exited")
+        .map((record) => record.attributes);
+    expect({ started: started.length, exits }).toEqual({
+        started: 1,
+        exits: [{ "process.exit.code": 0 }],
+    });
 });
 
 test("preserve literal arguments and application failure after cleanup", async () => {

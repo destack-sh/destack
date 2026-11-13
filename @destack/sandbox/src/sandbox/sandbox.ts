@@ -1,3 +1,6 @@
+import { Failure } from "@destack/error";
+import type {} from "@destack/package/import-meta";
+import { TelemetryScope } from "@destack/telemetry";
 import type { FamilyError } from "@destack/error";
 import type { Environment, ProcessChannel, Scheduler, Subprocess } from "@destack/environment";
 import { isAbsolute, join } from "node:path";
@@ -66,7 +69,36 @@ export class Sandbox implements AsyncDisposable {
     }
 
     /** Spawn a restricted command, whose application reports its own readiness. */
-    static async start(
+    static start(
+        options: SandboxOptions,
+        environment: Environment<"files" | "process" | "host">,
+    ): Promise<Sandbox> {
+        // start it in its span, logging its exit once it ends
+        const scope = TelemetryScope.of(import.meta.destack.package, environment.telemetry);
+
+        return scope.span("destack.sandbox.start", {}, async () => {
+            const sandbox = await Sandbox.#start(options, environment);
+            void sandbox.exited.then(
+                (exit) =>
+                    scope.log.info("destack.sandbox.exited", {
+                        ...(exit.code === null ? {} : { "process.exit.code": exit.code }),
+                        ...(exit.signal === null
+                            ? {}
+                            : { "destack.sandbox.signal": String(exit.signal) }),
+                    }),
+                // log an exit whose cleanup failed, its owner reading the failure from exited
+                (error: unknown) =>
+                    scope.log.warn("destack.sandbox.exited", {
+                        "error.type": Failure.of(error).code,
+                    }),
+            );
+
+            return sandbox;
+        });
+    }
+
+    /** Spawn the launcher, configure it and wait for its application's readiness. */
+    static async #start(
         options: SandboxOptions,
         environment: Environment<"files" | "process" | "host">,
     ): Promise<Sandbox> {
