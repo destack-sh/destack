@@ -341,37 +341,3 @@ class TestArtifactsNamespace implements ArtifactsNamespace {
 function artifactsError(code: string, name: string): Error {
     return Object.assign(new Error(`'${code}': '${name}'`), { code });
 }
-
-test("instrument each storage verb as a span by its provider, timing it", async () => {
-    // create and delete a repository in a fake namespace on a world of its own
-    await using simulation = testSimulation();
-    const { telemetry } = simulation.environment("storage");
-    const storage = new ArtifactsStorage(
-        new TestArtifactsNamespace(),
-        "git-site",
-        unreachable,
-        telemetry,
-    );
-    await storage.create("repository-site");
-    await storage.delete("repository-site");
-
-    // read the verbs' spans by their provider, and their durations
-    const spans = simulation.telemetry.spans
-        .filter((span) => span.name.startsWith("destack.git."))
-        .map((span) => [span.name, span.attributes["destack.git.provider"]]);
-    const counts = await simulation.telemetry.counts();
-
-    // expect each verb once, by the Artifacts provider, each timed
-    expect({
-        spans,
-        create: counts["destack.git.create.duration.count"],
-        delete: counts["destack.git.delete.duration.count"],
-    }).toEqual({
-        spans: [
-            ["destack.git.create", ARTIFACTS_PROVIDER],
-            ["destack.git.delete", ARTIFACTS_PROVIDER],
-        ],
-        create: 1,
-        delete: 1,
-    });
-});

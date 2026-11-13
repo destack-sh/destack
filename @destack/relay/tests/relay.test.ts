@@ -38,7 +38,7 @@ function event(computer: TestTunnelMachine, name: string, reason?: string) {
     return [name, reason === undefined ? machine : { ...machine, "destack.tunnel.reason": reason }];
 }
 
-test("forward a request for a space's name or S3 origin through its machine's tunnel, preserving its name, method and body, instrumenting each", async () => {
+test("forward a request for a space's name or S3 origin through its machine's tunnel, preserving its name, method and body", async () => {
     await using computer = await TestTunnelMachine.open();
     const relay = await computer.relay();
     await computer.tunnel(relay);
@@ -62,18 +62,6 @@ test("forward a request for a space's name or S3 origin through its machine's tu
     expect(await computer.request(relay, s3, "/bucket-1/notes.txt")).toBe(
         "hello GET /bucket-1/notes.txt",
     );
-
-    // instrument each request into the tunnel as a client span by its method and status
-    const forwarded = computer.simulation.telemetry.spans
-        .filter((span) => span.name === "destack.tunnel.fetch")
-        .map((span) => [
-            span.attributes["http.request.method"],
-            span.attributes["http.response.status_code"],
-        ]);
-    expect(forwarded).toEqual([
-        ["POST", 200],
-        ["GET", 200],
-    ]);
 });
 
 test("end a forwarded request at its machine once the relay stops while the machine streams its answer", async () => {

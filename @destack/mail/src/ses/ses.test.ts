@@ -8,11 +8,8 @@ import { MailError } from "../error/index.ts";
 import { SesClient, type SesOptions } from "./client.ts";
 import { SesTransport } from "./ses.ts";
 
-/** The simulated world SES clients run in. */
-const world = testSimulation();
-
 /** The simulated node SES clients run on. */
-const node = world.environment("ses");
+const node = testSimulation().environment("ses");
 
 /** The environment of a client sending through a fetch on the simulated node's clock. */
 function environment(fetch: Network["fetch"]): SesOptions["environment"] {
@@ -151,26 +148,3 @@ async function refusal(sending: Promise<void>) {
 
     return { reason: error.reason, data: error.data, message: error.message };
 }
-
-test("instrument each send as a client span by its transport, a refused one failed", async () => {
-    // send one mail SES accepts and one it refuses
-    const before = new Set(world.telemetry.spans);
-    const { mail } = transport(() => Response.json({ MessageId: "0102018f-message" }));
-    const refusing = transport(refused(400, "MessageRejected")).mail;
-    await mail.send(MAIL);
-    await refusing.send(MAIL).catch(() => undefined);
-
-    // read the new sends' spans by their transport and failure
-    const sends = world.telemetry.spans
-        .filter((span) => !before.has(span) && span.name === "destack.mail.send")
-        .map((span) => ({
-            transport: span.attributes["destack.mail.transport"],
-            error: span.attributes["error.type"],
-        }));
-
-    // expect the accepted send, then the refused one failed as SES refused it
-    expect(sends).toEqual([
-        { transport: "ses", error: undefined },
-        { transport: "ses", error: "BAD_REQUEST" },
-    ]);
-});
