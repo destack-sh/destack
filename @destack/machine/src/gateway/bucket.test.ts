@@ -11,9 +11,10 @@ import { Failure } from "@destack/error";
 import { testKeys } from "@destack/object/test";
 import { expect, onTestFinished, test } from "@destack/test";
 import type {} from "@destack/package/import-meta";
-import { InstanceSpec, type Runtime, type WorkloadResource } from "@destack/stack/runtime";
+import { InstanceSpec, type Runtime, type WorkloadResource } from "../runtime/runtime.ts";
 import { openGateway } from "./test/gateway.ts";
-import { ids, fixtureBuild, TestSpace } from "@destack/stack/test";
+import { ids, TestSpace } from "../test/space.ts";
+import { fixtureBuild } from "../test/build.ts";
 import { RecordingTokenExchange } from "./test/exchange.ts";
 
 /** The bucket the workload declares. */

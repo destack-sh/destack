@@ -8,7 +8,8 @@
         "src/cloudflare/worker.ts",
         "src/cloudflare/tail.ts",
         "src/cloudflare/test/scenario.ts",
-        "src/cloudflare/runtime/test/partition.ts"
+        "src/cloudflare/runtime/test/partition.ts",
+        "src/cloudflare/graph.ts"
     ],
     "exports": {
         "./benchmark": {

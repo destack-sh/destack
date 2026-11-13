@@ -2,7 +2,7 @@ import { PackageId } from "@destack/package";
 import { found } from "@destack/schema";
 import { ROUTE_HEADER } from "@destack/object/workload";
 import { route } from "@destack/stack/object";
-import { TestRoute } from "@destack/stack/test";
+import { TestRoute } from "../test/route.ts";
 import { expect, refusal, test } from "@destack/test";
 import { type RouteAction, RouteRequest } from "./route.ts";
 

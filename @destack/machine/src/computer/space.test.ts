@@ -12,7 +12,8 @@ import { placement } from "@destack/account/object";
 import type { Crypto, Environment } from "@destack/environment";
 import { PackageVersion } from "@destack/package";
 import { type BuildReader, PackageManifest } from "@destack/package/manifest";
-import { fixtureOutputs, LocalRuntime } from "@destack/stack/test";
+import { fixtureOutputs } from "../test/build.ts";
+import { LocalRuntime } from "../test/local.ts";
 import { found, Identifier, present } from "@destack/schema";
 import {
     definePackage,

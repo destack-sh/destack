@@ -114,8 +114,10 @@ async function servedForge(home: TestComputer, residency: Identifier<"space">, p
     const database = (await machine.space(residency)).database;
     const deployed = async () =>
         (
-            await (await machine.space(residency)).host.builds(async (_packageId, lock) =>
-                (await machine.space(residency)).builds.open(lock),
+            await (
+                await machine.space(residency)
+            ).installations(async (_packageId, lock) =>
+                (await machine.space(residency)).builds.root(lock),
             )
         ).find(
             (entry) =>
@@ -307,15 +309,15 @@ test(
         const packages = await Promise.all(
             builds.map(async (row) => {
                 const lock = present(row.lock, "the lock");
-                const reader = await (await machine.space(space)).builds.open(lock);
+                const reader = await (await machine.space(space)).builds.root(lock);
 
                 return PackageManifest.package(reader.manifest).id;
             }),
         );
 
-        // root the second build alone in the machine's cache, as the space no longer runs the first
+        // root the second build alone in the machine's builds, as the space no longer runs the first
         const root = present(
-            (await machine.cache.store.roots()).get(`space:${space}`),
+            (await machine.builds.roots()).get(`space:${space}`),
             "the space's root",
         );
         const rooted = builds.map((row) => root.has(present(row.lock, "the lock")));

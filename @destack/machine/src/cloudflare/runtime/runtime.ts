@@ -9,7 +9,7 @@ import {
     type Runtime,
     SECRET_BYTES,
     WorkloadRequest,
-} from "@destack/stack/runtime";
+} from "../../runtime/runtime.ts";
 import {
     type DurableObjectInstanceStart,
     type DurableObjectNamespace,
@@ -18,7 +18,7 @@ import {
 } from "./instance.ts";
 import { WORKERD_COMPATIBILITY_DATE } from "@destack/package/runtime";
 import { type BuildReader, ImportMap } from "@destack/package/manifest";
-import type { SpaceBuildStore } from "@destack/stack/server";
+import type { Space } from "../../space/space.ts";
 import type { ImportClosure } from "@destack/build/store";
 import type {} from "@destack/package/import-meta";
 import { MachineError } from "../../error/index.ts";
@@ -86,7 +86,7 @@ export class WorkerdRuntime implements Runtime {
     /** The randomness the instances' secrets draw from. */
     readonly #random: Random;
     /** Read the space's builds, which map a build's imports and open its dependencies. */
-    readonly #builds: () => Pick<SpaceBuildStore, "imports" | "contents" | "open">;
+    readonly #served: () => Pick<Space, "imports" | "builds">;
     /** The instances starting and running. */
     readonly #registry = new InstanceRegistry<Runner>();
 
@@ -119,7 +119,7 @@ export class WorkerdRuntime implements Runtime {
         /** The randomness the instances' secrets draw from. */
         readonly random: Random;
         /** Read the space's builds, which map a build's imports and open its dependencies. */
-        readonly builds: () => Pick<SpaceBuildStore, "imports" | "contents" | "open">;
+        readonly served: () => Pick<Space, "imports" | "builds">;
     }) {
         // set the objects and facets, the space, its egress, the sampling and the spaces' identities
         this.#instances = options.instances;
@@ -131,7 +131,7 @@ export class WorkerdRuntime implements Runtime {
         this.#url = options.url;
         this.#identity = options.identity;
         this.#random = options.random;
-        this.#builds = options.builds;
+        this.#served = options.served;
     }
 
     /** Start an instance in its installation's facet, replacing its previous deployment. */
@@ -191,14 +191,16 @@ export class WorkerdRuntime implements Runtime {
     /** Read each module a lock's root's imports reach, resolved through its import map. */
     async #modules(build: BuildReader, lock: Digest): Promise<Record<string, string>> {
         // read each module the root's imports reach
-        const closure = await this.#builds().imports(lock, WORKERD_RUNTIME, MODULE_BASE);
+        const closure = await this.#served().imports(lock, WORKERD_RUNTIME, MODULE_BASE);
         const own = await build.digest();
         const read = await Promise.all(
             (await this.#names(build, closure)).map(async (name) => {
                 // load the module from its build, the instance's own or a dependency the space keeps
                 const [digest = "", ...path] = name.split("/");
                 const reader =
-                    digest === own ? build : await this.#builds().contents(Digest.parse(digest));
+                    digest === own
+                        ? build
+                        : await this.#served().builds.contents(Digest.parse(digest));
                 const code = new TextDecoder().decode(await reader.load(path.join("/")));
                 const resolved = await ImportMap.apply(closure.map, code, `${MODULE_BASE}${name}`);
 
@@ -217,7 +219,7 @@ export class WorkerdRuntime implements Runtime {
         input: readonly JsonValue[],
     ): Promise<JsonValue> {
         // load the root's modules beside a module calling the export
-        const build = await this.#builds().open(lock);
+        const build = await this.#served().builds.root(lock);
         const modules = await this.#modules(build, lock);
         const main = JSON.stringify(`./${await build.digest()}/${path}`);
         const isolate = this.#loader.get(this.#random.bytes(SECRET_BYTES).toHex(), async () => ({
@@ -380,7 +382,8 @@ export class WorkerdRuntime implements Runtime {
         const names = await Promise.all(
             [...closure.builds].map(async (digest) => {
                 // read the build's workerd output directories
-                const reader = digest === own ? build : await this.#builds().contents(digest);
+                const reader =
+                    digest === own ? build : await this.#served().builds.contents(digest);
                 const directories = Object.values(reader.manifest.outputs)
                     .filter((output) => output.runtime === WORKERD_RUNTIME)
                     .map((output) => `${output.directory}/`);

@@ -1,13 +1,15 @@
 import { Directory } from "@destack/account/address";
 import type { S3Server } from "@destack/bucket/s3";
 import { installation, type Package } from "@destack/object";
-import { ids, insertRelease, insertRollout, type TestSpace, workload } from "@destack/stack/test";
+import { ids, type TestSpace } from "../../test/space.ts";
+import { insertRelease, insertRollout } from "../../test/install.ts";
+import { workload } from "../../test/build.ts";
 import { deployment, instance, installationRevision, rollout } from "@destack/stack/object";
 import { eq } from "@destack/db";
 import { Digest, Identifier, present } from "@destack/schema";
 import { type GatewaySpace, Gateway, type TokenExchange } from "../gateway.ts";
 import type { Machine } from "../../machine/index.ts";
-import type { Runtime } from "@destack/stack/runtime";
+import type { Runtime } from "../../runtime/runtime.ts";
 import { TokenIssuer } from "@destack/access/token";
 import type { JwtClaims } from "@destack/identity";
 import { Traffic } from "../traffic.ts";
@@ -59,48 +61,42 @@ export function openGateway(
         {
             id: ids.space,
             database,
-            traffic: options.traffic ?? new Traffic(),
             call: options.call ?? refuse("serve calls"),
             observe: options.observe ?? refuse("receive telemetry"),
             borrow,
             mounts: options.mounts ?? (() => []),
             instance: { implements: () => false },
-            host: {
-                database,
-                identityOf: () => {
-                    throw new Error("the fixture cannot sign as a space");
-                },
-                contain: refuse("contain callers"),
-                keystore: {
-                    issuer: (_database, issuer) => {
-                        const { sign } = options;
-                        if (sign === undefined) {
-                            throw new Error("the fixture cannot sign as a space");
-                        }
-
-                        return new TokenIssuer({
-                            issuer,
-                            authority: { kind: "space", space: issuer },
-                            sign: async (claims) => sign(claims),
-                        });
-                    },
-                    deriver: refuse("derive the space's secrets"),
-                },
-                machine: {
-                    directory,
-                    universe: { accounts: ACCOUNTS, issuer: `${ACCOUNTS}/oauth` },
-                    environment: space.machine.environment,
-                },
+            universe: { accounts: ACCOUNTS, issuer: `${ACCOUNTS}/oauth` },
+            identityOf: () => {
+                throw new Error("the fixture cannot sign as a space");
             },
+            contain: refuse("contain callers"),
+            keystore: {
+                issuer: (_database, issuer) => {
+                    const { sign } = options;
+                    if (sign === undefined) {
+                        throw new Error("the fixture cannot sign as a space");
+                    }
+
+                    return new TokenIssuer({
+                        issuer,
+                        authority: { kind: "space", space: issuer },
+                        sign: async (claims) => sign(claims),
+                    });
+                },
+                deriver: refuse("derive the space's secrets"),
+            },
+            root: refuse("pull builds"),
+            imports: refuse("map builds' imports"),
             builds: {
-                root: refuse("pull builds"),
                 contents: refuse("read builds"),
                 referrer: refuse("read code indexes"),
                 file: refuse("read code indexes"),
-                imports: refuse("map builds' imports"),
                 get: refuse("read builds"),
             },
             machine: {
+                directory,
+                traffic: options.traffic ?? new Traffic(),
                 id: space.machine.id,
                 clock: space.machine.clock,
                 domain: "localhost",

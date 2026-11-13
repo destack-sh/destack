@@ -5,7 +5,7 @@ import { channelFiles } from "@destack/db/channel/socket";
 import { PackageId, Sandbox } from "@destack/package";
 import { ResourceId } from "@destack/resource";
 import { Digest, schema } from "@destack/schema";
-import type { InstanceSpec } from "@destack/stack/runtime";
+import type { InstanceSpec } from "../runtime/runtime.ts";
 import { type BunWorkloadSandboxOptions, BunWorkloadSandbox } from "./sandbox.ts";
 
 /** The lock of the instance's build, which the test never reads. */

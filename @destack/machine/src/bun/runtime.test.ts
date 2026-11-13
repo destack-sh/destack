@@ -1,5 +1,5 @@
 import { Lock } from "@destack/package/manifest";
-import type { InstanceExit } from "@destack/stack/runtime";
+import type { InstanceExit } from "../runtime/runtime.ts";
 import { Program } from "@destack/package/bun";
 import { testHost } from "@destack/test/host";
 import { MemoryBuild } from "@destack/package/test";
@@ -12,7 +12,7 @@ import { schema } from "@destack/schema";
 import { PackageMount } from "@destack/object";
 import { Scope } from "@destack/sync";
 import { BunRuntime } from "./runtime.ts";
-import type { InstanceSpec } from "@destack/stack/runtime";
+import type { InstanceSpec } from "../runtime/runtime.ts";
 import { testKeys, testSimulation } from "@destack/object/test";
 import { testStore } from "@destack/build/test";
 

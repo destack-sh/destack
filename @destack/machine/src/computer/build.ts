@@ -13,7 +13,7 @@ import { RequestId } from "@destack/sync";
 import stackPackage, { PUSH_PATH } from "@destack/stack/package";
 import { BuildObject, PackageClient } from "@destack/build/store";
 import { ACTIVE_BUILD_STATES, build } from "@destack/stack/object";
-import type { CheckoutSource, CommitSource } from "@destack/stack/server";
+import type { CheckoutSource, CommitSource } from "../installation/build.ts";
 import { Failure } from "@destack/error";
 import { WorkingTree } from "./checkout/index.ts";
 import { CheckoutServer, Git } from "./checkout/server/index.ts";
@@ -193,17 +193,15 @@ export class BuildRunner {
 
     /** Read the locks of the builtins the machine links. */
     async #builtins(): Promise<readonly Lock[]> {
-        const { cache, releases } = this.#machine;
-
-        return [...(await cache.linkedLocks(releases)).values()];
+        return [...(await this.#machine.linkedLocks()).values()];
     }
 
     /** Pull a required release's lock from its publisher's forge, with every build it lists. */
     async #release(dependency: PackageVersion): Promise<Digest> {
         // pull the lock of its version whole
-        const { cache, releases } = this.#machine;
+        const { builds, releases } = this.#machine;
         const digest = await releases.find(dependency.id, dependency.version);
-        await releases.pull(cache.store, dependency.id, digest, "all");
+        await releases.pull(builds, dependency.id, digest, "all");
 
         return digest;
     }

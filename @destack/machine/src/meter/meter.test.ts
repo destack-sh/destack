@@ -3,7 +3,7 @@ import { EventTime } from "@destack/event";
 import { reading } from "@destack/stack/object";
 import { computeUsage, databaseUsage } from "@destack/telemetry/meter";
 import { Identifier, Text } from "@destack/schema";
-import { TestSpace } from "@destack/stack/test";
+import { TestSpace } from "../test/space.ts";
 import { expect, test } from "@destack/test";
 import { Traffic } from "../gateway/traffic.ts";
 import { SpaceMeter } from "./meter.ts";

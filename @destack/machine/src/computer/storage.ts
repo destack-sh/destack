@@ -1,3 +1,4 @@
+import type { SpaceProvider } from "@destack/stack/object";
 import type { CatalogueBucketHost } from "@destack/bucket/provider";
 import type { Connector } from "@destack/resource";
 import { Entitlement } from "@destack/account/object";
@@ -17,9 +18,10 @@ import { gitStorage } from "@destack/stack/object";
 import { mailProvider, type MailTransport } from "@destack/mail/transport";
 import type { Keyring } from "@destack/identity";
 import { type Identifier, schema } from "@destack/schema";
-import { BunGraphStorage } from "@destack/stack/bun";
+import { BunGraphStorage } from "./graph.ts";
 import * as stackObject from "@destack/stack/object";
-import { type SpaceBuildStore, SocketRegistry, type SpaceOptions } from "@destack/stack/server";
+import type { BuildStore } from "@destack/build/store";
+import { SocketRegistry } from "../space/socket.ts";
 import { Traffic } from "../gateway/index.ts";
 import { Reading } from "../meter/index.ts";
 import { SpaceDatabaseHost, SpaceStorage, type Volume } from "../space/index.ts";
@@ -61,7 +63,7 @@ export class LocalSpaceStorage implements SpaceStorage, AsyncDisposable {
     /** The live sockets of the spaces, in memory. */
     readonly #sockets: SocketRegistry;
     /** The providers of the spaces' resources: SQLite files, Git and mail. */
-    readonly #providers: SpaceOptions["providers"];
+    readonly #providers: readonly SpaceProvider[];
 
     /** Take the stores the host opened for the spaces. */
     private constructor(
@@ -69,7 +71,7 @@ export class LocalSpaceStorage implements SpaceStorage, AsyncDisposable {
         opened: Pick<SpaceStorage, "main" | "kinds" | "ephemeral"> & {
             readonly databases: BunSqliteDatabaseHost;
             readonly sockets: SocketRegistry;
-            readonly providers: SpaceOptions["providers"];
+            readonly providers: readonly SpaceProvider[];
         },
     ) {
         // set the options, what every space stores and the stores the host opened
@@ -208,9 +210,9 @@ export class LocalVolume implements Volume {
     /** The space's blobs, in a directory of its own. */
     readonly blobs: LocalBlobStorage;
     /** The machine's one registry of live sockets. */
-    readonly sockets: SpaceOptions["sockets"];
+    readonly sockets: SocketRegistry;
     /** The providers of the space's resources: SQLite files, Git and mail. */
-    readonly providers: SpaceOptions["providers"];
+    readonly providers: readonly SpaceProvider[];
     /** The connectors of the space's Git storages and its mail. */
     readonly connectors: readonly Connector[];
     /** The space. */
@@ -272,8 +274,8 @@ export class LocalVolume implements Volume {
     /** Open the graphs of the space's builds once, each attached to its build. */
     graphs(
         builds: Pick<
-            SpaceBuildStore,
-            "store" | "contains" | "contents" | "lock" | "referrer" | "file"
+            BuildStore,
+            "storeOf" | "contains" | "contents" | "lock" | "referrer" | "file"
         >,
     ): BunGraphStorage {
         this.#graph ??= this.#lifetime.use(

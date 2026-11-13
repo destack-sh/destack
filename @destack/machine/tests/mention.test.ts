@@ -12,7 +12,7 @@ import {
     type TestComputerOptions,
     type TestWorld,
     TestDistribution,
-} from "@destack/machine/test";
+} from "@destack/machine/computer/test";
 import { activity } from "@destack/notification/object";
 import notificationPackage from "@destack/notification/package";
 import messagePackage from "@destack/message/package";

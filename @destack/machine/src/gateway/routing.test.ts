@@ -4,14 +4,15 @@ import { ResourceId } from "@destack/resource";
 import { ConnectionKind } from "@destack/connection/declare";
 import { EGRESS_PROVIDER } from "@destack/resource";
 import { PackageMount } from "@destack/object";
-import { EgressCaller, type InstanceSpec, type WorkloadResource } from "@destack/stack/runtime";
+import { EgressCaller, type InstanceSpec, type WorkloadResource } from "../runtime/runtime.ts";
 import { PackageVersion, PackageId } from "@destack/package";
 import { MemoryBuild } from "@destack/package/test";
 import { Digest, schema } from "@destack/schema";
 import { openGateway } from "./test/gateway.ts";
 import objectPackage from "@destack/object/package";
 import stackPackage from "@destack/stack/package";
-import { ids, fixtureBuild, TestSpace } from "@destack/stack/test";
+import { ids, TestSpace } from "../test/space.ts";
+import { fixtureBuild } from "../test/build.ts";
 import accountPackage from "@destack/account/package";
 import { RequestId } from "@destack/sync";
 

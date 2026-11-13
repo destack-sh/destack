@@ -2,12 +2,12 @@ import * as accountObject from "@destack/account/object";
 import type { SpaceResource } from "@destack/account/object";
 import { eq } from "@destack/db";
 import { expect, refusal, test } from "@destack/test";
-import { ids, TestSpace } from "@destack/stack/test";
+import { ids, TestSpace } from "../test/space.ts";
 import { deployNotes, openGateway } from "./test/gateway.ts";
 import { Authentication, Caller, principal } from "@destack/access";
 import { VERSION_HEADER } from "@destack/object";
 import { schema } from "@destack/schema";
-import type { Runtime } from "@destack/stack/runtime";
+import type { Runtime } from "../runtime/runtime.ts";
 import { Scope } from "@destack/sync";
 
 /** Open the fixture's space, its resources' conditions set as a test says. */

@@ -180,7 +180,7 @@ export class ComputerServer {
             partitions: [machine],
             policies: ComputerServer.POLICIES,
             database: this.machine.database,
-            blobs: this.machine.cache.store.blobs.storage,
+            blobs: this.machine.builds.blobs.storage,
             environment: context.environment,
             callKey: this.callKey,
             events: this.events,

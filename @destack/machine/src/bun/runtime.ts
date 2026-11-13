@@ -17,7 +17,7 @@ import {
     InstanceRegistry,
     type Runtime,
     WorkloadRequest,
-} from "@destack/stack/runtime";
+} from "../runtime/runtime.ts";
 import { Failure } from "@destack/error";
 import { type BunInstanceLayout, BunWorkloadSandbox } from "./sandbox.ts";
 import type {} from "@destack/package/import-meta";

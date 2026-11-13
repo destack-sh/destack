@@ -28,7 +28,7 @@ import { MachineError } from "../error/index.ts";
 /** The namespace of the space's database in the space object's storage. */
 export const SPACE_NAMESPACE = "space";
 
-/** The namespace of the machine's build cache in the space object's storage. */
+/** The namespace of the machine's builds in the space object's storage. */
 export const CACHE_NAMESPACE = "cache";
 
 /** The bytes of the credential of a copy's pages: 256 bits, unguessable for the copy's lifetime. */

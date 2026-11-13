@@ -1,3 +1,4 @@
+import type { BuildStore } from "@destack/build/store";
 import type { PageCredential } from "./credential.ts";
 import { ViewState } from "@destack/view/declare";
 import * as accountObject from "@destack/account/object";
@@ -23,12 +24,7 @@ import {
     SpaceMount,
     VERSION_HEADER,
 } from "@destack/object";
-import {
-    PeerCall,
-    type SpaceBuildStore,
-    type SpaceHost,
-    type SpaceMachine,
-} from "@destack/stack/server";
+import { PeerCall } from "./peer.ts";
 import type { IdentityKeystore } from "@destack/account/identity";
 import type { Machine } from "../machine/index.ts";
 import { Bearer, Exchange, TOKEN_LIFETIME_MILLISECONDS, TokenCache } from "@destack/access/token";
@@ -53,7 +49,7 @@ import { Attribution } from "@destack/package/stack";
 import { OTLP_ORIGIN_PATH, OtlpSignal } from "@destack/telemetry/otlp";
 import { Authentication, Caller, CALLER_HEADER, principal } from "@destack/access";
 import { copyRequest, Forwarded } from "@destack/environment";
-import { type Space, type SpaceRun } from "../space/space.ts";
+import { type Space, type SpaceStart } from "../space/space.ts";
 import { BucketKind } from "@destack/bucket";
 import { S3_PACKAGE } from "@destack/bucket/s3";
 import { ConnectionKind, ConnectionSpec } from "@destack/connection/declare";
@@ -66,7 +62,7 @@ import {
     type InstanceSpec,
     type Runtime,
     type WorkloadResource,
-} from "@destack/stack/runtime";
+} from "../runtime/runtime.ts";
 import { Subject } from "@destack/sync";
 import { ViewOrigin } from "./origin.ts";
 import { MachineError } from "../error/index.ts";
@@ -93,41 +89,6 @@ const EXCEEDED_BURST = 20;
 
 /** The largest call body the egress buffers to resend to a moved scope's new machine. */
 const MAX_RESENT_BODY_BYTES = 1024 * 1024;
-
-/** The space a gateway serves, with the machine serving it and its host. */
-export type GatewaySpace = Pick<
-    Space,
-    "id" | "database" | "traffic" | "call" | "observe" | "borrow" | "mounts"
-> & {
-    /** The space's workload, which tells the protocols its packages implement. */
-    readonly instance: Pick<WorkloadInstance, "implements">;
-    /** The space's builds, read through to the machine's cache. */
-    readonly builds: Pick<
-        SpaceBuildStore,
-        "root" | "contents" | "referrer" | "file" | "imports" | "get"
-    >;
-    /** The space's identity and its link to the universe, which the gateway signs with. */
-    readonly host: Pick<SpaceHost, "identityOf" | "contain" | "database"> & {
-        /** The keystore signing as the space and deriving its secrets. */
-        readonly keystore: Pick<IdentityKeystore, "issuer" | "deriver">;
-        /** The machine's directory replica, the universe's endpoints and the machine's world. */
-        readonly machine: Pick<SpaceMachine, "directory" | "universe" | "environment">;
-    };
-    /** The machine serving the space: its clock, runtimes, network and registry. */
-    readonly machine: Pick<
-        Machine,
-        | "id"
-        | "clock"
-        | "environment"
-        | "runtimes"
-        | "hibernation"
-        | "send"
-        | "serve"
-        | "locate"
-        | "authenticate"
-        | "domain"
-    >;
-};
 
 /** Where an address a workload calls leads. */
 export type Destination =
@@ -204,6 +165,45 @@ export interface TokenExchange {
     readonly verify: (token: string, target: ExchangeTarget) => Promise<Authentication>;
 }
 
+/** The space a gateway serves, as its calls read it: its identity, calls, telemetry and builds. */
+export type GatewaySpace = Pick<
+    Space,
+    | "id"
+    | "database"
+    | "universe"
+    | "call"
+    | "observe"
+    | "borrow"
+    | "mounts"
+    | "identityOf"
+    | "contain"
+    | "root"
+    | "imports"
+> & {
+    /** The space's workload, which tells the protocols its packages implement. */
+    readonly instance: Pick<WorkloadInstance, "implements">;
+    /** The space's builds, reading through to its machine's builds. */
+    readonly builds: Pick<BuildStore, "contents" | "referrer" | "file" | "get">;
+    /** The keystore signing as the space and deriving its secrets. */
+    readonly keystore: Pick<IdentityKeystore, "issuer" | "deriver">;
+    /** The machine serving the space: its clock, runtimes, network, directory and traffic. */
+    readonly machine: Pick<
+        Machine,
+        | "id"
+        | "clock"
+        | "environment"
+        | "runtimes"
+        | "hibernation"
+        | "send"
+        | "serve"
+        | "locate"
+        | "authenticate"
+        | "domain"
+        | "directory"
+        | "traffic"
+    >;
+};
+
 /** A space's gateway: every call into and out of its installations, their origins and telemetry. */
 export class Gateway {
     /** The origins of the space's installations, serving their views' pages. */
@@ -211,7 +211,7 @@ export class Gateway {
     /** The space the gateway serves. */
     readonly #space: GatewaySpace;
     /** What the workload's run serves with: the S3 API over the space's buckets. */
-    readonly #serving: Pick<SpaceRun, "s3">;
+    readonly #serving: Pick<SpaceStart, "s3">;
     /** What the space's store serves: the packages its workloads call by package name. */
     readonly #served: { readonly packages: readonly { readonly package: Package }[] };
     /** The runtimes running the space's instances, by server runtime. */
@@ -227,7 +227,7 @@ export class Gateway {
     /** Serve a space's installations through its machine's runtimes. */
     constructor(
         space: GatewaySpace,
-        serving: Pick<SpaceRun, "s3">,
+        serving: Pick<SpaceStart, "s3">,
         store: { readonly packages: readonly { readonly package: Package }[] },
         tokens: TokenExchange = Gateway.#exchange(space),
     ) {
@@ -251,13 +251,14 @@ export class Gateway {
     static #exchange(space: GatewaySpace): TokenExchange {
         // reuse the tokens exchanged for installations' subjects while most of their life remains
         const exchanged = new TokenCache();
-        const { directory, universe } = space.host.machine;
+        const { universe } = space;
+        const { directory } = space.machine;
         const { clock, environment } = space.machine;
 
         return {
             exchange: (acting, asked, target) =>
                 exchanged.token(canonicalize({ acting, asked, target }), clock.now(), () =>
-                    space.host.identityOf(acting).exchange(target.audience, {
+                    space.identityOf(acting).exchange(target.audience, {
                         subject: asked.subject,
                         ...(target.scope === undefined ? {} : { partition: target.scope }),
                         ...(asked.grants.length === 0
@@ -509,7 +510,8 @@ export class Gateway {
         authentication: Authentication | undefined,
     ): Promise<Response> {
         // count the request's bytes as they stream in, once the installation serving it is known
-        const { database, traffic } = this.#space;
+        const { database } = this.#space;
+        const { traffic } = this.#space.machine;
         const served = await Rollout.requireServed(database, mounted);
         const { scope, installationId } = served;
         const request = traffic.countIngress(scope, installationId, mounted.request);
@@ -599,7 +601,7 @@ export class Gateway {
         const { request } = installed;
         const peer = PeerCall.of(request);
         if (peer !== undefined) {
-            return peer.receive(this.#space.host, installed);
+            return peer.receive(this.#space, installed);
         }
 
         // take a caller verified for the called package, else verify the request
@@ -641,7 +643,7 @@ export class Gateway {
         );
 
         // count the request and limit it by the installation's space
-        this.#space.traffic.countRequest(serving.scope, installationId);
+        this.#space.machine.traffic.countRequest(serving.scope, installationId);
         await this.#limit(serving.scope);
 
         // forward the caller
@@ -951,7 +953,7 @@ export class Gateway {
         const spaceAddress = schema.identifier("space").safeParse(address);
         const mount = PackageMount.parse(path);
         if (spaceAddress.success && mount !== undefined) {
-            const located = await this.#space.host.machine.directory.locate(
+            const located = await this.#space.machine.directory.locate(
                 spaceAddress.data,
                 this.#space.machine.clock.now(),
             );
@@ -1066,10 +1068,7 @@ export class Gateway {
     ): Promise<Destination> {
         // call a package of the universe at the universe's mount
         if (PackageName.safeParse(address).success) {
-            const url = PackageMount.url(
-                new URL(this.#space.host.machine.universe.accounts).origin,
-                audience,
-            );
+            const url = PackageMount.url(new URL(this.#space.universe.accounts).origin, audience);
 
             return { kind: "universe", url, audience };
         }
@@ -1127,7 +1126,7 @@ export class Gateway {
         }
 
         // call an installation the machine serving its space answers for
-        const located = await this.#space.host.machine.directory.locate(
+        const located = await this.#space.machine.directory.locate(
             spaceId,
             this.#space.machine.clock.now(),
         );
@@ -1159,7 +1158,7 @@ export class Gateway {
     /** Sign an installation's token for a call leaving the machine, as the space. */
     async #sign(authentication: Authentication, spaceId: Identifier<"space">): Promise<string> {
         const { database, machine } = this.#space;
-        const issued = await this.#space.host.keystore
+        const issued = await this.#space.keystore
             .issuer(database, spaceId)
             .issue(authentication, machine.clock.now(), machine.environment);
 
@@ -1205,9 +1204,7 @@ export class Gateway {
                 ...Gateway.#scope(caller, destination),
                 verifiedAt: now,
                 expiresAt: now + TOKEN_LIFETIME_MILLISECONDS,
-                ...(runs.kind === "instance"
-                    ? { deployments: [{ subject, id: runs.deploymentId }] }
-                    : {}),
+                deployments: [{ subject, id: runs.deploymentId }],
             },
         };
     }
@@ -1230,7 +1227,7 @@ export class Gateway {
             const body = await RequestBody.json(request, `an OTLP/JSON ${signal} export`);
             await this.telemetry(spec, signal, body);
             if (signal === "metrics") {
-                this.#space.traffic.countMetrics(spec.scope, spec.installationId, body);
+                this.#space.machine.traffic.countMetrics(spec.scope, spec.installationId, body);
             }
         }
 

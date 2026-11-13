@@ -7,7 +7,7 @@ import {
     InstanceSpec,
     type Runtime,
     type WorkloadResource,
-} from "@destack/stack/runtime";
+} from "../runtime/runtime.ts";
 import { ResourceId } from "@destack/resource";
 import { ConnectionKind, defineConnection } from "@destack/connection/declare";
 import { EGRESS_PROVIDER } from "@destack/resource";
@@ -17,7 +17,8 @@ import { Replica, RequestId } from "@destack/sync";
 import { testKeys } from "@destack/object/test";
 import { expect, onTestFinished, test } from "@destack/test";
 import { openGateway } from "./test/gateway.ts";
-import { ids, fixtureBuild, TestSpace } from "@destack/stack/test";
+import { ids, TestSpace } from "../test/space.ts";
+import { fixtureBuild } from "../test/build.ts";
 import { RecordingTokenExchange } from "./test/exchange.ts";
 
 /** The external API the workload calls through its connection. */
@@ -164,7 +165,7 @@ test("apply a bound connection's key to a workload's calls below its resource wi
 
     // call it again as the installation's code in its store, through the same egress
     const stored = await gateway.send(
-        { ...EgressCaller.of(spec), runs: { kind: "store" } },
+        { ...EgressCaller.of(spec), runs: { kind: "store", deploymentId: spec.deploymentId } },
         new Request(
             `http://egress.localhost${Egress.path}/${resource.reference}/repos/acme/app/issues`,
         ),

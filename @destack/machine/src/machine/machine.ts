@@ -1,3 +1,10 @@
+import { StackError } from "@destack/stack/error";
+import type { PackageFile } from "@destack/package/file";
+import { type Lock, type PackageManifest } from "@destack/package/manifest";
+import { type BuildStore } from "@destack/build/store";
+import type * as packageRuntime from "@destack/package/runtime";
+import type * as installation from "../installation/index.ts";
+import { Traffic } from "../gateway/traffic.ts";
 import { Authentication, Caller, type ChainOptions, principal } from "@destack/access";
 import { Directory, DOMAINS, UniverseOrigin } from "@destack/account/address";
 import { AccountError } from "@destack/account/error";
@@ -24,7 +31,6 @@ import {
 } from "@destack/db";
 import type { Environment, FetchOptions } from "@destack/environment";
 import { Registry } from "@destack/registry/client";
-import type { SpaceOptions } from "@destack/stack/server";
 import type { Keyring } from "@destack/identity";
 import {
     CallError,
@@ -64,8 +70,8 @@ import {
 import * as stackObject from "@destack/stack/object";
 import stackPackage from "@destack/stack/package";
 import { PROCESS_RUNTIME } from "@destack/stack/object";
-import type { Runtime } from "@destack/stack/runtime";
-import { type BuildCache, Handoff } from "@destack/stack/server";
+import type { Runtime } from "../runtime/runtime.ts";
+import { Handoff } from "../transfer/handoff.ts";
 import { computer, MachineEnrollment } from "../computer/device/object/index.ts";
 import { Space, type SpaceStorage, SpaceRequest } from "../space/index.ts";
 import type {} from "@destack/package/import-meta";
@@ -80,8 +86,11 @@ const OWN_MACHINE = "http://machine.invalid";
 /** How long this machine's own calls as itself to its spaces last: a minute, one call's latency. */
 const MACHINE_CALL_MILLISECONDS = 60_000;
 
+/** The prefix of the root retaining a space's builds in its machine's builds. */
+const SPACE_ROOT_PREFIX = "space:";
+
 /** The oldest Destack version whose releases a machine runs. */
-const OLDEST_DESTACK = "2026.11.0";
+export const OLDEST_DESTACK = "2026.11.0";
 
 /** What a machine serves its spaces with: its public and its private fields. */
 export type MachineOptions = Pick<
@@ -91,8 +100,9 @@ export type MachineOptions = Pick<
     | "identity"
     | "keyring"
     | "database"
-    | "spaces"
-    | "cache"
+    | "volumes"
+    | "builds"
+    | "targets"
     | "isBuilding"
     | "isEnforcingEntitlements"
     | "isServingHostnames"
@@ -101,13 +111,14 @@ export type MachineOptions = Pick<
     | "hibernation"
     | "alarm"
     | "server"
-    | "linked"
     | "skus"
     | "endpoint"
     | "authenticate"
     | "authorizeSpace"
     | "report"
 > & {
+    /** The releases of the packages the machine links, by package. */
+    readonly linked: ReadonlyMap<PackageId, PackageRelease>;
     /** Read the machine's enrollment, through a controller's view when given. */
     readonly enrollment: (view?: Pick<Snapshot, "read">) => Promise<MachineEnrollment | undefined>;
     /** Serve the machine's own partition while it serves, absent for a machine without one. */
@@ -117,13 +128,13 @@ export type MachineOptions = Pick<
         Omit<MethodInput<typeof accountObject.machine, "report">, "id" | "version" | "runtimes">
     >;
     /** The forges' registry, by default the directory's forges called as the machine. */
-    readonly releases?: SpaceOptions["registry"];
+    readonly releases?: installation.Registry;
     /** Every release the machine ships, whose manifests its registry answers before any forge's. */
     readonly shipped: readonly PackageRelease[];
     /** The installation residency homes serve the registry protocol at, such as forge. */
     readonly registry: string;
-    /** The Destack version the machine runs. */
-    readonly version: string;
+    /** The Destack versions whose releases the machine runs: the oldest it supports and its own. */
+    readonly destack: VersionRange;
     /** The relay a personal machine tunnels through while enrolled, absent for none. */
     readonly tunnel?: {
         /** The relay's tunnel URL, its account residency's relay's when absent. */
@@ -169,11 +180,15 @@ export class Machine {
     /** The machine's replica of the universe's directory. */
     readonly directory: Directory;
     /** The storage of the machine's spaces. */
-    readonly spaces: SpaceStorage;
-    /** The machine's cache of the builds it runs. */
-    readonly cache: BuildCache;
+    readonly volumes: SpaceStorage;
+    /** The builds the machine runs: pulled releases and copies of its spaces' builds. */
+    readonly builds: BuildStore;
+    /** The runtimes the machine pulls builds' closures for. */
+    readonly targets: readonly packageRuntime.Runtime[];
+    /** The locks pulled from their forges, by digest, each once. */
+    readonly #pulled = new Map<Digest, Promise<Lock>>();
     /** The forges' registry of published releases, called as the machine. */
-    readonly releases: SpaceOptions["registry"];
+    readonly releases: installation.Registry;
     /** The installation residency homes serve the registry protocol at. */
     readonly registry: string;
     /** Whether the machine builds the commits its spaces' installations select. */
@@ -191,9 +206,9 @@ export class Machine {
     /** Load the server a lock's root exports into the machine's process, absent for none. */
     readonly server: (lock: Digest) => Promise<PackageImplementation | undefined>;
     /** The locks of the releases the machine runs in its process: those it ships or links. */
-    readonly trusted: ReadonlySet<Digest>;
+    readonly #trusted: Set<Digest>;
     /** The releases of the packages the machine links, by package. */
-    readonly linked: ReadonlyMap<PackageId, PackageRelease>;
+    readonly #linked: Map<PackageId, PackageRelease>;
     /** The releases the machine ships, by package. */
     readonly shipped: ReadonlyMap<PackageId, PackageRelease>;
     /** The SKU key rating each meter at its attribute values, by `Meter.key`, absent unbilled. */
@@ -214,8 +229,8 @@ export class Machine {
     readonly authorizeSpace: (call: ProcedureContext<RequestContext>) => Promise<void>;
     /** Report a failure no request answers. */
     readonly report: (error: unknown) => void;
-    /** The version of the software the machine runs. */
-    readonly #version: string;
+    /** The Destack versions whose releases the machine runs: the oldest it supports and its own. */
+    readonly destack: VersionRange;
     /** The relay a personal machine tunnels through, absent when peers call its origin. */
     readonly #tunnel: MachineOptions["tunnel"];
     /** Read this machine's enrollment as its record states it, valid or not. */
@@ -228,6 +243,8 @@ export class Machine {
     readonly #started = new Map<Identifier<"space">, Promise<Space>>();
     /** Whether the machine serves its spaces, and why not. */
     readonly health: Health;
+    /** The requests the machine's installations serve, the bytes they move and their CPU time. */
+    readonly traffic = new Traffic();
 
     /** Serve spaces with a machine's identity, its storage and its runtimes. */
     constructor(options: MachineOptions) {
@@ -241,9 +258,10 @@ export class Machine {
         this.database = options.database;
         this.directory = new Directory(Snapshot.live(options.database));
 
-        // set the spaces' hosts, the build cache and what the machine builds and enforces
-        this.spaces = options.spaces;
-        this.cache = options.cache;
+        // set the spaces' storage, the builds and what the machine builds and enforces
+        this.volumes = options.volumes;
+        this.builds = options.builds;
+        this.targets = options.targets;
         this.isBuilding = options.isBuilding;
         this.isEnforcingEntitlements = options.isEnforcingEntitlements;
         this.isServingHostnames = options.isServingHostnames;
@@ -253,11 +271,11 @@ export class Machine {
         this.hibernation = options.hibernation;
         this.alarm = options.alarm;
         this.server = options.server;
-        this.linked = options.linked;
+        this.#linked = new Map(options.linked);
         this.shipped = new Map(
             options.shipped.map((release) => [PackageId.parse(release.package.id), release]),
         );
-        this.trusted = new Set(
+        this.#trusted = new Set(
             [...options.shipped, ...options.linked.values()].map((release) => release.lock),
         );
         this.skus = options.skus;
@@ -269,7 +287,7 @@ export class Machine {
         this.authenticate = options.authenticate;
         this.authorizeSpace = options.authorizeSpace;
         this.report = options.report;
-        this.#version = options.version;
+        this.destack = options.destack;
         this.#tunnel = options.tunnel;
         this.#readEnrollment = options.enrollment;
         this.#partition = options.partition;
@@ -289,6 +307,86 @@ export class Machine {
                 options.registry,
                 options.shipped,
             );
+    }
+
+    /** Pull a published lock with its closures once, from its package's forge. */
+    pull(packageId: PackageId, lock: Digest): Promise<Lock> {
+        // pull a lock once, forgetting a failed pull
+        const known = this.#pulled.get(lock);
+        if (known !== undefined) {
+            return known;
+        }
+        const pulling = this.releases.pull(this.builds, packageId, lock, this.targets);
+        this.#pulled.set(lock, pulling);
+        pulling.catch(() => this.#pulled.delete(lock));
+
+        return pulling;
+    }
+
+    /** Pull a file of a published build into the machine's builds from its package's forge. */
+    async pullFile(
+        build: { readonly digest: Digest; readonly manifest: PackageManifest },
+        file: PackageFile,
+    ): Promise<void> {
+        // refuse a build without a forge, such as an npm unit
+        const owner = build.manifest.package;
+        if (!("id" in owner)) {
+            throw StackError.of("BLOB_NOT_FOUND", `package file '${file.path}' not found`);
+        }
+
+        // write the file from the build's forge
+        const forge = await this.releases.store(owner.id, {
+            kind: "manifest",
+            digest: build.digest,
+        });
+        await this.builds.write(forge.read([{ kind: "file", digest: file.digest }]));
+    }
+
+    /** Retain the builds a space runs in the machine's builds. */
+    async retain(space: Identifier<"space">, locks: Iterable<Digest>): Promise<void> {
+        await this.builds.retain(`${SPACE_ROOT_PREFIX}${space}`, new Set(locks));
+    }
+
+    /** Forget the retained builds of each space the machine no longer stores. */
+    async #prune(spaces: readonly Identifier<"space">[]): Promise<void> {
+        const kept = new Set(spaces.map((space) => `${SPACE_ROOT_PREFIX}${space}`));
+        for (const name of (await this.builds.roots()).keys()) {
+            if (name.startsWith(SPACE_ROOT_PREFIX) && !kept.has(name)) {
+                await this.builds.forget(name);
+            }
+        }
+    }
+
+    /** Pull the locks of the releases the machine links, by package name. */
+    async linkedLocks(): Promise<Map<string, Lock>> {
+        const pulled = [...this.#linked.values()].map(
+            async (release) =>
+                [release.package.name, await this.pull(release.package.id, release.lock)] as const,
+        );
+
+        return new Map(await Promise.all(pulled));
+    }
+
+    /** The releases of the packages the machine links, by package. */
+    get linked(): ReadonlyMap<PackageId, PackageRelease> {
+        return this.#linked;
+    }
+
+    /** The locks of the releases the machine runs in its process: those it ships or links. */
+    get trusted(): ReadonlySet<Digest> {
+        return this.#trusted;
+    }
+
+    /** Link a package's release in place of the earlier one, as a newer distribution does. */
+    link(release: PackageRelease): void {
+        // trust the release's lock in place of the replaced one
+        const id = PackageId.parse(release.package.id);
+        const replaced = this.#linked.get(id);
+        if (replaced !== undefined) {
+            this.#trusted.delete(replaced.lock);
+        }
+        this.#linked.set(id, release);
+        this.#trusted.add(release.lock);
     }
 
     /** Follow the directory, the identities and a machine's own placements from the universe. */
@@ -399,7 +497,7 @@ export class Machine {
             scope: MachineEnrollment.scope(enrollment),
             id: this.id,
             requestId: RequestId.create(this.environment),
-            version: this.#version,
+            version: this.destack.newest,
             runtimes: this.runtimes.flatMap((runtime) =>
                 runtime.name === PROCESS_RUNTIME ? [] : [runtime.name],
             ),
@@ -581,7 +679,7 @@ export class Machine {
         const space = schema.identifier("space").safeParse(partition);
 
         return isSpaceSigned && space.success
-            ? (await this.space(space.data)).host.contain(verified)
+            ? (await this.space(space.data)).contain(verified)
             : verified;
     }
 
@@ -626,11 +724,6 @@ export class Machine {
         }
 
         return started;
-    }
-
-    /** The Destack versions whose releases the machine runs: its own and the oldest it supports. */
-    get destack(): VersionRange {
-        return { oldest: OLDEST_DESTACK, newest: this.#version };
     }
 
     /** Locate a space by its identifier or address where its machine answers. */
@@ -898,10 +991,10 @@ export class Machine {
         const stored: Identifier<"space">[] = [];
         if (this.health.status !== "up") {
             this.health.set("up", "its account enables it");
-            stored.push(...(await this.spaces.list()));
+            stored.push(...(await this.volumes.list()));
 
             // let the cache collect the builds of spaces this machine no longer stores
-            await this.cache.prune(stored);
+            await this.#prune(stored);
         }
 
         // start each stored space and each one placed or moving here, at once, reporting each failed start

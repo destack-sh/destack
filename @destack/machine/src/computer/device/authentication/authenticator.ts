@@ -202,7 +202,7 @@ export class Authenticator {
         ) {
             await (
                 await this.#machine.space(space.identifier(partition))
-            ).host.requirePartition(verified);
+            ).requirePartition(verified);
         }
         // require a machine's or a device's token bound to it
         else if (

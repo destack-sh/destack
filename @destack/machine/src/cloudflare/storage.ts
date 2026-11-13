@@ -1,4 +1,4 @@
-import { CLOUD_RUNTIMES } from "./cloud.ts";
+import type { SpaceProvider } from "@destack/stack/object";
 import { MachineError } from "../error/index.ts";
 import type { CatalogueBucketHost } from "@destack/bucket/provider";
 import { BuildStore } from "@destack/build/store";
@@ -34,18 +34,17 @@ import { gitStorage } from "@destack/stack/object";
 import { mailProvider, type MailTransport } from "@destack/mail/transport";
 import type { Keyring } from "@destack/identity";
 import type { Identifier } from "@destack/schema";
-import { DurableObjectGraphStorage } from "@destack/stack/cloudflare";
+import { DurableObjectGraphStorage } from "./graph.ts";
 import * as stackObject from "@destack/stack/object";
-import { BuildCache, SocketRegistry, type SpaceOptions } from "@destack/stack/server";
+import { SocketRegistry } from "../space/socket.ts";
 import type { Environment } from "@destack/environment";
 import { SpaceDatabaseHost, SpaceStorage, type Volume } from "../space/index.ts";
 import { type Count, Reading } from "../meter/index.ts";
 import { Traffic } from "../gateway/index.ts";
 import { CACHE_NAMESPACE, DurableObjectSpaceDatabaseHost, SPACE_NAMESPACE } from "./database.ts";
-import { DistributionManifest } from "@destack/package";
 import type { DurableObjectNamespace } from "./runtime/index.ts";
 
-/** The prefix of the machines' build caches in the residency's build bucket, a space's below it. */
+/** The prefix of the machines' builds in the residency's build bucket, a space's below it. */
 const CACHE_PREFIX = "cache/";
 /** The namespace of the space's live sockets, stored only while the object runs. */
 const SOCKETS_NAMESPACE = "sockets";
@@ -150,12 +149,8 @@ export class DurableObjectSpaceStorage implements SpaceStorage {
         return new DurableObjectSpaceStorage(options, declared, host, database);
     }
 
-    /** Open the machine's build cache in the object's storage, over the shipped releases. */
-    async cache(
-        builds: Cloudflare.R2Bucket,
-        releases: BuildLayer,
-        distribution: DistributionManifest,
-    ): Promise<BuildCache> {
+    /** Open the machine's builds in the object's storage, over the shipped releases. */
+    async builds(builds: Cloudflare.R2Bucket, releases: BuildLayer): Promise<BuildStore> {
         // index the pulled builds in the object's storage, their blobs in the build bucket, the shipped ones read in place
         const { environment, space } = this.#options;
         const database = this.#host.connect(BuildStore.database.tables, {
@@ -169,11 +164,7 @@ export class DurableObjectSpaceStorage implements SpaceStorage {
         );
         const blobs = new BlobStore({ storage, database, environment });
 
-        return new BuildCache(
-            new BuildStore({ blobs, environment, layer: releases }),
-            CLOUD_RUNTIMES,
-            DistributionManifest.builtins(distribution, "workerd"),
-        );
+        return new BuildStore({ blobs, environment, layer: releases });
     }
 
     /** List the one space the object stores. */
@@ -233,7 +224,7 @@ export class DurableObjectVolume implements Volume {
     /** The registry of the space's sockets and presence in the object's storage. */
     readonly sockets: SocketRegistry;
     /** The providers of the space's databases in objects, Git in Artifacts and mail. */
-    readonly providers: SpaceOptions["providers"];
+    readonly providers: readonly SpaceProvider[];
     /** The connectors of the space's Git storages in Artifacts, and its mail. */
     readonly connectors: readonly Connector[];
     /** What the object stores the space with. */

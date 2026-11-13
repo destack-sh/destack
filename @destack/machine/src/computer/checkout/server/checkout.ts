@@ -15,7 +15,7 @@ import { type CompilerPool, outputsOf, Workspace } from "@destack/build";
 import { PackageInspection } from "@destack/package/code";
 import { RequestId } from "@destack/sync";
 import { build, Build } from "@destack/stack/object";
-import type { CheckoutSource } from "@destack/stack/server";
+import type { CheckoutSource } from "../../../installation/build.ts";
 import type { StackClient } from "@destack/stack/client";
 import stackPackage from "@destack/stack/package";
 import objectPackage from "@destack/object/package";
@@ -190,8 +190,8 @@ export class CheckoutServer {
         source: CheckoutSource,
     ): Promise<{ readonly id: Identifier<"build">; readonly lock: Digest }> {
         // require the space here, noting its log position before the build
-        const { spaces } = this.machine;
-        if (!(await spaces.list()).includes(spaceId)) {
+        const { volumes } = this.machine;
+        if (!(await volumes.list()).includes(spaceId)) {
             throw MachineError.of(
                 "CHECKOUT_SPACE_ELSEWHERE_NOT_FOUND",
                 "space not found: it is not served on this machine, which has the working tree",
@@ -325,7 +325,7 @@ export class CheckoutServer {
         const client = await this.connect(stackPackage, login, spaceId);
         const built = await this.build(client, spaceId, selection);
         const { builds } = await this.machine.space(spaceId);
-        const reader = await builds.open(built.lock);
+        const reader = await builds.root(built.lock);
 
         return { selection, built, client, builds, reader };
     }

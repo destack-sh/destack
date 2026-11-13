@@ -6,7 +6,7 @@ import { PackageError, type DirectoryGrant } from "@destack/package";
 import { bunSqliteChannels } from "@destack/db/bun";
 import { channelFiles } from "@destack/db/channel/socket";
 import type { SandboxOptions } from "@destack/sandbox";
-import type { InstanceSpec, WorkloadResource } from "@destack/stack/runtime";
+import type { InstanceSpec, WorkloadResource } from "../runtime/runtime.ts";
 
 /** The journal files SQLite writes beside a database file. */
 const SQLITE_SIBLINGS = ["-wal", "-shm", "-journal"];

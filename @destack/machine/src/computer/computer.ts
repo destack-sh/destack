@@ -29,7 +29,7 @@ import { BlobStore, type DatabaseConnection, Snapshot, TABLE } from "@destack/db
 import { connectBunSqlite } from "@destack/db/bun";
 import type { SqliteDatabase } from "@destack/db/sqlite";
 import { DatabasePersonalKeyring, type EventKind, EventStore } from "@destack/event";
-import type { Registry } from "@destack/stack/server";
+import type { Registry } from "../installation/build.ts";
 import { type Deriver, type Keychain, type Keyring, LocalKeyring } from "@destack/identity";
 import { BunKeychain, type KeychainStore } from "@destack/identity/bun";
 import { mailConnector } from "@destack/mail/transport";
@@ -49,16 +49,21 @@ import { serveProcess } from "@destack/object/bun";
 import { HibernationHost, WorkloadInstance } from "@destack/object/workload";
 import { deviceSetting, SettingValue } from "@destack/setting/object";
 import { type BunIsolation, BunRuntime } from "../bun/index.ts";
-import { ProcessRuntime, type Runtime } from "@destack/stack/runtime";
+import { ProcessRuntime } from "../runtime/process.ts";
+import { type Runtime } from "../runtime/runtime.ts";
 import { createClient, type ClientOf } from "@destack/object/client";
-import { BuildCache } from "@destack/stack/server";
 import { SeverityNumber, TelemetryScope } from "@destack/telemetry";
 import { startTelemetry } from "@destack/telemetry/bun";
 import { OTLP_ORIGIN_PATH, OtlpExporter } from "@destack/telemetry/otlp";
 import stackPackage from "@destack/stack/package";
 import type { Telemetry } from "@destack/telemetry/sdk";
 import type { DistributionHost } from "@destack/update/server";
-import { DRAIN_TIMEOUT_MILLISECONDS, Machine, type MachineOptions } from "../machine/index.ts";
+import {
+    DRAIN_TIMEOUT_MILLISECONDS,
+    Machine,
+    type MachineOptions,
+    OLDEST_DESTACK,
+} from "../machine/index.ts";
 import { Authenticator } from "./device/authentication/index.ts";
 import { Device } from "./device/device.ts";
 import { MachineError } from "../error/index.ts";
@@ -294,8 +299,8 @@ export class Computer implements AsyncDisposable {
         const shipped = DistributionManifest.releases(options.shipped, platform);
         const linked = DistributionManifest.builtins(options.shipped, platform);
 
-        // open the build cache over the shipped builds read in place, the compilers and the spaces' storage
-        const builds = await Computer.#openCache(options, linked, database);
+        // open the machine's builds over the shipped builds read in place, the compilers and the spaces' storage
+        const builds = await Computer.#openBuilds(options, linked, database);
 
         // share the builtins with the servers the machine loads, from its compiled table or its files
         const program = await Program.current(
@@ -308,7 +313,7 @@ export class Computer implements AsyncDisposable {
                 ),
             options.environment.process.loader,
         );
-        const compilers = await CompilerPool.open(builds.packages, options.toolchain);
+        const compilers = await CompilerPool.open(builds, options.toolchain);
         stack.defer(() => compilers[Symbol.asyncDispose]());
         const spaces = stack.use(
             await LocalSpaceStorage.open({
@@ -329,7 +334,7 @@ export class Computer implements AsyncDisposable {
         const { runtime, processes } = Computer.#startRuntime(
             options,
             origin,
-            { packages: builds.packages, program },
+            { packages: builds, program },
             () => machine,
         );
         stack.defer(() => runtime.close());
@@ -371,8 +376,9 @@ export class Computer implements AsyncDisposable {
                     state.device,
                     await Computer.#enrollment(Snapshot.live(state.device.database), machineId),
                 ),
-            spaces,
-            cache: builds.cache,
+            volumes: spaces,
+            builds,
+            targets: COMPUTER_RUNTIMES,
             ...(options.releases === undefined ? {} : { releases: options.releases }),
             isBuilding: true,
             isEnforcingEntitlements: false,
@@ -388,7 +394,7 @@ export class Computer implements AsyncDisposable {
             skus: undefined,
             registry: options.registry,
             endpoint,
-            version: MACHINE_PACKAGE.version,
+            destack: { oldest: OLDEST_DESTACK, newest: MACHINE_PACKAGE.version },
             ...(options.relay === undefined
                 ? {}
                 : {
@@ -432,7 +438,7 @@ export class Computer implements AsyncDisposable {
             compilers,
             authenticator,
             events,
-            packages: builds.packages,
+            packages: builds,
         });
 
         // announce what the machine runs again each time the device's distribution changes, until closed
@@ -469,7 +475,7 @@ export class Computer implements AsyncDisposable {
                 authenticator,
                 events,
                 compilers,
-                packages: builds.packages,
+                packages: builds,
                 runtime,
                 hibernation,
             },
@@ -607,12 +613,12 @@ export class Computer implements AsyncDisposable {
         });
     }
 
-    /** Open the build cache: blobs below the machine's directory, shipped builds read in place. */
-    static async #openCache(
+    /** Open the machine's builds: blobs below its directory, shipped builds read in place. */
+    static async #openBuilds(
         options: Pick<ComputerOptions, "directory" | "environment" | "layer">,
         linked: ReadonlyMap<PackageId, PackageRelease>,
         database: SqliteDatabase,
-    ): Promise<{ readonly cache: BuildCache; readonly packages: LocalBuildStore }> {
+    ): Promise<LocalBuildStore> {
         // store the blobs in a directory, indexed in the machine's database, layered over the shipped builds
         const { environment } = options;
         const directory = join(options.directory, "builds");
@@ -627,8 +633,7 @@ export class Computer implements AsyncDisposable {
             layer: options.layer,
         });
 
-        // cache builds for the computer's runtimes, loading the shipped builtins in place of any other build of them
-        return { cache: new BuildCache(packages, COMPUTER_RUNTIMES, linked), packages };
+        return packages;
     }
 
     /** Start the instances' runtime, unless replaced, and the Bun processes loading builds. */
@@ -643,7 +648,7 @@ export class Computer implements AsyncDisposable {
     } {
         // run each space's instances calling out through the egress of its space on this machine
         const identity = async (scope: Identifier<"space">) =>
-            (await machine().space(scope)).host.identity();
+            (await machine().space(scope)).identity();
         const egress = (scope: Identifier<"space">) =>
             `${SpaceMount.url(origin, scope)}${Egress.path}`;
         const processes = Computer.#startProcesses(

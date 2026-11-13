@@ -1,5 +1,8 @@
 import { ACCOUNT_TEMPLATE } from "@destack/account/test";
-import { BORN_SPACE, ROUTE_TEMPLATE, TestSpace } from "@destack/stack/test";
+import { BORN_SPACE, RESIDENCY_HOME, TestSpace } from "../../test/space.ts";
+import { PARTITION_TEMPLATE } from "../../test/partition.ts";
+import { gauge, meter, note, sharedNote } from "../../test/schema.ts";
+import { ROUTE_TEMPLATE } from "../../test/route.ts";
 import { WORK_BOARD, PUBLISHER, TestComputer } from "./computer.ts";
 
 /** The start of January 2026, the month the meter's scenario measures in. */
@@ -12,6 +15,14 @@ export const METER_OPTIONS = { start: METER_START };
 export const templates = [
     ACCOUNT_TEMPLATE,
     TestSpace.template({}, BORN_SPACE),
+    TestSpace.template({}, RESIDENCY_HOME),
+    ...[gauge, meter, note, sharedNote].map((type) =>
+        TestSpace.template(
+            { packages: [{ objects: { [type.name]: type }, tables: [], protocols: [] }] },
+            BORN_SPACE,
+        ),
+    ),
+    PARTITION_TEMPLATE,
     ...TestComputer.templates(),
     TestComputer.homeTemplate([PUBLISHER]),
     TestComputer.homeTemplate([], WORK_BOARD),

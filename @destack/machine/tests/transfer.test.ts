@@ -1,0 +1,1037 @@
+import { UNIVERSE_NODE } from "@destack/control/test";
+import { RetryPolicy } from "@destack/environment";
+import { MAIN_DATABASE } from "@destack/stack/declare";
+import { JWS_ALGORITHMS, Jwks, Jwt, Recipient } from "@destack/identity";
+import { join } from "node:path";
+import { pathToFileURL } from "node:url";
+import { expect, refusal, test } from "@destack/test";
+import { Identity, Placement, placement, machine } from "@destack/account/object";
+import {
+    and,
+    defineTable,
+    eq,
+    integer,
+    TABLE,
+    text,
+    DatabaseKind,
+    defineDatabase,
+    type DatabaseConnection,
+    Snapshot,
+    DatabaseState,
+    databaseProvider,
+} from "@destack/db";
+import { BunSqliteDatabaseHost, bunSqliteConnector } from "@destack/db/bun";
+import { SqliteDatabase } from "@destack/db/sqlite";
+import { Plan, ResourceId } from "@destack/resource";
+import { nth, Digest, Identifier, schema, present } from "@destack/schema";
+import { RequestId, Scope, ObjectReference } from "@destack/sync";
+import { ProviderIndex, SpaceTransfer } from "../src/index.ts";
+import {
+    fixtureBuild,
+    ids,
+    insertRollout,
+    reconcile,
+    TestRuntime,
+    runNotes,
+    TestSpace,
+} from "../src/test/index.ts";
+import { sharedNote } from "../src/test/schema.ts";
+import { installation } from "@destack/object";
+import { PackageVersion } from "@destack/package";
+import { MemoryBuild } from "@destack/package/test";
+import { ResourceRecord } from "@destack/resource";
+import * as object from "@destack/stack/object";
+import * as accountObject from "@destack/account/object";
+import { principal } from "@destack/access";
+import { createClient } from "@destack/object/client";
+import stackPackage from "@destack/stack/package";
+import type { StackClient } from "@destack/stack/client";
+import type { Environment } from "@destack/environment";
+import type { TestObjectStore } from "@destack/object/test";
+
+/** A day, in milliseconds. */
+const DAY_MILLISECONDS = 24 * 60 * 60 * 1000;
+
+/** How long an unreferenced blob stays before deletion: a blob store's hour of grace. */
+const GRACE_MILLISECONDS = 60 * 60_000;
+
+/** How long a test moving a space between two machines runs at most, beyond its longest wait. */
+const SCENARIO_MILLISECONDS = 30_000;
+
+/** A signal that never aborts, for waits the world bounds. */
+const FOREVER = new AbortController().signal;
+
+/** A machine the universe knows nothing of. */
+const UNKNOWN_MACHINE = schema
+    .identifier("machine")
+    .parse("machine-01996ab0-0000-7000-8000-00000000000b");
+
+/** The origin the target machine answers at. */
+const TARGET_ORIGIN = "http://target.test/";
+
+/** The notes an installation stores in the space's database resource. */
+const note = defineTable(
+    "note",
+    {
+        /** The note's key. */
+        id: text("id").primaryKey(),
+        /** The space the note lives in. */
+        scope: text("scope").notNull(),
+        /** The note's text. */
+        body: text("body").notNull(),
+        /** Its rank. */
+        rank: integer("rank").notNull(),
+    },
+    { log: {} },
+);
+
+/** The pins an installed package stores in the space's main database, with the space's tables. */
+const pin = defineTable(
+    "pin",
+    {
+        /** The space of the pin. */
+        scope: text("scope").primaryKey(),
+        /** The pin's identifier. */
+        id: text("id").primaryKey(),
+        /** The pin's label. */
+        label: text("label").notNull(),
+    },
+    { log: {} },
+);
+
+/** The database resource that stores the notes. */
+const notes = defineDatabase({ name: "notes", tables: [note] });
+
+/** Open a replica of the notes database where its host stores it, refusing another dialect. */
+async function openNotes(
+    id: ResourceId,
+    reference: string,
+    host: Pick<BunSqliteDatabaseHost, "resolve">,
+    environment: Environment,
+): Promise<SqliteDatabase> {
+    const connection = await bunSqliteConnector.connect(
+        { resource: id, kind: "database", provider: "sqlite", reference: host.resolve(reference) },
+        notes,
+        environment,
+    );
+    if (!(connection instanceof SqliteDatabase)) {
+        throw new TypeError(`the notes database '${id}' is no SQLite database`);
+    }
+
+    return connection;
+}
+
+test(
+    "receive a moving space with its rows, databases and keys, then remove the source's replica",
+    async () => {
+        // place the space on the fixture's cloud machine and an empty database on the target host
+        const { source: sourceMachine, target, targetId, universe } = await openMove();
+        const source = sourceMachine.database;
+        const built = await sourceMachine.recordBuild(
+            await fixtureBuild(ids.package, "2026.9.0", sourceMachine.environment.crypto),
+        );
+        // store the space's keys under the source machine's keyring, which differs from the target's
+        const targetKeystore = target.space.keystore;
+
+        // apply a notes database with two notes on the source for an installation's binding
+        const world = sourceMachine.environment;
+        const files = await world.files.makeTemporaryDirectory("destack-space-transfer-");
+        const sourceHost = new BunSqliteDatabaseHost(pathToFileURL(`${files}/source/`), world);
+        const targetHost = new BunSqliteDatabaseHost(pathToFileURL(`${files}/target/`), world);
+        const sources = databaseProvider(sourceHost, object.database);
+        const targets = databaseProvider(targetHost, object.database);
+        const now = sourceMachine.machine.clock.now();
+        const declared = {
+            id: schema
+                .identifier("database")
+                .parse("database-01996ab0-0000-7000-8000-00000000000c"),
+            scope: ids.space,
+            name: "notes",
+            definitionPackageId: ids.package,
+            definitionVersion: "2026.9.0",
+            definitionName: "notes",
+            spec: { replicated: [] },
+            createdAt: now,
+            updatedAt: now,
+        };
+        const state = notes.state();
+        const desired = [state];
+        const digest = await Digest.json(state, world.crypto);
+        const provision = await sources.provision.provision(
+            ResourceRecord.of(DatabaseKind, { ...declared, reference: null }),
+        );
+        const resource = {
+            ...declared,
+            ...ObjectReference.columns(
+                "owner",
+                principal.space.reference(Scope.universe.id, ids.space),
+            ),
+            reference: provision.reference,
+            provider: "sqlite",
+            states: [digest],
+            appliedStates: [digest],
+        };
+        await sourceMachine.blobs.writeJson(state);
+        await source.transaction(
+            async (transaction) => await transaction.insert(object.database.table).values(resource),
+        );
+
+        // add an unbound scratch database the source deletes before its fence
+        const scratchId = schema
+            .identifier("database")
+            .parse("database-01996ab0-0000-7000-8000-00000000000e");
+        const scratchDeclared = { ...declared, id: scratchId, name: "scratch" };
+        const scratchProvision = await sources.provision.provision(
+            ResourceRecord.of(DatabaseKind, { ...scratchDeclared, reference: null }),
+        );
+        const scratch = {
+            ...scratchDeclared,
+            ...ObjectReference.columns(
+                "owner",
+                principal.space.reference(Scope.universe.id, ids.space),
+            ),
+            reference: scratchProvision.reference,
+            provider: "sqlite",
+            appliedStates: [],
+        };
+        await source.transaction(
+            async (transaction) => await transaction.insert(object.database.table).values(scratch),
+        );
+        const scratchRecord = ResourceRecord.of(DatabaseKind, scratch);
+        await sources.reconcile.apply(
+            scratchRecord,
+            [],
+            await Plan.digest(await sources.reconcile.plan(scratchRecord, []), world.crypto),
+        );
+        await insertRollout(
+            source,
+            {
+                id: ids.notes,
+                scope: ids.space,
+                packageId: ids.package,
+                name: "notes",
+                selection: {
+                    kind: "checkout",
+                    machine: ids.machine,
+                    checkout: ids.checkout,
+                    directory: ".",
+                },
+                installer: sourceMachine.owner.subject,
+            },
+            now,
+        );
+
+        // suspend notes at a build declaring the notes database, keeping its data, and bind the declaration to the database
+        const declaring = await MemoryBuild.of(
+            PackageVersion.parse({ id: ids.package, name: "@test/package", version: "2026.9.0" }),
+            [
+                {
+                    ...DatabaseKind.identity,
+                    provisioned: true,
+                    name: "notes",
+                    description: { name: "notes", spec: { replicated: [] }, ...state },
+                },
+            ],
+            world.crypto,
+        );
+        const notesBuild = await sourceMachine.recordBuild(declaring);
+        const [installed] = await source
+            .select()
+            .from(installation.table)
+            .where(eq(installation.table.id, ids.notes));
+        const described = await sourceMachine.describeRevision(
+            present(installed, "the notes installation"),
+            declaring,
+        );
+        const bindings = [
+            {
+                packageId: ids.package,
+                name: "notes",
+                target: declared.id,
+                targetSpaceId: null,
+                version: 1,
+            },
+        ];
+        const released = await object.InstallationRevision.digest(
+            await declaring.digest(),
+            undefined,
+            bindings,
+            world.crypto,
+        );
+        const revisionId = await object.InstallationRevision.id(ids.notes, released, world.crypto);
+        await source.transaction(async (transaction) => {
+            await transaction.insert(object.installationRevision.table).values({
+                id: revisionId,
+                scope: ids.space,
+                installationId: ids.notes,
+                buildId: notesBuild.build,
+                ...described,
+                generation: 1,
+                bindings,
+                digest: released,
+                createdAt: now,
+                updatedAt: now,
+            });
+            await transaction
+                .update(installation.table)
+                .set({ revisionId })
+                .where(eq(installation.table.id, ids.notes));
+            await transaction
+                .update(installation.table)
+                .set({
+                    status: "suspended",
+                    bindings: {
+                        [ids.package]: {
+                            notes: { target: { type: "database", id: declared.id } },
+                        },
+                    },
+                })
+                .where(eq(installation.table.id, ids.notes));
+        });
+        const provisioned = ResourceRecord.of(DatabaseKind, resource);
+        await sources.reconcile.apply(
+            provisioned,
+            desired,
+            await Plan.digest(await sources.reconcile.plan(provisioned, desired), world.crypto),
+        );
+        const written = await openNotes(
+            resource.id,
+            resource.reference,
+            sourceHost,
+            sourceMachine.machine.environment,
+        );
+        await written.transaction(
+            async (transaction) =>
+                await transaction.insert(note).values([
+                    { id: "n1", scope: ids.space, body: "first", rank: 1 },
+                    { id: "n2", scope: ids.space, body: "second", rank: 2 },
+                ]),
+        );
+        await written.close();
+
+        // serve the space and let its owner create a transfer to the target
+        const serving = await sourceMachine.serve({
+            providers: [sources],
+        });
+        const announcing = serving.store;
+        const created = await serving
+            .as(sourceMachine.owner.subject)
+            .stepUp()
+            .client(stackPackage)
+            .transfer.create({
+                spaceId: ids.space,
+                id: Identifier.create("transfer", sourceMachine.machine.environment),
+                requestId: RequestId.create(sourceMachine.machine.environment),
+                targetId: targetId,
+            });
+        await reconcile(announcing, "transfer", { id: created.id });
+
+        // receive it on the target, deleting the scratch database on the source as the target asks it to fence
+        const fencing = target.simulation.network.pause(
+            targetId,
+            sourceMachine.machine.id,
+            (sent) => sent.endsWith("/fence"),
+        );
+        const deleting = fencing.waiting.then(async () => {
+            await source.transaction((transaction) =>
+                transaction
+                    .delete(object.database.table)
+                    .where(eq(object.database.table.id, scratchId))
+                    .execute(),
+            );
+            fencing.resume();
+        });
+        const receiving = await target.serve({ providers: [targets] });
+        const refused = await runMove(
+            sourceMachine,
+            target,
+            receiving,
+            (placed) => placed?.machine === targetId,
+            1,
+        );
+        await deleting;
+        expect(refused).toEqual([]);
+
+        // stop serving the space as its primary, then remove the source's replica with its blobs as it stands by
+        await serving[Symbol.asyncDispose]();
+        const standing = await sourceMachine.serve({ providers: [sources] });
+        await reconcile(standing.store, "transfer", { id: created.id });
+        const removed = {
+            databases: await source.select().from(object.database.table),
+            snapshots: await source.select().from(object.snapshot.table),
+            files: (await world.files.readDirectory(join(files, "source", ids.space)))
+                .map((entry) => entry.name)
+                .filter((name) => name.endsWith(".db")),
+            blobs: await Array.fromAsync(sourceMachine.blobs.storage.packs()),
+        };
+
+        // read the space, its notes and its records on the target
+        const kept = await target.database
+            .select()
+            .from(object.database.table)
+            .orderBy(object.database.table.name);
+        const replicated = present(
+            kept.find((entry) => entry.name === "notes"),
+            "the replicated database",
+        );
+        const read = await openNotes(
+            replicated.id,
+            present(replicated.reference, "the replica's reference"),
+            targetHost,
+            target.machine.environment,
+        );
+        const record = nth(await target.database.select().from(object.transfer.table), 0);
+        const [recorded] = await target.database
+            .select({ lock: object.build.table.lock })
+            .from(object.build.table)
+            .where(eq(object.build.table.id, built.build));
+        const lock = present(recorded?.lock, "the moved build's lock");
+        const served = await target.database
+            .select({ id: accountObject.space.table.id })
+            .from(accountObject.space.table)
+            .where(and(eq(accountObject.space.table.id, ids.space), accountObject.Space.served()));
+        const signed = await targetKeystore.sign(target.database, ids.space, {
+            sub: ids.space,
+        });
+        expect({
+            removed,
+            placement: await placementOf(universe),
+            notes: await read.select().from(note).orderBy(note.id),
+            completed: [record.completedAt !== null, record.sourceId, record.targetId],
+            moved: await (await target.builds()).contains(lock),
+            reference: replicated.reference,
+            kept: kept.map((entry) => [entry.name, entry.provider]),
+            databases: (await world.files.readDirectory(join(files, "target", ids.space)))
+                .map((entry) => entry.name)
+                .filter((name) => name.endsWith(".db")),
+            served,
+            signer: (
+                await Jwt.verify(
+                    signed,
+                    Jwks.local(
+                        await Identity.keys(Snapshot.live(universe), ids.space, world.crypto),
+                        world.crypto,
+                    ),
+                    { algorithms: JWS_ALGORITHMS, now: sourceMachine.machine.clock.now() },
+                    world.crypto,
+                )
+            ).claims.sub,
+        }).toEqual({
+            // remove the scratch database's file alone
+            removed: {
+                databases: [],
+                snapshots: [],
+                files: [`${scratchId}.db`],
+                blobs: [],
+            },
+            placement: { space: ids.space, scope: ids.account, machine: targetId, epoch: 2 },
+            notes: [
+                { id: "n1", scope: ids.space, body: "first", rank: 1 },
+                { id: "n2", scope: ids.space, body: "second", rank: 2 },
+            ],
+            completed: [true, sourceMachine.machine.id, targetId],
+            // replicate the space's build into the target's build store
+            moved: true,
+            reference: `${ids.space}/${declared.id}.db`,
+            // store the main and notes databases in the target's storage
+            kept: [
+                ["main", "space"],
+                ["notes", "sqlite"],
+            ],
+            databases: [`${declared.id}.db`],
+            served: [{ id: ids.space }],
+            signer: ids.space,
+        });
+        await read.close();
+    },
+    SCENARIO_MILLISECONDS,
+);
+
+test("refuse a transfer without a recent sign-in, to an unknown machine, or to a machine of another account", async () => {
+    // replicate one machine of another account next to the fixture's cloud machine
+    const fixture = await TestSpace.open();
+    const foreign = schema
+        .identifier("machine")
+        .parse("machine-01996ab0-0000-7000-8000-00000000000c");
+    const other = schema
+        .identifier("account")
+        .parse("account-01996ab0-0000-7000-8000-00000000000d");
+    const now = fixture.machine.clock.now();
+    await fixture.database.transaction(
+        async (transaction) =>
+            await transaction.insert(machine.table).values({
+                id: foreign,
+                scope: other,
+                name: "foreign",
+                kind: "personal",
+                platform: "macOS",
+                architecture: "arm64",
+                model: "Mac14,2",
+                createdAt: now,
+                updatedAt: now,
+            }),
+    );
+    const serving = await fixture.serve();
+
+    // refuse each transfer with its reason
+    const owner = serving.as(fixture.owner.subject);
+    const refused = (target: string, isAuthenticatedNow: boolean) =>
+        refusal(
+            (isAuthenticatedNow ? owner.stepUp() : owner).client(stackPackage).transfer.create({
+                spaceId: ids.space,
+                id: Identifier.create("transfer", fixture.environment),
+                requestId: RequestId.create(fixture.machine.environment),
+                targetId: target,
+            }),
+        );
+    expect([
+        await refused(UNKNOWN_MACHINE, false),
+        await refused(UNKNOWN_MACHINE, true),
+        await refused(foreign, true),
+    ]).toEqual([
+        [
+            "UNAUTHORIZED",
+            "ASSURANCE_UNAUTHENTICATED",
+            "authentication required: authentication assurance is too low",
+        ],
+        [
+            "BAD_REQUEST",
+            "MACHINE_INVALID",
+            `machine '${UNKNOWN_MACHINE}' is invalid: it is not a standing machine of the space's account or residency`,
+        ],
+        [
+            "BAD_REQUEST",
+            "MACHINE_INVALID",
+            `machine '${foreign}' is invalid: it is not a standing machine of the space's account or residency`,
+        ],
+    ]);
+});
+
+test("move every table of the space database with rows in spaces, leaving out the machine's own, replicated and unlogged tables", async () => {
+    // declare a space database with another package's space-scoped notes next to the space's tables
+    const fixture = await TestSpace.open({
+        packages: [{ objects: { note: sharedNote }, tables: [], protocols: [] }],
+    });
+    const moving = { space: ids.space, scope: ids.account, machine: fixture.machine.id, epoch: 1 };
+
+    // plan the move from the served store, whose servers declared their tables
+    const served = await fixture.serve();
+    const steps = await SpaceTransfer.of(served.store, moving, UNKNOWN_MACHINE);
+    // list the transfer table first, then the logged space tables in declaration order,
+    //  leaving out the space's row from the universe
+    expect(steps.space.tables.map((table) => table[TABLE].sqlName)).toEqual([
+        "destack__stack__transfer",
+        "destack__sync__scope",
+        "destack__access__role",
+        "destack__access__role_permission",
+        "destack__access__relationship",
+        "destack__access__invitation",
+        "destack__object__call",
+        "destack__event__segment",
+        "destack__event__segment_deletion",
+        "destack__object__proof",
+        "destack__object__installation",
+        "destack__object__branch",
+        "destack__object__branch_entry",
+        "destack__object__branch_change",
+        "destack__object__approval",
+        "destack__object__change_request",
+        "destack__stack__rollout",
+        "destack__stack__installation_revision",
+        "destack__stack__deployment",
+        "destack__stack__instance",
+        "destack__stack__build",
+        "destack__stack__route",
+        "destack__stack__reading",
+        "destack__setting__setting",
+        "destack__stack__database",
+        "destack__stack__bucket",
+        "destack__stack__dependency",
+        "destack__stack__mail",
+        "destack__stack__git",
+        "destack__registry__repository",
+        "destack__registry__package",
+        "destack__registry__release",
+        "destack__machine__shared_note",
+        "destack__object__chunk",
+        "destack__object__chunk_run",
+        "destack__account__identity_key",
+    ]);
+});
+
+test("move the tables a space's main database applied in addition to the space database's, reading only the applied ones while a plan waits", async () => {
+    // apply an installed package's pins to the space's provisioned main database
+    await using fixture = await TestSpace.open();
+    const { database } = fixture;
+    const pinState = DatabaseState.of([pin]);
+    const digest = await Digest.json(pinState, fixture.environment.crypto);
+    await fixture.blobs.writeJson(pinState);
+    const main = and(
+        eq(object.database.table.scope, ids.space),
+        eq(object.database.table.name, MAIN_DATABASE),
+    );
+    await database.transaction(
+        async (transaction) =>
+            await transaction
+                .update(object.database.table)
+                .set({
+                    states: [digest],
+                    appliedStates: [digest],
+                    provider: "space",
+                    reference: "space",
+                })
+                .where(main),
+    );
+
+    // plan the move with the pins and the space's tables, and read their state at the handoff
+    const moving = { space: ids.space, scope: ids.account, machine: fixture.machine.id, epoch: 1 };
+    const states = await SpaceTransfer.states(fixture, ids.space);
+    const moved = names(await SpaceTransfer.of(fixture, moving, UNKNOWN_MACHINE));
+    const own = names(await SpaceTransfer.of(fixture, moving, UNKNOWN_MACHINE, []));
+
+    // read only the applied states while the main database waits to apply its desired ones
+    await database.transaction(
+        async (transaction) =>
+            await transaction.update(object.database.table).set({ appliedStates: [] }).where(main),
+    );
+    const waiting = await SpaceTransfer.states(fixture, ids.space);
+    const pending = names(await SpaceTransfer.of(fixture, moving, UNKNOWN_MACHINE));
+
+    // move the space's own tables and then the pins, a plan waiting or not
+    expect({ states, moved, waiting, pending }).toEqual({
+        states: [pinState],
+        moved: [...own, "destack__machine__pin"],
+        waiting: [],
+        pending: own,
+    });
+});
+
+test("stop the instances of a moving space running on its machine once its fence starts", async () => {
+    // run an instance of the notes installation in the space
+    await using space = await TestSpace.open();
+    const release = await space.release(ids.package, "2026.9.0");
+    const running = await runNotes(
+        space.database,
+        release,
+        space.owner.subject,
+        space.machine.environment,
+    );
+    const runtime = new TestRuntime({
+        scheduler: space.machine.environment.scheduler,
+        earlier: [running],
+        builds: await space.builds(),
+    });
+
+    // fence the moving space on the machine running it
+    const moving = { space: ids.space, scope: ids.account, machine: space.machine.id, epoch: 1 };
+    const transfer = await SpaceTransfer.of(space, moving, UNKNOWN_MACHINE);
+    await transfer.fence(
+        { providers: new ProviderIndex(space.machine.id, []), runtimes: [runtime] },
+        space.machine.clock.now(),
+    );
+    expect(runtime.stopped).toEqual([running]);
+});
+
+test(
+    "cancel a fenced transfer on its source as the space's owner, serving the space there again",
+    async () => {
+        // let the space's owner move it to the target
+        const { source: fixture, targetId, universe } = await openMove();
+        const { database } = fixture;
+        const serving = await fixture.serve();
+        const announcing = serving.store;
+        const owner = serving.as(fixture.owner.subject).stepUp().client(stackPackage);
+        const created = await owner.transfer.create({
+            spaceId: ids.space,
+            id: Identifier.create("transfer", fixture.environment),
+            requestId: RequestId.create(fixture.machine.environment),
+            targetId: targetId,
+        });
+        await reconcile(announcing, "transfer", { id: created.id });
+
+        // let the target have the source fence and stop as if its captures failed each time
+        const moving = { spaceId: ids.space, id: created.id };
+        await serving
+            .as(targetId)
+            .client(stackPackage)
+            .transfer.fence({
+                ...moving,
+                requestId: RequestId.create(fixture.machine.environment),
+            });
+
+        // let the source follow the target's receipt, then conceal the transfer from its cancellation
+        await fixture.simulation.idle();
+        const cancel = (caller: StackClient) =>
+            caller.transfer.cancel({
+                ...moving,
+                requestId: RequestId.create(fixture.machine.environment),
+            });
+        const refused = await refusal(cancel(serving.as(targetId).client(stackPackage)));
+
+        // cancel as the owner
+        await cancel(owner);
+
+        // serve the space placed at the next epoch with no move
+        const [placedAgain] = await universe
+            .select({
+                machine: placement.table.machineId,
+                epoch: placement.table.epoch,
+                target: placement.table.targetId,
+            })
+            .from(placement.table)
+            .where(eq(placement.table.spaceId, ids.space));
+        const [ended] = await database
+            .select({
+                completedAt: object.transfer.table.completedAt,
+                outcome: object.transfer.table.outcome,
+            })
+            .from(object.transfer.table);
+        const served = await database
+            .select({ id: accountObject.space.table.id })
+            .from(accountObject.space.table)
+            .where(and(eq(accountObject.space.table.id, ids.space), accountObject.Space.served()));
+        expect({
+            refused,
+            placement: placedAgain,
+            outcome: [ended?.completedAt !== null, ended?.outcome],
+            served,
+            again: await refusal(cancel(owner)),
+        }).toEqual({
+            refused: ["NOT_FOUND", "NOT_FOUND", `transfer '${created.id}' not found`],
+            placement: { machine: fixture.machine.id, epoch: 2, target: null },
+            outcome: [true, "cancelled"],
+            served: [{ id: ids.space }],
+            again: [
+                "PRECONDITION_FAILED",
+                "TRANSFER_BLOCKED",
+                `cannot cancel transfer '${created.id}': it has ended`,
+            ],
+        });
+    },
+    SCENARIO_MILLISECONDS,
+);
+
+test(
+    "move a space again to a machine it moved away from, removing the fenced rows of that move first",
+    async () => {
+        // move the space to the target and back, leaving the target the fenced rows of its move away
+        const { source, target, targetId, universe } = await openMove();
+        const sourceId = source.machine.id;
+        const leaving = await source.serve();
+        const away = await moveSpace(source, leaving, target, targetId);
+        await leaving[Symbol.asyncDispose]();
+        await away[Symbol.asyncDispose]();
+        const back = await target.serve();
+        await (await moveSpace(target, back, source, sourceId))[Symbol.asyncDispose]();
+        await back[Symbol.asyncDispose]();
+
+        // move it to the target again, which removes the fenced rows before it receives the space
+        await moveSpace(source, await source.serve(), target, targetId);
+        const transfers = await target.database
+            .select({
+                sourceId: object.transfer.table.sourceId,
+                sourceEpoch: object.transfer.table.sourceEpoch,
+                outcome: object.transfer.table.outcome,
+            })
+            .from(object.transfer.table)
+            .orderBy(object.transfer.table.sourceEpoch);
+        expect({ placement: await placementOf(universe), transfers }).toEqual({
+            placement: { space: ids.space, scope: ids.account, machine: targetId, epoch: 4 },
+            transfers: [
+                { sourceId, sourceEpoch: 1, outcome: "succeeded" },
+                { sourceId: targetId, sourceEpoch: 2, outcome: "succeeded" },
+                { sourceId, sourceEpoch: 3, outcome: "succeeded" },
+            ],
+        });
+    },
+    SCENARIO_MILLISECONDS,
+);
+
+test(
+    "move a space afresh after its cancelled move, never completing the old takeover",
+    async () => {
+        // add an enabled installation on the space's machine and an empty target
+        const { source, target, targetId, universe } = await openMove();
+        const now = source.machine.clock.now();
+        await insertRollout(
+            source.database,
+            {
+                id: ids.notes,
+                scope: ids.space,
+                packageId: ids.package,
+                name: "notes",
+                selection: { kind: "release", version: "2026.9.0" },
+                installer: source.owner.subject,
+            },
+            now,
+        );
+
+        // serve the space on the source as its owner
+        const serving = await source.serve();
+        const owner = createClient(
+            stackPackage,
+            serving.as(source.owner.subject).stepUp().endpoint(stackPackage),
+            source.machine.environment,
+        );
+
+        // move the space to the target, which the owner cancels once the target took it over and before it places it
+        const created = await owner.transfer.create({
+            spaceId: ids.space,
+            id: Identifier.create("transfer", source.machine.environment),
+            requestId: RequestId.create(source.machine.environment),
+            targetId,
+        });
+        const paused = target.simulation.network.pause(targetId, UNIVERSE_NODE, (sent) =>
+            sent.endsWith("/store/receive"),
+        );
+        const cancelling = paused.waiting.then(async () => {
+            // cancel as the owner before the target's first call to the universe, and let the target see its placement no longer moves here
+            await owner.transfer.cancel({
+                spaceId: ids.space,
+                id: created.id,
+                requestId: RequestId.create(source.machine.environment),
+            });
+            await target.database.log.waitUntil(
+                async () => (await placementRow(target.database))?.targetId === null,
+                FOREVER,
+            );
+            paused.resume();
+        });
+        const receiving = await target.serve();
+        const cancelled = await runMove(
+            source,
+            target,
+            receiving,
+            (placed) => placed?.machine === source.machine.id && placed.epoch === 2,
+        );
+        await cancelling;
+
+        // read the installation as the owner on a store of the target, refused on the abandoned target
+        const read = (served: TestObjectStore) =>
+            createClient(
+                stackPackage,
+                served.as(source.owner.id).endpoint(stackPackage),
+                source.machine.environment,
+            ).rollout.get({ spaceId: ids.space, id: ids.notes });
+        const abandoned = await refusal(read(receiving));
+
+        // move the space afresh to the same target as the owner, and read the installation as the target serves it placed there
+        await owner.transfer.create({
+            spaceId: ids.space,
+            id: Identifier.create("transfer", source.machine.environment),
+            requestId: RequestId.create(source.machine.environment),
+            targetId,
+        });
+        const moved = await runMove(
+            source,
+            target,
+            receiving,
+            (placed) => placed?.machine === targetId,
+        );
+        const received = await target.database
+            .select({
+                sourceEpoch: object.transfer.table.sourceEpoch,
+                outcome: object.transfer.table.outcome,
+            })
+            .from(object.transfer.table)
+            .orderBy(object.transfer.table.sourceEpoch);
+        await receiving[Symbol.asyncDispose]();
+        const served = await read(await target.serve());
+        expect({
+            cancelled,
+            abandoned,
+            moved,
+            placement: await placementOf(universe),
+            transfers: received,
+            served: served.installationId,
+        }).toEqual({
+            cancelled: [],
+            abandoned: ["NOT_FOUND", "SCOPE_NOT_FOUND", `scope '${ids.space}' not found`],
+            moved: [],
+            placement: { space: ids.space, scope: ids.account, machine: targetId, epoch: 3 },
+            transfers: [
+                { sourceEpoch: 1, outcome: "cancelled" },
+                { sourceEpoch: 2, outcome: "succeeded" },
+            ],
+            served: ids.notes,
+        });
+    },
+    SCENARIO_MILLISECONDS,
+);
+
+test("collect a stray blob a grace after its lease ends, and a snapshot's blobs a grace after the snapshot expires", async () => {
+    // serve the fixture's space on the machine that stores the snapshots of it
+    const fixture = await TestSpace.open({});
+    await fixture.serve();
+    const { database, blobs } = fixture;
+    const start = fixture.machine.clock.now();
+
+    // put a blob a taken snapshot references, and a stray blob none references
+    const put = async (content: string) => {
+        const bytes = new TextEncoder().encode(content);
+        const digest = await Digest.of(bytes, fixture.environment.crypto);
+        await blobs.put([
+            {
+                digest,
+                size: bytes.byteLength,
+                open: async () =>
+                    (async function* () {
+                        yield bytes;
+                    })(),
+            },
+        ]);
+
+        return digest;
+    };
+    const [taken] = [await put("taken"), await put("stray")];
+    await database.transaction(
+        async (transaction) =>
+            await transaction.insert(object.snapshot.table).values({
+                id: schema
+                    .identifier("snapshot")
+                    .parse(object.snapshot.generateId(fixture.environment)),
+                spaceId: ids.space,
+                resourceId: ResourceId.parse("database-01996ab0-0000-7000-8000-0000000000f1"),
+                recipient: (await Recipient.generate(fixture.environment)).key,
+                digest: taken,
+                takenAt: start,
+                blobs: [taken],
+                createdAt: start,
+                updatedAt: start,
+            }),
+    );
+
+    // collect the stray blob a grace past its lease, then the snapshot's blob a grace after the snapshot expires, leaving the states main refers to
+    await fixture.simulation.jump(start + blobs.leaseMilliseconds + 1);
+    await fixture.simulation.jump(fixture.simulation.clock.now() + GRACE_MILLISECONDS);
+    const leased = await Array.fromAsync(blobs.storage.packs());
+    await fixture.simulation.jump(start + 2 * DAY_MILLISECONDS);
+    await fixture.simulation.jump(fixture.simulation.clock.now() + GRACE_MILLISECONDS);
+    const [main] = await database
+        .select({ states: object.database.table.states })
+        .from(object.database.table)
+        .where(eq(object.database.table.name, MAIN_DATABASE));
+    const states = present(main, "the main database").states;
+    expect({
+        leased: leased.toSorted(),
+        expired: (await Array.fromAsync(blobs.storage.packs())).toSorted(),
+        snapshots: await database.select().from(object.snapshot.table),
+    }).toEqual({
+        leased: [taken, ...states].toSorted(),
+        expired: [...states].toSorted(),
+        snapshots: [],
+    });
+});
+
+/** Open the space on its residency's machine and an empty target machine its owner enrolls. */
+async function openMove() {
+    // enroll the target as the owner, and host an empty database there next to the space's source
+    const source = await TestSpace.open();
+    const enrolled = await source.universe.enroll(source.owner, ids.account, TARGET_ORIGIN);
+    const target = await TestSpace.empty({
+        world: source,
+        owner: source.owner,
+        machine: enrolled,
+    });
+
+    return {
+        source,
+        target,
+        targetId: enrolled.id,
+        universe: source.universe.storage.database,
+    };
+}
+
+/** Move the space as its owner to another machine, which stands by until placed there. */
+async function moveSpace(
+    source: TestSpace,
+    serving: TestObjectStore,
+    target: TestSpace,
+    targetId: Identifier<"machine">,
+): Promise<TestObjectStore> {
+    // ask for the move as the space's owner on its source, once it follows the space's chain
+    const isFollowed = async () =>
+        (await Scope.read(Snapshot.live(source.database), [ids.account])).length > 0;
+    await source.simulation.idle();
+    await source.database.log.waitUntil(isFollowed, FOREVER);
+    await serving
+        .as(source.owner.subject)
+        .stepUp()
+        .client(stackPackage)
+        .transfer.create({
+            spaceId: ids.space,
+            id: Identifier.create("transfer", source.machine.environment),
+            requestId: RequestId.create(source.machine.environment),
+            targetId,
+        });
+
+    // receive it on the target as a standby, handed off by the source, until the universe places it there
+    const receiving = await target.serve();
+    const refused = await runMove(
+        source,
+        target,
+        receiving,
+        (placed) => placed?.machine === targetId,
+    );
+    expect(refused).toEqual([]);
+
+    return receiving;
+}
+
+/** Run the world until a move's placement settles within the target's lag and expected retries. */
+async function runMove(
+    source: TestSpace,
+    target: TestSpace,
+    receiving: TestObjectStore,
+    isSettled: (placed: Placement | undefined) => boolean,
+    expected = 0,
+): Promise<(readonly [string, string, string])[]> {
+    // allow the target's access lag and the longest waits of the retries a test expects
+    const universe = source.universe.storage.database;
+    const { simulation } = source;
+    const policy = RetryPolicy.of();
+    let budget = receiving.store.authorizer.lag;
+    for (let failures = 1; failures <= expected; failures += 1) {
+        budget += RetryPolicy.interval(policy, failures, () => 1);
+    }
+
+    // run until the placement settles, then take the target's refusals
+    await simulation.waitUntil(
+        async () => isSettled(await placementOf(universe)),
+        simulation.clock.now() + budget,
+    );
+    const refused = target.takeRefusals();
+
+    // let both machines' directories show the settled placement
+    const settled = JSON.stringify(await placementOf(universe));
+    for (const space of [source, target]) {
+        const { snapshot } = space.machine.directory;
+        const isShown = async () =>
+            JSON.stringify((await Placement.find(snapshot, [ids.space]))[0]) === settled;
+        await snapshot.database.log.waitUntil(isShown, FOREVER);
+    }
+
+    return refused;
+}
+
+/** Read the space's placement row a database replicates, none while unplaced. */
+async function placementRow(database: DatabaseConnection) {
+    const [row] = await database
+        .select()
+        .from(placement.table)
+        .where(eq(placement.table.spaceId, ids.space));
+
+    return row;
+}
+
+/** Read the space's placement in the universe, none while unplaced. */
+async function placementOf(universe: DatabaseConnection): Promise<Placement | undefined> {
+    const [placed] = await Placement.find(Snapshot.live(universe), [ids.space]);
+
+    return placed;
+}
+
+/** List the SQL names of the tables a transfer moves, in order. */
+function names(transfer: SpaceTransfer): string[] {
+    return transfer.space.tables.map((table) => table[TABLE].sqlName);
+}

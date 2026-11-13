@@ -16,12 +16,13 @@
         "./bun": "./src/bun/index.ts",
         "./computer": "./src/computer/index.ts",
         "./device": "./src/computer/device/index.ts",
-        "./test": "./src/computer/test/index.ts",
-        "./benchmark": "./src/benchmark/index.ts"
+        "./test": "./src/test/index.ts",
+        "./benchmark": "./src/benchmark/index.ts",
+        "./computer/test": "./src/computer/test/index.ts"
     },
     "scripts": {
         "typecheck": "tsc --project tsconfig.json && destack-check readme",
-        "test": "bun --bun run vitest run --config vitest.config.ts --project \"test:*\"",
+        "test": "bun --bun run vitest run --config vitest.config.ts --project \"test:*\" --project \"world:*\"",
         "bench": "bun --bun run vitest run --config vitest.config.ts --project \"bench:*\""
     },
     "dependencies": {

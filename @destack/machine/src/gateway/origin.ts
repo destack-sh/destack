@@ -71,7 +71,7 @@ import {
 } from "@destack/view/declare";
 import { LINK_SECRET_HEADER } from "@destack/object/server";
 import { ScopePrimary } from "./primary.ts";
-import type { GatewaySpace, Gateway } from "./gateway.ts";
+import type { Gateway, GatewaySpace } from "./gateway.ts";
 import { MachineError } from "../error/index.ts";
 import { OriginCookie } from "./cookie.ts";
 import { StaticHost } from "./host.ts";
@@ -301,7 +301,7 @@ export class ViewOrigin {
         const { environment } = this.#space.machine;
         const state = Uuid.v4(environment.random);
         const issuer = this.#issuer();
-        const identity = this.#space.host.identityOf(
+        const identity = this.#space.identityOf(
             principal.installation.reference(this.#space.id, page.rollout.installationId),
         );
         const details =
@@ -415,10 +415,10 @@ export class ViewOrigin {
 
     /** Call the issuer of the machine's universe through the machine's network. */
     #issuer(): Issuer {
-        const { host, machine } = this.#space;
+        const { universe, machine } = this.#space;
 
         return new Issuer(
-            host.machine.universe.issuer,
+            universe.issuer,
             (sent) => machine.send(sent),
             machine.environment,
             new Bookmark(),
@@ -571,7 +571,7 @@ export class ViewOrigin {
                 revision.buildId,
             );
             const packageId = PackageId.parse(found.installation.packageId);
-            const root = await this.#space.builds.root(packageId, built.lock);
+            const root = await this.#space.root(packageId, built.lock);
 
             return { lock: built.lock, reader: root };
         });
@@ -707,7 +707,8 @@ export class ViewOrigin {
         const scope = ScopePrimary.scopeOf(url);
         const spaceId = schema.identifier("space").safeParse(scope);
         const { machine } = this.#space;
-        const { directory, universe } = this.#space.host.machine;
+        const { universe } = this.#space;
+        const { directory } = this.#space.machine;
         const located = spaceId.success
             ? (await directory.locate(spaceId.data, machine.clock.now())).url
             : undefined;
@@ -927,7 +928,7 @@ export class ViewOrigin {
         const { crypto } = this.#space.machine.environment;
         const { database, id } = this.#space;
         const deriver = present(
-            await this.#space.host.keystore.deriver(database, id),
+            await this.#space.keystore.deriver(database, id),
             `the keys of ${id}`,
         );
         const key = await crypto.importKey(
@@ -947,7 +948,7 @@ export class ViewOrigin {
     async #sessionKey(): Promise<Uint8Array<ArrayBuffer>> {
         // derive through the space's keys
         const { database, id } = this.#space;
-        const { keystore } = this.#space.host;
+        const { keystore } = this.#space;
         const deriver = present(await keystore.deriver(database, id), `the keys of ${id}`);
 
         return deriver.derive(SESSION_LABEL);
@@ -989,7 +990,7 @@ export class ViewOrigin {
         const policy = await this.#policy(page);
         const { base } = page.mount;
         const closure = await ViewOrigin.#memo(this.#closures, `${page.lock} ${base}`, () =>
-            this.#space.builds.imports(page.lock, "browser", `${base}${BUILD_PATH}`),
+            this.#space.imports(page.lock, "browser", `${base}${BUILD_PATH}`),
         );
         if (pathname.startsWith(BUILD_PATH)) {
             const [digest = "", ...path] = pathname.slice(BUILD_PATH.length).split("/");
@@ -1130,7 +1131,7 @@ export class ViewOrigin {
                 account: space.scope,
                 view: name,
                 base,
-                universe: new URL(this.#space.host.machine.universe.issuer).origin,
+                universe: new URL(this.#space.universe.issuer).origin,
                 catalogs: await ViewOrigin.#memo(this.#catalogs, `${page.lock} ${base}`, () =>
                     this.#catalogPaths(reader, closure),
                 ),
@@ -1218,7 +1219,7 @@ export class ViewOrigin {
         // address the account package at the universe
         const target = { audience: PackageId.parse(accountPackage.id) };
         const { machine } = this.#space;
-        const { universe } = this.#space.host.machine;
+        const { universe } = this.#space;
 
         return createClient(
             accountPackage,

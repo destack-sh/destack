@@ -667,7 +667,7 @@ test("register a working tree's directory, build its stack in a space as the per
     if (built.lock === null) {
         throw new TypeError("the build has no lock");
     }
-    const reader = await (await machine.space(space)).builds.open(built.lock);
+    const reader = await (await machine.space(space)).builds.root(built.lock);
     expect({
         checkout: registered,
         submission: evaluated,

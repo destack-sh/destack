@@ -1,8 +1,9 @@
+import { CLOUD_RUNTIMES } from "./cloud.ts";
 import { DistributionManifest } from "@destack/package";
 import { WorkerdDistribution } from "@destack/package/workerd";
 import { ServerBundle } from "./bundle.ts";
 import { Once } from "@destack/environment";
-import { ProcessRuntime } from "@destack/stack/runtime";
+import { ProcessRuntime } from "../runtime/process.ts";
 import { traceSampling } from "@destack/stack/setting";
 import { Directory, type SpaceAddress, UniverseOrigin } from "@destack/account/address";
 import * as accountObject from "@destack/account/object";
@@ -31,7 +32,7 @@ import {
     type PartitionState,
     WorkerdRuntime,
 } from "./runtime/index.ts";
-import { Machine } from "../machine/index.ts";
+import { Machine, OLDEST_DESTACK } from "../machine/index.ts";
 import machinePackage from "../package.ts";
 import { type Space, SPACE_HEADER, SpaceRequest } from "../space/index.ts";
 import { Attribution, TRACES_PATH } from "./attribution.ts";
@@ -42,7 +43,7 @@ import type {} from "@destack/package/import-meta";
 import { MachineError } from "../error/index.ts";
 
 export { DurableObjectDatabase } from "@destack/db/cloudflare/durable";
-export { GraphIndexObject } from "@destack/stack/cloudflare";
+export { GraphIndexObject } from "./graph.ts";
 
 /** The key of the space an object serves, which it resumes after an eviction. */
 const SPACE_KEY = "space";
@@ -269,7 +270,7 @@ export class PartitionObject {
         // count the posted work
         const { space } = served;
         for (const counted of schema.array(TraceCount).parse(await request.json())) {
-            space.traffic.countTrace(space.id, counted);
+            space.machine.traffic.countTrace(space.id, counted);
         }
 
         return new Response(null, { status: 204 });
@@ -333,10 +334,10 @@ export class PartitionObject {
                     );
                 }
 
-                return served.host.identity();
+                return served.identity();
             },
             random: cloud.environment.random,
-            builds: () => {
+            served: () => {
                 if (served === undefined) {
                     throw MachineError.of(
                         "SPACE_UNAVAILABLE",
@@ -344,7 +345,7 @@ export class PartitionObject {
                     );
                 }
 
-                return served.builds;
+                return served;
             },
         });
 
@@ -360,8 +361,9 @@ export class PartitionObject {
             database: cloud.replica,
             describe: async () => ({ osVersion: null, startedAt, update: null, host: null }),
             enrollment: (view) => cloud.enrollment(view ?? Snapshot.live(cloud.replica)),
-            spaces: host,
-            cache: await host.cache(bindings.BUILDS, await cloud.releases(), shipped),
+            volumes: host,
+            builds: await host.builds(bindings.BUILDS, await cloud.releases()),
+            targets: CLOUD_RUNTIMES,
             isBuilding: false,
             isEnforcingEntitlements: true,
             // TODO #Incomplete: serve accounts' own hostnames once Cloudflare for SaaS provisions their certificates, after launch
@@ -377,7 +379,7 @@ export class PartitionObject {
             registry: bindings.DESTACK_REGISTRY,
             skus: rates.skus,
             endpoint: `https://${bindings.DESTACK_HOST}`,
-            version: machinePackage.version,
+            destack: { oldest: OLDEST_DESTACK, newest: machinePackage.version },
             authenticate: async (request, audience, partition) => {
                 // verify the universe's or a space's token for the package
                 const verified = await accountObject.Identity.authenticate(
@@ -396,7 +398,7 @@ export class PartitionObject {
 
                 // require a call into the space bound to it, or to the account the space is the home of
                 if (partition === space) {
-                    await (await machine.space(space)).host.requirePartition(verified);
+                    await (await machine.space(space)).requirePartition(verified);
                 }
                 // refuse a token bound to another partition
                 else if (partition !== undefined) {
