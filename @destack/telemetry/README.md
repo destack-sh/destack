@@ -12,19 +12,14 @@ import { TelemetryScope } from "@destack/telemetry";
 
 /** Save a page, recording what happened on every signal. */
 export async function savePage(environment: Environment, text: string) {
-    const { log, span, measure, metric } = TelemetryScope.of(
-        import.meta.destack.package,
-        environment.telemetry,
-    );
-    const saves = metric.histogram("acme.page.save.duration", {
-        unit: "s",
-        attributes: { "acme.page.kind": ["note", "doc"], "error.type": ["NOT_FOUND"] },
-    });
+    const { log, span } = TelemetryScope.of(import.meta.destack.package, environment.telemetry);
+    const attributes = { "acme.page.kind": "note" };
 
-    await measure(saves, { "acme.page.kind": "note" }, () =>
-        span("acme.page.save", { "acme.page.kind": "note" }, async () => {
-            log.info("acme.page.saved", { "acme.page.length": text.length });
-        }),
+    await span(
+        "acme.page.save",
+        attributes,
+        async () => log.info("acme.page.saved", { "acme.page.length": text.length }),
+        { duration: { attributes } }, // acme.page.save.duration
     );
 }
 ```
@@ -34,13 +29,22 @@ export async function savePage(environment: Environment, text: string) {
 Signals follow OpenTelemetry's semantic conventions, with these Destack additions:
 
 ```ts
-const { span, measure, metric, log } = TelemetryScope.of(import.meta.destack.package, telemetry); // per package, never a global
-const passes = metric.histogram("destack.controller.pass.duration", { unit: "s", attributes }); // <scope>.<noun>.<verb>
-await measure(passes, { "destack.controller.name": "space" }, () => reconcile(rows)); // error.type: CONFLICT
-await span("destack.controller.pass", { "destack.controller.kind": "reconcile" }, run); // target in attributes
-metric.histogram("destack.controller.wait.duration", { unit: "s", attributes }); // wait apart
-metric.histogram("destack.controller.catch_up.duration", { unit: "s", attributes }); // catch-up, not length
+const { span, measure, log } = TelemetryScope.of(import.meta.destack.package, telemetry); // per package, never a global
+await span("destack.controller.pass", { ...bounded, "destack.key": key }, run, { duration: { attributes: bounded } }); // ids stay off metrics
+await measure("db.client.operation.duration", attributes, run); // no span; error.type: CONFLICT
+waits.record(seconds, bounded); // destack.controller.wait.duration: a computed wait, apart from the work
 log.warn("destack.postgres.warned", { "db.response.status_code": "01000" }); // past tense
+SpanPath.add(context.active(), "db.client.operation.count", 1); // every running span's totals
+```
+
+## Trace a stream
+
+`span` follows work that answers a stream, each step in the span, and ends it once the stream ends.
+
+```ts
+const pages = await span("note/list", attributes, () => list(input), { kind: "server", duration: { attributes } });
+for await (const page of pages) send(page); // a reader closing early: CLIENT_CLOSED_REQUEST
+await span("destack.access.check", attributes, check, { duration: { attributes: () => decided } }); // read at the end
 ```
 
 ## Capture an exception
