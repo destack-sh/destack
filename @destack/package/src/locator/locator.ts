@@ -70,6 +70,11 @@ export class PackageLocator {
 
     /** Find a package's directory, an ancestor named like it or its node_modules installation. */
     directory(name: string, from: string): Promise<string | undefined> {
+        // answer no directory for a module named by a host's scheme, such as node:path or bun:sqlite
+        if (name === "bun" || name.startsWith("node:") || name.startsWith("bun:")) {
+            return Promise.resolve(undefined);
+        }
+
         // answer a directory asked before, else look it up once
         const key = `${from}\0${name}`;
         let found = this.#directories.get(key);

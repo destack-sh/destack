@@ -66,3 +66,33 @@ test("read listed source packages at their given versions and other packages at 
         declared: ["2026.9.0", "2026.9.0", "2026.9.0"],
     });
 });
+
+test("find no package for a host's scheme-named modules, and find an npm package Bun also supplies", async () => {
+    // install npm packages named bun and ws, and another package, above a module's directory
+    await using simulation = testSimulation();
+    const { files } = simulation.environment("test");
+    const root = await files.makeTemporaryDirectory("locator-");
+    for (const name of ["bun", "ws", "left-pad"]) {
+        const installed = join(root, "node_modules", name);
+        await files.mkdir(installed, { recursive: true });
+        await files.writeTextFile(
+            join(installed, "package.json"),
+            JSON.stringify({ name, version: "1.0.0" }),
+        );
+    }
+    const from = join(root, "src");
+    await files.mkdir(from, { recursive: true });
+
+    // look each up: scheme-named modules and bun resolve to none, ws to its installed package
+    const locator = new PackageLocator(files);
+    const names = ["node:path", "bun:sqlite", "bun", "ws", "left-pad"];
+    const found = await Promise.all(names.map((name) => locator.directory(name, from)));
+
+    expect(found).toEqual([
+        undefined,
+        undefined,
+        undefined,
+        await files.realPath(join(root, "node_modules", "ws")),
+        await files.realPath(join(root, "node_modules", "left-pad")),
+    ]);
+});
