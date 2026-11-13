@@ -89,9 +89,19 @@ gate +directories:
     # give each test worker two cores, as a scenario test runs its workloads beside it
     cores="$(getconf _NPROCESSORS_ONLN)"
     workers=$(( cores / 2 > 4 ? 4 : (cores / 2 < 1 ? 1 : cores / 2) ))
+    # regenerate the generated settings locally, as CI checks them against the committed ones
+    if [ -z "${CI:-}" ]; then
+        for root in $(git ls-files '.oxfmtrc.json' '*/.oxfmtrc.json' | grep -v '/tests/' | xargs -n1 dirname); do
+            (cd "{{justfile_directory()}}/$root" && bun run destack-check configure)
+        done
+    fi
     for directory in {{directories}}; do
         echo "gate $directory"
         cd "{{justfile_directory()}}/$directory"
+        # regenerate the package's compiler settings locally, as CI checks them
+        if [ -z "${CI:-}" ]; then
+            bun run destack-check configure
+        fi
         bun run destack-check format-check
         # typecheck through the package's script, which also compiles its README listings
         if [ -n "$(jq -r '.scripts.typecheck // ""' package.json)" ]; then
