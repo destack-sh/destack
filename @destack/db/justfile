@@ -23,6 +23,10 @@ check: typecheck lint format-check
 test:
     bun run test
 
+# benchmark
+bench:
+    bun run bench
+
 # format
 format *args:
     bun run destack-check format {{args}} src vitest.config.ts package.json destack.json

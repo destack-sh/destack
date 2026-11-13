@@ -1,5 +1,8 @@
 import { BunEnvironment } from "@destack/environment/bun";
-import { defineConfiguration } from "@destack/test/config";
+import { BENCHMARK_MODULES, defineConfiguration, scenarioPlugin } from "@destack/test/config";
+
+/** The tests, without the benchmarks. */
+const TESTS = ["src/**/*.test.ts"];
 
 /** The tests of PostgreSQL's connector, host, channel and concurrent commits. */
 const POSTGRESQL = ["src/postgres/**/*.test.ts", "src/log/test/concurrency.test.ts"];
@@ -14,8 +17,8 @@ const SQLITE = [
 
 export default defineConfiguration(
     {
+        plugins: [scenarioPlugin([{ module: "@destack/db/test", name: "TestDatabaseDriver" }])],
         test: {
-            include: ["src/**/*.test.ts"],
             globalSetup: ["src/test/setup.ts"],
             testTimeout: 5000,
             hookTimeout: 5000,
@@ -24,13 +27,20 @@ export default defineConfiguration(
                 {
                     extends: true,
                     targets: { database: ["sqlite"] },
-                    test: { exclude: POSTGRESQL },
+                    test: { include: TESTS, exclude: POSTGRESQL },
                 },
                 // run every other test on PostgreSQL, its own behavior included
                 {
                     extends: true,
                     targets: { database: ["postgresql"] },
-                    test: { exclude: SQLITE },
+                    test: { include: TESTS, exclude: SQLITE },
+                },
+
+                // measure the benchmarks on each database, which `just bench` runs on its own
+                {
+                    extends: true,
+                    targets: { database: ["sqlite", "postgresql"] },
+                    test: { name: "bench", include: [BENCHMARK_MODULES] },
                 },
             ],
         },

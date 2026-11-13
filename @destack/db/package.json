@@ -21,7 +21,8 @@
     },
     "scripts": {
         "typecheck": "tsc --project tsconfig.json && destack-check readme",
-        "test": "bun --bun run vitest run --config vitest.config.ts"
+        "test": "bun --bun run vitest run --config vitest.config.ts --project sqlite --project postgresql",
+        "bench": "bun --bun run vitest run --config vitest.config.ts --project \"bench:*\""
     },
     "dependencies": {
         "@destack/environment": "workspace:*",
