@@ -117,7 +117,24 @@ const definition = schema.object({
 export const PackageDefinition = Object.assign(definition, {
     /** Parse the text of a destack.json, refusing sandbox abilities its runtimes cannot honour. */
     read(text: string): PackageDefinition {
-        return requireRuntimes(definition.parse(JSON.parse(text)));
+        // refuse runtimes for a test kit, which tests load from source and no build compiles
+        const value = definition.parse(JSON.parse(text));
+        const kit = Object.keys(value.exports ?? {}).find((name) =>
+            PackageDefinition.isTestKit(name),
+        );
+        if (kit !== undefined) {
+            throw PackageError.of(
+                "DEFINITION_INVALID",
+                `export '${kit}' is invalid: a test kit compiles for no runtime`,
+            );
+        }
+
+        return requireRuntimes(value);
+    },
+
+    /** Report whether an export is a test kit: a path through a test directory. */
+    isTestKit(name: string): boolean {
+        return subpathOf(name).split("/").includes("test");
     },
     /** Refuse the exports a package's role forbids. */
     requireExports(value: PackageDefinition, name: string, entries: readonly string[]): void {
@@ -165,7 +182,7 @@ export const PackageDefinition = Object.assign(definition, {
         const subpath = subpathOf(entry);
         const specifier = subpath === "" ? imported.name : `${imported.name}/${subpath}`;
         const isPrivate = subpath === "server" || subpath.startsWith("provider/");
-        const isTestKit = subpath === "test" || subpath.startsWith("test/");
+        const isTestKit = PackageDefinition.isTestKit(entry);
 
         // refuse an app's implementation
         if (imported.role === "app" && isPrivate) {
@@ -189,8 +206,14 @@ export const PackageDefinition = Object.assign(definition, {
             );
         }
     },
-    /** List the runtimes an export compiles for: its own, or else the package's. */
+    /** List the runtimes an export compiles for: its own, the package's, or none for a test kit. */
     runtimes(value: PackageDefinition, name: string): Runtime[] {
+        // compile no test kit, which tests load from source
+        if (PackageDefinition.isTestKit(name)) {
+            return [];
+        }
+
+        // compile for the export's own runtimes, else the package's
         const runtimes = value.exports?.[name]?.runtimes ?? value.runtimes;
         if (runtimes === undefined) {
             throw PackageError.of(
