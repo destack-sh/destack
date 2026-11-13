@@ -16,7 +16,7 @@ export async function runR2(name: string): Promise<void> {
         platform: "browser",
         resolve: { conditionNames: ["workerd", "worker", "browser"] },
         external: [/^node:/u, /^cloudflare:/u],
-        plugins: [modulePlugin(new ModuleTransformer(testHost().files))],
+        plugins: [modulePlugin(new ModuleTransformer(testHost()))],
     })
         .then(async (bundle) => {
             await using _bundle = bundle;

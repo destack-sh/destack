@@ -12,7 +12,7 @@ export async function bundleWorker(module: URL): Promise<string> {
         platform: "browser",
         resolve: { conditionNames: ["workerd", "worker", "browser"] },
         external: [/^node:/u, /^cloudflare:/u],
-        plugins: [modulePlugin(new ModuleTransformer(testHost().files))],
+        plugins: [modulePlugin(new ModuleTransformer(testHost()))],
     });
     const { output } = await bundle.generate({ format: "esm" });
     const [chunk] = output;

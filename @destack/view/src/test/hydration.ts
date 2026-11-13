@@ -19,7 +19,7 @@ export async function renderOnServer(module: string): Promise<Record<string, str
         server: { middlewareMode: true, hmr: false, ws: false },
         optimizeDeps: { noDiscovery: true },
         plugins: [
-            modulePlugin(new ModuleTransformer(host.files)),
+            modulePlugin(new ModuleTransformer(host)),
             loadTransforms({
                 directory: root,
                 runtime: "bun",

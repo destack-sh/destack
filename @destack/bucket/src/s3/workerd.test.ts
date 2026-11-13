@@ -13,7 +13,7 @@ test("sign, presign and verify the documented S3 examples in workerd without Nod
         input: fileURLToPath(new URL("./test/worker.ts", import.meta.url)),
         platform: "browser",
         resolve: { conditionNames: ["workerd", "worker", "browser"] },
-        plugins: [modulePlugin(new ModuleTransformer(testHost().files))],
+        plugins: [modulePlugin(new ModuleTransformer(testHost()))],
     });
     const { output } = await bundle.generate({ format: "esm" });
     await bundle.close();

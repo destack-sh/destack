@@ -154,7 +154,7 @@ async function serve(
         envDir: false,
         appType: "custom",
         plugins: [
-            modulePlugin(new ModuleTransformer(environment.files)),
+            modulePlugin(new ModuleTransformer(environment)),
             definitionPlugin(directory, environment.files, onDefinitionChange),
             ...(await loadTransforms({ directory, runtime: "browser", server: true, environment })),
             entryPlugin(views.located, views.package),

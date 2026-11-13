@@ -302,7 +302,8 @@ export class WorkerScript {
     /** Bundle the script's entry and its supplied modules for workerd into one module. */
     async build(directory: string, modules: SuppliedModules): Promise<void> {
         // bundle with module metadata, leaving workerd's own modules to the runtime
-        const { files } = this.deployment.environment;
+        const { environment } = this.deployment;
+        const { files } = environment;
         await using bundle = await rolldown({
             input: this.entry,
             platform: "browser",
@@ -310,7 +311,7 @@ export class WorkerScript {
             // define the production mode as wrangler's bundler does
             transform: { define: { "process.env.NODE_ENV": JSON.stringify("production") } },
             external: [/^cloudflare:/u, /^node:/u, /^bun(?::|$)/u],
-            plugins: [modulePlugin(new ModuleTransformer(files)), supplyPlugin(modules)],
+            plugins: [modulePlugin(new ModuleTransformer(environment)), supplyPlugin(modules)],
         });
         const { output } = await bundle.generate({
             format: "esm",

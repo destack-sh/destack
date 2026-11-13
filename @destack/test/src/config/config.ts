@@ -97,7 +97,7 @@ export function defineConfiguration(
             server: withCaches(options.server, environment),
         },
         plugins: [
-            modulePlugin(new ModuleTransformer(environment.files)),
+            modulePlugin(new ModuleTransformer(environment)),
             cachePlugin(environment),
             ...(rest.plugins ?? []).map(withoutServer),
         ],
@@ -118,7 +118,7 @@ export function defineProject(
             server: withCaches(configuration.test?.server, environment),
         },
         plugins: [
-            modulePlugin(new ModuleTransformer(environment.files)),
+            modulePlugin(new ModuleTransformer(environment)),
             cachePlugin(environment),
             ...(configuration.plugins ?? []).map(withoutServer),
         ],

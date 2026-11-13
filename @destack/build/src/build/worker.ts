@@ -221,7 +221,7 @@ export class CompilerWorker implements AsyncDisposable {
 
         // evaluate the package's declarations
         const catalog = new ConstructorCatalog({}, this.environment.files);
-        const transformer = new ModuleTransformer(this.environment.files);
+        const transformer = new ModuleTransformer(this.environment);
         const evaluation = await Evaluation.evaluate([project], catalog, {
             isIndexing: true,
             transformer,
@@ -407,10 +407,9 @@ export class CompilerWorker implements AsyncDisposable {
         // key the stamps by the dependency builds, the release versions and the package's manifests
         const inputs = JSON.stringify([options.tree, options.versions ?? {}, packageJson]);
         if (this.#transformed?.inputs !== inputs) {
-            const transformer = new ModuleTransformer(
-                this.environment.files,
-                options.versions ?? {},
-            );
+            const transformer = new ModuleTransformer(this.environment, {
+                versions: options.versions ?? {},
+            });
             this.#transformed = { inputs, transformer };
         }
 

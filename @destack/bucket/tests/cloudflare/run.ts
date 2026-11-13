@@ -56,7 +56,7 @@ const bundle = await rolldown({
     platform: "browser",
     resolve: { conditionNames: ["workerd", "worker", "browser"] },
     external: ["node:assert/strict"],
-    plugins: [modulePlugin(new ModuleTransformer(environment.files))],
+    plugins: [modulePlugin(new ModuleTransformer(environment))],
 });
 /** The bundle's single worker script. */
 const {
