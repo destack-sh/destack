@@ -117,7 +117,7 @@ export interface Verification {
     /** The time the token is verified at. */
     readonly now: number;
     /** The clock, WebCrypto and network verifying the token. */
-    readonly environment: Pick<Environment, "clock" | "crypto" | "network">;
+    readonly environment: Pick<Environment, "clock" | "crypto" | "network" | "telemetry">;
 }
 
 /** The reads of identities from their logs. */

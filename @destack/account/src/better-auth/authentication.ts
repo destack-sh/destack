@@ -36,7 +36,7 @@ export const AccountAuthentication = {
             /** The time of the verification. */
             readonly now: number;
             /** The clock, WebCrypto and network verifying the token. */
-            readonly environment: Pick<Environment, "clock" | "crypto" | "network">;
+            readonly environment: Pick<Environment, "clock" | "crypto" | "network" | "telemetry">;
         },
     ): Promise<Authentication | undefined> {
         // leave a request without a bearer token to the protocol it speaks, such as a client's credentials
