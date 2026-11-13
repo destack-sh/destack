@@ -1,3 +1,4 @@
+import type { ReadableSpan } from "@destack/telemetry/trace";
 import { Contact } from "@destack/access";
 import { TokenResponse } from "../src/authentication/index.ts";
 import { eq } from "@destack/db";
@@ -885,6 +886,86 @@ test("sign a person in with a mailed code at the token endpoint as a new client,
         .set({ expiresAt: fixture.clock.now() - 1 })
         .where(eq(verification.identifier, "sign-in-otp-ada@example.com"));
     expect(await answered(await redeem(await fixture.code()))).toEqual(wrongCode);
+});
+
+/** Label a span by its name, and its route where it serves one. */
+function label(span: Pick<ReadableSpan, "name" | "attributes">): string {
+    const route = span.attributes["http.route"];
+
+    return typeof route === "string" ? `${span.name} ${route}` : span.name;
+}
+
+test("trace a mailed code's sign-in: each request, each grant by its type, and the tokens it signs", async () => {
+    // mail a code to a known person, then redeem a wrong code and the right one
+    await using fixture = await TestAccountStore.open();
+    await fixture.signIn("ada@example.com");
+    const { telemetry } = fixture.simulation;
+    const earlier = new Set(telemetry.spans);
+    const before = await telemetry.counts();
+    const clientId = Identifier.create("client", fixture.environment);
+    await fixture.browser().fetch("/email-otp/send-verification-otp", {
+        email: "ada@example.com",
+        type: "sign-in",
+    });
+    const otp = await fixture.code();
+    for (const code of [otp === "000000" ? "111111" : "000000", otp]) {
+        const response = await provider(fixture, "/oauth2/token", {
+            grant_type: EMAIL_CODE,
+            email: "ada@example.com",
+            code,
+            client_id: clientId,
+            resource: ACCOUNT_RESOURCE,
+        });
+        await response.text();
+    }
+
+    // read the account's new spans in the order they ended, each under its parent with its failure
+    const spans = telemetry.spans.filter((span) => !earlier.has(span));
+    const names = new Map(spans.map((span) => [span.spanContext().spanId, label(span)]));
+    const tree = spans
+        .filter((span) => span.instrumentationScope.name === accountPackage.name)
+        .map((span) => {
+            const parent = span.parentSpanContext?.spanId;
+
+            return {
+                parent: parent === undefined ? undefined : names.get(parent),
+                span: label(span),
+                error: span.attributes["error.type"],
+            };
+        });
+
+    // count the account's new requests, grants and signatures
+    const after = await telemetry.counts();
+    const counts = Object.fromEntries(
+        [
+            "destack.authentication.request.duration.count",
+            "destack.oauth.grant.duration.count",
+            "destack.keystore.sign.duration.count",
+        ].map((key) => [key, (after[key] ?? 0) - (before[key] ?? 0)]),
+    );
+
+    // expect the mail's request, a refused grant, then a grant signing an access and an ID token in its transaction
+    const token = "destack.authentication.request /oauth/oauth2/token";
+    expect({ tree, counts }).toEqual({
+        tree: [
+            {
+                span: "destack.authentication.request /oauth/email-otp/send-verification-otp",
+                parent: undefined,
+                error: undefined,
+            },
+            { span: "destack.oauth.grant", parent: token, error: "BAD_REQUEST" },
+            { span: token, parent: undefined, error: undefined },
+            { span: "destack.keystore.sign", parent: "destack.transaction", error: undefined },
+            { span: "destack.keystore.sign", parent: "destack.transaction", error: undefined },
+            { span: "destack.oauth.grant", parent: token, error: undefined },
+            { span: token, parent: undefined, error: undefined },
+        ],
+        counts: {
+            "destack.authentication.request.duration.count": 3,
+            "destack.oauth.grant.duration.count": 2,
+            "destack.keystore.sign.duration.count": 2,
+        },
+    });
 });
 
 test("update, disable and delete an application", async () => {

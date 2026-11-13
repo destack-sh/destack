@@ -6,6 +6,8 @@ import { JwsAlgorithm, Jwks, Jwt, type KeyLookup } from "@destack/identity";
 import type { PackageId } from "@destack/package";
 import { Digest, schema } from "@destack/schema";
 import { OAuthError } from "../authentication/token.ts";
+import { TelemetryScope } from "@destack/telemetry";
+import type {} from "@destack/package/import-meta";
 import { trustedPublisher } from "../object/trusted-publisher.ts";
 
 /** The longest interval between public key refreshes, in milliseconds. */
@@ -45,12 +47,16 @@ export class FederatedVerifier {
     readonly #environment: Environment;
     /** Each issuer's discovered keys, discovered once, again after a failed discovery. */
     readonly #issuers = new Map<string, Promise<IssuerKeys>>();
+    /** The verifier's spans and durations. */
+    readonly #scope: TelemetryScope;
 
     /** Verify tokens for the token endpoint against the trusted publishers in a database. */
     constructor(database: DatabaseConnection, endpoint: string, environment: Environment) {
+        // take the database, the endpoint and the environment, and trace on its telemetry
         this.#database = database;
         this.#endpoint = endpoint;
         this.#environment = environment;
+        this.#scope = TelemetryScope.of(import.meta.destack.package, environment.telemetry);
     }
 
     /** Decide whether an OIDC issuer signed a token, as our own assertions' issuers are objects. */
@@ -61,7 +67,14 @@ export class FederatedVerifier {
     }
 
     /** Verify a federated token at a time, answering its trusted publisher as the caller. */
-    async verify(token: string, audience: PackageId, now: number): Promise<Authentication> {
+    verify(token: string, audience: PackageId, now: number): Promise<Authentication> {
+        return this.#scope.span("destack.federation.verify", {}, () =>
+            this.#verify(token, audience, now),
+        );
+    }
+
+    /** Find the token's trusted publisher, verify it by its issuer's keys, and spend it once. */
+    async #verify(token: string, audience: PackageId, now: number): Promise<Authentication> {
         // find the trusted publisher of the token's issuer and subject
         const { iss, sub } = Jwt.claims(token);
         const trusted =

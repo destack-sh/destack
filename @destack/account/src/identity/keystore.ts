@@ -23,6 +23,7 @@ import type { Rewrapper } from "@destack/resource";
 import type { Digest } from "@destack/schema";
 import type { Environment } from "@destack/environment";
 import type {} from "@destack/package/import-meta";
+import { TelemetryScope } from "@destack/telemetry";
 import { AccountError } from "../error/error.ts";
 
 /** How long a verifier caches a key set before reading it again: 10 minutes, a JWKS cache's age. */
@@ -37,8 +38,8 @@ const LABEL = "@destack/account/identity-key";
 /** The bytes of an identity's root secret: 256 bits, the HKDF-SHA256 output length. */
 const ROOT_BYTES = 32;
 
-/** The clock, WebCrypto and randomness a keystore works with. */
-export type KeystoreEnvironment = Pick<Environment, "clock" | "crypto" | "random">;
+/** The clock, WebCrypto and randomness a keystore works with, and the telemetry tracing it. */
+export type KeystoreEnvironment = Pick<Environment, "clock" | "crypto" | "random" | "telemetry">;
 
 /** The uses of an identity's secrets: its private keys and its root. */
 type KeyUse = "signing" | "rotation" | "root";
@@ -60,6 +61,8 @@ export class IdentityKeystore {
     readonly #signers = new Map<string, Promise<CryptoKey>>();
     /** The derivations of the identities' decrypted root secrets, non-extractable, by subject. */
     readonly #roots = new Map<string, Promise<Deriver>>();
+    /** The keystore's spans and durations. */
+    readonly #scope: TelemetryScope;
 
     /** Store identities' keys under a keyring, publishing the identities in a registry. */
     constructor(keyring: Keyring, registry: IdentityRegistry, environment: KeystoreEnvironment) {
@@ -67,6 +70,7 @@ export class IdentityKeystore {
         this.keyring = keyring;
         this.registry = registry;
         this.environment = environment;
+        this.#scope = TelemetryScope.of(import.meta.destack.package, environment.telemetry);
         this.rewrap = {
             table: identityKey,
             seal: (row, recipient) =>
@@ -105,7 +109,16 @@ export class IdentityKeystore {
     }
 
     /** Generate an identity's signing keys, rotation keys and root secret. */
-    async generate(database: DatabaseConnection, subject: string): Promise<void> {
+    generate(database: DatabaseConnection, subject: string): Promise<void> {
+        const attributes = { "destack.identity.subject": subject };
+
+        return this.#scope.span("destack.keystore.generate", attributes, () =>
+            this.#generate(database, subject),
+        );
+    }
+
+    /** Generate and store an identity's keys, then start it in the registry. */
+    async #generate(database: DatabaseConnection, subject: string): Promise<void> {
         // generate and store the keys and the root secret
         const signing = await this.#generateSigningKey(subject);
         const rotation = await this.environment.crypto.generateKey(ALGORITHM, true, [
@@ -170,19 +183,30 @@ export class IdentityKeystore {
     }
 
     /** Sign a token's claims with the active signing key of an identity this process stores. */
-    async sign(
+    sign(
         database: DatabaseConnection,
         subject: string,
         claims: JwtClaims,
         header?: { readonly typ?: string; readonly cty?: string },
     ): Promise<string> {
-        // sign with the active key, identified by its thumbprint
-        const { crypto } = this.environment;
-        const active = this.#active((await this.#require(database, subject)).signingKeys);
-        const kid = await PublicKey.thumbprint(active.publicKey, crypto);
-        const signer = await this.#signer(subject, kid, active.privateKey);
+        return this.#scope.span(
+            "destack.keystore.sign",
+            { "destack.identity.subject": subject },
+            async () => {
+                // sign with the active key, identified by its thumbprint
+                const { crypto } = this.environment;
+                const active = this.#active((await this.#require(database, subject)).signingKeys);
+                const kid = await PublicKey.thumbprint(active.publicKey, crypto);
+                const signer = await this.#signer(subject, kid, active.privateKey);
 
-        return Jwt.sign(claims, { typ: "JWT", ...header, alg: "ES256", kid }, signer, crypto);
+                return Jwt.sign(
+                    claims,
+                    { typ: "JWT", ...header, alg: "ES256", kid },
+                    signer,
+                    crypto,
+                );
+            },
+        );
     }
 
     /** Report whether this process has an identity's keys. */
@@ -225,10 +249,23 @@ export class IdentityKeystore {
     }
 
     /** Rotate an identity's signing keys, and return the published operation's digest. */
-    async rotate(
+    rotate(
         database: DatabaseConnection,
         subject: string,
         owners?: readonly PublicKey[],
+    ): Promise<Digest> {
+        const attributes = { "destack.identity.subject": subject };
+
+        return this.#scope.span("destack.keystore.rotate", attributes, () =>
+            this.#rotate(database, subject, owners),
+        );
+    }
+
+    /** Publish a next signing key before the stored ones, then store them. */
+    async #rotate(
+        database: DatabaseConnection,
+        subject: string,
+        owners: readonly PublicKey[] | undefined,
     ): Promise<Digest> {
         // read the identity the operation follows
         const row = await this.#require(database, subject);
@@ -260,7 +297,16 @@ export class IdentityKeystore {
     }
 
     /** Replace every key of an identity this process stores. */
-    async rekey(database: DatabaseConnection, subject: string): Promise<Digest> {
+    rekey(database: DatabaseConnection, subject: string): Promise<Digest> {
+        const attributes = { "destack.identity.subject": subject };
+
+        return this.#scope.span("destack.keystore.rekey", attributes, () =>
+            this.#rekey(database, subject),
+        );
+    }
+
+    /** Publish a fresh signing and rotation key signed with the replaced one, then store them. */
+    async #rekey(database: DatabaseConnection, subject: string): Promise<Digest> {
         // read the identity the operation follows
         const row = await this.#require(database, subject);
         const identity = await this.#identity(subject);
@@ -304,7 +350,14 @@ export class IdentityKeystore {
     }
 
     /** Encrypt every secret of a root key version under the keyring's active version. */
-    async reencrypt(database: DatabaseConnection, version: number): Promise<number> {
+    reencrypt(database: DatabaseConnection, version: number): Promise<number> {
+        return this.#scope.span("destack.keystore.reencrypt", {}, () =>
+            this.#reencrypt(database, version),
+        );
+    }
+
+    /** Decrypt and encrypt again the secrets of each identity with one under the version. */
+    async #reencrypt(database: DatabaseConnection, version: number): Promise<number> {
         // read the identities with a secret under the version
         const rows = await database.select().from(identityKey);
         const isStale = (ciphertext: Ciphertext) => LocalKeyring.version(ciphertext) === version;

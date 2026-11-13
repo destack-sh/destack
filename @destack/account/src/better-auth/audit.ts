@@ -5,14 +5,11 @@ import { AuditRecorder, type Journal } from "@destack/object/server";
 import { Scope } from "@destack/sync";
 import { present, schema, zip } from "@destack/schema";
 import {
-    SpanKind,
     SpanStatusCode,
     SeverityNumber,
     TelemetryScope,
-    extractContext,
     isSpanContextValid,
     type Span,
-    trace,
 } from "@destack/telemetry";
 import type { BetterAuthPlugin } from "better-auth";
 import { createAuthMiddleware } from "better-auth/api";
@@ -32,6 +29,19 @@ const READS = new Set([
     "/oauth2/userinfo",
     ...METADATA_PATHS,
     "/ok",
+]);
+
+/** The HTTP methods a request's span and duration state, any other as `_OTHER` (OpenTelemetry). */
+const METHODS: ReadonlySet<string> = new Set([
+    "CONNECT",
+    "DELETE",
+    "GET",
+    "HEAD",
+    "OPTIONS",
+    "PATCH",
+    "POST",
+    "PUT",
+    "TRACE",
 ]);
 
 /** Authentication log severity in the shared telemetry model. */
@@ -55,11 +65,18 @@ export class BetterAuthAudit {
     readonly journal: Journal;
     /** The path Better Auth answers below, the issuer's. */
     readonly basePath: string;
+    /** The account's spans, durations and log records. */
+    readonly #scope: TelemetryScope;
 
     /** Record authentication calls below a path in the account database's journal. */
     constructor(journal: Journal, basePath: string) {
+        // take the journal and the path, and trace on the journal's telemetry
         this.journal = journal;
         this.basePath = basePath;
+        this.#scope = TelemetryScope.of(
+            PackageVersion.of(accountPackage),
+            journal.environment.telemetry,
+        );
     }
 
     /** Resolve the recorded caller of a request. */
@@ -74,14 +91,16 @@ export class BetterAuthAudit {
               };
     }
 
-    /** Report protocol diagnostics with fixed messages and standard severity. */
+    /** Record that Better Auth logged a diagnostic at a level, leaving out its message. */
     log(level: keyof typeof SEVERITIES): void {
-        const { telemetry } = this.journal.environment;
-        TelemetryScope.of(PackageVersion.of(accountPackage), telemetry).logger.emit({
+        const { context, clock } = this.journal.environment.telemetry;
+        this.#scope.logger.emit({
+            eventName: "destack.authentication.logged",
             severityNumber: SEVERITIES[level],
             severityText: level.toUpperCase(),
-            body: "authentication protocol diagnostic",
-            context: telemetry.context.active(),
+            context: context.active(),
+            timestamp: clock.now(),
+            observedTimestamp: clock.now(),
         });
     }
 
@@ -158,29 +177,29 @@ export class BetterAuthAudit {
             return handler(request);
         }
 
-        // propagate trace context without credentials, the request's span active while it runs
-        const { telemetry } = this.journal.environment;
-        const parent = extractContext(request.headers, telemetry);
-        const { tracer } = TelemetryScope.of(PackageVersion.of(accountPackage), telemetry);
-        const span = tracer.startSpan(
-            `authentication ${route}`,
-            {
-                kind: SpanKind.SERVER,
-                attributes: {
-                    "http.route": `${this.basePath}${route}`,
-                    "http.request.method": request.method,
-                },
-            },
-            parent,
-        );
+        // run the route in its span below the request's server span, timed by route, method and status
+        const method = METHODS.has(request.method) ? request.method : "_OTHER";
+        const attributes = {
+            "http.route": `${this.basePath}${route}`,
+            "http.request.method": method,
+        };
+        let status: number | undefined;
+        const answered = () =>
+            status === undefined
+                ? attributes
+                : { ...attributes, "http.response.status_code": status };
 
-        return telemetry.context.with(trace.setSpan(parent, span), async () => {
-            try {
-                return await this.#record(request, route, caller, handler, span);
-            } finally {
-                span.end();
-            }
-        });
+        return this.#scope.span(
+            "destack.authentication.request",
+            attributes,
+            async (span) => {
+                const response = await this.#record(request, route, caller, handler, span);
+                status = response.status;
+
+                return response;
+            },
+            { duration: { attributes: answered } },
+        );
     }
 
     /** Record a request's outcome once it ends, a failure as an internal error. */

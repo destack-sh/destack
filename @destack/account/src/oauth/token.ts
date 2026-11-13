@@ -13,6 +13,8 @@ import type { OAuthConsent } from "../object/oauth-consent.ts";
 import { User } from "../object/user.ts";
 import { RefreshToken } from "../object/refresh-token.ts";
 import { PackageResource, type TokenLifetime } from "./resource.ts";
+import { TelemetryScope } from "@destack/telemetry";
+import type {} from "@destack/package/import-meta";
 
 /** How long an access token to a person's claims alone lives: ten minutes, as RFC 9068 practice. */
 export const PERSON_TOKEN_MILLISECONDS = 10 * 60_000;
@@ -75,8 +77,8 @@ export interface TokenEndpointOptions {
     readonly database: DatabaseConnection;
     /** The account objects, which store the refresh tokens. */
     readonly objects: Pick<ObjectStore, "mutate" | "as">;
-    /** The clock tokens are issued at, the randomness of their identifiers and the WebCrypto. */
-    readonly environment: Pick<Environment, "clock" | "crypto" | "random">;
+    /** The clock, the randomness of token identifiers, the WebCrypto and the telemetry. */
+    readonly environment: Pick<Environment, "clock" | "crypto" | "random" | "telemetry">;
     /** How long the packages' tokens live. */
     readonly lifetime: TokenLifetime;
     /** Sign claims with the universe's active key. */
@@ -91,11 +93,14 @@ export class TokenEndpoint {
     readonly grants: ReadonlyMap<string, GrantType>;
     /** What the endpoint signs, stores and times tokens with. */
     readonly #options: TokenEndpointOptions;
+    /** The endpoint's spans and durations. */
+    readonly #scope: TelemetryScope;
 
     /** Issue tokens by grants. */
     constructor(options: TokenEndpointOptions, grants: ReadonlyMap<string, GrantType>) {
         this.#options = options;
         this.grants = grants;
+        this.#scope = TelemetryScope.of(import.meta.destack.package, options.environment.telemetry);
     }
 
     /** Read a request's posted form, refusing another body (RFC 6749 3.2). */
@@ -124,13 +129,29 @@ export class TokenEndpoint {
 
     /** Take a posted token request, issuing its grant's tokens in one commit with its writes. */
     async fetch(request: Request): Promise<Response> {
-        // decide by the request's grant, refusing a grant check as an invalid grant
+        // find the request's grant, refusing an unsupported one
         const body = await TokenEndpoint.form(request);
-        const grant = this.grants.get(body["grant_type"] ?? "");
+        const type = body["grant_type"] ?? "";
+        const grant = this.grants.get(type);
         if (grant === undefined) {
             throw OAuthError.of("GRANT_TYPE_INVALID", "grant_type is invalid: it is unsupported");
         }
-        const decided = await grant({ body, headers: request.headers }).catch((error: unknown) => {
+
+        // grant in a span by its type, one of the endpoint's
+        const attributes = { "destack.oauth.grant_type": type };
+
+        return this.#scope.span(
+            "destack.oauth.grant",
+            attributes,
+            () => this.#grant(grant, { body, headers: request.headers }),
+            { duration: { attributes } },
+        );
+    }
+
+    /** Decide a grant, then issue its tokens in one transaction with its writes. */
+    async #grant(grant: GrantType, request: TokenRequest): Promise<Response> {
+        // decide by the grant, refusing a grant check as an invalid grant
+        const decided = await grant(request).catch((error: unknown) => {
             throw TokenEndpoint.refusal(error);
         });
 
