@@ -265,7 +265,7 @@ class TemplateCache {
         return await TestRun.read(join(this.directory, INDEX));
     }
 
-    /** Read a writer's report, showing each template's time and stopping one past its deadline. */
+    /** Read a writer's report, showing each line and stopping a template past its deadline. */
     async #watch(
         child: Pick<Subprocess, "stderr" | "kill">,
     ): Promise<{ readonly text: string; readonly isStalled: boolean }> {
@@ -285,7 +285,7 @@ class TemplateCache {
         };
         arm();
 
-        // collect the report, showing and rearming at each finished template's whole line
+        // collect the report, showing each whole line and rearming at each finished template's
         let text = "";
         let read = 0;
         const decoder = new TextDecoder();
@@ -294,8 +294,8 @@ class TemplateCache {
             for (let end = text.indexOf("\n", read); end !== -1; end = text.indexOf("\n", read)) {
                 const line = text.slice(read, end);
                 read = end + 1;
+                HOST.process.stderr.writeSync(`${line}\n`);
                 if (line.startsWith(TEMPLATE_LINE)) {
-                    HOST.process.stderr.writeSync(`${line}\n`);
                     arm();
                 }
             }
