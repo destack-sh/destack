@@ -1,4 +1,4 @@
-import { testSimulation } from "@destack/test/world";
+import { testSimulation, testWorldOptions } from "@destack/test/world";
 import { expect, test } from "@destack/test";
 import type { Mail } from "../transport/index.ts";
 import { MimeMessage } from "../mime/index.ts";
@@ -28,7 +28,7 @@ const START = Date.UTC(2026, 9, 5);
 
 /** A simulation with a mail server's server and a client's environment. */
 function simulate() {
-    const simulation = new Simulation({ seed: 1, start: START });
+    const simulation = new Simulation({ world: testWorldOptions(), seed: 1, start: START });
 
     return { simulation, serve: simulation.network.server("mail") };
 }

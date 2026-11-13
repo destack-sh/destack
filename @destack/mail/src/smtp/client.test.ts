@@ -5,6 +5,7 @@ import { type Draft, MimeMessage, type Envelope } from "../mime/index.ts";
 import { TestMailServer } from "../test/index.ts";
 import { MailError } from "../error/index.ts";
 import { SmtpClient, type Authentication, type SmtpOptions, type Submission } from "./index.ts";
+import { testWorldOptions } from "@destack/test/world";
 
 /** The PLAIN credentials the test servers accept. */
 const PLAIN = { username: "ada", password: "secret" };
@@ -812,7 +813,7 @@ test("refuse envelope addresses that could inject commands, and empty envelopes"
 
 /** Open a simulated world with a mail server's node and a client's. */
 function simulate(): World {
-    const simulation = new Simulation({ seed: 1, start: START });
+    const simulation = new Simulation({ world: testWorldOptions(), seed: 1, start: START });
 
     return {
         simulation,
