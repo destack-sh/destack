@@ -2,14 +2,14 @@ import { Account } from "@destack/account/object";
 import { type Table } from "@destack/db";
 import { type Identifier } from "@destack/schema";
 import { PackageVersion } from "@destack/package";
-import { ids, TestSpace } from "@destack/stack/test";
+import { ids, TestSpace } from "@destack/machine/test";
 import { RequestId } from "@destack/sync";
 import { expect, refusal, single, test } from "@destack/test";
 import { defineSecret, defineVault } from "../declare/index.ts";
 import { secret, secretVersion, vault } from "../object/index.ts";
 import vaultPackage from "../package.ts";
-import vaultServer from "../server.ts";
-import { APPLICATION, CONSUMER, CREDENTIAL, CREDENTIALS, TestVault } from "../test/index.ts";
+import { TestPackage } from "@destack/machine/test";
+import { APPLICATION, CONSUMER, CREDENTIAL, CREDENTIALS, TestVault, VAULT } from "../test/index.ts";
 
 /** A vault the space's stack declares beside the application's, deleted at once on removal. */
 const shared = defineVault({ name: "shared" });
@@ -375,7 +375,7 @@ test("trash a vault's secrets with it once its installation goes", async () => {
         ],
     });
     const removedAt = fixture.clock.now();
-    await fixture.space.apply(fixture.served, [], { installations: {} });
+    await fixture.space.uninstall(fixture.served, "application");
 
     // trash the vault and its key in the same request
     const { database } = fixture.served;
@@ -387,8 +387,12 @@ test("trash a vault's secrets with it once its installation goes", async () => {
 
 test("store a vault the account's home declares in the enclosing scope in the account", async () => {
     // serve the account's home with the vault package, and declare a vault in its account
-    const home = await TestSpace.open({ id: Account.home(ids.account), packages: [vaultPackage] });
-    const served = await home.serve({ servers: [vaultServer] });
+    const home = await TestSpace.open({
+        id: Account.home(ids.account),
+        ...TestPackage.options([VAULT]),
+    });
+    const served = await home.serve();
+    await home.install(served, VAULT.build, { isolation: "host" });
     const credentials = defineVault({ name: "credentials" });
     await home.apply(served, [vaultPackage], {
         vaults: { credentials: { ...credentials.provision(), scope: "enclosing" } },

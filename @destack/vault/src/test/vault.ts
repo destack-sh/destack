@@ -1,5 +1,5 @@
 import { SECRET_KIND } from "@destack/stack/declare";
-import { TestPackage } from "@destack/stack/test";
+import { TestPackage } from "@destack/machine/test";
 import { testHost } from "@destack/test/host";
 import type { Crypto, Environment } from "@destack/environment";
 import { AccessContext, Caller, type PermissionReference, principal } from "@destack/access";
@@ -13,7 +13,7 @@ import { type BuildReader, PackageVersion } from "@destack/package";
 import { MemoryBuild } from "@destack/package/test";
 import type { Identifier } from "@destack/schema";
 import { Binding } from "@destack/stack/object";
-import { fixtureOutputs, ids, TestSpace, workload } from "@destack/stack/test";
+import { fixtureOutputs, ids, TestSpace, workload } from "@destack/machine/test";
 import { type Call, RequestId } from "@destack/sync";
 import { single } from "@destack/test";
 import { defineVault, type SecretDeclaration } from "../declare/index.ts";
@@ -110,12 +110,13 @@ export class TestVault {
         } = {},
     ): Promise<TestVault> {
         // serve the vault package in the template's space on its world's clock
-        const space = await TestSpace.open({ packages: [vaultPackage] });
+        const space = await TestSpace.open(TestPackage.options([VAULT]));
         const clock = space.universe.clock;
         if (!(clock instanceof SimulatedClock)) {
             throw new TypeError("the test space runs on the system clock");
         }
-        const served = await space.serve({ servers: [vaultServer] });
+        const served = await space.serve();
+        await space.install(served, VAULT.build, { isolation: "host" });
 
         // install the application declaring the vaults and secrets
         const { vaults = [TestVault.declare(CREDENTIALS)], secrets = [] } = options;

@@ -2,7 +2,7 @@ import { eq, Snapshot, type DatabaseConnection } from "@destack/db";
 import { CallEvent, call } from "@destack/object";
 import { Duration, type Identifier, schema } from "@destack/schema";
 import { Binding, Rollout, rollout } from "@destack/stack/object";
-import { ids, TestSpace } from "@destack/stack/test";
+import { ids, TestSpace } from "@destack/machine/test";
 import { ObjectReference, RequestId, Scope } from "@destack/sync";
 import { principal } from "@destack/access";
 import { expect, refusal, single, test } from "@destack/test";
@@ -748,7 +748,8 @@ test("bind a secret the stack declares at a fixed version, and trash it once the
     // drop the consumer and the secret from the stack at a paused time, trashing the secret
     const before = await client.secret.get({ scope: ids.space, id: declared.id });
     const droppedAt = fixture.clock.now();
-    await fixture.space.apply(fixture.served, [vaultPackage], { installations: {}, secrets: {} });
+    await fixture.space.uninstall(fixture.served, "consumer");
+    await fixture.space.apply(fixture.served, [vaultPackage], { secrets: {} });
     expect({
         bound,
         trashed: await client.secret.get({ scope: ids.space, id: declared.id }),
