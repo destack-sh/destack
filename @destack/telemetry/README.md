@@ -39,7 +39,7 @@ export async function pass(environment: Environment, key: string, waited: number
     const bounded = { "destack.controller": "page" } as const;
     const waits = metric.histogram("destack.controller.wait_time", { unit: "s", attributes: { "destack.controller": ["page"] } });
 
-    waits.record(waited, bounded); // a real wait only, apart from the work
+    waits.record(waited, bounded); // every take, zero included, as OpenTelemetry's pools record wait_time
     await span("destack.controller.pass", { ...bounded, "destack.key": key }, run, { duration: { attributes: bounded } }); // ids stay off metrics
     await measure("db.client.operation.duration", bounded, run); // no span; error.type: CONFLICT
     log.warn("destack.postgres.warned", { "db.response.status_code": "01000" }); // past tense

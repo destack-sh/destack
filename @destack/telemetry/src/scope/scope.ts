@@ -55,11 +55,7 @@ export interface TelemetryScope {
     /** Run work in a child span, or read the active span. */
     readonly span: SpanRunner;
     /** Run work, recording its seconds on the named duration, with the failure it ends in. */
-    readonly measure: <Value>(
-        name: string,
-        attributes: Attributes,
-        run: () => Promise<Value>,
-    ) => Promise<Value>;
+    readonly measure: SpanRunner["measure"];
     /** Declare metric instruments whose attributes take bounded values. */
     readonly metric: MetricFactory;
     /** Record a failure the package handled as an exception in the active trace. */
