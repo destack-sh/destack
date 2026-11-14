@@ -211,6 +211,61 @@ test("observe a controlled object without advancing its generation, finalize its
     ]);
 });
 
+test("keep a condition observed at a later generation over a stale observation of an earlier one", async () => {
+    // run in a world of its own
+    const simulation = testSimulation(0);
+    const world = simulation.environment("test");
+    const storage = await TestDatabase.create(machineDatabase, {
+        environment: world,
+        isMigrated: true,
+    });
+    onTestFinished(() => storage.close());
+    await openSpace(storage.database, world, spaceId);
+    const store = await TestObjectStore.receive(space.reference(Scope.universe.id, spaceId), {
+        chain: async () => undefined,
+        principal: spacePrincipal(spaceId),
+        servers: serversOf([machine]),
+        database: storage.database,
+        callKey: testCallKey,
+        events: await testEvents(storage.database, world),
+        origin: { package: machine.package },
+        environment: world,
+    });
+    const access = AccessContext.of(Caller.of(spacePrincipal(spaceId)), 1_000);
+    const call = async (...calls: Parameters<typeof store.mutate>[1]["calls"]) =>
+        await store.mutate(access, { id: RequestId.create(world), calls });
+    const target = machine.target({ scope: spaceId, id: MACHINE });
+
+    // provision a machine, resize it to its second generation, and observe it synced there
+    await call(machine.call("provision", { ...target, ownerId: users.frank, size: "small" }));
+    await call(machine.call("update", { ...target, size: "large" }));
+    const synced = { status: "true", reason: "ReconcileSuccess", message: "" } as const;
+    await call(
+        machine.call("observe", {
+            ...target,
+            observedGeneration: 2,
+            conditions: { Synced: synced },
+        }),
+    );
+
+    // observe it again as a pass that read its first generation
+    await call(
+        machine.call("observe", {
+            ...target,
+            observedGeneration: 1,
+            conditions: { Synced: { status: "false", reason: "ReconcileError", message: "stale" } },
+        }),
+    );
+
+    // keep the condition and the synced generation of the later observation
+    const [row] = await storage.database.select().from(machine.table);
+    expect([row?.generation, row?.syncedGeneration, row?.conditions]).toEqual([
+        2,
+        2,
+        { Synced: { ...synced, observedGeneration: 2, lastTransitionAt: world.clock.now() } },
+    ]);
+});
+
 test("answer a repeated system request from the journal, provisioning once, and refuse other input under its identifier", async () => {
     // run in a world of its own
     const simulation = testSimulation(0);

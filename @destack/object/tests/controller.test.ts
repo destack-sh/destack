@@ -58,6 +58,16 @@ const reminder = defineObject(
     ],
 });
 
+/** The gates' passes, which a test resets before it holds one. */
+const passes = {
+    /** The outcomes each pass read, in order. */
+    outcomes: new Array<string>(),
+    /** Resolved once a pass holds a gate. */
+    entered: Promise.withResolvers<void>(),
+    /** Resolved to end the held pass. */
+    released: Promise.withResolvers<void>(),
+};
+
 /** Gates whose controller fails as their outcome field says, until it opens them. */
 const gate = defineObject(
     {
@@ -82,10 +92,17 @@ const gate = defineObject(
     controllers: [
         {
             pending: { generation: { gt: { field: "syncedGeneration" } } },
-            // refuse or fail each gate as its outcome says
-            reconcile: async ({ rows }) => {
+            // refuse, fail or hold each gate as its outcome says
+            reconcile: async ({ rows, signal }) => {
                 for (const row of rows) {
-                    if (row.outcome === "refused") {
+                    passes.outcomes.push(row.outcome);
+                    if (row.outcome === "held") {
+                        passes.entered.resolve();
+                        signal.addEventListener("abort", () =>
+                            passes.released.reject(signal.reason),
+                        );
+                        await passes.released.promise;
+                    } else if (row.outcome === "refused") {
                         throw Failure.error({
                             code: "FORBIDDEN",
                             reason: "PERMISSION_DENIED",
@@ -497,6 +514,92 @@ test("record a lasting reconcile failure on a controlled object as its synced co
             ],
             unavailable: [0, {}],
         },
+    });
+});
+
+test("reconcile a controlled object changed during its pass again, syncing it at the generation each pass read", async () => {
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+    const storage = await TestDatabase.create(reminderDatabase, {
+        environment: world,
+        isMigrated: true,
+    });
+    onTestFinished(() => storage.close());
+    const database = storage.database;
+    await openSpace(database, world, spaceId);
+    const store = await TestObjectStore.receive(space.reference(Scope.universe.id, spaceId), {
+        chain: async () => undefined,
+        environment: world,
+        principal: spacePrincipal(spaceId),
+        servers: serversOf([gate]),
+        database,
+        callKey: testCallKey,
+        events: await testEvents(database, world),
+        origin: { package: gate.package },
+    });
+    const reported: unknown[] = [];
+    const loop = new ControlLoop(database, store.control(), {
+        report: (_controller, _key, error) => reported.push(error),
+    });
+    const stopping = new AbortController();
+    const running = loop.run(stopping.signal);
+    onTestFinished(async () => {
+        stopping.abort();
+        await running;
+    });
+
+    // create a held gate, and open it while its first pass waits
+    passes.outcomes = [];
+    passes.entered = Promise.withResolvers();
+    passes.released = Promise.withResolvers();
+    const access = userContext(users.frank, spaceId, { environment: world }).access();
+    const [held] = await store.mutate(access, {
+        id: RequestId.create(world),
+        calls: [gate.call("create", { spaceId, outcome: "held" })],
+    });
+    await passes.entered.promise;
+    await store.mutate(access, {
+        id: RequestId.create(world),
+        calls: [
+            gate.call("update", {
+                ...gate.target(present(held, "the held gate")),
+                outcome: "open",
+            }),
+        ],
+    });
+    passes.released.resolve();
+    await loop.idle();
+
+    // pass the opened gate once more, and sync it at its second generation only then
+    const rows = await database.select().from(gate.table);
+    expect({
+        outcomes: passes.outcomes,
+        gates: rows.map((row) => [
+            row.outcome,
+            row.generation,
+            row.syncedGeneration,
+            row.conditions,
+        ]),
+        reported,
+    }).toEqual({
+        outcomes: ["held", "open"],
+        gates: [
+            [
+                "open",
+                2,
+                2,
+                {
+                    Synced: {
+                        status: "true",
+                        observedGeneration: 2,
+                        reason: "ReconcileSuccess",
+                        message: "",
+                        lastTransitionAt: world.clock.now(),
+                    },
+                },
+            ],
+        ],
+        reported: [],
     });
 });
 
