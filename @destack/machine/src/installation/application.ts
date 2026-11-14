@@ -7,7 +7,6 @@ import { DeclarationReference } from "@destack/package/declare";
 import {
     AccessContext,
     Caller,
-    Manager,
     PermissionReference,
     PermissionScope,
     principal,
@@ -28,7 +27,6 @@ import {
     type MethodContextOf,
     type ObjectReconciliation,
     PackageDescription,
-    InstallationSelection,
 } from "@destack/object";
 import {
     HOST_SANDBOX,
@@ -193,13 +191,8 @@ export class ApplicationInstallation {
             return undefined;
         }
 
-        // revise an unmanaged installation once an input changed, its manager revising a managed one, then deploy it
-        const isRevised = Manager.isManaged(target.installation)
-            ? await this.#isSuperseded(reconciliation)
-            : await this.#isChanged(reconciliation);
-        if (isRevised) {
-            await RolloutTarget.revise(reconciliation, [target], this.#options);
-        }
+        // revise it once its build or bindings moved, then deploy it
+        await RolloutTarget.revise(reconciliation, [target], this.#options);
         await reconciliation.mutate([
             rollout.call(
                 "deploy",
@@ -249,49 +242,6 @@ export class ApplicationInstallation {
         }
 
         return undefined;
-    }
-
-    /** Report whether an input of the targeted revision changed. */
-    async #isChanged(reconciliation: ObjectReconciliation): Promise<boolean> {
-        // revise a release, tag or host selection, which may pick another build, and one without a revision
-        const target = this.#target;
-        if (
-            InstallationSelection.isRelease(target.installation.selection) ||
-            target.revisionId === null
-        ) {
-            return true;
-        }
-
-        // revise again past the generation the revision was made at, or once a bound target moved
-        const snapshot = Snapshot.live(reconciliation.database);
-        const revision = await snapshot
-            .read(installationRevision.table)
-            .findFirst({ where: { id: target.revisionId } });
-
-        return (
-            revision === undefined ||
-            revision.generation !== target.installation.generation ||
-            (await this.#options.binder.isOutdated(snapshot, target, revision))
-        );
-    }
-
-    /** Report whether the installation targets a build this machine no longer runs. */
-    async #isSuperseded(reconciliation: ObjectReconciliation): Promise<boolean> {
-        // read the targeted revision's build, none without a revision
-        const target = this.#target;
-        if (target.revisionId === null) {
-            return false;
-        }
-        const snapshot = Snapshot.live(reconciliation.database);
-        const revision = present(
-            await snapshot
-                .read(installationRevision.table)
-                .findFirst({ where: { id: target.revisionId } }),
-            `revision ${target.revisionId}`,
-        );
-        const built = await Build.require(snapshot, revision.scope, revision.buildId);
-
-        return Rollout.isSuperseded(target.installation, built.lock, this.#options.trusted);
     }
 
     /** Revise the installation: a build at its bindings, retaining each revision once. */

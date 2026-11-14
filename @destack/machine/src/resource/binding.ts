@@ -32,6 +32,7 @@ import { PackageId, type PackageRelease } from "@destack/package";
 import type { ResourceState } from "@destack/package/declare";
 import { RequestId } from "@destack/sync";
 import { DRAINING, type ObjectStore, Stack, StackPlan } from "@destack/object/server";
+import type { BuildReader } from "@destack/package/manifest";
 import { Digest, type Identifier, type JsonObject, present, schema } from "@destack/schema";
 import { StackError } from "@destack/stack/error";
 import {
@@ -214,8 +215,8 @@ export class Binder {
             bound.push({
                 packageId: need.package.id,
                 name: need.name,
-                target: "id" in selected ? selected.id : selected.name,
-                targetSpaceId: "spaceId" in selected ? selected.spaceId : null,
+                target: Binder.#targetOf(selected),
+                targetSpaceId: Binder.#spaceOf(selected),
                 version: selection.version ?? null,
             });
         };
@@ -291,6 +292,69 @@ export class Binder {
             "DEFINITION_INVALID",
             `binding '${need.name}' of '${target.installation.name}' is invalid: it selects an unresolved target`,
         );
+    }
+
+    /** Report whether a revision's bindings are those bind gives the installation now. */
+    async isCurrent(
+        reader: Pick<Snapshot, "read">,
+        target: InstallationRollout,
+        revision: InstallationRevision,
+        build: BuildReader,
+    ): Promise<boolean> {
+        // require each of the build's own declarations the binder binds bound, as bind binds every one it owns
+        const { bindings, packageId } = target.installation;
+        const declared = (await build.declarations()).filter((each) => this.binds(each));
+        const isEachBound = declared.every((declaration) =>
+            revision.bindings.some(
+                (entry) => entry.packageId === packageId && entry.name === declaration.name,
+            ),
+        );
+        if (!isEachBound) {
+            return false;
+        }
+
+        // require each selected binding bound to the target it selects, none selected since the revision
+        const selected = Object.entries(bindings).flatMap(([selectedPackage, names]) =>
+            Object.entries(names).map(([name, selection]) => ({
+                selectedPackage,
+                name,
+                selection,
+            })),
+        );
+        const isSelectedBound = selected.every(({ selectedPackage, name, selection }) =>
+            revision.bindings.some(
+                (entry) =>
+                    entry.packageId === selectedPackage &&
+                    entry.name === name &&
+                    entry.target === Binder.#targetOf(selection.target) &&
+                    entry.targetSpaceId === Binder.#spaceOf(selection.target),
+            ),
+        );
+        if (!isSelectedBound) {
+            return false;
+        }
+
+        // require each other binding to target the record the installation still manages under its name
+        for (const entry of revision.bindings) {
+            if (bindings[entry.packageId]?.[entry.name] === undefined) {
+                const kind = Binder.#kind(entry.target, this.#kinds);
+                const [row] = await reader.read(Binder.#declarable(kind.object).table).findMany({
+                    where: {
+                        ...Binder.#managedBy(
+                            target,
+                            schema.identifier("package").parse(entry.packageId),
+                        ),
+                        managerName: entry.name,
+                    },
+                });
+                if (row?.id !== entry.target) {
+                    return false;
+                }
+            }
+        }
+
+        // require each local target at the version the revision bound
+        return !(await this.isOutdated(reader, target, revision));
     }
 
     /** Report whether a bound target here moved past the version a revision runs it at. */
@@ -561,6 +625,16 @@ export class Binder {
         }
 
         return object;
+    }
+
+    /** Read the target a binding records for a selection: its record's id, else its name. */
+    static #targetOf(selected: BindingSelection["target"]): string {
+        return "id" in selected ? selected.id : selected.name;
+    }
+
+    /** Read the space a selection's target lives in, none for a target here. */
+    static #spaceOf(selected: BindingSelection["target"]): Identifier<"space"> | null {
+        return "spaceId" in selected ? selected.spaceId : null;
     }
 
     /** Match the records an installation manages under one package's declarations. */

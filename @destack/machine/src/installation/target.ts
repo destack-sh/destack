@@ -191,22 +191,28 @@ export const RolloutTarget = {
                 continue;
             }
 
-            // pass over a stack whose targeted revision has this build at these inputs, as stacks bind nothing
+            // pass over one whose targeted revision is current: this build, and an application's bindings or a stack's inputs as they stand
             const inputs =
                 row.installation.export === null
                     ? undefined
                     : await RolloutTarget.inputs(snapshot, row.installation);
             const isRevised =
-                inputs !== undefined &&
                 revision !== undefined &&
                 revision.buildId === chosen.build &&
-                revision.digest ===
-                    (await InstallationRevision.digest(
-                        chosen.lock,
-                        inputs,
-                        [],
-                        store.environment.crypto,
-                    ));
+                (inputs === undefined
+                    ? await options.binder.isCurrent(
+                          snapshot,
+                          row,
+                          revision,
+                          await options.space.root(row.installation.packageId, chosen.lock),
+                      )
+                    : revision.digest ===
+                      (await InstallationRevision.digest(
+                          chosen.lock,
+                          inputs,
+                          [],
+                          store.environment.crypto,
+                      )));
             if (isRevised) {
                 continue;
             }
