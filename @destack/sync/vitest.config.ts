@@ -1,10 +1,11 @@
 import { BunEnvironment } from "@destack/environment/bun";
-import { defineConfiguration } from "@destack/test/config";
+import { defineConfiguration, SCENARIO_MODULES, scenarioPlugin } from "@destack/test/config";
 import { fileURLToPath } from "node:url";
 
 export default defineConfiguration(
     {
         root: fileURLToPath(new URL(".", import.meta.url)),
+        plugins: [scenarioPlugin([{ module: "@destack/sync/test", name: "FeedDriver" }])],
         // run every test against each database the package stores in
         targets: { database: ["sqlite", "postgresql"] },
         test: {
@@ -13,22 +14,7 @@ export default defineConfiguration(
                 {
                     extends: true,
                     tier: "unit",
-                    test: {
-                        name: "unit",
-                        include: ["src/**/*.test.ts"],
-                        exclude: ["src/**/*.bench.test.ts"],
-                    },
-                },
-                // run performance budgets one file at a time after the unit tests, keeping their measurements apart
-                {
-                    extends: true,
-                    tier: "bench",
-                    test: {
-                        name: "bench",
-                        include: ["src/**/*.bench.test.ts"],
-                        fileParallelism: false,
-                        sequence: { groupOrder: 1 },
-                    },
+                    test: { name: "unit", include: ["src/**/*.test.ts", SCENARIO_MODULES] },
                 },
             ],
         },

@@ -11,6 +11,8 @@ const FOLDERS = ["inbox", "inbox", "inbox", "inbox", "archive"] as const;
 
 /** Random writes to every test table. */
 export class Workload {
+    /** The tables the writes touch, which followers replicate. */
+    static readonly tables = [project, task, comment, tag, taskTag, page];
     /** The random sequence the writes follow. */
     readonly #random: Random;
     /** The project identities written. */

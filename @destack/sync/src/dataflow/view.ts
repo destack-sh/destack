@@ -39,22 +39,21 @@ export class View {
     /** The position shown. */
     readonly position: LogPosition;
 
-    /** Show a database as of a position, reading through a separate metered connection. */
+    /** Show a database as of a position. */
     constructor(
         database: DatabaseConnection,
         position: LogPosition,
         cache?: Cache,
         snapshot?: Snapshot,
     ) {
-        // read through the view's metered connection, and earlier images through the cache
-        const reader = database.metered();
-        this.database = reader;
+        // read the database, and earlier images through the cache
+        this.database = database;
         this.position = position;
-        this.#cache = cache ?? new ViewCache(reader);
+        this.#cache = cache ?? new ViewCache(database);
         this.#snapshot =
             snapshot ??
-            reader.log.at(position, (table, after, upto) =>
-                this.#cache.images(table, after, upto, reader),
+            database.log.at(position, (table, after, upto) =>
+                this.#cache.images(table, after, upto, database),
             );
     }
 

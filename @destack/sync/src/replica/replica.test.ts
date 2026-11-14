@@ -1,5 +1,5 @@
 import { FOLLOWER_REVISION } from "../test/index.ts";
-import { expect, refusal, test } from "@destack/test";
+import { expect, Recording, refusal, test } from "@destack/test";
 import {
     asc,
     binary,
@@ -557,7 +557,7 @@ test("follow and wait for each commit of one row in a fixed count of statements,
     // commit notes one at a time, counting the statements each costs the replica once it arrives at the commit
     const costs: number[] = [];
     for (let index = 0; index < FOLLOWED_COMMITS; index++) {
-        const before = local.driver.state.statements;
+        const before = await Recording.read(simulation.telemetry);
         await source.transaction(
             async (transaction) =>
                 await transaction.insert(note).values({ ...first, id: `followed-${index}` }),
@@ -566,7 +566,11 @@ test("follow and wait for each commit of one row in a fixed count of statements,
         expect(await Replica.wait(local, notes.scope, committed, AbortSignal.timeout(5000))).toBe(
             true,
         );
-        costs.push(local.driver.state.statements - before);
+        costs.push(
+            (await Recording.read(simulation.telemetry))
+                .since(before)
+                .count(TestDatabase.statements(local)),
+        );
     }
     controller.abort();
     await simulation.wait(following);
@@ -604,8 +608,7 @@ test("capture a space's few dozen rows across many tables as one page applied in
 
     // capture and apply the space's rows, counting pages and statements
     const capture = async () => {
-        const read = source.driver.state.statements;
-        const written = target.driver.state.statements;
+        const before = await Recording.read(simulation.telemetry);
         const pages: Page[] = [];
         const applied = replica.apply(target, feed.capture(replica.captured, signal));
         for await (const page of applied) {
@@ -616,8 +619,12 @@ test("capture a space's few dozen rows across many tables as one page applied in
         return {
             pages: pages.map((page) => [page.reset, page.complete, page.changes.length]),
             staged,
-            read: source.driver.state.statements - read,
-            written: target.driver.state.statements - written,
+            read: (await Recording.read(simulation.telemetry))
+                .since(before)
+                .count(TestDatabase.statements(source)),
+            written: (await Recording.read(simulation.telemetry))
+                .since(before)
+                .count(TestDatabase.statements(target)),
         };
     };
 
@@ -1599,7 +1606,10 @@ test("apply two replicas delivering one row at once one after the other, losing 
     expect({
         notes: (await local.select({ id: note.id }).from(note)).map((row) => row.id),
         copies: keys.map((row) => row.name),
-        lostRaces: local.state.lostRaces,
+        lostRaces: (await Recording.read(simulation.telemetry)).count({
+            name: "destack.transaction.retries",
+            attributes: { "db.namespace": local.state.name },
+        }),
     }).toEqual({ notes: ["shared"], copies: ["left", "right"], lostRaces: 0 });
 });
 
@@ -2145,23 +2155,24 @@ test("move past bare pages in memory without a statement, leaving the snapshot's
 
     // snapshot, then take a beat at the same position and one past a commit outside the queries
     const costs: number[] = [];
-    let mark: number | undefined;
-    const measure = () => {
+    let mark: Recording | undefined;
+    const measure = async () => {
         if (mark !== undefined) {
-            costs.push(local.driver.state.statements - mark);
+            const later = await Recording.read(simulation.telemetry);
+            costs.push(later.since(mark).count(TestDatabase.statements(local)));
         }
     };
     const pages = async function* () {
         yield page(4, { reset: true });
         for (const next of [page(4), page(7)]) {
             // close the previous page's window
-            measure();
-            mark = local.driver.state.statements;
+            await measure();
+            mark = await Recording.read(simulation.telemetry);
             yield next;
         }
     };
     await Array.fromAsync(notes.apply(local, pages(), { subscription, audience: "contained" }));
-    measure();
+    await measure();
 
     // expect bare pages to cost nothing and leave the snapshot's recorded position
     expect({ costs, recorded: (await notes.resume(local, subscription)).after?.sequence }).toEqual({

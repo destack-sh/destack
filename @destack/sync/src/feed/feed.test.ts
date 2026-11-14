@@ -1,4 +1,5 @@
-import { expect, test } from "@destack/test";
+import { expect, Recording, test } from "@destack/test";
+import { TestDatabase } from "@destack/db/test";
 import { type JsonObject, nth, schema } from "@destack/schema";
 import { DatabaseError, defineRelations, defineTable, eq, json, TABLE, text } from "@destack/db";
 import { Feed } from "./feed.ts";
@@ -17,6 +18,10 @@ import {
     until,
     START,
 } from "../test/fixture.ts";
+import { Follower } from "./test/replica.ts";
+import { AUDIENCE, FILTERS, WINDOWS } from "./test/query.ts";
+import { Random } from "./test/random.ts";
+import { Workload } from "./test/workload.ts";
 import type { Item, Query } from "../query/query.ts";
 import { Simulation } from "@destack/environment/simulation";
 import { testWorldOptions } from "@destack/test/world";
@@ -693,7 +698,7 @@ test("serve many streams of one query from the one read of the log each commit t
             }
         });
         await Promise.all(snapshots.map((snapshot) => snapshot.promise));
-        const before = database.driver.state.statements;
+        const before = await Recording.read(simulation.telemetry);
         for (let index = 0; index < STRESS_COMMITS; index++) {
             await database.transaction(
                 async (transaction) =>
@@ -703,7 +708,9 @@ test("serve many streams of one query from the one read of the log each commit t
         await Promise.all(following);
         controller.abort();
 
-        return database.driver.state.statements - before;
+        return (await Recording.read(simulation.telemetry))
+            .since(before)
+            .count(TestDatabase.statements(database));
     };
     const single = await cost(1, "single");
     const many = await cost(STRESS_STREAMS, "many");
@@ -1010,3 +1017,31 @@ async function notesQueries(parameters: JsonObject) {
         },
     };
 }
+
+test("resume a stateful subscriber without sending selected rows again", async () => {
+    await using simulation = new Simulation({
+        world: testWorldOptions(),
+        seed: 1,
+        start: START,
+    });
+    const source = await open({ simulation });
+    const feed = new Feed(source, Workload.tables);
+    await new Workload(new Random(13)).seed(source, 1500);
+
+    // follow and reconnect from the position it arrived at
+    const follower = new Follower(feed, { ...FILTERS, ...WINDOWS }, Workload.tables, {
+        audience: AUDIENCE,
+    });
+    follower.start();
+    await follower.wait(await source.log.position());
+    const sent = follower.replica.pages.length;
+    await follower.reconnect();
+    await follower.wait(await source.log.position());
+
+    // rebuild the windows without rows or a snapshot
+    const resumed = follower.replica.pages.slice(sent);
+    expect([
+        resumed.some((resent) => resent.reset),
+        resumed.flatMap((resent) => resent.changes),
+    ]).toEqual([false, []]);
+});
