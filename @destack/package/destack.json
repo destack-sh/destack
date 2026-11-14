@@ -14,7 +14,6 @@
         "./vite": { "runtimes": ["bun"] }
     },
     "stamps": {
-        "defineBenchmark": { "module": 1 },
         "defineExample": { "module": 1 },
         "defineScenario": { "module": 1 },
         "defineKind": {
