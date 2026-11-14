@@ -12,6 +12,8 @@ export const CliError = defineErrorFamily({
 
         NOUN_NOT_FOUND: {},
 
+        RELEASE_NOT_FOUND: {},
+
         SETTING_NOT_FOUND: {},
 
         // exists
