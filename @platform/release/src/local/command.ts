@@ -49,7 +49,8 @@ export async function serveLocal(
     }
     printStatus("machine", `http://127.0.0.1:${LOOPBACK_LAYOUT.machine}`, environment);
     // print how to open the stage in a browser, the desktop app and the cli, each on this state
-    const device = options.home.isCustom ? ` DESTACK_DIRECTORY=${options.home.directory}` : "";
+    const directory = options.home.isCustom ? ` DESTACK_DIRECTORY=${options.home.directory}` : "";
+    const device = `${directory} DESTACK_DISTRIBUTION=${LocalUniverse.distribution(options)}`;
     printStatus(
         "ready",
         `http://127.0.0.1:${LOOPBACK_LAYOUT.universe}/ opens Destack in a browser`,
