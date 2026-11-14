@@ -112,7 +112,7 @@ test("refuse reading a missing page", async () => {
 
 ### Declare a scenario
 
-A scenario plays steps through a driver of its interaction, and checks the observations after each step.
+A scenario plays steps through a driver of its interaction, then checks its observations.
 
 ```ts
 import { defineScenario, type Interaction } from "@destack/package/declare";
@@ -126,7 +126,7 @@ const counter = {
     globals: schema.object({}),
 } satisfies Interaction;
 
-// count two increments, observing the count after each
+// count two increments, then observe the count
 export const countTwice = defineScenario({
     of: "counter",
     interaction: counter,
@@ -134,7 +134,8 @@ export const countTwice = defineScenario({
     description: "count up by one for each increment",
     given: { examples: [] },
     when: [{ action: "increment" }, { action: "increment" }],
-    then: { observe: { count: { kind: "count" } }, each: [{ count: 1 }, { count: 2 }] },
+    parameters: {},
+    then: [{ observe: { kind: "count" }, is: 2 }],
 });
 ```
 
@@ -155,6 +156,7 @@ export const incrementOnce = defineScenario({
     name: "increment",
     description: "increment a counter with one database operation",
     given: { examples: [] },
+    parameters: {},
     when: [
         {
             operation: "increment",
