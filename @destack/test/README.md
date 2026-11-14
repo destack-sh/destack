@@ -83,14 +83,14 @@ A `DriverType` has an `interaction`, and `start(given)` starts a driver on a sce
 ### Configuration
 
 `defineConfiguration(config, environment)` creates a package's Vitest configuration with the module transform.
-Its `targets` run the tests once per combination, such as `{ database: ["sqlite", "postgres"] }`.
+Its `tier` sets the tests' timeouts and slow threshold (`TEST_TIERS`: `unit`, `scenario`, `bench`), and its `targets` run the tests once per combination, such as `{ database: ["sqlite", "postgres"] }`.
 
-| Export                    | What it is                                                   |
-| ------------------------- | ------------------------------------------------------------ |
-| `defineProject(config)`   | creates one project of a configuration, with its own targets |
-| `scenarioPlugin(drivers)` | plays the scenarios and benchmarks of matching modules       |
-| `SCENARIO_MODULES`        | `src/**/*.scenario.{ts,tsx}`                                 |
-| `BENCHMARK_MODULES`       | `src/**/*.benchmark.ts`                                      |
+| Export                    | What it is                                                               |
+| ------------------------- | ------------------------------------------------------------------------ |
+| `defineProject(config)`   | creates one project of a configuration, in the tier its project declares |
+| `scenarioPlugin(drivers)` | plays the scenarios and benchmarks of matching modules                   |
+| `SCENARIO_MODULES`        | `src/**/*.scenario.{ts,tsx}`                                             |
+| `BENCHMARK_MODULES`       | `src/**/*.benchmark.ts`                                                  |
 
 ## Examples
 
@@ -181,6 +181,7 @@ import { defineConfiguration, SCENARIO_MODULES, scenarioPlugin } from "@destack/
 
 export default defineConfiguration(
     {
+        tier: "unit",
         plugins: [scenarioPlugin([{ module: "@destack/view/test", name: "ViewDriver" }])],
         test: { include: ["src/**/*.test.ts", SCENARIO_MODULES] },
     },
