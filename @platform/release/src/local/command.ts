@@ -1,7 +1,8 @@
 import { resolve } from "node:path";
 import { StageHome } from "@destack/machine/computer";
 import { Stage } from "@destack/update/release";
-import type { Environment, HostCapability } from "@destack/environment";
+import { Environment, type HostCapability, Telemetry } from "@destack/environment";
+import { SeverityNumber } from "@destack/telemetry";
 import { printStatus } from "../distribution/output.ts";
 import { LOOPBACK_LAYOUT } from "../deployment/deployment.ts";
 import { CHECKOUT } from "../distribution/distribution.ts";
@@ -21,8 +22,20 @@ export async function serveLocal(
     environment: Environment<HostCapability>,
     arguments_: readonly string[],
 ): Promise<void> {
+    // print the warnings and failures of the universe and the cloud machines this process runs
+    const telemetry = Telemetry.local(
+        environment.clock,
+        (line, severity) => {
+            if (severity >= SeverityNumber.WARN) {
+                printStatus("stage", line.trimEnd(), environment);
+            }
+        },
+        environment.telemetry.context,
+    );
+    const staged = Environment.instrument({ ...environment, telemetry }, telemetry);
+
     // start the universe and its cloud machines, then the local stage's machine
-    const options = localOptions(arguments_, environment);
+    const options = localOptions(arguments_, staged);
     const universe = await LocalUniverse.start({
         ...options,
         root: CHECKOUT,
