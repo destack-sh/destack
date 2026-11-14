@@ -17,7 +17,7 @@ import {
 import { user } from "./schema.ts";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
 import { userContext, users } from "./fixture/user.ts";
-import { testCallKey } from "@destack/object/test";
+import { testCallKey, testServerContext } from "@destack/object/test";
 import { testEvents, serversOf } from "../src/test/index.ts";
 import { request, type RequestInput } from "./fixture/request.ts";
 import { tablesOf } from "../src/index.ts";
@@ -182,7 +182,7 @@ test("group each caller's changes into activities, and read and revert a page as
     ).toEqual([{ changes: 2, fields: ["body", "title"] }]);
 });
 
-test("refuse serving history that reads through an object recording none", async () => {
+test("refuse serving history that reads through an object recording none, and leave out an installation serving it", async () => {
     // run in a world of its own
     const world = testSimulation().environment("test");
 
@@ -235,6 +235,34 @@ test("refuse serving history that reads through an object recording none", async
             "object 'sheet' records history but reads through 'folder', which has no history",
         ),
     );
+
+    // serve the same package as an installation, reporting what it leaves out
+    const installation = await testServerContext(activity.package, spaceId, world);
+    const reported: unknown[] = [];
+    const store = TestObjectStore.of({
+        chain: async () => undefined,
+        environment: world,
+        principal: spacePrincipal(spaceId),
+        servers: serversOf([activity, folder, sheet]).map((server) => server.at(installation)),
+        database: storage.database,
+        origin: { package: activity.package },
+        report: (error) => reported.push(error),
+    });
+
+    // leave the installation out, serving none of its types, and report why
+    expect({
+        served: [activity, folder, sheet].map((type) =>
+            store.objects.some((each) => each.same(type)),
+        ),
+        reported,
+    }).toEqual({
+        served: [false, false, false],
+        reported: [
+            new Error(
+                `installation '${installation.installation}' serves nothing: object 'sheet' records history but reads through 'folder', which has no history`,
+            ),
+        ],
+    });
 });
 
 /** Serve pages over a new database to one user at a set time. */
