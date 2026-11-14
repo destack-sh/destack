@@ -15,7 +15,7 @@ export type TerminalStep = schema.Infer<typeof TerminalStep>;
 export const TerminalObservation = schema.object({
     /** Read what the last command line printed as JSON. */
     read: schema.literal("output"),
-    /** The field to read of the printed object, or of each printed item. */
+    /** The field to read of the printed object, or of each printed item, sorted. */
     field: schema.string().min(1),
 });
 /** An observation of a terminal world. */

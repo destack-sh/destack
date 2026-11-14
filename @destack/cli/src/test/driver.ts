@@ -59,7 +59,7 @@ export class TerminalDriver implements Driver<TerminalStep, TerminalObservation>
         this.#output = printed.output;
     }
 
-    /** Read a field of what the last command line printed, of each item when it printed a list. */
+    /** Read a field of what the last command printed, of each item sorted for a list. */
     observe(observation: TerminalObservation): JsonValue {
         // parse the output, then read the field of the object or of each item
         const printed = schema.json().parse(JSON.parse(this.#output));
@@ -69,7 +69,13 @@ export class TerminalDriver implements Driver<TerminalStep, TerminalObservation>
                 `the printed field ${observation.field}`,
             );
 
-        return Array.isArray(printed) ? printed.map(field) : field(printed);
+        return Array.isArray(printed)
+            ? printed
+                  .map(field)
+                  .toSorted((left, right) =>
+                      JSON.stringify(left).localeCompare(JSON.stringify(right)),
+                  )
+            : field(printed);
     }
 
     /** Read the fingerprint of everything the world did so far. */

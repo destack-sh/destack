@@ -34,14 +34,14 @@ export const runCommonCommands = defineScenario({
                 {
                     observe: { read: "output", field: "name" },
                     is: [
+                        "connection",
                         "inbox",
                         "message",
-                        "social",
-                        "vault",
-                        "connection",
                         "observability",
+                        "social",
                         "stack",
                         "start",
+                        "vault",
                     ],
                 },
             ],
