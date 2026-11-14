@@ -223,7 +223,7 @@ export const Network: {
     /** The web's network in a browser, holding a request's signal until its body ends. */
     browser: {
         fetch: async (request, options) => {
-            // answer a response without a body as it is, and rebuild one with a body, dropping its URL
+            // answer a response without a body as it is
             const response = await Network.system.fetch(request, options);
             if (response.body === null) {
                 return response;
@@ -240,7 +240,16 @@ export const Network: {
                 }),
             );
 
-            return new Response(body, response);
+            // rebuild it around the body, keeping the URL, redirect and type a response sets itself
+            const rebuilt = new Response(body, response);
+            const { url, redirected, type } = response;
+            Object.defineProperties(rebuilt, {
+                url: { value: url },
+                redirected: { value: redirected },
+                type: { value: type },
+            });
+
+            return rebuilt;
         },
         connect: (address, options) => Network.system.connect(address, options),
         websocket: (url, protocols) => Network.system.websocket(url, protocols),

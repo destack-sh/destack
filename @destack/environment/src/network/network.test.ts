@@ -36,11 +36,18 @@ test("stream a body through the browser network, keeping its status and headers,
 
         // the response keeps its status and headers, and the read after the abort fails with it
         expect({
+            url: response.url,
             status: response.status,
             header: response.headers.get("x-stream"),
             first: new TextDecoder().decode(first.value),
             next,
-        }).toEqual({ status: 202, header: "open", first: "first", next: "AbortError" });
+        }).toEqual({
+            url: listener.url.href,
+            status: 202,
+            header: "open",
+            first: "first",
+            next: "AbortError",
+        });
     } finally {
         await listener.stop(true);
     }
