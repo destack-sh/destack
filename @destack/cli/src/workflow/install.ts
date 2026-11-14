@@ -1,3 +1,4 @@
+import { Failure } from "@destack/error";
 import { LATEST_TAG } from "@destack/registry/object";
 import { type PackageId, PackageName } from "@destack/package";
 import { type Identifier, present, Version } from "@destack/schema";
@@ -39,11 +40,18 @@ export function installCommand(context: Context): Verb {
             // resolve the release, stay on a version or follow a tag, and follow it until its space serves it
             const { client, home } = await openForge(packageName, context);
             const found = await client.package.resolve({ spaceId: home, name: packageName });
-            const { version } = await client.release.resolve({
-                spaceId: home,
-                parentId: found.id,
-                release,
-            });
+            const { version } = await client.release
+                .resolve({ spaceId: home, parentId: found.id, release })
+                .catch((error: unknown) => {
+                    // name the package the person asked for, as the forge names it by its id
+                    if (Failure.of(error).reason === "RELEASE_NOT_FOUND") {
+                        throw CliError.of(
+                            "RELEASE_NOT_FOUND",
+                            `release '${release}' of '${packageName}' not found`,
+                        );
+                    }
+                    throw error;
+                });
             const selection: InstallationSelection = Version.safeParse(release).success
                 ? { kind: "release", version }
                 : { kind: "tag", tag: release };
