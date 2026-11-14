@@ -5,7 +5,7 @@ import type { FileSystem } from "../file/file.ts";
 import { Network } from "../network/network.ts";
 import { HttpTransport } from "../network/transport.ts";
 import { HttpServer } from "../server/http.ts";
-import { InstrumentedFiles } from "../file/instrumented.ts";
+import { InstrumentedFileSystem } from "../file/instrumented.ts";
 import { InstrumentedProcess } from "../process/instrumented.ts";
 import type { Host } from "../host/host.ts";
 import type { Opener } from "../opener/opener.ts";
@@ -102,8 +102,8 @@ export const Environment = {
             environment.files === undefined
                 ? {}
                 : {
-                      files: new InstrumentedFiles(
-                          InstrumentedFiles.sourceOf(environment.files),
+                      files: new InstrumentedFileSystem(
+                          InstrumentedFileSystem.sourceOf(environment.files),
                           telemetry,
                       ),
                   };
