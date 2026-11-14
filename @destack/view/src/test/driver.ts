@@ -1,5 +1,6 @@
 import { testBrowser, testWorld } from "./browser.ts";
-import type { Counters, Driver } from "@destack/test";
+import type { SimulatedTelemetry } from "@destack/environment/simulation";
+import type { Driver } from "@destack/test";
 import type { Clock } from "@destack/environment";
 import type { Given, SetStep } from "@destack/package/declare";
 import type { Globals } from "../scenario/interaction.ts";
@@ -14,7 +15,7 @@ import {
     type Observation,
     type Step,
     viewInteraction,
-} from "../scenario/index.ts";
+} from "./index.ts";
 import { stubPopovers } from "./dom.ts";
 
 /** The modifiers a key step lists before its key, with the keyboard event flag each sets. */
@@ -37,7 +38,7 @@ interface Rendered {
 }
 
 /** A driver that plays UI scenarios in the test DOM in process. */
-export class ViewDriver implements Driver<typeof viewInteraction> {
+export class ViewDriver implements Driver<Step, Observation> {
     /** The interaction the driver speaks. */
     static readonly interaction = viewInteraction;
     /** The settings of the worlds: none change a view's numbers. */
@@ -135,14 +136,14 @@ export class ViewDriver implements Driver<typeof viewInteraction> {
         flush();
     }
 
-    /** Read the fingerprint of everything the test's world did so far. */
+    /** Read the fingerprint of everything the world did so far. */
     fingerprint(): number {
         return testWorld().simulation.fingerprint;
     }
 
-    /** Count the elements the rendered examples show, as a render's size. */
-    count(): Counters {
-        return { elements: this.container.querySelectorAll("*").length };
+    /** The telemetry the test's world records. */
+    get telemetry(): SimulatedTelemetry {
+        return testWorld().simulation.telemetry;
     }
 
     /** Read one observation. */
