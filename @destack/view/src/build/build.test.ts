@@ -178,6 +178,7 @@ test("generate the module mounting a view with its package's theme and commands,
     expect([[...entries.keys()], loaded.split("\n"), described]).toEqual([
         ["./view/main"],
         [
+            'import "virtual:destack/baseline";',
             'import "@destack/view/styles.css";',
             'import "virtual:stylex.css";',
             'import { BrowserEnvironment, mount } from "@destack/view/browser";',

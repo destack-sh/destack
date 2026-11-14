@@ -7,7 +7,7 @@ import { DeclarationDescription } from "@destack/package";
 import type { Plugin } from "@destack/package/build";
 import { runtimeConditions, runtimeCss, runtimeTarget } from "@destack/package/build";
 import { PackageLocator } from "@destack/package/locator";
-import { modulePlugin } from "@destack/package/vite";
+import { baselinePlugin, modulePlugin } from "@destack/package/vite";
 import { ModuleTransformer } from "@destack/package/transform";
 import { present, schema } from "@destack/schema";
 import type { PageAssets, StaticRoutes } from "../static/page.ts";
@@ -155,6 +155,7 @@ async function serve(
         appType: "custom",
         plugins: [
             modulePlugin(new ModuleTransformer(environment)),
+            baselinePlugin(),
             definitionPlugin(directory, environment.files, onDefinitionChange),
             ...(await loadTransforms({ directory, runtime: "browser", server: true, environment })),
             entryPlugin(views.located, views.package),

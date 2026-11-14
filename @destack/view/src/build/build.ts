@@ -9,6 +9,7 @@ import type {
     PrerenderContext,
 } from "@destack/package/build";
 import { BROWSER_SANDBOX, type DeclarationDescription, Sandbox } from "@destack/package";
+import { BASELINE_MODULE } from "@destack/package/vite";
 import {
     type OutputContent,
     VIEW_ASSET_PATH,
@@ -410,8 +411,12 @@ function entryModule(
     compilation: ViewPackage,
     declared: string,
 ): string {
+    // import the view and its stylesheets
     const imported = `import { ${view.export} as view } from ${JSON.stringify(view.file)};`;
     const stylesheets = STYLESHEETS.map((path) => `import ${JSON.stringify(path)};`);
+
+    // install the browser baseline before any other module of a client entry
+    const baseline = `import ${JSON.stringify(BASELINE_MODULE)};`;
 
     // render a static view's pages on the server, linking the page's assets each request names
     if (isServer) {
@@ -434,6 +439,7 @@ function entryModule(
     // mount a client view
     else if (view.render.mode !== "static") {
         return [
+            baseline,
             ...stylesheets,
             `import { BrowserEnvironment, mount } from "${VIEW_PACKAGE}/browser";`,
             imported,
@@ -445,6 +451,7 @@ function entryModule(
     // hydrate a static view's page whole
     else if (view.render.hydrate === "page") {
         return [
+            baseline,
             ...stylesheets,
             `import { BrowserEnvironment, hydrateStatic } from "${VIEW_PACKAGE}/static/browser";`,
             imported,
@@ -458,6 +465,7 @@ function entryModule(
         const page = JSON.stringify({ name: view.name, package: compilation.package });
 
         return [
+            baseline,
             ...stylesheets,
             `import { BrowserEnvironment, hydrateIslands } from "${VIEW_PACKAGE}/static/browser";`,
             ``,
