@@ -27,6 +27,7 @@ const ENVIRONMENT = [
     "DESTACK_STAGE",
     "DESTACK_UNIVERSE",
     "DESTACK_PORT",
+    "DESTACK_DISTRIBUTION",
 ];
 
 /** The permissions of the machine's private state directory: the person's alone. */
