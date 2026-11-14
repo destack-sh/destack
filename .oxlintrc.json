@@ -605,7 +605,6 @@
                 "@platform/release/src/main.ts",
                 "@platform/release/src/key/tests/bitwarden.ts",
                 "@platform/release/src/deployment/cloudflare/universe.ts",
-                "@platform/release/src/distribution/tests/sandbox.ts",
                 "@platform/site/build/main.ts",
                 "@platform/site/scripts/test-highlighting.ts",
                 "@platform/site/scripts/test-markdown.ts",
