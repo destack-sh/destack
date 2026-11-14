@@ -4,7 +4,6 @@ import type { ConnectionState, WriteOperation } from "./connection.ts";
 import { classifyError, DatabaseError } from "../error/error.ts";
 import type { Dialect } from "../dialect/dialect.ts";
 import type { DriverStatement } from "../sql/index.ts";
-import { isUnreturnedWrite } from "../sql/render.ts";
 import type { Session } from "./session.ts";
 import { SpanPath } from "@destack/environment";
 import { LOG_TABLES } from "../log/schema.ts";
@@ -225,27 +224,20 @@ export class DatabaseDriver {
     }
 
     /** Run a statement returning rows, as a read or as a write of the tables it references. */
-    async #query<Value extends readonly unknown[]>(
+    #query<Value extends readonly unknown[]>(
         statement: DriverStatement,
         query: (session: Session) => Promise<Value>,
     ): Promise<Value> {
         this.transaction?.assertActive();
 
-        // refuse a write answering no rows, which only a run counts and announces
-        if (!statement.isRead && isUnreturnedWrite(statement.text)) {
-            throw DatabaseError.of(
-                "QUERY_INVALID",
-                "query is invalid: a write without RETURNING runs through run, which counts the rows it writes",
-            );
-        }
-
-        return await (statement.isRead
+        // read, or announce a write whenever it runs, as the rows it answers need not be the rows it wrote
+        return statement.isRead
             ? this.run(() => failing(statement, query(this.session), this.state), statement)
             : this.write(
                   (session) => failing(statement, query(session), this.state),
                   statement,
-                  (rows) => rows.length,
-              ));
+                  () => 1,
+              );
     }
 
     /** Decide whether a read may be cached: a live read of versioned tables only. */

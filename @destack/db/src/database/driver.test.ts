@@ -1,7 +1,7 @@
-import { expect, onTestFinished, refusal, test } from "@destack/test";
+import { expect, onTestFinished, test } from "@destack/test";
 import { testSimulation } from "@destack/test/world";
 import { SimulatedTelemetry } from "@destack/environment/simulation";
-import { asc, defineTable, sql, text } from "../index.ts";
+import { asc, defineTable, sql, TABLE, text } from "../index.ts";
 import { TestDatabase } from "../test/index.ts";
 import { TelemetryScope } from "@destack/telemetry";
 import type {} from "@destack/package/import-meta";
@@ -105,8 +105,8 @@ test("record each statement text under the span path that ran it, with its runs 
     ]);
 });
 
-test("refuse a write answering no rows through all, and take one returning its rows or run", async () => {
-    // open a database with two notes
+test("announce a write through all whenever it runs, whatever rows it answers", async () => {
+    // open a database with two notes, its commit watch listening
     await using simulation = testSimulation();
     const world = simulation.environment("test");
     const storage = await TestDatabase.create([note], { environment: world, isMigrated: true });
@@ -116,31 +116,32 @@ test("refuse a write answering no rows through all, and take one returning its r
         { id: "a", body: "first" },
         { id: "b", body: "second" },
     ]);
+    const { commits } = database.state;
+    await commits.listen();
 
-    // write through all without and with RETURNING, then through run
-    const refused = await refusal(
-        database.all(sql`UPDATE ${note} SET body = 'lost' WHERE ${note.id} = 'a'`),
+    // update a note through all without RETURNING, answering no rows, while waiting for its table
+    const stop = new AbortController();
+    const announced = commits.waitUntil(
+        async (tables) => tables.has(note[TABLE].sqlName),
+        stop.signal,
+        commits.generation,
     );
-    const returned = await database.all(
-        sql`UPDATE ${note} SET body = 'returned' WHERE ${note.id} = 'a' RETURNING ${note.id}`,
+    const answered = await database.all(
+        sql`UPDATE ${note} SET body = 'updated' WHERE ${note.id} = 'a'`,
     );
-    await database.run(sql`UPDATE ${note} SET body = 'run' WHERE ${note.id} = 'b'`);
+    const isAnnounced = await announced;
 
-    // refuse the uncounted write, which neither ran nor announced, and keep the others
+    // announce the note's table and keep the update
     expect({
-        refused,
-        returned,
+        answered,
+        isAnnounced,
         notes: await database.select().from(note).orderBy(asc(note.id)),
     }).toEqual({
-        refused: [
-            "BAD_REQUEST",
-            "QUERY_INVALID",
-            "query is invalid: a write without RETURNING runs through run, which counts the rows it writes",
-        ],
-        returned: [{ id: "a" }],
+        answered: [],
+        isAnnounced: true,
         notes: [
-            { id: "a", body: "returned" },
-            { id: "b", body: "run" },
+            { id: "a", body: "updated" },
+            { id: "b", body: "second" },
         ],
     });
 });
