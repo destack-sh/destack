@@ -167,13 +167,16 @@ export class ModuleTransformer {
 
     /** Digest the code of the modules that decide every stamp. */
     async #identify(): Promise<Digest> {
-        // read the transform, the locator, and the parser and editor they run, resolved where a cache runs
-        const modules = [
-            new URL("./transform.ts", import.meta.url),
-            new URL("../locator/locator.ts", import.meta.url),
-            new URL(import.meta.resolve("magic-string")),
-            new URL(import.meta.resolve("rolldown/parseAst")),
-        ];
+        // read the transform, the locator, and the parser and editor they run, or the program bundling them all
+        const isBundled = !import.meta.url.endsWith(".ts");
+        const modules = isBundled
+            ? [new URL(import.meta.url)]
+            : [
+                  new URL("./transform.ts", import.meta.url),
+                  new URL("../locator/locator.ts", import.meta.url),
+                  new URL(import.meta.resolve("magic-string")),
+                  new URL(import.meta.resolve("rolldown/parseAst")),
+              ];
         const sources = await Promise.all(
             modules.map((url) => this.environment.files.readTextFile(url.pathname)),
         );
