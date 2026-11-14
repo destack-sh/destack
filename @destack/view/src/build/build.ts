@@ -410,8 +410,14 @@ function entryModule(
     compilation: ViewPackage,
     declared: string,
 ): string {
+    // import the view and its stylesheets
     const imported = `import { ${view.export} as view } from ${JSON.stringify(view.file)};`;
     const stylesheets = STYLESHEETS.map((path) => `import ${JSON.stringify(path)};`);
+
+    // in a browser, evaluate the runtime and its baseline alone first, then load the view
+    const runtime = `import "${VIEW_PACKAGE}/runtime";`;
+    const loaded = `{ ${view.export}: view }`;
+    const loading = `import(${JSON.stringify(view.file)})`;
 
     // render a static view's pages on the server, linking the page's assets each request names
     if (isServer) {
@@ -434,10 +440,10 @@ function entryModule(
     // mount a client view
     else if (view.render.mode !== "static") {
         return [
+            runtime,
             ...stylesheets,
-            `import { BrowserEnvironment, mount } from "${VIEW_PACKAGE}/browser";`,
-            imported,
             ``,
+            `const [{ BrowserEnvironment, mount }, ${loaded}] = await Promise.all([import("${VIEW_PACKAGE}/browser"), ${loading}]);`,
             `await mount(view, ${declared}, BrowserEnvironment.system);`,
             ``,
         ].join("\n");
@@ -445,10 +451,10 @@ function entryModule(
     // hydrate a static view's page whole
     else if (view.render.hydrate === "page") {
         return [
+            runtime,
             ...stylesheets,
-            `import { BrowserEnvironment, hydrateStatic } from "${VIEW_PACKAGE}/static/browser";`,
-            imported,
             ``,
+            `const [{ BrowserEnvironment, hydrateStatic }, ${loaded}] = await Promise.all([import("${VIEW_PACKAGE}/static/browser"), ${loading}]);`,
             `await hydrateStatic(view, ${declared}, BrowserEnvironment.system);`,
             ``,
         ].join("\n");
@@ -458,9 +464,10 @@ function entryModule(
         const page = JSON.stringify({ name: view.name, package: compilation.package });
 
         return [
+            runtime,
             ...stylesheets,
-            `import { BrowserEnvironment, hydrateIslands } from "${VIEW_PACKAGE}/static/browser";`,
             ``,
+            `const { BrowserEnvironment, hydrateIslands } = await import("${VIEW_PACKAGE}/static/browser");`,
             `const islands = import.meta.glob(${JSON.stringify(ISLAND_MODULES)}, { import: "default" });`,
             `await hydrateIslands(${page}, islands, BrowserEnvironment.system);`,
             ``,

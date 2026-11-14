@@ -170,7 +170,7 @@ test("generate the module mounting a view with its package's theme and commands,
         stylesheets: () => ["output/browser/view-main.css"],
     });
 
-    // import the declaring module and mount its view with the package's own theme and commands
+    // evaluate the runtime first, then load the declaring module and mount its view with the package's own theme and commands
     const commands = [
         { packageId: owner.id, name: "complete", keybinding: "mod+enter" },
         { packageId: owner.id, name: "archive" },
@@ -178,11 +178,11 @@ test("generate the module mounting a view with its package's theme and commands,
     expect([[...entries.keys()], loaded.split("\n"), described]).toEqual([
         ["./view/main"],
         [
+            'import "@destack/view/runtime";',
             'import "@destack/view/styles.css";',
             'import "virtual:stylex.css";',
-            'import { BrowserEnvironment, mount } from "@destack/view/browser";',
-            'import { main as view } from "/package/src/view.ts";',
             ``,
+            'const [{ BrowserEnvironment, mount }, { main: view }] = await Promise.all([import("@destack/view/browser"), import("/package/src/view.ts")]);',
             `await mount(view, ${JSON.stringify({ commands, theme: ocean })}, BrowserEnvironment.system);`,
             ``,
         ],
