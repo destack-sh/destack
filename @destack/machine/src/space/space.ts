@@ -1,5 +1,6 @@
 import type * as packageRuntime from "@destack/package/runtime";
 import type { defineDatabase } from "@destack/db";
+import { Failure } from "@destack/error";
 import { openStore, ownServers } from "./store.ts";
 import type { ClaimPrimary, ExternalStorage } from "@destack/object/server";
 import type { Follow, ObjectType } from "@destack/object";
@@ -2304,7 +2305,11 @@ export class Space {
             // pull a lock
             else {
                 return await this.root(packageId, lock).catch((error: unknown) => {
-                    if (!PackageError.is(error, "FILE_UNAVAILABLE")) {
+                    // note a lock its forge cannot answer yet, as a file or a build it lacks
+                    const isUnavailable =
+                        PackageError.is(error, "FILE_UNAVAILABLE") ||
+                        Failure.of(error).reason === "BUILD_NOT_FOUND";
+                    if (!isUnavailable) {
                         throw error;
                     }
                     unavailable.push(lock);
