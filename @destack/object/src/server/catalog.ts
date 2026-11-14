@@ -5,7 +5,7 @@ import type { EventStore } from "@destack/event";
 import { type Authorizer, decisionTables, Policy, type TableMapping } from "@destack/access";
 import { ObjectTypeReference, type Subject } from "@destack/sync";
 import { type BlobStore, type DatabaseConnection, TABLE, type Table } from "@destack/db";
-import type { Identifier } from "@destack/schema";
+import { found, type Identifier } from "@destack/schema";
 import { PackageContext, type ServerContext } from "../workload/workload.ts";
 import { PACKAGE_KIND, PackageDescription } from "../declare/description.ts";
 import { Package } from "../declare/package.ts";
@@ -293,7 +293,40 @@ export class Catalog {
             installed,
             ...(given.partition === undefined ? {} : { partition: given.partition }),
         });
-        TrackedHistory.require(objects, authorizer);
+
+        // refuse a store's own tracked type reading through a type without history
+        const refusals = TrackedHistory.refusals(objects, authorizer).map(({ object, error }) => ({
+            entry: found(routes, ObjectTypeReference.key(object.typeReference)).entry,
+            error,
+        }));
+        const own = refusals.find(({ entry }) => entry.server === undefined);
+        if (own !== undefined) {
+            throw own.error;
+        }
+
+        // leave out each installation whose tracked types do, reporting it, and compile the rest
+        const refused = refusals.flatMap(({ entry, error }) =>
+            entry.server === undefined
+                ? []
+                : [{ installationId: entry.server.installation, source: entry.source, error }],
+        );
+        if (refused.length > 0) {
+            for (const { installationId, error } of refused) {
+                given.report(
+                    new Error(`installation '${installationId}' serves nothing: ${error.message}`),
+                );
+            }
+            const left = new Set(refused.map(({ source }) => source));
+
+            return Catalog.compile(
+                {
+                    ...given,
+                    servers: servers.filter((each) => !left.has(each)),
+                    sandboxes: sandboxes.filter((each) => !left.has(each)),
+                },
+                previous,
+            );
+        }
 
         // follow the durable tables and the decision tables, the replicated ones no installation here serves
         const decided = Catalog.#durable(objects, policies);

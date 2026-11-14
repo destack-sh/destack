@@ -13,16 +13,37 @@ import { Execution, type StoreExecution } from "../method/execution.ts";
 export const TrackedHistory = {
     /** Require the objects a tracked object's read permission reads through to record history. */
     require(objects: readonly ObjectType[], authorizer: Authorizer): void {
-        // follow each tracked object's read permission
+        const [refusal] = TrackedHistory.refusals(objects, authorizer);
+        if (refusal !== undefined) {
+            throw refusal.error;
+        }
+    },
+
+    /** List each tracked object whose read permission reads through objects without history. */
+    refusals(
+        objects: readonly ObjectType[],
+        authorizer: Authorizer,
+    ): { readonly object: ObjectType; readonly error: TypeError }[] {
+        // follow each tracked object's read permission, collecting its refusal
         const followed = new Set<string>();
+        const refusals: { readonly object: ObjectType; readonly error: TypeError }[] = [];
         for (const object of objects.filter((served) => served.lifecycle.tracked !== undefined)) {
             const reading = present(object.reading, `the read permission of ${object.name}`);
-            TrackedHistory.requireRetained(object, object, reading.name, {
-                objects,
-                authorizer,
-                followed,
-            });
+            try {
+                TrackedHistory.requireRetained(object, object, reading.name, {
+                    objects,
+                    authorizer,
+                    followed,
+                });
+            } catch (error) {
+                if (!(error instanceof TypeError)) {
+                    throw error;
+                }
+                refusals.push({ object, error });
+            }
         }
+
+        return refusals;
     },
 
     /** Record a served change in the caller's current or a new activity. */
