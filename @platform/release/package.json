@@ -9,7 +9,8 @@
     },
     "scripts": {
         "typecheck": "tsc --project tsconfig.json && destack-check readme",
-        "test": "bun run src/main.ts platform format-check && bun run src/main.ts platform validate && bun --bun run vitest run --config vitest.config.ts"
+        "test": "bun run src/main.ts platform format-check && bun run src/main.ts platform validate && bun --bun run vitest run --config vitest.config.ts --project unit",
+        "acceptance": "bun --bun run vitest run --config vitest.config.ts --project acceptance"
     },
     "devDependencies": {
         "@cloudflare/workers-types": "5.20260917.1",
