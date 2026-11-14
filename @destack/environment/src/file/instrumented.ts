@@ -6,7 +6,7 @@ import type { FileSystem } from "./file.ts";
 /** The running spans' total of quick file reads. */
 const READS = "destack.file.read.count";
 
-/** The running spans' total of quick file writes, directory creations and renames. */
+/** The running spans' total of quick file writes, copies, renames and removals. */
 const WRITES = "destack.file.write.count";
 
 /** A file system spanning its slow verbs and counting its quick ones in the running spans. */
@@ -77,7 +77,9 @@ export class InstrumentedFiles implements FileSystem {
 
     /** Remove a path. */
     readonly remove: FileSystem["remove"] = (path, options) =>
-        this.#run("destack.file.remove", path, () => this.source.remove(path, options));
+        options?.recursive === true
+            ? this.#run("destack.file.remove", path, () => this.source.remove(path, options))
+            : this.#count(WRITES, () => this.source.remove(path, options));
 
     /** Move a path. */
     readonly rename: FileSystem["rename"] = (from, to) =>
@@ -85,7 +87,7 @@ export class InstrumentedFiles implements FileSystem {
 
     /** Copy a file. */
     readonly copyFile: FileSystem["copyFile"] = (from, to) =>
-        this.#run("destack.file.copy", from, () => this.source.copyFile(from, to));
+        this.#count(WRITES, () => this.source.copyFile(from, to));
 
     /** Copy a file or a tree. */
     readonly copy: FileSystem["copy"] = (from, to) =>
