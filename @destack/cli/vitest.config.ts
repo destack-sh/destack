@@ -1,13 +1,17 @@
 import { BunEnvironment } from "@destack/environment/bun";
-import { defineConfiguration } from "@destack/test/config";
+import { defineConfiguration, SCENARIO_MODULES, scenarioPlugin } from "@destack/test/config";
 import { fileURLToPath } from "node:url";
 
-/** The tests that run command lines on a computer of a universe. */
-const SCENARIO_TESTS = ["src/**/*.scenario.test.ts"];
+/** The tests and scenarios that run command lines on a computer of a universe. */
+const SCENARIO_TESTS = ["src/**/*.scenario.test.ts", SCENARIO_MODULES];
+
+/** The driver of the command line's scenarios. */
+const TERMINAL_DRIVER = fileURLToPath(new URL("src/test/driver.ts", import.meta.url));
 
 export default defineConfiguration(
     {
         root: fileURLToPath(new URL(".", import.meta.url)),
+        plugins: [scenarioPlugin([{ module: TERMINAL_DRIVER, name: "TerminalDriver" }])],
         ssr: { resolve: { conditions: ["bun"], externalConditions: ["bun"] } },
         // run the tests on sqlite, as machine's computers store
         targets: { database: ["sqlite"] },

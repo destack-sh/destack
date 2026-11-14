@@ -99,6 +99,12 @@ export class TerminalFixture {
         return new TerminalFixture(home, native, row, variables);
     }
 
+    /** Close the computer's client device, then the computer. */
+    async [Symbol.asyncDispose](): Promise<void> {
+        await this.native[Symbol.asyncDispose]();
+        await this.computer[Symbol.asyncDispose]();
+    }
+
     /** Read the address of one of the owner's spaces by its name. */
     address(space: string): SpaceAddress {
         const { handle } = this.computer.world.owner;
@@ -110,7 +116,7 @@ export class TerminalFixture {
     space(name: string): Promise<Identifier<"space">> {
         const { owner } = this.computer.world;
 
-        return this.computer.space(this.login, owner.account, name);
+        return this.computer.space(this.login.id, owner.account, name);
     }
 
     /** Make a terminal's process with only some environment variables, writing into its chunks. */

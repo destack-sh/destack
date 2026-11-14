@@ -40,6 +40,10 @@
     "scripts": {
         "typecheck": "tsc --project tsconfig.json && destack-check readme",
         "test": "bun --bun run vitest run --config vitest.config.ts",
-        "dev": "bun run src/main.ts"
+        "dev": "bun run src/main.ts",
+        "bench": "bun --bun run vitest run --config vitest.config.ts --project \"bench:*\""
+    },
+    "exports": {
+        "./scenario": "./src/scenario/index.ts"
     }
 }

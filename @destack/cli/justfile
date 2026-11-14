@@ -30,3 +30,7 @@ format *args:
 # run
 run *args:
     bun run dev {{args}}
+
+# benchmark
+bench:
+    bun run bench
