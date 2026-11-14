@@ -3,12 +3,15 @@
     "version": "2026.11.0",
     "license": "Apache-2.0",
     "type": "module",
-    "sideEffects": false,
+    "sideEffects": [
+        "./src/browser/baseline/install.ts"
+    ],
     "description": "Take every effect through one environment: time, randomness and the network, real or simulated.",
     "exports": {
         ".": "./src/index.ts",
         "./bun": "./src/bun.ts",
         "./browser": "./src/browser/index.ts",
+        "./baseline": "./src/browser/baseline/install.ts",
         "./simulation": "./src/simulation/index.ts",
         "./browser/simulation": "./src/browser/simulation.ts",
         "./workerd": "./src/workerd/index.ts",

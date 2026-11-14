@@ -14,6 +14,7 @@ Your code takes its effects from an environment:
 Targets have real environments:
 
 - `BunEnvironment`, `WorkerdEnvironment` and `BrowserEnvironment`: the system's effects on Bun, Cloudflare Workers and browsers.
+- `@destack/environment/baseline`: installs the web-standard members the target browsers lack (`BASELINE`), which the build runs first in every browser entry and worker.
 
 Tests use simulations:
 
