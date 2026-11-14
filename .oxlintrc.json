@@ -573,8 +573,6 @@
                 "@destack/db/src/test/write.ts",
                 "@destack/desktop/src/main.ts",
                 "@destack/desktop/src/machine.ts",
-                "@platform/release/src/distribution/build.ts",
-                "@platform/release/src/distribution/develop.ts",
                 "@destack/icon/src/phosphor/generate.ts",
                 "@destack/machine/src/cloudflare/worker.ts",
                 "@destack/machine/src/cloudflare/tail.ts",
