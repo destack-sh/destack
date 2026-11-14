@@ -15,6 +15,8 @@ import {
     insertEpoch,
 } from "./schema.ts";
 import { createLog } from "./trigger.ts";
+import { LogEntry, type SequencedEntry } from "./entry.ts";
+import type { TailRead } from "./tail.ts";
 import { committedEntry, latestOf, LogColumn, selectHead, type LogPosition } from "./position.ts";
 import { Snapshot, type Rewind } from "./snapshot.ts";
 import type { Row } from "../table/row.ts";
@@ -190,60 +192,6 @@ export interface ChangeSelection<Definition extends Table> {
     readonly scopes?: readonly string[];
 }
 
-/** One committed change as the log stores it. */
-interface LogEntry {
-    /** The entry's sequence, null for PostgreSQL's open transaction until it commits. */
-    readonly sequence: number | null;
-    /** The committing transaction. */
-    readonly transaction: string | null;
-    /** The changed table's SQL name. */
-    readonly table: string;
-    /** The encoded primary key, in key order. */
-    readonly key: readonly unknown[];
-    /** Insert, update or delete. */
-    readonly operation: "insert" | "update" | "delete";
-    /** The encoded row by column name, which its columns decode. */
-    readonly row: Readonly<Record<string, unknown>>;
-    /** The values an update changed, before it, by column name. */
-    readonly previous: Readonly<Record<string, unknown>> | null;
-    /** The changed row's scope. */
-    readonly scope: string;
-    /** The change time. */
-    readonly changedAt: number;
-}
-
-/** The log's change entries. */
-const LogEntry = {
-    /** Read an entry by its columns' driver types, since the log writes every entry itself. */
-    read(row: Readonly<Record<string, unknown>>, dialect: Dialect): LogEntry {
-        const previous = row["previous"];
-
-        return {
-            sequence: LogColumn.nullableInteger(row["sequence"]),
-            transaction: LogColumn.nullableText(row["transaction"]),
-            table: LogColumn.text(row["table"]),
-            key: LogColumn.array(row["key"], dialect),
-            operation: LogEntry.operation(row["operation"]),
-            row: LogColumn.object(row["row"], dialect),
-            previous: previous === null ? null : LogColumn.object(previous, dialect),
-            scope: LogColumn.text(row["scope"]),
-            changedAt: LogColumn.integer(row["changed_at"]),
-        };
-    },
-
-    /** Read an entry's operation, failing for any other value. */
-    operation(value: unknown): LogEntry["operation"] {
-        if (value !== "insert" && value !== "update" && value !== "delete") {
-            throw DatabaseError.of(
-                "QUERY_BROKEN",
-                `expected an operation from the log, got '${String(value)}'`,
-            );
-        }
-
-        return value;
-    },
-};
-
 /** The hex digits of a layout digest: 128 bits, with negligible collisions among tables. */
 const LAYOUT_LENGTH = 32;
 
@@ -374,11 +322,36 @@ export class Log {
         return this.#traced("position", () => this.#position());
     }
 
+    /** Run a read of the log in its span, recording by whom and whether it found changes. */
+    #readTraced<Page>(
+        reader: "tail" | "own",
+        run: () => Promise<Page>,
+        found: (page: Page) => number,
+    ): Promise<Page> {
+        // name the reader
+        const attributes = {
+            "db.namespace": this.database.state.name,
+            "destack.log.reader": reader,
+        };
+
+        // read, noting whether the read found changes
+        let outcome: "changes" | "empty" = "empty";
+        const read = async () => {
+            const page = await run();
+            outcome = found(page) > 0 ? "changes" : "empty";
+
+            return page;
+        };
+
+        return this.database.state.scope.span("destack.log.read", attributes, read, {
+            duration: {
+                attributes: () => ({ ...attributes, "destack.log.read.outcome": outcome }),
+            },
+        });
+    }
+
     /** Run a log verb in its span, recording its duration. */
-    #traced<Value>(
-        verb: "position" | "changed" | "read",
-        run: () => Promise<Value>,
-    ): Promise<Value> {
+    #traced<Value>(verb: "position" | "changed", run: () => Promise<Value>): Promise<Value> {
         const attributes = { "db.namespace": this.database.state.name };
 
         return this.database.state.scope.span(`destack.log.${verb}`, attributes, run, {
@@ -550,10 +523,14 @@ export class Log {
 
     /** Start a new epoch after a restore. */
     async renew(): Promise<string> {
+        // write a new epoch
         const epoch = Uuid.v7(this.database.state.environment);
         await this.database.run(
             sql`UPDATE ${sql.relation(LOG_EPOCH)} SET epoch = ${epoch} WHERE slot = 1`,
         );
+
+        // forget the process's tail, which read the old epoch
+        this.database.state.tail.reset();
 
         return epoch;
     }
@@ -562,7 +539,11 @@ export class Log {
     read<Definition extends Table>(
         selection: ChangeSelection<Definition>,
     ): Promise<ChangePage<Definition>> {
-        return this.#traced("read", () => this.#read(selection));
+        return this.#readTraced(
+            "own",
+            () => this.#read(selection),
+            (page) => page.changes.length,
+        );
     }
 
     /** Read a page of committed changes and its bounds in one statement. */
@@ -695,9 +676,9 @@ export class Log {
         const tables = new Set(selection.tables.map((table) => table[TABLE].sqlName));
         let after = selection.after;
         while (!signal.aborted) {
-            // read the page, noting the watch's generation before it
+            // read the page from the process's shared tail, noting the watch's generation before it
             const { generation } = this.database.state.commits;
-            const page = await this.read({ ...selection, after });
+            const page = await this.#next({ ...selection, after }, generation);
 
             // yield a page with changes, or an advance when asked
             const isYielded =
@@ -720,6 +701,83 @@ export class Log {
                 );
             }
         }
+    }
+
+    /** Read the next page a reader woken by commits sees, from the process's tail. */
+    next<Definition extends Table>(
+        selection: ChangeSelection<Definition>,
+    ): Promise<ChangePage<Definition>> {
+        return this.#next(selection, this.database.state.commits.generation);
+    }
+
+    /** Read a woken reader's next page from the process's shared tail, or on its own behind it. */
+    async #next<Definition extends Table>(
+        selection: ChangeSelection<Definition>,
+        generation: number,
+    ): Promise<ChangePage<Definition>> {
+        // read inside a transaction on its own, as the tail reads committed changes only
+        if (this.database.driver.transaction !== undefined) {
+            return await this.read(selection);
+        }
+
+        // read past the tail once for every follower woken by the same commits
+        const { tail } = this.database.state;
+        await tail.advance(generation, selection.after, (from) =>
+            this.#readTraced(
+                "tail",
+                () => this.#tailRead(from),
+                (read) => read.entries.length,
+            ),
+        );
+
+        // take the follower's tables from the tail, else read them on its own behind it
+        const tables = new Map(selection.tables.map((table) => [table[TABLE].sqlName, table]));
+        const scopes = selection.scopes === undefined ? undefined : new Set(selection.scopes);
+        const limit = selection.limit ?? PAGE_LIMIT;
+        const page = tail.page(selection.after, new Set(tables.keys()), scopes, limit);
+        if (page === undefined) {
+            return await this.read(selection);
+        }
+
+        // decode the follower's entries
+        const dialect = this.database.dialect;
+        const changes = page.entries.map((entry) => ({
+            sequence: entry.sequence,
+            ...decodeChange(entry, tableOf(tables, entry.table), dialect),
+        }));
+
+        return { changes, sequence: page.sequence, isLast: page.isLast };
+    }
+
+    /** Read a page of every table's entries past a sequence, completing its last transaction. */
+    async #tailRead(after: number): Promise<TailRead<SequencedEntry>> {
+        // read a page of every table's entries and the log's bounds in one statement
+        const rows = await ENTRY_READS.every.all(this.database, {
+            after,
+            limit: PAGE_LIMIT,
+            transaction: null,
+        });
+        const logged = LogColumn.nullableInteger(rows[0]?.["logged"]);
+        const horizon = LogColumn.integer(rows[0]?.["horizon"]);
+
+        // complete the last transaction of a full page
+        let entries = presentEntries(rows, this.database.dialect);
+        const isLast = entries.length < PAGE_LIMIT;
+        const last = entries.at(-1);
+        if (!isLast && last !== undefined && last.transaction !== null) {
+            const rest = await ENTRY_READS.everyRest.all(this.database, {
+                after: last.sequence,
+                limit: null,
+                transaction: last.transaction,
+            });
+            entries = [...entries, ...presentEntries(rest, this.database.dialect)];
+        }
+
+        // end a full page at its last entry, else at the head
+        const end = entries.at(-1)?.sequence ?? after;
+        const sequence = isLast ? Math.max(end, latestOf(logged, horizon)) : end;
+
+        return { entries, sequence, horizon, isLast };
     }
 
     /** Report whether the log includes a sequence, reading its head only past the announced one. */
@@ -1019,16 +1077,28 @@ interface LogHead {
     readonly written: readonly string[];
 }
 
-/** The statements reading log entries after a sequence, scoped or not, paged or a rest. */
+/** The statements reading log entries after a sequence: a page or a transaction's rest. */
 const ENTRY_READS = {
-    page: entryRead(false, false),
-    scopedPage: entryRead(true, false),
-    rest: entryRead(false, true),
-    scopedRest: entryRead(true, true),
+    page: entryRead({ tables: "listed", isScoped: false, part: "page" }),
+    scopedPage: entryRead({ tables: "listed", isScoped: true, part: "page" }),
+    rest: entryRead({ tables: "listed", isScoped: false, part: "rest" }),
+    scopedRest: entryRead({ tables: "listed", isScoped: true, part: "rest" }),
+    every: entryRead({ tables: "every", isScoped: false, part: "page" }),
+    everyRest: entryRead({ tables: "every", isScoped: false, part: "rest" }),
 };
 
+/** Which entries a read takes: its tables, whether in listed scopes only, and which part. */
+interface EntryShape {
+    /** The tables read: those the selection lists, or every table, as a shared tail reads. */
+    readonly tables: "listed" | "every";
+    /** Whether the read keeps the listed scopes only. */
+    readonly isScoped: boolean;
+    /** A page up to a limit, or the rest of one transaction. */
+    readonly part: "page" | "rest";
+}
+
 /** Build the statement reading log entries after a sequence. */
-function entryRead(isScoped: boolean, isRest: boolean): Statement {
+function entryRead(shape: EntryShape): Statement {
     // select the bounds and entries
     const log = sql.relation(LOG);
 
@@ -1042,11 +1112,11 @@ function entryRead(isScoped: boolean, isRest: boolean): Statement {
                 SELECT sequence, "transaction", "table", key, operation, "row", previous, scope, changed_at
                 FROM ${log}
                 WHERE sequence > ${value("after")}
-                    ${isRest ? sql`AND "transaction" = ${value("transaction")}` : sql``}
-                    AND ${listed(sql`"table"`, value("tables"))}
-                    ${isScoped ? sql`AND ${listed(sql`scope`, value("scopes"))}` : sql``}
+                    ${shape.part === "rest" ? sql`AND "transaction" = ${value("transaction")}` : sql``}
+                    ${shape.tables === "listed" ? sql`AND ${listed(sql`"table"`, value("tables"))}` : sql``}
+                    ${shape.isScoped ? sql`AND ${listed(sql`scope`, value("scopes"))}` : sql``}
                 ORDER BY sequence
-                ${isRest ? sql`` : sql`LIMIT ${value("limit")}`}
+                ${shape.part === "rest" ? sql`` : sql`LIMIT ${value("limit")}`}
             )
             SELECT bounds.logged, bounds.horizon, entries.*
             FROM bounds
@@ -1141,7 +1211,7 @@ function decodeKey<Definition extends Table>(
 function presentEntries(
     rows: readonly Record<string, unknown>[],
     dialect: Dialect,
-): (LogEntry & { readonly sequence: number })[] {
+): SequencedEntry[] {
     return rows
         .filter((row) => row["sequence"] !== null)
         .map((row) => ({

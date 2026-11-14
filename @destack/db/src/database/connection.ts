@@ -42,6 +42,8 @@ import { TransactionIdentity } from "../log/transaction.ts";
 import { Log } from "../log/log.ts";
 import { Transaction } from "../log/commit.ts";
 import { type Announcer, CommitWatch } from "../log/watch.ts";
+import { LogTail } from "../log/tail.ts";
+import type { SequencedEntry } from "../log/entry.ts";
 import { LOG_TABLES, LOG_TOPIC } from "../log/schema.ts";
 import { ReadCache } from "../log/cache.ts";
 import { Commit, typedChannel, type Channel } from "../channel/channel.ts";
@@ -662,6 +664,8 @@ export class ConnectionState {
     #dependent: ReadonlySet<string> = new Set();
     /** The commits this connection's readers wait for. */
     readonly commits: CommitWatch;
+    /** The process's latest read of the log, which its followers share. */
+    readonly tail = new LogTail<SequencedEntry>();
     /** Open a channel of a name to the database's other connections, absent for a sole writer. */
     readonly openChannel: ((name: string) => Channel<unknown>) | undefined;
     /** The database's namespace in a shared SQLite store, absent for a separate database. */

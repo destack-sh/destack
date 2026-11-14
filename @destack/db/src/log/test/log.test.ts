@@ -200,6 +200,33 @@ test("log committed changes of tables in commit order", async () => {
     expect([(await following.next()).done, (await advancing.next()).done]).toEqual([true, true]);
 });
 
+test("share one read of the log among the followers a commit wakes", async () => {
+    const { database, simulation } = await open();
+
+    // follow the notes three times from the head, then commit a note
+    const controller = new AbortController();
+    onTestFinished(() => controller.abort());
+    const before = await Recording.read(simulation.telemetry);
+    const { sequence } = await database.log.position();
+    const follows = [1, 2, 3].map(() =>
+        database.log.follow({ tables: [note], after: sequence }, controller.signal),
+    );
+    const pages = Promise.all(follows.map((follow) => follow.next()));
+    await database.transaction((transaction) => transaction.insert(note).values(first).execute());
+
+    // expect every follower to receive the note once, through one read for the first page and one for the commit
+    const received = await pages;
+    const reads = (await Recording.read(simulation.telemetry))
+        .since(before)
+        .count({ name: "destack.log.read.duration" });
+    expect({
+        keys: received.map((page) =>
+            page.done === true ? [] : page.value.changes.map((change) => change.key),
+        ),
+        reads,
+    }).toEqual({ keys: [[{ id: "a" }], [{ id: "a" }], [{ id: "a" }]], reads: 2 });
+});
+
 test("read the changes the open transaction wrote before its commit, after a log id", async () => {
     const { database } = await open();
     await database.transaction((transaction) => transaction.insert(note).values(first).execute());

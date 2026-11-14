@@ -114,7 +114,7 @@ export class Projection implements Cursor {
         const after = this.#after;
         if (after !== undefined) {
             try {
-                const page = await database.log.read({ tables: this.tables, after });
+                const page = await database.log.next({ tables: this.tables, after });
                 if (page.changes.length === 0) {
                     return undefined;
                 }

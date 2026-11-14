@@ -935,7 +935,7 @@ export class ControlLoop {
         // read one watched change past the cursor, for the follow running as the read starts
         const relisting = this.#relisting;
         try {
-            const page = await this.database.log.read({
+            const page = await this.database.log.next({
                 tables: this.#watched,
                 after: this.#followed,
                 limit: 1,
