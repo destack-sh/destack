@@ -77,7 +77,7 @@ export class Setup {
 
     /** Install the signed distribution and register a stable command in the user's directory. */
     static async install(environment: CliEnvironment, source?: string): Promise<void> {
-        // require the compiled executable, and the desktop's libraries on Linux
+        // require the compiled executable, and a regular user on Linux
         if (!environment.process.runtime.isStandalone) {
             throw CliError.of(
                 "INSTALLATION_BLOCKED",
@@ -86,7 +86,7 @@ export class Setup {
         }
         const { os } = environment.host;
         if (os === "linux") {
-            await Distribution.requireDesktop(environment.process);
+            Distribution.requireRegularUser(environment.process);
         }
 
         // find a native package's installed payload, else the Mac application this executable runs from
