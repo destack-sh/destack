@@ -688,14 +688,13 @@ export class Log {
                 yield page;
             }
 
-            // read on after a full page, else wait for a commit past it
+            // read on after a full page, else wait for a commit since the read
             if (page.isLast) {
-                const next = after + 1;
                 await this.waitUntil(
                     async (committed) =>
-                        (options.isAdvancing === true ||
-                            [...committed].some((table) => tables.has(table))) &&
-                        (await this.#includes(next)),
+                        options.isAdvancing === true
+                            ? committed.size > 0
+                            : [...committed].some((table) => tables.has(table)),
                     signal,
                     generation,
                 );
