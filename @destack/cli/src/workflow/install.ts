@@ -1,4 +1,4 @@
-import { Failure } from "@destack/error";
+import { ForgeError } from "@destack/forge/error";
 import { LATEST_TAG } from "@destack/registry/object";
 import { type PackageId, PackageName } from "@destack/package";
 import { type Identifier, present, Version } from "@destack/schema";
@@ -44,10 +44,11 @@ export function installCommand(context: Context): Verb {
                 .resolve({ spaceId: home, parentId: found.id, release })
                 .catch((error: unknown) => {
                     // name the package the person asked for, as the forge names it by its id
-                    if (Failure.of(error).reason === "RELEASE_NOT_FOUND") {
+                    if (ForgeError.is(error, "RELEASE_NOT_FOUND")) {
                         throw CliError.of(
                             "RELEASE_NOT_FOUND",
                             `release '${release}' of '${packageName}' not found`,
+                            { cause: error },
                         );
                     }
                     throw error;
