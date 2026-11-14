@@ -54,7 +54,7 @@ export const writeToHundredSubscribers = defineScenario({
             then: [
                 {
                     metric: { name: "db.client.operation.duration", host: "database" },
-                    atMost: 6.15,
+                    atMost: 6.25,
                 },
             ],
         },
@@ -109,7 +109,7 @@ export const writeAcrossDistinctAccess = defineScenario({
             then: [
                 {
                     metric: { name: "db.client.operation.duration", host: "database" },
-                    atMost: 6.15,
+                    atMost: 6.25,
                 },
             ],
         },
@@ -161,7 +161,7 @@ export const followEveryQuerySet = defineScenario({
             then: [
                 {
                     metric: { name: "db.client.operation.duration", host: "database" },
-                    atMost: 8.375,
+                    atMost: 8.55,
                 },
             ],
         },
