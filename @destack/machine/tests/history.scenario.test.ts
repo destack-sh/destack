@@ -1,10 +1,10 @@
 import { Snapshot } from "@destack/db";
 import { installation } from "@destack/object";
-import { rollout } from "@destack/stack/object";
 import { OWNER_EMAIL, TestComputer, TestDistribution } from "@destack/machine/computer/test";
 import { expect, test } from "@destack/test";
 import { present } from "@destack/schema";
 import { entry } from "@destack/machine-journal-fixture/object";
+import journalPackage from "@destack/machine-journal-fixture/package";
 import binderPackage from "@destack/machine-binder-fixture/package";
 
 test("serve a tracked type that reads through its space in a team space, the space up beside it", async () => {
@@ -20,13 +20,25 @@ test("serve a tracked type that reads through its space in a team space, the spa
     await home.install(login.id, space, build, "journal");
     await home.ready(space);
 
-    // serve the journal's entries in the space's store, the space up beside them
+    // serve the journal's entries in the space's store, its installation reading why, the space up beside them
     const served = await home.machine.space(space);
     const store = await served.store();
+    const installed = present(
+        await Snapshot.live(served.database)
+            .read(installation.table)
+            .findFirst({ where: { scope: space, packageId: journalPackage.id } }),
+        "the journal's installation",
+    );
+    const serving = installed.conditions["Serving"];
     expect({
         isServed: store.objects.some((type) => type.same(entry)),
+        serving: [serving?.status, serving?.reason, serving?.message],
         health: served.health.status,
-    }).toEqual({ isServed: true, health: "up" });
+    }).toEqual({
+        isServed: true,
+        serving: ["true", "Served", `serving revision ${installed.revisionId}`],
+        health: "up",
+    });
 });
 
 test("refuse serving an installation whose tracked type reads through a type without history, the space up beside it", async () => {
@@ -43,7 +55,7 @@ test("refuse serving an installation whose tracked type reads through a type wit
         .install(login.id, space, build, "binder")
         .catch((error: unknown) => error);
 
-    // read the rollout's refusal and the installation's failure
+    // read the installation's Serving and its failure
     const served = await home.machine.space(space);
     const snapshot = Snapshot.live(served.database);
     const installed = present(
@@ -52,24 +64,26 @@ test("refuse serving an installation whose tracked type reads through a type wit
             .findFirst({ where: { scope: space, packageId: binderPackage.id } }),
         "the binders' installation",
     );
-    const rolled = await snapshot
-        .read(rollout.table)
-        .findFirst({ where: { installationId: installed.id } });
-    const reason = "object 'sheet' records history but reads through 'binder', which has no history";
-    const failure = `@destack/stack SERVING_BLOCKED: cannot serve revision ${installed.revisionId}: ${reason}`;
+    const reason =
+        "object 'sheet' records history but reads through 'binder', which has no history";
+    const failure = `@destack/stack SERVING_BLOCKED: cannot serve revision '${installed.revisionId}': ${reason}`;
 
     // refuse it alone, naming why, and keep the space up
     expect({
         installing,
-        refusal: rolled?.refusal,
+        serving: [
+            installed.conditions["Serving"]?.status,
+            installed.conditions["Serving"]?.reason,
+            installed.conditions["Serving"]?.message,
+        ],
         synced: installed.conditions["Synced"]?.message,
         health: served.health.status,
         captured: world.telemetry.take().map((captured) => captured.message),
     }).toEqual({
         installing: new TypeError(`'binder' did not apply: '${failure}'`),
-        refusal: reason,
+        serving: ["false", "Refused", reason],
         synced: failure,
         health: "up",
-        captured: [`cannot serve revision ${installed.revisionId}: ${reason}`],
+        captured: [`cannot serve revision '${installed.revisionId}': ${reason}`],
     });
 });

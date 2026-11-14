@@ -944,14 +944,13 @@ test("serve a space whose installation fails to start", async () => {
         requestId: RequestId.create(computer.environment),
     });
 
-    // restart the computer, which starts the space, then wait for its reconcile to leave the installation unserved
+    // restart the computer, which starts the space, then wait until it serves the rest without the installation
     const restarted = await computer.restart();
     const started = await world.simulation.wait(restarted.machine.space(space));
-    const lagging = "installation regional does not serve its revision yet";
     const settled = await world.simulation.wait(
         (async () => {
             for await (const state of started.health.watch()) {
-                if (state.reason === lagging) {
+                if (state.status === "up") {
                     return state;
                 }
             }
@@ -959,6 +958,21 @@ test("serve a space whose installation fails to start", async () => {
             throw new Error("the space's health stopped before its reconcile");
         })(),
     );
+
+    // wait until the installation reads the failure
+    const read = async () =>
+        present(
+            await Snapshot.live(started.database)
+                .read(installation.table)
+                .findFirst({ where: { scope: space, packageId: released.id } }),
+            "the regional installation",
+        );
+    await restarted.waitUntil(
+        started.database,
+        async () => (await read()).conditions["Synced"]?.status === "false",
+    );
+    const installed = await read();
+    const condition = present(installed.conditions["Serving"], "the installation's Serving");
 
     // ask the installation, which answers not served yet with when to retry
     const answered = await world.simulation.wait(
@@ -969,16 +983,20 @@ test("serve a space whose installation fails to start", async () => {
         ),
     );
 
-    // the space starts, reports the installation that failed first, and refuses it with a retry
+    // serve the rest, naming the installation that fails to start, which refuses calls with a retry
     expect({
         status: settled.status,
         reason: settled.reason,
+        serving: [condition.status, condition.reason],
         reported: Failure.of(await restarted.reported).message,
         answered: [answered.status, answered.headers.get("retry-after")],
+        captured: world.telemetry.take().map((captured) => captured.message),
     }).toEqual({
-        status: "starting",
-        reason: lagging,
+        status: "up",
+        reason: `every installation serves its revision but regional (StartFailed: ${condition.message})`,
+        serving: ["false", "StartFailed"],
         reported: "installation 'regional' serves nothing: its server did not start",
         answered: [503, "1"],
+        captured: [`cannot serve revision '${installed.revisionId}': ${condition.message}`],
     });
 });

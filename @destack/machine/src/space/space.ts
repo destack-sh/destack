@@ -1,6 +1,7 @@
 import type * as packageRuntime from "@destack/package/runtime";
 import type { defineDatabase } from "@destack/db";
 import { openStore, ownServers } from "./store.ts";
+import { Failure } from "@destack/error";
 import type { ClaimPrimary, ExternalStorage } from "@destack/object/server";
 import type { Follow, ObjectType } from "@destack/object";
 import {
@@ -118,6 +119,8 @@ import {
     ObjectBindable,
     Rollout,
     rollout,
+    type Serving,
+    type ServingReason,
     SPACE_PROVIDER,
     type SpaceProvider,
     StoreProvider,
@@ -204,16 +207,20 @@ export interface InstallationBuild {
 
 /** An installation's server as one start serves it: its load, and its server or sandbox. */
 interface ServedEntry {
-    /** Its build's load: a trusted server, absent for a build without one, a sandbox, or none. */
+    /** Its build's load: a trusted server or none, a sandbox, or why it failed. */
     readonly load:
         | { readonly kind: "host"; readonly server: PackageImplementation | undefined }
         | { readonly kind: "sandbox" }
-        | { readonly kind: "unserved" };
-    /** The server or sandbox serving it, absent for one that failed to load. */
+        | { readonly kind: "failed"; readonly error: unknown };
+    /** The server or sandbox serving it, or why it failed to load or start. */
     readonly served:
         | { readonly kind: "server"; readonly server: PackageImplementation }
         | { readonly kind: "sandbox"; readonly sandbox: HookSandbox }
-        | undefined;
+        | {
+              readonly kind: "failed";
+              readonly reason: Extract<ServingReason, "LoadFailed" | "StartFailed">;
+              readonly error: unknown;
+          };
 }
 
 /** One start of a space's workload: its role, the store and gateway it serves, and its buckets. */
@@ -865,10 +872,7 @@ export class Space {
     ): Promise<{
         readonly servers: readonly PackageImplementation[];
         readonly sandboxes: readonly HookSandbox[];
-        readonly revisions: ReadonlyMap<
-            Identifier<"installation">,
-            Identifier<"installation-revision">
-        >;
+        readonly serving: ReadonlyMap<Identifier<"installation">, Serving>;
     }> {
         // keep this start's servers served before, by installation, revision and lock
         const earlier: ReadonlyMap<string, ServedEntry> =
@@ -901,7 +905,7 @@ export class Space {
                         ),
                     );
 
-                    return { kind: "unserved" } as const;
+                    return { kind: "failed", error } as const;
                 }
             }),
         );
@@ -913,45 +917,53 @@ export class Space {
         const entries = new Map<string, ServedEntry>();
         const servers: PackageImplementation[] = [];
         const sandboxes: HookSandbox[] = [];
-        const revisions = new Map<
-            Identifier<"installation">,
-            Identifier<"installation-revision">
-        >();
+        const serving = new Map<Identifier<"installation">, Serving>();
         for (const [index, entry] of installed.entries()) {
             const key = present(keys[index], "the installation's key");
             const load = present(
                 loaded[index],
                 `the load of installation ${entry.rollout.installationId}`,
             );
+            // reuse an earlier served entry, starting a failed or new one again
+            const kept = earlier.get(key)?.served;
             const served =
-                earlier.get(key)?.served ??
-                (await this.#serve(entry, load, { signal, trusted }).catch((error: unknown) => {
-                    // report an installation that fails to start, and start the space without it
-                    const name = entry.rollout.installation.name ?? entry.rollout.installationId;
-                    this.#current().context.report(
-                        new Error(
-                            `installation '${name}' serves nothing: its server did not start`,
-                            { cause: error },
-                        ),
-                    );
+                kept !== undefined && kept.kind !== "failed"
+                    ? kept
+                    : await this.#serve(entry, load, { signal, trusted }).catch(
+                          (error: unknown) => {
+                              // report an installation that fails to start, and start the space without it
+                              const name =
+                                  entry.rollout.installation.name ?? entry.rollout.installationId;
+                              this.#current().context.report(
+                                  new Error(
+                                      `installation '${name}' serves nothing: its server did not start`,
+                                      { cause: error },
+                                  ),
+                              );
 
-                    return undefined;
-                }));
+                              return { kind: "failed", reason: "StartFailed", error } as const;
+                          },
+                      );
             entries.set(key, { load, served });
 
-            // record the revision of each installation the start serves, in its store or its sandbox
-            if (served !== undefined) {
-                revisions.set(entry.rollout.installationId, entry.revisionId);
-            }
-            if (served?.kind === "server") {
+            // serve each installation in its store or its sandbox, else record why it failed
+            const { installationId } = entry.rollout;
+            if (served.kind === "failed") {
+                serving.set(installationId, {
+                    reason: served.reason,
+                    message: Failure.of(served.error).message,
+                });
+            } else if (served.kind === "server") {
                 servers.push(served.server);
-            } else if (served?.kind === "sandbox") {
+                serving.set(installationId, { revisionId: entry.revisionId });
+            } else {
                 sandboxes.push(served.sandbox);
+                serving.set(installationId, { revisionId: entry.revisionId });
             }
         }
         this.#served = { signal, entries };
 
-        return { servers, sandboxes, revisions };
+        return { servers, sandboxes, serving };
     }
 
     /** Build the controller applying the space's installed set at each start and change of it. */
@@ -970,25 +982,29 @@ export class Space {
         };
     }
 
-    /** Serve an installed set in this start: hand the store its changed servers, record what it serves. */
+    /** Serve an installed set in this start, recording what it serves of each installation. */
     async #serveInstalled(installed: readonly InstallationBuild[]): Promise<void> {
         // load the set's servers, reusing this start's, and hand them to the store once the served set changes
         const start = this.#current();
         const store = await start.store.promise;
         const { signal } = start.context;
         const before = this.#served?.signal === signal ? this.#serving() : undefined;
-        const { servers, sandboxes, revisions } = await this.#servers(installed, signal);
+        const { servers, sandboxes, serving } = await this.#servers(installed, signal);
         const after = this.#serving();
         if (before === undefined || before.symmetricDifference(after).size > 0) {
-            await start.context.serve(store.apply(this.#storeServers(servers), sandboxes));
+            start.context.serve(store.apply(this.#storeServers(servers), sandboxes));
         }
 
-        // record the revision of each installation the start serves, and why its store refuses any
-        const refusals = new Map(
-            store.refused.map(({ installation, error }) => [installation, error.message]),
-        );
-        const served = new Map([...revisions].filter(([id]) => !refusals.has(id)));
-        await Rollout.serve(store, this.id, served, refusals);
+        // record what the start serves of each installation, the ones its store leaves out with why
+        const left = [
+            ...store.refused.map((each) => ({ ...each, reason: "Refused" as const })),
+            ...store.waiting.map((each) => ({ ...each, reason: "WaitingForTypes" as const })),
+        ];
+        const outcomes = new Map(serving);
+        for (const each of left) {
+            outcomes.set(each.installation, { reason: each.reason, message: each.error.message });
+        }
+        await Rollout.serve(store, this.id, outcomes);
 
         // read the mounts the set declares
         start.mounts = Space.#mounts(installed);
@@ -999,7 +1015,7 @@ export class Space {
         const entries = this.#served?.entries ?? new Map<string, ServedEntry>();
 
         return new Set(
-            [...entries].flatMap(([key, entry]) => (entry.served === undefined ? [] : [key])),
+            [...entries].flatMap(([key, entry]) => (entry.served.kind === "failed" ? [] : [key])),
         );
     }
 
@@ -1152,8 +1168,8 @@ export class Space {
         // serve a loaded server in the store, activated once its revision and any lent grant exist
         const { signal, trusted } = run;
         const stored = load.kind === "host" ? load.server : undefined;
-        if (load.kind === "unserved") {
-            return undefined;
+        if (load.kind === "failed") {
+            return { kind: "failed", reason: "LoadFailed", error: load.error };
         }
         const revision = await Snapshot.live(this.database)
             .read(installationRevision.table)
@@ -2343,7 +2359,7 @@ export class Space {
         );
         const lagging = rows.find(
             (row) =>
-                row.refusal === null &&
+                Rollout.servingFailure(row.installation) === undefined &&
                 (row.revisionId === null ||
                     row.appliedRevisionId !== row.revisionId ||
                     row.servedRevisionId !== row.revisionId),
@@ -2364,8 +2380,23 @@ export class Space {
                 "starting",
                 `installation ${installed} does not serve its revision yet${condition}`,
             ];
-        } else {
-            return ["up", "every installation serves its revision"];
+        }
+        // serve the rest, naming each installation the space fails to serve
+        else {
+            const failed = rows.flatMap((row) => {
+                const failure = Rollout.servingFailure(row.installation);
+
+                return failure === undefined
+                    ? []
+                    : [`${row.installation.name} (${failure.reason}: ${failure.message})`];
+            });
+
+            return [
+                "up",
+                failed.length === 0
+                    ? "every installation serves its revision"
+                    : `every installation serves its revision but ${failed.join(", ")}`,
+            ];
         }
     }
 

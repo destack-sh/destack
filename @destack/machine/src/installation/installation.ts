@@ -148,11 +148,10 @@ export function implementInstallations(options: InstallationOptions) {
 function rolloutProjection(options: InstallationOptions): ObjectProjection<typeof rollout> {
     return {
         watches: [
-            // project a new rollout, a moved served revision or refusal, and a followed space stack, past its own applied and consumed records
+            // project a new rollout, a moved served revision, and a followed space stack, past its own applied and consumed records
             ObjectWatch.of(rollout.table, (row, _database, change) =>
                 change.operation !== "update" ||
                 change.before.servedRevisionId !== change.after.servedRevisionId ||
-                change.before.refusal !== change.after.refusal ||
                 change.before.spaceStack !== change.after.spaceStack
                     ? [rolloutKey(row)]
                     : [],
@@ -175,11 +174,12 @@ function rolloutProjection(options: InstallationOptions): ObjectProjection<typeo
                 return;
             }
 
-            // refuse an installation the space refuses to serve, else apply the space's stack or deploy the application at the release it selects
-            if (target.refusal !== null) {
+            // fail an installation the space fails to serve, else apply the space's stack or deploy the application at the release it selects
+            const failure = Rollout.servingFailure(target.installation);
+            if (failure !== undefined) {
                 throw StackError.of(
                     "SERVING_BLOCKED",
-                    `cannot serve revision ${target.revisionId}: ${target.refusal}`,
+                    `cannot serve revision '${target.revisionId}': ${failure.message}`,
                 );
             } else if (target.installation.export !== null) {
                 await new StackInstallation(target, options).reconcile(reconciliation);
@@ -646,10 +646,12 @@ function rolloutWatches(
                 { isObserving: true },
             ),
         ),
-        // wake an installation's rollout and its stack once it comes, goes or changes, past its observed status
+        // wake an installation's rollout and its stack once it comes, goes, changes or is served otherwise, past its other observed status
         ObjectWatch.of(installation.table, (row, _database, change) =>
             change.operation === "update" &&
-            change.before["generation"] === change.after["generation"]
+            change.before["generation"] === change.after["generation"] &&
+            canonicalize(change.before.conditions["Serving"] ?? null) ===
+                canonicalize(change.after.conditions["Serving"] ?? null)
                 ? []
                 : [
                       { installationId: row.id },
