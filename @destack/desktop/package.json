@@ -54,8 +54,8 @@
     "scripts": {
         "typecheck": "tsc --project tsconfig.json && destack-check readme",
         "test": "bun --bun run vitest run --config vitest.config.ts --project 'unit:*' --project 'scenario:*'",
-        "build": "bun run ../../@platform/release/src/distribution/build.ts",
-        "dev": "bun run ../../@platform/release/src/distribution/develop.ts",
+        "build": "bun run ../../@platform/release/src/main.ts distribution build",
+        "dev": "bun run ../../@platform/release/src/main.ts distribution develop",
         "bench": "bun --bun run vitest run --config vitest.config.ts --project \"bench:*\""
     }
 }
