@@ -198,7 +198,7 @@ export class LocalUniverse implements AsyncDisposable {
         options.print("universe", "started");
 
         // write the distribution once, then start each residency's cloud machine shipping it
-        const directory = LocalUniverse.#distribution(options);
+        const directory = LocalUniverse.distribution(options);
         await build.writeDistribution(directory);
         await build.writeLayer(directory);
         const { environment } = build.store;
@@ -368,7 +368,7 @@ export class LocalUniverse implements AsyncDisposable {
     }
 
     /** Read the directory of the distribution the machines ship. */
-    static #distribution(options: Pick<DevelopmentOptions, "directory">): string {
+    static distribution(options: Pick<DevelopmentOptions, "directory">): string {
         return join(options.directory, "distribution");
     }
 
@@ -474,7 +474,7 @@ export class LocalUniverse implements AsyncDisposable {
                     DESTACK_DIRECTORY: home.directory,
                     DESTACK_UNIVERSE: this.deployment.universeOrigin,
                     DESTACK_PORT: String(port),
-                    DESTACK_DISTRIBUTION: LocalUniverse.#distribution(options),
+                    DESTACK_DISTRIBUTION: LocalUniverse.distribution(options),
                 },
                 print: (name, line) => options.print(name, line),
             },

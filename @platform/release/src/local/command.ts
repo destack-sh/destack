@@ -1,7 +1,8 @@
 import { resolve } from "node:path";
 import { StageHome } from "@destack/machine/computer";
 import { Stage } from "@destack/update/release";
-import type { Environment, HostCapability } from "@destack/environment";
+import { Environment, type HostCapability, Telemetry } from "@destack/environment";
+import { SeverityNumber } from "@destack/telemetry";
 import { printStatus } from "../distribution/output.ts";
 import { LOOPBACK_LAYOUT } from "../deployment/deployment.ts";
 import { CHECKOUT } from "../distribution/distribution.ts";
@@ -21,8 +22,20 @@ export async function serveLocal(
     environment: Environment<HostCapability>,
     arguments_: readonly string[],
 ): Promise<void> {
+    // print the warnings and failures of the universe and the cloud machines this process runs
+    const telemetry = Telemetry.local(
+        environment.clock,
+        (line, severity) => {
+            if (severity >= SeverityNumber.WARN) {
+                printStatus("stage", line.trimEnd(), environment);
+            }
+        },
+        environment.telemetry.context,
+    );
+    const staged = Environment.instrument({ ...environment, telemetry }, telemetry);
+
     // start the universe and its cloud machines, then the local stage's machine
-    const options = localOptions(arguments_, environment);
+    const options = localOptions(arguments_, staged);
     const universe = await LocalUniverse.start({
         ...options,
         root: CHECKOUT,
@@ -36,7 +49,10 @@ export async function serveLocal(
     }
     printStatus("machine", `http://127.0.0.1:${LOOPBACK_LAYOUT.machine}`, environment);
     // print how to open the stage in a browser, the desktop app and the cli, each on this state
-    const device = options.home.isCustom ? ` DESTACK_DIRECTORY=${options.home.directory}` : "";
+    const directory = options.home.isCustom
+        ? ` DESTACK_DIRECTORY=${quoted(options.home.directory)}`
+        : "";
+    const device = `${directory} DESTACK_DISTRIBUTION=${quoted(LocalUniverse.distribution(options))}`;
     printStatus(
         "ready",
         `http://127.0.0.1:${LOOPBACK_LAYOUT.universe}/ opens Destack in a browser`,
@@ -116,4 +132,9 @@ function localOptions(
         layout: LOOPBACK_LAYOUT,
         environment,
     };
+}
+
+/** Quote a path for a POSIX shell, its single quotes escaped. */
+function quoted(path: string): string {
+    return `'${path.replaceAll("'", "'\\''")}'`;
 }
