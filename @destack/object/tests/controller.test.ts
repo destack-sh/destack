@@ -58,10 +58,13 @@ const reminder = defineObject(
     ],
 });
 
-/** The outcomes of the gates' passes in order, and the pass a held gate waits in until released. */
+/** The gates' passes, which a test resets before it holds one. */
 const passes = {
+    /** The outcomes each pass read, in order. */
     outcomes: new Array<string>(),
+    /** Resolved once a pass holds a gate. */
     entered: Promise.withResolvers<void>(),
+    /** Resolved to end the held pass. */
     released: Promise.withResolvers<void>(),
 };
 
@@ -90,11 +93,14 @@ const gate = defineObject(
         {
             pending: { generation: { gt: { field: "syncedGeneration" } } },
             // refuse, fail or hold each gate as its outcome says
-            reconcile: async ({ rows }) => {
+            reconcile: async ({ rows, signal }) => {
                 for (const row of rows) {
                     passes.outcomes.push(row.outcome);
                     if (row.outcome === "held") {
                         passes.entered.resolve();
+                        signal.addEventListener("abort", () =>
+                            passes.released.reject(signal.reason),
+                        );
                         await passes.released.promise;
                     } else if (row.outcome === "refused") {
                         throw Failure.error({
@@ -543,7 +549,9 @@ test("reconcile a controlled object changed during its pass again, syncing it at
     });
 
     // create a held gate, and open it while its first pass waits
-    passes.outcomes.length = 0;
+    passes.outcomes = [];
+    passes.entered = Promise.withResolvers();
+    passes.released = Promise.withResolvers();
     const access = userContext(users.frank, spaceId, { environment: world }).access();
     const [held] = await store.mutate(access, {
         id: RequestId.create(world),
@@ -563,13 +571,36 @@ test("reconcile a controlled object changed during its pass again, syncing it at
     await loop.idle();
 
     // pass the opened gate once more, and sync it at its second generation only then
-    const [row] = await database.select().from(gate.table);
+    const rows = await database.select().from(gate.table);
     expect({
         outcomes: passes.outcomes,
-        synced: row?.syncedGeneration,
-        observed: row?.conditions["Synced"]?.observedGeneration,
+        gates: rows.map((row) => [
+            row.outcome,
+            row.generation,
+            row.syncedGeneration,
+            row.conditions,
+        ]),
         reported,
-    }).toEqual({ outcomes: ["held", "open"], synced: 2, observed: 2, reported: [] });
+    }).toEqual({
+        outcomes: ["held", "open"],
+        gates: [
+            [
+                "open",
+                2,
+                2,
+                {
+                    Synced: {
+                        status: "true",
+                        observedGeneration: 2,
+                        reason: "ReconcileSuccess",
+                        message: "",
+                        lastTransitionAt: world.clock.now(),
+                    },
+                },
+            ],
+        ],
+        reported: [],
+    });
 });
 
 test("record a lasting projection failure on a controlled object as its synced condition, and sync it once projected", async () => {
