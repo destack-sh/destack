@@ -494,10 +494,12 @@ export class Space {
 
                     return { packages: store.packages };
                 }
-                // reject the waits, each handled here as well as by its callers
+                // mark the space down, and refuse its waits as unavailable with why, each handled here as well
                 catch (error) {
-                    start.store.reject(error);
-                    start.gateway.reject(error);
+                    this.health.set("down", `it cannot start: ${Failure.of(error).message}`);
+                    const refusal = present(this.health.refusal(), "the refusal of a space down");
+                    start.store.reject(refusal);
+                    start.gateway.reject(refusal);
                     start.store.promise.catch(() => undefined);
                     start.gateway.promise.catch(() => undefined);
                     throw error;
