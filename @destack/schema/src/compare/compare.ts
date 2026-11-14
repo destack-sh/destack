@@ -1,4 +1,3 @@
-import { canonicalize } from "../json/json.ts";
 import type { JsonSchema } from "../json/schema.ts";
 
 /** How the values a schema accepts changed, from the same values to unrelated ones. */
@@ -55,6 +54,12 @@ const KEYWORDS = new Set([
 
 /** Compare two JSON Schema Draft 2020-12 descriptions by the values each accepts. */
 export function compareJsonSchemas(before: JsonSchema, after: JsonSchema): SchemaComparison {
+    // answer equal descriptions at once, as they accept the same values
+    if (equals(before, after)) {
+        return "same";
+    }
+
+    // prove each direction's inclusion
     const isWider = new Inclusion(after, before).includes(after, before);
     const isNarrower = new Inclusion(before, after).includes(before, after);
 
@@ -519,7 +524,38 @@ function includesBound(
     );
 }
 
-/** Compare two JSON values structurally. */
+/** Compare two JSON values structurally, objects by their keys in any order. */
 function equals(left: unknown, right: unknown): boolean {
-    return canonicalize(left) === canonicalize(right);
+    // compare primitives by value and lists item by item
+    if (left === right) {
+        return true;
+    } else if (Array.isArray(left) || Array.isArray(right)) {
+        return (
+            Array.isArray(left) &&
+            Array.isArray(right) &&
+            left.length === right.length &&
+            left.every((item, index) => equals(item, right[index]))
+        );
+    }
+    // compare objects by their keys and each key's value
+    else if (
+        typeof left === "object" &&
+        typeof right === "object" &&
+        left !== null &&
+        right !== null
+    ) {
+        const leftEntries = Object.entries(left);
+        const rightValues = new Map(Object.entries(right));
+
+        return (
+            leftEntries.length === rightValues.size &&
+            leftEntries.every(
+                ([key, value]) => rightValues.has(key) && equals(value, rightValues.get(key)),
+            )
+        );
+    }
+    // differ otherwise
+    else {
+        return false;
+    }
 }
