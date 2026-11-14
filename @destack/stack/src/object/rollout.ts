@@ -31,6 +31,7 @@ import {
     type MethodContext,
     ObjectDescription,
     Observation,
+    type ObservationReport,
     type ObjectOf,
     type ObjectType,
     PackageDescription,
@@ -136,8 +137,6 @@ export const rollout = defineObject(
             appliedRevision: field.reference(() => installationRevision).optional(),
             /** The revision the space serves, absent before it serves one. */
             servedRevision: field.reference(() => installationRevision).optional(),
-            /** Why the space refuses to serve the installation, absent otherwise. */
-            refusal: field.string().optional(),
             /** The revision applied before the applied one, which a rollback targets again. */
             previousRevision: field.reference(() => installationRevision).optional(),
             /** The digest of the objects the installation last related as their consumer. */
@@ -191,13 +190,7 @@ export const rollout = defineObject(
         /** Record the revisions the installation applied and serves, and what it consumes. */
         update: method.update("update", {
             visibility: "installation",
-            fields: [
-                "appliedRevisionId",
-                "previousRevisionId",
-                "servedRevisionId",
-                "refusal",
-                "consumption",
-            ],
+            fields: ["appliedRevisionId", "previousRevisionId", "servedRevisionId", "consumption"],
         }),
 
         /** Read the plan waiting for approval with the digest approving it names. */
@@ -434,6 +427,21 @@ export type InstallationRollout = Omit<Rollout, "id"> & {
     /** The installation the rollout rolls out. */
     readonly installation: Installation;
 };
+
+/** Why a space does not serve an installation, as its Serving condition's reason. */
+export const ServingReason = schema.enum([
+    "Refused",
+    "WaitingForTypes",
+    "LoadFailed",
+    "StartFailed",
+]);
+/** Why a space does not serve an installation. */
+export type ServingReason = schema.Infer<typeof ServingReason>;
+
+/** What a space serves of an installation: a revision, or why it serves none. */
+export type Serving =
+    | { readonly revisionId: Identifier<"installation-revision"> }
+    | { readonly reason: ServingReason; readonly message: string };
 
 /** Why an installation is not ready yet, as a Kubernetes condition's reason. */
 export const WaitingReason = schema.enum([
@@ -683,32 +691,39 @@ export const Rollout = {
         );
     },
 
-    /** Record the revision a space serves each of its installations at, and why it refuses any. */
+    /** Record what a space serves of each installation: a revision, or why it serves none. */
     async serve(
         store: Pick<ObjectStore, "database" | "mutate" | "principal" | "clock" | "environment">,
         spaceId: Identifier<"space">,
-        revisions: ReadonlyMap<Identifier<"installation">, Identifier<"installation-revision">>,
-        refusals: ReadonlyMap<Identifier<"installation">, string>,
+        serving: ReadonlyMap<Identifier<"installation">, Serving>,
     ): Promise<void> {
-        // observe each installation whose served revision or refusal changed, as the space's store
-        const rows = await Snapshot.live(store.database)
-            .read(rollout.table)
-            .findMany({ where: { scope: spaceId } });
-        const calls = rows.flatMap((row) => {
-            // update a row whose served revision or refusal moved
-            const served = revisions.get(row.installationId) ?? null;
-            const refusal = refusals.get(row.installationId) ?? null;
-            const isSame = row.servedRevisionId === served && row.refusal === refusal;
+        // read the space's rollouts with their installations
+        const snapshot = Snapshot.live(store.database);
+        const rows = await Rollout.read(
+            snapshot,
+            await snapshot.read(rollout.table).findMany({ where: { scope: spaceId } }),
+        );
 
-            return isSame
-                ? []
-                : [
-                      rollout.call("update", {
-                          ...rollout.target(row),
-                          servedRevisionId: served,
-                          refusal,
-                      }),
-                  ];
+        // record each changed served revision, and each changed Serving of an installation the space tries to serve
+        const calls = rows.flatMap((row) => {
+            // update the served revision once it moves
+            const outcome = serving.get(row.installationId);
+            const served =
+                outcome !== undefined && "revisionId" in outcome ? outcome.revisionId : null;
+            const target = rollout.target({ scope: row.scope, id: row.installationId });
+            const revised =
+                row.servedRevisionId === served
+                    ? []
+                    : [rollout.call("update", { ...target, servedRevisionId: served })];
+
+            // observe the installation's Serving once it changes
+            const observation = outcome === undefined ? undefined : Rollout.serving(outcome);
+            const observed =
+                observation === undefined || Observation.isRecorded(row.installation, observation)
+                    ? []
+                    : [Observation.call(installation, row.installation, observation)];
+
+            return [...revised, ...observed];
         });
         if (calls.length > 0) {
             const now = store.clock.now();
@@ -717,6 +732,32 @@ export const Rollout = {
                 calls,
             });
         }
+    },
+
+    /** Read an installation's current Serving failure, absent while served or waiting for types. */
+    servingFailure(installed: Installation): Condition | undefined {
+        const serving = installed.conditions["Serving"];
+        const isFailed =
+            serving !== undefined &&
+            Observation.isCurrent(installed, "Serving") &&
+            serving.status === "false" &&
+            serving.reason !== "WaitingForTypes";
+
+        return isFailed ? serving : undefined;
+    },
+
+    /** Describe a serving outcome as an installation's Serving condition. */
+    serving(outcome: Serving): ObservationReport {
+        const condition: Condition =
+            "revisionId" in outcome
+                ? {
+                      status: "true",
+                      reason: "Served",
+                      message: `serving revision ${outcome.revisionId}`,
+                  }
+                : { status: "false", reason: outcome.reason, message: outcome.message };
+
+        return { conditions: { Serving: condition } };
     },
 
     /** Read who consents to a rollout's requests: its revision's submitter, else its installer. */
