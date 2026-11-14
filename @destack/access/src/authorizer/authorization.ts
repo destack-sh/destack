@@ -65,7 +65,11 @@ export type AccessVerb =
     | "invitation.accept"
     | "invitation.withdraw"
     | "grant.create"
-    | "grant.revoke";
+    | "grant.revoke"
+    | "scope.suspend"
+    | "scope.resume"
+    | "scope.fence"
+    | "scope.unfence";
 
 /** A caller's authorization under a set of policies in one database. */
 export class Authorization {
@@ -417,22 +421,28 @@ export class Authorization {
 
     /** Suspend a scope and withhold every permission but its suspended ones until resumed. */
     async suspend(object: ObjectReference): Promise<void> {
-        await this.#mark(object, { suspendedAt: this.context().now });
+        await this.trace("scope.suspend", () =>
+            this.#mark(object, { suspendedAt: this.context().now }),
+        );
     }
 
     /** Resume a suspended scope, as a caller with that permission. */
     async resume(object: ObjectReference): Promise<void> {
-        await this.#mark(object, { suspendedAt: null });
+        await this.trace("scope.resume", () => this.#mark(object, { suspendedAt: null }));
     }
 
     /** Fence a scope and its subtree for a move to another machine. */
     async fence(object: ObjectReference, machine: string): Promise<void> {
-        await this.#mark(object, { fencedAt: this.context().now, movedTo: machine });
+        await this.trace("scope.fence", () =>
+            this.#mark(object, { fencedAt: this.context().now, movedTo: machine }),
+        );
     }
 
     /** Lift a scope's fence on the database storing it. */
     async unfence(object: ObjectReference): Promise<void> {
-        await this.#mark(object, { fencedAt: null, movedTo: null });
+        await this.trace("scope.unfence", () =>
+            this.#mark(object, { fencedAt: null, movedTo: null }),
+        );
     }
 
     /** Require a role administration permission and the role's permissions, in a local scope. */
