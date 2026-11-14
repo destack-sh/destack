@@ -7,6 +7,9 @@ import { DesktopError } from "../error/index.ts";
 /** The environment a launch through Launch Services passes on. */
 const LAUNCH_ENVIRONMENT = ["DESTACK_DIRECTORY", "DESTACK_UPDATE_URL"];
 
+/** The system libraries the native Linux desktop needs. */
+const LINUX_LIBRARIES = ["libgtk-3.so.0", "libwebkit2gtk-4.1.so.0"] as const;
+
 /** The desktop application of a home, as the terminal and installers launch it. */
 export class Application {
     /** The directory with the machine's state. */
@@ -99,8 +102,11 @@ export class Application {
                 );
             }
         }
-        // start the executable elsewhere, detached and so without an exit to wait for, once it exists
+        // start the executable elsewhere, detached and so without an exit to wait for, once it and its libraries exist
         else {
+            if (host.os === "linux") {
+                await Application.#requireLibraries(process);
+            }
             const executable = join(application, host.os === "win32" ? "Destack.exe" : "Destack");
             await files.stat(executable);
             process.spawn([executable, ...(link === null ? [] : [link])], {
@@ -109,6 +115,34 @@ export class Application {
                 stdout: "ignore",
                 stderr: "inherit",
             });
+        }
+    }
+
+    /** Require the system libraries the native Linux desktop needs. */
+    static async #requireLibraries(process: Environment<"process">["process"]): Promise<void> {
+        for (const library of LINUX_LIBRARIES) {
+            if (!(await process.hasLibrary(library))) {
+                throw DesktopError.of(
+                    "DESKTOP_BLOCKED",
+                    `cannot start the desktop: dependency '${library}' is missing, so run '${Application.#dependencyCommand(process)}'`,
+                );
+            }
+        }
+    }
+
+    /** Name the command installing the desktop's libraries with this system's package manager. */
+    static #dependencyCommand(process: Environment<"process">["process"]): string {
+        // install through APT
+        if (process.which("apt-get") !== undefined) {
+            return "sudo apt-get install libwebkit2gtk-4.1-0";
+        }
+        // install through DNF
+        else if (process.which("dnf") !== undefined) {
+            return "sudo dnf install webkit2gtk4.1 gtk3";
+        }
+        // list the libraries for any other package manager
+        else {
+            return "install GTK 3 and WebKitGTK 4.1 using your distribution's package manager";
         }
     }
 }
