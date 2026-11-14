@@ -115,7 +115,12 @@ import { EphemeralStorage } from "./ephemeral.ts";
 import { ExternalStorage } from "./external.ts";
 import { ObjectSource } from "./source.ts";
 import { ObjectSink } from "./sink.ts";
-import { Catalog, type CatalogOptions, type ObjectTypeImplementation } from "./catalog.ts";
+import {
+    Catalog,
+    type CatalogOptions,
+    type CatalogRefusal,
+    type ObjectTypeImplementation,
+} from "./catalog.ts";
 import type { ResourceControllerOptions } from "./provisioned.ts";
 import { TrackedHistory } from "./tracked.ts";
 import { Settlement } from "./settlement.ts";
@@ -645,6 +650,11 @@ export class ObjectStore {
     /** The sandboxes the store serves the installations of. */
     get sandboxes(): readonly HookSandbox[] {
         return this.#catalog.sandboxes;
+    }
+
+    /** The installations the store leaves out, with why. */
+    get refused(): readonly CatalogRefusal[] {
+        return this.#catalog.refused;
     }
 
     /** The tables whose changes relist the replicas: the chains', the follows' and their keys. */

@@ -17,7 +17,7 @@ import {
 import { user } from "./schema.ts";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
 import { userContext, users } from "./fixture/user.ts";
-import { testCallKey } from "@destack/object/test";
+import { testCallKey, testServerContext } from "@destack/object/test";
 import { testEvents, serversOf } from "../src/test/index.ts";
 import { request, type RequestInput } from "./fixture/request.ts";
 import { tablesOf } from "../src/index.ts";
@@ -182,7 +182,7 @@ test("group each caller's changes into activities, and read and revert a page as
     ).toEqual([{ changes: 2, fields: ["body", "title"] }]);
 });
 
-test("refuse serving history that reads through an object recording none", async () => {
+test("refuse serving history that reads through an object recording none, and leave out an installation serving it", async () => {
     // run in a world of its own
     const world = testSimulation().environment("test");
 
@@ -235,6 +235,83 @@ test("refuse serving history that reads through an object recording none", async
             "object 'sheet' records history but reads through 'folder', which has no history",
         ),
     );
+
+    // serve the same package as an installation
+    const installation = await testServerContext(activity.package, spaceId, world);
+    const store = TestObjectStore.of({
+        chain: async () => undefined,
+        environment: world,
+        principal: spacePrincipal(spaceId),
+        servers: serversOf([activity, folder, sheet]).map((server) => server.at(installation)),
+        database: storage.database,
+        origin: { package: activity.package },
+    });
+
+    // leave the installation out, serving none of its types, with why
+    expect({
+        served: [activity, folder, sheet].map((type) =>
+            store.objects.some((each) => each.same(type)),
+        ),
+        refused: store.refused,
+    }).toEqual({
+        served: [false, false, false],
+        refused: [
+            {
+                installation: installation.installation,
+                error: new TypeError(
+                    "object 'sheet' records history but reads through 'folder', which has no history",
+                ),
+            },
+        ],
+    });
+});
+
+test("serve history that reads through an object its relationships alone decide, which records none", async () => {
+    // read pages through an untracked shelf whose readers are relationships, never its row
+    const world = testSimulation().environment("test");
+    const shelf = defineObject({
+        name: "shelf",
+        plural: "shelves",
+        title: t`${plural(argument("count"), { one: "Shelf", other: "Shelves" })}`,
+        scope: space,
+        fields: { title: field.string() },
+        access: {
+            relations: { reader: { subjects: [principal.user] } },
+            permissions: { read: relation("reader") },
+        },
+    });
+    const sheet = defineObject({
+        name: "sheet",
+        plural: "sheets",
+        title: t`${plural(argument("count"), { one: "Sheet", other: "Sheets" })}`,
+        scope: space,
+        fields: { title: field.string() },
+        access: {
+            permissions: { read: through("parent", "read") },
+        },
+        traits: [nested({ in: shelf, add: "read" }), tracked({ by: "read", activity })],
+    });
+
+    // serve the sheet's history, as the shelf's relationships keep theirs
+    const storage = await TestDatabase.create(
+        defineDatabase({
+            name: "main",
+            ...tablesOf({ packages: [objectPackage], follows: [], tables: [] }),
+        }),
+        { environment: world, isMigrated: true },
+    );
+    onTestFinished(() => storage.close());
+    const store = TestObjectStore.of({
+        chain: async () => undefined,
+        environment: world,
+        principal: spacePrincipal(spaceId),
+        servers: serversOf([activity, shelf, sheet]),
+        database: storage.database,
+        callKey: testCallKey,
+        events: await testEvents(storage.database, world),
+        origin: { package: activity.package },
+    });
+    expect(store.objects.some((type) => type.same(sheet))).toBe(true);
 });
 
 /** Serve pages over a new database to one user at a set time. */

@@ -5,7 +5,7 @@ import type { EventStore } from "@destack/event";
 import { type Authorizer, decisionTables, Policy, type TableMapping } from "@destack/access";
 import { ObjectTypeReference, type Subject } from "@destack/sync";
 import { type BlobStore, type DatabaseConnection, TABLE, type Table } from "@destack/db";
-import type { Identifier } from "@destack/schema";
+import { found, type Identifier } from "@destack/schema";
 import { PackageContext, type ServerContext } from "../workload/workload.ts";
 import { PACKAGE_KIND, PackageDescription } from "../declare/description.ts";
 import { Package } from "../declare/package.ts";
@@ -43,6 +43,14 @@ export interface ObjectTypeImplementation {
     readonly package: PackageVersion;
     /** The capabilities it runs with: its installation's, else its package's required ones. */
     readonly capabilities: readonly string[];
+}
+
+/** An installation a catalog leaves out, and why. */
+export interface CatalogRefusal {
+    /** The installation left out. */
+    readonly installation: Identifier<"installation">;
+    /** Why its declarations are refused beside the others. */
+    readonly error: TypeError;
 }
 
 /** What a catalog compiles from: a store's servers and sandboxes over its database. */
@@ -134,6 +142,8 @@ export class Catalog {
     readonly known: readonly KnownDeclaration[];
     /** The scope's branch types, absent for a store without branches. */
     readonly branch: BranchType | undefined;
+    /** The installations it leaves out, with why: their declarations refused beside the others. */
+    readonly refused: readonly CatalogRefusal[];
 
     /** Hold a compiled catalog. */
     private constructor(
@@ -163,6 +173,7 @@ export class Catalog {
         this.providers = fields.providers;
         this.known = fields.known;
         this.branch = fields.branch;
+        this.refused = fields.refused;
     }
 
     /** Whether the store serves methods, which its journal records. */
@@ -172,6 +183,15 @@ export class Catalog {
 
     /** Compile a store's servers and sandboxes into its types, routes, tables and access. */
     static compile(given: CatalogOptions, previous?: Catalog): Catalog {
+        return Catalog.#compile(given, previous, []);
+    }
+
+    /** Compile a catalog, leaving out the installations refused so far. */
+    static #compile(
+        given: CatalogOptions,
+        previous: Catalog | undefined,
+        refused: readonly CatalogRefusal[],
+    ): Catalog {
         // read each server's package, reusing a previous catalog's read of the same server
         const { servers, sandboxes = [], machine, server, database } = given;
         const reused = (source: PackageImplementation | HookSandbox) =>
@@ -293,7 +313,41 @@ export class Catalog {
             installed,
             ...(given.partition === undefined ? {} : { partition: given.partition }),
         });
-        TrackedHistory.require(objects, authorizer);
+
+        // refuse a store's own tracked type reading through a type without history
+        const refusals = TrackedHistory.refusals(objects, authorizer).map(({ object, error }) => ({
+            entry: found(routes, ObjectTypeReference.key(object.typeReference)).entry,
+            error,
+        }));
+        const own = refusals.find(({ entry }) => entry.server === undefined);
+        if (own !== undefined) {
+            throw own.error;
+        }
+
+        // leave out each installation whose tracked types do, and compile the rest
+        const left = refusals.flatMap(({ entry, error }) =>
+            entry.server === undefined
+                ? []
+                : [
+                      {
+                          source: entry.source,
+                          refusal: { installation: entry.server.installation, error },
+                      },
+                  ],
+        );
+        if (left.length > 0) {
+            const sources = new Set(left.map(({ source }) => source));
+
+            return Catalog.#compile(
+                {
+                    ...given,
+                    servers: servers.filter((each) => !sources.has(each)),
+                    sandboxes: sandboxes.filter((each) => !sources.has(each)),
+                },
+                previous,
+                [...refused, ...left.map(({ refusal }) => refusal)],
+            );
+        }
 
         // follow the durable tables and the decision tables, the replicated ones no installation here serves
         const decided = Catalog.#durable(objects, policies);
@@ -332,6 +386,7 @@ export class Catalog {
             providers,
             known: ObjectType.known(declared, policies),
             branch: objects.some((type) => type.same(branchType.object)) ? branchType : undefined,
+            refused,
         });
     }
 

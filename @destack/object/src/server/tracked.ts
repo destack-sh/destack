@@ -1,4 +1,4 @@
-import { type AccessExpression, type Authorizer } from "@destack/access";
+import { type Authorizer } from "@destack/access";
 import { Duration, Identifier, present } from "@destack/schema";
 import { ObjectReference, type ReferenceColumns } from "@destack/sync";
 import { TABLE, type Row, LogPosition, Table } from "@destack/db";
@@ -11,18 +11,24 @@ import { Execution, type StoreExecution } from "../method/execution.ts";
 
 /** The history of tracked objects: its required reads and the activities changes record. */
 export const TrackedHistory = {
-    /** Require the objects a tracked object's read permission reads through to record history. */
-    require(objects: readonly ObjectType[], authorizer: Authorizer): void {
-        // follow each tracked object's read permission
-        const followed = new Set<string>();
-        for (const object of objects.filter((served) => served.lifecycle.tracked !== undefined)) {
-            const reading = present(object.reading, `the read permission of ${object.name}`);
-            TrackedHistory.requireRetained(object, object, reading.name, {
-                objects,
-                authorizer,
-                followed,
+    /** List each tracked object whose read permission reads through objects without history. */
+    refusals(
+        objects: readonly ObjectType[],
+        authorizer: Authorizer,
+    ): { readonly object: ObjectType; readonly error: TypeError }[] {
+        // follow each tracked object's read permission on its own walk
+        return objects
+            .filter((served) => served.lifecycle.tracked !== undefined)
+            .flatMap((object) => {
+                const reading = present(object.reading, `the read permission of ${object.name}`);
+                const error = TrackedHistory.refusal(object, object, reading.name, {
+                    objects,
+                    authorizer,
+                    followed: new Set(),
+                });
+
+                return error === undefined ? [] : [{ object, error }];
             });
-        }
     },
 
     /** Record a served change in the caller's current or a new activity. */
@@ -92,8 +98,8 @@ export const TrackedHistory = {
         }
     },
 
-    /** Require the objects a permission reads through to record their history. */
-    requireRetained(
+    /** Find the first object a permission reads through whose record decides it without history. */
+    refusal(
         recorder: ObjectType,
         object: ObjectType,
         permission: string,
@@ -102,11 +108,11 @@ export const TrackedHistory = {
             readonly authorizer: Authorizer;
             readonly followed: Set<string>;
         },
-    ): void {
+    ): TypeError | undefined {
         // follow each object's permission once
         const key = `${object.name}.${permission}`;
         if (served.followed.has(key)) {
-            return;
+            return undefined;
         }
         served.followed.add(key);
 
@@ -115,12 +121,15 @@ export const TrackedHistory = {
             ...served.objects,
             ...served.objects.flatMap((candidate) => candidate.scopes),
         ];
-        for (const term of TrackedHistory.terms(object.policy.definition.permissions[permission])) {
+        for (const term of object.terms(permission)) {
             // follow another permission of the same object
             if (term.kind === "permission") {
-                TrackedHistory.requireRetained(recorder, object, term.name, served);
+                const refused = TrackedHistory.refusal(recorder, object, term.name, served);
+                if (refused !== undefined) {
+                    return refused;
+                }
             }
-            // require each related type to record history
+            // refuse a related type whose record decides the permission without history, then follow it
             else if (term.kind === "through") {
                 const subjects = served.authorizer.relation(object.policy, term.relation).subjects;
                 const related = types.filter((candidate) =>
@@ -131,38 +140,21 @@ export const TrackedHistory = {
                     ),
                 );
                 for (const target of new Set(related)) {
-                    if (target.table[TABLE].retention !== "history") {
-                        throw new TypeError(
-                            `object '${recorder.name}' records history but reads through '${target.name}', which has no history`,
-                        );
+                    const refused =
+                        target.isDecidedByRecord(term.permission) &&
+                        target.table[TABLE].retention !== "history"
+                            ? new TypeError(
+                                  `object '${recorder.name}' records history but reads through '${target.name}', which has no history`,
+                              )
+                            : TrackedHistory.refusal(recorder, target, term.permission, served);
+                    if (refused !== undefined) {
+                        return refused;
                     }
-                    TrackedHistory.requireRetained(recorder, target, term.permission, served);
                 }
             }
         }
-    },
 
-    /** List the permissions and relations an expression reads. */
-    terms(expression: AccessExpression | undefined): AccessExpression[] {
-        // read nothing of an absent expression
-        if (expression === undefined) {
-            return [];
-        }
-        // read each branch of a union or intersection
-        else if (expression.kind === "union" || expression.kind === "intersection") {
-            return expression.expressions.flatMap((each) => TrackedHistory.terms(each));
-        }
-        // read both sides of an exclusion
-        else if (expression.kind === "exclusion") {
-            return [
-                ...TrackedHistory.terms(expression.include),
-                ...TrackedHistory.terms(expression.exclude),
-            ];
-        }
-        // read a term itself
-        else {
-            return [expression];
-        }
+        return undefined;
     },
 
     /** Read a caller's latest activity on a call's object, absent before its first. */

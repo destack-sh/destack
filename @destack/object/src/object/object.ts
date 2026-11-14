@@ -452,6 +452,8 @@ export interface ObjectDefinition<
     readonly indexes?: Readonly<Record<string, ObjectIndex>>;
     /** Where the objects live: a kind, or the event log with its settings. */
     readonly storage?: Exclude<ObjectStorage, "events"> | EventStorage;
+    /** Keep every change in the log, so a read at a past time sees the objects as they were. */
+    readonly retention?: "history";
     /** The fields each release computes from stored rows and earlier inputs, by release. */
     readonly convert?: Readonly<Record<Version, Readonly<Record<string, Expression>>>>;
     /** The rows every database has identical, which no call writes. */
@@ -1642,6 +1644,60 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
         );
     }
 
+    /** Follow a type's permission terms once each, looking for one its record decides. */
+    static #isDecidedByRecord(
+        type: ObjectType,
+        permission: string,
+        followed: Set<string>,
+    ): boolean {
+        // follow each permission once
+        if (followed.has(permission)) {
+            return false;
+        }
+        followed.add(permission);
+
+        // decide by a relation the record holds as a field, or by the scope it lives in
+        const isRecorded = (relation: string) =>
+            Object.hasOwn(type.mapping.relations, relation) ||
+            type.policy.definition.relations[relation]?.isScope === true;
+
+        // decide by those relations or a condition, never by relationships, the object's identity or the request
+        return type.terms(permission).some((term) => {
+            if (term.kind === "permission") {
+                return ObjectType.#isDecidedByRecord(type, term.name, followed);
+            } else if (term.kind === "relation") {
+                return isRecorded(term.name);
+            } else if (term.kind === "through") {
+                return isRecorded(term.relation);
+            } else {
+                return !["none", "self", "context"].includes(term.kind);
+            }
+        });
+    }
+
+    /** List an expression's terms through its unions, intersections and exclusions. */
+    static #terms(expression: AccessExpression | undefined): AccessExpression[] {
+        // read nothing of an absent expression
+        if (expression === undefined) {
+            return [];
+        }
+        // read each branch of a union or intersection
+        else if (expression.kind === "union" || expression.kind === "intersection") {
+            return expression.expressions.flatMap((each) => ObjectType.#terms(each));
+        }
+        // read both sides of an exclusion
+        else if (expression.kind === "exclusion") {
+            return [
+                ...ObjectType.#terms(expression.include),
+                ...ObjectType.#terms(expression.exclude),
+            ];
+        }
+        // read a term itself
+        else {
+            return [expression];
+        }
+    }
+
     /** The table mapping access reads the objects through, built on its first read. */
     get mapping(): TableMapping {
         const mapping = this.derived.mapping ?? ObjectPolicy.mapping(this);
@@ -1913,6 +1969,16 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
     /** The permission reading one object needs, the listing's without a get method, or none. */
     get reading(): Permission | undefined {
         return ObjectType.#methodPermission(this, "get") ?? this.listing;
+    }
+
+    /** List the terms of a permission's expression: relations, permissions and conditions. */
+    terms(permission: string): AccessExpression[] {
+        return ObjectType.#terms(this.policy.definition.permissions[permission]);
+    }
+
+    /** Report whether the objects' own record decides a permission, by relation or condition. */
+    isDecidedByRecord(permission: string): boolean {
+        return ObjectType.#isDecidedByRecord(this, permission, new Set());
     }
 
     /** Whether a controller reconciles the objects to their desired generation. */
@@ -3267,6 +3333,7 @@ type ObjectOptionKeys =
     | "constraints"
     | "indexes"
     | "storage"
+    | "retention"
     | "convert"
     | "predefined"
     | "key";

@@ -279,9 +279,11 @@ export const ObjectTable = {
             return { appendOnly: true };
         }
 
-        // record tracked history, and tell a controlled object's observations by its generation
+        // keep the history of tracked objects and of ones declaring it, and tell a controlled object's observations by its generation
+        const isKept = definition.tracked !== undefined || definition.retention === "history";
+
         return {
-            ...(definition.tracked === undefined ? {} : { retention: "history" as const }),
+            ...(isKept ? { retention: "history" as const } : {}),
             ...(definition.controlled === undefined ? {} : { generation: "generation" }),
         };
     },
