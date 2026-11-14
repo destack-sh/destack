@@ -96,7 +96,7 @@ test("refuse a stored identifier of another type, which no database check catche
     const database = await open();
     await database.insert(sample).values(row);
     const other = "tag-01996ab0-0000-7000-8000-000000000001";
-    await database.execute(sql`UPDATE ${sample} SET id = ${other}`, schemas.schema.unknown());
+    await database.run(sql`UPDATE ${sample} SET id = ${other}`);
 
     // refuse reading it back as a sample identifier
     const refused = await database

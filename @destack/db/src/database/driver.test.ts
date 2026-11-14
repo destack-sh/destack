@@ -1,7 +1,7 @@
 import { expect, onTestFinished, test } from "@destack/test";
 import { testSimulation } from "@destack/test/world";
 import { SimulatedTelemetry } from "@destack/environment/simulation";
-import { defineTable, text } from "../index.ts";
+import { asc, defineTable, sql, TABLE, text } from "../index.ts";
 import { TestDatabase } from "../test/index.ts";
 import { TelemetryScope } from "@destack/telemetry";
 import type {} from "@destack/package/import-meta";
@@ -103,4 +103,45 @@ test("record each statement text under the span path that ran it, with its runs 
             rows: 2,
         },
     ]);
+});
+
+test("announce a write through all whenever it runs, whatever rows it answers", async () => {
+    // open a database with two notes, its commit watch listening
+    await using simulation = testSimulation();
+    const world = simulation.environment("test");
+    const storage = await TestDatabase.create([note], { environment: world, isMigrated: true });
+    onTestFinished(() => storage.close());
+    const { database } = storage;
+    await database.insert(note).values([
+        { id: "a", body: "first" },
+        { id: "b", body: "second" },
+    ]);
+    const { commits } = database.state;
+    await commits.listen();
+
+    // update a note through all without RETURNING, answering no rows, while waiting for its table
+    const stop = new AbortController();
+    const announced = commits.waitUntil(
+        async (tables) => tables.has(note[TABLE].sqlName),
+        stop.signal,
+        commits.generation,
+    );
+    const answered = await database.all(
+        sql`UPDATE ${note} SET body = 'updated' WHERE ${note.id} = 'a'`,
+    );
+    const isAnnounced = await announced;
+
+    // announce the note's table and keep the update
+    expect({
+        answered,
+        isAnnounced,
+        notes: await database.select().from(note).orderBy(asc(note.id)),
+    }).toEqual({
+        answered: [],
+        isAnnounced: true,
+        notes: [
+            { id: "a", body: "updated" },
+            { id: "b", body: "second" },
+        ],
+    });
 });

@@ -230,12 +230,13 @@ export class DatabaseDriver {
     ): Promise<Value> {
         this.transaction?.assertActive();
 
+        // read, or announce a write whenever it runs, as the rows it answers need not be the rows it wrote
         return statement.isRead
             ? this.run(() => failing(statement, query(this.session), this.state), statement)
             : this.write(
                   (session) => failing(statement, query(session), this.state),
                   statement,
-                  (rows) => rows.length,
+                  () => 1,
               );
     }
 
