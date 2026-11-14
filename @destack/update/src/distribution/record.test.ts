@@ -36,6 +36,38 @@ test("keep a distribution's record across reopening and refuse changing its inst
     }
 });
 
+test("install a downloaded Mac application into the Applications folder, then where it is registered", async () => {
+    // run the command inside a downloaded application, as the install script does
+    const environment = testSimulation().environment("test");
+    const directory = await environment.files.makeTemporaryDirectory("destack-application-");
+    try {
+        const download = join(directory, "download/Destack.app");
+        const distribution = new Distribution({
+            home: directory,
+            repository: new URL("https://download.destack.test/stable/"),
+            root: Distribution.root(),
+            running: new Release("2026.9.0", "aarch64-apple-darwin"),
+            executable: join(download, "Contents/Helpers/destack"),
+            applications: join(directory, "Applications"),
+            stage: new Stage("production"),
+            environment,
+        });
+        const unregistered = await distribution.application();
+
+        // follow the application to where the person moved it once registered
+        const moved = join(directory, "Moved/Destack.app");
+        await distribution.register({ method: "application", application: moved });
+
+        // expect the Applications folder before registration, never the downloaded bundle
+        expect({ unregistered, registered: await distribution.application() }).toEqual({
+            unregistered: join(directory, "Applications/Destack.app"),
+            registered: moved,
+        });
+    } finally {
+        await environment.files.remove(directory, { recursive: true });
+    }
+});
+
 /** Describe the stable distribution in a home, as a person's device keeps it. */
 function distributionAt(home: string, environment: DistributionEnvironment): Distribution {
     return new Distribution({

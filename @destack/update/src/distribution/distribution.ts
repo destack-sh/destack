@@ -116,7 +116,6 @@ export class Distribution {
 
         return (
             registration?.application ??
-            Distribution.bundle(this.options.executable) ??
             join(this.options.applications, `${this.options.stage.title}.app`)
         );
     }
