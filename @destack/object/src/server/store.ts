@@ -2369,8 +2369,8 @@ export class ObjectStore {
             return known;
         }
 
-        // start one and drop the oldest
-        const reader = this.authorizer.reader(Snapshot.live(this.database), access.scopes);
+        // start one reading the grants as of the position, and drop the oldest
+        const reader = this.authorizer.reader(this.database.log.at(position), access.scopes);
         this.#readers.set(key, reader);
         if (this.#readers.size > SHARED_READERS) {
             const [oldest] = this.#readers.keys();
