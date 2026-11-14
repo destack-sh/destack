@@ -147,6 +147,7 @@ class SystemSocket implements ClientSocket {
 /** Networks. */
 export const Network: {
     readonly system: Network;
+    readonly browser: Network;
     readonly requirePublic: (
         network: Pick<Network, "resolve">,
         hostname: string,
@@ -217,5 +218,41 @@ export const Network: {
                 "resolving a host name outside a host network is not supported",
             );
         },
+    },
+
+    /** The web's network in a browser, holding a request's signal until its body ends. */
+    browser: {
+        fetch: async (request, options) => {
+            // answer a response without a body as it is
+            const response = await Network.system.fetch(request, options);
+            if (response.body === null) {
+                return response;
+            }
+
+            // read the body through the request's signal, holding it alive for WebKit
+            const { signal } = request;
+            const body = response.body.pipeThrough(
+                new TransformStream<Uint8Array, Uint8Array>({
+                    transform: (chunk, controller) => {
+                        signal.throwIfAborted();
+                        controller.enqueue(chunk);
+                    },
+                }),
+            );
+
+            // rebuild the response around the body with its URL, redirect and type
+            const rebuilt = new Response(body, response);
+            const { url, redirected, type } = response;
+            Object.defineProperties(rebuilt, {
+                url: { value: url },
+                redirected: { value: redirected },
+                type: { value: type },
+            });
+
+            return rebuilt;
+        },
+        connect: (address, options) => Network.system.connect(address, options),
+        websocket: (url, protocols) => Network.system.websocket(url, protocols),
+        resolve: (hostname) => Network.system.resolve(hostname),
     },
 };
