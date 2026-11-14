@@ -1,6 +1,21 @@
 /** Copy a request with changes and an optional URL. */
 export function copyRequest(request: Request, changes: RequestInit, url = request.url): Request {
-    // stream a body on as half duplex
+    // copy in place on the same URL, so a browser sends the body whole
+    if (url === request.url && changes.body === undefined) {
+        // copy it, then drop each header the given ones lack
+        // NOTE #Robustness: Bun keeps the request's own headers when the given set is empty
+        const copied = new Request(request, changes);
+        if (changes.headers !== undefined) {
+            const given = new Headers(changes.headers);
+            for (const name of [...copied.headers.keys()].filter((each) => !given.has(each))) {
+                copied.headers.delete(name);
+            }
+        }
+
+        return copied;
+    }
+
+    // stream a body on to another URL as half duplex
     const body = changes.body === undefined ? request.body : changes.body;
 
     return new Request(url, {
