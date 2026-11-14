@@ -154,8 +154,14 @@ export class PlatformBuild implements AsyncDisposable {
                 .filter((dependency) => releases.has(dependency))
                 .map((dependency) => PackageName.split(dependency).handle)
                 .filter((other) => other !== handle);
-            names.set(handle, [...(names.get(handle) ?? []), name]);
-            requires.set(handle, new Set([...(requires.get(handle) ?? []), ...required]));
+            const named = names.get(handle) ?? [];
+            const needs = requires.get(handle) ?? new Set<string>();
+            named.push(name);
+            for (const other of required) {
+                needs.add(other);
+            }
+            names.set(handle, named);
+            requires.set(handle, needs);
         }
 
         // visit each handle's required handles before it, refusing handles that require each other
@@ -163,19 +169,20 @@ export class PlatformBuild implements AsyncDisposable {
         const visited = new Set<string>();
         const visiting = new Set<string>();
         const visit = (handle: string) => {
-            if (visited.has(handle)) {
-                return;
-            }
+            // refuse a handle met again on its own path
             if (visiting.has(handle)) {
                 throw new Error(`releases of '@${handle}' require releases that require them back`);
             }
-            visiting.add(handle);
-            for (const other of requires.get(handle) ?? []) {
-                visit(other);
+            // add a handle met for the first time after the handles it requires
+            else if (!visited.has(handle)) {
+                visiting.add(handle);
+                for (const other of requires.get(handle) ?? []) {
+                    visit(other);
+                }
+                visiting.delete(handle);
+                visited.add(handle);
+                runs.push({ handle, names: found(names, handle) });
             }
-            visiting.delete(handle);
-            visited.add(handle);
-            runs.push({ handle, names: found(names, handle) });
         };
         for (const handle of names.keys()) {
             visit(handle);
