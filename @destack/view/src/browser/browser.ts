@@ -10,7 +10,7 @@ import type { ObjectType } from "@destack/object";
 import { BrowserTab } from "@destack/object/browser";
 import { ObjectClient } from "@destack/object/client";
 import { BrowserClient } from "@destack/account/browser";
-import type { Subject } from "@destack/sync";
+import { ObjectTypeReference, type Subject } from "@destack/sync";
 import { principal } from "@destack/access";
 import type { ClientOptions } from "@destack/object/client";
 import { reportToDevtools, startTelemetry } from "@destack/telemetry/browser";
@@ -473,8 +473,10 @@ async function openTabs(
                 // keep the person's own settings and profile synced for the page, once their first rows arrive
                 if (scope === context.user.id) {
                     const { query } = tab.client;
-                    const profile = present(query[user.name], "the person's profile type");
-                    const settings = present(query[setting.name], "the person's setting type");
+                    const profileKey = ObjectTypeReference.key(user.typeReference);
+                    const settingKey = ObjectTypeReference.key(setting.typeReference);
+                    const profile = present(query[profileKey], "the person's profile type");
+                    const settings = present(query[settingKey], "the person's setting type");
                     await Promise.all([
                         profile.findMany({ scopes: "every", where: { id: scope } }).subscribe()
                             .ready,
