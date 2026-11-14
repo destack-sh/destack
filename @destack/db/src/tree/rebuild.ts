@@ -113,7 +113,7 @@ async function stagePaths(
         (scope text NOT NULL, ancestor text NOT NULL, descendant text NOT NULL, depth integer NOT NULL)`);
     const size = Math.floor(database.driver.session.limits.variables / RECORD_PARAMETERS);
     const flush = async (batch: readonly SQL[]) =>
-        database.all(sql`INSERT INTO ${staged}
+        database.run(sql`INSERT INTO ${staged}
             (scope, ancestor, descendant, depth) VALUES ${sql.join([...batch], sql`, `)}`);
     let batch: SQL[] = [];
     for (const [scope, parents] of scopes) {
