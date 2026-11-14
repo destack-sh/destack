@@ -1,3 +1,4 @@
+import { TelemetryScope } from "@destack/telemetry";
 import type { Call } from "@destack/sync";
 import {
     anyone,
@@ -222,12 +223,23 @@ export class Platform {
     }
 
     /** Apply every step, as a start without durable steps does, answering the organization. */
-    async apply(now: number): Promise<Identifier<"organization">> {
-        for (const step of this.steps()) {
-            await step.apply(now);
-        }
+    apply(now: number): Promise<Identifier<"organization">> {
+        // apply each step in its own span below the apply's, as a workflow spans its steps
+        const { span } = TelemetryScope.of(
+            import.meta.destack.package,
+            this.store.environment.telemetry,
+        );
 
-        return this.#organization();
+        return span("destack.platform.apply", {}, async () => {
+            for (const step of this.steps()) {
+                const attributes = { "destack.platform.step": step.name };
+                await span("destack.platform.step", attributes, () => step.apply(now), {
+                    duration: { attributes },
+                });
+            }
+
+            return this.#organization();
+        });
     }
 
     /** Create the missing declared cloud machines in the universe, publishing their origins. */
