@@ -1,4 +1,7 @@
 import {
+    type Affected,
+    ALL_ROWS,
+    NO_ROWS,
     ObjectReference,
     type Audience,
     Watch,
@@ -17,11 +20,13 @@ import {
     decisionTables,
     earliest,
     type Permission,
+    throughRelations,
 } from "@destack/access";
 import { journal } from "../stack/db.ts";
 import {
     DatabaseError,
     sql,
+    type Condition,
     type Row,
     type SQL,
     TABLE,
@@ -346,14 +351,14 @@ export class SubscriptionAudience implements Audience {
         await this.#authorize();
     }
 
-    /** Report whether a change may decide the visibility of rows beyond the changed row. */
-    async decides(change: Change): Promise<boolean> {
+    /** Read the rows beyond the changed row whose visibility a change may change. */
+    async affects(change: Change): Promise<Affected> {
         // require the follower to replicate its via scopes again after a change their decisions read
         const via = this.#via.filter((relay) => Watch.matches(relay.watches, change));
         if (via.length > 0 && !Watch.matches(this.#deciding(), change)) {
             await Promise.all(via.map((relay) => relay.require()));
 
-            return false;
+            return NO_ROWS;
         }
 
         // leave roles the caller has no binding of, and another identity's relationship to its row
@@ -362,18 +367,129 @@ export class SubscriptionAudience implements Audience {
                 !this.#hasRole(change)) ||
             (change.table === accessRelationship && !this.#isConcerned(change))
         ) {
-            return false;
+            return NO_ROWS;
         }
 
-        // decide again after an access change, or once a row moves under another parent
-        const object = this.#objects.get(change.table);
+        // affect every row of another storage on an access change, as it decides as of one position
+        if (this.#storage !== "durable" && decisionTables.includes(change.table)) {
+            return ALL_ROWS;
+        }
+        // affect a relationship's object and what reads through it
+        else if (change.table === accessRelationship) {
+            return await this.#relatedRows(change);
+        }
+        // affect every row on another access change: roles, grants and scopes
+        else if (decisionTables.includes(change.table)) {
+            return ALL_ROWS;
+        }
 
-        return (
-            decisionTables.includes(change.table) ||
-            (object?.parent !== undefined &&
-                change.operation === "update" &&
-                PARENT_COLUMNS.some((column) => change.before[column] !== change.after[column]))
-        );
+        // affect a row moved under another parent and what reads through it
+        const object = this.#objects.get(change.table);
+        const moved = Change.after(change);
+        const isMoved =
+            this.#storage === "durable" &&
+            object?.parent !== undefined &&
+            change.operation === "update" &&
+            PARENT_COLUMNS.some((column) => change.before[column] !== change.after[column]);
+
+        return isMoved && moved !== null
+            ? {
+                  kind: "rows",
+                  read: (positions) =>
+                      this.#throughRows(positions, [
+                          {
+                              table: change.table,
+                              id: SubscriptionAudience.#identifier(moved, "id"),
+                          },
+                      ]),
+              }
+            : NO_ROWS;
+    }
+
+    /** Read the rows a relationship decides: its object's and what reads through it. */
+    async #relatedRows(change: Change): Promise<Affected> {
+        // affect every row for a subject set's or a scope's relationship
+        const objects: { readonly table: Table; readonly id: string }[] = [];
+        for (const row of [Change.before(change), Change.after(change)]) {
+            if (row === null) {
+                continue;
+            }
+            const type = { packageId: row["objectPackageId"], type: row["objectType"] };
+            const mapping = this.#store.authorizer.mapping(ObjectTypeReference.parse(type));
+            if (
+                row["subjectRelation"] !== null ||
+                mapping === undefined ||
+                mapping.policy.definition.scope === true
+            ) {
+                return ALL_ROWS;
+            }
+            objects.push({
+                table: mapping.table,
+                id: SubscriptionAudience.#identifier(row, "objectId"),
+            });
+        }
+
+        return { kind: "rows", read: (positions) => this.#throughRows(positions, objects) };
+    }
+
+    /** Read some objects' rows and every row reading its access through them, at some positions. */
+    async #throughRows(
+        positions: readonly LogPosition[],
+        objects: readonly { readonly table: Table; readonly id: string }[],
+    ): Promise<Map<Table, Condition>> {
+        // list the durable tables' identifier columns a permission reads through
+        const durable = new Set(this.#store.durable.map((object) => object.table));
+        const followed = this.#store.authorizer
+            .mappings()
+            .filter((mapping) => durable.has(mapping.table))
+            .flatMap((mapping) => {
+                const relations = throughRelations(
+                    Object.values(mapping.policy.definition.permissions),
+                );
+
+                return Object.entries(mapping.relations).flatMap(([relation, field]) =>
+                    field.key === undefined && relations.has(relation)
+                        ? [{ table: mapping.table, column: field.column }]
+                        : [],
+                );
+            });
+
+        // walk the rows reading through the found ones until none is new
+        const found = new Map<Table, Set<string>>();
+        for (const { table, id } of objects) {
+            found.set(table, (found.get(table) ?? new Set()).add(id));
+        }
+        const snapshots = positions.map((position) => this.#store.database.log.at(position));
+        let frontier = objects.map((object) => object.id);
+        while (frontier.length > 0) {
+            const next: string[] = [];
+            for (const { table, column } of followed) {
+                const tuples = frontier.map((id) => [id]);
+                const read = await Promise.all(
+                    snapshots.map((snapshot) => snapshot.select(table, [column], tuples)),
+                );
+                for (const row of read.flat()) {
+                    const id = SubscriptionAudience.#identifier(row, "id");
+                    if (found.get(table)?.has(id) !== true) {
+                        found.set(table, (found.get(table) ?? new Set()).add(id));
+                        next.push(id);
+                    }
+                }
+            }
+            frontier = next;
+        }
+
+        return new Map([...found].map(([table, ids]) => [table, { id: { in: [...ids] } }]));
+    }
+
+    /** Read an identifier column of a row, refusing another value. */
+    static #identifier(row: Row, column: string): string {
+        const value = row[column];
+        if (typeof value !== "string") {
+            throw new TypeError(`column ${column} holds no identifier`);
+        }
+
+        return value;
     }
 
     /** Decide whether a role or role permission change is of a role the caller has. */

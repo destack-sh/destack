@@ -952,10 +952,10 @@ export class ObjectSource {
                 signal,
             );
             for await (const page of pages) {
-                const decisions = await Promise.all(
-                    page.changes.map((change) => audience.decides(change)),
+                const affected = await Promise.all(
+                    page.changes.map((change) => audience.affects(change)),
                 );
-                if (decisions.includes(true)) {
+                if (affected.some((rows) => rows.kind !== "none")) {
                     revised.abort();
                     break;
                 }

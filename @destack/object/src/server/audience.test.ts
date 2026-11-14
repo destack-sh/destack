@@ -165,7 +165,7 @@ test("decide again after changes of the caller's access, and leave other identit
         await write();
         const { changes } = await database.log.read({ tables, after: sequence });
 
-        return Promise.all(changes.map((change) => audience.decides(change)));
+        return Promise.all(changes.map(async (change) => (await audience.affects(change)).kind));
     };
 
     // decide again once her role grants reading
@@ -184,7 +184,7 @@ test("decide again after changes of the caller's access, and leave other identit
             ),
         [accessRolePermission],
     );
-    expect(granted).toEqual([true]);
+    expect(granted).toEqual(["all"]);
 
     // leave a role ada has no binding of, and decide again once her role changes
     const unrelated = await decided(
@@ -209,7 +209,7 @@ test("decide again after changes of the caller's access, and leave other identit
             ),
         [accessRole],
     );
-    expect([unrelated, described]).toEqual([[false], [true]]);
+    expect([unrelated, described]).toEqual([["none"], ["all"]]);
 
     // decide again once ada joins a team, which her access may read
     const team = {
@@ -235,14 +235,14 @@ test("decide again after changes of the caller's access, and leave other identit
             ),
         [accessRelationship],
     );
-    expect(joined).toEqual([true]);
+    expect(joined).toEqual(["all"]);
 
     // decide again once the space is suspended
     const suspended = await decided(
         () => new TestAccess(database, world).suspendReplica(spaceId, 2),
         [Scope.table],
     );
-    expect(suspended).toEqual([true]);
+    expect(suspended).toEqual(["all"]);
 });
 
 /** Shelves of a space, read by their viewers. */
@@ -339,14 +339,14 @@ test("decide again once a relationship an arrow follows changes, and leave anoth
             after: sequence,
         });
 
-        return Promise.all(changes.map((change) => audience.decides(change)));
+        return Promise.all(changes.map(async (change) => (await audience.affects(change)).kind));
     };
 
-    // decide again once the album goes on the shelf, and leave bob's ownership alone
+    // decide the album's rows again once it goes on the shelf, and leave bob's ownership alone
     expect({
         shelved: await relate("shelf", shelf.reference(spaceId, shelfId)),
         owner: await relate("owner", principal.user.reference(Scope.universe.id, "bob")),
-    }).toEqual({ shelved: [true], owner: [false] });
+    }).toEqual({ shelved: ["rows"], owner: ["none"] });
 });
 
 /** Build a fresh identifier of a type in a world. */

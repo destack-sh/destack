@@ -1,6 +1,6 @@
 import type { Permission } from "@destack/access";
 import { type LogPosition, sql, type Row, type SQL, TABLE, type Table } from "@destack/db";
-import type { Audience, Watch } from "@destack/sync";
+import { type Affected, type Audience, NO_ROWS, type Watch } from "@destack/sync";
 import type { MethodContext } from "../method/context.ts";
 import type { ObjectType } from "../object/object.ts";
 import type { Execution } from "../method/execution.ts";
@@ -108,8 +108,8 @@ export class CallAudience implements Audience {
     async refresh(): Promise<void> {}
 
     /** Decide nothing beyond rows themselves. */
-    async decides(): Promise<boolean> {
-        return false;
+    async affects(): Promise<Affected> {
+        return NO_ROWS;
     }
 
     /** Read a query's permission on a type, absent without one. */
