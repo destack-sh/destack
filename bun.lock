@@ -617,6 +617,8 @@
         "@destack/finance": "workspace:*",
         "@destack/forge": "workspace:*",
         "@destack/home": "workspace:*",
+        "@destack/machine-binder-fixture": "workspace:*",
+        "@destack/machine-journal-fixture": "workspace:*",
         "@destack/machine-mention-fixture": "workspace:*",
         "@destack/message": "workspace:*",
         "@destack/notification": "workspace:*",
@@ -646,6 +648,17 @@
         "@destack/schema": "workspace:*",
       },
     },
+    "@destack/machine/tests/fixture/binder": {
+      "name": "@destack/machine-binder-fixture",
+      "version": "2026.11.0",
+      "dependencies": {
+        "@destack/access": "workspace:*",
+        "@destack/account": "workspace:*",
+        "@destack/locale": "workspace:*",
+        "@destack/object": "workspace:*",
+        "@destack/schema": "workspace:*",
+      },
+    },
     "@destack/machine/tests/fixture/board": {
       "name": "@destack/machine-board-fixture",
       "version": "2026.10.0",
@@ -657,6 +670,17 @@
         "@destack/package": "workspace:*",
         "@destack/schema": "workspace:*",
         "@destack/stack": "workspace:*",
+      },
+    },
+    "@destack/machine/tests/fixture/journal": {
+      "name": "@destack/machine-journal-fixture",
+      "version": "2026.11.0",
+      "dependencies": {
+        "@destack/access": "workspace:*",
+        "@destack/account": "workspace:*",
+        "@destack/locale": "workspace:*",
+        "@destack/object": "workspace:*",
+        "@destack/schema": "workspace:*",
       },
     },
     "@destack/machine/tests/fixture/mention": {
@@ -1786,7 +1810,11 @@
 
     "@destack/machine-apps-fixture": ["@destack/machine-apps-fixture@workspace:@destack/machine/tests/fixture/apps"],
 
+    "@destack/machine-binder-fixture": ["@destack/machine-binder-fixture@workspace:@destack/machine/tests/fixture/binder"],
+
     "@destack/machine-board-fixture": ["@destack/machine-board-fixture@workspace:@destack/machine/tests/fixture/board"],
+
+    "@destack/machine-journal-fixture": ["@destack/machine-journal-fixture@workspace:@destack/machine/tests/fixture/journal"],
 
     "@destack/machine-mention-fixture": ["@destack/machine-mention-fixture@workspace:@destack/machine/tests/fixture/mention"],
 

@@ -148,10 +148,11 @@ export function implementInstallations(options: InstallationOptions) {
 function rolloutProjection(options: InstallationOptions): ObjectProjection<typeof rollout> {
     return {
         watches: [
-            // project a new rollout, a moved served revision, and a followed space stack, past its own applied and consumed records
+            // project a new rollout, a moved served revision or refusal, and a followed space stack, past its own applied and consumed records
             ObjectWatch.of(rollout.table, (row, _database, change) =>
                 change.operation !== "update" ||
                 change.before.servedRevisionId !== change.after.servedRevisionId ||
+                change.before.refusal !== change.after.refusal ||
                 change.before.spaceStack !== change.after.spaceStack
                     ? [rolloutKey(row)]
                     : [],
@@ -174,8 +175,13 @@ function rolloutProjection(options: InstallationOptions): ObjectProjection<typeo
                 return;
             }
 
-            // apply the space's stack, or deploy the application at the release it selects
-            if (target.installation.export !== null) {
+            // refuse an installation the space refuses to serve, else apply the space's stack or deploy the application at the release it selects
+            if (target.refusal !== null) {
+                throw StackError.of(
+                    "SERVING_BLOCKED",
+                    `cannot serve revision ${target.revisionId}: ${target.refusal}`,
+                );
+            } else if (target.installation.export !== null) {
                 await new StackInstallation(target, options).reconcile(reconciliation);
             } else {
                 await new ApplicationInstallation(target, options).reconcile(reconciliation);

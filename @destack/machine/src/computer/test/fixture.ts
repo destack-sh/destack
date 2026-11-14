@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 export const WORLD_FIXTURES = ["apps", "board"] as const;
 
 /** The fixture packages only scenarios install, which no template ships. */
-export const SCENARIO_FIXTURES = ["mention", "regional"] as const;
+export const SCENARIO_FIXTURES = ["binder", "journal", "mention", "regional"] as const;
 
 /** A fixture package below the machine's tests, which tests build, publish and import. */
 export class TestFixture {

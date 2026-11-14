@@ -1,0 +1,16 @@
+{
+    "name": "@destack/machine-journal-fixture",
+    "version": "2026.11.0",
+    "type": "module",
+    "exports": {
+        "./object": "./src/index.ts",
+        "./package": "./src/package.ts"
+    },
+    "dependencies": {
+        "@destack/access": "workspace:*",
+        "@destack/account": "workspace:*",
+        "@destack/locale": "workspace:*",
+        "@destack/object": "workspace:*",
+        "@destack/schema": "workspace:*"
+    }
+}

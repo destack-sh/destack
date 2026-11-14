@@ -57,6 +57,8 @@
         "@destack/workflow": "workspace:*"
     },
     "devDependencies": {
+        "@destack/machine-binder-fixture": "workspace:*",
+        "@destack/machine-journal-fixture": "workspace:*",
         "@destack/machine-mention-fixture": "workspace:*",
         "@destack/message": "workspace:*",
         "@cloudflare/workers-types": "5.20260917.1",

@@ -510,19 +510,6 @@ export class Space {
         return this.#current().store.promise;
     }
 
-    /** Serve an installed set in this start: load, apply and record its changed servers. */
-    async #apply(installed: readonly InstallationBuild[]): Promise<void> {
-        // apply the changed installations' servers to the store and serve their packages
-        const start = this.#current();
-        const store = await start.store.promise;
-        await this.#applyServers(installed, start.context.signal, (servers, sandboxes) =>
-            start.context.serve(store.apply(this.#storeServers(servers), sandboxes)),
-        );
-
-        // read the mounts the set declares
-        start.mounts = Space.#mounts(installed);
-    }
-
     /** Open a package's release the space runs, or a named version, absent for none. */
     async release(
         view: Snapshot,
@@ -983,25 +970,28 @@ export class Space {
         };
     }
 
-    /** Apply an installed set to a start: load its servers, hand a changed set over, record it. */
-    async #applyServers(
-        installed: readonly InstallationBuild[],
-        signal: AbortSignal,
-        handover: (
-            servers: readonly PackageImplementation[],
-            sandboxes: readonly HookSandbox[],
-        ) => Promise<void> | void,
-    ): Promise<void> {
-        // load the set's servers, reusing this start's, and hand them over once the served set changes
+    /** Serve an installed set in this start: hand the store its changed servers, record what it serves. */
+    async #serveInstalled(installed: readonly InstallationBuild[]): Promise<void> {
+        // load the set's servers, reusing this start's, and hand them to the store once the served set changes
+        const start = this.#current();
+        const store = await start.store.promise;
+        const { signal } = start.context;
         const before = this.#served?.signal === signal ? this.#serving() : undefined;
         const { servers, sandboxes, revisions } = await this.#servers(installed, signal);
         const after = this.#serving();
         if (before === undefined || before.symmetricDifference(after).size > 0) {
-            await handover(servers, sandboxes);
+            await start.context.serve(store.apply(this.#storeServers(servers), sandboxes));
         }
 
-        // record the revision of each installation the start serves
-        await Rollout.serve(await this.#current().store.promise, this.id, revisions);
+        // record the revision of each installation the start serves, and why its store refuses any
+        const refusals = new Map(
+            store.refused.map(({ installation, error }) => [installation, error.message]),
+        );
+        const served = new Map([...revisions].filter(([id]) => !refusals.has(id)));
+        await Rollout.serve(store, this.id, served, refusals);
+
+        // read the mounts the set declares
+        start.mounts = Space.#mounts(installed);
     }
 
     /** List the keys of the installations this start serves. */
@@ -2268,7 +2258,7 @@ export class Space {
             const { installed, unavailable: waiting } = await this.installed("forges");
             unavailable = waiting;
             await this.#root(installed, waiting);
-            await this.#apply(installed);
+            await this.#serveInstalled(installed);
         }
 
         // report whether every installation serves its revision, and tell the universe a primary serves the space
@@ -2353,9 +2343,10 @@ export class Space {
         );
         const lagging = rows.find(
             (row) =>
-                row.revisionId === null ||
-                row.appliedRevisionId !== row.revisionId ||
-                row.servedRevisionId !== row.revisionId,
+                row.refusal === null &&
+                (row.revisionId === null ||
+                    row.appliedRevisionId !== row.revisionId ||
+                    row.servedRevisionId !== row.revisionId),
         );
 
         // wait for a first installation, then for each to serve its revision, naming its open condition
