@@ -2,7 +2,7 @@
 export function copyRequest(request: Request, changes: RequestInit, url = request.url): Request {
     // keep the body's source on the same URL, so a browser sends it whole, never as a stream upload
     if (url === request.url && changes.body === undefined) {
-        // copy it, dropping each header the given ones lack
+        // copy it, then drop each header the given ones lack
         // NOTE #Robustness: Bun keeps the request's own headers when the given set is empty
         const copied = new Request(request, changes);
         if (changes.headers !== undefined) {
