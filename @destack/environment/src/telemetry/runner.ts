@@ -62,11 +62,12 @@ export interface SpanRunner {
     ): Promise<Result>;
     /** Read the active span, such as the call the platform traces. */
     readonly current: () => Span | undefined;
-    /** Time work apart from any span, such as a wait, recording its seconds and its failure. */
+    /** Time work apart from any span, recording its seconds and failure, and handing them over. */
     readonly measure: <Result>(
         name: string,
         attributes: Attributes,
         run: () => Promise<Result>,
+        measured?: (seconds: number) => void,
     ) => Promise<Result>;
 }
 
@@ -158,6 +159,7 @@ export const SpanRunner = {
             name: string,
             attributes: Attributes,
             work: () => Promise<Result>,
+            measured?: (seconds: number) => void,
         ): Promise<Result> => {
             const started = monotonic.now();
             let failure: unknown;
@@ -171,6 +173,7 @@ export const SpanRunner = {
                 const failed =
                     failure === undefined ? {} : { "error.type": Failure.of(failure).code };
                 durations(name).record(seconds, { ...attributes, ...failed });
+                measured?.(seconds);
             }
         };
 

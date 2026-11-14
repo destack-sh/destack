@@ -119,9 +119,21 @@ export class HttpTransport implements Network {
         );
     };
 
-    /** Open a connection through the source network. */
-    readonly connect = (address: SocketAddress, options?: ConnectOptions): Socket =>
-        this.source.connect(address, options);
+    /** Open a connection through the source network, in a span until it opens. */
+    readonly connect = (address: SocketAddress, options?: ConnectOptions): Socket => {
+        // start the span now, ending it once the socket opens or fails to
+        const socket = this.source.connect(address, options);
+        const server =
+            "unix" in address
+                ? { "server.address": address.unix }
+                : { "server.address": address.hostname, "server.port": address.port };
+        const opened = this.#span("destack.network.connect", server, () => socket.opened);
+
+        // leave the failure to the socket's owner, as the span records it
+        opened.catch(() => undefined);
+
+        return socket;
+    };
 
     /** Open a WebSocket through the source network. */
     readonly websocket = (url: string, protocols?: string | readonly string[]): ClientSocket =>

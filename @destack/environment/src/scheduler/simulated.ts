@@ -1,6 +1,8 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 import { SpanStatusCode } from "@opentelemetry/api";
+import { Failure } from "@destack/error";
 import { yieldToEventLoop } from "../clock/wait.ts";
+import { recordSpanException } from "../telemetry/exception.ts";
 import type { Telemetry } from "../telemetry/telemetry.ts";
 import type { RunOptions, Scheduler } from "./scheduler.ts";
 import type { Simulation } from "../simulation/simulation.ts";
@@ -443,9 +445,11 @@ export class SimulatedScheduler implements Scheduler {
         );
 
         return (failure) => {
-            // mark a failure, then end on the world's clock
+            // record a failure as the span runner does, then end on the world's clock
             if (failure !== undefined) {
-                span.setStatus({ code: SpanStatusCode.ERROR, message: String(failure.error) });
+                recordSpanException(span, failure.error);
+                span.setStatus({ code: SpanStatusCode.ERROR });
+                span.setAttribute("error.type", Failure.of(failure.error).code);
             }
             span.end(clock.now());
         };
