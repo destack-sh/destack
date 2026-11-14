@@ -1,5 +1,6 @@
 import { expect, test } from "@destack/test";
-import { isRuntimeModule, runtimeCss, runtimeTarget } from "./runtime.ts";
+import { BASELINE } from "@destack/environment/browser";
+import { BROWSER_TARGETS, isRuntimeModule, runtimeCss, runtimeTarget } from "./runtime.ts";
 
 test("supply every host module on Bun, workerd's nodejs_compat modules and stubs on workerd, and none in browsers", () => {
     const specifiers = [
@@ -52,4 +53,24 @@ test("compile browser modules to the baseline browsers and server modules to cur
         },
         serverCss: {},
     });
+});
+
+test("keep each browser baseline shim only while a target browser lacks its member", () => {
+    // read each target browser and its version, as esbuild names them
+    const targets = BROWSER_TARGETS.map((target) => {
+        const [, browser = "", version = ""] = /^([a-z]+)([\d.]+)$/u.exec(target) ?? [];
+
+        return { browser, version: Number(version) };
+    });
+
+    // list the shims whose member every target browser ships, which retire
+    const retired = BASELINE.filter((shim) =>
+        targets.every(({ browser, version }) => {
+            const native = Object.entries(shim.native).find(([name]) => name === browser)?.[1];
+
+            return native !== undefined && version >= native;
+        }),
+    );
+
+    expect(retired.map((shim) => shim.feature)).toEqual([]);
 });
