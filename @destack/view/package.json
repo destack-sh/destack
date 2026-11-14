@@ -105,15 +105,15 @@
         "@solidjs/vite-plugin": "3.0.0-next.43",
         "@solidjs/web": "2.0.0-rc.8",
         "dom-accessibility-api": "0.7.1",
-        "happy-dom": "20.14.5",
-        "sharp": "0.35.4",
+        "happy-dom": "21.0.4",
+        "sharp": "0.35.5",
         "solid-js": "2.0.0-rc.8"
     },
     "peerDependencies": {
         "@destack/build": "workspace:*",
         "@destack/test": "workspace:*",
-        "rolldown": "1.2.16",
-        "vite": "8.3.0"
+        "rolldown": "1.2.19",
+        "vite": "8.3.8"
     },
     "peerDependenciesMeta": {
         "@destack/build": {
@@ -130,7 +130,7 @@
         "@destack/build": "workspace:*",
         "@destack/check": "workspace:*",
         "@destack/test": "workspace:*",
-        "rolldown": "1.2.16",
-        "vite": "8.3.0"
+        "rolldown": "1.2.19",
+        "vite": "8.3.8"
     }
 }

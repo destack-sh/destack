@@ -8,8 +8,11 @@ export default {
     name: "dom",
     viteEnvironment: "client",
     setup(global: Record<string, unknown>) {
-        // expose the window's DOM events and the globals the runtime lacks
-        const window = new Window({ url: "http://localhost/" });
+        // expose the window's DOM events and the globals the runtime lacks, giving iframes windows as browsers do
+        const window = new Window({
+            url: "http://localhost/",
+            settings: { enableIframePageLoading: true },
+        });
         const added: string[] = [];
         const replaced = new Map<string, unknown>();
         for (const key of Object.getOwnPropertyNames(window)) {

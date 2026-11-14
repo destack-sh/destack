@@ -24,8 +24,8 @@
         "./test": "./src/test/index.ts"
     },
     "dependencies": {
-        "@better-auth/core": "1.7.6",
-        "@better-auth/passkey": "1.7.6",
+        "@better-auth/core": "1.7.25",
+        "@better-auth/passkey": "1.7.25",
         "@destack/access": "workspace:*",
         "@destack/bucket": "workspace:*",
         "@destack/db": "workspace:*",
@@ -42,7 +42,7 @@
         "@destack/setting": "workspace:*",
         "@destack/sync": "workspace:*",
         "@destack/telemetry": "workspace:*",
-        "better-auth": "1.7.6"
+        "better-auth": "1.7.25"
     },
     "peerDependencies": {
         "@destack/test": "workspace:*"

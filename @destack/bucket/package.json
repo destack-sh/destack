@@ -39,7 +39,7 @@
         "@destack/test": "workspace:*",
         "@types/bun": "1.4.4",
         "miniflare": "4.20260730.0",
-        "rolldown": "1.2.16"
+        "rolldown": "1.2.19"
     },
     "peerDependencies": {
         "@cloudflare/workers-types": "5.20260917.1"
