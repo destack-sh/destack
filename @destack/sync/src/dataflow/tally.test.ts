@@ -47,14 +47,16 @@ test("measure a group of many distinct values as its extreme, and read its value
 
     // read the runs ended since the last read, from the snapshot's on, each as its changes and statements
     const runs = () =>
-        simulation.telemetry.spans.filter((span) => span.name === "destack.feed.run");
+        simulation.telemetry.spans.filter((span) =>
+            ["destack.dataflow.hydrate", "destack.dataflow.step"].includes(span.name),
+        );
     let seen = 0;
     const ended = () => {
         const fresh = runs().slice(seen);
         seen += fresh.length;
 
         return fresh.map((span) => [
-            span.attributes["destack.feed.changed"],
+            span.attributes["destack.dataflow.changed"],
             span.attributes["db.client.operation.count"] ?? 0,
         ]);
     };

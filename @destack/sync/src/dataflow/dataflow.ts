@@ -29,7 +29,7 @@ import { Sink } from "./sink.ts";
 import { Trace, type Upstream } from "./upstream.ts";
 
 /** The runs of a dataflow: loading its rows, and applying committed changes. */
-const RUN_KINDS = ["hydrate", "update"] as const;
+const RUN_KINDS = ["hydrate", "step"] as const;
 
 /** The stages a run's rows pass: taken in as changes, decided, and sent. */
 const ROW_STAGES = ["changed", "decided", "sent"] as const;
@@ -97,9 +97,12 @@ export class Dataflow implements Arrangement {
         this.#deciding = new Map<Table, Pipeline[]>();
         const { telemetry } = options.database.state.environment;
         this.#scope = TelemetryScope.of(import.meta.destack.package, telemetry);
-        this.#rows = this.#scope.metric.counter("destack.feed.rows", {
+        this.#rows = this.#scope.metric.counter("destack.dataflow.rows", {
             unit: "{row}",
-            attributes: { "destack.feed.kind": RUN_KINDS, "destack.feed.stage": ROW_STAGES },
+            attributes: {
+                "destack.dataflow.kind": RUN_KINDS,
+                "destack.dataflow.stage": ROW_STAGES,
+            },
         });
 
         // resolve the queries into trees
@@ -255,11 +258,7 @@ export class Dataflow implements Arrangement {
     /** Select every root's rows and results as of a run's position, yielding after each page. */
     hydrate(run: Run, start?: Row): Promise<AsyncGenerator<void>> {
         // run the pages in the run's span, which ends once the reader takes the last page
-        const attributes = { "destack.feed.kind": "hydrate" } as const;
-
-        return this.#scope.span("destack.feed.run", attributes, () => this.#hydrate(run, start), {
-            duration: { attributes },
-        });
+        return this.#scope.span("destack.dataflow.hydrate", {}, () => this.#hydrate(run, start));
     }
 
     /** Select the roots' rows a page at a time, measuring every relation first. */
@@ -316,17 +315,10 @@ export class Dataflow implements Arrangement {
 
     /** Apply a run of committed changes. */
     step(run: Run): Promise<void> {
-        const attributes = { "destack.feed.kind": "update" } as const;
-
-        return this.#scope.span(
-            "destack.feed.run",
-            attributes,
-            async (span) => {
-                await this.#step(run);
-                this.#count(span, "update", run);
-            },
-            { duration: { attributes } },
-        );
+        return this.#scope.span("destack.dataflow.step", {}, async (span) => {
+            await this.#step(run);
+            this.#count(span, "step", run);
+        });
     }
 
     /** Count the rows a run took in, decided and sent, on its span and the counter. */
@@ -337,8 +329,11 @@ export class Dataflow implements Arrangement {
             ["sent", run.patch.size],
         ] as const;
         for (const [stage, count] of rows) {
-            span?.setAttribute(`destack.feed.${stage}`, count);
-            this.#rows.add(count, { "destack.feed.kind": kind, "destack.feed.stage": stage });
+            span?.setAttribute(`destack.dataflow.${stage}`, count);
+            this.#rows.add(count, {
+                "destack.dataflow.kind": kind,
+                "destack.dataflow.stage": stage,
+            });
         }
     }
 
