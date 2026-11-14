@@ -195,42 +195,48 @@ export class Registry {
                     return [];
                 }
 
+                // order the roots by dependency layer, each after the ones it requires
+                const merged = Lock.of(
+                    nth(read, 0).root,
+                    Object.fromEntries(read.flatMap((each) => Object.entries(each.builds))),
+                );
+                const layers = Lock.layers(merged).map((layer) =>
+                    layer.flatMap((digest) => {
+                        const root = roots.get(digest);
+
+                        return root === undefined ? [] : [root];
+                    }),
+                );
+
                 // leave the roots the tag already points at, as publishing them again changes nothing
                 const forge = await this.#find({ account });
                 const client = createClient(registryPackage, forge, this.#environment);
                 const tagged = await Promise.all(
                     [...roots.values()].map((root) => Registry.#tagged(client, forge, root, tag)),
                 );
-                const pending = new Map(
-                    [...roots].filter(([, root], index) => tagged[index] !== root.lock),
+                const pending = new Set(
+                    [...roots.values()]
+                        .filter((root, index) => tagged[index] !== root.lock)
+                        .map((root) => root.lock),
                 );
                 if (pending.size === 0) {
-                    return [...roots.values()];
+                    return layers.flat();
                 }
 
                 // push the pending locks' objects once below the account's handle
                 const { handle } = PackageName.split(nth([...roots.values()], 0).package.name);
-                const pushed = [...pending.values()].map((root) => root.lock);
-                await Registry.#uploads(forge, handle).push(store, pushed);
-                const merged = Lock.of(
-                    nth(read, 0).root,
-                    Object.fromEntries(read.flatMap((each) => Object.entries(each.builds))),
-                );
+                await Registry.#uploads(forge, handle).push(store, [...pending]);
 
-                // publish the pending roots a layer at a time, then answer every root as released
-                for (const layer of Lock.layers(merged)) {
+                // publish the pending roots a layer at a time, then answer every root in order
+                for (const layer of layers) {
                     await Promise.all(
-                        layer.flatMap((digest) => {
-                            const root = pending.get(digest);
-
-                            return root === undefined
-                                ? []
-                                : [this.#publish(forge, root, account, tag, commit)];
-                        }),
+                        layer
+                            .filter((root) => pending.has(root.lock))
+                            .map((root) => this.#publish(forge, root, account, tag, commit)),
                     );
                 }
 
-                return [...roots.values()];
+                return layers.flat();
             },
         );
     }
