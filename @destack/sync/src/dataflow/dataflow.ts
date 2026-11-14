@@ -255,6 +255,30 @@ export class Dataflow implements Arrangement {
         this.#trace?.forget();
     }
 
+    /** Whether the queries decide each row by itself, without includes, relations or aggregates. */
+    get isRowwise(): boolean {
+        return this.nodes.every(
+            (node) =>
+                node.children.length === 0 &&
+                node.relations.length === 0 &&
+                node.aggregate === undefined &&
+                node.limit === undefined,
+        );
+    }
+
+    /** Select the rows of a table the queries' roots have at a run's position. */
+    async select(table: Table, rows: readonly Row[], run: Run): Promise<Row[]> {
+        // keep the visible rows any root over the table lets in
+        const kept = new Set<Row>();
+        for (const root of this.roots.filter((node) => node.table === table)) {
+            for (const row of await found(this.#pipelines, root).filter.prepare(rows, run)) {
+                kept.add(row);
+            }
+        }
+
+        return rows.filter((row) => kept.has(row));
+    }
+
     /** Select every root's rows and results as of a run's position, yielding after each page. */
     hydrate(run: Run, start?: Row): Promise<AsyncGenerator<void>> {
         // run the pages in the run's span, which ends once the reader takes the last page

@@ -12,6 +12,12 @@ import {
 } from "@destack/db";
 import type { Query } from "../query/query.ts";
 
+/** No rows beyond the changed row. */
+export const NO_ROWS: Affected = { kind: "none" };
+
+/** Every row, as a change of the scope's own access decides them all. */
+export const ALL_ROWS: Affected = { kind: "all" };
+
 /** An audience that shows and reads every row. */
 export const EVERYONE: Audience = {
     watches: [],
@@ -21,7 +27,7 @@ export const EVERYONE: Audience = {
     visible: async (_table, rows) => new Set(rows.keys()),
     concealable: () => [],
     conceals: async (_table, rows) => rows.map(() => []),
-    decides: async () => false,
+    affects: async () => NO_ROWS,
     until: async () => undefined,
     refresh: async () => {},
 };
@@ -55,9 +61,21 @@ export interface Audience {
     readonly until: () => Promise<number | undefined>;
     /** Decide as of now once the `until` moment passed. */
     readonly refresh: () => Promise<void>;
-    /** Report whether a change may decide the visibility of rows beyond the changed row. */
-    readonly decides: (change: Change) => Promise<boolean>;
+    /** Read the rows beyond the changed row whose visibility a change may change. */
+    readonly affects: (change: Change) => Promise<Affected>;
 }
+
+/** The rows beyond a changed row whose visibility the change may change. */
+export type Affected =
+    | { readonly kind: "none" }
+    | {
+          readonly kind: "rows";
+          /** Read the affected rows' conditions by table, at the positions they are decided at. */
+          readonly read: (
+              positions: readonly LogPosition[],
+          ) => Promise<ReadonlyMap<Table, Condition>>;
+      }
+    | { readonly kind: "all" };
 
 /** The tables and scopes whose changes decide what a subscriber has. */
 export interface Watch {

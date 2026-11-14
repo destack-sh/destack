@@ -9,7 +9,7 @@ import {
     type Row,
     type Change,
 } from "@destack/db";
-import type { Audience, Watch } from "../audience.ts";
+import { type Affected, type Audience, NO_ROWS, type Watch } from "../audience.ts";
 
 /** An audience deciding by conditions per table, in SQL and in memory or only in memory. */
 export class ConditionAudience implements Audience {
@@ -85,8 +85,8 @@ export class ConditionAudience implements Audience {
     async refresh() {}
 
     /** Decide nothing beyond rows themselves. */
-    async decides(_change: Change): Promise<boolean> {
-        return false;
+    async affects(_change: Change): Promise<Affected> {
+        return NO_ROWS;
     }
 
     /** Decide whether a row is visible, in memory. */

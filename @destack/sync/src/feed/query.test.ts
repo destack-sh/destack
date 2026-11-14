@@ -3,7 +3,7 @@ import { expect, refusal, test } from "@destack/test";
 import { nth, schema } from "@destack/schema";
 import { eq, sql, type Table, Expression, type Change, type Row } from "@destack/db";
 import { Feed } from "./feed.ts";
-import { EVERYONE, type Audience } from "./audience.ts";
+import { EVERYONE, type Audience, ALL_ROWS, NO_ROWS } from "./audience.ts";
 import type { Page } from "../query/page.ts";
 import type { Query } from "../query/query.ts";
 import {
@@ -136,20 +136,22 @@ test("follow rows whose visibility the audience changes", async () => {
         async (transaction) => await transaction.insert(task).values([TASK, { ...TASK, id: "t2" }]),
     );
 
-    // see the tasks a note references
+    // see the tasks a note references, as of the notes read at the last refresh, as an audience decides
+    const readGrants = async () =>
+        new Set((await database.select({ id: note.id }).from(note)).map((row) => row.id));
+    let grants = await readGrants();
     const audience: Audience = {
         ...EVERYONE,
         watches: [{ table: note, scopes: ["grants"] }],
+        refresh: async () => {
+            grants = await readGrants();
+        },
         visible: async (table, rows) => {
-            const granted = new Set(
-                (await database.select({ id: note.id }).from(note)).map((row) => row.id),
-            );
-
             return new Set(
                 rows.flatMap((row, index) => {
                     const id = row["id"];
 
-                    return table !== task || (typeof id === "string" && granted.has(id))
+                    return table !== task || (typeof id === "string" && grants.has(id))
                         ? [index]
                         : [];
                 }),
@@ -160,7 +162,7 @@ test("follow rows whose visibility the audience changes", async () => {
         readable: async (table) =>
             table === task ? sql`${task.id} IN (SELECT ${note.id} FROM ${note})` : sql`true`,
         key: "granted",
-        decides: async (change: Change) => change.table === note,
+        affects: async (change: Change) => (change.table === note ? ALL_ROWS : NO_ROWS),
     };
     const grant = {
         title: "grant",

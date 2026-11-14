@@ -1,5 +1,14 @@
-import { TABLE, DatabaseError, Change, Key, LogPosition, type Table } from "@destack/db";
-import { nth } from "@destack/schema";
+import {
+    TABLE,
+    DatabaseError,
+    Change,
+    type Condition,
+    Key,
+    LogPosition,
+    type Row,
+    type Table,
+} from "@destack/db";
+import { nth, present } from "@destack/schema";
 import type { Query } from "../query/query.ts";
 import type { Node } from "../query/node.ts";
 import type { Page } from "../query/page.ts";
@@ -7,7 +16,7 @@ import { Dataflow, type DataflowInspection } from "../dataflow/dataflow.ts";
 import { Run, type Walk } from "../dataflow/run.ts";
 import { type Decision, Patch, ViewRecord } from "../dataflow/sink.ts";
 import { View } from "../dataflow/view.ts";
-import { type Audience, Watch } from "./audience.ts";
+import { type Affected, ALL_ROWS, type Audience, NO_ROWS, Watch } from "./audience.ts";
 import type { Feed } from "./feed.ts";
 
 /** The recent sequences whose decided pages an evaluation stores. */
@@ -222,7 +231,7 @@ export class Evaluation {
     async reshape(queries: Readonly<Record<string, Query>>): Promise<Page> {
         // keep the queries that stay alike, and compile the added and changed ones
         const position = this.#requirePosition();
-        await this.#walkDeferred(position);
+        await this.#restoreRows(position);
         const kept = new Map<string, Dataflow>();
         const added = new Map<string, Dataflow>();
         for (const [name, query] of Object.entries(queries)) {
@@ -277,14 +286,15 @@ export class Evaluation {
         });
     }
 
-    /** Decide the subscriber's rows again, sending the difference and the changed rows. */
+    /** Decide the subscriber's rows again after some changes, sending the difference. */
     async redecide(
+        previous: LogPosition,
         position: LogPosition,
         isComplete: boolean,
         changes: readonly Change[],
     ): Promise<Page> {
-        // read what the subscriber has, decide again, and collect what the new decisions allow
-        await this.#walkDeferred(position);
+        // rebuild the subscriber's rows before the changes, then collect them under the new access
+        await this.#restoreRows(previous);
         const before = this.rows();
         await this.#audience.refresh();
         const after = await this.collect(this.#view(position));
@@ -322,8 +332,8 @@ export class Evaluation {
             );
         }
 
-        // walk deferred rows before their first changes
-        if (read.changes.length > 0) {
+        // walk deferred rows before their first changes, unless the queries decide each row by itself
+        if (read.changes.length > 0 && !this.isRowwise) {
             await this.#walkDeferred(after);
         }
 
@@ -336,9 +346,21 @@ export class Evaluation {
             const position = { ...after, sequence: nth(changes, -1).sequence };
             await this.#feed.scheduler.yield();
 
-            // decide every row again across a change of access, sending the difference
-            if (await this.#decides(changes)) {
-                yield await this.redecide(position, isComplete, changes);
+            // decide every row again when an access change affects them all
+            const previous = { ...after, sequence: from };
+            const affected = await this.#affected(changes);
+            if (affected.kind === "all" || (affected.kind === "rows" && !this.isRowwise)) {
+                yield await this.redecide(previous, position, isComplete, changes);
+            }
+            // decide the changed and affected rows by their images
+            else if (this.isRowwise) {
+                const patch = await this.#decideImages(previous, position, changes, affected);
+                if (patch.size > 0) {
+                    yield await patch.page(position, this.#audience, this.#feed, this.#record, {
+                        reset: false,
+                        complete: isComplete,
+                    });
+                }
             }
             // step each query's changed rows, sending what entered, changed and left the union
             else {
@@ -463,6 +485,114 @@ export class Evaluation {
         this.#isDeferred = true;
     }
 
+    /** Whether every query decides each row by itself, holding no rows between changes. */
+    get isRowwise(): boolean {
+        return [...this.#dataflows.values()].every((dataflow) => dataflow.isRowwise);
+    }
+
+    /** Rebuild the rows the subscriber has at a position. */
+    async #restoreRows(position: LogPosition): Promise<void> {
+        if (this.isRowwise) {
+            await this.collect(this.#view(position));
+        } else {
+            await this.#walkDeferred(position);
+        }
+    }
+
+    /** Decide each changed or affected row by its first and last image. */
+    async #decideImages(
+        previous: LogPosition,
+        position: LogPosition,
+        changes: readonly Change[],
+        affected: Affected,
+    ): Promise<Patch> {
+        // take each changed row's first and last image
+        const images = new Map<string, Image>();
+        for (const change of changes) {
+            const key = Key.name(change.table, change.key);
+            const known = images.get(key);
+            images.set(key, {
+                table: change.table,
+                before: known === undefined ? Change.before(change) : known.before,
+                after: Change.after(change),
+            });
+        }
+
+        // add the rows an access change affects, as they stand before the changes and after them
+        const changed = new Set(images.keys());
+        if (affected.kind === "rows") {
+            for (const [table, where] of await affected.read([previous, position])) {
+                const [before, after] = await Promise.all([
+                    this.#view(previous).matching(table, where),
+                    this.#view(position).matching(table, where),
+                ]);
+                for (const [side, rows] of [
+                    ["before", before],
+                    ["after", after],
+                ] as const) {
+                    for (const row of rows) {
+                        const key = Key.name(table, row);
+                        if (!changed.has(key)) {
+                            const image = images.get(key) ?? { table, before: null, after: null };
+                            images.set(key, { ...image, [side]: row });
+                        }
+                    }
+                }
+            }
+        }
+
+        // decide the images before the changes, then refresh the access and decide them after
+        const was = await this.#selected(previous, images, "before");
+        if (affected.kind === "rows") {
+            await this.#audience.refresh();
+        }
+        const is = await this.#selected(position, images, "after");
+
+        // send the rows entering and leaving, and the changed rows staying
+        const patch = new Patch();
+        for (const [key, { table, after }] of images) {
+            if (after !== null && is.has(key) && !was.has(key)) {
+                patch.rows.set(key, { table, row: after, operation: "insert" });
+            } else if (after !== null && is.has(key) && changed.has(key)) {
+                patch.rows.set(key, { table, row: after, operation: "update" });
+            } else if (was.has(key) && !is.has(key)) {
+                patch.rows.set(key, { table, row: Key.parse(table, key), operation: "delete" });
+            }
+        }
+
+        return patch;
+    }
+
+    /** List the keys of the images on one side the queries have at a position. */
+    async #selected(
+        position: LogPosition,
+        images: ReadonlyMap<string, Image>,
+        side: "before" | "after",
+    ): Promise<Set<string>> {
+        // group the side's images by table
+        const tables = new Map<Table, Map<Row, string>>();
+        for (const [key, image] of images) {
+            const row = image[side];
+            if (row !== null) {
+                const rows = tables.get(image.table) ?? new Map<Row, string>();
+                tables.set(image.table, rows.set(row, key));
+            }
+        }
+
+        // keep each row a query has, deciding its visibility as of the position
+        const run = new Run(this.#view(position), this.#audience, undefined);
+        const selected = new Set<string>();
+        for (const [table, rows] of tables) {
+            for (const dataflow of this.#dataflows.values()) {
+                for (const row of await dataflow.select(table, [...rows.keys()], run)) {
+                    selected.add(present(rows.get(row), "a selected row's key"));
+                }
+            }
+        }
+
+        return selected;
+    }
+
     /** Walk deferred rows at a position without sending them, which the subscriber has. */
     async #walkDeferred(position: LogPosition): Promise<void> {
         // leave rows walked already
@@ -556,7 +686,9 @@ export class Evaluation {
         const sequence = next.value;
         const until = await this.#audience.until();
         if (until !== undefined && until <= this.#feed.clock.now()) {
-            pages.push(await this.redecide({ ...position, sequence }, true, []));
+            pages.push(
+                await this.redecide({ ...position, sequence }, { ...position, sequence }, true, []),
+            );
         }
 
         // move the last page to the sequence the pages arrive at, past commits outside the queries
@@ -568,15 +700,38 @@ export class Evaluation {
         return { pages, sequence, until: await this.#audience.until() };
     }
 
-    /** Report whether any of some changes may decide the visibility of other rows. */
-    async #decides(changes: readonly Change[]): Promise<boolean> {
+    /** Join the rows some changes affect beyond themselves. */
+    async #affected(changes: readonly Change[]): Promise<Affected> {
+        // take the rows each change affects, every row once one affects all
+        const reads: ((
+            positions: readonly LogPosition[],
+        ) => Promise<ReadonlyMap<Table, Condition>>)[] = [];
         for (const change of changes) {
-            if (await this.#audience.decides(change)) {
-                return true;
+            const affected = await this.#audience.affects(change);
+            if (affected.kind === "all") {
+                return ALL_ROWS;
+            } else if (affected.kind === "rows") {
+                reads.push(affected.read);
             }
         }
 
-        return false;
+        return reads.length === 0
+            ? NO_ROWS
+            : {
+                  kind: "rows",
+                  read: async (positions) =>
+                      Evaluation.#joined(await Promise.all(reads.map((read) => read(positions)))),
+              };
+    }
+
+    /** Join the conditions of several affected row sets, table by table. */
+    static #joined(sets: readonly ReadonlyMap<Table, Condition>[]): Map<Table, Condition> {
+        const wheres = new Map<Table, Condition[]>();
+        for (const [table, where] of sets.flatMap((set) => [...set])) {
+            wheres.set(table, [...(wheres.get(table) ?? []), where]);
+        }
+
+        return new Map([...wheres].map(([table, each]) => [table, { OR: each }]));
     }
 
     /** Show the feed's database as of a position. */
@@ -618,4 +773,14 @@ export interface Advance {
     readonly sequence: number;
     /** When the audience's decisions expire. */
     readonly until: number | undefined;
+}
+
+/** A changed row's first and last image in a run of changes. */
+interface Image {
+    /** The row's table. */
+    readonly table: Table;
+    /** The row before the changes, absent for a row they insert. */
+    readonly before: Row | null;
+    /** The row after the changes, absent for a row they delete. */
+    readonly after: Row | null;
 }

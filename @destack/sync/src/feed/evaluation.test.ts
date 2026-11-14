@@ -2,7 +2,7 @@ import { expect, test } from "@destack/test";
 import { type Change, eq, type Row, type Table } from "@destack/db";
 import { View } from "../dataflow/view.ts";
 import { first, note, open, project, START } from "../test/fixture.ts";
-import { type Audience, Watch } from "./audience.ts";
+import { type Affected, ALL_ROWS, type Audience, NO_ROWS, Watch } from "./audience.ts";
 import { Evaluation } from "./evaluation.ts";
 import { Feed } from "./feed.ts";
 import type { Page, RowChange } from "../query/page.ts";
@@ -68,8 +68,8 @@ class SwitchingAudience implements Audience {
     }
 
     /** Decide nothing beyond rows themselves. */
-    async decides(_change: Change): Promise<boolean> {
-        return false;
+    async affects(_change: Change): Promise<Affected> {
+        return NO_ROWS;
     }
 }
 
@@ -133,8 +133,8 @@ class TimedAudience implements Audience {
     }
 
     /** Decide nothing beyond rows themselves. */
-    async decides(_change: Change): Promise<boolean> {
-        return false;
+    async affects(_change: Change): Promise<Affected> {
+        return NO_ROWS;
     }
 
     /** Read the conditions deciding as of now. */
@@ -149,8 +149,8 @@ class ProjectAudience extends ConditionAudience {
     override readonly watches = [Watch.of(project, ["inbox"])];
 
     /** Decide again on a project change. */
-    override async decides(change: Change): Promise<boolean> {
-        return change.table === project;
+    override async affects(change: Change): Promise<Affected> {
+        return change.table === project ? ALL_ROWS : NO_ROWS;
     }
 }
 
@@ -223,7 +223,7 @@ test("send the rows an audience shows after deciding again at the same position"
     await evaluation.collect(new View(database, position, feed));
 
     // swap the open note for the done note once the audience decides again
-    const page = await evaluation.redecide(position, true, []);
+    const page = await evaluation.redecide(position, position, true, []);
     expect(page.changes.map((change) => [change.operation, change.row["id"]])).toEqual([
         ["insert", "b"],
         ["delete", "a"],
@@ -281,7 +281,7 @@ test("send only the rows whose image changes when deciding again, their concealm
     }
 
     // send b shown and c hidden, and nothing of a, whose image stays the same
-    const page = await evaluation.redecide(position, true, []);
+    const page = await evaluation.redecide(position, position, true, []);
     expect({
         sent: imagesOf(sent.flatMap((each) => each.changes)),
         redecided: imagesOf(page.changes),
@@ -326,7 +326,7 @@ test("read shared windows again once their decisions expire, under one key", asy
 
     // swap the open note for the done note once the moment passed
     await simulation.jump(2000);
-    const page = await evaluation.redecide(position, true, []);
+    const page = await evaluation.redecide(position, position, true, []);
     expect(page.changes.map((change) => [change.operation, change.row["id"]])).toEqual([
         ["insert", "b"],
         ["delete", "a"],
