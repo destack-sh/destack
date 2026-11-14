@@ -58,7 +58,7 @@ export interface Example<
     /** The calls bringing the declaration's objects into the example's state, by scope. */
     readonly objects: ExampleObjects;
     /** Render the declaration with the example's properties, or the ones a control changed. */
-    readonly render: ((properties?: Properties) => Instance) | undefined;
+    render?(properties?: Properties): Instance;
 }
 
 /** Declare an example of a declaration in a given state. */
@@ -91,10 +91,9 @@ export function defineExample<Of, Instance = never>(
         description,
         properties,
         objects: definition.objects ?? {},
-        render:
-            render === undefined
-                ? undefined
-                : (changed: PropertiesOf<Of> = properties) => render(changed),
+        ...(render === undefined
+            ? {}
+            : { render: (changed: PropertiesOf<Of> = properties) => render(changed) }),
     });
 }
 
