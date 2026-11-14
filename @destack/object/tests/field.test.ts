@@ -1,6 +1,6 @@
 import { testSimulation } from "../src/test/index.ts";
-import { principal, relation } from "@destack/access";
-import { defineDatabase } from "@destack/db";
+import { none, principal, relation, through } from "@destack/access";
+import { defineDatabase, TABLE, type Table } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
 import { RequestId, ObjectReference, Scope } from "@destack/sync";
 import { testCallKey } from "@destack/object/test";
@@ -143,3 +143,46 @@ test("store a marker's target as its label's reference columns, refuse a note, a
         targets: [first, first],
     });
 });
+
+test("index a reference a permission reads through, once, as access looks its rows up by it", () => {
+    // read tasks through their project, one task type declaring its own index on the project
+    const project = defineObject(
+        {
+            name: "project",
+            plural: "projects",
+            title: t`${plural(argument("count"), { one: "Project", other: "Projects" })}`,
+            scope: space,
+            fields: { owner: field.reference(principal.user).caller() },
+            access: { permissions: { read: relation("owner"), write: relation("owner") } },
+        },
+        (method) => ({ create: method.create("write", { fields: [] }) }),
+    );
+    const task = (name: string, isIndexed: boolean) =>
+        defineObject(
+            {
+                name,
+                plural: `${name}s`,
+                title: t`${plural(argument("count"), { one: "Task", other: "Tasks" })}`,
+                scope: space,
+                fields: { project: field.reference(project) },
+                ...(isIndexed
+                    ? { constraints: { byProject: { kind: "index", on: ["projectId"] } } }
+                    : {}),
+                access: { permissions: { read: through("project", "read"), write: none() } },
+            },
+            (method) => ({ create: method.create("read", { fields: ["projectId"] }) }),
+        );
+    // expect one index on the project column in each, the declared one kept alone
+    expect({
+        task: projectIndexes(task("task", false).table),
+        indexed: projectIndexes(task("chore", true).table),
+    }).toEqual({ task: ["task_project"], indexed: ["chore_by_project"] });
+});
+
+/** List the names of a table's indexes on its project column. */
+function projectIndexes(table: Table): string[] {
+    return table[TABLE]
+        .constraints("sqlite")
+        .flatMap((constraint) => (constraint.kind === "index" ? [constraint.name] : []))
+        .filter((name) => /project/iu.test(name));
+}

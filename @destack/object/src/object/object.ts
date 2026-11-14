@@ -6,6 +6,7 @@ import {
     Policy,
     none,
     type AccessExpression,
+    throughRelations,
     type Elevation,
     type RelationInput,
     type PolicySubject,
@@ -2667,6 +2668,32 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
         }
     }
 
+    /** Index each identifier reference a permission reads through, which access reverses by it. */
+    static #throughIndexes(
+        fields: Readonly<Record<string, Field>>,
+        permissions: Readonly<Record<string, AccessExpression>>,
+        declared: Readonly<Record<string, ObjectConstraint>>,
+    ): Record<string, ObjectConstraint> {
+        // index each identifier column a permission follows through, unless a declared index leads with it
+        const followed = throughRelations(Object.values(permissions));
+        const leading = new Set(
+            Object.values(declared).flatMap((constraint) =>
+                constraint.kind === "index" ? [constraint.on[0]] : [],
+            ),
+        );
+
+        return Object.fromEntries(
+            Object.entries(fields).flatMap(([property, field]) => {
+                const column = `${property}Id`;
+                const isFollowed = followed.has(Casing.kebab(field.relationAt(property)));
+
+                return field.reference === "identifier" && isFollowed && !leading.has(column)
+                    ? [[property, { kind: "index", on: [column] } satisfies ObjectConstraint]]
+                    : [];
+            }),
+        );
+    }
+
     /** Declare an object type from a definition, deriving its table, traits and methods. */
     static declare(input: ObjectInput, module: ModuleMetadata | undefined): ObjectType {
         // collect the traits, adding what the roles define, and take the built methods
@@ -2693,6 +2720,7 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
 
         // key each reference under its relation's columns, constraining object references
         const fields = expanded.fields ?? {};
+        const constraints = expanded.constraints ?? {};
         const definition = {
             ...expanded,
             fields: ObjectType.#keyFields(fields),
@@ -2702,7 +2730,12 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
                         Object.entries(field.constraints(name)),
                     ),
                 ),
-                ...expanded.constraints,
+                ...ObjectType.#throughIndexes(
+                    fields,
+                    ObjectPermissions.expressions(expanded.permissions ?? {}),
+                    constraints,
+                ),
+                ...constraints,
             },
         };
         const foreign = definition.mapping?.table;
