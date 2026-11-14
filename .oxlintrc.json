@@ -533,8 +533,16 @@
                     "name": "@destack/machine-apps-fixture"
                 },
                 {
+                    "directory": "@destack/machine/tests/fixture/binder",
+                    "name": "@destack/machine-binder-fixture"
+                },
+                {
                     "directory": "@destack/machine/tests/fixture/board",
                     "name": "@destack/machine-board-fixture"
+                },
+                {
+                    "directory": "@destack/machine/tests/fixture/journal",
+                    "name": "@destack/machine-journal-fixture"
                 },
                 {
                     "directory": "@destack/machine/tests/fixture/mention",
@@ -666,7 +674,9 @@
                 "@destack/build-unit-application-fixture": "library",
                 "@destack/build-unit-library-fixture": "library",
                 "@destack/machine-apps-fixture": "app",
+                "@destack/machine-binder-fixture": "app",
                 "@destack/machine-board-fixture": "app",
+                "@destack/machine-journal-fixture": "app",
                 "@destack/machine-mention-fixture": "app",
                 "@destack/machine-regional-fixture": "app",
                 "@destack/machine-stack-fixture": "library",
