@@ -1,5 +1,5 @@
 import { defineScenario } from "@destack/package/declare";
-import { databaseInteraction } from "../interaction.ts";
+import { databaseInteraction } from "../scenario/interaction.ts";
 import { DatabaseConnection } from "./connection.ts";
 
 /** Insert, read and update notes among a thousand, and insert them in log transactions. */

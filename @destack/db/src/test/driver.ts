@@ -9,7 +9,7 @@ import {
     type DatabaseObservation,
     type DatabaseStep,
     databaseInteraction,
-} from "../interaction.ts";
+} from "../scenario/interaction.ts";
 import { BLOB_TABLES, BlobStore } from "../blob/store.ts";
 import { Transaction } from "../log/commit.ts";
 import { eq } from "../sql/operator.ts";

@@ -1,5 +1,5 @@
 import { defineScenario } from "@destack/package/declare";
-import { databaseInteraction } from "../interaction.ts";
+import { databaseInteraction } from "../scenario/interaction.ts";
 import { BlobStore } from "./store.ts";
 
 /** Store blobs the size of build modules and fetch them back. */
