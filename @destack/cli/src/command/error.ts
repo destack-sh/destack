@@ -92,6 +92,20 @@ export class CommandFailure {
         return failure instanceof Error ? failure.message : String(failure);
     }
 
+    /** Read the messages of the failures that caused the reported one, outermost first. */
+    get causes(): string[] {
+        // walk the cause chain below the reported failure
+        const causes: string[] = [];
+        const reported = this.cause ?? this.error;
+        let cause = reported instanceof Error ? reported.cause : undefined;
+        while (cause !== undefined) {
+            causes.push(cause instanceof Error ? cause.message : JSON.stringify(cause));
+            cause = cause instanceof Error ? cause.cause : undefined;
+        }
+
+        return causes;
+    }
+
     /** Read the exit status: misuse, a missing sign-in, an interrupt, or any other failure. */
     get status(): number {
         // exit as interrupted
@@ -121,9 +135,13 @@ export class CommandFailure {
     /** Report the failure, quietly for an interrupt, and return its exit status. */
     async report(json: boolean, terminal: Terminal): Promise<number> {
         if (!(this.error instanceof Interrupted)) {
-            const reported = { code: this.code, message: this.message };
+            const reported = { code: this.code, message: this.message, causes: this.causes };
+            const lines = [
+                `destack: ${reported.message}`,
+                ...reported.causes.map((cause) => `  caused by: ${cause}`),
+            ];
             await terminal.printDiagnostic(
-                json ? JSON.stringify({ error: reported }) : `destack: ${reported.message}`,
+                json ? JSON.stringify({ error: reported }) : lines.join("\n"),
             );
         }
 

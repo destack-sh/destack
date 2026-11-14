@@ -72,7 +72,11 @@ test("switch to a space as this computer's space setting, which --space override
                 code: 1,
                 output: "",
                 error: JSON.stringify({
-                    error: { code: "NOT_FOUND", message: `address '${missing}' not found` },
+                    error: {
+                        code: "NOT_FOUND",
+                        message: `address '${missing}' not found`,
+                        causes: [],
+                    },
                 }),
             },
             { code: 1, output: "", error: "destack: space 'notes' of yours not found" },
@@ -98,7 +102,7 @@ test("refuse a command line acting as nobody signed in, telling the person to si
         whoami: {
             code: 4,
             output: "",
-            error: `${JSON.stringify({ error: { code: "UNAUTHORIZED", message: "authentication required: sign in with destack login" } })}\n`,
+            error: `${JSON.stringify({ error: { code: "UNAUTHORIZED", message: "authentication required: sign in with destack login", causes: [] } })}\n`,
         },
         spaces: {
             code: 2,
@@ -125,7 +129,7 @@ test("act in the space DESTACK_SPACE gives when the command line gives no --spac
         {
             code: 1,
             output: "",
-            error: `${JSON.stringify({ error: { code: "NOT_FOUND", message: `address '${missing}' not found` } })}\n`,
+            error: `${JSON.stringify({ error: { code: "NOT_FOUND", message: `address '${missing}' not found`, causes: [] } })}\n`,
         },
     ]);
 });

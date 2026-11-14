@@ -28,7 +28,7 @@ async function create(terminal: TerminalFixture, title: string): Promise<string>
 
 /** Write the JSON line a failure prints on standard error. */
 function failure(code: string, message: string): string {
-    return `${JSON.stringify({ error: { code, message } })}\n`;
+    return `${JSON.stringify({ error: { code, message, causes: [] } })}\n`;
 }
 
 test("create, get, change and call a card by its singular noun, plain and qualified", async () => {

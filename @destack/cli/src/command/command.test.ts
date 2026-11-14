@@ -41,6 +41,7 @@ test("dispatch fixed verbs, and refuse unknown options, missing arguments and he
                         code: "BAD_REQUEST",
                         message:
                             "command 'destack self update' is invalid: it does not support '--check'",
+                        causes: [],
                     },
                 }),
             ],
@@ -55,6 +56,7 @@ test("dispatch fixed verbs, and refuse unknown options, missing arguments and he
                         code: "BAD_REQUEST",
                         message:
                             "command 'destack apply' is invalid: it does not support '--archive'",
+                        causes: [],
                     },
                 }),
             ],
@@ -83,6 +85,7 @@ test("dispatch fixed verbs, and refuse unknown options, missing arguments and he
                         code: "BAD_REQUEST",
                         message:
                             "command 'destack self' is invalid: its help does not support '--json'",
+                        causes: [],
                     },
                 }),
             ],
@@ -156,9 +159,37 @@ test("report a failure without a service code as internal, exiting with 1", asyn
     expect({ code, written }).toEqual({
         code: 1,
         written: [
-            `${JSON.stringify({ error: { code: "INTERNAL_SERVER_ERROR", message: "the title index is corrupt" } })}\n`,
+            `${JSON.stringify({ error: { code: "INTERNAL_SERVER_ERROR", message: "the title index is corrupt", causes: [] } })}\n`,
         ],
     });
+});
+
+test("report each cause of a failure below its message, outermost first", async () => {
+    // report a failure wrapping two causes, as text and as JSON
+    const running = TerminalFixture.process({}, testHost().scheduler);
+    const terminal = new Terminal(running, "UTC");
+    const failure = new CommandFailure(
+        new Error("activation did not finish", {
+            cause: new Error("cannot replace the application", {
+                cause: new Error("the volume is read-only"),
+            }),
+        }),
+    );
+    await failure.report(false, terminal);
+    await failure.report(true, terminal);
+    const written = running.stderr.chunks.map((chunk) => new TextDecoder().decode(chunk));
+
+    // expect the message, then each cause on its own line, and the same chain in JSON
+    expect(written).toEqual([
+        "destack: activation did not finish\n  caused by: cannot replace the application\n  caused by: the volume is read-only\n",
+        `${JSON.stringify({
+            error: {
+                code: "INTERNAL_SERVER_ERROR",
+                message: "activation did not finish",
+                causes: ["cannot replace the application", "the volume is read-only"],
+            },
+        })}\n`,
+    ]);
 });
 
 test("exit an interrupted command as an interrupted program, printing nothing", async () => {
