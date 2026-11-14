@@ -97,11 +97,33 @@ jobs:
                   POSTGRES: ${{ job.services.postgres.id }}
               run: |
                   docker exec "$POSTGRES" psql -U postgres -c "ALTER SYSTEM SET fsync = off" -c "ALTER SYSTEM SET synchronous_commit = off" -c "ALTER SYSTEM SET full_page_writes = off" -c "SELECT pg_reload_conf()"
+            - name: Restore the test builds and templates
+              uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+              with:
+                  # the bounded, content-addressed parts: builds by digest, templates by their inputs
+                  path: |
+                      ~/.cache/destack/test/store.db*
+                      ~/.cache/destack/test/files
+                      ~/.cache/destack/test/layered
+                      ~/.cache/destack/templates
+                  key: destack-test-${{ runner.os }}-${{ github.sha }}
+                  restore-keys: destack-test-${{ runner.os }}-
             - name: Run the gates
               env:
                   PACKAGE: ${{ matrix.package }}
                   DESTACK_TEST_POSTGRES: postgres://postgres@127.0.0.1:55432/postgres
               run: just gate "$PACKAGE"
+            - name: Save the test builds and templates
+              # save once per commit from the gate writing the most templates, which every gate restores
+              if: matrix.package == '@destack/machine'
+              uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+              with:
+                  path: |
+                      ~/.cache/destack/test/store.db*
+                      ~/.cache/destack/test/files
+                      ~/.cache/destack/test/layered
+                      ~/.cache/destack/templates
+                  key: destack-test-${{ runner.os }}-${{ github.sha }}
 
     macos:
         name: Test updates on macOS
