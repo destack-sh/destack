@@ -11,7 +11,7 @@ import { Identifier, schema, Uuid } from "@destack/schema";
 import { RequestId, Scope } from "@destack/sync";
 import { comment, folder, objectDatabase, task, taskVersion, team } from "./schema.ts";
 import { principal } from "@destack/access";
-import { openSpace, spacePrincipal, space } from "./fixture/space.ts";
+import { openSpace, spacePrincipal, space } from "../src/test/space.ts";
 import { testCallKey } from "@destack/object/test";
 import { testEvents, serversOf } from "../src/test/index.ts";
 import { userContext, users } from "./fixture/user.ts";

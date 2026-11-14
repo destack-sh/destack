@@ -6,8 +6,8 @@ import { Simulation } from "@destack/environment/simulation";
 import { nth } from "@destack/schema";
 import { ObjectClient } from "../src/client/index.ts";
 import { serveNotes, spaceId } from "./fixture/device.ts";
-import { note, notebook } from "./fixture/note.ts";
-import { unmoved } from "./fixture/space.ts";
+import { note, notebook } from "../src/test/note.ts";
+import { unmoved } from "../src/test/space.ts";
 import { testWorldOptions } from "@destack/test/world";
 
 test("push again after transient failures, waiting twice as long after each", async () => {

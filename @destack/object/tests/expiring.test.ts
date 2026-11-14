@@ -11,7 +11,7 @@ import { schema, Uuid } from "@destack/schema";
 import { Replica, Scope, RequestId } from "@destack/sync";
 
 import { defineObject, definePackage, defineShape, field } from "../src/index.ts";
-import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
+import { openSpace, space, spacePrincipal } from "../src/test/space.ts";
 import { auditedActions } from "../src/test/index.ts";
 import { userContext, users } from "./fixture/user.ts";
 import { tablesOf } from "../src/stack/db.ts";

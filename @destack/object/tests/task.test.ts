@@ -10,7 +10,7 @@ import { CallError } from "@destack/object";
 import { project, task, tasksDatabase, tasksPackage } from "./fixture/task.ts";
 import type { MethodInput } from "../src/index.ts";
 import { principal } from "@destack/access";
-import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
+import { openSpace, space, spacePrincipal } from "../src/test/space.ts";
 import { testCallKey } from "@destack/object/test";
 import { testEvents } from "../src/test/index.ts";
 import { TestObjectStore } from "../src/test/index.ts";

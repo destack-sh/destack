@@ -39,7 +39,7 @@ import { implementPackage, ObjectStore } from "../src/server/index.ts";
 
 /** A declaration of a build, as a sandbox receives it. */
 type Declaration = Pick<graph.Declaration, "symbol" | "kind" | "kindPackageId" | "description">;
-import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
+import { openSpace, space, spacePrincipal } from "../src/test/space.ts";
 import { spaceId } from "./fixture/device.ts";
 import { userContext, users } from "./fixture/user.ts";
 import { Environment } from "@destack/environment";

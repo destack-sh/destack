@@ -228,7 +228,8 @@ test("enforce access and audit requirements through streamed HTTP calls", async 
 
     // record call metrics without request values
     const collected = await simulation.telemetry.metrics();
-    const calls = collected.scopeMetrics
+    const calls = collected
+        .flatMap((each) => each.scopeMetrics)
         .flatMap((scope) => scope.metrics)
         .map((metric) => ({
             name: metric.descriptor.name,

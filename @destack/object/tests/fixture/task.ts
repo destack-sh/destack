@@ -5,7 +5,7 @@ import { defineDatabase } from "@destack/db";
 import { definePackage } from "@destack/object";
 import { defineObject, field } from "../../src/index.ts";
 import { user } from "../schema.ts";
-import { space } from "./space.ts";
+import { space } from "../../src/test/space.ts";
 import { tablesOf } from "../../src/index.ts";
 import objectPackage from "../../src/package.ts";
 import { invitation } from "../../src/access/index.ts";

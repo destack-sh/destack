@@ -15,7 +15,7 @@ import { ObjectClient } from "../src/client/index.ts";
 import { ObjectStore } from "../src/server/index.ts";
 import { Bookmark } from "../src/procedure/bookmark.ts";
 import { TestBearer, TestObjectStore } from "../src/test/index.ts";
-import { spacePrincipal, unmoved, space } from "./fixture/space.ts";
+import { spacePrincipal, unmoved, space } from "../src/test/space.ts";
 import { userContext, users } from "./fixture/user.ts";
 import { Environment } from "@destack/environment";
 import { tablesOf } from "../src/stack/db.ts";

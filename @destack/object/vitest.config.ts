@@ -1,8 +1,13 @@
 import { BunEnvironment } from "@destack/environment/bun";
-import { defineConfiguration } from "@destack/test/config";
+import { defineConfiguration, SCENARIO_MODULES, scenarioPlugin } from "@destack/test/config";
+import { fileURLToPath } from "node:url";
+
+/** The driver of the package's object scenarios, over the notes fixture. */
+const NOTES_DRIVER = fileURLToPath(new URL("src/test/driver.ts", import.meta.url));
 
 export default defineConfiguration(
     {
+        plugins: [scenarioPlugin([{ module: NOTES_DRIVER, name: "ObjectDriver" }])],
         // run every test against each database the package stores in
         targets: { database: ["sqlite", "postgresql"] },
         test: {
@@ -13,19 +18,7 @@ export default defineConfiguration(
                     tier: "unit",
                     test: {
                         name: "unit",
-                        include: ["src/**/*.test.ts", "tests/**/*.test.ts"],
-                        exclude: ["**/*.bench.test.ts"],
-                    },
-                },
-                // run performance budgets one file at a time after the unit tests, keeping their measurements apart
-                {
-                    extends: true,
-                    tier: "bench",
-                    test: {
-                        name: "bench",
-                        include: ["tests/**/*.bench.test.ts"],
-                        fileParallelism: false,
-                        sequence: { groupOrder: 1 },
+                        include: ["src/**/*.test.ts", "tests/**/*.test.ts", SCENARIO_MODULES],
                     },
                 },
             ],

@@ -30,7 +30,7 @@ import {
 } from "../src/index.ts";
 import { DRAINING } from "../src/server/index.ts";
 import { claim, serveClaims } from "./fixture/claim.ts";
-import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
+import { openSpace, space, spacePrincipal } from "../src/test/space.ts";
 import { tablesOf } from "../src/index.ts";
 import objectPackage from "../src/package.ts";
 import { defineKind } from "@destack/package";

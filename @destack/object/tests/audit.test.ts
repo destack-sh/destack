@@ -7,7 +7,7 @@ import { testCallKey } from "@destack/object/test";
 import { testEvents, serversOf } from "../src/test/index.ts";
 import { PackageVersion } from "@destack/package";
 import { defineObject, field } from "../src/index.ts";
-import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
+import { openSpace, space, spacePrincipal } from "../src/test/space.ts";
 import { userContext, users } from "./fixture/user.ts";
 import { auditedCalls } from "../src/test/index.ts";
 import { tablesOf } from "../src/index.ts";

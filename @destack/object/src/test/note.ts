@@ -1,13 +1,19 @@
-import { testIdentity } from "../../src/test/index.ts";
+import { testIdentity } from "./index.ts";
 import { schema } from "@destack/schema";
 import { defineDatabase } from "@destack/db";
-import { definePackage } from "@destack/object";
+import { defineExample } from "@destack/package/declare";
 import { PackageVersion } from "@destack/package";
-import { defineObject, field } from "../../src/index.ts";
+import {
+    defineObject,
+    definePackage,
+    field,
+    nested,
+    recoverable,
+    shareable,
+    tablesOf,
+} from "../index.ts";
 import { space } from "./space.ts";
-import { tablesOf } from "../../src/index.ts";
-import objectPackage from "../../src/package.ts";
-import { nested, recoverable, shareable } from "../../src/index.ts";
+import objectPackage from "../package.ts";
 import { argument, plural, t } from "@destack/locale";
 
 /** The notes package the fixture spaces serve beside the object package. */
@@ -84,4 +90,12 @@ export const notesDatabase = defineDatabase({
         follows: [],
         tables: [],
     }),
+});
+
+/** The notes package served on its own, as object scenarios are given it. */
+export const notesExample = defineExample({
+    of: notesPackage,
+    name: "notes",
+    description: "notebooks and notes, with their sharing, trash and sync",
+    render: () => notesPackage,
 });

@@ -10,7 +10,7 @@ import { expect, onTestFinished, test } from "@destack/test";
 import { defineObject, defineShape, field, followKey } from "../src/index.ts";
 import { implementPackage, ObjectStore } from "../src/server/index.ts";
 import { serversOf, subjectContext, testEvents } from "../src/test/index.ts";
-import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
+import { openSpace, space, spacePrincipal } from "../src/test/space.ts";
 import type { Simulation } from "@destack/environment/simulation";
 import { tablesOf } from "../src/stack/db.ts";
 import objectPackage from "../src/package.ts";

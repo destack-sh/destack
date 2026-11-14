@@ -24,7 +24,7 @@ import { ObjectStore, Stack } from "../src/server/index.ts";
 import { defineKind } from "@destack/package";
 import { ObjectDescription } from "../src/object/description.ts";
 import { label, note, objectDatabase, task } from "./schema.ts";
-import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
+import { openSpace, space, spacePrincipal } from "../src/test/space.ts";
 import { userContext, users } from "./fixture/user.ts";
 import { tablesOf } from "../src/index.ts";
 import objectPackage from "../src/package.ts";

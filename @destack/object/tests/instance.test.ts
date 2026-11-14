@@ -11,8 +11,8 @@ import { subjectContext, testCallKey } from "@destack/object/test";
 import { testEvents, serversOf } from "../src/test/index.ts";
 import { RequestId, Scope } from "@destack/sync";
 import type { RequestContext } from "@destack/object/server";
-import { notebook, note, notesDatabase } from "./fixture/note.ts";
-import { openSpace, spacePrincipal, space } from "./fixture/space.ts";
+import { notebook, note, notesDatabase } from "../src/test/note.ts";
+import { openSpace, spacePrincipal, space } from "../src/test/space.ts";
 import { spaceId } from "./fixture/device.ts";
 import { TestObjectStore } from "../src/test/index.ts";
 

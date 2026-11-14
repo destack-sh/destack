@@ -9,7 +9,7 @@ import { testCallKey } from "@destack/object/test";
 import { testEvents } from "../src/test/index.ts";
 import { type MountFetch, implementPackage, type ObjectPackage } from "../src/server/index.ts";
 import { page, pageDatabase } from "./fixture/page.ts";
-import { openSpace, spacePrincipal, space } from "./fixture/space.ts";
+import { openSpace, spacePrincipal, space } from "../src/test/space.ts";
 import { users } from "./fixture/user.ts";
 import { TestBearer, TestObjectStore } from "../src/test/index.ts";
 import { principal } from "@destack/access";

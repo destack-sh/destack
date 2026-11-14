@@ -15,7 +15,7 @@ import {
     type ObjectType,
 } from "../src/index.ts";
 import { user } from "./schema.ts";
-import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
+import { openSpace, space, spacePrincipal } from "../src/test/space.ts";
 import { userContext, users } from "./fixture/user.ts";
 import { testCallKey, testServerContext } from "@destack/object/test";
 import { testEvents, serversOf } from "../src/test/index.ts";

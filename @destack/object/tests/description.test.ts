@@ -54,7 +54,7 @@ import { argument, plural, t } from "@destack/locale";
 import { ResourceDeclaration } from "@destack/resource";
 import { nth, schema, toJsonSchema } from "@destack/schema";
 import { Chunk } from "../src/text/index.ts";
-import { space } from "./fixture/space.ts";
+import { space } from "../src/test/space.ts";
 import { comment, folder, label, note, task, taskCopy, taskVersion, team, user } from "./schema.ts";
 import { nested, provisioned } from "../src/index.ts";
 import { defineKind } from "@destack/package";

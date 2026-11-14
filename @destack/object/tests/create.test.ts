@@ -9,7 +9,7 @@ import { Identifier, schema } from "@destack/schema";
 
 import { RequestId, ObjectReference, Scope } from "@destack/sync";
 import { type MethodInput, defineObject, field, recoverable } from "../src/index.ts";
-import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
+import { openSpace, space, spacePrincipal } from "../src/test/space.ts";
 import { testCallKey } from "@destack/object/test";
 import { testEvents, serversOf } from "../src/test/index.ts";
 import { userContext, users } from "./fixture/user.ts";

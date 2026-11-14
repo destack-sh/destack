@@ -16,7 +16,7 @@ import { testCallKey } from "@destack/object/test";
 import { ShareableMethod } from "../src/method/shareable.ts";
 import { QUERIES_PUBLICATION } from "../src/replica/replica.ts";
 import { ObjectStore, implementPackage } from "../src/server/index.ts";
-import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
+import { openSpace, space, spacePrincipal } from "../src/test/space.ts";
 import { request } from "./fixture/request.ts";
 import { userContext, users } from "./fixture/user.ts";
 import { tablesOf } from "../src/index.ts";

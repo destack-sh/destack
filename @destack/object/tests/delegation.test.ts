@@ -17,7 +17,7 @@ import { defineObject } from "../src/index.ts";
 import { implementPackage, ObjectStore } from "../src/server/index.ts";
 import { testEvents } from "../src/test/index.ts";
 import { spaceId } from "./fixture/device.ts";
-import { openSpace, space } from "./fixture/space.ts";
+import { openSpace, space } from "../src/test/space.ts";
 import { tablesOf } from "../src/index.ts";
 import objectPackage from "../src/package.ts";
 import { argument, plural, t } from "@destack/locale";

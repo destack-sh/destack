@@ -3,7 +3,7 @@ import { type ObjectOf, defineObject, field } from "../src/index.ts";
 import { relation, through, union, principal } from "@destack/access";
 import { defineDatabase } from "@destack/db";
 import { schema } from "@destack/schema";
-import { space } from "./fixture/space.ts";
+import { space } from "../src/test/space.ts";
 import { tablesOf } from "../src/index.ts";
 import objectPackage from "../src/package.ts";
 import { nested, recoverable, shareable, versioned } from "../src/index.ts";

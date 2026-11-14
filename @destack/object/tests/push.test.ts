@@ -1,7 +1,7 @@
 import { users } from "./fixture/user.ts";
 import { expect, test } from "@destack/test";
 import { serveNotes, spaceId } from "./fixture/device.ts";
-import { note, notebook } from "./fixture/note.ts";
+import { note, notebook } from "../src/test/note.ts";
 
 test("push an outbox longer than one push takes, confirming every mutation across pushes", async () => {
     const { connect, openDevice } = await serveNotes();

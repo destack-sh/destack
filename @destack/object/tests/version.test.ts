@@ -6,7 +6,7 @@ import { schema, Uuid } from "@destack/schema";
 
 import { RequestId, Scope } from "@destack/sync";
 import { objectDatabase, task, taskVersion } from "./schema.ts";
-import { openSpace, spacePrincipal, space } from "./fixture/space.ts";
+import { openSpace, spacePrincipal, space } from "../src/test/space.ts";
 import { testCallKey } from "@destack/object/test";
 import { testEvents, serversOf } from "../src/test/index.ts";
 import { userContext, users } from "./fixture/user.ts";

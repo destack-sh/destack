@@ -7,7 +7,7 @@ import { schema } from "@destack/schema";
 import { testCallKey } from "@destack/object/test";
 import { defineObject, field, ObjectPolicy, role } from "../src/index.ts";
 import { testEvents, serversOf } from "../src/test/index.ts";
-import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
+import { openSpace, space, spacePrincipal } from "../src/test/space.ts";
 import { tablesOf } from "../src/index.ts";
 import objectPackage from "../src/package.ts";
 import { TestObjectStore } from "../src/test/index.ts";

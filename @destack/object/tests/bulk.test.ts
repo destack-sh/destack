@@ -1,7 +1,7 @@
 import { testSimulation, testIdentity } from "../src/test/index.ts";
 import { PackageVersion } from "@destack/package";
 import type { CallableName } from "../src/index.ts";
-import { expect, onTestFinished, refusal, test } from "@destack/test";
+import { expect, onTestFinished, refusal, Recording, test } from "@destack/test";
 import { principal, relation } from "@destack/access";
 
 import { asc, defineDatabase, type DatabaseConnection } from "@destack/db";
@@ -14,7 +14,7 @@ import { testEvents, serversOf } from "../src/test/index.ts";
 import { ObjectClient } from "../src/client/index.ts";
 import { defineObject, field } from "../src/index.ts";
 import { implementPackage } from "../src/server/index.ts";
-import { openSpace, space, spacePrincipal, unmoved } from "./fixture/space.ts";
+import { openSpace, space, spacePrincipal, unmoved } from "../src/test/space.ts";
 import { userContext, users, userName } from "./fixture/user.ts";
 import { request, type RequestInput } from "./fixture/request.ts";
 import { Environment } from "@destack/environment";
@@ -364,10 +364,8 @@ function items(size: number) {
 
 test("create and trash a thousand objects in as many statements as one object", async () => {
     // run in a world of its own
-    const world = testSimulation().environment("test");
-
-    const { storage, call } = await serveLabels(world);
-    const state = storage.database.driver.state;
+    const simulation = testSimulation();
+    const { storage, call } = await serveLabels(simulation.environment("test"));
 
     // listen to other writers' commits as a serving store does, then create two labels, warming the cached reads
     await storage.database.log.listening();
@@ -375,10 +373,12 @@ test("create and trash a thousand objects in as many statements as one object", 
 
     // count the statements of creating one and a thousand labels, then of trashing the thousand
     const counted = async (run: () => Promise<unknown>) => {
-        const before = state.statements;
+        const before = await Recording.read(simulation.telemetry);
         await run();
 
-        return state.statements - before;
+        return (await Recording.read(simulation.telemetry))
+            .since(before)
+            .count(TestDatabase.statements(storage.database));
     };
     const statements = {
         createOne: await counted(() => call(users.frank, "createMany", { items: items(1) })),

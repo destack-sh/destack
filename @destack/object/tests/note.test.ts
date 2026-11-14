@@ -12,11 +12,11 @@ import { broadcastChannel, serveDatabase, WasmClient } from "@destack/db/browser
 import { schema, present } from "@destack/schema";
 import { RequestId, ObjectReference, type Page } from "@destack/sync";
 import { getEventMeta } from "@destack/object";
-import { note, notebook } from "./fixture/note.ts";
+import { note, notebook } from "../src/test/note.ts";
 import { principal } from "@destack/access";
 
 import { serveNotes, spaceId } from "./fixture/device.ts";
-import { unmoved } from "./fixture/space.ts";
+import { unmoved } from "../src/test/space.ts";
 
 /** The feed's heartbeat, after which a caught-up stream publishes its position: 10 s. */
 const HEARTBEAT_MILLISECONDS = 10_000;

@@ -1,7 +1,7 @@
 import { expect, test } from "@destack/test";
 import { permission, principal, relation, through, union } from "@destack/access";
 import { defineObject, field } from "../src/index.ts";
-import { space } from "./fixture/space.ts";
+import { space } from "../src/test/space.ts";
 import { nested, shareable } from "../src/index.ts";
 import { argument, plural, t } from "@destack/locale";
 

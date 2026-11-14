@@ -30,7 +30,7 @@ import { nth, Identifier, present, schema, Uuid } from "@destack/schema";
 import { profile, profilesDatabase, profilesPackage } from "./fixture/profile.ts";
 import { none, principal, relation, universe } from "@destack/access";
 import { TestAccess } from "@destack/access/test";
-import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
+import { openSpace, space, spacePrincipal } from "../src/test/space.ts";
 import { testCallKey } from "@destack/object/test";
 import { settleControl, testEvents } from "../src/test/index.ts";
 

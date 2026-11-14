@@ -309,6 +309,7 @@ test("start the workload with its installation's settings, serve a forwarded cal
                     {
                         "service.name": notes.name,
                         "service.version": notes.version,
+                        "service.instance.id": "e3440b23-3e0a-47dc-86a3-7896d7dfdfd3",
                     },
                 ],
                 events: ["destack.workload.started"],
@@ -320,6 +321,7 @@ test("start the workload with its installation's settings, serve a forwarded cal
                     {
                         "service.name": notes.name,
                         "service.version": notes.version,
+                        "service.instance.id": "e3440b23-3e0a-47dc-86a3-7896d7dfdfd3",
                     },
                 ],
                 events: ["destack.workload.stopped"],

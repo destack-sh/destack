@@ -11,7 +11,7 @@ import { Identifier, present, schema } from "@destack/schema";
 import { defineObject, device, field } from "../src/index.ts";
 import { ObjectClient } from "../src/client/index.ts";
 import { connectBunSqlite } from "@destack/db/bun";
-import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
+import { openSpace, space, spacePrincipal } from "../src/test/space.ts";
 import { testCallKey } from "@destack/object/test";
 import { testEvents, serversOf } from "../src/test/index.ts";
 import { tablesOf } from "../src/index.ts";

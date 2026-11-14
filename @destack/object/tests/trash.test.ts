@@ -4,7 +4,7 @@ import { RequestId, Scope } from "@destack/sync";
 import { expect, refusal, test } from "@destack/test";
 import { call, CallEvent, defineObject, definePackage, field } from "../src/index.ts";
 import { TestObjectStore, testIdentity } from "../src/test/index.ts";
-import { space } from "./fixture/space.ts";
+import { space } from "../src/test/space.ts";
 import { users } from "./fixture/user.ts";
 import { nested, recoverable, shareable } from "../src/index.ts";
 import { argument, plural, t } from "@destack/locale";

@@ -11,8 +11,7 @@ import { Scope, type Subject } from "@destack/sync";
 import { TestAccess } from "@destack/access/test";
 import type { DatabaseConnection } from "@destack/db";
 import { Identifier } from "@destack/schema";
-import { defineObject } from "../../src/index.ts";
-import { shareable } from "../../src/index.ts";
+import { defineObject, shareable } from "../index.ts";
 import { argument, plural, t } from "@destack/locale";
 
 /** The spaces the example objects live in. */

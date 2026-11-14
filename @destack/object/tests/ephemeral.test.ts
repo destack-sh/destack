@@ -26,7 +26,7 @@ import { type LiveQuery, ObjectClient } from "../src/client/index.ts";
 import type { ClientOptions } from "@destack/object/client";
 import { definePackage } from "@destack/object";
 import { user } from "./schema.ts";
-import { openSpace, space, unmoved, spacePrincipal } from "./fixture/space.ts";
+import { openSpace, space, unmoved, spacePrincipal } from "../src/test/space.ts";
 import { request, type RequestInput } from "./fixture/request.ts";
 import { Environment } from "@destack/environment";
 import { tablesOf } from "../src/index.ts";

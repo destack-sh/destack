@@ -4,7 +4,7 @@ import { principal, relation, universe } from "@destack/access";
 import { defineDatabase } from "@destack/db";
 import { definePackage } from "@destack/object";
 import { defineObject, field } from "../../src/index.ts";
-import { space } from "./space.ts";
+import { space } from "../../src/test/space.ts";
 import { tablesOf } from "../../src/index.ts";
 import objectPackage from "../../src/package.ts";
 import { argument, plural, t } from "@destack/locale";

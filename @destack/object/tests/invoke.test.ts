@@ -11,7 +11,7 @@ import { schema } from "@destack/schema";
 
 import { RequestId, Scope } from "@destack/sync";
 import { defineObject, field } from "../src/index.ts";
-import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
+import { openSpace, space, spacePrincipal } from "../src/test/space.ts";
 import { auditedActions } from "../src/test/index.ts";
 import { userContext, users, userName } from "./fixture/user.ts";
 import { reportError } from "@destack/object";

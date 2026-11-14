@@ -17,7 +17,8 @@
         "./test": "./src/test/index.ts",
         "./workload": "./src/workload/index.ts",
         "./bun": "./src/bun/index.ts",
-        "./cloudflare": "./src/cloudflare/index.ts"
+        "./cloudflare": "./src/cloudflare/index.ts",
+        "./scenario": "./src/scenario/index.ts"
     },
     "dependencies": {
         "@destack/access": "workspace:*",

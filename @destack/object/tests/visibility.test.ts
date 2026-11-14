@@ -14,7 +14,7 @@ import { TestDatabase } from "@destack/db/test";
 import { Identifier, schema, Uuid } from "@destack/schema";
 
 import { defineObject, field } from "../src/index.ts";
-import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
+import { openSpace, space, spacePrincipal } from "../src/test/space.ts";
 import { userContext, users } from "./fixture/user.ts";
 import { testCallKey } from "@destack/object/test";
 import { testEvents, serversOf } from "../src/test/index.ts";

@@ -8,7 +8,7 @@ import type { Call } from "@destack/sync";
 import { testCallKey } from "@destack/object/test";
 import { defineObject, field } from "../src/index.ts";
 import { testEvents, serversOf } from "../src/test/index.ts";
-import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
+import { openSpace, space, spacePrincipal } from "../src/test/space.ts";
 import { userContext, users } from "./fixture/user.ts";
 import { tablesOf } from "../src/index.ts";
 import objectPackage from "../src/package.ts";

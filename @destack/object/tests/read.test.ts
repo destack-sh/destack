@@ -1,7 +1,7 @@
 import { users } from "./fixture/user.ts";
 import { expect, refusal, test } from "@destack/test";
 import { serveNotes, spaceId } from "./fixture/device.ts";
-import { notebook } from "./fixture/note.ts";
+import { notebook } from "../src/test/note.ts";
 
 test("read through methods that change nothing on the server, and refuse mutations there", async () => {
     const { connect, openDevice } = await serveNotes();

@@ -42,7 +42,7 @@ import { implementPackage } from "../src/server/index.ts";
 import { definePackage } from "@destack/object";
 import { testEvents, serversOf } from "../src/test/index.ts";
 import { spaceId } from "./fixture/device.ts";
-import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
+import { openSpace, space, spacePrincipal } from "../src/test/space.ts";
 import { TOKEN_LIFETIME_MILLISECONDS } from "@destack/access/token";
 import { tablesOf } from "../src/stack/db.ts";
 import objectPackage from "../src/package.ts";

@@ -24,7 +24,7 @@ import { subjectContext, testCallKey } from "@destack/object/test";
 import { testEvents, serversOf, TestObjectStore } from "../src/test/index.ts";
 import { RequestId, ObjectReference, type Subject, Scope } from "@destack/sync";
 import { defineObject, field, ObjectPolicy, relationship, role } from "../src/index.ts";
-import { space, spacePrincipal } from "./fixture/space.ts";
+import { space, spacePrincipal } from "../src/test/space.ts";
 import { CallSite, tablesOf } from "../src/index.ts";
 import objectPackage from "../src/package.ts";
 import { installation } from "../src/installation/index.ts";

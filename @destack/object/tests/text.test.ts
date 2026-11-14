@@ -12,7 +12,7 @@ import { LiveText, ObjectClient } from "../src/client/index.ts";
 import { chunk, CHUNK_CHARACTERS, Chunk, defineObject, field, Sequence } from "../src/index.ts";
 import { implementPackage } from "../src/server/index.ts";
 import { user } from "./schema.ts";
-import { openSpace, space, unmoved, spacePrincipal } from "./fixture/space.ts";
+import { openSpace, space, unmoved, spacePrincipal } from "../src/test/space.ts";
 import { testCallKey } from "@destack/object/test";
 import { testEvents, serversOf } from "../src/test/index.ts";
 import { nth, type Identifier } from "@destack/schema";

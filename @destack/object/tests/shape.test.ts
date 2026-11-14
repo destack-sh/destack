@@ -11,7 +11,7 @@ import { defineShape } from "../src/index.ts";
 import { implementPackage } from "../src/server/index.ts";
 import { testEvents } from "../src/test/index.ts";
 import { page, pageDatabase, pagesPackage } from "./fixture/page.ts";
-import { openSpace, spacePrincipal } from "./fixture/space.ts";
+import { openSpace, spacePrincipal } from "../src/test/space.ts";
 import { installedPackage } from "@destack/access";
 import { TestObjectStore } from "../src/test/index.ts";
 

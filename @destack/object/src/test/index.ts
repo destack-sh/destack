@@ -11,3 +11,4 @@ export * from "./build.ts";
 export * from "./audit.ts";
 export * from "./replica.ts";
 export * from "./identity.ts";
+export * from "../scenario/interaction.ts";

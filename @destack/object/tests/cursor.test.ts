@@ -9,7 +9,7 @@ import { schema } from "@destack/schema";
 import { testCallKey } from "@destack/object/test";
 import { RequestId } from "@destack/sync";
 import { testEvents, serversOf } from "../src/test/index.ts";
-import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
+import { openSpace, space, spacePrincipal } from "../src/test/space.ts";
 import { EventTime } from "@destack/event";
 import { tablesOf } from "../src/index.ts";
 import objectPackage from "../src/package.ts";

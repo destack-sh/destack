@@ -11,7 +11,7 @@ import { createClient, type ClientOptions } from "@destack/object/client";
 import { RequestId, ObjectReference, Scope } from "@destack/sync";
 import { anyone, LinkSecret, principal, Role } from "@destack/access";
 import { page, pageDatabase, pagesPackage } from "./fixture/page.ts";
-import { openSpace, space, unmoved, spacePrincipal } from "./fixture/space.ts";
+import { openSpace, space, unmoved, spacePrincipal } from "../src/test/space.ts";
 import { testCallKey } from "@destack/object/test";
 import { testEvents } from "../src/test/index.ts";
 import { Environment } from "@destack/environment";

@@ -3,7 +3,7 @@ import { expect, test, onTestFinished } from "@destack/test";
 import { Expression } from "@destack/db";
 import { RequestId } from "@destack/sync";
 import { serveNotes, spaceId } from "./fixture/device.ts";
-import { note, notebook } from "./fixture/note.ts";
+import { note, notebook } from "../src/test/note.ts";
 import { QueriesParameters } from "../src/replica/replica.ts";
 import { present, schema } from "@destack/schema";
 import { Simulation } from "@destack/environment/simulation";

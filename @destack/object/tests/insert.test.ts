@@ -8,7 +8,7 @@ import { refusal, expect, onTestFinished, test } from "@destack/test";
 import { defineObject, field, tablesOf } from "../src/index.ts";
 import objectPackage from "../src/package.ts";
 import { serversOf, testCallKey, testEvents } from "../src/test/index.ts";
-import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
+import { openSpace, space, spacePrincipal } from "../src/test/space.ts";
 import { userContext, users } from "./fixture/user.ts";
 import { TestObjectStore } from "../src/test/index.ts";
 import { nested } from "../src/index.ts";

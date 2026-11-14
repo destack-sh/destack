@@ -11,7 +11,7 @@ import { subjectContext, testCallKey } from "@destack/object/test";
 import { testEvents, serversOf } from "../src/test/index.ts";
 import { RequestId, Scope, type Subject } from "@destack/sync";
 import { relationship } from "../src/index.ts";
-import { space, spacePrincipal } from "./fixture/space.ts";
+import { space, spacePrincipal } from "../src/test/space.ts";
 import { tablesOf } from "../src/index.ts";
 import objectPackage from "../src/package.ts";
 import { TestObjectStore } from "../src/test/index.ts";

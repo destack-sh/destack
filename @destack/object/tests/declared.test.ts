@@ -10,7 +10,7 @@ import { StackTarget, defineObject, field } from "../src/index.ts";
 import { type StackOptions, Stack } from "../src/server/index.ts";
 import { serversOf, testEvents } from "../src/test/index.ts";
 import { objectDatabase } from "./schema.ts";
-import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
+import { openSpace, space, spacePrincipal } from "../src/test/space.ts";
 import { TestObjectStore } from "../src/test/index.ts";
 import { nested } from "../src/index.ts";
 import { argument, plural, t } from "@destack/locale";

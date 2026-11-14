@@ -51,7 +51,7 @@ import * as sync from "@destack/sync";
 import { defineObject, defineShape, field, Shape } from "../src/index.ts";
 import { ObjectSink, ObjectStore } from "../src/server/index.ts";
 import { userContext, users } from "./fixture/user.ts";
-import { spacePrincipal } from "./fixture/space.ts";
+import { spacePrincipal } from "../src/test/space.ts";
 import { tablesOf } from "../src/stack/db.ts";
 import objectPackage from "../src/package.ts";
 import { TestObjectStore } from "../src/test/index.ts";

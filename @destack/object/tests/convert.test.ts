@@ -7,7 +7,7 @@ import { schema } from "@destack/schema";
 
 import { RequestId, Scope } from "@destack/sync";
 import { defineObject, field } from "../src/index.ts";
-import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
+import { openSpace, space, spacePrincipal } from "../src/test/space.ts";
 import { spaceId } from "./fixture/device.ts";
 import { testCallKey } from "@destack/object/test";
 import { testEvents, serversOf } from "../src/test/index.ts";

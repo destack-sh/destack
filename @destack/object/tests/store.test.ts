@@ -2,8 +2,8 @@ import { Scope } from "@destack/sync";
 import { expect, test } from "@destack/test";
 import { Package } from "../src/index.ts";
 import { type TestCaller, TestObjectStore } from "../src/test/index.ts";
-import { note, notebook, notesPackage } from "./fixture/note.ts";
-import { space } from "./fixture/space.ts";
+import { note, notebook, notesPackage } from "../src/test/note.ts";
+import { space } from "../src/test/space.ts";
 import { users } from "./fixture/user.ts";
 
 test("serve a package's objects in a new space, make an example's calls as a user, and refuse an example it cannot make", async () => {

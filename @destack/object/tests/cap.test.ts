@@ -15,8 +15,8 @@ import { testEvents } from "../src/test/index.ts";
 import type { ServerContext } from "@destack/object/workload";
 import { implementPackage, ObjectStore } from "../src/server/index.ts";
 import { spaceId } from "./fixture/device.ts";
-import { notebook, note, notesDatabase, notesPackage } from "./fixture/note.ts";
-import { openSpace } from "./fixture/space.ts";
+import { notebook, note, notesDatabase, notesPackage } from "../src/test/note.ts";
+import { openSpace } from "../src/test/space.ts";
 import { Environment } from "@destack/environment";
 import { TestObjectStore } from "../src/test/index.ts";
 
