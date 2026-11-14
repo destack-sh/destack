@@ -362,14 +362,15 @@ test("follow the head through pages merged within an interval", async () => {
         async (transaction) => await transaction.insert(note).values({ ...first, id: "a" }),
     );
 
-    // follow with merged pages
+    // follow with merged pages until the notes are read
+    const following = new AbortController();
     const pages = feed.subscribe(
         { notes: { table: note, scopes: ["inbox"] } },
         undefined,
-        AbortSignal.timeout(4000),
+        following.signal,
         { every: 10 },
     );
-    const snapshot = await until(pages, (page) => page.complete);
+    const snapshot = await simulation.wait(until(pages, (page) => page.complete));
 
     // rename, add, remove and add notes
     await database.transaction(
@@ -385,13 +386,14 @@ test("follow the head through pages merged within an interval", async () => {
     await database.transaction(
         async (transaction) => await transaction.insert(note).values({ ...first, id: "c" }),
     );
-    const following = await until(pages, (page) =>
-        page.changes.some((change) => change.row["id"] === "c"),
+    const followed = await simulation.wait(
+        until(pages, (page) => page.changes.some((change) => change.row["id"] === "c")),
     );
+    following.abort();
 
     // store each note as the pages leave it
     const notes = new Map<unknown, unknown>();
-    for (const change of [...snapshot, ...following].flatMap((page) => page.changes)) {
+    for (const change of [...snapshot, ...followed].flatMap((page) => page.changes)) {
         // forget a deleted note
         if (change.operation === "delete") {
             notes.delete(change.row["id"]);
