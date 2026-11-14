@@ -9,6 +9,19 @@ resource "cloudflare_r2_bucket" "release" {
   }
 }
 
+# let pages on any origin read the public feed, as the site's download catalog does
+resource "cloudflare_r2_bucket_cors" "release" {
+  account_id  = local.account_id
+  bucket_name = cloudflare_r2_bucket.release.name
+  rules = [{
+    allowed = {
+      methods = ["GET", "HEAD"]
+      origins = ["*"]
+    }
+    max_age_seconds = 3600
+  }]
+}
+
 # serve every download from the bucket at its domain, each object with the type and cache policy its upload stored
 resource "cloudflare_r2_custom_domain" "download" {
   account_id  = local.account_id
