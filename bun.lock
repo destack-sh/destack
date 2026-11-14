@@ -192,6 +192,7 @@
         "@destack/setting": "workspace:*",
         "@destack/stack": "workspace:*",
         "@destack/sync": "workspace:*",
+        "@destack/telemetry": "workspace:*",
         "@destack/update": "workspace:*",
         "@destack/vault": "workspace:*",
         "@destack/view": "workspace:*",
