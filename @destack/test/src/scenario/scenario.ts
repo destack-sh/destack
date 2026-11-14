@@ -19,6 +19,9 @@ import { Recording } from "./recording.ts";
 /** The variable naming the baseline a run's results are saved as, `current` by default. */
 const BASELINE_VARIABLE = "DESTACK_BENCH_BASELINE";
 
+/** The targets running outside the simulation, as servers whose concurrency no seed fixes. */
+const EXTERNAL_TARGETS: ReadonlySet<string> = new Set(["postgresql"]);
+
 /** The variable that replays each scenario's seed, as `1`, to check its world is deterministic. */
 const REPLAY_VARIABLE = "DESTACK_REPLAY";
 
@@ -336,6 +339,12 @@ async function measure(
         recorded: await Recording.read(driver.telemetry),
     };
 
+    // check metric growth only in a world the seed fixes, measuring it in every world
+    const isSeeded = Object.values(inject("targets") ?? {}).every(
+        (target) => !EXTERNAL_TARGETS.has(target),
+    );
+    const checks = (operation.then ?? []).filter((check) => isSeeded || !("metric" in check));
+
     // record the repetitions' totals and the checks their telemetry fails
     const cpu = after.usage.user + after.usage.system - before.usage.user - before.usage.system;
     const emitted = after.recorded.since(before.recorded);
@@ -347,7 +356,7 @@ async function measure(
         cpu,
         world: (after.now - before.now) / MILLISECONDS,
         counters: emitted.counters(),
-        failures: emitted.failures(labelOf(operation), times, operation.then ?? []),
+        failures: emitted.failures(labelOf(operation), times, checks),
     };
 }
 

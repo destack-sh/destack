@@ -141,7 +141,7 @@ export const countTwice = defineScenario({
 
 ### Bound an operation
 
-An operation step repeats a step and checks the telemetry it recorded; the bench tier measures its time beside the counts.
+An operation step repeats a step and checks the telemetry it recorded; metric checks hold in a seeded world alone, as an external server such as PostgreSQL races, and the bench tier measures time beside the counts.
 
 ```ts
 import { defineScenario, type Interaction } from "@destack/package/declare";
