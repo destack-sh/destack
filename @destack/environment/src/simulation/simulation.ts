@@ -49,6 +49,9 @@ const HOST: Omit<Host, "home"> = {
     hostname: "simulation",
 };
 
+/** The marker a world's root takes in its fingerprint, the same in every play. */
+const ROOT = "<root>";
+
 /** The directory of simulation roots: a 48-byte root and 38-byte socket fit a 104-byte sun_path. */
 const ROOT_DIRECTORY = "/tmp";
 
@@ -443,9 +446,9 @@ export class Simulation {
         // count the event
         this.#events += 1;
 
-        // fold a world event's encoding into the fingerprint with FNV-1a, leaving out releases of real work, whose count follows the host's caches
+        // fold world events into the fingerprint, the root as a marker
         if (event.kind !== "completion") {
-            const encoded = JSON.stringify(event);
+            const encoded = JSON.stringify(event).replaceAll(this.root, ROOT);
             let hash = this.#fingerprint;
             for (let index = 0; index < encoded.length; index += 1) {
                 hash = Math.imul(hash ^ encoded.charCodeAt(index), FNV.prime) >>> 0;
@@ -497,7 +500,7 @@ export class Simulation {
             crypto: Crypto.run(BunCrypto, scheduler),
             network: this.network.of(name),
             compression: SimulatedCompression,
-            telemetry: this.telemetry,
+            telemetry: this.telemetry.host(name),
             locale: this.#options.locale ?? LOCALE,
             timeZone: this.#options.timeZone ?? TIME_ZONE,
             workers: this.workers.of(name),
@@ -507,7 +510,7 @@ export class Simulation {
             opener: this.opener.of(name),
         };
         const spawn = () => new SimulatedProcess(this.#process, scheduler);
-        const instrumented = Environment.instrument(effects, this.telemetry);
+        const instrumented = Environment.instrument(effects, effects.telemetry);
         const node = new SimulatedNode(name, this, instrumented, spawn, () => this.#release(name));
         this.#nodes.set(name, node);
 

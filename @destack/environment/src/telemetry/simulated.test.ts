@@ -43,3 +43,56 @@ test("count each histogram's records and seconds, in all and by the namespace, o
         "rpc.server.call.duration.seconds.get": 5,
     });
 });
+
+test("name each host on its signals", async () => {
+    // emit a span, a record and a metric from two hosts and from the world itself
+    const telemetry = new SimulatedTelemetry({
+        clock: SimulatedClock.owned(0).clock,
+        random: new SimulatedRandom(1),
+    });
+    const emitters = [telemetry.host("home"), telemetry.host("laptop"), telemetry];
+    for (const [index, emitter] of emitters.entries()) {
+        emitter.tracers.getTracer("test").startSpan(`span ${index}`).end();
+        emitter.loggers.getLogger("test").emit({ body: `record ${index}` });
+        emitter.meters
+            .getMeter("test")
+            .createCounter("count")
+            .add(index + 1);
+    }
+
+    // read every signal back with the host it names, the world's naming none, and reuse each host's telemetry
+    const metrics = await telemetry.metrics();
+    expect({
+        spans: telemetry.spans.map((span) => [span.name, hostOf(span.resource.attributes)]),
+        logs: telemetry.logs.map((record) => [record.body, hostOf(record.resource.attributes)]),
+        metrics: metrics.flatMap((each) =>
+            each.scopeMetrics.map((scope) => [
+                scope.metrics[0]?.dataPoints[0]?.value,
+                hostOf(each.resource.attributes),
+            ]),
+        ),
+        isReused: telemetry.host("home") === emitters[0],
+    }).toEqual({
+        spans: [
+            ["span 0", "home"],
+            ["span 1", "laptop"],
+            ["span 2", null],
+        ],
+        logs: [
+            ["record 0", "home"],
+            ["record 1", "laptop"],
+            ["record 2", null],
+        ],
+        metrics: [
+            [3, null],
+            [1, "home"],
+            [2, "laptop"],
+        ],
+        isReused: true,
+    });
+});
+
+/** Read the host a signal's resource names, null for the world's own. */
+function hostOf(attributes: Record<string, unknown>): unknown {
+    return attributes["host.name"] ?? null;
+}

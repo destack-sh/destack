@@ -1794,6 +1794,34 @@ test("keep one fingerprint across plays whose host work differs, as a warm cache
     });
 });
 
+test("keep one fingerprint across plays connecting to a socket in their own root", async () => {
+    // connect to a socket under each play's root, which the host names at random
+    const play = async () => {
+        await using simulation = new Simulation({
+            world: testWorldOptions(),
+            seed: 3,
+            start: START,
+        });
+        const unix = join(simulation.root, "runtime.sock");
+        await simulation.network.server("database").socket({ unix, accept: () => undefined });
+        const socket = simulation.environment("app").network.connect({ unix });
+        await simulation.wait(socket.opened);
+        await socket.close();
+
+        return { root: simulation.root, fingerprint: simulation.fingerprint };
+    };
+    const [first, second] = [await play(), await play()];
+
+    // expect two roots and one fingerprint
+    expect({
+        isOtherRoot: first.root !== second.root,
+        isEqual: first.fingerprint === second.fingerprint,
+    }).toEqual({
+        isOtherRoot: true,
+        isEqual: true,
+    });
+});
+
 test("jump a world at once, waking each due timer a single time", async () => {
     // keep a timer every minute, then jump an hour
     await using simulation = new Simulation({

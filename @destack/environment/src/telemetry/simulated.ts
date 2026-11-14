@@ -22,6 +22,7 @@ import {
 } from "@opentelemetry/sdk-trace";
 import type { ContextManager, TextMapPropagator } from "@opentelemetry/api";
 import { AsyncLocalStorageContextManager } from "@opentelemetry/context-async-hooks";
+import { type Resource, resourceFromAttributes } from "@opentelemetry/resources";
 import { Clock } from "../clock/clock.ts";
 import type { Random } from "../random/random.ts";
 import { TraceIdGenerator } from "./generator.ts";
@@ -111,30 +112,85 @@ export class SimulatedTelemetry implements Telemetry {
     readonly #spans = new InMemorySpanExporter();
     /** The emitted log records. */
     readonly #logs = new InMemoryLogRecordExporter();
-    /** The reader collecting the metrics. */
-    readonly #metrics = new CollectedMetrics();
+    /** The readers collecting the world's metrics and each host's. */
+    readonly #readers: CollectedMetrics[] = [];
     /** The host duration of every ended span. */
     readonly #hostTimes = new HostTimes();
+    /** The identifiers of every span, drawn from the world's randomness. */
+    readonly #identifiers: TraceIdGenerator;
+    /** The telemetry of each host, by host name. */
+    readonly #hosts = new Map<string, Telemetry>();
 
     /** Record a world's telemetry in memory, drawing identifiers from its clock and randomness. */
     constructor(environment: { readonly clock: Clock; readonly random: Random }) {
         // keep the clock, and record every span, record and metric in memory
         this.clock = environment.clock;
-        this.tracers = new TracerProvider({
-            idGenerator: new TraceIdGenerator(environment),
-            spanProcessors: [this.#hostTimes, new SimpleSpanProcessor({ exporter: this.#spans })],
-        });
-        this.meters = new MeterProvider({ readers: [this.#metrics] });
-        this.loggers = new LoggerProvider({
-            processors: [new SimpleLogRecordProcessor({ exporter: this.#logs })],
-        });
+        this.#identifiers = new TraceIdGenerator(environment);
+        const providers = this.#providers(resourceFromAttributes({}));
+        this.tracers = providers.tracers;
+        this.meters = providers.meters;
+        this.loggers = providers.loggers;
+    }
+
+    /** Read a host's telemetry, whose signals name the host and land in the world's telemetry. */
+    host(name: string): Telemetry {
+        // reuse the host's telemetry
+        const known = this.#hosts.get(name);
+        if (known !== undefined) {
+            return known;
+        }
+
+        // name the host on its providers' resource, as OpenTelemetry's `host.name`
+        const providers = this.#providers(resourceFromAttributes({ "host.name": name }));
+        const telemetry: Telemetry = {
+            ...providers,
+            propagator: this.propagator,
+            context: this.context,
+            clock: this.clock,
+            monotonic: this.monotonic,
+            ingest: (spans) => this.#ingest(spans, providers.meters),
+        };
+        this.#hosts.set(name, telemetry);
+
+        return telemetry;
     }
 
     /** Take another process's ended spans into the readback, recording their durations. */
     ingest(spans: readonly ReadableSpan[]): void {
+        this.#ingest(spans, this.meters);
+    }
+
+    /** Make providers on a resource, recording into the world's spans, records and metrics. */
+    #providers(resource: Resource): {
+        readonly tracers: TracerProvider;
+        readonly meters: MeterProvider;
+        readonly loggers: LoggerProvider;
+    } {
+        const reader = new CollectedMetrics();
+        this.#readers.push(reader);
+
+        return {
+            tracers: new TracerProvider({
+                idGenerator: this.#identifiers,
+                resource,
+                spanProcessors: [
+                    this.#hostTimes,
+                    new SimpleSpanProcessor({ exporter: this.#spans }),
+                ],
+            }),
+            meters: new MeterProvider({ resource, readers: [reader] }),
+            loggers: new LoggerProvider({
+                resource,
+                processors: [new SimpleLogRecordProcessor({ exporter: this.#logs })],
+            }),
+        };
+    }
+
+    /** Take another process's ended spans, recording their durations on some meters. */
+    #ingest(spans: readonly ReadableSpan[], meters: MeterProvider): void {
         for (const span of spans) {
             this.#spans.export([span], () => {});
-            recordSpanDuration(this.meters, span);
+            recordSpanDuration(meters, span);
         }
     }
 
@@ -148,11 +204,11 @@ export class SimulatedTelemetry implements Telemetry {
         return this.#logs.getFinishedLogRecords();
     }
 
-    /** Collect the metrics recorded so far. */
-    async metrics(): Promise<ResourceMetrics> {
-        const { resourceMetrics } = await this.#metrics.collect();
+    /** Collect the metrics recorded so far, the world's and each host's. */
+    async metrics(): Promise<readonly ResourceMetrics[]> {
+        const collected = await Promise.all(this.#readers.map((reader) => reader.collect()));
 
-        return resourceMetrics;
+        return collected.map(({ resourceMetrics }) => resourceMetrics);
     }
 
     /** Describe the spans as a tree of name paths with world and host time, then histograms. */
@@ -194,7 +250,7 @@ export class SimulatedTelemetry implements Telemetry {
         const lines = ["spans: count, world ms, host ms, statements"];
         SimulatedTelemetry.#write(root, 0, lines);
         lines.push("histograms: count, total, p50, p95, in ms for durations, by target");
-        for (const { metrics } of (await this.metrics()).scopeMetrics) {
+        for (const { metrics } of (await this.metrics()).flatMap((each) => each.scopeMetrics)) {
             for (const metric of metrics) {
                 if (metric.dataPointType === DataPointType.HISTOGRAM) {
                     const scale = metric.descriptor.unit === "s" ? MILLISECONDS_PER_SECOND : 1;
@@ -267,7 +323,7 @@ export class SimulatedTelemetry implements Telemetry {
         const add = (key: string, value: number) => {
             counts[key] = (counts[key] ?? 0) + value;
         };
-        for (const { metrics } of (await this.metrics()).scopeMetrics) {
+        for (const { metrics } of (await this.metrics()).flatMap((each) => each.scopeMetrics)) {
             for (const metric of metrics) {
                 // count a histogram's records and sum, in all and by target
                 const { name, unit } = metric.descriptor;
