@@ -176,6 +176,10 @@ test("export a page's uncaught errors and unhandled rejections to its origin at 
         const resource = [
             { key: "service.name", value: { stringValue: "@example/notes" } },
             { key: "service.version", value: { stringValue: "2026.9.0" } },
+            {
+                key: "service.instance.id",
+                value: { stringValue: "e3440b23-3e0a-47dc-86a3-7896d7dfdfd3" },
+            },
         ];
         expect([thrown, rejected, hidden, left]).toEqual([
             {

@@ -1,3 +1,4 @@
+import { Uuid } from "@destack/schema";
 import {
     type ContextManager,
     type Counter,
@@ -115,10 +116,11 @@ export class Telemetry {
         this.monotonic = Clock.monotonic;
         this.#sessionProcessor = new SessionProcessor(environment.random);
 
-        // identify every signal with the same application resource
+        // identify every signal with the same application resource, this start's instance among them
         const resource = resourceFromAttributes({
             "service.name": options.name,
             "service.version": options.version,
+            "service.instance.id": Uuid.v4(environment.random),
         });
         this.meters = new MeterProvider({ ...options.metrics, resource });
         const { traces, logs } = options.signals(this.meters);

@@ -83,6 +83,12 @@ test("export a log record inside its span as OTLP/JSON, correlated by trace", as
                         "stringValue": "2026.9.0",
                       },
                     },
+                    {
+                      "key": "service.instance.id",
+                      "value": {
+                        "stringValue": "e3440b23-3e0a-47dc-86a3-7896d7dfdfd3",
+                      },
+                    },
                   ],
                   "droppedAttributesCount": 0,
                 },
@@ -111,12 +117,12 @@ test("export a log record inside its span as OTLP/JSON, correlated by trace", as
                         "kind": 1,
                         "links": [],
                         "name": "note.render",
-                        "spanId": "e3440b233e0a77dc",
+                        "spanId": "257b6b15debb3615",
                         "startTimeUnixNano": "1790812800000000000",
                         "status": {
                           "code": 0,
                         },
-                        "traceId": "01a0f4c2c40086a37896d7dfdfd3257b",
+                        "traceId": "01a0f4c2c4006c7c6d56fa61559536bd",
                       },
                     ],
                   },
@@ -144,6 +150,12 @@ test("export a log record inside its span as OTLP/JSON, correlated by trace", as
                         "stringValue": "2026.9.0",
                       },
                     },
+                    {
+                      "key": "service.instance.id",
+                      "value": {
+                        "stringValue": "e3440b23-3e0a-47dc-86a3-7896d7dfdfd3",
+                      },
+                    },
                   ],
                   "droppedAttributesCount": 0,
                 },
@@ -166,9 +178,9 @@ test("export a log record inside its span as OTLP/JSON, correlated by trace", as
                         "observedTimeUnixNano": "1790812800000000000",
                         "severityNumber": 9,
                         "severityText": "INFO",
-                        "spanId": "e3440b233e0a77dc",
+                        "spanId": "257b6b15debb3615",
                         "timeUnixNano": "1790812800000000000",
-                        "traceId": "01a0f4c2c40086a37896d7dfdfd3257b",
+                        "traceId": "01a0f4c2c4006c7c6d56fa61559536bd",
                       },
                     ],
                     "scope": {
