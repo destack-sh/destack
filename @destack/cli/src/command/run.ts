@@ -18,6 +18,10 @@ import { CommandFailure } from "./error.ts";
 import { CliError } from "../error/index.ts";
 import { Terminal } from "../output/index.ts";
 import { nth } from "@destack/schema";
+import { TelemetryScope } from "@destack/telemetry";
+
+/** The program's executable name, which names its root span by OpenTelemetry's CLI conventions. */
+const PROGRAM = "destack";
 
 /** The variable giving the space command lines act in without --space. */
 export const SPACE_VARIABLE = "DESTACK_SPACE";
@@ -180,9 +184,21 @@ export class CommandLine {
                 const version = import.meta.destack.package.version;
                 await terminal.print(line.isJson ? JSON.stringify({ version }) : version);
             }
-            // run the command of the words, or show help without one
+            // run the command of the words in the program's span, as OpenTelemetry's CLI conventions name it
             else {
-                await tree.execute(line.words, line.isJson, terminal);
+                const { span } = TelemetryScope.of(
+                    import.meta.destack.package,
+                    environment.telemetry,
+                );
+                const program = { "process.executable.name": PROGRAM };
+                await span(
+                    PROGRAM,
+                    program,
+                    () => tree.execute(line.words, line.isJson, terminal),
+                    {
+                        duration: { attributes: program },
+                    },
+                );
             }
 
             return 0;

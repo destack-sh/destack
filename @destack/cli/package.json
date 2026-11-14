@@ -18,15 +18,16 @@
         "@destack/object": "workspace:*",
         "@destack/observability": "workspace:*",
         "@destack/package": "workspace:*",
+        "@destack/registry": "workspace:*",
         "@destack/resource": "workspace:*",
         "@destack/schema": "workspace:*",
         "@destack/setting": "workspace:*",
         "@destack/stack": "workspace:*",
         "@destack/sync": "workspace:*",
+        "@destack/telemetry": "workspace:*",
         "@destack/update": "workspace:*",
         "@destack/vault": "workspace:*",
-        "@destack/view": "workspace:*",
-        "@destack/registry": "workspace:*"
+        "@destack/view": "workspace:*"
     },
     "devDependencies": {
         "@destack/environment": "workspace:*",
