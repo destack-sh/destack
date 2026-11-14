@@ -110,7 +110,7 @@ export class TerminalFixture {
     space(name: string): Promise<Identifier<"space">> {
         const { owner } = this.computer.world;
 
-        return this.computer.space(this.login, owner.account, name);
+        return this.computer.space(this.login.id, owner.account, name);
     }
 
     /** Make a terminal's process with only some environment variables, writing into its chunks. */
