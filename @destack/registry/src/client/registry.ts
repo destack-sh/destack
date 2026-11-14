@@ -11,7 +11,8 @@ import {
 } from "@destack/package/manifest";
 import { Digest, type Identifier, nth, present, schema } from "@destack/schema";
 import type { Fetch } from "@destack/object";
-import { createClient } from "@destack/object/client";
+import { type ClientOf, createClient } from "@destack/object/client";
+import { Failure } from "@destack/error";
 import { RegistryError } from "../error/index.ts";
 import { packageObject } from "../object/index.ts";
 import registryPackage from "../package.ts";
@@ -194,31 +195,42 @@ export class Registry {
                     return [];
                 }
 
-                // push every lock's objects once below the account's handle
-                const { handle } = PackageName.split(nth([...roots.values()], 0).package.name);
+                // leave the roots the tag already points at, as publishing them again changes nothing
                 const forge = await this.#find({ account });
-                await Registry.#uploads(forge, handle).push(store, locks);
+                const client = createClient(registryPackage, forge, this.#environment);
+                const tagged = await Promise.all(
+                    [...roots.values()].map((root) => Registry.#tagged(client, forge, root, tag)),
+                );
+                const pending = new Map(
+                    [...roots].filter(([, root], index) => tagged[index] !== root.lock),
+                );
+                if (pending.size === 0) {
+                    return [...roots.values()];
+                }
+
+                // push the pending locks' objects once below the account's handle
+                const { handle } = PackageName.split(nth([...roots.values()], 0).package.name);
+                const pushed = [...pending.values()].map((root) => root.lock);
+                await Registry.#uploads(forge, handle).push(store, pushed);
                 const merged = Lock.of(
                     nth(read, 0).root,
                     Object.fromEntries(read.flatMap((each) => Object.entries(each.builds))),
                 );
 
-                // publish a layer at a time
-                const released: PackageRelease[] = [];
+                // publish the pending roots a layer at a time, then answer every root as released
                 for (const layer of Lock.layers(merged)) {
-                    const outcomes = await Promise.all(
+                    await Promise.all(
                         layer.flatMap((digest) => {
-                            const root = roots.get(digest);
+                            const root = pending.get(digest);
 
                             return root === undefined
                                 ? []
                                 : [this.#publish(forge, root, account, tag, commit)];
                         }),
                     );
-                    released.push(...outcomes);
                 }
 
-                return released;
+                return [...roots.values()];
             },
         );
     }
@@ -276,6 +288,31 @@ export class Registry {
         });
 
         return root;
+    }
+
+    /** Read the lock a package's tag points at in its forge, none before its first publish. */
+    static async #tagged(
+        client: ClientOf<typeof registryPackage>,
+        forge: ForgeEndpoint,
+        root: PackageRelease,
+        tag: string,
+    ): Promise<Digest | undefined> {
+        try {
+            const release = await client.release.resolve({
+                spaceId: forge.space,
+                parentId: root.package.id,
+                release: tag,
+            });
+
+            return release.lock;
+        } catch (error) {
+            // publish a package the caller cannot see yet, whose publish then decides
+            const { code } = Failure.of(error);
+            if (code === "NOT_FOUND" || code === "FORBIDDEN") {
+                return undefined;
+            }
+            throw error;
+        }
     }
 
     /** Open the upload endpoint below an account's handle at its forge. */
