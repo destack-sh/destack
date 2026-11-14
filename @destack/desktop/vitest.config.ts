@@ -1,12 +1,16 @@
 import { BunEnvironment } from "@destack/environment/bun";
-import { defineConfiguration } from "@destack/test/config";
+import { defineConfiguration, SCENARIO_MODULES, scenarioPlugin } from "@destack/test/config";
 import { fileURLToPath } from "node:url";
 
 /** The tests that open a world of a universe and computers. */
-const SCENARIO_TESTS = ["src/**/*.scenario.test.ts"];
+const SCENARIO_TESTS = ["src/**/*.scenario.test.ts", SCENARIO_MODULES];
+
+/** The driver of the desktop's scenarios. */
+const DESKTOP_DRIVER = fileURLToPath(new URL("src/test/driver.ts", import.meta.url));
 
 export default defineConfiguration(
     {
+        plugins: [scenarioPlugin([{ module: DESKTOP_DRIVER, name: "DesktopDriver" }])],
         root: fileURLToPath(new URL(".", import.meta.url)),
         ssr: { resolve: { conditions: ["bun"], externalConditions: ["bun"] } },
         // run the tests on sqlite, as machine's computers store

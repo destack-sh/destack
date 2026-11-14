@@ -26,3 +26,7 @@ test:
 # format
 format *args:
     bun run destack-check format {{args}} src vitest.config.ts package.json destack.json
+
+# benchmark
+bench:
+    bun run bench

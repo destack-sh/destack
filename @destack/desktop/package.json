@@ -14,7 +14,8 @@
         "./setting": "./src/setting/index.ts",
         "./shell": "./src/shell/index.ts",
         "./workload": "./src/workload/index.ts",
-        "./object": "./src/object/index.ts"
+        "./object": "./src/object/index.ts",
+        "./scenario": "./src/scenario/index.ts"
     },
     "description": "Open Destack apps in desktop windows, with banners, a badge, a tray and a command palette.",
     "dependencies": {
@@ -54,6 +55,7 @@
         "typecheck": "tsc --project tsconfig.json && destack-check readme",
         "test": "bun --bun run vitest run --config vitest.config.ts",
         "build": "bun run ../../@platform/release/src/distribution/build.ts",
-        "dev": "bun run ../../@platform/release/src/distribution/develop.ts"
+        "dev": "bun run ../../@platform/release/src/distribution/develop.ts",
+        "bench": "bun --bun run vitest run --config vitest.config.ts --project \"bench:*\""
     }
 }
