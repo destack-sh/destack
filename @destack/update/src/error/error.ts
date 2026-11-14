@@ -28,7 +28,6 @@ export const UpdateError = defineErrorFamily({
 
         // blocked
         CACHE_BLOCKED: {},
-        DESKTOP_BLOCKED: {},
         DEVELOPMENT_BUILD_BLOCKED: {},
         INSTALLATION_BLOCKED: {},
         INSTALLATION_METHOD_BLOCKED: {},

@@ -43,9 +43,6 @@ export const TOOLCHAIN_DIRECTORY = "toolchain";
 /** The checked-out toolchains a checkout keeps: the current one and the one before. */
 const KEPT_TOOLCHAINS = 2;
 
-/** The system libraries the native Linux desktop needs. */
-const DESKTOP_LIBRARIES = ["libgtk-3.so.0", "libwebkit2gtk-4.1.so.0"] as const;
-
 /** The installer responsible for a distribution's files and their removal. */
 export const DistributionMethod = schema.enum(["archive", "application", "nsis"]);
 /** The installer responsible for a distribution's files and their removal. */
@@ -309,24 +306,13 @@ export class Distribution {
         }
     }
 
-    /** Require the system libraries the native Linux desktop needs, and a regular user. */
-    static async requireDesktop(process: Process): Promise<void> {
-        // refuse privileged installation, leaving dependency installation to the person
+    /** Require a regular user, refusing privileged installation. */
+    static requireRegularUser(process: Process): void {
         if (process.userId === 0) {
             throw UpdateError.of(
                 "INSTALLATION_BLOCKED",
                 "cannot install: install Destack as your regular user, without sudo",
             );
-        }
-
-        // refuse a missing library, naming the command that installs it
-        for (const library of DESKTOP_LIBRARIES) {
-            if (!(await process.hasLibrary(library))) {
-                throw UpdateError.of(
-                    "DESKTOP_BLOCKED",
-                    `cannot start the desktop: dependency '${library}' is missing, so run '${Distribution.#dependencyCommand(process)}'`,
-                );
-            }
         }
     }
 
@@ -443,22 +429,6 @@ export class Distribution {
         }
 
         return directory;
-    }
-
-    /** Name the command installing the desktop's libraries with this system's package manager. */
-    static #dependencyCommand(process: Process): string {
-        // install through APT
-        if (process.which("apt-get") !== undefined) {
-            return "sudo apt-get install libwebkit2gtk-4.1-0";
-        }
-        // install through DNF
-        else if (process.which("dnf") !== undefined) {
-            return "sudo dnf install webkit2gtk4.1 gtk3";
-        }
-        // list the libraries for any other package manager
-        else {
-            return "install GTK 3 and WebKitGTK 4.1 using your distribution's package manager";
-        }
     }
 
     /** Report whether a Mac application runs from a read-only volume or a translocated download. */
