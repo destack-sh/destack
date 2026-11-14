@@ -110,6 +110,24 @@ export function exclusion(include: AccessExpression, exclude: AccessExpression):
     return { kind: "exclusion", include, exclude };
 }
 
+/** List the relations some expressions follow through, which access reverses by their columns. */
+export function throughRelations(expressions: Iterable<AccessExpression>): Set<string> {
+    // walk each expression's operands for a through
+    const relations = new Set<string>();
+    const pending = [...expressions];
+    for (let expression = pending.pop(); expression !== undefined; expression = pending.pop()) {
+        if (expression.kind === "through") {
+            relations.add(expression.relation);
+        } else if (expression.kind === "union" || expression.kind === "intersection") {
+            pending.push(...expression.expressions);
+        } else if (expression.kind === "exclusion") {
+            pending.push(expression.include, expression.exclude);
+        }
+    }
+
+    return relations;
+}
+
 /** Follow an object relation once or through its ancestor closure. */
 export function through(
     relationName: string,
