@@ -1,6 +1,4 @@
-import { installBaseline } from "./baseline/index.ts";
+// install the web-standard APIs the Destack browser baseline lacks before any view code runs
+import "@destack/environment/baseline";
 
 export * from "@solidjs/web";
-
-// install the web-standard APIs the Destack browser baseline lacks before any view code runs
-installBaseline();

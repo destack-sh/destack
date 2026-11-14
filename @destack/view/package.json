@@ -5,6 +5,7 @@
     "license": "Apache-2.0",
     "type": "module",
     "sideEffects": [
+        "./src/runtime/runtime.ts",
         "./src/styles/styles.ts",
         "**/*.css"
     ],
