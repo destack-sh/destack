@@ -82,11 +82,9 @@ export const noteCardComplete = defineScenario({
     name: "complete",
     description: "complete a card",
     given: { examples: [noteCardLoud], globals: { width: 320 } },
+    parameters: {},
     when: [{ action: "done" }, { action: "set", properties: { tone: "quiet" } }],
-    then: {
-        observe: { state: { kind: "state" } },
-        end: { state: "done" },
-    },
+    then: [{ observe: { kind: "state" }, is: "done" }],
 });
 `;
 
@@ -263,11 +261,9 @@ test.concurrent("declare each example showing its symbol with controls and the p
                     }),
                     examples: [loud?.moniker],
                     globals: { width: 320 },
+                    parameters: {},
                     when: [{ action: "done" }, { action: "set", properties: { tone: "quiet" } }],
-                    then: {
-                        observe: { state: { kind: "state" } },
-                        end: { state: "done" },
-                    },
+                    then: [{ observe: { kind: "state" }, is: "done" }],
                 },
             },
             {

@@ -1,5 +1,6 @@
 import { testSimulation } from "@destack/test/world";
-import { expect, refusal, test } from "@destack/test";
+import { expect, Recording, refusal, test } from "@destack/test";
+import { TestDatabase } from "@destack/db/test";
 import type { FamilyError } from "@destack/error";
 import {
     defineTable,
@@ -853,13 +854,15 @@ databaseTest(
 databaseTest(
     "resolve a caller in the same statements however many other subjects' relationships the scope has",
     async ({ fixture }) => {
-        const { database, authorizer, bob } = fixture;
+        const { database, authorizer, bob, simulation } = fixture;
         const resolve = async () => {
-            const before = database.driver.state.statements;
+            const before = await Recording.read(simulation.telemetry);
             const access = await authorizer.resolve(Snapshot.live(database), "personal", bob);
 
             return {
-                statements: database.driver.state.statements - before,
+                statements: (await Recording.read(simulation.telemetry))
+                    .since(before)
+                    .count(TestDatabase.statements(database)),
                 grants: [...access.grants.keys()],
             };
         };

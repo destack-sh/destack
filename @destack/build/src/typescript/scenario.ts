@@ -1,4 +1,4 @@
-import { ScenarioDescription, Then } from "@destack/package/declare";
+import { ScenarioDescription } from "@destack/package/declare";
 import type { SourceFile } from "typescript/unstable/ast";
 import type { SymbolReference } from "@destack/package/code";
 import { schema } from "@destack/schema";
@@ -47,6 +47,7 @@ export const ScenarioDeclaration = {
                 );
                 const examples = await given.symbols("examples", inspector);
                 const globals = given.literal("globals");
+                const then = fields.literal("then");
 
                 return {
                     ...site,
@@ -58,8 +59,13 @@ export const ScenarioDeclaration = {
                     description: {
                         description: fields.text("description"),
                         ...(globals === undefined ? {} : { globals }),
+                        parameters: schema
+                            .record(schema.string(), schema.number())
+                            .parse(fields.literal("parameters")),
                         when: schema.array(schema.json()).min(1).parse(fields.literal("when")),
-                        then: Then.parse(fields.literal("then")),
+                        ...(then === undefined
+                            ? {}
+                            : { then: schema.array(schema.json()).parse(then) }),
                     },
                 };
             }),

@@ -5,7 +5,7 @@ import { defineDatabase, Snapshot } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
 import { Identifier, present, schema } from "@destack/schema";
 import { RequestId } from "@destack/sync";
-import { expect, onTestFinished, test, refusal } from "@destack/test";
+import { expect, onTestFinished, Recording, test, refusal } from "@destack/test";
 import { Directory, DOMAINS, MachineAddress } from "../src/address/index.ts";
 import { Account, endpoint, machine, placement } from "../src/object/index.ts";
 import { TestAccountStore, ids, STRANGER_EMAIL, OWNER_EMAIL } from "../src/test/index.ts";
@@ -268,14 +268,17 @@ test("locate each of many spaces placed on a machine in one statement for its pl
             ),
     );
 
-    // hear commits as a serving store does, then locate each through a connection counting its statements
+    // hear commits as a serving store does, then locate each, counting the statements
     await database.log.listening();
-    const reader = database.metered();
-    const directory = new Directory(Snapshot.live(reader));
+    const before = await Recording.read(simulation.telemetry);
+    const directory = new Directory(Snapshot.live(database));
     const located = await Promise.all(spaces.map((id) => directory.locate(id, NOW)));
+    const statements = (await Recording.read(simulation.telemetry))
+        .since(before)
+        .count(TestDatabase.statements(database));
 
     // read each space's placement, and the machine's endpoint once from the database
-    expect({ statements: reader.driver.operations, located }).toEqual({
+    expect({ statements, located }).toEqual({
         statements: STRESS_SPACES + 1,
         located: placed.map((row) => ({
             placement: row,
