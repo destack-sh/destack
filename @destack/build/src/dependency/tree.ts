@@ -145,9 +145,15 @@ export class DependencyTree {
             links[build]?.[name] ?? dependencies[name]?.manifest;
         const scope = { kind: "compile" } as const;
 
-        return await DependencyTree.materialize(store, builds, resolve, store.trees, scope, {
-            workspace,
-        });
+        // place them in the install's span, counting the builds
+        return await store.scope.span(
+            "destack.dependency.install",
+            { "destack.dependency.builds": builds.length },
+            () =>
+                DependencyTree.materialize(store, builds, resolve, store.trees, scope, {
+                    workspace,
+                }),
+        );
     }
 
     /** Write builds once each under a directory, each linked to the builds it requires. */

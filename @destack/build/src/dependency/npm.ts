@@ -191,11 +191,17 @@ export class NpmInstallation {
         );
 
         // take the stored build, else build it on the builds of the dependencies its modules import
-        const { manifest } = await this.#store.cachedBuild(key, async () => {
-            const built = await unit.build((each) => this.store(each));
+        const { manifest } = await this.#store.cachedBuild(key, () =>
+            this.#store.scope.span(
+                "destack.npm.build",
+                { "destack.npm.package": released.name },
+                async () => {
+                    const built = await unit.build((each) => this.store(each));
 
-            return await this.#store.put(built);
-        });
+                    return await this.#store.put(built);
+                },
+            ),
+        );
 
         return { kind: "npm", package: { ...released, integrity }, manifest };
     }

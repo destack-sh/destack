@@ -387,6 +387,7 @@ test("trace a workspace's unit builds: compile each unit on a miss, take each fr
             "destack.compiler.compile": 2,
             "destack.compiler.evaluate": 2,
             "destack.compiler.start": 2,
+            "destack.dependency.install": 2,
             "destack.workspace.build[hit]": 2,
             "destack.workspace.build[miss]": 2,
             "destack.workspace.open": 2,

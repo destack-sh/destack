@@ -243,7 +243,7 @@ export class BuildStore<
     /** Pull a build's file this store and its sources lack, absent where every file is stored. */
     readonly #pullFile: BuildStoreOptions<StoreEnvironment, Storage>["pullFile"];
     /** The spans and durations of the store's verbs. */
-    protected readonly scope: TelemetryScope;
+    readonly scope: TelemetryScope;
 
     /** Store builds in a partition's blobs, reading some read-only builds in place. */
     constructor(options: BuildStoreOptions<StoreEnvironment, Storage>) {
