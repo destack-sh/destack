@@ -130,20 +130,8 @@ export class PlatformBuild implements AsyncDisposable {
         open: ForgeOpen,
         released: (reader: BuildReader) => Promise<void>,
     ): Promise<void> {
-        // order the releases so each follows those it requires, then split them into runs of one handle
-        const runs: { readonly handle: string; readonly names: string[] }[] = [];
-        for (const name of PlatformBuild.#ordered(this.releases)) {
-            const { handle } = PackageName.split(name);
-            const last = runs.at(-1);
-            if (last?.handle === handle) {
-                last.names.push(name);
-            } else {
-                runs.push({ handle, names: [name] });
-            }
-        }
-
-        // release each run's locks at once into its account's forge
-        for (const { handle, names } of runs) {
+        // release each handle's locks at once into its account's forge, after the handles they require
+        for (const { handle, names } of PlatformBuild.#runs(this.releases)) {
             const { accountId, registry } = await open(handle);
             const locks = names.map((name) => found(this.locks, name));
             const releases = await registry.release(this.store, locks, accountId, tag);
@@ -153,26 +141,54 @@ export class PlatformBuild implements AsyncDisposable {
         }
     }
 
-    /** Order releases by name so each comes after the releases it requires. */
-    static #ordered(releases: ReadonlyMap<string, BuildReader>): string[] {
-        // visit each release's required releases before it, once
-        const ordered: string[] = [];
-        const visited = new Set<string>();
-        const visit = (name: string) => {
-            if (!visited.has(name)) {
-                visited.add(name);
-                const required = Object.keys(found(releases, name).manifest.requires);
-                for (const each of required.filter((dependency) => releases.has(dependency))) {
-                    visit(each);
-                }
-                ordered.push(name);
-            }
-        };
+    /** Group releases by handle, each handle after the handles its releases require. */
+    static #runs(
+        releases: ReadonlyMap<string, BuildReader>,
+    ): { readonly handle: string; readonly names: readonly string[] }[] {
+        // group the names by handle, with the other handles each handle's releases require
+        const names = new Map<string, string[]>();
+        const requires = new Map<string, Set<string>>();
         for (const name of releases.keys()) {
-            visit(name);
+            const { handle } = PackageName.split(name);
+            const required = Object.keys(found(releases, name).manifest.requires)
+                .filter((dependency) => releases.has(dependency))
+                .map((dependency) => PackageName.split(dependency).handle)
+                .filter((other) => other !== handle);
+            const named = names.get(handle) ?? [];
+            const needs = requires.get(handle) ?? new Set<string>();
+            named.push(name);
+            for (const other of required) {
+                needs.add(other);
+            }
+            names.set(handle, named);
+            requires.set(handle, needs);
         }
 
-        return ordered;
+        // visit each handle's required handles before it, refusing handles that require each other
+        const runs: { readonly handle: string; readonly names: readonly string[] }[] = [];
+        const visited = new Set<string>();
+        const visiting = new Set<string>();
+        const visit = (handle: string) => {
+            // refuse a handle met again on its own path
+            if (visiting.has(handle)) {
+                throw new Error(`releases of '@${handle}' require releases that require them back`);
+            }
+            // add a handle met for the first time after the handles it requires
+            else if (!visited.has(handle)) {
+                visiting.add(handle);
+                for (const other of requires.get(handle) ?? []) {
+                    visit(other);
+                }
+                visiting.delete(handle);
+                visited.add(handle);
+                runs.push({ handle, names: found(names, handle) });
+            }
+        };
+        for (const handle of names.keys()) {
+            visit(handle);
+        }
+
+        return runs;
     }
 
     /** Close the builds' store, releasing its lock. */
