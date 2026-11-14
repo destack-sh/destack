@@ -1,12 +1,13 @@
 import { type PackageManifest, VIEW_ASSET_PATH, ViewDescription } from "@destack/package/manifest";
 import type { PackageFile } from "@destack/package/file";
+import { Catalog } from "@destack/locale";
 import { MachineError } from "../error/index.ts";
 
 /** The file listing a static site's redirects, as Cloudflare's and Netlify's. */
 const REDIRECTS_FILE = "_redirects";
 
 /** The file listing a static site's headers by path, as Cloudflare's and Netlify's. */
-const HEADERS_FILE = "_headers";
+export const HEADERS_FILE = "_headers";
 
 /** The redirect status a rule without one answers, as Cloudflare's default. */
 const DEFAULT_REDIRECT_STATUS = 302;
@@ -131,6 +132,25 @@ export class StaticHost {
         this.headers = fields.headers;
     }
 
+    /** Index a build's public files by path: its browser outputs' and its own catalogs. */
+    static publicFiles(
+        manifest: PackageManifest,
+        files: readonly PackageFile[],
+    ): ReadonlyMap<string, PackageFile> {
+        // take the files below a browser output's directory, and the build's own catalogs
+        const directories = Object.values(manifest.outputs)
+            .filter((output) => output.runtime === "browser")
+            .map((output) => `${output.directory}/`);
+        const shown = files.filter((file) => {
+            const catalog = Catalog.at(file.path);
+            const isOwnCatalog = catalog !== undefined && catalog.dependency === undefined;
+
+            return isOwnCatalog || directories.some((directory) => file.path.startsWith(directory));
+        });
+
+        return new Map(shown.map((file) => [file.path, file]));
+    }
+
     /** Open the static site of a build's view: the route's, else the build's one. */
     static async open(
         manifest: PackageManifest,
@@ -229,6 +249,37 @@ export class StaticHost {
         }
 
         return collected;
+    }
+
+    /** List every path the site answers with a file, the inverse of reading a path's file. */
+    paths(): { readonly path: string; readonly file: PackageFile }[] {
+        return [...this.files.values()].flatMap((file) => {
+            // place a page below the root, leaving out the host configuration's files
+            if (file.path.startsWith(`${this.pages}/`)) {
+                const path = file.path.slice(this.pages.length);
+
+                return this.#file(path) === file ? [{ path, file }] : [];
+            }
+            // place an asset below the asset path
+            else if (file.path.startsWith(`${this.assets}/`)) {
+                const path = `${VIEW_ASSET_PATH}${file.path.slice(this.assets.length + 1)}`;
+
+                return this.#file(path) === file ? [{ path, file }] : [];
+            }
+            // leave the build's other files, which no site path answers
+            else {
+                return [];
+            }
+        });
+    }
+
+    /** List the host configuration's files, which a static host reads beside the pages. */
+    configuration(): { readonly path: string; readonly file: PackageFile }[] {
+        return [REDIRECTS_FILE, HEADERS_FILE].flatMap((name) => {
+            const file = this.files.get(`${this.pages}/${name}`);
+
+            return file === undefined ? [] : [{ path: `/${name}`, file }];
+        });
     }
 
     /** Read the file a path answers: a view asset or a page. */

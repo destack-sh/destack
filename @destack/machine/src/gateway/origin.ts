@@ -77,7 +77,7 @@ import { OriginCookie } from "./cookie.ts";
 import { StaticHost } from "./host.ts";
 
 /** The path a view's dependency builds are served below, each under its digest. */
-const BUILD_PATH = "/.destack/build/";
+export const BUILD_PATH = "/.destack/build/";
 
 /** The cookie with a page's session on its installation's origin, as a backend for frontend. */
 export const SESSION_COOKIE = "destack-session";
@@ -1008,7 +1008,7 @@ export class ViewOrigin {
         }
 
         // redirect as the static site's host configuration has it, before serving any file
-        const files = ViewOrigin.#publicFiles(reader.manifest, await reader.files());
+        const files = StaticHost.publicFiles(reader.manifest, await reader.files());
         const site = await ViewOrigin.#memo(this.#sites, `${page.lock} ${page.mount.view}`, () =>
             StaticHost.open(reader.manifest, files, page.mount.view, (file) =>
                 reader.load(file.path),
@@ -1366,25 +1366,6 @@ export class ViewOrigin {
                 },
             );
         }
-    }
-
-    /** Index a build's public files by path: its browser outputs' and its own catalogs. */
-    static #publicFiles(
-        manifest: PackageManifest,
-        files: readonly PackageFile[],
-    ): ReadonlyMap<string, PackageFile> {
-        // take the files below a browser output's directory, and the build's own catalogs
-        const directories = Object.values(manifest.outputs)
-            .filter((output) => output.runtime === "browser")
-            .map((output) => `${output.directory}/`);
-        const shown = files.filter((file) => {
-            const catalog = Catalog.at(file.path);
-            const isOwnCatalog = catalog !== undefined && catalog.dependency === undefined;
-
-            return isOwnCatalog || directories.some((directory) => file.path.startsWith(directory));
-        });
-
-        return new Map(shown.map((file) => [file.path, file]));
     }
 
     /** Answer a file under its ETag: unchanged with 304, else its bytes or a page with its map. */
