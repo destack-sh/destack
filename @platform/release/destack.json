@@ -16,8 +16,7 @@
     "entrypoints": [
         "src/main.ts",
         "src/key/tests/bitwarden.ts",
-        "src/deployment/cloudflare/universe.ts",
-        "src/distribution/tests/sandbox.ts"
+        "src/deployment/cloudflare/universe.ts"
     ],
     "exports": {
         "./catalog": {
