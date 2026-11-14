@@ -58,6 +58,13 @@ const reminder = defineObject(
     ],
 });
 
+/** The outcomes of the gates' passes in order, and the pass a held gate waits in until released. */
+const passes = {
+    outcomes: new Array<string>(),
+    entered: Promise.withResolvers<void>(),
+    released: Promise.withResolvers<void>(),
+};
+
 /** Gates whose controller fails as their outcome field says, until it opens them. */
 const gate = defineObject(
     {
@@ -82,10 +89,14 @@ const gate = defineObject(
     controllers: [
         {
             pending: { generation: { gt: { field: "syncedGeneration" } } },
-            // refuse or fail each gate as its outcome says
+            // refuse, fail or hold each gate as its outcome says
             reconcile: async ({ rows }) => {
                 for (const row of rows) {
-                    if (row.outcome === "refused") {
+                    passes.outcomes.push(row.outcome);
+                    if (row.outcome === "held") {
+                        passes.entered.resolve();
+                        await passes.released.promise;
+                    } else if (row.outcome === "refused") {
                         throw Failure.error({
                             code: "FORBIDDEN",
                             reason: "PERMISSION_DENIED",
@@ -498,6 +509,67 @@ test("record a lasting reconcile failure on a controlled object as its synced co
             unavailable: [0, {}],
         },
     });
+});
+
+test("reconcile a controlled object changed during its pass again, syncing it at the generation each pass read", async () => {
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+    const storage = await TestDatabase.create(reminderDatabase, {
+        environment: world,
+        isMigrated: true,
+    });
+    onTestFinished(() => storage.close());
+    const database = storage.database;
+    await openSpace(database, world, spaceId);
+    const store = await TestObjectStore.receive(space.reference(Scope.universe.id, spaceId), {
+        chain: async () => undefined,
+        environment: world,
+        principal: spacePrincipal(spaceId),
+        servers: serversOf([gate]),
+        database,
+        callKey: testCallKey,
+        events: await testEvents(database, world),
+        origin: { package: gate.package },
+    });
+    const reported: unknown[] = [];
+    const loop = new ControlLoop(database, store.control(), {
+        report: (_controller, _key, error) => reported.push(error),
+    });
+    const stopping = new AbortController();
+    const running = loop.run(stopping.signal);
+    onTestFinished(async () => {
+        stopping.abort();
+        await running;
+    });
+
+    // create a held gate, and open it while its first pass waits
+    passes.outcomes.length = 0;
+    const access = userContext(users.frank, spaceId, { environment: world }).access();
+    const [held] = await store.mutate(access, {
+        id: RequestId.create(world),
+        calls: [gate.call("create", { spaceId, outcome: "held" })],
+    });
+    await passes.entered.promise;
+    await store.mutate(access, {
+        id: RequestId.create(world),
+        calls: [
+            gate.call("update", {
+                ...gate.target(present(held, "the held gate")),
+                outcome: "open",
+            }),
+        ],
+    });
+    passes.released.resolve();
+    await loop.idle();
+
+    // pass the opened gate once more, and sync it at its second generation only then
+    const [row] = await database.select().from(gate.table);
+    expect({
+        outcomes: passes.outcomes,
+        synced: row?.syncedGeneration,
+        observed: row?.conditions["Synced"]?.observedGeneration,
+        reported,
+    }).toEqual({ outcomes: ["held", "open"], synced: 2, observed: 2, reported: [] });
 });
 
 test("record a lasting projection failure on a controlled object as its synced condition, and sync it once projected", async () => {

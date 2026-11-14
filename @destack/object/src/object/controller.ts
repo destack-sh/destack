@@ -443,13 +443,15 @@ export const ObjectController = {
         try {
             const outcome = await declared.reconcile(context);
 
-            // record each converged controlled object synced at the generation it has now
-            const ids =
-                isObserved && outcome !== "waiting"
-                    ? rows.map((row) => ObjectController.readIdentifier(row))
-                    : [];
-            const reread = await ObjectController.reread(store, object, ids);
-            await observeAll(reread, { conditions: { [SYNCED]: SYNCED_CONDITION } });
+            // record each converged controlled object synced at the generation the pass read, so a change during it stays pending
+            const read = new Map(
+                (isObserved && outcome !== "waiting" ? rows : [])
+                    .map((row) => ObservedFields.parse(row))
+                    .map(({ id, generation }) => [id, generation]),
+            );
+            const reread = await ObjectController.reread(store, object, [...read.keys()]);
+            const converged = reread.map((row) => ({ ...row, generation: found(read, row.id) }));
+            await observeAll(converged, { conditions: { [SYNCED]: SYNCED_CONDITION } });
         } catch (error) {
             // hold a pass a suspension refused midway, until the resume selects it again
             const failure = Failure.of(error);
