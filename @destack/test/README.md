@@ -16,10 +16,10 @@ Tests run in worlds:
 - `testSimulation`: a simulation with the same seed in every run, stopped when its test ends.
 - `testHost` and `testTarget`: the real host, and the target a test project runs against, such as its database.
 
-Declared scenarios and benchmarks run through drivers:
+Declared scenarios run through drivers:
 
 - `Driver` and `DriverType`: take a scenario's steps and read its observations, one driver per interaction.
-- `Runner`: plays scenarios and measures benchmarks as tests.
+- `Runner`: plays scenarios as tests, and measures their operations in the bench tier.
 - `defineConfiguration`: Vitest's configuration with Destack's module transform and test targets.
 
 Write a test whose effects run in a simulation:
@@ -58,13 +58,13 @@ These check outcomes and open worlds.
 
 `Runner` plays scenarios through their interaction's driver, checking each step's telemetry and observations.
 
-| Verb                                              | What it does                                                          |
-| ------------------------------------------------- | --------------------------------------------------------------------- |
-| `Runner.playModule(exports, types)`               | plays each scenario a module exports as a test                        |
-| `Runner.play(scenario, types)`                    | plays a scenario once, replaying its seed under `DESTACK_REPLAY=1`    |
-| `Runner.playthrough(scenario, type)`              | plays a scenario through a new driver, measuring its operations       |
-| `Runner.checkDeterminism(scenario, first, second)` | names the first step after which two plays differ                     |
-| `Runner.save(…)`, `Runner.format(…)`              | writes the bench tier's results in Go's benchmark format, for benchstat |
+| Verb                                               | What it does                                                            |
+| -------------------------------------------------- | ----------------------------------------------------------------------- |
+| `Runner.playModule(exports, types)`                | plays each scenario a module exports as a test                          |
+| `Runner.play(scenario, types)`                     | plays a scenario once, replaying its seed under `DESTACK_REPLAY=1`      |
+| `Runner.playthrough(scenario, type)`               | plays a scenario through a new driver, measuring its operations         |
+| `Runner.checkDeterminism(scenario, first, second)` | names the first step after which two plays differ                       |
+| `Runner.save(…)`, `Runner.format(…)`               | writes the bench tier's results in Go's benchmark format, for benchstat |
 
 ### Driver
 
@@ -86,9 +86,8 @@ Its `tier` sets the tests' timeouts and slow threshold (`TEST_TIERS`: `unit`, `s
 | Export                    | What it is                                                               |
 | ------------------------- | ------------------------------------------------------------------------ |
 | `defineProject(config)`   | creates one project of a configuration, in the tier its project declares |
-| `scenarioPlugin(drivers)` | plays the scenarios and benchmarks of matching modules                   |
-| `SCENARIO_MODULES`        | `src/**/*.scenario.{ts,tsx}`                                             |
-| `BENCHMARK_MODULES`       | `src/**/*.benchmark.ts`                                                  |
+| `scenarioPlugin(drivers)` | plays the scenarios of matching modules                                  |
+| `SCENARIO_MODULES`        | `src/**/*.scenario.{ts,tsx}`, which a bench twin of the project measures |
 
 ## Examples
 
@@ -139,33 +138,34 @@ export const countTwice = defineScenario({
 });
 ```
 
-### Limit a benchmark
+### Bound an operation
 
-A benchmark sets a world up once, then measures each operation, and fails when a counter grows past its limit.
+An operation step repeats a step and checks the telemetry it recorded; the bench tier measures its time beside the counts.
 
 ```ts
-import { defineBenchmark, type Interaction } from "@destack/package/declare";
-import { schema } from "@destack/schema";
+import { defineScenario, type Interaction } from "@destack/package/declare";
 
-// a counter's steps, which a driver speaks
-const counter = {
-    name: "counter",
-    step: schema.object({ action: schema.enum(["reset", "increment"]) }),
-    observation: schema.object({ kind: schema.literal("count") }),
-    globals: schema.object({}),
-} satisfies Interaction;
+/** The counter interaction of the scenario above. */
+declare const counter: Interaction;
 
-// allow one database operation per increment
-export const incrementBenchmark = defineBenchmark({
+// allow at most one database operation per increment, without errors
+export const incrementOnce = defineScenario({
     of: "counter",
     interaction: counter,
     name: "increment",
-    description: "increment a counter after resetting it",
-    parameters: {},
-    setup: [{ action: "reset" }],
-    operations: { increment: { action: "increment" } },
-    iterations: 10,
-    limits: { increment: { "db.client.operation.duration.count": 1 } },
+    description: "increment a counter with one database operation",
+    given: { examples: [] },
+    when: [
+        {
+            operation: "increment",
+            times: 10,
+            step: { action: "increment" },
+            then: [
+                { metric: { name: "db.client.operation.duration" }, atMost: 1 },
+                { logs: { severity: "ERROR" }, count: 0 },
+            ],
+        },
+    ],
 });
 ```
 
@@ -193,12 +193,12 @@ export default defineConfiguration(
 
 Tests, assertions and configuration are Vitest's, imported from here.
 
-| Vitest                    | `@destack/test`       | Difference                                                            |
-| ------------------------- | --------------------- | --------------------------------------------------------------------- |
-| `test`, `expect`, `vi`, … | the same              | The same.                                                             |
-| `defineConfig`            | `defineConfiguration` | Adds the module transform and runs a project per target.              |
-| `vi.useFakeTimers`        | `testSimulation`      | Simulates every effect of every node, from one seed.                  |
-| `bench`                   | `Runner.bench`        | Expects operation counts within limits, and reports time beside them. |
+| Vitest                    | `@destack/test`       | Difference                                                       |
+| ------------------------- | --------------------- | ---------------------------------------------------------------- |
+| `test`, `expect`, `vi`, … | the same              | The same.                                                        |
+| `defineConfig`            | `defineConfiguration` | Adds the module transform and runs a project per target.         |
+| `vi.useFakeTimers`        | `testSimulation`      | Simulates every effect of every node, from one seed.             |
+| `bench`                   | an operation step     | Checks its telemetry, and the bench tier reports time beside it. |
 
 ### Go benchmarks
 
@@ -206,6 +206,6 @@ Benchmark results follow Go's format, so benchstat compares two runs.
 
 | Go               | `@destack/test`   | Difference                                    |
 | ---------------- | ----------------- | --------------------------------------------- |
-| `BenchmarkX(b)`  | `defineBenchmark` | Declares setup steps and operations as data.  |
-| `b.ReportMetric` | `count()`         | Counts come from the driver's world.          |
+| `BenchmarkX(b)`  | an operation step | Declares the steps it repeats as data.        |
+| `b.ReportMetric` | its `then` checks | Counts come from the world's telemetry.       |
 | benchstat        | `Runner.save`     | Saves results under a baseline for benchstat. |
