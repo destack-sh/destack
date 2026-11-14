@@ -712,20 +712,21 @@ export class SimulatedNetwork {
             // refuse an address nothing listens at, a node cut off from it, and a lost connection
             const endpoint = this.#socketEndpoints.get(key);
             const at = this.#clock.now();
+            const target = socketTarget(address, endpoint?.node);
             if (endpoint === undefined) {
-                this.#record({ kind: "refusal", at, from, target: key, reason: "unserved" });
+                this.#record({ kind: "refusal", at, from, target, reason: "unserved" });
                 throw refusal(
                     `connection refused: nothing listens at ${socketName(address)}`,
                     "ConnectionRefused",
                 );
             } else if (this.#isSocketCut(key, from, endpoint.node)) {
-                this.#record({ kind: "refusal", at, from, target: key, reason: "partitioned" });
+                this.#record({ kind: "refusal", at, from, target, reason: "partitioned" });
                 throw refusal(
                     `connection failed: ${from} cannot reach ${endpoint.node}`,
                     "FailedToOpenSocket",
                 );
             } else if (this.#isSocketLost(key, from, endpoint.node)) {
-                this.#record({ kind: "loss", at, from, target: key });
+                this.#record({ kind: "loss", at, from, target });
                 throw refusal(
                     `connection failed: the connection to ${key} was lost`,
                     "ConnectionClosed",
@@ -747,7 +748,7 @@ export class SimulatedNetwork {
                 isOpen: true,
             };
             this.#socketConnections.add(connection);
-            this.#record({ kind: "request", at: this.#clock.now(), from, target: key });
+            this.#record({ kind: "request", at: this.#clock.now(), from, target });
             endpoint.accept(
                 this.#socketEnd({
                     connected: Promise.resolve(connection),
@@ -1292,6 +1293,11 @@ function decoded(response: Response): Response {
         statusText: response.statusText,
         headers,
     });
+}
+
+/** Name a socket's target in world events: its host and port, or its Unix socket's node. */
+function socketTarget(address: SocketAddress, node: string | undefined): string {
+    return "unix" in address ? `${UNIX_KEY}${node ?? ""}` : socketKey(address);
 }
 
 /** Key a socket address on the simulated network: its host and port, or its Unix socket's path. */

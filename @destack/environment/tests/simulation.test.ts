@@ -16,6 +16,9 @@ import { join } from "node:path";
 import { testWorldOptions } from "@destack/test/world";
 import { testHost } from "@destack/test/host";
 
+/** The random bytes a test socket's name takes, as a host names its sockets. */
+const SOCKET_NAME_BYTES = 8;
+
 /** The workers racing on host work in a replayed world. */
 const WORKERS = 8;
 
@@ -1794,15 +1797,16 @@ test("keep one fingerprint across plays whose host work differs, as a warm cache
     });
 });
 
-test("keep one fingerprint across plays connecting to a socket in their own root", async () => {
-    // connect to a socket under each play's root, which the host names at random
+test("keep one fingerprint across plays connecting to sockets the host names", async () => {
+    // connect to a socket the host names at random under each play's random root
     const play = async () => {
         await using simulation = new Simulation({
             world: testWorldOptions(),
             seed: 3,
             start: START,
         });
-        const unix = join(simulation.root, "runtime.sock");
+        const name = crypto.getRandomValues(new Uint8Array(SOCKET_NAME_BYTES)).toHex();
+        const unix = join(simulation.root, `${name}.sock`);
         await simulation.network.server("database").socket({ unix, accept: () => undefined });
         const socket = simulation.environment("app").network.connect({ unix });
         await simulation.wait(socket.opened);
