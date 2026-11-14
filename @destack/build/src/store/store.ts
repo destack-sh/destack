@@ -50,9 +50,6 @@ export const CACHE_MILLISECONDS = 7 * 24 * 60 * 60_000;
 /** How often a store records a use: daily, a seventh of a cache entry's or build's lifetime. */
 export const USE_MILLISECONDS = 24 * 60 * 60_000;
 
-/** The layered files a read keeps in flight, overlapping file reads within bounded memory. */
-const LAYER_READS = 64;
-
 /** The prefix of the root a cache entry retains its blobs by, followed by its key. */
 const CACHE_ROOT_PREFIX = "cache:";
 
@@ -492,28 +489,15 @@ export class BuildStore<
         }
     }
 
-    /** Read layered objects in order, keeping some reads in flight to overlap them. */
+    /** Read layered objects one after another, as small file reads run fastest in sequence. */
     async *#readLayered(
         objects: readonly Pick<BuildObject, "kind" | "digest">[],
     ): AsyncIterable<StoredObject> {
-        // start the first reads, each later one as an earlier one is taken
-        const reads: Promise<Uint8Array<ArrayBuffer>>[] = [];
-        const start = (digest: Digest) => {
-            const reading = present(this.layer.read(digest), `the layered blob ${digest}`);
-            reading.catch(() => undefined);
-            reads.push(reading);
-        };
-        for (const object of objects.slice(0, LAYER_READS)) {
-            start(object.digest);
-        }
-
-        // take each read in order
-        for (const [index, object] of objects.entries()) {
-            const bytes = await present(reads[index], `the read of ${object.digest}`);
-            const next = objects[index + LAYER_READS];
-            if (next !== undefined) {
-                start(next.digest);
-            }
+        for (const object of objects) {
+            const bytes = await present(
+                this.layer.read(object.digest),
+                `the layered blob ${object.digest}`,
+            );
             yield { kind: object.kind, digest: object.digest, bytes };
         }
     }
