@@ -90,7 +90,7 @@ async function openBoard(
     const computer = await TestComputer.open({ ...options, world });
     const login = await computer.signIn(OWNER_EMAIL);
     await computer.enroll(login, account);
-    const space = await computer.space(login, account, "board");
+    const space = await computer.space(login.id, account, "board");
 
     // install the board and the platform packages it needs that the space's stack lacks
     const database = (await computer.machine.space(space)).database;

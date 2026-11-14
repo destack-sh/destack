@@ -12,7 +12,7 @@
         "src/cloudflare/graph.ts"
     ],
     "exports": {
-        "./benchmark": {
+        "./scenario": {
             "runtimes": ["bun"]
         },
         "./bun": {

@@ -15,7 +15,7 @@ import { reference, repository } from "@destack/registry/object";
 import { MemoryKeychain } from "@destack/identity";
 import { installation, type ObjectType, type Package, PackageMount } from "@destack/object";
 import { createClient } from "@destack/object/client";
-import { type Digest, Identifier, schema } from "@destack/schema";
+import { type Digest, Identifier, schema, present } from "@destack/schema";
 import { type BuildReader, PackageManifest } from "@destack/package/manifest";
 import { rollout, Rollout } from "@destack/stack/object";
 import type { Installation } from "@destack/object";
@@ -177,6 +177,8 @@ export class TestComputer implements AsyncDisposable {
     readonly #options: TestComputerOptions;
     /** The computer. */
     readonly computer: Computer;
+    /** The computer's node in the world, its process included. */
+    readonly environment: Environment<"files" | "process" | "host" | "server">;
     /** The computer's state directory. */
     readonly directory: string;
     /** The origin the computer answers at on the simulated network. */
@@ -190,16 +192,12 @@ export class TestComputer implements AsyncDisposable {
     /** Stop the computer and its listener. */
     readonly #stack: AsyncDisposableStack;
 
-    /** The world the computer runs in, its own. */
-    get environment(): Environment<"files" | "host" | "server"> {
-        return this.computer.device.environment;
-    }
-
     /** Take a started computer. */
     private constructor(fields: {
         readonly world: TestWorld;
         readonly options: TestComputerOptions;
         readonly computer: Computer;
+        readonly environment: Environment<"files" | "process" | "host" | "server">;
         readonly directory: string;
         readonly endpoint: string;
         readonly keychains: Map<string, MemoryKeychain>;
@@ -211,6 +209,7 @@ export class TestComputer implements AsyncDisposable {
         this.world = fields.world;
         this.#options = fields.options;
         this.computer = fields.computer;
+        this.environment = fields.environment;
         this.directory = fields.directory;
         this.endpoint = fields.endpoint;
         this.keychains = fields.keychains;
@@ -508,6 +507,7 @@ export class TestComputer implements AsyncDisposable {
             world,
             options,
             computer,
+            environment,
             directory,
             endpoint: declared ?? `http://127.0.0.1:${port}`,
             keychains,
@@ -743,12 +743,12 @@ export class TestComputer implements AsyncDisposable {
 
     /** Create a space on this machine as a signed-in person, waiting until it serves it. */
     async space(
-        login: Login["row"],
+        login: Identifier<"login">,
         accountId: Identifier<"account">,
         name: string,
     ): Promise<Identifier<"space">> {
         // create the space on the machine as the person
-        const session = await this.device.launcher(login.id);
+        const session = await this.device.launcher(login);
         const created = await session.session.accounts().space.create({
             accountId,
             requestId: RequestId.create(this.environment),
@@ -776,10 +776,53 @@ export class TestComputer implements AsyncDisposable {
         name: string,
         options: { readonly isolation?: "sandbox" | "host" } = {},
     ): Promise<Installation> {
-        // install the build's release as the person
+        // install the build's release as the person, until the space applies it
         const released = PackageManifest.package(build.manifest);
+        const service = await this.#objects(login, spaceId);
+        const created = await service.installation.create({
+            scope: spaceId,
+            requestId: RequestId.create(this.environment),
+            packageId: released.id,
+            selection: { kind: "release", version: released.version },
+            name,
+            ...options,
+        });
+        await this.#waitRollout(spaceId, created.id, name);
+
+        return await service.installation.get({ scope: spaceId, id: created.id });
+    }
+
+    /** Update a space's installation to a build's release as a person, until applied. */
+    async update(
+        login: Identifier<"login">,
+        spaceId: Identifier<"space">,
+        name: string,
+        build: BuildReader,
+    ): Promise<Installation> {
+        // select the release for the named installation as the person, until the space applies it
+        const { version } = PackageManifest.package(build.manifest);
+        const service = await this.#objects(login, spaceId);
+        const { items } = await service.installation.list({ scope: spaceId });
+        const installed = present(
+            items.find((each) => each.name === name),
+            `an installation ${name} in space ${spaceId}`,
+        );
+        await service.installation.update({
+            scope: spaceId,
+            id: installed.id,
+            requestId: RequestId.create(this.environment),
+            selection: { kind: "release", version },
+        });
+        await this.#waitRollout(spaceId, installed.id, name);
+
+        return await service.installation.get({ scope: spaceId, id: installed.id });
+    }
+
+    /** Call the object package of a space as a person signed in on this computer's device. */
+    async #objects(login: Identifier<"login">, spaceId: Identifier<"space">) {
         const { device } = this;
-        const service = createClient(
+
+        return createClient(
             objectPackage,
             (await device.launcher(login)).endpoint(
                 objectPackage.id,
@@ -789,32 +832,33 @@ export class TestComputer implements AsyncDisposable {
             ),
             device.environment,
         );
-        const created = await service.installation.create({
-            scope: spaceId,
-            requestId: RequestId.create(this.environment),
-            packageId: released.id,
-            selection: { kind: "release", version: released.version },
-            name,
-            ...options,
-        });
+    }
 
-        // wait until the space applies it, naming its conditions when it does not
+    /** Wait until a space applies an installation's targeted revision, or its rollout fails. */
+    async #waitRollout(
+        spaceId: Identifier<"space">,
+        installationId: Identifier<"installation">,
+        name: string,
+    ): Promise<void> {
+        // read its rollout with the installation
         await this.machine.health.waitUp();
         const { database } = await this.machine.space(spaceId);
         const read = async () => {
-            // read its rollout with the installation
+            // read the rollout as the space has it now
             const snapshot = Snapshot.live(database);
-            const rows = await snapshot
-                .read(rollout.table)
-                .findMany({ where: { installationId: created.id } });
+            const rows = await snapshot.read(rollout.table).findMany({ where: { installationId } });
             const [row] = await Rollout.read(snapshot, rows);
 
             return row;
         };
+
+        // wait until the applied revision is the targeted one, or the rollout failed
         const settled = async () => {
             const row = await read();
             const isApplied =
-                row?.appliedRevisionId !== null && row?.appliedRevisionId !== undefined;
+                row !== undefined &&
+                row.appliedRevisionId !== null &&
+                row.appliedRevisionId === row.installation.revisionId;
 
             return (
                 isApplied ||
@@ -835,8 +879,6 @@ export class TestComputer implements AsyncDisposable {
                 `'${name}' did not apply: '${Observation.message(row.installation)}'`,
             );
         }
-
-        return await service.installation.get({ scope: spaceId, id: created.id });
     }
 
     /** Wait until the machine serves a space with its stack and every installation applied. */

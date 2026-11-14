@@ -2,7 +2,7 @@ import { CompilerPool, Workspace } from "@destack/build";
 import { fileURLToPath } from "node:url";
 import { testStore } from "@destack/build/test";
 import { TestRun } from "@destack/db/test/run";
-import { canonicalize, type Digest } from "@destack/schema";
+import { canonicalize, type Digest, present } from "@destack/schema";
 import type { TestProject } from "@destack/test";
 import { testHost } from "@destack/test/host";
 import {
@@ -14,8 +14,8 @@ import {
     START_FIXTURE,
     TestDistribution,
 } from "./distribution.ts";
-import { SCENARIO_FIXTURES, WORLD_FIXTURES } from "./fixture.ts";
-import { WorldDriver } from "./world.ts";
+import { NEXT_RELEASE, SCENARIO_FIXTURES, WORLD_FIXTURES } from "./fixture.ts";
+import { MachineDriver } from "../../test/driver.ts";
 import { Toolchain } from "@destack/check/toolchain";
 import { COMPUTER_RUNTIMES } from "../computer.ts";
 
@@ -45,7 +45,7 @@ export default async function setup(project: TestProject): Promise<() => Promise
                     [
                         name,
                         SCENARIO_FIXTURES.some((each) => each === name) ? scenario : built,
-                        () => WorldDriver.build(name, workspace),
+                        () => MachineDriver.build(name, workspace),
                     ] as const,
             ),
         ];
@@ -53,6 +53,13 @@ export default async function setup(project: TestProject): Promise<() => Promise
             builds.map(async ([name, digests, build]) => {
                 digests[name] = (await build()).lock;
             }),
+        );
+
+        // lock the next release of the fixture updates install
+        built[NEXT_RELEASE.name] = await TestDistribution.release(
+            store,
+            present(built[NEXT_RELEASE.fixture], `the run's lock of ${NEXT_RELEASE.fixture}`),
+            NEXT_RELEASE.version,
         );
 
         // lock the runtime's builtins too

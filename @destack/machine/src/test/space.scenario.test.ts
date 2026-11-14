@@ -1,4 +1,4 @@
-import { expect, test } from "@destack/test";
+import { expect, Recording, test } from "@destack/test";
 import { fixtureBuild } from "./build.ts";
 import { ids, TestSpace } from "./space.ts";
 
@@ -11,13 +11,11 @@ test("open a space in a simulated world from its template without moving its clo
     const { simulation } = fixture;
 
     // leave the world at its start, its controllers acting once the space's replicas arrived
-    const { database } = fixture;
+    const recorded = await Recording.read(simulation.telemetry);
     expect({
         now: simulation.clock.now(),
-        lostRaces: [database, fixture.universe.storage.database].map(
-            (each) => each.state.lostRaces,
-        ),
-    }).toEqual({ now: START, lostRaces: [0, 0] });
+        lostRaces: recorded.count({ name: "destack.transaction.retries" }),
+    }).toEqual({ now: START, lostRaces: 0 });
 });
 
 test("serve a space and install a build in a simulated world without moving its clock", async () => {

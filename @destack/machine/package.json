@@ -17,8 +17,8 @@
         "./computer": "./src/computer/index.ts",
         "./device": "./src/computer/device/index.ts",
         "./test": "./src/test/index.ts",
-        "./benchmark": "./src/benchmark/index.ts",
-        "./computer/test": "./src/computer/test/index.ts"
+        "./computer/test": "./src/computer/test/index.ts",
+        "./scenario": "./src/scenario/index.ts"
     },
     "scripts": {
         "typecheck": "tsc --project tsconfig.json && destack-check readme",
@@ -57,6 +57,7 @@
         "@destack/workflow": "workspace:*"
     },
     "devDependencies": {
+        "@destack/machine-apps-fixture": "workspace:*",
         "@destack/machine-binder-fixture": "workspace:*",
         "@destack/machine-journal-fixture": "workspace:*",
         "@destack/machine-mention-fixture": "workspace:*",

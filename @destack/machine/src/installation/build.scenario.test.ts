@@ -1,6 +1,7 @@
 import { Failure } from "@destack/error";
 import { Identifier, schema, Digest } from "@destack/schema";
-import { expect, test } from "@destack/test";
+import { expect, Recording, test } from "@destack/test";
+import { TestDatabase } from "@destack/db/test";
 import { Build, build, installationRevision } from "@destack/stack/object";
 import { ids, insertRollout, TestSpace } from "../test/index.ts";
 
@@ -132,20 +133,23 @@ test("decide the retention of many builds in two statements and one retention re
     );
 
     // retain two builds of each source, counting the statements and retention reads
-    const reader = database.metered();
+    const before = await Recording.read(fixture.simulation.telemetry);
     let reads = 0;
     const retention = async () => {
         reads += 1;
 
         return 2;
     };
-    const { retained, expired } = await Build.retention(reader, retention);
+    const { retained, expired } = await Build.retention(database, retention);
+    const statements = (await Recording.read(fixture.simulation.telemetry))
+        .since(before)
+        .count(TestDatabase.statements(database));
 
     // retain the latest two of each source and expire the rest
     expect({
         retained: retained.size,
         expired: expired.length,
-        statements: reader.driver.operations,
+        statements,
         reads,
     }).toEqual({
         // the latest two of each source, and the build the stack's revision applies

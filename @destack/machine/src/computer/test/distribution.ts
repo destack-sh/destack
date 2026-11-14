@@ -26,6 +26,19 @@ import { COMPUTER_RUNTIMES } from "../computer.ts";
 import type { Machine } from "../../machine/index.ts";
 import { MachineError } from "../../error/index.ts";
 
+/** The run's provided values the worlds read. */
+declare module "vitest" {
+    /** The values a run's setup provides to its tests. */
+    export interface ProvidedContext {
+        /** The manifest digests of the run's builds, by name, absent without a setup. */
+        built?: Readonly<Record<string, string>>;
+        /** The manifest digests of the packages only scenarios install, by name. */
+        scenarios?: Readonly<Record<string, string>>;
+        /** Where computers' state directories move after their tests, absent without a setup. */
+        trash?: string;
+    }
+}
+
 /** The variable the run's setup writes templates with: its locks' digests by name. */
 export const BUILDS_VARIABLE = "DESTACK_MACHINE_BUILDS";
 
@@ -162,6 +175,26 @@ export class TestDistribution implements ReleaseRegistry, AsyncDisposable {
             layer,
             store,
         );
+    }
+
+    /** Lock a locked build again at another version, with the builds it runs with. */
+    static async release(store: LocalBuildStore, lock: Digest, version: string): Promise<Digest> {
+        // stamp the root build's manifest with the version, keeping its files
+        const locked = await store.lock(lock);
+        const root = await store.contents(locked.root);
+        const manifest = {
+            ...root.manifest,
+            package: { ...PackageManifest.package(root.manifest), version },
+        };
+        const released = await store.put(
+            new BuildReader(manifest, root.stream, store.environment.crypto),
+        );
+
+        // lock it in the root's place with the root's links
+        const { [locked.root]: links, ...builds } = locked.builds;
+        const linked = present(links, `the links of build ${locked.root}`);
+
+        return await store.putLock(Lock.of(released, { ...builds, [released]: linked }));
     }
 
     /** Open a fixture package's build in the run's store for a lifetime, the test's by default. */

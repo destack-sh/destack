@@ -207,7 +207,7 @@ async function openComputer(
 
     // enroll it in the account and create the space on it
     await computer.enroll(login, accountId);
-    const space = await computer.space(login, accountId, name);
+    const space = await computer.space(login.id, accountId, name);
 
     return { computer, login, space };
 }
@@ -715,7 +715,7 @@ test("accept a peer machine's universe token only for the space it is bound to, 
     const relay = await TestComputer.relay(world);
     const served = await openComputer(world, world.owner.account, "work", { relay: relay.url });
     const { computer, space } = served;
-    const other = await computer.space(served.login, world.owner.account, "other");
+    const other = await computer.space(served.login.id, world.owner.account, "other");
     const peer = await TestComputer.open({ world, relay: relay.url });
     await peer.enroll(await peer.signIn(OWNER_EMAIL), world.owner.account);
 

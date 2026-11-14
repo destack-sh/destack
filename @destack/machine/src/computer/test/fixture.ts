@@ -3,6 +3,9 @@ import { fileURLToPath } from "node:url";
 /** The fixture packages worlds install, which the run's setup builds before any world. */
 export const WORLD_FIXTURES = ["apps", "board"] as const;
 
+/** The fixture the run locks a next release of for updates, with its name and version. */
+export const NEXT_RELEASE = { fixture: "apps", name: "apps-next", version: "2026.10.1" } as const;
+
 /** The fixture packages only scenarios install, which no template ships. */
 export const SCENARIO_FIXTURES = ["binder", "journal", "mention", "regional"] as const;
 

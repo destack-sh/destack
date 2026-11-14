@@ -1,16 +1,14 @@
 import { BunEnvironment } from "@destack/environment/bun";
-import { BENCHMARK_MODULES, defineConfiguration, scenarioPlugin } from "@destack/test/config";
+import { defineConfiguration, SCENARIO_MODULES, scenarioPlugin } from "@destack/test/config";
 import { fileURLToPath } from "node:url";
 
 /** The tests that open a world of a universe, machines and spaces through the space harness. */
-const SCENARIO_TESTS = ["src/**/*.scenario.test.ts", "tests/*.scenario.test.ts"];
+const SCENARIO_TESTS = ["src/**/*.scenario.test.ts", "tests/*.scenario.test.ts", SCENARIO_MODULES];
 
 export default defineConfiguration(
     {
         root: fileURLToPath(new URL(".", import.meta.url)),
-        plugins: [
-            scenarioPlugin([{ module: "@destack/machine/computer/test", name: "WorldDriver" }]),
-        ],
+        plugins: [scenarioPlugin([{ module: "@destack/machine/test", name: "MachineDriver" }])],
         ssr: { resolve: { conditions: ["bun"], externalConditions: ["bun"] } },
         // run every test against each database the package stores in
         targets: { database: ["sqlite"] },
@@ -37,12 +35,6 @@ export default defineConfiguration(
                         name: "scenario",
                         include: SCENARIO_TESTS,
                     },
-                },
-                // measure the product's benchmarks, which `just bench` runs on its own
-                {
-                    extends: true,
-                    tier: "bench",
-                    test: { name: "bench", include: [BENCHMARK_MODULES] },
                 },
             ],
         },

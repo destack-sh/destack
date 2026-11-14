@@ -20,7 +20,7 @@ A person's computer runs one too:
 
 Tests run whole worlds:
 
-- `WorldDriver`: a universe and a person's computer in one simulated world.
+- `MachineDriver`: a universe and a person's computer in one simulated world.
 
 Answer a request to a space placed on this machine:
 
@@ -110,13 +110,13 @@ export async function openNotes(loginId: Identifier<"login">) {
 
 ### Run a computer in a test world
 
-`WorldDriver` acts out a world's steps.
+`MachineDriver` acts out a world's steps.
 
 ```ts
-import { WorldDriver } from "@destack/machine/computer/test";
+import { MachineDriver } from "@destack/machine/test";
 
 // start a universe and a person's computer, then run a minute
-const driver = await WorldDriver.start();
+await using driver = await MachineDriver.start({ examples: [] });
 await driver.act({ action: "run", milliseconds: 60_000 });
 ```
 

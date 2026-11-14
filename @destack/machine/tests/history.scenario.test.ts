@@ -12,7 +12,7 @@ test("serve a tracked type that reads through its space in a team space, the spa
     const { home } = await TestComputer.home();
     const { world } = home;
     const login = await home.signIn(OWNER_EMAIL);
-    const space = await home.space(login, world.owner.account, "team");
+    const space = await home.space(login.id, world.owner.account, "team");
 
     // publish the journal as the platform's operator, and install it in the team space
     const build = await TestDistribution.fixture("journal");
@@ -46,7 +46,7 @@ test("refuse serving an installation whose tracked type reads through a type wit
     const { home } = await TestComputer.home();
     const { world } = home;
     const login = await home.signIn(OWNER_EMAIL);
-    const space = await home.space(login, world.owner.account, "team");
+    const space = await home.space(login.id, world.owner.account, "team");
 
     // install the binders, whose sheets read through binders keeping no history
     const build = await TestDistribution.fixture("binder");
