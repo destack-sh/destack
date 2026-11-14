@@ -494,7 +494,7 @@ export class Space {
 
                     return { packages: store.packages };
                 }
-                // mark the space down, and refuse its waits as unavailable with why, each handled here as well
+                // mark the space down and refuse its waits with why
                 catch (error) {
                     this.health.set("down", `it cannot start: ${Failure.of(error).message}`);
                     const refusal = present(this.health.refusal(), "the refusal of a space down");
@@ -2308,9 +2308,11 @@ export class Space {
             else {
                 return await this.root(packageId, lock).catch((error: unknown) => {
                     // note a lock its forge cannot answer yet, as a file or a build it lacks
+                    const failure = Failure.of(error);
                     const isUnavailable =
                         PackageError.is(error, "FILE_UNAVAILABLE") ||
-                        Failure.of(error).reason === "BUILD_NOT_FOUND";
+                        (failure.domain === "@destack/forge" &&
+                            failure.reason === "BUILD_NOT_FOUND");
                     if (!isUnavailable) {
                         throw error;
                     }

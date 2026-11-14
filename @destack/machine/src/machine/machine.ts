@@ -738,6 +738,10 @@ export class Machine {
         let started = this.#started.get(space);
         if (started === undefined) {
             started = Space.start(this, space).catch((error: unknown) => {
+                // pass an unavailable start on with its wait, and name any other failure
+                if (ObjectError.is(error, "SERVER_UNAVAILABLE")) {
+                    throw error;
+                }
                 throw ObjectError.of(
                     "SERVER_UNAVAILABLE",
                     `space '${space}' is unavailable: it cannot start: ${Failure.of(error).message}`,
