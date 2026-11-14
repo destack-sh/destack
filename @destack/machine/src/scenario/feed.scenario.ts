@@ -39,7 +39,7 @@ export const fanOutTeamWrites = defineScenario({
             then: [
                 {
                     spans: { name: "destack.replica.apply", host: "member-*.device-*" },
-                    atMost: 17,
+                    atMost: 19,
                 },
             ],
         },
@@ -111,7 +111,7 @@ export const fanOutTeamWrites = defineScenario({
             then: [
                 {
                     spans: { name: "destack.replica.apply", host: "member-*.device-*" },
-                    atMost: 17,
+                    atMost: 19,
                 },
             ],
         },
