@@ -173,7 +173,7 @@ jobs:
             - name: Pack toolchain
               # a tarball keeps every file the manifest lists, dotfiles included, which directory artifacts drop
               env:
-                  TOOLCHAIN: dist/${{ needs.prepare.outputs.version }}/${{ matrix.target }}/toolchain
+                  TOOLCHAIN: ${{ github.workspace }}/dist/${{ needs.prepare.outputs.version }}/${{ matrix.target }}/toolchain
               run: tar -cf "$RUNNER_TEMP/toolchain.tar" -C "$TOOLCHAIN" .
             - name: Upload unsigned toolchain
               uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -221,7 +221,7 @@ jobs:
                   path: ${{ runner.temp }}
             - name: Unpack toolchain
               env:
-                  TOOLCHAIN: dist/${{ needs.prepare.outputs.version }}/${{ matrix.target }}/toolchain
+                  TOOLCHAIN: ${{ github.workspace }}/dist/${{ needs.prepare.outputs.version }}/${{ matrix.target }}/toolchain
               run: mkdir -p "$TOOLCHAIN" && tar -xf "$RUNNER_TEMP/toolchain.tar" -C "$TOOLCHAIN" && rm "$RUNNER_TEMP/toolchain.tar"
             - name: Prepare Apple signing credentials
               if: matrix.signer == 'apple'
@@ -247,7 +247,7 @@ jobs:
             - name: Pack toolchain
               # a tarball keeps every file the manifest lists, dotfiles included, which directory artifacts drop
               env:
-                  TOOLCHAIN: dist/${{ needs.prepare.outputs.version }}/${{ matrix.target }}/toolchain
+                  TOOLCHAIN: ${{ github.workspace }}/dist/${{ needs.prepare.outputs.version }}/${{ matrix.target }}/toolchain
               run: tar -cf "$RUNNER_TEMP/toolchain.tar" -C "$TOOLCHAIN" .
             - name: Upload signed toolchain
               uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -369,7 +369,7 @@ jobs:
                   path: dist/${{ needs.prepare.outputs.version }}/toolchain
             - name: Unpack toolchains
               env:
-                  TOOLCHAINS: dist/${{ needs.prepare.outputs.version }}/toolchain
+                  TOOLCHAINS: ${{ github.workspace }}/dist/${{ needs.prepare.outputs.version }}/toolchain
               run: |
                   for directory in "$TOOLCHAINS"/*/; do
                       tar -xf "$directory/toolchain.tar" -C "$directory"
