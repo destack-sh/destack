@@ -167,7 +167,7 @@ export class ModuleTransformer {
 
     /** Digest the code of the modules that decide every stamp. */
     async #identify(): Promise<Digest> {
-        // read the transform, the locator, and the parser and editor they run, or the program bundling them all
+        // read the transform, the locator, the parser and the editor, or the program bundling them
         const isBundled = !import.meta.url.endsWith(".ts");
         const modules = isBundled
             ? [new URL(import.meta.url)]
