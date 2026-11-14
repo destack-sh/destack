@@ -55,8 +55,10 @@ export class CommitWatch {
     #generation = 0;
     /** The waits for this connection's commit tokens to reach every listening party. */
     readonly #deliveries = new Map<string, Delivery>();
-    /** The tokens of this connection's commits the channel has yet to deliver. */
-    readonly #own = new Set<string>();
+    /** This connection's commit tokens the channel will echo, by their delivery round. */
+    readonly #own = new Map<string, number>();
+    /** The delivery round, which each pause ends, as its outage may lose the echoes. */
+    #round = 0;
 
     /** Watch the commits announced on a channel, or only this connection's without one. */
     constructor(
@@ -156,9 +158,9 @@ export class CommitWatch {
 
     /** Wait until a commit's token reaches every party listening in this process. */
     expect(token: string): Promise<void> {
-        // remember a token received while listening as this connection's, then wait for every party
-        if (this.isListening) {
-            this.#own.add(token);
+        // remember a token the channel will echo as this connection's, even before listening settles
+        if (this.#channel !== undefined) {
+            this.#own.set(token, this.#round);
         }
         const delivery = this.#channel?.delivery(token) ?? DELIVERED;
         this.#deliveries.set(token, delivery);
@@ -405,6 +407,15 @@ export class CommitWatch {
         });
     }
 
+    /** Forget the tokens of rounds before the last pause, whose echoes the outage may have lost. */
+    #forgetLost(): void {
+        for (const [token, round] of this.#own) {
+            if (round < this.#round) {
+                this.#own.delete(token);
+            }
+        }
+    }
+
     /** Wake the readers on each announced commit, and on each resumed delivery for all tables. */
     #listen(): () => Promise<void> {
         const stop = this.#channel?.listen({
@@ -419,14 +430,15 @@ export class CommitWatch {
             resume: () => {
                 // receive from here on, and wake every reader, as a reconnect may have lost notifications
                 this.#isListening = true;
-                this.#own.clear();
+                this.#forgetLost();
                 this.#settleListening();
                 this.#wake("every");
             },
             fail: (error) => this.fail(error),
             pause: () => {
-                // stop trusting what readers stored until delivery resumes
+                // stop trusting what readers stored until delivery resumes, starting the next round
                 this.#isListening = false;
+                this.#round += 1;
             },
         });
 
