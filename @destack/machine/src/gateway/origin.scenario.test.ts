@@ -368,7 +368,7 @@ async function openWork(home: Served): Promise<Served> {
     const { owner } = computer.world;
     const signedIn = await computer.signIn(OWNER_EMAIL);
     await computer.enroll(signedIn, owner.account);
-    const spaceId = await computer.space(signedIn, owner.account, "work");
+    const spaceId = await computer.space(signedIn.id, owner.account, "work");
 
     const address = `work--${owner.handle}`;
 
@@ -1733,7 +1733,7 @@ test("serve a site at a route of its account's verified hostname to an anonymous
     const { computer } = home;
     const { owner } = computer.world;
     const login = (await computer.device.signedIn(home.login)).row;
-    const spaceId = await computer.space(login, owner.account, "site");
+    const spaceId = await computer.space(login.id, owner.account, "site");
     const opened = { ...home, spaceId, address: `site--${owner.handle}` };
     const hostname = `www.${SITE_DOMAIN}`;
     await verifyHostname(opened, hostname);

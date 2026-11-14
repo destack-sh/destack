@@ -199,6 +199,12 @@ export class WorldDriver implements Driver<typeof worldInteraction> {
         else if (step.action === "unshare") {
             await this.#unshare(step.object, step.member);
         }
+        // create a space in the owner's account, numbered as the calls are, until the machine serves it
+        else if (step.action === "create") {
+            this.#sequence += 1;
+            const name = step.space.replaceAll(SEQUENCE, String(this.#sequence));
+            await this.home.space(this.login, this.home.world.owner.account, name);
+        }
         // call an object method and wait until every device sees the result
         else if (step.action === "call") {
             await this.#call(step);
