@@ -63,6 +63,7 @@ export type CatalogueVerb =
     | "collect"
     | "sweep"
     | "fence"
+    | "lift"
     | "create_multipart_upload"
     | "list_uploads"
     | "upload_part"
@@ -97,8 +98,6 @@ export class CatalogueStorage implements AsyncDisposable {
     readonly #scope: TelemetryScope;
     /** Operations that select or replace blobs. */
     #pending: Promise<void> = Promise.resolve();
-    /** The operations holding or waiting for the lock. */
-    #holders = 0;
     /** The writers admitted and not yet finished, which a fence waits for. */
     #writers = 0;
     /** Whether a transfer fenced the bucket, which refuses new writes. */
@@ -415,19 +414,15 @@ export class CatalogueStorage implements AsyncDisposable {
         const previous = this.#pending;
         const next = Promise.withResolvers<void>();
         this.#pending = next.promise;
-        this.#holders += 1;
 
-        // wait for a held lock, timing only a real wait as connection pools do
-        if (this.#holders > 1) {
-            const provider = { "destack.bucket.provider": this.#catalogue.provider };
-            await this.#scope.measure("destack.bucket.lock.wait_time", provider, () => previous);
-        }
+        // wait for the lock, timing every take as OpenTelemetry's connection pools do
+        const provider = { "destack.bucket.provider": this.#catalogue.provider };
+        await this.#scope.measure("destack.bucket.lock.wait_time", provider, () => previous);
         try {
             this.checkOpen();
 
             return await operation();
         } finally {
-            this.#holders -= 1;
             next.resolve();
         }
     }

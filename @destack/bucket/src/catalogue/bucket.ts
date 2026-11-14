@@ -439,7 +439,7 @@ export class CatalogueBucket implements S3Bucket, AsyncDisposable {
 
     /** Accept writes again after a fence. */
     lift(): Promise<void> {
-        return this.#storage.lift();
+        return this.#storage.trace("lift", {}, () => this.#storage.lift());
     }
 
     /** Refuse a write into a fenced bucket, such as before presigning one. */
