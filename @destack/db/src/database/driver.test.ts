@@ -1,7 +1,7 @@
-import { expect, onTestFinished, test } from "@destack/test";
+import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { testSimulation } from "@destack/test/world";
 import { SimulatedTelemetry } from "@destack/environment/simulation";
-import { defineTable, text } from "../index.ts";
+import { asc, defineTable, sql, text } from "../index.ts";
 import { TestDatabase } from "../test/index.ts";
 import { TelemetryScope } from "@destack/telemetry";
 import type {} from "@destack/package/import-meta";
@@ -103,4 +103,44 @@ test("record each statement text under the span path that ran it, with its runs 
             rows: 2,
         },
     ]);
+});
+
+test("refuse a write answering no rows through all, and take one returning its rows or run", async () => {
+    // open a database with two notes
+    await using simulation = testSimulation();
+    const world = simulation.environment("test");
+    const storage = await TestDatabase.create([note], { environment: world, isMigrated: true });
+    onTestFinished(() => storage.close());
+    const { database } = storage;
+    await database.insert(note).values([
+        { id: "a", body: "first" },
+        { id: "b", body: "second" },
+    ]);
+
+    // write through all without and with RETURNING, then through run
+    const refused = await refusal(
+        database.all(sql`UPDATE ${note} SET body = 'lost' WHERE ${note.id} = 'a'`),
+    );
+    const returned = await database.all(
+        sql`UPDATE ${note} SET body = 'returned' WHERE ${note.id} = 'a' RETURNING ${note.id}`,
+    );
+    await database.run(sql`UPDATE ${note} SET body = 'run' WHERE ${note.id} = 'b'`);
+
+    // refuse the uncounted write, which neither ran nor announced, and keep the others
+    expect({
+        refused,
+        returned,
+        notes: await database.select().from(note).orderBy(asc(note.id)),
+    }).toEqual({
+        refused: [
+            "BAD_REQUEST",
+            "QUERY_INVALID",
+            "query is invalid: a write without RETURNING runs through run, which counts the rows it writes",
+        ],
+        returned: [{ id: "a" }],
+        notes: [
+            { id: "a", body: "returned" },
+            { id: "b", body: "run" },
+        ],
+    });
 });

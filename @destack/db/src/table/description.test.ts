@@ -79,7 +79,7 @@ test("refuse a value outside an enum column's values in the database itself", as
     ]);
     expect(
         await refusal(
-            storage.database.all(
+            storage.database.run(
                 sql`INSERT INTO ${sql.relation(lamp[TABLE].sqlName)} (id, state) VALUES ('c', 'dim')`,
             ),
         ),

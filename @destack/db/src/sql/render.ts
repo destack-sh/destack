@@ -27,6 +27,12 @@ const READ = /^\s*(?:SELECT|WITH)\b/iu;
 /** A verb that writes, as a main statement, a common table's body or a row lock. */
 const WRITING = /\b(?:INSERT|UPDATE|DELETE)\b|\bREPLACE\s+INTO\b/iu;
 
+/** The clause by which a write answers the rows it wrote. */
+const RETURNING = /\bRETURNING\b/iu;
+
+/** A row lock of a read, which writes no rows. */
+const LOCKING = /\bFOR\s+(?:NO\s+KEY\s+)?UPDATE\b/giu;
+
 /** A statement's quoted spans: string literals and quoted identifiers. */
 const QUOTED = /'(?:[^']|'')*'|"(?:[^"]|"")*"/gu;
 
@@ -352,6 +358,13 @@ function define(table: CommonTable, target: Target): string {
     }
 
     return table.name;
+}
+
+/** Report whether a statement writes rows without returning them, past quotes and row locks. */
+export function isUnreturnedWrite(text: string): boolean {
+    const bare = text.replace(QUOTED, "''").replace(LOCKING, "");
+
+    return WRITING.test(bare) && !RETURNING.test(bare);
 }
 
 /** Report whether a statement only reads: it selects, with no writing verb outside its quotes. */
