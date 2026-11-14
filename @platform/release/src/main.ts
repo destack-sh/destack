@@ -36,6 +36,7 @@ import {
     validatePlatform,
 } from "./deployment/command.ts";
 import { resetLocal, serveLocal } from "./local/command.ts";
+import { deploySite } from "./site/site.ts";
 
 /** A release command: it runs on the host with the words after its noun and verb. */
 type Command = (
@@ -86,6 +87,8 @@ const COMMANDS: Readonly<Record<string, Command>> = {
     "platform publish": publishPlatform,
     "custody seal": sealCustody,
     "platform e2e": testPlatform,
+
+    "site deploy": deploySite,
 
     "local serve": serveLocal,
     "local reset": resetLocal,

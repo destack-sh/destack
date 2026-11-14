@@ -2,7 +2,7 @@ import type { Environment } from "@destack/environment";
 import { schema } from "@destack/schema";
 
 /** The Cloudflare account running Destack, whose R2 bucket keeps every root's state. */
-const ACCOUNT_ID = "27c0d00fb3a27a4ccbf46a3cceab9301";
+export const ACCOUNT_ID = "27c0d00fb3a27a4ccbf46a3cceab9301";
 
 /** How long Cloudflare may take to verify the token, in milliseconds. */
 const VERIFY_MILLISECONDS = 15_000;
