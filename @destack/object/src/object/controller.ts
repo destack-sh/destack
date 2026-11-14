@@ -422,17 +422,24 @@ export const ObjectController = {
         rows: readonly Row[],
         reconciliation: Reconciliation,
     ): Promise<void> {
-        // build the context, and observe a report on every row lacking it in one mutation, where the database writes the type's rows
+        // build the context and the observation of the rows the pass read
         const context = ObjectController.context(store, object, rows, reconciliation);
         const { mutate } = context;
         const isObserved = object.isControlled && !store.database.replicates(object.table);
-        const observeAll = async (
-            observed: readonly (ObservedRecord & Readonly<Record<string, unknown>>)[],
-            observation: ObservationReport,
-        ) => {
-            // record one observation on every row without it, in one mutation
-            const calls = observed
-                .filter((row) => !Observation.isRecorded(row, observation))
+        const observeRead = async (observation: ObservationReport) => {
+            // observe each row at the generation the pass read, leaving out the ones removed since
+            const read = (isObserved ? rows : []).map((row) => ({
+                ...row,
+                ...ObservedFields.parse(row),
+            }));
+            const reread = await ObjectController.reread(
+                store,
+                object,
+                read.map((row) => row.id),
+            );
+            const kept = new Set(reread.map((row) => row.id));
+            const calls = read
+                .filter((row) => kept.has(row.id) && !Observation.isRecorded(row, observation))
                 .map((row) => Observation.call(object, row, observation));
             if (calls.length > 0) {
                 await mutate(calls);
@@ -441,15 +448,11 @@ export const ObjectController = {
 
         // reconcile, recording a lasting failure on each controlled object until its next change
         try {
+            // record each converged object synced at the generation the pass read
             const outcome = await declared.reconcile(context);
-
-            // record each converged controlled object synced at the generation it has now
-            const ids =
-                isObserved && outcome !== "waiting"
-                    ? rows.map((row) => ObjectController.readIdentifier(row))
-                    : [];
-            const reread = await ObjectController.reread(store, object, ids);
-            await observeAll(reread, { conditions: { [SYNCED]: SYNCED_CONDITION } });
+            if (outcome !== "waiting") {
+                await observeRead({ conditions: { [SYNCED]: SYNCED_CONDITION } });
+            }
         } catch (error) {
             // hold a pass a suspension refused midway, until the resume selects it again
             const failure = Failure.of(error);
@@ -458,10 +461,9 @@ export const ObjectController = {
             }
 
             // record a declared failure no retry may resolve
-            if (isObserved && Failure.isDeclared(error) && !Failure.isTransient(failure)) {
+            if (Failure.isDeclared(error) && !Failure.isTransient(failure)) {
                 const condition = ObjectController.failedCondition(failure);
-                const observed = rows.map((row) => ({ ...row, ...ObservedFields.parse(row) }));
-                await observeAll(observed, { conditions: { [SYNCED]: condition } });
+                await observeRead({ conditions: { [SYNCED]: condition } });
             }
             throw error;
         }

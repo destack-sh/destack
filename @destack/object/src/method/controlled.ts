@@ -32,17 +32,19 @@ export const observe = controlledMethod
             );
         }
 
-        // merge the conditions and preserve transition times while their status stays
+        // merge each condition observed no earlier, keeping its transition time while its status stays
         const current = context.target.conditions;
         const merged = Object.fromEntries(
-            Object.entries(conditions).map(([name, condition]) => [
-                name,
-                StatusCondition.observe(
-                    current[name],
-                    { ...condition, observedGeneration },
-                    context.now,
-                ),
-            ]),
+            Object.entries(conditions)
+                .filter(([name]) => (current[name]?.observedGeneration ?? 0) <= observedGeneration)
+                .map(([name, condition]) => [
+                    name,
+                    StatusCondition.observe(
+                        current[name],
+                        { ...condition, observedGeneration },
+                        context.now,
+                    ),
+                ]),
         );
 
         // write the observed state, advancing the synced generation on a synced observation
