@@ -15,7 +15,7 @@ import {
     type Observation,
     type Step,
     viewInteraction,
-} from "./index.ts";
+} from "../scenario/index.ts";
 import { stubPopovers } from "./dom.ts";
 
 /** The modifiers a key step lists before its key, with the keyboard event flag each sets. */

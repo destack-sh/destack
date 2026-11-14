@@ -5,7 +5,3 @@ export { renderView } from "../page/mount.ts";
 export * from "./driver.ts";
 export * from "./server.ts";
 export * from "./hydration.ts";
-export * from "../scenario/locator.ts";
-export * from "../scenario/step.ts";
-export * from "../scenario/observation.ts";
-export * from "../scenario/interaction.ts";
