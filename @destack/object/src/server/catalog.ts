@@ -46,11 +46,11 @@ export interface ObjectTypeImplementation {
 }
 
 /** An installation a catalog leaves out, and why. */
-export interface CatalogRefusal {
+export interface CatalogExclusion {
     /** The installation left out. */
     readonly installation: Identifier<"installation">;
-    /** Why its declarations are refused beside the others. */
-    readonly error: TypeError;
+    /** Why the catalog leaves it out. */
+    readonly error: Error;
 }
 
 /** What a catalog compiles from: a store's servers and sandboxes over its database. */
@@ -79,8 +79,6 @@ export interface CatalogOptions {
     readonly ephemeral?: EphemeralStorage;
     /** The event log of the store's database, with its calls and served events types. */
     readonly events?: EventStore;
-    /** Report a sandbox whose types refer to ones the store does not serve. */
-    readonly report: (error: unknown) => void;
 }
 
 /** The packages a store serves, with their types, routes, tables and access rules. */
@@ -142,8 +140,10 @@ export class Catalog {
     readonly known: readonly KnownDeclaration[];
     /** The scope's branch types, absent for a store without branches. */
     readonly branch: BranchType | undefined;
-    /** The installations it leaves out, with why: their declarations refused beside the others. */
-    readonly refused: readonly CatalogRefusal[];
+    /** The installations it refuses, with why: their declarations conflict with the others'. */
+    readonly refused: readonly CatalogExclusion[];
+    /** The installations it leaves out until types they refer to are served, with why. */
+    readonly waiting: readonly CatalogExclusion[];
 
     /** Hold a compiled catalog. */
     private constructor(
@@ -174,6 +174,7 @@ export class Catalog {
         this.known = fields.known;
         this.branch = fields.branch;
         this.refused = fields.refused;
+        this.waiting = fields.waiting;
     }
 
     /** Whether the store serves methods, which its journal records. */
@@ -190,7 +191,7 @@ export class Catalog {
     static #compile(
         given: CatalogOptions,
         previous: Catalog | undefined,
-        refused: readonly CatalogRefusal[],
+        refused: readonly CatalogExclusion[],
     ): Catalog {
         // read each server's package, reusing a previous catalog's read of the same server
         const { servers, sandboxes = [], machine, server, database } = given;
@@ -219,10 +220,11 @@ export class Catalog {
             ...ObjectType.referenced(implemented),
             ...implementedFollows,
         ]);
+        const waiting: CatalogExclusion[] = [];
         const served: Served[] = [
             ...implementations,
             ...sandboxes.flatMap((sandbox) => {
-                // reuse a previous read, else leave a sandbox referring to types this store does not serve yet unserved, reporting it
+                // reuse a previous read, else leave a sandbox referring to types this store does not serve yet waiting
                 const earlier = reused(sandbox);
                 if (earlier.length > 0) {
                     return earlier;
@@ -230,12 +232,12 @@ export class Catalog {
                 try {
                     return Catalog.#sandboxPackages(sandbox, known);
                 } catch (error) {
-                    given.report(
-                        new Error(
-                            `installation '${sandbox.server.installation}' serves nothing: its types refer to ones this start does not serve`,
-                            { cause: error },
-                        ),
-                    );
+                    waiting.push({
+                        installation: sandbox.server.installation,
+                        error: new Error("its types refer to ones this start does not serve yet", {
+                            cause: error,
+                        }),
+                    });
 
                     return [];
                 }
@@ -387,6 +389,7 @@ export class Catalog {
             known: ObjectType.known(declared, policies),
             branch: objects.some((type) => type.same(branchType.object)) ? branchType : undefined,
             refused,
+            waiting,
         });
     }
 

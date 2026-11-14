@@ -118,7 +118,7 @@ import { ObjectSink } from "./sink.ts";
 import {
     Catalog,
     type CatalogOptions,
-    type CatalogRefusal,
+    type CatalogExclusion,
     type ObjectTypeImplementation,
 } from "./catalog.ts";
 import type { ResourceControllerOptions } from "./provisioned.ts";
@@ -586,7 +586,6 @@ export class ObjectStore {
             ...given,
             blobs: this.blobs,
             principal: this.principal,
-            report: this.#report,
             ...(partition === undefined ? {} : { partition }),
         };
         this.#catalog = Catalog.compile({
@@ -652,9 +651,14 @@ export class ObjectStore {
         return this.#catalog.sandboxes;
     }
 
-    /** The installations the store leaves out, with why. */
-    get refused(): readonly CatalogRefusal[] {
+    /** The installations the store refuses, with why. */
+    get refused(): readonly CatalogExclusion[] {
         return this.#catalog.refused;
+    }
+
+    /** The installations the store leaves out until types they refer to are served, with why. */
+    get waiting(): readonly CatalogExclusion[] {
+        return this.#catalog.waiting;
     }
 
     /** The tables whose changes relist the replicas: the chains', the follows' and their keys. */
