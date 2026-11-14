@@ -1,5 +1,6 @@
 import { inject } from "vitest";
 import type { TestProject } from "vitest/node";
+import type { TestTier } from "../config/config.ts";
 
 /** The values a package's tests run against by kind, each combination one project. */
 export type TestMatrix = Readonly<Record<string, readonly [string, ...string[]]>>;
@@ -10,6 +11,8 @@ declare module "vitest" {
     export interface ProvidedContext {
         /** The value of each target kind the test's project runs against, such as its database. */
         targets?: Readonly<Record<string, string>>;
+        /** The tier of the test's project, whose bench tier saves scenarios' measurements. */
+        tier?: TestTier;
     }
 }
 

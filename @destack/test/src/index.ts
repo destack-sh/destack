@@ -23,6 +23,6 @@ export {
     type Driver,
     type DriverType,
     type Measurement,
-    type Observations,
+    Recording,
     Runner,
 } from "./scenario/index.ts";

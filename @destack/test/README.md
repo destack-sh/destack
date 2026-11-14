@@ -56,17 +56,15 @@ These check outcomes and open worlds.
 
 ### Runner
 
-`Runner` plays scenarios and benchmarks through their interaction's driver.
+`Runner` plays scenarios through their interaction's driver, checking each step's telemetry and observations.
 
-| Verb                                 | What it does                                                       |
-| ------------------------------------ | ------------------------------------------------------------------ |
-| `Runner.playModule(exports, types)`  | plays each scenario and measures each benchmark a module exports   |
-| `Runner.play(scenario, types)`       | plays a scenario as a test, checking its observations              |
-| `Runner.bench(benchmark, types)`     | measures a benchmark as a test, expecting its counts within limits |
-| `Runner.observe(scenario, type)`     | plays a scenario through a new driver and reads what it observed   |
-| `Runner.measure(benchmark, type)`    | sets a benchmark up, then measures each operation                  |
-| `Runner.replay(play)`                | plays twice from one seed, refusing a run whose world diverges     |
-| `Runner.save(…)`, `Runner.format(…)` | writes results in Go's benchmark format, for benchstat             |
+| Verb                                              | What it does                                                          |
+| ------------------------------------------------- | --------------------------------------------------------------------- |
+| `Runner.playModule(exports, types)`               | plays each scenario a module exports as a test                        |
+| `Runner.play(scenario, types)`                    | plays a scenario once, replaying its seed under `DESTACK_REPLAY=1`    |
+| `Runner.playthrough(scenario, type)`              | plays a scenario through a new driver, measuring its operations       |
+| `Runner.checkDeterminism(scenario, first, second)` | names the first step after which two plays differ                     |
+| `Runner.save(…)`, `Runner.format(…)`              | writes the bench tier's results in Go's benchmark format, for benchstat |
 
 ### Driver
 

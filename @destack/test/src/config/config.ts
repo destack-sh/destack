@@ -138,7 +138,12 @@ export function defineConfiguration(
         test: {
             ...TEST,
             ...(projects === undefined
-                ? { ...options, ...setup, ...tiered }
+                ? {
+                      ...options,
+                      ...setup,
+                      ...tiered,
+                      ...(tier === undefined ? {} : { provide: { ...options.provide, tier } }),
+                  }
                 : { ...options, projects }),
             server: withCaches(options.server, environment),
         },
@@ -176,9 +181,6 @@ export function defineProject(
 /** The modules declaring a package's scenarios, which the runner plays as tests. */
 export const SCENARIO_MODULES = "src/**/*.scenario.{ts,tsx}";
 
-/** The modules declaring a package's benchmarks, which the runner measures as tests. */
-export const BENCHMARK_MODULES = "src/**/*.benchmark.ts";
-
 /** A driver type a package's scenarios play through, as its module and export. */
 export interface DriverReference {
     /** The module exporting the driver type, such as `@destack/view/test`. */
@@ -187,12 +189,12 @@ export interface DriverReference {
     readonly name: string;
 }
 
-/** Play each exported scenario and measure each benchmark of a module as tests of that module. */
+/** Play each exported scenario of a module as tests of that module. */
 export function scenarioPlugin(drivers: readonly DriverReference[]): Plugin {
     return {
         name: "destack-scenarios",
         transform: {
-            filter: { id: /\.(scenario\.tsx?|benchmark\.ts)$/u },
+            filter: { id: /\.scenario\.tsx?$/u },
             handler(code, id) {
                 // import the module itself, the runner and the driver types, then play its exports
                 const self = JSON.stringify(`./${basename(id)}`);
@@ -238,16 +240,18 @@ function configuredProjects(
     targets: TestMatrix | undefined,
     setup: Pick<NonNullable<TestProjectInlineConfiguration["test"]>, "globalSetup">,
 ): TestProjectInlineConfiguration[] | undefined {
-    // run each declared project per combination, one extending the root with the root's setup
+    // run each declared project per combination, one extending the root with the root's setup, and a bench twin of each playing scenarios
     if (declared !== undefined) {
-        return declared.flatMap((project) =>
-            targetProjects(
-                project.extends === true
-                    ? { ...project, test: { ...setup, ...project.test } }
-                    : project,
-                targets,
-            ),
-        );
+        return declared
+            .flatMap(benchTwin)
+            .flatMap((project) =>
+                targetProjects(
+                    project.extends === true
+                        ? { ...project, test: { ...setup, ...project.test } }
+                        : project,
+                    targets,
+                ),
+            );
     }
     // run the whole configuration per combination of its targets, in its tier
     else if (targets !== undefined && tier !== undefined) {
@@ -259,6 +263,25 @@ function configuredProjects(
     }
 }
 
+/** List a project, and beside one playing scenario modules its bench twin measuring them. */
+function benchTwin(project: ProjectConfiguration): ProjectConfiguration[] {
+    // leave a project that plays no scenario modules alone
+    const { exclude: _exclude, ...test } = project.test ?? {};
+    if (!(test.include ?? []).includes(SCENARIO_MODULES)) {
+        return [project];
+    }
+
+    // measure the same scenarios in the bench tier, on the same setup and targets
+    return [
+        project,
+        {
+            ...project,
+            tier: "bench",
+            test: { ...test, name: "bench", include: [SCENARIO_MODULES] },
+        },
+    ];
+}
+
 /** List a project once per combination of its targets, or the configuration's, named after them. */
 function targetProjects(
     project: ProjectConfiguration,
@@ -266,7 +289,14 @@ function targetProjects(
 ): TestProjectInlineConfiguration[] {
     // set the tier's options, and return a project without targets as it is
     const { targets: local, tier, ...options } = project;
-    const configuration = { ...options, test: { ...options.test, ...tierOptions(tier) } };
+    const configuration = {
+        ...options,
+        test: {
+            ...options.test,
+            ...tierOptions(tier),
+            provide: { ...options.test?.provide, tier },
+        },
+    };
     const targets = local ?? declared;
     if (targets === undefined) {
         return [configuration];
