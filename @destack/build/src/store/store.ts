@@ -995,7 +995,9 @@ export class BuildStore<
         const heads = await Promise.all(
             unique.map(async (root) => ({ ...root, head: await this.#head(root.digest) })),
         );
-        const builds = heads.filter((root) => root.kind === "manifest" && root.head !== undefined);
+        const listed = heads.filter((root) => root.kind === "manifest" && root.head !== undefined);
+        const complete = await this.#complete(listed.map((root) => root.digest));
+        const builds = listed.filter((root) => !complete.has(root.digest));
         const locks = heads.flatMap((root): BuildObject[] =>
             root.kind === "lock" && root.head !== undefined
                 ? [{ kind: "lock", digest: root.digest, size: root.head.size }]
@@ -1016,14 +1018,25 @@ export class BuildStore<
         const records = layered
             .filter((object) => object.kind !== "file")
             .map((object) => object.digest);
+        const rows = await this.#complete(records);
+        const copied = layered.filter((object) =>
+            object.kind === "file" ? !packed.has(object.digest) : !rows.has(object.digest),
+        );
+
+        // store them from the layer, trusted as the host's own
+        await this.#pack(this.#readLayered(copied), "trust");
+    }
+
+    /** Find which of some manifests and locks the store records complete. */
+    async #complete(digests: readonly Digest[]): Promise<ReadonlySet<Digest>> {
         const rows = new Set<Digest>();
-        for (let start = 0; start < records.length; start += BATCH_ROWS) {
+        for (let start = 0; start < digests.length; start += BATCH_ROWS) {
             const stored = await this.database
                 .select({ digest: buildManifest.digest })
                 .from(buildManifest)
                 .where(
                     and(
-                        inArray(buildManifest.digest, records.slice(start, start + BATCH_ROWS)),
+                        inArray(buildManifest.digest, digests.slice(start, start + BATCH_ROWS)),
                         eq(buildManifest.isComplete, true),
                     ),
                 );
@@ -1031,12 +1044,8 @@ export class BuildStore<
                 rows.add(row.digest);
             }
         }
-        const copied = layered.filter((object) =>
-            object.kind === "file" ? !packed.has(object.digest) : !rows.has(object.digest),
-        );
 
-        // store them from the layer, trusted as the host's own
-        await this.#pack(this.#readLayered(copied), "trust");
+        return rows;
     }
 
     /** Read the builds each root retains, by root name, the cache entries' roots left out. */
