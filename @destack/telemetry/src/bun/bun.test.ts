@@ -68,8 +68,8 @@ async function fail(failure: "exception" | "rejection") {
 /** The keys of the host's times and generated ids, which change on every run. */
 const HOST_KEYS = new Set(["timeUnixNano", "observedTimeUnixNano", "traceId", "spanId"]);
 
-/** The attributes whose values the host generates: stack traces, session and instance ids. */
-const HOST_ATTRIBUTES = new Set(["exception.stacktrace", "session.id", "service.instance.id"]);
+/** The attributes whose values the host generates: stack traces and session ids. */
+const HOST_ATTRIBUTES = new Set(["exception.stacktrace", "session.id"]);
 
 /** Set aside the parts of an export the host generates, keeping every other field as written. */
 function hostless(value: unknown): unknown {
@@ -116,10 +116,6 @@ test("export a process's uncaught exception and unhandled rejection with its rel
                         "value": {
                           "stringValue": "2026.9.0",
                         },
-                      },
-                      {
-                        "key": "service.instance.id",
-                        "value": "<host>",
                       },
                     ],
                     "droppedAttributesCount": 0,
@@ -198,10 +194,6 @@ test("export a process's uncaught exception and unhandled rejection with its rel
                         "value": {
                           "stringValue": "2026.9.0",
                         },
-                      },
-                      {
-                        "key": "service.instance.id",
-                        "value": "<host>",
                       },
                     ],
                     "droppedAttributesCount": 0,
