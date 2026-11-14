@@ -76,31 +76,46 @@ export class BuildLayer {
     readonly #source: LayerSource | undefined;
     /** The index of the layer's releases, builds and files. */
     readonly #index: LayerIndex;
+    /** The digest of the index naming the builds the layer ships, absent for an empty layer. */
+    readonly digest: Digest | undefined;
     /** The layered builds' readers opened so far, each once, by manifest digest. */
     readonly #readers = new Map<Digest, Promise<BuildReader>>();
 
     /** Create a layer from where its files lie and its index. */
-    private constructor(source: LayerSource | undefined, index: LayerIndex) {
+    private constructor(
+        source: LayerSource | undefined,
+        index: LayerIndex,
+        digest: Digest | undefined,
+    ) {
         this.#source = source;
         this.#index = index;
+        this.digest = digest;
     }
 
     /** Make a layer without builds. */
     static empty(): BuildLayer {
-        return new BuildLayer(undefined, {
-            formatVersion: LAYER_FORMAT,
-            releases: [],
-            locks: {},
-            builds: {},
-            files: {},
-        });
+        return new BuildLayer(
+            undefined,
+            {
+                formatVersion: LAYER_FORMAT,
+                releases: [],
+                locks: {},
+                builds: {},
+                files: {},
+            },
+            undefined,
+        );
     }
 
     /** Open the layer a Worker version ships as its static assets, through their binding. */
     static async assets(assets: LayerAssets, crypto: Environment["crypto"]): Promise<BuildLayer> {
-        const index = LayerIndex.parse(await BuildLayer.#fetchJson(assets, LAYER_INDEX));
+        const text = await (await BuildLayer.#fetch(assets, LAYER_INDEX)).text();
 
-        return new BuildLayer({ kind: "assets", assets, crypto }, index);
+        return new BuildLayer(
+            { kind: "assets", assets, crypto },
+            LayerIndex.parse(JSON.parse(text)),
+            await Digest.of(text, crypto),
+        );
     }
 
     /** Open the layer in a directory by its index, opening no build. */
@@ -109,11 +124,13 @@ export class BuildLayer {
         environment: Pick<Environment<"files">, "files" | "crypto">,
     ): Promise<BuildLayer> {
         const { files } = environment;
-        const index = LayerIndex.parse(
-            JSON.parse(await files.readTextFile(files.join(directory, LAYER_INDEX))),
-        );
+        const text = await files.readTextFile(files.join(directory, LAYER_INDEX));
 
-        return new BuildLayer({ kind: "directory", directory, environment }, index);
+        return new BuildLayer(
+            { kind: "directory", directory, environment },
+            LayerIndex.parse(JSON.parse(text)),
+            await Digest.of(text, environment.crypto),
+        );
     }
 
     /** Write a layer directory's index of its locks, each build's manifest size and its files. */
