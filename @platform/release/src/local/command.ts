@@ -49,8 +49,10 @@ export async function serveLocal(
     }
     printStatus("machine", `http://127.0.0.1:${LOOPBACK_LAYOUT.machine}`, environment);
     // print how to open the stage in a browser, the desktop app and the cli, each on this state
-    const directory = options.home.isCustom ? ` DESTACK_DIRECTORY=${options.home.directory}` : "";
-    const device = `${directory} DESTACK_DISTRIBUTION=${LocalUniverse.distribution(options)}`;
+    const directory = options.home.isCustom
+        ? ` DESTACK_DIRECTORY=${quoted(options.home.directory)}`
+        : "";
+    const device = `${directory} DESTACK_DISTRIBUTION=${quoted(LocalUniverse.distribution(options))}`;
     printStatus(
         "ready",
         `http://127.0.0.1:${LOOPBACK_LAYOUT.universe}/ opens Destack in a browser`,
@@ -130,4 +132,9 @@ function localOptions(
         layout: LOOPBACK_LAYOUT,
         environment,
     };
+}
+
+/** Quote a path for a POSIX shell, its single quotes escaped. */
+function quoted(path: string): string {
+    return `'${path.replaceAll("'", "'\\''")}'`;
 }
