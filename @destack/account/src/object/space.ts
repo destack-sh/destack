@@ -65,6 +65,8 @@ export const space = defineObject(
             tenancy: field.enum(TENANCIES).optional(),
         },
         indexes: { name: { on: ["name"], across: () => account } },
+        // keep each change, as the tracked objects read through a space decide their past reads by it
+        retention: "history",
         constraints: {
             scopeId: { kind: "unique", on: ["scope", "id"] },
             name: { kind: "check", condition: { name: Label.condition(SPACE_NAME_LENGTH) } },

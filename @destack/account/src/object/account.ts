@@ -58,6 +58,8 @@ export const account = defineObject(
             handle: { on: ["handle"], across: () => universe },
             lookalike: { on: ["handle"], across: () => universe, fold: "hyphens" },
         },
+        // keep each change, as the tracked objects read through its spaces decide their past reads by it
+        retention: "history",
         constraints: {
             handle: { kind: "index", on: ["handle"] },
             scope: { kind: "index", on: ["scope"] },
