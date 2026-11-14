@@ -10,7 +10,10 @@ import {
     defineDatabase,
     eq,
     inArray,
+    isNull,
     lte,
+    or,
+    type SQLWrapper,
 } from "@destack/db";
 import { DependencyName, type DependencyRelease } from "@destack/package";
 import { PackageFile } from "@destack/package/file";
@@ -205,6 +208,9 @@ export interface BuildStoreOptions<StoreEnvironment, Storage extends BlobStorage
     ) => Promise<void>;
 }
 
+/** Tell whether some files are here, held or layered, and the layer holding any not held. */
+type FilesHere = (files: readonly PackageFile[]) => { readonly layer: Digest | null } | undefined;
+
 /** Immutable package builds in a partition's blobs, kept while any of its rows references them. */
 export class BuildStore<
     StoreEnvironment extends Pick<Environment, "crypto" | "clock" | "telemetry"> = Pick<
@@ -361,7 +367,7 @@ export class BuildStore<
         // record the build with its files
         const referenced = files.map((file) => file.digest);
         await this.database.transaction((transaction) =>
-            BuildStore.#recordManifest(transaction, digest, bytes.byteLength, referenced),
+            BuildStore.#recordManifest(transaction, digest, bytes.byteLength, referenced, null),
         );
 
         return digest;
@@ -421,7 +427,13 @@ export class BuildStore<
         const [row] = await this.database
             .select({ name: buildOutput.name })
             .from(buildOutput)
-            .where(and(eq(buildOutput.manifest, digest), eq(buildOutput.name, output)))
+            .where(
+                and(
+                    eq(buildOutput.manifest, digest),
+                    eq(buildOutput.name, output),
+                    this.#isLayerMounted(buildOutput.layer),
+                ),
+            )
             .limit(1);
 
         return row !== undefined;
@@ -582,6 +594,20 @@ export class BuildStore<
         root: Pick<BuildObject, "kind" | "digest">,
         runtimes: readonly Runtime[] | "all",
     ): Promise<void> {
+        // pull nothing for a held root whose every build the store holds whole
+        if ((await this.#head(root.digest)) !== undefined) {
+            const builds =
+                root.kind === "lock" ? Lock.builds(await this.lock(root.digest)) : [root.digest];
+            const stored = builds.filter((build) => this.layer.head(build) === undefined);
+            const complete = await this.#complete(
+                stored,
+                this.#isLayerMounted(buildManifest.layer),
+            );
+            if (stored.every((build) => complete.has(build))) {
+                return;
+            }
+        }
+
         // buffer the objects this store lacks, a read per round
         const buffers = new Map<Digest, Uint8Array<ArrayBuffer>>();
         const gather = async (objects: readonly Pick<BuildObject, "kind" | "digest">[]) => {
@@ -995,7 +1021,12 @@ export class BuildStore<
         const heads = await Promise.all(
             unique.map(async (root) => ({ ...root, head: await this.#head(root.digest) })),
         );
-        const builds = heads.filter((root) => root.kind === "manifest" && root.head !== undefined);
+        const listed = heads.filter((root) => root.kind === "manifest" && root.head !== undefined);
+        const complete = await this.#complete(
+            listed.map((root) => root.digest),
+            isNull(buildManifest.layer),
+        );
+        const builds = listed.filter((root) => !complete.has(root.digest));
         const locks = heads.flatMap((root): BuildObject[] =>
             root.kind === "lock" && root.head !== undefined
                 ? [{ kind: "lock", digest: root.digest, size: root.head.size }]
@@ -1016,27 +1047,38 @@ export class BuildStore<
         const records = layered
             .filter((object) => object.kind !== "file")
             .map((object) => object.digest);
-        const rows = new Set<Digest>();
-        for (let start = 0; start < records.length; start += BATCH_ROWS) {
-            const stored = await this.database
-                .select({ digest: buildManifest.digest })
-                .from(buildManifest)
-                .where(
-                    and(
-                        inArray(buildManifest.digest, records.slice(start, start + BATCH_ROWS)),
-                        eq(buildManifest.isComplete, true),
-                    ),
-                );
-            for (const row of stored) {
-                rows.add(row.digest);
-            }
-        }
+        const rows = await this.#complete(records, isNull(buildManifest.layer));
         const copied = layered.filter((object) =>
             object.kind === "file" ? !packed.has(object.digest) : !rows.has(object.digest),
         );
 
         // store them from the layer, trusted as the host's own
         await this.#pack(this.#readLayered(copied), "trust");
+    }
+
+    /** Find which of some manifests and locks the store records complete, by an accepted row. */
+    async #complete(
+        digests: readonly Digest[],
+        accepted: SQLWrapper,
+    ): Promise<ReadonlySet<Digest>> {
+        const rows = new Set<Digest>();
+        for (let start = 0; start < digests.length; start += BATCH_ROWS) {
+            const stored = await this.database
+                .select({ digest: buildManifest.digest })
+                .from(buildManifest)
+                .where(
+                    and(
+                        inArray(buildManifest.digest, digests.slice(start, start + BATCH_ROWS)),
+                        eq(buildManifest.isComplete, true),
+                        accepted,
+                    ),
+                );
+            for (const row of stored) {
+                rows.add(row.digest);
+            }
+        }
+
+        return rows;
     }
 
     /** Read the builds each root retains, by root name, the cache entries' roots left out. */
@@ -1362,6 +1404,23 @@ export class BuildStore<
         return { path: MANIFEST_PATH, digest, size, mediaType: "application/json" };
     }
 
+    /** Read the digest of the mounted layer, failing for an empty one, which holds no file. */
+    #layerDigest(): Digest {
+        return present(this.layer.digest, "the digest of the store's layer");
+    }
+
+    /** Report whether a row relies on no layer, or on the one the store mounts. */
+    #isMounted(layer: string | null): boolean {
+        return layer === null || layer === this.layer.digest;
+    }
+
+    /** Match a row relying on no layer, or on the one the store mounts. */
+    #isLayerMounted(column: typeof buildManifest.layer | typeof buildOutput.layer) {
+        const { digest } = this.layer;
+
+        return digest === undefined ? isNull(column) : or(isNull(column), eq(column, digest));
+    }
+
     /** Read a manifest's or lock's record: the layer's, complete, else the store's row. */
     async #recorded(
         digest: Digest,
@@ -1372,13 +1431,22 @@ export class BuildStore<
             return { size: layered.size, isComplete: true };
         }
 
-        // read the stored row
+        // read the stored row, complete only while the layer it relies on is mounted
         const [stored] = await this.database
-            .select({ size: buildManifest.size, isComplete: buildManifest.isComplete })
+            .select({
+                size: buildManifest.size,
+                isComplete: buildManifest.isComplete,
+                layer: buildManifest.layer,
+            })
             .from(buildManifest)
             .where(eq(buildManifest.digest, digest));
 
-        return stored;
+        return stored === undefined
+            ? undefined
+            : {
+                  size: stored.size,
+                  isComplete: stored.isComplete && this.#isMounted(stored.layer),
+              };
     }
 
     /** Find where each blob lies: the layer first, then the store's packs, absent for neither. */
@@ -1527,16 +1595,22 @@ export class BuildStore<
             builds.set(digest, { size, files: distinctFiles(distributed), outputs });
         }
 
-        // find which of every listed file the store has, at once
+        // find which of every listed file the store holds in its packs, at once, and which its layer holds
         const listed = [...builds.values()].flatMap((build) => [
             ...build.files,
             ...build.outputs.flatMap((output) => output.files),
         ]);
         const digests = [...new Set(listed.map((file) => file.digest))];
-        const isStored = await this.has(digests);
-        const stored = new Set(digests.filter((_digest, index) => isStored[index] === true));
-        const isHere = (files: readonly PackageFile[]) =>
-            files.every((file) => stored.has(file.digest));
+        const held = new Set((await this.blobs.placements(digests)).map(({ digest }) => digest));
+        const isLayered = (file: PackageFile) => this.layer.size(file.digest) !== undefined;
+        const here: FilesHere = (files) =>
+            files.every((file) => held.has(file.digest) || isLayered(file))
+                ? {
+                      layer: files.every((file) => held.has(file.digest))
+                          ? null
+                          : this.#layerDigest(),
+                  }
+                : undefined;
 
         // read each lock
         const locks: { readonly digest: Digest; readonly size: number; readonly lock: Lock }[] = [];
@@ -1573,12 +1647,18 @@ export class BuildStore<
                     transaction,
                     digest,
                     build,
-                    isHere,
+                    here,
                     found(readers, digest),
                 );
             }
             for (const { digest, size, lock } of locks) {
-                await BuildStore.#recordManifest(transaction, digest, size, Lock.builds(lock));
+                await BuildStore.#recordManifest(
+                    transaction,
+                    digest,
+                    size,
+                    Lock.builds(lock),
+                    null,
+                );
             }
         });
     }
@@ -1588,14 +1668,15 @@ export class BuildStore<
         transaction: DatabaseConnection,
         digest: Digest,
         build: RecordedBuild,
-        isHere: (files: readonly PackageFile[]) => boolean,
+        here: FilesHere,
         reader: BuildReader,
     ): Promise<void> {
-        // record it whole with its files
+        // record it whole with its files, and the layer holding the ones the store lacks
         const { size } = build;
-        if (isHere(build.files)) {
+        const whole = here(build.files);
+        if (whole !== undefined) {
             const referenced = build.files.map((file) => file.digest);
-            await BuildStore.#recordManifest(transaction, digest, size, referenced);
+            await BuildStore.#recordManifest(transaction, digest, size, referenced, whole.layer);
         }
         // record its lists, then each output whose files are all here
         else {
@@ -1605,13 +1686,21 @@ export class BuildStore<
                 .insert(buildManifest)
                 .values({ digest, size, isComplete: false })
                 .onConflictDoNothing();
-            for (const output of build.outputs.filter((each) => isHere(each.files))) {
+            for (const output of build.outputs) {
+                // record an output whose files are here, with the layer holding the ones the store lacks
+                const located = here(output.files);
+                if (located === undefined) {
+                    continue;
+                }
                 const referenced = [...new Set(output.files.map((file) => file.digest))];
                 await BuildStore.#reference(transaction, digest, referenced);
                 await transaction
                     .insert(buildOutput)
-                    .values({ manifest: digest, name: output.name })
-                    .onConflictDoNothing();
+                    .values({ manifest: digest, name: output.name, layer: located.layer })
+                    .onConflictDoUpdate({
+                        target: [buildOutput.manifest, buildOutput.name],
+                        set: { layer: located.layer },
+                    });
             }
         }
     }
@@ -1694,12 +1783,13 @@ export class BuildStore<
         digest: Digest,
         size: number,
         referenced: readonly Digest[],
+        layer: Digest | null,
     ): Promise<void> {
         await BuildStore.#reference(transaction, digest, referenced);
         await transaction
             .insert(buildManifest)
-            .values({ digest, size, isComplete: true })
-            .onConflictDoUpdate({ target: buildManifest.digest, set: { isComplete: true } });
+            .values({ digest, size, isComplete: true, layer })
+            .onConflictDoUpdate({ target: buildManifest.digest, set: { isComplete: true, layer } });
     }
 
     /** Record the blobs a build references, a batch of rows at a time. */

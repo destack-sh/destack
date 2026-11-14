@@ -8,8 +8,10 @@ export const buildManifest = defineTable("manifest", {
     digest: blob("digest", { onDelete: "cascade" }).primaryKey(),
     /** The manifest's byte count. */
     size: integer("size").notNull(),
-    /** Whether every blob the build references is stored, else only the outputs pulled. */
+    /** Whether every blob the build references is in the store or its layer, else only outputs. */
     isComplete: boolean("is_complete").notNull(),
+    /** The layer holding the files the store lacks, absent once the store holds them all. */
+    layer: text("layer"),
 });
 
 /** The outputs a store pulled of builds it has in part, each with its loaded files and maps. */
@@ -18,6 +20,8 @@ export const buildOutput = defineTable("output", {
     manifest: blob("manifest", { onDelete: "cascade" }).primaryKey(),
     /** The output's name in the build. */
     name: text("name").primaryKey(),
+    /** The layer holding the files the store lacks, absent once the store holds them all. */
+    layer: text("layer"),
 });
 
 /** The blobs each build's manifest references: its lists, files and dependency builds. */
