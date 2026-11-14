@@ -1,8 +1,7 @@
 import { Simulation } from "@destack/environment/simulation";
-import type { Environment } from "@destack/environment";
 import { schema } from "@destack/schema";
 import { sql } from "../../sql/index.ts";
-import { expect, onTestFinished, refusal, test } from "@destack/test";
+import { expect, onTestFinished, Recording, refusal, test } from "@destack/test";
 import { TestDatabase } from "../../test/database.ts";
 import { Change, DatabaseError, eq, LogPosition, type LogCursor, TABLE } from "../../index.ts";
 import { changeTables, first, lease, note, reading, revision } from "./fixture.ts";
@@ -15,10 +14,8 @@ function reader(name: string): LogCursor {
 }
 
 /** Open a migrated test database in a world, its own by default, with the world's clock. */
-async function open(
-    kind?: "memory" | "file",
-    environment: Environment = testSimulation().environment("test"),
-) {
+async function open(kind?: "memory" | "file", simulation: Simulation = testSimulation()) {
+    const environment = simulation.environment("test");
     const storage = await TestDatabase.create(
         changeTables,
         kind === undefined ? { environment } : { storage: kind, environment },
@@ -26,7 +23,7 @@ async function open(
     onTestFinished(() => storage.close());
     await storage.database.migrate(changeTables);
 
-    return { storage, database: storage.database, clock: environment.clock };
+    return { storage, database: storage.database, clock: environment.clock, simulation };
 }
 
 test("log committed changes of tables in commit order", async () => {
@@ -235,7 +232,7 @@ test("read the changes the open transaction wrote before its commit, after a log
 
 test("preserve the log's identifier across a restore's new epoch, and refuse comparing positions of two logs", async () => {
     // renew the epoch as a restore does, beside another database's log
-    const world = testSimulation().environment("test");
+    const world = testSimulation();
     const { database } = await open(undefined, world);
     const { database: other } = await open(undefined, world);
     const before = await database.log.position();
@@ -273,17 +270,22 @@ test("preserve the latest sequence once compaction removes every change", async 
 });
 
 test("compact once a change leaves the window, answering when compacting is next due", async () => {
-    const { database, clock } = await open();
+    const { database, clock, simulation } = await open();
     const window = 60_000;
     await database.transaction((transaction) => transaction.insert(note).values(first).execute());
     const logged = clock.now();
 
     // compact at once, wait without statements until the change is older than the window, then remove it, none left
     const counted = async (due: number, now: number) => {
-        const before = database.state.statements;
+        const before = await Recording.read(simulation.telemetry);
         const next = await database.log.compactIfDue(window, due, now);
 
-        return { next, statements: database.state.statements - before };
+        return {
+            next,
+            statements: (await Recording.read(simulation.telemetry))
+                .since(before)
+                .count(TestDatabase.statements(database)),
+        };
     };
     const compacted = await counted(0, logged);
     const waiting = await counted(compacted.next, logged + window);
@@ -849,13 +851,17 @@ test("read the position of a scope's latest change to some tables, past later ch
 });
 
 test("read the log's position from memory until a commit writes the log, past commits of unlogged tables", async () => {
-    const { database } = await open();
-    const { state } = database.driver;
+    const { database, simulation } = await open();
     const counted = async () => {
-        const before = state.statements;
+        const before = await Recording.read(simulation.telemetry);
         const { sequence } = await database.log.position();
 
-        return { sequence, statements: state.statements - before };
+        return {
+            sequence,
+            statements: (await Recording.read(simulation.telemetry))
+                .since(before)
+                .count(TestDatabase.statements(database)),
+        };
     };
 
     // listen to other writers' commits as a serving store does, catch up once, then read the position
@@ -881,15 +887,19 @@ test("read the log's position from memory until a commit writes the log, past co
 });
 
 test("answer a read from memory until another connection's commit of its table reaches this connection", async () => {
-    const { storage, database } = await open("file");
+    const { storage, database, simulation } = await open("file");
     const other = await storage.connect(changeTables);
     onTestFinished(() => other.close());
-    const { state } = database.driver;
     const counted = async () => {
-        const before = state.statements;
+        const before = await Recording.read(simulation.telemetry);
         const ids = (await database.select().from(note)).map((row) => row.id);
 
-        return { ids, statements: state.statements - before };
+        return {
+            ids,
+            statements: (await Recording.read(simulation.telemetry))
+                .since(before)
+                .count(TestDatabase.statements(database)),
+        };
     };
 
     // listen to other writers' commits, then read the notes twice

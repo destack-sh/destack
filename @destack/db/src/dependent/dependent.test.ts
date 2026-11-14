@@ -1,4 +1,4 @@
-import { expect, onTestFinished, test, refusal } from "@destack/test";
+import { expect, onTestFinished, Recording, test, refusal } from "@destack/test";
 import { TestDatabase } from "../test/database.ts";
 import { asc, eq } from "../index.ts";
 import { photo, post, remark, section } from "./test/fixture.ts";
@@ -46,9 +46,9 @@ test("delete the rows referencing a deleted row of their type, also below foreig
 
 test("copy a replica's rows of a table with dependents, marking it a replica's only before a delete", async () => {
     // open posts with remarks
-    const world = testSimulation().environment("test");
+    const simulation = testSimulation();
     const storage = await TestDatabase.create([remark, post, section, photo], {
-        environment: world,
+        environment: simulation.environment("test"),
         isMigrated: true,
     });
     onTestFinished(() => storage.close());
@@ -60,10 +60,12 @@ test("copy a replica's rows of a table with dependents, marking it a replica's o
 
     // insert as a replica without the marker, then delete beside the marker's insert and delete
     const counted = async (run: () => Promise<unknown>) => {
-        const before = database.state.statements;
+        const before = await Recording.read(simulation.telemetry);
         await run();
 
-        return database.state.statements - before;
+        return (await Recording.read(simulation.telemetry))
+            .since(before)
+            .count(TestDatabase.statements(database));
     };
     const inserted = await counted(() =>
         database.transaction((transaction) =>

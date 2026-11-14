@@ -1,5 +1,5 @@
 import { nth, present, schema } from "@destack/schema";
-import { expect, onTestFinished, refusal, test } from "@destack/test";
+import { expect, onTestFinished, Recording, refusal, test } from "@destack/test";
 import { asc, eq, sql } from "../sql/index.ts";
 import { TestDatabase, type TestDatabaseOptions } from "../test/database.ts";
 import { defineTable, TABLE } from "../table/table.ts";
@@ -130,8 +130,9 @@ function unitTable(name: string) {
 
 /** Open a database with three tasks, two in the inbox and one archived. */
 async function open(options: Pick<TestDatabaseOptions, "dialect"> = {}) {
+    const simulation = testSimulation();
     const storage = await TestDatabase.create([task], {
-        environment: testSimulation().environment("test"),
+        environment: simulation.environment("test"),
         ...options,
         isMigrated: true,
     });
@@ -148,7 +149,7 @@ async function open(options: Pick<TestDatabaseOptions, "dialect"> = {}) {
             .execute(),
     );
 
-    return { database, base: await database.log.position() };
+    return { database, simulation, base: await database.log.position() };
 }
 
 /** Read every task in key order. */
@@ -406,7 +407,8 @@ test("read a transaction's rows with its writes in order up to a limit, count th
 
 test("show only logged columns in a transaction's images and its view, committed or written", async () => {
     // run in a world of its own
-    const world = testSimulation().environment("test");
+    const simulation = testSimulation();
+    const world = simulation.environment("test");
 
     const storage = await TestDatabase.create([token], {
         environment: world,
@@ -485,7 +487,8 @@ test("drop a failed step's writes and records as a savepoint does, leaving the w
 
 test("refuse a write sharing a unique key with a committed row, the transaction's or its batch's, nulls being equal and archived rows outside the key", async () => {
     // run in a world of its own
-    const world = testSimulation().environment("test");
+    const simulation = testSimulation();
+    const world = simulation.environment("test");
 
     const storage = await TestDatabase.create([label], {
         environment: world,
@@ -636,7 +639,8 @@ test("rehearse writes over a transaction's rows, answering the rows they change,
 
 test("refuse a write sharing a unique key that includes a JSON column, comparing its JSON values", async () => {
     // run in a world of its own
-    const world = testSimulation().environment("test");
+    const simulation = testSimulation();
+    const world = simulation.environment("test");
 
     const storage = await TestDatabase.create([bookmark], {
         environment: world,
@@ -667,7 +671,8 @@ test("refuse a write sharing a unique key that includes a JSON column, comparing
 
 test("refuse a write sharing a stored row's unique JSON key in another key order", async () => {
     // run in a world of its own
-    const world = testSimulation().environment("test");
+    const simulation = testSimulation();
+    const world = simulation.environment("test");
 
     // store a bookmarked place as the database stores its JSON
     const storage = await TestDatabase.create([bookmark], {
@@ -704,7 +709,8 @@ test("refuse a write sharing a stored row's unique JSON key in another key order
 
 test("refuse a unique key a commit after the transaction's base took as a lost race, which a run repeats to see the key taken", async () => {
     // run in a world of its own
-    const world = testSimulation().environment("test");
+    const simulation = testSimulation();
+    const world = simulation.environment("test");
 
     const storage = await TestDatabase.create([label], {
         environment: world,
@@ -745,7 +751,8 @@ test("refuse a unique key a commit after the transaction's base took as a lost r
 
 test("refuse a unique key a commit took after the transaction checked it as a lost race at the commit", async () => {
     // run in a world of its own
-    const world = testSimulation().environment("test");
+    const simulation = testSimulation();
+    const world = simulation.environment("test");
 
     const storage = await TestDatabase.create([label], {
         environment: world,
@@ -822,7 +829,8 @@ function entryRow(id: string, slug: string, seen: number, note?: string) {
 
 test("commit runs of inserts, plain updates and deletes in a few statements, shifting unique slugs in write order", async () => {
     // run in a world of its own
-    const world = testSimulation().environment("test");
+    const simulation = testSimulation();
+    const world = simulation.environment("test");
 
     const storage = await TestDatabase.create([entry], {
         environment: world,
@@ -833,7 +841,7 @@ test("commit runs of inserts, plain updates and deletes in a few statements, shi
     const commit = async (write: (changes: ChangeSet) => void) => {
         const changes = new ChangeSet();
         write(changes);
-        const before = database.driver.state.statements;
+        const before = await Recording.read(simulation.telemetry);
         await changes.commit(
             database,
             await database.log.position(),
@@ -841,7 +849,9 @@ test("commit runs of inserts, plain updates and deletes in a few statements, shi
             async () => {},
         );
 
-        return database.driver.state.statements - before;
+        return (await Recording.read(simulation.telemetry))
+            .since(before)
+            .count(TestDatabase.statements(database));
     };
 
     // commit once, as each database's first logged commit also looks at the log's compaction
@@ -910,14 +920,16 @@ test("commit runs of inserts, plain updates and deletes in a few statements, shi
 });
 
 test("read a committed row once per transaction, and see the transaction's write of it after", async () => {
-    const { database } = await open();
+    const { database, simulation } = await open();
 
     // read one task twice, write it, then read it again
     const transaction = await Transaction.open(database);
-    const before = database.driver.state.statements;
+    const before = await Recording.read(simulation.telemetry);
     const first = present(await transaction.read(task).findFirst({ where: { id: "a" } }), "task a");
     const second = await transaction.read(task).findFirst({ where: { id: "a" } });
-    const reads = database.driver.state.statements - before;
+    const reads = (await Recording.read(simulation.telemetry))
+        .since(before)
+        .count(TestDatabase.statements(database));
     const written = { id: "a", scope: "inbox", priority: 7 };
     await transaction.write({ table: task, before: first, after: written });
     const third = await transaction.read(task).findFirst({ where: { id: "a" } });
@@ -932,7 +944,7 @@ test("read a committed row once per transaction, and see the transaction's write
 });
 
 test("answer keyed reads of rows a transaction wrote from its writes, reading the database for any other key", async () => {
-    const { database } = await open();
+    const { database, simulation } = await open();
 
     // write one task and rewrite another, then read them by key, and with a committed one
     const transaction = await Transaction.open(database);
@@ -943,11 +955,13 @@ test("answer keyed reads of rows a transaction wrote from its writes, reading th
         { table: task, before: { id: "a", scope: "inbox", priority: 1 }, after: rewritten },
     );
     const view = transaction.view();
-    const before = database.driver.state.statements;
+    const before = await Recording.read(simulation.telemetry);
     const written = await view.select(task, ["id"], [["d"], ["a"]]);
     const single = await view.read(task).findFirst({ where: { id: "d" } });
     const scanned = await view.read(task).findMany({ where: { id: { in: ["d", "a"] } } });
-    const answered = database.driver.state.statements - before;
+    const answered = (await Recording.read(simulation.telemetry))
+        .since(before)
+        .count(TestDatabase.statements(database));
     const mixed = await view.select(task, ["id"], [["d"], ["b"]]);
 
     // spend no statement on the written keys alone, one on a key the writes lack
@@ -957,7 +971,9 @@ test("answer keyed reads of rows a transaction wrote from its writes, reading th
         single,
         scanned: scanned.toSorted((left, right) => left.id.localeCompare(right.id)),
         mixed: mixed.toSorted((left, right) => left.id.localeCompare(right.id)),
-        read: database.driver.state.statements - before,
+        read: (await Recording.read(simulation.telemetry))
+            .since(before)
+            .count(TestDatabase.statements(database)),
     }).toEqual({
         answered: 0,
         written: [rewritten, created],
@@ -1114,7 +1130,8 @@ const unit = defineTable(
 
 test("refuse writing a predefined row, and write other rows of its table", async () => {
     // run in a world of its own
-    const world = testSimulation().environment("test");
+    const simulation = testSimulation();
+    const world = simulation.environment("test");
 
     const storage = await TestDatabase.create([unit], {
         environment: world,
@@ -1148,7 +1165,8 @@ test("refuse writing a predefined row, and write other rows of its table", async
 
 test("answer a live read from memory until a commit writes its table, each transaction seeing its own writes", async () => {
     // run in a world of its own
-    const world = testSimulation().environment("test");
+    const simulation = testSimulation();
+    const world = simulation.environment("test");
 
     // store two members and a task
     const storage = await TestDatabase.create([member, task], {
@@ -1170,10 +1188,15 @@ test("answer a live read from memory until a commit writes its table, each trans
     // listen to other writers' commits, as a serving store does
     await database.log.listening();
     const counted = async (read: () => Promise<readonly unknown[]>) => {
-        const before = database.driver.state.statements;
+        const before = await Recording.read(simulation.telemetry);
         const rows = await read();
 
-        return { rows: rows.length, statements: database.driver.state.statements - before };
+        return {
+            rows: rows.length,
+            statements: (await Recording.read(simulation.telemetry))
+                .since(before)
+                .count(TestDatabase.statements(database)),
+        };
     };
     const members = (transaction: Transaction) =>
         transaction
@@ -1211,7 +1234,8 @@ test("answer a live read from memory until a commit writes its table, each trans
 
 test("read a table's rows anew after a commit wrote it, past compaction removing its log entries", async () => {
     // run in a world of its own
-    const world = testSimulation().environment("test");
+    const simulation = testSimulation();
+    const world = simulation.environment("test");
 
     // store a compacted member and a role in history
     const storage = await TestDatabase.create([member, role], {
@@ -1286,7 +1310,8 @@ test("read a table's predefined rows anew once a migration changes them", async 
 
 test("see every member committed before a cached read starts, while writers and readers interleave", async () => {
     // run in a world of its own
-    const world = testSimulation().environment("test");
+    const simulation = testSimulation();
+    const world = simulation.environment("test");
 
     // commit members one at a time into four scopes, counting each scope's commits finished
     const storage = await TestDatabase.create([member], {
@@ -1337,7 +1362,8 @@ test("see every member committed before a cached read starts, while writers and 
 
 test("read anew after a read failed, through the same transaction once the table exists", async () => {
     // run in a world of its own
-    const world = testSimulation().environment("test");
+    const simulation = testSimulation();
+    const world = simulation.environment("test");
 
     // fail a read before the tables and the log exist
     const storage = await TestDatabase.create([member], { environment: world });
@@ -1364,7 +1390,8 @@ test("read anew after a read failed, through the same transaction once the table
 
 test("answer a read from memory across commits writing other tables, reading anew once its table changes", async () => {
     // run in a world of its own
-    const world = testSimulation().environment("test");
+    const simulation = testSimulation();
+    const world = simulation.environment("test");
 
     // store a member and a role
     const storage = await TestDatabase.create([member, role], {
@@ -1380,10 +1407,12 @@ test("answer a read from memory across commits writing other tables, reading ane
     // listen to other writers' commits, as a serving store does
     await database.log.listening();
     const counted = async () => {
-        const before = database.driver.state.statements;
+        const before = await Recording.read(simulation.telemetry);
         await Transaction.reading(database).view().read(member).findMany({});
 
-        return database.driver.state.statements - before;
+        return (await Recording.read(simulation.telemetry))
+            .since(before)
+            .count(TestDatabase.statements(database));
     };
     const first = await counted();
 

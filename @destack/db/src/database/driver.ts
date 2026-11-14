@@ -37,9 +37,6 @@ export class DatabaseDriver {
     readonly state: ConnectionState;
     /** The active transaction state, when present. */
     readonly transaction: TransactionState | undefined;
-    /** The operations submitted through this driver outside a transaction. */
-    operations = 0;
-
     /** Create the driver. */
     constructor(session: Session, state: ConnectionState, transaction?: TransactionState) {
         // store the session, the connection's state and the transaction
@@ -55,12 +52,6 @@ export class DatabaseDriver {
 
     /** Submit work through the transaction or connection. */
     run<Value>(operation: () => PromiseLike<Value>, statement: DriverStatement): Promise<Value> {
-        // count the statement, and the operation the connection submits outside a transaction
-        this.state.statements += 1;
-        if (this.transaction === undefined) {
-            this.operations += 1;
-        }
-
         // classify failures and measure the statement
         const reported = () =>
             this.#measure(statement, async () => {

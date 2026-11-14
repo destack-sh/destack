@@ -126,13 +126,6 @@ export class DatabaseConnection<
         return this.state.tables;
     }
 
-    /** Open a connection on the same session that counts its own operations. */
-    metered(): DatabaseConnection<Models> {
-        const driver = new DatabaseDriver(this.driver.session, this.state, this.driver.transaction);
-
-        return new DatabaseConnection(driver, this.tables, this.relations);
-    }
-
     /** Read the tables the relations relate. */
     get query(): Queries<Models> {
         this.#query ??= ModelQueryBuilder.of(this, this.relations);
@@ -655,6 +648,8 @@ export class ConnectionState {
     readonly name: string;
     /** The spans and durations of the database's package on the environment's telemetry. */
     readonly scope: TelemetryScope;
+    /** The commits that lost a race on their reads and ran again, counted by database. */
+    readonly retries: ReturnType<TelemetryScope["meter"]["createCounter"]>;
     /** The records of the statements the connection ran, by span path and text. */
     readonly statementRecords = new StatementRecords();
     /** The SQL names of the tables the database replicates, empty over bare tables. */
@@ -691,12 +686,6 @@ export class ConnectionState {
     cipher: ColumnCipher | undefined = undefined;
     /** Whether the database has a log. */
     isLogged = false;
-    /** The submitted statements and transactions. */
-    operations = 0;
-    /** The run statements and transactions, including nested ones. */
-    statements = 0;
-    /** The commits that lost a race on their reads and ran again. */
-    lostRaces = 0;
     /** The end of the latest serialized work, which the next one waits for. */
     #serialized: Promise<unknown> = Promise.resolve();
     /** The operations to finish before close. */
@@ -723,6 +712,9 @@ export class ConnectionState {
         this.environment = options.environment;
         this.name = options.name;
         this.scope = TelemetryScope.of(import.meta.destack.package, options.environment.telemetry);
+        this.retries = this.scope.meter.createCounter("destack.transaction.retries", {
+            unit: "{retry}",
+        });
         this.valueCache = new ReadCache<unknown[][]>(
             CACHED_ROWS,
             CACHED_READ_ROWS,
@@ -874,8 +866,7 @@ export class ConnectionState {
             );
         }
 
-        // count and track the operation
-        this.operations += 1;
+        // track the operation
         const result = Promise.resolve().then(operation);
         const settled = result.then(
             () => {

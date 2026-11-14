@@ -17,7 +17,8 @@
         "./browser": "./src/browser/index.ts",
         "./cloudflare": "./src/cloudflare/index.ts",
         "./cloudflare/durable": "./src/cloudflare/durable.ts",
-        "./inspect": "./src/inspect/index.ts"
+        "./inspect": "./src/inspect/index.ts",
+        "./interaction": "./src/interaction.ts"
     },
     "scripts": {
         "typecheck": "tsc --project tsconfig.json && destack-check readme",

@@ -1,5 +1,6 @@
 import { join } from "node:path";
-import { expect, onTestFinished, test } from "@destack/test";
+import { expect, onTestFinished, Recording, test } from "@destack/test";
+import { SimulatedTelemetry } from "@destack/environment/simulation";
 import { channelHub } from "../channel/channel.ts";
 import { socketChannel } from "../channel/socket.ts";
 import { changeTables, first, note, revision } from "../log/test/fixture.ts";
@@ -130,8 +131,9 @@ test("rerun a transaction once over an unannounced commit to a row it read, then
     onTestFinished(() => HOST.files.remove(directory, { recursive: true }));
     const path = join(directory, "database.db");
     const hub = channelHub<unknown>();
+    const telemetry = new SimulatedTelemetry(HOST);
     const reader = await connectBunSqlite(path, changeTables, {
-        environment: HOST,
+        environment: { ...HOST, telemetry },
         openChannel: hub,
     });
     onTestFinished(() => reader.close());
@@ -152,7 +154,7 @@ test("rerun a transaction once over an unannounced commit to a row it read, then
     );
 
     // append to the title read in a transaction, which loses one race and reads the fresh row
-    const lost = reader.state.lostRaces;
+    const before = await Recording.read(telemetry);
     await Transaction.run(reader, async (transaction) => {
         const row = present(
             await transaction.read(note).findFirst({ where: { id: first.id } }),
@@ -165,7 +167,10 @@ test("rerun a transaction once over an unannounced commit to a row it read, then
         });
     });
     const [stored] = await reader.select({ title: note.title }).from(note);
-    expect({ races: reader.state.lostRaces - lost, title: stored?.title }).toEqual({
+    const races = (await Recording.read(telemetry))
+        .since(before)
+        .count({ name: "destack.transaction.retries" });
+    expect({ races, title: stored?.title }).toEqual({
         races: 1,
         title: "Second!",
     });

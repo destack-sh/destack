@@ -1,4 +1,5 @@
-import { join } from "node:path";
+import type { Selector } from "@destack/package/declare";
+import { basename, join } from "node:path";
 import postgres from "postgres";
 import { testHost } from "@destack/test/host";
 import { Simulation } from "@destack/environment/simulation";
@@ -89,6 +90,14 @@ export class TestDatabase<
         }
 
         return address;
+    }
+
+    /** Select a database's statements in its world's telemetry, by its unique namespace. */
+    static statements(database: DatabaseConnection): Selector {
+        return {
+            name: "db.client.operation.duration",
+            attributes: { "db.namespace": database.state.name },
+        };
     }
 
     /** Read the database the test's project runs against, or a given project's in its setup. */
@@ -422,13 +431,13 @@ export class TestDatabase<
         options: TestDatabaseOptions,
         template?: string,
     ): Promise<TestDatabase<Models>> {
-        // copy the template or the migrated database into a temporary file as operations
+        // copy the template or the migrated database into a file named after its unique directory
         const { environment } = options;
         const { scheduler } = environment;
         const directory = await scheduler.run(() =>
             HOST.files.makeTemporaryDirectory("destack-test-"),
         );
-        const file = join(directory, "test.db");
+        const file = join(directory, `${basename(directory)}.db`);
 
         // migrate a template as a long operation, as it runs the world's effects
         const source =

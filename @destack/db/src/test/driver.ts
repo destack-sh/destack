@@ -1,15 +1,15 @@
 import type { Clock } from "@destack/environment";
-import type { Simulation } from "@destack/environment/simulation";
-import type { SetStep } from "@destack/package/declare";
+import type { Simulation, SimulatedTelemetry } from "@destack/environment/simulation";
+import type { Given, SetStep } from "@destack/package/declare";
 import { MemoryBlobStorage } from "@destack/resource";
 import { type Digest, type JsonValue, present } from "@destack/schema";
-import type { Counters, Driver } from "@destack/test";
+import type { Driver } from "@destack/test";
 import { testSimulation } from "@destack/test/world";
 import {
     type DatabaseObservation,
     type DatabaseStep,
     databaseInteraction,
-} from "../benchmark/interaction.ts";
+} from "../interaction.ts";
 import { BLOB_TABLES, BlobStore } from "../blob/store.ts";
 import { Transaction } from "../log/commit.ts";
 import { eq } from "../sql/operator.ts";
@@ -18,14 +18,14 @@ import { defineTable } from "../table/table.ts";
 import { TestDatabase } from "./database.ts";
 
 /** The scope every note of a database world lives in. */
-const SCOPE = "bench";
+const SCOPE = "notes";
 
 /** The values a byte takes. */
 const BYTE_VALUES = 256;
 
 /** The notes a database world writes and reads. */
 const note = defineTable(
-    "bench_note",
+    "note",
     {
         /** The note's key. */
         id: text("id").primaryKey(),
@@ -37,8 +37,8 @@ const note = defineTable(
     { log: {} },
 );
 
-/** A driver that plays database benchmarks over one database and its blobs in a simulated world. */
-export class TestDatabaseDriver implements Driver<typeof databaseInteraction> {
+/** A driver that plays database scenarios over one database and its blobs in a simulated world. */
+export class DatabaseDriver implements Driver<DatabaseStep, DatabaseObservation> {
     /** The interaction the driver speaks. */
     static readonly interaction = databaseInteraction;
     /** The settings of the worlds: test databases commit without flushing to disk. */
@@ -47,20 +47,22 @@ export class TestDatabaseDriver implements Driver<typeof databaseInteraction> {
     /** The world the database runs in. */
     readonly #simulation: Simulation;
     /** The database. */
-    readonly #storage: TestDatabase;
+    readonly #database: TestDatabase;
     /** The database's blobs, over memory storage. */
     readonly #blobs: BlobStore;
     /** The notes inserted so far, numbering each one's key. */
     #notes = 0;
     /** The blobs stored so far, in order. */
     readonly #stored: Digest[] = [];
-    /** The reads of notes and blobs so far, each reading the next one, past the read cache. */
-    #reads = 0;
+    /** The reads of notes so far, each reading the next one, past the read cache. */
+    #noteReads = 0;
+    /** The reads of blobs so far, each reading the next one, past the read cache. */
+    #blobReads = 0;
 
     /** Take a started world, its database and its blobs. */
-    constructor(simulation: Simulation, storage: TestDatabase, blobs: BlobStore) {
+    constructor(simulation: Simulation, database: TestDatabase, blobs: BlobStore) {
         this.#simulation = simulation;
-        this.#storage = storage;
+        this.#database = database;
         this.#blobs = blobs;
     }
 
@@ -70,33 +72,34 @@ export class TestDatabaseDriver implements Driver<typeof databaseInteraction> {
     }
 
     /** Start a world with a database of notes and blobs on the test's dialect. */
-    static async start(): Promise<TestDatabaseDriver> {
+    static async start(_given: Given): Promise<DatabaseDriver> {
         // open the database in a world, and its blob store over memory
         const simulation = testSimulation();
         const environment = simulation.environment("database");
-        const storage = await TestDatabase.create([note, ...BLOB_TABLES], {
+        const database = await TestDatabase.create([note, ...BLOB_TABLES], {
             environment,
             isMigrated: true,
         });
         const memory = new MemoryBlobStorage(environment.crypto);
         const blobs = new BlobStore({
             storage: memory,
-            database: storage.database,
+            database: database.database,
             environment,
         });
 
-        return new TestDatabaseDriver(simulation, storage, blobs);
+        return new DatabaseDriver(simulation, database, blobs);
     }
 
-    /** Close the database. */
+    /** Close the database, then the world. */
     async [Symbol.asyncDispose](): Promise<void> {
-        await this.#storage.close();
+        await this.#database.close();
+        await this.#simulation[Symbol.asyncDispose]();
     }
 
     /** Take one step, then run the world until the work it started settles. */
     async act(step: SetStep | DatabaseStep): Promise<void> {
         // insert notes in one transaction
-        const { database } = this.#storage;
+        const { database } = this.#database;
         if (step.action === "insert") {
             const rows = Array.from({ length: step.rows }, () => this.#next());
             await database.transaction((transaction) =>
@@ -105,12 +108,14 @@ export class TestDatabaseDriver implements Driver<typeof databaseInteraction> {
         }
         // read the next note in turn, which no earlier read cached
         else if (step.action === "read") {
-            this.#reads += 1;
-            const key = `note-${(this.#reads % this.#notes) + 1}`;
+            this.#requireNotes("read");
+            this.#noteReads += 1;
+            const key = `note-${(this.#noteReads % this.#notes) + 1}`;
             await database.select().from(note).where(eq(note.id, key));
         }
         // update the note inserted last
         else if (step.action === "update") {
+            this.#requireNotes("update");
             const body = `note ${this.#notes} updated`;
             const key = this.#latest();
             await database.transaction((transaction) =>
@@ -131,8 +136,8 @@ export class TestDatabaseDriver implements Driver<typeof databaseInteraction> {
         }
         // read the next stored blob in turn, which no earlier read cached
         else if (step.action === "fetch") {
-            this.#reads += 1;
-            const blob = this.#stored[this.#reads % this.#stored.length];
+            this.#blobReads += 1;
+            const blob = this.#stored[this.#blobReads % this.#stored.length];
             await this.#blobs.bytes(present(blob, "a blob stored before the fetch"));
         }
         // refuse the set step, as a database world has no example properties
@@ -144,12 +149,15 @@ export class TestDatabaseDriver implements Driver<typeof databaseInteraction> {
         await this.#simulation.run(this.clock.now());
     }
 
-    /** Count the notes. */
+    /** Count the notes or the stored blobs. */
     async observe(observation: DatabaseObservation): Promise<JsonValue> {
-        // count the notes the observation asks for
-        const rows = await this.#storage.database.select().from(note);
+        // count the rows of the notes' or the blobs' table
+        const { database } = this.#database;
+        const rows = await database
+            .select()
+            .from(observation.count === "notes" ? note : BlobStore.table);
 
-        return observation.kind === "notes" ? rows.length : null;
+        return rows.length;
     }
 
     /** Read the fingerprint of everything the world did so far. */
@@ -157,9 +165,16 @@ export class TestDatabaseDriver implements Driver<typeof databaseInteraction> {
         return this.#simulation.fingerprint;
     }
 
-    /** Read the world's counters from its telemetry. */
-    count(): Promise<Counters> {
-        return this.#simulation.telemetry.counts();
+    /** The telemetry the world records. */
+    get telemetry(): SimulatedTelemetry {
+        return this.#simulation.telemetry;
+    }
+
+    /** Refuse a step on notes before any note was inserted. */
+    #requireNotes(action: string): void {
+        if (this.#notes === 0) {
+            throw new TypeError(`a database world cannot '${action}' a note before inserting one`);
+        }
     }
 
     /** Number the next note. */

@@ -35,10 +35,10 @@ export const DatabaseStep = schema.discriminatedUnion("action", [
 /** A step of a database world. */
 export type DatabaseStep = schema.Infer<typeof DatabaseStep>;
 
-/** An observation of a database world: the notes it keeps. */
+/** An observation of a database world: the notes it keeps or the blobs it stores. */
 export const DatabaseObservation = schema.object({
-    /** Count the notes. */
-    kind: schema.literal("notes"),
+    /** Count the notes or the stored blobs. */
+    count: schema.enum(["notes", "blobs"]),
 });
 /** An observation of a database world. */
 export type DatabaseObservation = schema.Infer<typeof DatabaseObservation>;

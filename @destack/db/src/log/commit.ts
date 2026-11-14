@@ -630,7 +630,7 @@ export class Transaction {
                 }
 
                 // count the lost race, and expire the cached reads so the rerun reads anew
-                database.state.lostRaces += 1;
+                database.state.retries.add(1, { "db.namespace": database.state.name });
                 database.state.commits.expire();
 
                 // stop once the caller aborts

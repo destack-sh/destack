@@ -1,5 +1,5 @@
 import { asc } from "../sql/index.ts";
-import { expect, onTestFinished, test } from "@destack/test";
+import { expect, onTestFinished, Recording, test } from "@destack/test";
 import { TestDatabase } from "../test/database.ts";
 import { integer, text } from "../table/column.ts";
 import { defineTable, TABLE, type Table } from "../table/table.ts";
@@ -45,10 +45,9 @@ function counters(count: number, value: number) {
 
 test("upsert rows as they are, get them and remove them by key in one statement each", async () => {
     // run in a world of its own
-    const world = testSimulation().environment("test");
-
+    const simulation = testSimulation();
     const storage = await TestDatabase.create([counter], {
-        environment: world,
+        environment: simulation.environment("test"),
         isMigrated: true,
     });
     onTestFinished(() => storage.close());
@@ -75,7 +74,7 @@ test("upsert rows as they are, get them and remove them by key in one statement 
     ]);
 
     // get Bob's counter, two of Ada's and a missing one in one statement
-    const statements = database.driver.state.statements;
+    const before = await Recording.read(simulation.telemetry);
     const found = await database.get(counter, [
         bob,
         ...counters(2, 0),
@@ -88,7 +87,9 @@ test("upsert rows as they are, get them and remove them by key in one statement 
                 ? -1
                 : 1,
         ),
-        statements: database.driver.state.statements - statements,
+        statements: (await Recording.read(simulation.telemetry))
+            .since(before)
+            .count(TestDatabase.statements(database)),
     }).toEqual({ rows: [...counters(2, 2), bob], statements: 1 });
 
     // remove every row but one
@@ -148,24 +149,25 @@ test("declare a table migrated after opening on the connection and every connect
     const before = sqlNames(database.tables);
     await database.migrate([counter], { others: "retain" });
 
-    // list the counters after the opened tables, on a metered connection over the same state too
+    // list the counters after the opened tables, in a transaction's connection over the same state too
     const opened = sqlNames([remark, post]);
     expect({
         before,
         after: sqlNames(database.tables),
-        metered: sqlNames(database.metered().tables),
+        transaction: await database.transaction(async (transaction) =>
+            sqlNames(transaction.tables),
+        ),
     }).toEqual({
         before: opened,
         after: [...opened, ...sqlNames([counter])],
-        metered: [...opened, ...sqlNames([counter])],
+        transaction: [...opened, ...sqlNames([counter])],
     });
 });
 
 test("answer reads of a table declared after opening from memory until it changes", async () => {
     // open a database knowing no tables, migrate counters, which declares them, and listen to other writers
-    const storage = await TestDatabase.create([], {
-        environment: testSimulation().environment("test"),
-    });
+    const simulation = testSimulation();
+    const storage = await TestDatabase.create([], { environment: simulation.environment("test") });
     onTestFinished(() => storage.close());
     const { database } = storage;
     await database.migrate([counter]);
@@ -176,10 +178,12 @@ test("answer reads of a table declared after opening from memory until it change
 
     // read twice in one statement, then again after a write
     const counted = async () => {
-        const before = database.state.statements;
+        const before = await Recording.read(simulation.telemetry);
         await database.select().from(counter);
 
-        return database.state.statements - before;
+        return (await Recording.read(simulation.telemetry))
+            .since(before)
+            .count(TestDatabase.statements(database));
     };
     const reads = [await counted(), await counted()];
     await database.transaction(async (transaction) => {
@@ -215,19 +219,20 @@ test("share one frozen copy of a cached read with every reader", async () => {
 
 test("skip planning a declaration the database applied last, by its stamp", async () => {
     // migrate counters, then migrate the same declaration again
-    const storage = await TestDatabase.create([], {
-        environment: testSimulation().environment("test"),
-    });
+    const simulation = testSimulation();
+    const storage = await TestDatabase.create([], { environment: simulation.environment("test") });
     onTestFinished(() => storage.close());
     const { database } = storage;
     const applied = await database.migrate([counter]);
-    const before = database.state.statements;
+    const before = await Recording.read(simulation.telemetry);
     const again = await database.migrate([counter]);
 
     // plan the first, then read only the table list and the stamp the second time
     expect({
         applied: applied.steps.length > 0,
         again: again.steps,
-        statements: database.state.statements - before,
+        statements: (await Recording.read(simulation.telemetry))
+            .since(before)
+            .count(TestDatabase.statements(database)),
     }).toEqual({ applied: true, again: [], statements: 2 });
 });

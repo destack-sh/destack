@@ -1,7 +1,8 @@
-import { expect, onTestFinished, refusal, test } from "@destack/test";
+import { expect, onTestFinished, Recording, refusal, test } from "@destack/test";
 import { Change, defineTable, eq, inArray, integer, lock, type Table, text } from "../index.ts";
 import { TestDatabase } from "../test/index.ts";
 import { testSimulation } from "@destack/test/world";
+import { testHost } from "@destack/test/host";
 import { canonicalize, nth, found, schema } from "@destack/schema";
 import { ControlLoop, type Controller, now, type Cursor } from "./control.ts";
 import { Projection } from "./projection.ts";
@@ -25,6 +26,26 @@ const job = defineTable(
     },
     { log: {} },
 );
+
+/** The jobs one burst of a synchronous database reconciles, unlogged. */
+const queuedJob = defineTable("controller_queued_job", {
+    /** The job's name. */
+    id: text("id").primaryKey(),
+    /** Whether the job is open. */
+    status: text("status").notNull(),
+});
+
+/** The keys one burst reconciles. */
+const BURST_KEYS = 20;
+
+/** The reads each reconciliation makes, which a synchronous database answers without yielding. */
+const BURST_READS = 20;
+
+/** The synchronous work each reconciliation does beside its reads, such as decoding, in ms. */
+const BURST_WORK_MILLISECONDS = 2;
+
+/** The interval of the timer that probes the event loop, in milliseconds. */
+const PROBE_MILLISECONDS = 1;
 
 /** The jobs table defined anew, as a module loaded again defines it. */
 const reloadedJob = defineTable(
@@ -94,6 +115,11 @@ function message(error: unknown): string {
 async function waitEqual<Value>(simulation: Simulation, read: () => Value, expected: Value) {
     await simulation.waitUntil(() => canonicalize(read()) === canonicalize(expected));
     expect(read()).toEqual(expected);
+}
+
+/** Fail on a reported reconciliation failure. */
+function failReconcile(_controller: Controller | Cursor, key: string, error: unknown): void {
+    throw new Error(`reconciling '${key}' failed`, { cause: error });
 }
 
 /** Ignore a failed reconciliation. */
@@ -1163,7 +1189,7 @@ test("spend no statement on commits to tables no controller reads", async () => 
         transaction.insert(note).values({ id: "first", scope: "space" }).execute(),
     );
     await loop.idle();
-    const before = database.driver.state.statements;
+    const before = await Recording.read(simulation.telemetry);
     for (let index = 0; index < NOTE_COMMITS; index++) {
         await database.transaction((transaction) =>
             transaction
@@ -1173,5 +1199,87 @@ test("spend no statement on commits to tables no controller reads", async () => 
         );
         await yieldToEventLoop();
     }
-    expect(database.driver.state.statements - before).toBe(2 * NOTE_COMMITS);
+    const statements = (await Recording.read(simulation.telemetry))
+        .since(before)
+        .count(TestDatabase.statements(database));
+    expect(statements).toBe(2 * NOTE_COMMITS);
+});
+
+test("run timers between the reconciliations of a synchronous database, one key per turn", async () => {
+    const { clock } = testHost();
+    const storage = await TestDatabase.create([queuedJob, lock], {
+        environment: testHost(),
+        dialect: "sqlite",
+        isMigrated: true,
+    });
+    onTestFinished(() => storage.close());
+    const database = storage.database;
+    await database.insert(queuedJob).values(
+        Array.from({ length: BURST_KEYS }, (_, index) => ({
+            id: `job-${index}`,
+            status: "open",
+        })),
+    );
+
+    // record the reconciliations and the probe's ticks in the order they run
+    const events: ("reconcile" | "tick")[] = [];
+    const done = Promise.withResolvers<void>();
+    const controller: Controller<typeof queuedJob> = {
+        name: "queued-job",
+        table: queuedJob,
+        pending: { status: "open" },
+        reconcile: async (rows) => {
+            // read the job a few times and work on it without yielding
+            const [row] = rows;
+            for (let read = 0; read < BURST_READS; read++) {
+                await database
+                    .select()
+                    .from(queuedJob)
+                    .where(eq(queuedJob.id, row?.id ?? ""));
+            }
+            const end = clock.now() + BURST_WORK_MILLISECONDS;
+            while (clock.now() < end) {
+                // occupy the thread as decoding does
+            }
+
+            // finish the burst at the last key
+            events.push("reconcile");
+            if (events.filter((event) => event === "reconcile").length === BURST_KEYS) {
+                done.resolve();
+            }
+        },
+    };
+
+    // probe the event loop while the loop reconciles every key
+    const probing = new AbortController();
+    const probe = (async () => {
+        // tick once per wait until the probe stops
+        while (
+            await clock.sleep(PROBE_MILLISECONDS, probing.signal).then(
+                () => true,
+                () => false,
+            )
+        ) {
+            events.push("tick");
+        }
+    })();
+    const stopping = new AbortController();
+    const loop = new ControlLoop(
+        database,
+        { controllers: [controller], cursors: [] },
+        { report: failReconcile },
+    );
+    const looping = loop.run(stopping.signal);
+    await done.promise;
+    probing.abort();
+    await probe;
+    stopping.abort();
+    await looping;
+
+    // tick between reconciliations after the first two, which share the turn the listing woke
+    const reconciled = events.flatMap((event, index) => (event === "reconcile" ? [index] : []));
+    const interleaved = reconciled
+        .slice(1)
+        .filter((at, index) => events.slice(reconciled[index], at).includes("tick"));
+    expect([reconciled.length, interleaved.length]).toEqual([BURST_KEYS, BURST_KEYS - 2]);
 });
