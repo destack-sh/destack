@@ -1,5 +1,6 @@
 import type * as packageRuntime from "@destack/package/runtime";
 import type { defineDatabase } from "@destack/db";
+import { Failure } from "@destack/error";
 import { openStore, ownServers } from "./store.ts";
 import type { ClaimPrimary, ExternalStorage } from "@destack/object/server";
 import type { Follow, ObjectType } from "@destack/object";
@@ -493,10 +494,12 @@ export class Space {
 
                     return { packages: store.packages };
                 }
-                // reject the waits, each handled here as well as by its callers
+                // mark the space down and refuse its waits with why
                 catch (error) {
-                    start.store.reject(error);
-                    start.gateway.reject(error);
+                    this.health.set("down", `it cannot start: ${Failure.of(error).message}`);
+                    const refusal = present(this.health.refusal(), "the refusal of a space down");
+                    start.store.reject(refusal);
+                    start.gateway.reject(refusal);
                     start.store.promise.catch(() => undefined);
                     start.gateway.promise.catch(() => undefined);
                     throw error;
@@ -2304,7 +2307,13 @@ export class Space {
             // pull a lock
             else {
                 return await this.root(packageId, lock).catch((error: unknown) => {
-                    if (!PackageError.is(error, "FILE_UNAVAILABLE")) {
+                    // note a lock its forge cannot answer yet, as a file or a build it lacks
+                    const failure = Failure.of(error);
+                    const isUnavailable =
+                        PackageError.is(error, "FILE_UNAVAILABLE") ||
+                        (failure.domain === "@destack/forge" &&
+                            failure.reason === "BUILD_NOT_FOUND");
+                    if (!isUnavailable) {
                         throw error;
                     }
                     unavailable.push(lock);
