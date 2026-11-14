@@ -231,6 +231,8 @@ export class BuildStore<
     readonly environment: StoreEnvironment;
     /** The reader of each build opened so far, by manifest digest, until its build is deleted. */
     readonly #readers = new Map<string, Promise<BuildReader>>();
+    /** The source keeping each build of a lock read through it, which keeps the lock whole. */
+    readonly #located = new Map<Digest, BuildStore>();
     /** The locks read so far, by digest, as locks never change. */
     readonly #locks = new Map<Digest, Promise<Lock>>();
     /** The builds of cache keys in flight, so callers asking at once build each key once. */
@@ -758,9 +760,14 @@ export class BuildStore<
             // read a lock a source has in place
             const location = (await this.locate([digest])).get(digest);
             if (location === undefined) {
+                // place the lock's builds in its source, which keeps it whole
                 const source = present(await this.#sourceOf(digest), `lock '${digest}'`);
+                const read = await source.lock(digest);
+                for (const build of Lock.builds(read)) {
+                    this.#located.set(build, source);
+                }
 
-                return await source.lock(digest);
+                return read;
             }
 
             // read the lock's bytes here
@@ -878,10 +885,14 @@ export class BuildStore<
 
     /** Open a stored build for selective reads, absent for a build the store does not record. */
     async #find(digest: Digest): Promise<BuildReader | undefined> {
-        // find the build's head here, else in the first source with it
-        const local = await this.#head(digest);
-        const source = local === undefined ? await this.#sourceOf(digest) : undefined;
-        const head = local ?? (source === undefined ? undefined : await source.#head(digest));
+        // find the build's head in the source a read lock placed it in, else here, else in the first source with it
+        const keeper = this.#located.get(digest);
+        const placed = keeper === undefined ? undefined : await keeper.#head(digest);
+        const local = placed === undefined ? await this.#head(digest) : undefined;
+        const source =
+            placed === undefined && local === undefined ? await this.#sourceOf(digest) : undefined;
+        const head =
+            placed ?? local ?? (source === undefined ? undefined : await source.#head(digest));
         if (head === undefined) {
             return undefined;
         }
