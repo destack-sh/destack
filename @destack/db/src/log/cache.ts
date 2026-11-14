@@ -1,4 +1,8 @@
 import { nth } from "@destack/schema";
+import type { TelemetryScope } from "@destack/telemetry";
+
+/** How a cache answered a read: a stored value, a read already running, or a new read. */
+const CACHE_RESULTS = ["hit", "shared", "miss"] as const;
 
 /** Reads of one kind, each kept with its tables' commit versions, least recently used dropped. */
 export class ReadCache<Value> {
@@ -14,12 +18,34 @@ export class ReadCache<Value> {
     readonly #reading = new Map<string, Entry<Promise<Value>>>();
     /** The weight of the stored values. */
     #weight = 0;
+    /** The reads, by how the cache answered them. */
+    readonly #requests;
+    /** The values dropped to stay within the capacity. */
+    readonly #evictions;
+    /** The cache's bounded attribute on its signals. */
+    readonly #named: { readonly "destack.cache.name": string };
 
-    /** Store values up to a total weight, each at most a maximum weight. */
-    constructor(capacity: number, maximum: number, weigh: (key: string, value: Value) => number) {
+    /** Store values up to a total weight, each at most a maximum weight, counting reads by name. */
+    constructor(
+        capacity: number,
+        maximum: number,
+        weigh: (key: string, value: Value) => number,
+        name: string,
+        scope: TelemetryScope,
+    ) {
+        // take the bounds, and declare the reads and evictions by the cache's name
         this.#capacity = capacity;
         this.#maximum = maximum;
         this.#weigh = weigh;
+        this.#named = { "destack.cache.name": name };
+        this.#requests = scope.metric.counter("destack.cache.requests", {
+            unit: "{request}",
+            attributes: { "destack.cache.name": [name], "destack.cache.result": CACHE_RESULTS },
+        });
+        this.#evictions = scope.metric.counter("destack.cache.evictions", {
+            unit: "{entry}",
+            attributes: { "destack.cache.name": [name] },
+        });
     }
 
     /** Read a value at its tables' versions, from memory or once through a shared read. */
@@ -29,6 +55,7 @@ export class ReadCache<Value> {
         if (kept !== undefined && isSame(kept.versions, versions)) {
             this.#values.delete(key);
             this.#values.set(key, kept);
+            this.#requests.add(1, { ...this.#named, "destack.cache.result": "hit" });
 
             return Promise.resolve(kept.value);
         }
@@ -36,10 +63,13 @@ export class ReadCache<Value> {
         // answer a read running at the same versions
         const running = this.#reading.get(key);
         if (running !== undefined && isSame(running.versions, versions)) {
+            this.#requests.add(1, { ...this.#named, "destack.cache.result": "shared" });
+
             return running.value;
         }
 
         // read anew, storing the value at the versions read before it unless a newer one arrived
+        this.#requests.add(1, { ...this.#named, "destack.cache.result": "miss" });
         const reading: Promise<Value> = read().then(
             (value) => {
                 // finish the running read
@@ -84,6 +114,7 @@ export class ReadCache<Value> {
                 break;
             }
             this.#forget(oldest);
+            this.#evictions.add(1, this.#named);
         }
     }
 

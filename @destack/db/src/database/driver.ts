@@ -23,9 +23,6 @@ const OPERATIONS: ReadonlySet<string> = new Set([
     "TRANSACTION",
 ]);
 
-/** The milliseconds in a second, as OpenTelemetry records durations in seconds. */
-const MILLISECONDS_PER_SECOND = 1000;
-
 /** The tables no script wrote, which a plain write passes. */
 const UNSCRIPTED: ReadonlySet<string> = new Set();
 
@@ -92,26 +89,29 @@ export class DatabaseDriver {
             ...(isDeclared ? { "db.collection.name": table } : {}),
         };
 
-        return state.scope.measure("db.client.operation.duration", attributes, async () => {
-            // time the run, recorded even when it fails
-            const { context, monotonic } = state.environment.telemetry;
-            const started = monotonic.now();
-            let rows = 0;
-            try {
+        // run it measured, adding its seconds to its record and the running spans' totals, failed or not
+        const { context } = state.environment.telemetry;
+        let rows = 0;
+
+        return state.scope.measure(
+            "db.client.operation.duration",
+            attributes,
+            async () => {
+                // run it, counting the rows it returns
                 const value = await run();
                 rows = Array.isArray(value) ? value.length : typeof value === "number" ? value : 0;
 
                 return value;
-            } finally {
-                // add the run to its record and to the running spans' totals
-                const seconds = (monotonic.now() - started) / MILLISECONDS_PER_SECOND;
+            },
+            (seconds) => {
+                // add the run to its record and the running spans' totals
                 const active = context.active();
                 state.statementRecords.add(SpanPath.of(active), statement, seconds, rows);
                 SpanPath.add(active, "db.client.operation.count", 1);
                 SpanPath.add(active, "db.client.operation.duration", seconds);
                 SpanPath.add(active, "db.response.returned_rows", rows);
-            }
-        });
+            },
+        );
     }
 
     /** Submit a statement writing its tables. */

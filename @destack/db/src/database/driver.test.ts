@@ -43,7 +43,16 @@ test("count a database's statements, transactions, commits and connection waits 
 
     // expect the insert's transaction and the log compaction its first write makes due, each attempted once
     const name = database.state.name;
+    const queued =
+        database.dialect === "sqlite"
+            ? {
+                  "db.client.connection.wait_time.count": 3,
+                  [`db.client.connection.wait_time.count.${name}`]: 3,
+              }
+            : {};
     const statements = {
+        ...queued,
+        "destack.cache.requests": 1,
         "destack.watch.wakes": 1,
         "db.client.operation.duration.count": 5,
         [`db.client.operation.duration.count.${name}:INSERT:destack__db__telemetry_note`]: 1,
@@ -51,11 +60,11 @@ test("count a database's statements, transactions, commits and connection waits 
         [`db.client.operation.duration.count.${name}:SELECT:destack__db__telemetry_note`]: 1,
         [`db.client.operation.duration.count.${name}:SELECT:__destack_log`]: 1,
         [`db.client.operation.duration.count.${name}:TRANSACTION`]: 2,
-        "destack.transaction.duration.count": 2,
-        [`destack.transaction.duration.count.${name}:database`]: 2,
+        "destack.transaction.run.duration.count": 2,
+        [`destack.transaction.run.duration.count.${name}:database`]: 2,
     };
 
-    // expect the commit's one wake, and no waits for a connection nothing else held
+    // expect the commit's one wake, the read's one cache miss, and SQLite's queue timing each statement's turn
     expect(grown).toEqual(statements);
 });
 
@@ -88,7 +97,7 @@ test("record each statement text under the span path that ran it, with its runs 
     expect(records.toSorted((left, right) => left.path.localeCompare(right.path))).toEqual([
         { path: "(none)", summary: "SELECT destack__db__telemetry_note", count: 1, rows: 2 },
         {
-            path: `destack.note.create[a]>destack.transaction[${name}:database]`,
+            path: `destack.note.create[a]>destack.transaction.run[${name}:database]`,
             summary: "INSERT destack__db__telemetry_note",
             count: 2,
             rows: 2,

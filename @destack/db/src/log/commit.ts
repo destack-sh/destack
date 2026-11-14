@@ -584,14 +584,14 @@ export class Transaction {
         run: () => Promise<Value>,
         signal?: AbortSignal,
     ): Promise<Value> {
-        // run the attempts in the transaction's span, its duration by kind and attempts
+        // run the attempts in the transaction's span, its duration by kind, its attempts on the span
         const { name, scope, environment } = database.state;
         const attributes = { "db.namespace": name, "destack.transaction.kind": RACE_KINDS[race] };
         let attempts = 0;
         const attempted = () => ({ ...attributes, "destack.transaction.attempts": attempts });
 
         return scope.span(
-            "destack.transaction",
+            "destack.transaction.run",
             attributes,
             async (span) => {
                 // count the transaction and each attempt in the running spans' totals
@@ -609,7 +609,7 @@ export class Transaction {
                     span.setAttributes(attempted());
                 }
             },
-            { duration: { attributes: attempted } },
+            { duration: { attributes } },
         );
     }
 

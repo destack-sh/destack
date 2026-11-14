@@ -11,7 +11,7 @@ const FNV_PRIME = 0x01_00_01_93;
 
 /** One statement text's totals under one span path, as `pg_stat_statements` keeps them. */
 export interface StatementRecord {
-    /** The span path that ran it, such as `label/create>destack.transaction[main:database]`. */
+    /** The span path that ran it, such as `label/create>destack.transaction.run[main:database]`. */
     readonly path: string;
     /** The statement's identity: an FNV-1a hash of its text, in hexadecimal. */
     readonly query: string;

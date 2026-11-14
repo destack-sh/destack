@@ -52,6 +52,10 @@ export class PostgresPool {
     readonly #pool: string;
     /** The connections idle and in use. */
     readonly #connectionStates;
+    /** The requests waiting for a connection. */
+    readonly #pending;
+    /** The waits for a connection that ran out. */
+    readonly #timeouts;
 
     /** Open a pool of a server, passing JSON as text and reporting the server's warnings. */
     constructor(
@@ -100,6 +104,20 @@ export class PostgresPool {
         this.#connectionStates.add(connections, {
             "db.client.connection.pool.name": this.#pool,
             "db.client.connection.state": "idle",
+        });
+
+        // declare the pool's size, its waiting requests and its timed out waits
+        const named = { "db.client.connection.pool.name": [this.#pool] };
+        this.#scope.metric
+            .upDownCounter("db.client.connection.max", { unit: "{connection}", attributes: named })
+            .add(connections, { "db.client.connection.pool.name": this.#pool });
+        this.#pending = this.#scope.metric.upDownCounter("db.client.connection.pending_requests", {
+            unit: "{request}",
+            attributes: named,
+        });
+        this.#timeouts = this.#scope.metric.counter("db.client.connection.timeouts", {
+            unit: "{timeout}",
+            attributes: named,
         });
         this.#idle = [...this.#connections];
         this.listener = open(() => {
@@ -215,7 +233,9 @@ export class PostgresPool {
         const { clock, scheduler } = environment;
         const released = Promise.withResolvers<postgres.Sql>();
         const ended = Promise.withResolvers<void>();
+        const pool = { "db.client.connection.pool.name": this.#pool };
         this.#waiters.push(released.resolve);
+        this.#pending.add(1, pool);
         if ([...this.#holders.values()].some((holder) => holder !== scheduler)) {
             void scheduler.waitUntil(ended.promise);
         }
@@ -241,6 +261,7 @@ export class PostgresPool {
             if (sql !== undefined || !isQueued) {
                 return sql ?? (await released.promise);
             }
+            this.#timeouts.add(1, pool);
             throw DatabaseError.of(
                 "CONNECTION_UNAVAILABLE",
                 `connection is unavailable: every one stayed in a transaction for ${this.#wait} ms`,
@@ -255,6 +276,7 @@ export class PostgresPool {
             }
             throw error;
         } finally {
+            this.#pending.add(-1, pool);
             ended.resolve();
         }
     }

@@ -55,6 +55,8 @@ import { ModelQueryBuilder, type Queries } from "../query/find.ts";
 import type { Model } from "../query/model.ts";
 import type { Row } from "../table/row.ts";
 
+/** How a migration ended: applied, or skipped as the database applied the same declaration last. */
+type MigrationOutcome = "applied" | "stamped";
 /** How long a database's log keeps windowed changes: a week. */
 const LOG_WINDOW_MILLISECONDS = 7 * 24 * 60 * 60_000;
 
@@ -355,6 +357,35 @@ export class DatabaseConnection<
             readonly others?: "retain" | "drop";
         } = {},
     ): Promise<TablePlan> {
+        // run the migration in its span, its duration by whether it applied or found its stamp
+        let outcome: MigrationOutcome = "applied";
+
+        return await this.state.scope.span(
+            "destack.database.migrate",
+            {},
+            async (span) => {
+                // migrate, then record its outcome and its steps
+                const migrated = await this.#migrate(tables, options);
+                ({ outcome } = migrated);
+                const { plan } = migrated;
+                span.setAttribute("destack.migration.steps", plan.steps.length);
+
+                return plan;
+            },
+            { duration: { attributes: () => ({ "destack.migration.outcome": outcome }) } },
+        );
+    }
+
+    /** Plan and apply tables unless the database applied the same declaration last. */
+    async #migrate(
+        tables: readonly Table[],
+        options: DeclareOptions & {
+            /** The states stored beside the tables, such as a resource's desired ones. */
+            readonly states?: readonly (readonly TableState[])[];
+            /** What happens to the applied tables neither the tables nor the states declare. */
+            readonly others?: "retain" | "drop";
+        },
+    ): Promise<{ readonly plan: TablePlan; readonly outcome: MigrationOutcome }> {
         // declare the tables, its replicated tables as replicas
         const declared = declareState(tables, this.dialect, {
             replicated: this.state.replicated,
@@ -371,12 +402,15 @@ export class DatabaseConnection<
             this.state.declare(tables);
 
             return {
-                steps: [],
-                dialect: this.dialect,
-                before: [],
-                after: [],
-                state: [],
-                dropped: [],
+                plan: {
+                    steps: [],
+                    dialect: this.dialect,
+                    before: [],
+                    after: [],
+                    state: [],
+                    dropped: [],
+                },
+                outcome: "stamped",
             };
         }
 
@@ -397,7 +431,7 @@ export class DatabaseConnection<
         await writeStamp(this, stamp, stamped.kind === "unstamped" && plan.steps.length === 0);
         this.state.declare(tables);
 
-        return plan;
+        return { plan, outcome: "applied" };
     }
 
     /** List the tables with an unapplied declaration, by name in the database's namespace. */
@@ -650,13 +684,9 @@ export class ConnectionState {
     /** Whether the database announces its logged tables' commits itself. */
     readonly #isAnnouncing: boolean;
     /** The cache of live `values` reads, by statement, each at its tables' commit versions. */
-    readonly valueCache = new ReadCache<unknown[][]>(CACHED_ROWS, CACHED_READ_ROWS, weigh);
+    readonly valueCache: ReadCache<unknown[][]>;
     /** The cache of live `all` reads, by statement, each at its tables' commit versions. */
-    readonly recordCache = new ReadCache<Record<string, unknown>[]>(
-        CACHED_ROWS,
-        CACHED_READ_ROWS,
-        weigh,
-    );
+    readonly recordCache: ReadCache<Record<string, unknown>[]>;
     /** The cipher of sensitive columns, absent until the database is keyed. */
     cipher: ColumnCipher | undefined = undefined;
     /** Whether the database has a log. */
@@ -693,6 +723,20 @@ export class ConnectionState {
         this.environment = options.environment;
         this.name = options.name;
         this.scope = TelemetryScope.of(import.meta.destack.package, options.environment.telemetry);
+        this.valueCache = new ReadCache<unknown[][]>(
+            CACHED_ROWS,
+            CACHED_READ_ROWS,
+            weigh,
+            "value",
+            this.scope,
+        );
+        this.recordCache = new ReadCache<Record<string, unknown>[]>(
+            CACHED_ROWS,
+            CACHED_READ_ROWS,
+            weigh,
+            "record",
+            this.scope,
+        );
         this.replicated = options.replicated;
         this.openChannel = openChannel;
         this.namespace = options.namespace;

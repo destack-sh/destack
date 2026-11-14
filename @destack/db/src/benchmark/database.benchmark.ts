@@ -28,20 +28,20 @@ export const databaseBenchmark = defineBenchmark({
     limits: {
         "note.insert": {
             "db.client.operation.duration.count": 2,
-            "destack.transaction.duration.count": 1,
+            "destack.transaction.run.duration.count": 1,
         },
         "note.read": { "db.client.operation.duration.count": 1 },
         "note.update": {
             "db.client.operation.duration.count": 2,
-            "destack.transaction.duration.count": 1,
+            "destack.transaction.run.duration.count": 1,
         },
         "note.transact": {
             "db.client.operation.duration.count": 6,
-            "destack.transaction.duration.count": 2,
+            "destack.transaction.run.duration.count": 2,
         },
         "blob.write": {
             "db.client.operation.duration.count": 4,
-            "destack.transaction.duration.count": 2,
+            "destack.transaction.run.duration.count": 2,
         },
         "blob.fetch": { "db.client.operation.duration.count": 1 },
     },

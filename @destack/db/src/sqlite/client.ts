@@ -115,13 +115,12 @@ export class SqliteWorkQueue {
         work: () => Promise<Value>,
         environment: Pick<DatabaseEnvironment, "clock" | "scheduler">,
     ): Promise<Value> {
-        // run work at once on an idle queue, and wait a bounded time behind earlier work
+        // take the turn, at once on an idle queue and a bounded time behind earlier work, timing every take
         const turn = this.#tail;
         const start = () => this.#start(work, environment.scheduler);
-        const queued =
-            this.#pending === 0
-                ? turn.then(start)
-                : this.#measureWait(() => this.#turn(turn, environment)).then(start);
+        const queued = this.#measureWait(() =>
+            this.#pending === 0 ? turn : this.#turn(turn, environment),
+        ).then(start);
         this.#pending += 1;
 
         // count it done before its caller continues, so the caller's next work finds the queue idle

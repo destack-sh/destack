@@ -15,6 +15,10 @@ export class CommitWatch {
     readonly #role: ConnectionRole;
     /** The wakes of the watch, one per commit it announces to its readers, by database. */
     readonly #wakes;
+    /** The runner of the waits' spans. */
+    readonly #span: TelemetryScope["span"];
+    /** The readers waiting for a commit now, by database. */
+    readonly #waits;
     /** The database's name, as OpenTelemetry's `db.namespace` reports it. */
     readonly #namespace: string;
     /** The SQL names of the tables whose commits the database announces inside the commit. */
@@ -65,6 +69,11 @@ export class CommitWatch {
         // store the channel, the role, the unlogged tables and the telemetry, versioning the log's tables from the start
         this.#channel = channel;
         this.#namespace = namespace;
+        this.#span = scope.span;
+        this.#waits = scope.metric.upDownCounter("destack.log.wait.count", {
+            unit: "{wait}",
+            attributes: { "db.namespace": [namespace] },
+        });
         this.#wakes = scope.metric.counter("destack.watch.wakes", {
             unit: "{wake}",
             attributes: { "db.namespace": [namespace] },
@@ -213,6 +222,8 @@ export class CommitWatch {
         // collect each commit's tables from here on, starting from every table unless no wake came since the generation
         const committed = new Set(generation === this.#generation ? [] : this.#tables);
         this.#committed.add(committed);
+        const attributes = { "db.namespace": this.#namespace };
+        let wait: { readonly pass: (isPassed: boolean) => void } | undefined;
         try {
             // check first once the watch receives other writers' commits
             await this.#listened(signal);
@@ -236,16 +247,38 @@ export class CommitWatch {
                 if (isPassed) {
                     checked.abort();
                     await next;
+                    wait?.pass(true);
 
                     return true;
                 }
+
+                // open the wait's span at the first failed check, as only a failed check waits
+                wait ??= this.#openWait(attributes);
                 await next;
             }
+        } catch (error) {
+            wait?.pass(false);
+            throw error;
         } finally {
             this.#committed.delete(committed);
         }
+        wait?.pass(false);
 
         return false;
+    }
+
+    /** Open a wait's span and count it waiting, ending both once the wait passes or gives up. */
+    #openWait(attributes: { readonly "db.namespace": string }): {
+        readonly pass: (isPassed: boolean) => void;
+    } {
+        // run the span until the wait settles, counting the reader meanwhile
+        const settled = Promise.withResolvers<boolean>();
+        this.#waits.add(1, attributes);
+        void this.#span("destack.log.wait", attributes, () => settled.promise, {
+            duration: { attributes },
+        }).finally(() => this.#waits.add(-1, attributes));
+
+        return { pass: settled.resolve };
     }
 
     /** Listen for other writers' commits once, settling once they arrive. */

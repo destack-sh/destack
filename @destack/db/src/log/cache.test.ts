@@ -1,8 +1,15 @@
+import { Telemetry } from "@destack/environment";
+import { TelemetryScope } from "@destack/telemetry";
 import { expect, test } from "@destack/test";
+import { testHost } from "@destack/test/host";
 import { ReadCache } from "./cache.ts";
+import type {} from "@destack/package/import-meta";
+
+/** The telemetry the caches count on, recording nothing. */
+const SCOPE = TelemetryScope.of(import.meta.destack.package, Telemetry.none(testHost().clock));
 
 test("share one read per key, store the most recent values and share nothing of a failed read", async () => {
-    const cache = new ReadCache<string>(2, 1, () => 1);
+    const cache = new ReadCache<string>(2, 1, () => 1, "test", SCOPE);
     const reads: string[] = [];
     const read = (key: string) => async () => {
         reads.push(key);
@@ -37,9 +44,7 @@ test("share one read per key, store the most recent values and share nothing of 
 });
 
 test("answer a value read at the same versions, reading anew once a table's version moves", async () => {
-    const cache = new ReadCache<string>(2, 1, (_key, value) =>
-        value.startsWith("value of big") ? 2 : 1,
-    );
+    const cache = new ReadCache<string>(2, 1, weighBig, "test", SCOPE);
     const reads: string[] = [];
     const read = (key: string) => async () => {
         reads.push(key);
@@ -64,7 +69,7 @@ test("answer a value read at the same versions, reading anew once a table's vers
 
 test("store the newer value when an older read finishes after it", async () => {
     // start a read at 1, finish a read at 2, then finish the read at 1
-    const cache = new ReadCache<string>(2, 1, () => 1);
+    const cache = new ReadCache<string>(2, 1, () => 1, "test", SCOPE);
     const older = Promise.withResolvers<string>();
     const pending = cache.get("a", [1], () => older.promise);
     await cache.get("a", [2], async () => "newer");
@@ -77,7 +82,13 @@ test("store the newer value when an older read finishes after it", async () => {
 
 test("store values up to the cache's total weight, dropping the least recently used", async () => {
     // store rows up to three, and none heavier than two
-    const cache = new ReadCache<readonly string[]>(3, 2, (_key, rows) => rows.length);
+    const cache = new ReadCache<readonly string[]>(
+        3,
+        2,
+        (_key, rows) => rows.length,
+        "test",
+        SCOPE,
+    );
     const reads: string[] = [];
     const read = (key: string, rows: number) => async () => {
         reads.push(key);
@@ -95,3 +106,8 @@ test("store values up to the cache's total weight, dropping the least recently u
     }
     expect(reads).toEqual(["a", "b", "c", "d", "a", "d"]);
 });
+
+/** Weigh a big value as two and every other as one. */
+function weighBig(_key: string, value: string): number {
+    return value.startsWith("value of big") ? 2 : 1;
+}
