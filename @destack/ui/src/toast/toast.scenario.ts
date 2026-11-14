@@ -10,12 +10,15 @@ export const toasterFocusWithShortcut = defineScenario({
     name: "focus-with-shortcut",
     description: "move the focus to the toasts with Alt+T",
     given: { examples: [toasterArchiveUndo] },
+    parameters: {},
     when: [
-        { action: "click", target: { role: "button", name: "Archive" } },
-        { action: "press", key: "Alt+t" },
+        {
+            step: { action: "click", target: { role: "button", name: "Archive" } },
+            then: [{ observe: { kind: "focused" }, is: "Archive" }],
+        },
+        {
+            step: { action: "press", key: "Alt+t" },
+            then: [{ observe: { kind: "focused" }, is: "Notifications" }],
+        },
     ],
-    then: {
-        observe: { focused: { kind: "focused" } },
-        each: [{ focused: "Archive" }, { focused: "Notifications" }],
-    },
 });

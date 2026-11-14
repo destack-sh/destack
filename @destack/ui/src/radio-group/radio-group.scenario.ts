@@ -11,22 +11,47 @@ export const radioGroupCheckWithArrowKeys = defineScenario({
     description:
         "move the focus to the next or previous radio with the arrow keys, checking it and wrapping at the ends",
     given: { examples: [radioGroupListDensity] },
+    parameters: {},
     when: [
-        { action: "focus", target: { role: "radio", name: "Regular" } },
-        { action: "press", key: "ArrowDown" },
-        { action: "press", key: "ArrowUp" },
-        { action: "press", key: "ArrowRight" },
-    ],
-    then: {
-        observe: {
-            focused: { kind: "focused" },
-            checked: { kind: "name", target: { role: "radio", checked: true } },
+        {
+            step: { action: "focus", target: { role: "radio", name: "Regular" } },
+            then: [
+                { observe: { kind: "focused" }, is: "Regular" },
+                {
+                    observe: { kind: "name", target: { role: "radio", checked: true } },
+                    is: "Regular",
+                },
+            ],
         },
-        each: [
-            { focused: "Regular", checked: "Regular" },
-            { focused: "Compact", checked: "Compact" },
-            { focused: "Regular", checked: "Regular" },
-            { focused: "Compact", checked: "Compact" },
-        ],
-    },
+        {
+            step: { action: "press", key: "ArrowDown" },
+            then: [
+                { observe: { kind: "focused" }, is: "Compact" },
+                {
+                    observe: { kind: "name", target: { role: "radio", checked: true } },
+                    is: "Compact",
+                },
+            ],
+        },
+        {
+            step: { action: "press", key: "ArrowUp" },
+            then: [
+                { observe: { kind: "focused" }, is: "Regular" },
+                {
+                    observe: { kind: "name", target: { role: "radio", checked: true } },
+                    is: "Regular",
+                },
+            ],
+        },
+        {
+            step: { action: "press", key: "ArrowRight" },
+            then: [
+                { observe: { kind: "focused" }, is: "Compact" },
+                {
+                    observe: { kind: "name", target: { role: "radio", checked: true } },
+                    is: "Compact",
+                },
+            ],
+        },
+    ],
 });

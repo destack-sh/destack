@@ -11,28 +11,56 @@ export const toggleGroupMoveWithArrowKeys = defineScenario({
     description:
         "move the focus between a toggle group's items with arrow keys, Home and End, wrapping",
     given: { examples: [toggleGroupUnaligned] },
+    parameters: {},
     when: [
-        { action: "focus", target: { role: "radio", name: "Left" } },
-        { action: "press", key: "ArrowRight" },
-        { action: "press", key: "ArrowRight" },
-        { action: "press", key: "ArrowRight" },
-        { action: "press", key: "ArrowLeft" },
-        { action: "press", key: "End" },
-        { action: "press", key: "Home" },
-    ],
-    then: {
-        observe: {
-            focused: { kind: "focused" },
-            tabStop: { kind: "name", target: { css: "[tabindex='0']" } },
+        {
+            step: { action: "focus", target: { role: "radio", name: "Left" } },
+            then: [
+                { observe: { kind: "focused" }, is: "Left" },
+                { observe: { kind: "name", target: { css: "[tabindex='0']" } }, is: "Left" },
+            ],
         },
-        each: [
-            { focused: "Left", tabStop: "Left" },
-            { focused: "Center", tabStop: "Center" },
-            { focused: "Justify", tabStop: "Justify" },
-            { focused: "Left", tabStop: "Left" },
-            { focused: "Justify", tabStop: "Justify" },
-            { focused: "Justify", tabStop: "Justify" },
-            { focused: "Left", tabStop: "Left" },
-        ],
-    },
+        {
+            step: { action: "press", key: "ArrowRight" },
+            then: [
+                { observe: { kind: "focused" }, is: "Center" },
+                { observe: { kind: "name", target: { css: "[tabindex='0']" } }, is: "Center" },
+            ],
+        },
+        {
+            step: { action: "press", key: "ArrowRight" },
+            then: [
+                { observe: { kind: "focused" }, is: "Justify" },
+                { observe: { kind: "name", target: { css: "[tabindex='0']" } }, is: "Justify" },
+            ],
+        },
+        {
+            step: { action: "press", key: "ArrowRight" },
+            then: [
+                { observe: { kind: "focused" }, is: "Left" },
+                { observe: { kind: "name", target: { css: "[tabindex='0']" } }, is: "Left" },
+            ],
+        },
+        {
+            step: { action: "press", key: "ArrowLeft" },
+            then: [
+                { observe: { kind: "focused" }, is: "Justify" },
+                { observe: { kind: "name", target: { css: "[tabindex='0']" } }, is: "Justify" },
+            ],
+        },
+        {
+            step: { action: "press", key: "End" },
+            then: [
+                { observe: { kind: "focused" }, is: "Justify" },
+                { observe: { kind: "name", target: { css: "[tabindex='0']" } }, is: "Justify" },
+            ],
+        },
+        {
+            step: { action: "press", key: "Home" },
+            then: [
+                { observe: { kind: "focused" }, is: "Left" },
+                { observe: { kind: "name", target: { css: "[tabindex='0']" } }, is: "Left" },
+            ],
+        },
+    ],
 });

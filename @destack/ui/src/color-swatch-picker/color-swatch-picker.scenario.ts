@@ -11,22 +11,47 @@ export const colorSwatchPickerChooseWithArrowKeys = defineScenario({
     description:
         "move the focus between swatches with the arrow keys, choosing each, and stop at the ends",
     given: { examples: [colorSwatchPickerLabelColor] },
+    parameters: {},
     when: [
-        { action: "focus", target: { role: "option", name: "plum" } },
-        { action: "press", key: "ArrowLeft" },
-        { action: "press", key: "Home" },
-        { action: "press", key: "ArrowLeft" },
-    ],
-    then: {
-        observe: {
-            focused: { kind: "focused" },
-            chosen: { kind: "name", target: { role: "option", selected: true } },
+        {
+            step: { action: "focus", target: { role: "option", name: "plum" } },
+            then: [
+                { observe: { kind: "focused" }, is: "plum" },
+                {
+                    observe: { kind: "name", target: { role: "option", selected: true } },
+                    is: "plum",
+                },
+            ],
         },
-        each: [
-            { focused: "plum", chosen: "plum" },
-            { focused: "orange", chosen: "orange" },
-            { focused: "teal", chosen: "teal" },
-            { focused: "teal", chosen: "teal" },
-        ],
-    },
+        {
+            step: { action: "press", key: "ArrowLeft" },
+            then: [
+                { observe: { kind: "focused" }, is: "orange" },
+                {
+                    observe: { kind: "name", target: { role: "option", selected: true } },
+                    is: "orange",
+                },
+            ],
+        },
+        {
+            step: { action: "press", key: "Home" },
+            then: [
+                { observe: { kind: "focused" }, is: "teal" },
+                {
+                    observe: { kind: "name", target: { role: "option", selected: true } },
+                    is: "teal",
+                },
+            ],
+        },
+        {
+            step: { action: "press", key: "ArrowLeft" },
+            then: [
+                { observe: { kind: "focused" }, is: "teal" },
+                {
+                    observe: { kind: "name", target: { role: "option", selected: true } },
+                    is: "teal",
+                },
+            ],
+        },
+    ],
 });

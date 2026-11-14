@@ -10,6 +10,7 @@ export const contextMenuOpenAtPointer = defineScenario({
     name: "open-at-pointer",
     description: "open a context menu at the pointer onto its first item",
     given: { examples: [contextMenuNoteCardActions] },
+    parameters: {},
     when: [
         {
             action: "rightClick",
@@ -17,12 +18,15 @@ export const contextMenuOpenAtPointer = defineScenario({
             position: { x: 40, y: 120 },
         },
     ],
-    then: {
-        observe: {
-            anchor: { kind: "attribute", target: { role: "menu" }, name: "data-popover-open" },
-            style: { kind: "attribute", target: { role: "menu" }, name: "style" },
-            focused: { kind: "focused" },
+    then: [
+        {
+            observe: { kind: "attribute", target: { role: "menu" }, name: "data-popover-open" },
+            is: "undefined",
         },
-        end: { anchor: "undefined", style: "--x-left: 40px; --x-top: 120px;", focused: "Open ↵" },
-    },
+        {
+            observe: { kind: "attribute", target: { role: "menu" }, name: "style" },
+            is: "--x-left: 40px; --x-top: 120px;",
+        },
+        { observe: { kind: "focused" }, is: "Open ↵" },
+    ],
 });

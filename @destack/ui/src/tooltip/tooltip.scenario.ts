@@ -10,12 +10,15 @@ export const tooltipShowOnFocus = defineScenario({
     name: "show-on-focus",
     description: "show a tooltip at once while its trigger has the focus and hide it on Escape",
     given: { examples: [tooltipArchiveButton] },
+    parameters: {},
     when: [
-        { action: "focus", target: { role: "button", name: "Archive" } },
-        { action: "press", key: "Escape" },
+        {
+            step: { action: "focus", target: { role: "button", name: "Archive" } },
+            then: [{ observe: { kind: "visible", target: { role: "tooltip" } }, is: true }],
+        },
+        {
+            step: { action: "press", key: "Escape" },
+            then: [{ observe: { kind: "visible", target: { role: "tooltip" } }, is: false }],
+        },
     ],
-    then: {
-        observe: { tooltip: { kind: "visible", target: { role: "tooltip" } } },
-        each: [{ tooltip: true }, { tooltip: false }],
-    },
 });

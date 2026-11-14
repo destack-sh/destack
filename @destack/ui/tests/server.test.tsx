@@ -74,15 +74,14 @@ test("render every exported component's examples to strings without a browser", 
     for (const [name, examples] of EXAMPLES) {
         for (const [exported, example] of Object.entries(examples)) {
             // skip the module URL the server compile adds to component modules
-            const render = isExample(example) ? example.render : undefined;
-            if (render === undefined) {
+            if (!isExample(example) || example.render === undefined) {
                 continue;
             }
 
             // render the example, recording an empty result or an error by its export
             try {
                 const html = renderToString(() => (
-                    <EnvironmentContext value={server}>{render()}</EnvironmentContext>
+                    <EnvironmentContext value={server}>{example.render?.()}</EnvironmentContext>
                 ));
                 if (html === "") {
                     failures.push(`${exported}: empty`);

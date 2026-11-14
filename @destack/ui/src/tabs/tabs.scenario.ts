@@ -11,28 +11,60 @@ export const tabsSelectWithArrowKeys = defineScenario({
     description:
         "select tabs as the arrow keys move the focus, skipping disabled tabs and wrapping",
     given: { examples: [tabsHistoryUnavailable] },
+    parameters: {},
     when: [
-        { action: "focus", target: { role: "tab", name: "Edit" } },
-        { action: "press", key: "ArrowRight" },
-        { action: "press", key: "ArrowRight" },
-        { action: "press", key: "ArrowLeft" },
-        { action: "press", key: "End" },
-        { action: "press", key: "Home" },
-    ],
-    then: {
-        observe: {
-            focused: { kind: "focused" },
-            selected: { kind: "name", target: { role: "tab", selected: true } },
+        {
+            step: { action: "focus", target: { role: "tab", name: "Edit" } },
+            then: [
+                { observe: { kind: "focused" }, is: "Edit" },
+                { observe: { kind: "name", target: { role: "tab", selected: true } }, is: "Edit" },
+            ],
         },
-        each: [
-            { focused: "Edit", selected: "Edit" },
-            { focused: "Preview", selected: "Preview" },
-            { focused: "Edit", selected: "Edit" },
-            { focused: "Preview", selected: "Preview" },
-            { focused: "Preview", selected: "Preview" },
-            { focused: "Edit", selected: "Edit" },
-        ],
-    },
+        {
+            step: { action: "press", key: "ArrowRight" },
+            then: [
+                { observe: { kind: "focused" }, is: "Preview" },
+                {
+                    observe: { kind: "name", target: { role: "tab", selected: true } },
+                    is: "Preview",
+                },
+            ],
+        },
+        {
+            step: { action: "press", key: "ArrowRight" },
+            then: [
+                { observe: { kind: "focused" }, is: "Edit" },
+                { observe: { kind: "name", target: { role: "tab", selected: true } }, is: "Edit" },
+            ],
+        },
+        {
+            step: { action: "press", key: "ArrowLeft" },
+            then: [
+                { observe: { kind: "focused" }, is: "Preview" },
+                {
+                    observe: { kind: "name", target: { role: "tab", selected: true } },
+                    is: "Preview",
+                },
+            ],
+        },
+        {
+            step: { action: "press", key: "End" },
+            then: [
+                { observe: { kind: "focused" }, is: "Preview" },
+                {
+                    observe: { kind: "name", target: { role: "tab", selected: true } },
+                    is: "Preview",
+                },
+            ],
+        },
+        {
+            step: { action: "press", key: "Home" },
+            then: [
+                { observe: { kind: "focused" }, is: "Edit" },
+                { observe: { kind: "name", target: { role: "tab", selected: true } }, is: "Edit" },
+            ],
+        },
+    ],
 });
 
 /** Move between manual tabs without selecting them. */
@@ -42,21 +74,34 @@ export const tabsMoveWithoutSelecting = defineScenario({
     name: "move-without-selecting",
     description: "move the focus without selecting in manual activation, selecting on click",
     given: { examples: [tabsManualActivation] },
+    parameters: {},
     when: [
-        { action: "focus", target: { role: "tab", name: "Edit" } },
-        { action: "press", key: "ArrowRight" },
-        { action: "click", target: { role: "tab", name: "Preview" } },
-    ],
-    then: {
-        observe: {
-            focused: { kind: "focused" },
-            selected: { kind: "name", target: { role: "tab", selected: true } },
-            panel: { kind: "text", target: { role: "tabpanel" } },
+        {
+            step: { action: "focus", target: { role: "tab", name: "Edit" } },
+            then: [
+                { observe: { kind: "focused" }, is: "Edit" },
+                { observe: { kind: "name", target: { role: "tab", selected: true } }, is: "Edit" },
+                { observe: { kind: "text", target: { role: "tabpanel" } }, is: "Editor" },
+            ],
         },
-        each: [
-            { focused: "Edit", selected: "Edit", panel: "Editor" },
-            { focused: "Preview", selected: "Edit", panel: "Editor" },
-            { focused: "Preview", selected: "Preview", panel: "Rendered" },
-        ],
-    },
+        {
+            step: { action: "press", key: "ArrowRight" },
+            then: [
+                { observe: { kind: "focused" }, is: "Preview" },
+                { observe: { kind: "name", target: { role: "tab", selected: true } }, is: "Edit" },
+                { observe: { kind: "text", target: { role: "tabpanel" } }, is: "Editor" },
+            ],
+        },
+        {
+            step: { action: "click", target: { role: "tab", name: "Preview" } },
+            then: [
+                { observe: { kind: "focused" }, is: "Preview" },
+                {
+                    observe: { kind: "name", target: { role: "tab", selected: true } },
+                    is: "Preview",
+                },
+                { observe: { kind: "text", target: { role: "tabpanel" } }, is: "Rendered" },
+            ],
+        },
+    ],
 });

@@ -11,24 +11,57 @@ export const timeFieldChooseDayPeriod = defineScenario({
     description:
         "type the hour and minute digit by digit and choose the afternoon by its letter on a 12-hour clock",
     given: { examples: [timeFieldReminder], globals: { locale: "en-US" } },
+    parameters: {},
     when: [
-        { action: "focus", target: { role: "spinbutton", name: "Hour" } },
-        { action: "press", key: "9" },
-        { action: "press", key: "4" },
-        { action: "press", key: "5" },
-        { action: "press", key: "p" },
-    ],
-    then: {
-        observe: {
-            focused: { kind: "focused" },
-            time: { kind: "text", target: { role: "group", name: "Reminder" } },
+        {
+            step: { action: "focus", target: { role: "spinbutton", name: "Hour" } },
+            then: [
+                { observe: { kind: "focused" }, is: "Hour" },
+                {
+                    observe: { kind: "text", target: { role: "group", name: "Reminder" } },
+                    is: "08:30 AM",
+                },
+            ],
         },
-        each: [
-            { focused: "Hour", time: "08:30 AM" },
-            { focused: "Minute", time: "09:30 AM" },
-            { focused: "Minute", time: "09:04 AM" },
-            { focused: "AM/PM", time: "09:45 AM" },
-            { focused: "AM/PM", time: "09:45 PM" },
-        ],
-    },
+        {
+            step: { action: "press", key: "9" },
+            then: [
+                { observe: { kind: "focused" }, is: "Minute" },
+                {
+                    observe: { kind: "text", target: { role: "group", name: "Reminder" } },
+                    is: "09:30 AM",
+                },
+            ],
+        },
+        {
+            step: { action: "press", key: "4" },
+            then: [
+                { observe: { kind: "focused" }, is: "Minute" },
+                {
+                    observe: { kind: "text", target: { role: "group", name: "Reminder" } },
+                    is: "09:04 AM",
+                },
+            ],
+        },
+        {
+            step: { action: "press", key: "5" },
+            then: [
+                { observe: { kind: "focused" }, is: "AM/PM" },
+                {
+                    observe: { kind: "text", target: { role: "group", name: "Reminder" } },
+                    is: "09:45 AM",
+                },
+            ],
+        },
+        {
+            step: { action: "press", key: "p" },
+            then: [
+                { observe: { kind: "focused" }, is: "AM/PM" },
+                {
+                    observe: { kind: "text", target: { role: "group", name: "Reminder" } },
+                    is: "09:45 PM",
+                },
+            ],
+        },
+    ],
 });

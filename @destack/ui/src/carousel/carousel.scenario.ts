@@ -10,30 +10,99 @@ export const carouselMoveWithArrowKeys = defineScenario({
     name: "move-with-arrow-keys",
     description: "move to the next and previous slide with the arrow keys, stopping at the ends",
     given: { examples: [carouselTripPhotos] },
+    parameters: {},
     when: [
-        { action: "press", key: "ArrowRight", target: { role: "button", name: "Next slide" } },
-        { action: "press", key: "ArrowRight" },
-        { action: "press", key: "ArrowRight", target: { role: "button", name: "Previous slide" } },
-        { action: "press", key: "ArrowLeft" },
-    ],
-    then: {
-        observe: {
-            previous: {
-                kind: "state",
-                target: { role: "button", name: "Previous slide" },
-                state: "disabled",
-            },
-            next: {
-                kind: "state",
+        {
+            step: {
+                action: "press",
+                key: "ArrowRight",
                 target: { role: "button", name: "Next slide" },
-                state: "disabled",
             },
+            then: [
+                {
+                    observe: {
+                        kind: "state",
+                        target: { role: "button", name: "Previous slide" },
+                        state: "disabled",
+                    },
+                    is: false,
+                },
+                {
+                    observe: {
+                        kind: "state",
+                        target: { role: "button", name: "Next slide" },
+                        state: "disabled",
+                    },
+                    is: false,
+                },
+            ],
         },
-        each: [
-            { previous: false, next: false },
-            { previous: false, next: true },
-            { previous: false, next: true },
-            { previous: false, next: false },
-        ],
-    },
+        {
+            step: { action: "press", key: "ArrowRight" },
+            then: [
+                {
+                    observe: {
+                        kind: "state",
+                        target: { role: "button", name: "Previous slide" },
+                        state: "disabled",
+                    },
+                    is: false,
+                },
+                {
+                    observe: {
+                        kind: "state",
+                        target: { role: "button", name: "Next slide" },
+                        state: "disabled",
+                    },
+                    is: true,
+                },
+            ],
+        },
+        {
+            step: {
+                action: "press",
+                key: "ArrowRight",
+                target: { role: "button", name: "Previous slide" },
+            },
+            then: [
+                {
+                    observe: {
+                        kind: "state",
+                        target: { role: "button", name: "Previous slide" },
+                        state: "disabled",
+                    },
+                    is: false,
+                },
+                {
+                    observe: {
+                        kind: "state",
+                        target: { role: "button", name: "Next slide" },
+                        state: "disabled",
+                    },
+                    is: true,
+                },
+            ],
+        },
+        {
+            step: { action: "press", key: "ArrowLeft" },
+            then: [
+                {
+                    observe: {
+                        kind: "state",
+                        target: { role: "button", name: "Previous slide" },
+                        state: "disabled",
+                    },
+                    is: false,
+                },
+                {
+                    observe: {
+                        kind: "state",
+                        target: { role: "button", name: "Next slide" },
+                        state: "disabled",
+                    },
+                    is: false,
+                },
+            ],
+        },
+    ],
 });

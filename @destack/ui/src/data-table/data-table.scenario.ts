@@ -11,21 +11,28 @@ export const dataTableMoveBetweenCells = defineScenario({
     description:
         "move the focus between a data table's cells with the arrow keys, Home and End, onto a cell's single control",
     given: { examples: [dataTableNotes] },
+    parameters: {},
     when: [
-        { action: "focus", target: { css: "tbody tr:first-child td[data-column=title]" } },
-        { action: "press", key: "ArrowDown" },
-        { action: "press", key: "ArrowRight" },
-        { action: "press", key: "Home" },
+        {
+            step: {
+                action: "focus",
+                target: { css: "tbody tr:first-child td[data-column=title]" },
+            },
+            then: [{ observe: { kind: "focused" }, is: "Groceries" }],
+        },
+        {
+            step: { action: "press", key: "ArrowDown" },
+            then: [{ observe: { kind: "focused" }, is: "Trip to Lisbon" }],
+        },
+        {
+            step: { action: "press", key: "ArrowRight" },
+            then: [{ observe: { kind: "focused" }, is: "940" }],
+        },
+        {
+            step: { action: "press", key: "Home" },
+            then: [{ observe: { kind: "focused" }, is: "Select row" }],
+        },
     ],
-    then: {
-        observe: { focused: { kind: "focused" } },
-        each: [
-            { focused: "Groceries" },
-            { focused: "Trip to Lisbon" },
-            { focused: "940" },
-            { focused: "Select row" },
-        ],
-    },
 });
 
 /** Jump to a row's ends, a page down and the grid's ends. */
@@ -36,23 +43,34 @@ export const dataTableJumpToEnds = defineScenario({
     description:
         "move the focus to a row's last cell with End, a page of rows down with Page Down, and to the grid's last and first cells with Control and End or Home",
     given: { examples: [dataTableNotes] },
+    parameters: {},
     when: [
-        { action: "focus", target: { css: "tbody tr:first-child td[data-column=title]" } },
-        { action: "press", key: "End" },
-        { action: "press", key: "PageDown" },
-        { action: "press", key: "PageUp" },
-        { action: "press", key: "Control+End" },
-        { action: "press", key: "Control+Home" },
+        {
+            step: {
+                action: "focus",
+                target: { css: "tbody tr:first-child td[data-column=title]" },
+            },
+            then: [{ observe: { kind: "focused" }, is: "Groceries" }],
+        },
+        {
+            step: { action: "press", key: "End" },
+            then: [{ observe: { kind: "focused" }, is: "18" }],
+        },
+        {
+            step: { action: "press", key: "PageDown" },
+            then: [{ observe: { kind: "focused" }, is: "455" }],
+        },
+        {
+            step: { action: "press", key: "PageUp" },
+            then: [{ observe: { kind: "focused" }, is: "Words" }],
+        },
+        {
+            step: { action: "press", key: "Control+End" },
+            then: [{ observe: { kind: "focused" }, is: "455" }],
+        },
+        {
+            step: { action: "press", key: "Control+Home" },
+            then: [{ observe: { kind: "focused" }, is: "Select all" }],
+        },
     ],
-    then: {
-        observe: { focused: { kind: "focused" } },
-        each: [
-            { focused: "Groceries" },
-            { focused: "18" },
-            { focused: "455" },
-            { focused: "Words" },
-            { focused: "455" },
-            { focused: "Select all" },
-        ],
-    },
 });

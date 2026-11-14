@@ -10,20 +10,37 @@ export const inputOTPFillSlots = defineScenario({
     name: "fill-slots",
     description: "show each typed digit in its slot and report the code once every slot holds one",
     given: { examples: [inputOTPSignInCode] },
+    parameters: {},
     when: [
-        { action: "focus", target: { label: "Sign-in code" } },
-        { action: "fill", target: { label: "Sign-in code" }, value: "12" },
-        { action: "fill", target: { label: "Sign-in code" }, value: "123456" },
-    ],
-    then: {
-        observe: {
-            slots: { kind: "texts", target: { css: "[data-slot=input-otp-slot]" } },
-            status: { kind: "texts", target: { role: "status" } },
+        {
+            step: { action: "focus", target: { label: "Sign-in code" } },
+            then: [
+                {
+                    observe: { kind: "texts", target: { css: "[data-slot=input-otp-slot]" } },
+                    is: ["", "", "", "", "", ""],
+                },
+                { observe: { kind: "texts", target: { role: "status" } }, is: [] },
+            ],
         },
-        each: [
-            { slots: ["", "", "", "", "", ""], status: [] },
-            { slots: ["1", "2", "", "", "", ""], status: [] },
-            { slots: ["1", "2", "3", "4", "5", "6"], status: ["Checking 123456"] },
-        ],
-    },
+        {
+            step: { action: "fill", target: { label: "Sign-in code" }, value: "12" },
+            then: [
+                {
+                    observe: { kind: "texts", target: { css: "[data-slot=input-otp-slot]" } },
+                    is: ["1", "2", "", "", "", ""],
+                },
+                { observe: { kind: "texts", target: { role: "status" } }, is: [] },
+            ],
+        },
+        {
+            step: { action: "fill", target: { label: "Sign-in code" }, value: "123456" },
+            then: [
+                {
+                    observe: { kind: "texts", target: { css: "[data-slot=input-otp-slot]" } },
+                    is: ["1", "2", "3", "4", "5", "6"],
+                },
+                { observe: { kind: "texts", target: { role: "status" } }, is: ["Checking 123456"] },
+            ],
+        },
+    ],
 });

@@ -10,46 +10,191 @@ export const treeMoveThroughItems = defineScenario({
     name: "move-through-items",
     description: "move through visible items, expand and enter parents, and return to them",
     given: { examples: [treeWorkExpanded] },
+    parameters: {},
     when: [
-        { action: "focus", target: { role: "treeitem", name: "Trips" } },
-        { action: "press", key: "ArrowDown" },
-        { action: "press", key: "ArrowDown" },
-        { action: "press", key: "ArrowUp" },
-        { action: "press", key: "ArrowUp" },
-        { action: "press", key: "ArrowRight" },
-        { action: "press", key: "ArrowRight" },
-        { action: "press", key: "ArrowDown" },
-        { action: "press", key: "ArrowLeft" },
-        { action: "press", key: "ArrowLeft" },
-        { action: "press", key: "End" },
-        { action: "press", key: "Home" },
-        { action: "press", key: "r" },
-    ],
-    then: {
-        observe: {
-            focused: { kind: "focused" },
-            trips: {
-                kind: "state",
-                target: { role: "treeitem", name: "Trips" },
-                state: "expanded",
-            },
+        {
+            step: { action: "focus", target: { role: "treeitem", name: "Trips" } },
+            then: [
+                { observe: { kind: "focused" }, is: "Trips" },
+                {
+                    observe: {
+                        kind: "state",
+                        target: { role: "treeitem", name: "Trips" },
+                        state: "expanded",
+                    },
+                    is: false,
+                },
+            ],
         },
-        each: [
-            { focused: "Trips", trips: false },
-            { focused: "Work", trips: false },
-            { focused: "Plans", trips: false },
-            { focused: "Work", trips: false },
-            { focused: "Trips", trips: false },
-            { focused: "Trips", trips: true },
-            { focused: "Lisbon", trips: true },
-            { focused: "Porto", trips: true },
-            { focused: "Trips", trips: true },
-            { focused: "Trips", trips: false },
-            { focused: "Recipes", trips: false },
-            { focused: "Trips", trips: false },
-            { focused: "Recipes", trips: false },
-        ],
-    },
+        {
+            step: { action: "press", key: "ArrowDown" },
+            then: [
+                { observe: { kind: "focused" }, is: "Work" },
+                {
+                    observe: {
+                        kind: "state",
+                        target: { role: "treeitem", name: "Trips" },
+                        state: "expanded",
+                    },
+                    is: false,
+                },
+            ],
+        },
+        {
+            step: { action: "press", key: "ArrowDown" },
+            then: [
+                { observe: { kind: "focused" }, is: "Plans" },
+                {
+                    observe: {
+                        kind: "state",
+                        target: { role: "treeitem", name: "Trips" },
+                        state: "expanded",
+                    },
+                    is: false,
+                },
+            ],
+        },
+        {
+            step: { action: "press", key: "ArrowUp" },
+            then: [
+                { observe: { kind: "focused" }, is: "Work" },
+                {
+                    observe: {
+                        kind: "state",
+                        target: { role: "treeitem", name: "Trips" },
+                        state: "expanded",
+                    },
+                    is: false,
+                },
+            ],
+        },
+        {
+            step: { action: "press", key: "ArrowUp" },
+            then: [
+                { observe: { kind: "focused" }, is: "Trips" },
+                {
+                    observe: {
+                        kind: "state",
+                        target: { role: "treeitem", name: "Trips" },
+                        state: "expanded",
+                    },
+                    is: false,
+                },
+            ],
+        },
+        {
+            step: { action: "press", key: "ArrowRight" },
+            then: [
+                { observe: { kind: "focused" }, is: "Trips" },
+                {
+                    observe: {
+                        kind: "state",
+                        target: { role: "treeitem", name: "Trips" },
+                        state: "expanded",
+                    },
+                    is: true,
+                },
+            ],
+        },
+        {
+            step: { action: "press", key: "ArrowRight" },
+            then: [
+                { observe: { kind: "focused" }, is: "Lisbon" },
+                {
+                    observe: {
+                        kind: "state",
+                        target: { role: "treeitem", name: "Trips" },
+                        state: "expanded",
+                    },
+                    is: true,
+                },
+            ],
+        },
+        {
+            step: { action: "press", key: "ArrowDown" },
+            then: [
+                { observe: { kind: "focused" }, is: "Porto" },
+                {
+                    observe: {
+                        kind: "state",
+                        target: { role: "treeitem", name: "Trips" },
+                        state: "expanded",
+                    },
+                    is: true,
+                },
+            ],
+        },
+        {
+            step: { action: "press", key: "ArrowLeft" },
+            then: [
+                { observe: { kind: "focused" }, is: "Trips" },
+                {
+                    observe: {
+                        kind: "state",
+                        target: { role: "treeitem", name: "Trips" },
+                        state: "expanded",
+                    },
+                    is: true,
+                },
+            ],
+        },
+        {
+            step: { action: "press", key: "ArrowLeft" },
+            then: [
+                { observe: { kind: "focused" }, is: "Trips" },
+                {
+                    observe: {
+                        kind: "state",
+                        target: { role: "treeitem", name: "Trips" },
+                        state: "expanded",
+                    },
+                    is: false,
+                },
+            ],
+        },
+        {
+            step: { action: "press", key: "End" },
+            then: [
+                { observe: { kind: "focused" }, is: "Recipes" },
+                {
+                    observe: {
+                        kind: "state",
+                        target: { role: "treeitem", name: "Trips" },
+                        state: "expanded",
+                    },
+                    is: false,
+                },
+            ],
+        },
+        {
+            step: { action: "press", key: "Home" },
+            then: [
+                { observe: { kind: "focused" }, is: "Trips" },
+                {
+                    observe: {
+                        kind: "state",
+                        target: { role: "treeitem", name: "Trips" },
+                        state: "expanded",
+                    },
+                    is: false,
+                },
+            ],
+        },
+        {
+            step: { action: "press", key: "r" },
+            then: [
+                { observe: { kind: "focused" }, is: "Recipes" },
+                {
+                    observe: {
+                        kind: "state",
+                        target: { role: "treeitem", name: "Trips" },
+                        state: "expanded",
+                    },
+                    is: false,
+                },
+            ],
+        },
+    ],
 });
 
 /** Select tree items with Enter and a click. */
@@ -59,20 +204,29 @@ export const treeSelectWithEnterAndClick = defineScenario({
     name: "select-with-enter-and-click",
     description: "select the focused item with Enter and a clicked item, reporting each",
     given: { examples: [treeWorkExpanded] },
+    parameters: {},
     when: [
-        { action: "press", key: "Enter", target: { role: "treeitem", name: "Recipes" } },
-        { action: "click", target: { role: "treeitem", name: "Plans" } },
-    ],
-    then: {
-        observe: {
-            selected: { kind: "texts", target: { role: "treeitem", selected: true } },
-            reported: { kind: "text", target: { role: "status" } },
+        {
+            step: { action: "press", key: "Enter", target: { role: "treeitem", name: "Recipes" } },
+            then: [
+                {
+                    observe: { kind: "texts", target: { role: "treeitem", selected: true } },
+                    is: ["Recipes"],
+                },
+                { observe: { kind: "text", target: { role: "status" } }, is: "recipes" },
+            ],
         },
-        each: [
-            { selected: ["Recipes"], reported: "recipes" },
-            { selected: ["Plans"], reported: "plans" },
-        ],
-    },
+        {
+            step: { action: "click", target: { role: "treeitem", name: "Plans" } },
+            then: [
+                {
+                    observe: { kind: "texts", target: { role: "treeitem", selected: true } },
+                    is: ["Plans"],
+                },
+                { observe: { kind: "text", target: { role: "status" } }, is: "plans" },
+            ],
+        },
+    ],
 });
 
 /** Keep the focus on a letter typed with a shortcut modifier. */
@@ -82,11 +236,12 @@ export const treeIgnoreShortcutLetters = defineScenario({
     name: "ignore-shortcut-letters",
     description: "leave the focus in place on a letter typed with a shortcut modifier",
     given: { examples: [treeWorkExpanded] },
+    parameters: {},
     when: [
         { action: "focus", target: { role: "treeitem", name: "Trips" } },
         { action: "press", key: "Control+r" },
         { action: "press", key: "Meta+r" },
         { action: "press", key: "Alt+r" },
     ],
-    then: { observe: { focused: { kind: "focused" } }, end: { focused: "Trips" } },
+    then: [{ observe: { kind: "focused" }, is: "Trips" }],
 });

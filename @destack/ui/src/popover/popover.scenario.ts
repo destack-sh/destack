@@ -11,22 +11,35 @@ export const popoverRefocusTriggerOnClose = defineScenario({
     description:
         "close a modal popover from its close button and hand the focus back to its trigger",
     given: { examples: [popoverRenameModal] },
+    parameters: {},
     when: [
-        { action: "focus", target: { role: "textbox", name: "Title" } },
-        { action: "click", target: { role: "button", name: "Save" } },
-    ],
-    then: {
-        observe: {
-            focused: { kind: "focused" },
-            expanded: {
-                kind: "state",
-                target: { role: "button", name: "Rename" },
-                state: "expanded",
-            },
+        {
+            step: { action: "focus", target: { role: "textbox", name: "Title" } },
+            then: [
+                { observe: { kind: "focused" }, is: "Title" },
+                {
+                    observe: {
+                        kind: "state",
+                        target: { role: "button", name: "Rename" },
+                        state: "expanded",
+                    },
+                    is: true,
+                },
+            ],
         },
-        each: [
-            { focused: "Title", expanded: true },
-            { focused: "Rename", expanded: false },
-        ],
-    },
+        {
+            step: { action: "click", target: { role: "button", name: "Save" } },
+            then: [
+                { observe: { kind: "focused" }, is: "Rename" },
+                {
+                    observe: {
+                        kind: "state",
+                        target: { role: "button", name: "Rename" },
+                        state: "expanded",
+                    },
+                    is: false,
+                },
+            ],
+        },
+    ],
 });

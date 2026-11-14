@@ -11,26 +11,67 @@ export const gridListMoveAndPick = defineScenario({
     description:
         "move the focused cell along a row, down a column across a section's heading and to the row's end, and pick it with Enter",
     given: { examples: [gridListSymbols] },
+    parameters: {},
     when: [
-        { action: "focus", target: { role: "grid", name: "Symbols" } },
-        { action: "press", key: "ArrowRight" },
-        { action: "press", key: "ArrowDown" },
-        { action: "press", key: "ArrowDown" },
-        { action: "press", key: "End" },
-        { action: "press", key: "Enter" },
-    ],
-    then: {
-        observe: {
-            focused: { kind: "name", target: { role: "gridcell", selected: true } },
-            picked: { kind: "text", target: { role: "status" } },
+        {
+            step: { action: "focus", target: { role: "grid", name: "Symbols" } },
+            then: [
+                {
+                    observe: { kind: "name", target: { role: "gridcell", selected: true } },
+                    is: "plus-minus",
+                },
+                { observe: { kind: "text", target: { role: "status" } }, is: "" },
+            ],
         },
-        each: [
-            { focused: "plus-minus", picked: "" },
-            { focused: "multiplication", picked: "" },
-            { focused: "almost equal", picked: "" },
-            { focused: "summation", picked: "" },
-            { focused: "square root", picked: "" },
-            { focused: "square root", picked: "square root" },
-        ],
-    },
+        {
+            step: { action: "press", key: "ArrowRight" },
+            then: [
+                {
+                    observe: { kind: "name", target: { role: "gridcell", selected: true } },
+                    is: "multiplication",
+                },
+                { observe: { kind: "text", target: { role: "status" } }, is: "" },
+            ],
+        },
+        {
+            step: { action: "press", key: "ArrowDown" },
+            then: [
+                {
+                    observe: { kind: "name", target: { role: "gridcell", selected: true } },
+                    is: "almost equal",
+                },
+                { observe: { kind: "text", target: { role: "status" } }, is: "" },
+            ],
+        },
+        {
+            step: { action: "press", key: "ArrowDown" },
+            then: [
+                {
+                    observe: { kind: "name", target: { role: "gridcell", selected: true } },
+                    is: "summation",
+                },
+                { observe: { kind: "text", target: { role: "status" } }, is: "" },
+            ],
+        },
+        {
+            step: { action: "press", key: "End" },
+            then: [
+                {
+                    observe: { kind: "name", target: { role: "gridcell", selected: true } },
+                    is: "square root",
+                },
+                { observe: { kind: "text", target: { role: "status" } }, is: "" },
+            ],
+        },
+        {
+            step: { action: "press", key: "Enter" },
+            then: [
+                {
+                    observe: { kind: "name", target: { role: "gridcell", selected: true } },
+                    is: "square root",
+                },
+                { observe: { kind: "text", target: { role: "status" } }, is: "square root" },
+            ],
+        },
+    ],
 });

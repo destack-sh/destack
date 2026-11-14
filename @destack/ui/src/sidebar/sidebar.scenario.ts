@@ -10,18 +10,33 @@ export const sidebarToggleWithShortcut = defineScenario({
     name: "toggle-with-shortcut",
     description: "collapse and expand the sidebar with Control+B or Meta+B",
     given: { examples: [sidebarNotebooks] },
+    parameters: {},
     when: [
-        { action: "press", key: "Control+b" },
-        { action: "press", key: "Meta+b" },
-    ],
-    then: {
-        observe: {
-            expanded: {
-                kind: "state",
-                target: { role: "button", name: "Toggle sidebar", nth: 1 },
-                state: "expanded",
-            },
+        {
+            step: { action: "press", key: "Control+b" },
+            then: [
+                {
+                    observe: {
+                        kind: "state",
+                        target: { role: "button", name: "Toggle sidebar", nth: 1 },
+                        state: "expanded",
+                    },
+                    is: false,
+                },
+            ],
         },
-        each: [{ expanded: false }, { expanded: true }],
-    },
+        {
+            step: { action: "press", key: "Meta+b" },
+            then: [
+                {
+                    observe: {
+                        kind: "state",
+                        target: { role: "button", name: "Toggle sidebar", nth: 1 },
+                        state: "expanded",
+                    },
+                    is: true,
+                },
+            ],
+        },
+    ],
 });

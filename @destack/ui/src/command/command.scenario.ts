@@ -11,28 +11,69 @@ export const commandMoveHighlightWithArrowKeys = defineScenario({
     description:
         "move the highlight with the arrow keys past disabled options, stopping at the ends, and choose with Enter",
     given: { examples: [commandNoteCommands] },
+    parameters: {},
     when: [
-        { action: "focus", target: { role: "combobox" } },
-        { action: "press", key: "ArrowDown" },
-        { action: "press", key: "ArrowDown" },
-        { action: "press", key: "ArrowDown" },
-        { action: "press", key: "ArrowUp" },
-        { action: "press", key: "Enter" },
-    ],
-    then: {
-        observe: {
-            highlighted: { kind: "name", target: { role: "option", selected: true } },
-            chosen: { kind: "text", target: { role: "status" } },
+        {
+            step: { action: "focus", target: { role: "combobox" } },
+            then: [
+                {
+                    observe: { kind: "name", target: { role: "option", selected: true } },
+                    is: "New note",
+                },
+                { observe: { kind: "text", target: { role: "status" } }, is: "" },
+            ],
         },
-        each: [
-            { highlighted: "New note", chosen: "" },
-            { highlighted: "Delete note", chosen: "" },
-            { highlighted: "Appearance", chosen: "" },
-            { highlighted: "Appearance", chosen: "" },
-            { highlighted: "Delete note", chosen: "" },
-            { highlighted: "Delete note", chosen: "Delete note" },
-        ],
-    },
+        {
+            step: { action: "press", key: "ArrowDown" },
+            then: [
+                {
+                    observe: { kind: "name", target: { role: "option", selected: true } },
+                    is: "Delete note",
+                },
+                { observe: { kind: "text", target: { role: "status" } }, is: "" },
+            ],
+        },
+        {
+            step: { action: "press", key: "ArrowDown" },
+            then: [
+                {
+                    observe: { kind: "name", target: { role: "option", selected: true } },
+                    is: "Appearance",
+                },
+                { observe: { kind: "text", target: { role: "status" } }, is: "" },
+            ],
+        },
+        {
+            step: { action: "press", key: "ArrowDown" },
+            then: [
+                {
+                    observe: { kind: "name", target: { role: "option", selected: true } },
+                    is: "Appearance",
+                },
+                { observe: { kind: "text", target: { role: "status" } }, is: "" },
+            ],
+        },
+        {
+            step: { action: "press", key: "ArrowUp" },
+            then: [
+                {
+                    observe: { kind: "name", target: { role: "option", selected: true } },
+                    is: "Delete note",
+                },
+                { observe: { kind: "text", target: { role: "status" } }, is: "" },
+            ],
+        },
+        {
+            step: { action: "press", key: "Enter" },
+            then: [
+                {
+                    observe: { kind: "name", target: { role: "option", selected: true } },
+                    is: "Delete note",
+                },
+                { observe: { kind: "text", target: { role: "status" } }, is: "Delete note" },
+            ],
+        },
+    ],
 });
 
 /** Follow a highlight its owner holds. */
@@ -42,20 +83,29 @@ export const commandFollowControlledHighlight = defineScenario({
     name: "follow-controlled-highlight",
     description: "follow a controlled highlight and report the value the arrow keys move to",
     given: { examples: [commandControlledHighlight] },
+    parameters: {},
     when: [
-        { action: "press", key: "ArrowUp", target: { role: "combobox" } },
-        { action: "set", properties: { value: "New note" } },
-    ],
-    then: {
-        observe: {
-            highlighted: { kind: "name", target: { role: "option", selected: true } },
-            requested: { kind: "text", target: { role: "status" } },
+        {
+            step: { action: "press", key: "ArrowUp", target: { role: "combobox" } },
+            then: [
+                {
+                    observe: { kind: "name", target: { role: "option", selected: true } },
+                    is: "Appearance",
+                },
+                { observe: { kind: "text", target: { role: "status" } }, is: "New note" },
+            ],
         },
-        each: [
-            { highlighted: "Appearance", requested: "New note" },
-            { highlighted: "New note", requested: "New note" },
-        ],
-    },
+        {
+            step: { action: "set", properties: { value: "New note" } },
+            then: [
+                {
+                    observe: { kind: "name", target: { role: "option", selected: true } },
+                    is: "New note",
+                },
+                { observe: { kind: "text", target: { role: "status" } }, is: "New note" },
+            ],
+        },
+    ],
 });
 
 /** Jump to the first and last options with Home and End. */
@@ -66,17 +116,34 @@ export const commandJumpToEnds = defineScenario({
     description:
         "move the highlight to the last enabled option with End and back to the first with Home",
     given: { examples: [commandNoteCommands] },
+    parameters: {},
     when: [
-        { action: "focus", target: { role: "combobox" } },
-        { action: "press", key: "End" },
-        { action: "press", key: "Home" },
+        {
+            step: { action: "focus", target: { role: "combobox" } },
+            then: [
+                {
+                    observe: { kind: "name", target: { role: "option", selected: true } },
+                    is: "New note",
+                },
+            ],
+        },
+        {
+            step: { action: "press", key: "End" },
+            then: [
+                {
+                    observe: { kind: "name", target: { role: "option", selected: true } },
+                    is: "Appearance",
+                },
+            ],
+        },
+        {
+            step: { action: "press", key: "Home" },
+            then: [
+                {
+                    observe: { kind: "name", target: { role: "option", selected: true } },
+                    is: "New note",
+                },
+            ],
+        },
     ],
-    then: {
-        observe: { highlighted: { kind: "name", target: { role: "option", selected: true } } },
-        each: [
-            { highlighted: "New note" },
-            { highlighted: "Appearance" },
-            { highlighted: "New note" },
-        ],
-    },
 });

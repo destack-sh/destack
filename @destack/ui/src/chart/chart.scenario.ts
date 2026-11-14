@@ -11,17 +11,34 @@ export const chartMoveBetweenPoints = defineScenario({
     description:
         "focus a chart to focus its first point, then move to the next point and back with the arrow keys, each announced in a status",
     given: { examples: [chartBar] },
+    parameters: {},
     when: [
-        { action: "focus", target: { role: "img", name: "Notes per notebook" } },
-        { action: "press", key: "ArrowRight" },
-        { action: "press", key: "ArrowLeft" },
+        {
+            step: { action: "focus", target: { role: "img", name: "Notes per notebook" } },
+            then: [
+                {
+                    observe: { kind: "name", target: { role: "status" } },
+                    is: "Notebook: Work\nNotes: 93",
+                },
+            ],
+        },
+        {
+            step: { action: "press", key: "ArrowRight" },
+            then: [
+                {
+                    observe: { kind: "name", target: { role: "status" } },
+                    is: "Notebook: Trips\nNotes: 36",
+                },
+            ],
+        },
+        {
+            step: { action: "press", key: "ArrowLeft" },
+            then: [
+                {
+                    observe: { kind: "name", target: { role: "status" } },
+                    is: "Notebook: Work\nNotes: 93",
+                },
+            ],
+        },
     ],
-    then: {
-        observe: { announced: { kind: "name", target: { role: "status" } } },
-        each: [
-            { announced: "Notebook: Work\nNotes: 93" },
-            { announced: "Notebook: Trips\nNotes: 36" },
-            { announced: "Notebook: Work\nNotes: 93" },
-        ],
-    },
 });

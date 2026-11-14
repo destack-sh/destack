@@ -13,27 +13,57 @@ export const navigationMenuClosePanelOnEscape = defineScenario({
     name: "close-panel-on-escape",
     description: "disclose a navigation menu's panel from its trigger and close it on Escape",
     given: { examples: [navigationMenuSiteNavigation] },
+    parameters: {},
     when: [
-        { action: "click", target: { role: "button", name: "Products" } },
-        { action: "focus", target: { role: "link", name: "Tasks" } },
-        { action: "press", key: "Escape" },
-    ],
-    then: {
-        observe: {
-            expanded: {
-                kind: "state",
-                target: { role: "button", name: "Products" },
-                state: "expanded",
-            },
-            panel: { kind: "visible", target: { role: "link", name: "Tasks" } },
-            focused: { kind: "focused" },
+        {
+            step: { action: "click", target: { role: "button", name: "Products" } },
+            then: [
+                {
+                    observe: {
+                        kind: "state",
+                        target: { role: "button", name: "Products" },
+                        state: "expanded",
+                    },
+                    is: true,
+                },
+                { observe: { kind: "visible", target: { role: "link", name: "Tasks" } }, is: true },
+                { observe: { kind: "focused" }, is: "Products" },
+            ],
         },
-        each: [
-            { expanded: true, panel: true, focused: "Products" },
-            { expanded: true, panel: true, focused: "Tasks" },
-            { expanded: false, panel: false, focused: "Products" },
-        ],
-    },
+        {
+            step: { action: "focus", target: { role: "link", name: "Tasks" } },
+            then: [
+                {
+                    observe: {
+                        kind: "state",
+                        target: { role: "button", name: "Products" },
+                        state: "expanded",
+                    },
+                    is: true,
+                },
+                { observe: { kind: "visible", target: { role: "link", name: "Tasks" } }, is: true },
+                { observe: { kind: "focused" }, is: "Tasks" },
+            ],
+        },
+        {
+            step: { action: "press", key: "Escape" },
+            then: [
+                {
+                    observe: {
+                        kind: "state",
+                        target: { role: "button", name: "Products" },
+                        state: "expanded",
+                    },
+                    is: false,
+                },
+                {
+                    observe: { kind: "visible", target: { role: "link", name: "Tasks" } },
+                    is: false,
+                },
+                { observe: { kind: "focused" }, is: "Products" },
+            ],
+        },
+    ],
 });
 
 /** Move between a navigation menu's top-level entries. */
@@ -44,24 +74,49 @@ export const navigationMenuMoveBetweenEntries = defineScenario({
     description:
         "move between a navigation menu's top-level entries with left and right, leaving the panel's links out",
     given: { examples: [navigationMenuSiteNavigation] },
+    parameters: {},
     when: [
-        { action: "focus", target: { role: "button", name: "Products" } },
-        { action: "press", key: "ArrowRight" },
-        { action: "press", key: "ArrowRight" },
-        { action: "press", key: "ArrowLeft" },
-    ],
-    then: {
-        observe: {
-            focused: { kind: "focused" },
-            current: { kind: "name", target: { css: "[aria-current=page]" } },
+        {
+            step: { action: "focus", target: { role: "button", name: "Products" } },
+            then: [
+                { observe: { kind: "focused" }, is: "Products" },
+                {
+                    observe: { kind: "name", target: { css: "[aria-current=page]" } },
+                    is: "Pricing",
+                },
+            ],
         },
-        each: [
-            { focused: "Products", current: "Pricing" },
-            { focused: "Pricing", current: "Pricing" },
-            { focused: "Products", current: "Pricing" },
-            { focused: "Pricing", current: "Pricing" },
-        ],
-    },
+        {
+            step: { action: "press", key: "ArrowRight" },
+            then: [
+                { observe: { kind: "focused" }, is: "Pricing" },
+                {
+                    observe: { kind: "name", target: { css: "[aria-current=page]" } },
+                    is: "Pricing",
+                },
+            ],
+        },
+        {
+            step: { action: "press", key: "ArrowRight" },
+            then: [
+                { observe: { kind: "focused" }, is: "Products" },
+                {
+                    observe: { kind: "name", target: { css: "[aria-current=page]" } },
+                    is: "Pricing",
+                },
+            ],
+        },
+        {
+            step: { action: "press", key: "ArrowLeft" },
+            then: [
+                { observe: { kind: "focused" }, is: "Pricing" },
+                {
+                    observe: { kind: "name", target: { css: "[aria-current=page]" } },
+                    is: "Pricing",
+                },
+            ],
+        },
+    ],
 });
 
 /** Carry Tab through an open navigation panel. */
@@ -72,19 +127,23 @@ export const navigationMenuTabThroughPanel = defineScenario({
     description:
         "carry Tab from an open trigger into its panel and from the panel's last link on to the next trigger",
     given: { examples: [navigationMenuTwoPanels] },
+    parameters: {},
     when: [
-        { action: "click", target: { role: "button", name: "Products" } },
-        { action: "press", key: "Tab" },
-        { action: "focus", target: { role: "link", name: "Tasks" } },
-        { action: "press", key: "Tab" },
+        {
+            step: { action: "click", target: { role: "button", name: "Products" } },
+            then: [{ observe: { kind: "focused" }, is: "Products" }],
+        },
+        {
+            step: { action: "press", key: "Tab" },
+            then: [{ observe: { kind: "focused" }, is: "Notes" }],
+        },
+        {
+            step: { action: "focus", target: { role: "link", name: "Tasks" } },
+            then: [{ observe: { kind: "focused" }, is: "Tasks" }],
+        },
+        {
+            step: { action: "press", key: "Tab" },
+            then: [{ observe: { kind: "focused" }, is: "Company" }],
+        },
     ],
-    then: {
-        observe: { focused: { kind: "focused" } },
-        each: [
-            { focused: "Products" },
-            { focused: "Notes" },
-            { focused: "Tasks" },
-            { focused: "Company" },
-        ],
-    },
 });

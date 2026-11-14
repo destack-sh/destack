@@ -14,31 +14,90 @@ export const resizablePanelGroupMoveWithKeys = defineScenario({
     description:
         "move a splitter by a step with the arrow keys and to its limits with Home and End",
     given: { examples: [resizablePanelGroupNotebookSplit] },
+    parameters: {},
     when: [
-        { action: "focus", target: { role: "separator", name: "Resize the notebook list" } },
-        { action: "press", key: "ArrowRight" },
-        { action: "press", key: "ArrowRight" },
-        { action: "press", key: "ArrowRight" },
-        { action: "press", key: "Home" },
-        { action: "press", key: "End" },
-    ],
-    then: {
-        observe: {
-            share: {
-                kind: "attribute",
+        {
+            step: {
+                action: "focus",
                 target: { role: "separator", name: "Resize the notebook list" },
-                name: "aria-valuenow",
             },
+            then: [
+                {
+                    observe: {
+                        kind: "attribute",
+                        target: { role: "separator", name: "Resize the notebook list" },
+                        name: "aria-valuenow",
+                    },
+                    is: "30",
+                },
+            ],
         },
-        each: [
-            { share: "30" },
-            { share: "40" },
-            { share: "50" },
-            { share: "50" },
-            { share: "20" },
-            { share: "50" },
-        ],
-    },
+        {
+            step: { action: "press", key: "ArrowRight" },
+            then: [
+                {
+                    observe: {
+                        kind: "attribute",
+                        target: { role: "separator", name: "Resize the notebook list" },
+                        name: "aria-valuenow",
+                    },
+                    is: "40",
+                },
+            ],
+        },
+        {
+            step: { action: "press", key: "ArrowRight" },
+            then: [
+                {
+                    observe: {
+                        kind: "attribute",
+                        target: { role: "separator", name: "Resize the notebook list" },
+                        name: "aria-valuenow",
+                    },
+                    is: "50",
+                },
+            ],
+        },
+        {
+            step: { action: "press", key: "ArrowRight" },
+            then: [
+                {
+                    observe: {
+                        kind: "attribute",
+                        target: { role: "separator", name: "Resize the notebook list" },
+                        name: "aria-valuenow",
+                    },
+                    is: "50",
+                },
+            ],
+        },
+        {
+            step: { action: "press", key: "Home" },
+            then: [
+                {
+                    observe: {
+                        kind: "attribute",
+                        target: { role: "separator", name: "Resize the notebook list" },
+                        name: "aria-valuenow",
+                    },
+                    is: "20",
+                },
+            ],
+        },
+        {
+            step: { action: "press", key: "End" },
+            then: [
+                {
+                    observe: {
+                        kind: "attribute",
+                        target: { role: "separator", name: "Resize the notebook list" },
+                        name: "aria-valuenow",
+                    },
+                    is: "50",
+                },
+            ],
+        },
+    ],
 });
 
 /** Collapse a collapsible panel with Enter and restore it. */
@@ -49,19 +108,49 @@ export const resizablePanelGroupCollapseWithEnter = defineScenario({
     description:
         "collapse a collapsible panel with Enter on its splitter and restore it to its smallest share",
     given: { examples: [resizablePanelGroupNotebookCollapsed] },
+    parameters: {},
     when: [
-        { action: "focus", target: { role: "separator", name: "Resize the notebook list" } },
-        { action: "press", key: "Enter" },
-        { action: "press", key: "Enter" },
-    ],
-    then: {
-        observe: {
-            share: {
-                kind: "attribute",
+        {
+            step: {
+                action: "focus",
                 target: { role: "separator", name: "Resize the notebook list" },
-                name: "aria-valuenow",
             },
+            then: [
+                {
+                    observe: {
+                        kind: "attribute",
+                        target: { role: "separator", name: "Resize the notebook list" },
+                        name: "aria-valuenow",
+                    },
+                    is: "0",
+                },
+            ],
         },
-        each: [{ share: "0" }, { share: "20" }, { share: "0" }],
-    },
+        {
+            step: { action: "press", key: "Enter" },
+            then: [
+                {
+                    observe: {
+                        kind: "attribute",
+                        target: { role: "separator", name: "Resize the notebook list" },
+                        name: "aria-valuenow",
+                    },
+                    is: "20",
+                },
+            ],
+        },
+        {
+            step: { action: "press", key: "Enter" },
+            then: [
+                {
+                    observe: {
+                        kind: "attribute",
+                        target: { role: "separator", name: "Resize the notebook list" },
+                        name: "aria-valuenow",
+                    },
+                    is: "0",
+                },
+            ],
+        },
+    ],
 });

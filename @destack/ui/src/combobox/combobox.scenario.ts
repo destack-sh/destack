@@ -10,30 +10,64 @@ export const comboboxTypeAndChooseOption = defineScenario({
     name: "type-and-choose-option",
     description: "open a combobox's list as the person types, choose an option and close it",
     given: { examples: [comboboxMoveNote] },
+    parameters: {},
     when: [
-        { action: "fill", target: { role: "combobox", name: "Notebook" }, value: "wo" },
-        { action: "press", key: "Enter" },
-    ],
-    then: {
-        observe: {
-            expanded: {
-                kind: "state",
-                target: { role: "combobox", name: "Notebook" },
-                state: "expanded",
-            },
-            anchor: {
-                kind: "attribute",
-                target: { css: "[role=listbox]" },
-                name: "data-popover-open",
-            },
-            highlighted: { kind: "texts", target: { role: "option", selected: true } },
-            value: { kind: "value", target: { role: "combobox", name: "Notebook" } },
+        {
+            step: { action: "fill", target: { role: "combobox", name: "Notebook" }, value: "wo" },
+            then: [
+                {
+                    observe: {
+                        kind: "state",
+                        target: { role: "combobox", name: "Notebook" },
+                        state: "expanded",
+                    },
+                    is: true,
+                },
+                {
+                    observe: {
+                        kind: "attribute",
+                        target: { css: "[role=listbox]" },
+                        name: "data-popover-open",
+                    },
+                    is: "combobox-input",
+                },
+                {
+                    observe: { kind: "texts", target: { role: "option", selected: true } },
+                    is: ["Work"],
+                },
+                {
+                    observe: { kind: "value", target: { role: "combobox", name: "Notebook" } },
+                    is: "wo",
+                },
+            ],
         },
-        each: [
-            { expanded: true, anchor: "combobox-input", highlighted: ["Work"], value: "wo" },
-            { expanded: false, anchor: null, highlighted: [], value: "Work" },
-        ],
-    },
+        {
+            step: { action: "press", key: "Enter" },
+            then: [
+                {
+                    observe: {
+                        kind: "state",
+                        target: { role: "combobox", name: "Notebook" },
+                        state: "expanded",
+                    },
+                    is: false,
+                },
+                {
+                    observe: {
+                        kind: "attribute",
+                        target: { css: "[role=listbox]" },
+                        name: "data-popover-open",
+                    },
+                    is: null,
+                },
+                { observe: { kind: "texts", target: { role: "option", selected: true } }, is: [] },
+                {
+                    observe: { kind: "value", target: { role: "combobox", name: "Notebook" } },
+                    is: "Work",
+                },
+            ],
+        },
+    ],
 });
 
 /** Close a combobox's list with Escape and clear it with a second Escape. */
@@ -44,30 +78,94 @@ export const comboboxCloseAndClearOnEscape = defineScenario({
     description:
         "open a combobox's list with the down arrow key and close it with Escape, then clear the input",
     given: { examples: [comboboxMoveNote] },
+    parameters: {},
     when: [
-        { action: "fill", target: { role: "combobox", name: "Notebook" }, value: "tr" },
-        { action: "press", key: "Escape" },
-        { action: "press", key: "ArrowDown" },
-        { action: "press", key: "Escape" },
-        { action: "press", key: "Escape" },
-    ],
-    then: {
-        observe: {
-            expanded: {
-                kind: "state",
-                target: { role: "combobox", name: "Notebook" },
-                state: "expanded",
-            },
-            value: { kind: "value", target: { role: "combobox", name: "Notebook" } },
+        {
+            step: { action: "fill", target: { role: "combobox", name: "Notebook" }, value: "tr" },
+            then: [
+                {
+                    observe: {
+                        kind: "state",
+                        target: { role: "combobox", name: "Notebook" },
+                        state: "expanded",
+                    },
+                    is: true,
+                },
+                {
+                    observe: { kind: "value", target: { role: "combobox", name: "Notebook" } },
+                    is: "tr",
+                },
+            ],
         },
-        each: [
-            { expanded: true, value: "tr" },
-            { expanded: false, value: "tr" },
-            { expanded: true, value: "tr" },
-            { expanded: false, value: "tr" },
-            { expanded: false, value: "" },
-        ],
-    },
+        {
+            step: { action: "press", key: "Escape" },
+            then: [
+                {
+                    observe: {
+                        kind: "state",
+                        target: { role: "combobox", name: "Notebook" },
+                        state: "expanded",
+                    },
+                    is: false,
+                },
+                {
+                    observe: { kind: "value", target: { role: "combobox", name: "Notebook" } },
+                    is: "tr",
+                },
+            ],
+        },
+        {
+            step: { action: "press", key: "ArrowDown" },
+            then: [
+                {
+                    observe: {
+                        kind: "state",
+                        target: { role: "combobox", name: "Notebook" },
+                        state: "expanded",
+                    },
+                    is: true,
+                },
+                {
+                    observe: { kind: "value", target: { role: "combobox", name: "Notebook" } },
+                    is: "tr",
+                },
+            ],
+        },
+        {
+            step: { action: "press", key: "Escape" },
+            then: [
+                {
+                    observe: {
+                        kind: "state",
+                        target: { role: "combobox", name: "Notebook" },
+                        state: "expanded",
+                    },
+                    is: false,
+                },
+                {
+                    observe: { kind: "value", target: { role: "combobox", name: "Notebook" } },
+                    is: "tr",
+                },
+            ],
+        },
+        {
+            step: { action: "press", key: "Escape" },
+            then: [
+                {
+                    observe: {
+                        kind: "state",
+                        target: { role: "combobox", name: "Notebook" },
+                        state: "expanded",
+                    },
+                    is: false,
+                },
+                {
+                    observe: { kind: "value", target: { role: "combobox", name: "Notebook" } },
+                    is: "",
+                },
+            ],
+        },
+    ],
 });
 
 /** Choose several tags, keeping the list open, and drop the last with Backspace. */
@@ -78,26 +176,60 @@ export const comboboxChooseSeveralAndDropLast = defineScenario({
     description:
         "add tags to a multiple combobox with Enter, keeping its list open, and drop the last chip with Backspace from the empty input",
     given: { examples: [comboboxTagNote] },
+    parameters: {},
     when: [
-        { action: "fill", target: { role: "combobox", name: "Tags" }, value: "fo" },
-        { action: "press", key: "Enter" },
-        { action: "press", key: "Backspace" },
-    ],
-    then: {
-        observe: {
-            chips: { kind: "texts", target: { css: "[data-slot=combobox-chip]" } },
-            expanded: {
-                kind: "state",
-                target: { role: "combobox", name: "Tags" },
-                state: "expanded",
-            },
+        {
+            step: { action: "fill", target: { role: "combobox", name: "Tags" }, value: "fo" },
+            then: [
+                {
+                    observe: { kind: "texts", target: { css: "[data-slot=combobox-chip]" } },
+                    is: ["travel"],
+                },
+                {
+                    observe: {
+                        kind: "state",
+                        target: { role: "combobox", name: "Tags" },
+                        state: "expanded",
+                    },
+                    is: true,
+                },
+            ],
         },
-        each: [
-            { chips: ["travel"], expanded: true },
-            { chips: ["travel", "food"], expanded: true },
-            { chips: ["travel"], expanded: true },
-        ],
-    },
+        {
+            step: { action: "press", key: "Enter" },
+            then: [
+                {
+                    observe: { kind: "texts", target: { css: "[data-slot=combobox-chip]" } },
+                    is: ["travel", "food"],
+                },
+                {
+                    observe: {
+                        kind: "state",
+                        target: { role: "combobox", name: "Tags" },
+                        state: "expanded",
+                    },
+                    is: true,
+                },
+            ],
+        },
+        {
+            step: { action: "press", key: "Backspace" },
+            then: [
+                {
+                    observe: { kind: "texts", target: { css: "[data-slot=combobox-chip]" } },
+                    is: ["travel"],
+                },
+                {
+                    observe: {
+                        kind: "state",
+                        target: { role: "combobox", name: "Tags" },
+                        state: "expanded",
+                    },
+                    is: true,
+                },
+            ],
+        },
+    ],
 });
 
 /** Create a tag from text no option has. */
@@ -107,18 +239,33 @@ export const comboboxCreateFromText = defineScenario({
     name: "create-from-text",
     description: "offer to create an option from text no option has, and choose it with Enter",
     given: { examples: [comboboxTagNote] },
+    parameters: {},
     when: [
-        { action: "fill", target: { role: "combobox", name: "Tags" }, value: "summer" },
-        { action: "press", key: "Enter" },
-    ],
-    then: {
-        observe: {
-            options: { kind: "texts", target: { role: "option" } },
-            chips: { kind: "texts", target: { css: "[data-slot=combobox-chip]" } },
+        {
+            step: { action: "fill", target: { role: "combobox", name: "Tags" }, value: "summer" },
+            then: [
+                {
+                    observe: { kind: "texts", target: { role: "option" } },
+                    is: ['Create "\u2068summer\u2069"'],
+                },
+                {
+                    observe: { kind: "texts", target: { css: "[data-slot=combobox-chip]" } },
+                    is: ["travel"],
+                },
+            ],
         },
-        each: [
-            { options: ['Create "\u2068summer\u2069"'], chips: ["travel"] },
-            { options: ["travel", "food", "family"], chips: ["travel", "summer"] },
-        ],
-    },
+        {
+            step: { action: "press", key: "Enter" },
+            then: [
+                {
+                    observe: { kind: "texts", target: { role: "option" } },
+                    is: ["travel", "food", "family"],
+                },
+                {
+                    observe: { kind: "texts", target: { css: "[data-slot=combobox-chip]" } },
+                    is: ["travel", "summer"],
+                },
+            ],
+        },
+    ],
 });

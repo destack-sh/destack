@@ -11,29 +11,75 @@ export const listBoxMoveAndChoose = defineScenario({
     description:
         "move the focus with the arrow keys past an unavailable option, stopping at the end, choose with Space, and jump with Home and a typed letter",
     given: { examples: [listBoxNotebook] },
+    parameters: {},
     when: [
-        { action: "focus", target: { role: "option", name: "Work" } },
-        { action: "press", key: "ArrowDown" },
-        { action: "press", key: "ArrowDown" },
-        { action: "press", key: " " },
-        { action: "press", key: "Home" },
-        { action: "press", key: "r" },
-    ],
-    then: {
-        observe: {
-            focused: { kind: "focused" },
-            selected: { kind: "name", target: { role: "option", selected: true } },
-            chosen: { kind: "text", target: { role: "status" } },
+        {
+            step: { action: "focus", target: { role: "option", name: "Work" } },
+            then: [
+                { observe: { kind: "focused" }, is: "Work" },
+                {
+                    observe: { kind: "name", target: { role: "option", selected: true } },
+                    is: "Work",
+                },
+                { observe: { kind: "text", target: { role: "status" } }, is: "" },
+            ],
         },
-        each: [
-            { focused: "Work", selected: "Work", chosen: "" },
-            { focused: "Recipes", selected: "Work", chosen: "" },
-            { focused: "Recipes", selected: "Work", chosen: "" },
-            { focused: "Recipes", selected: "Recipes", chosen: "recipes" },
-            { focused: "Trips", selected: "Recipes", chosen: "recipes" },
-            { focused: "Recipes", selected: "Recipes", chosen: "recipes" },
-        ],
-    },
+        {
+            step: { action: "press", key: "ArrowDown" },
+            then: [
+                { observe: { kind: "focused" }, is: "Recipes" },
+                {
+                    observe: { kind: "name", target: { role: "option", selected: true } },
+                    is: "Work",
+                },
+                { observe: { kind: "text", target: { role: "status" } }, is: "" },
+            ],
+        },
+        {
+            step: { action: "press", key: "ArrowDown" },
+            then: [
+                { observe: { kind: "focused" }, is: "Recipes" },
+                {
+                    observe: { kind: "name", target: { role: "option", selected: true } },
+                    is: "Work",
+                },
+                { observe: { kind: "text", target: { role: "status" } }, is: "" },
+            ],
+        },
+        {
+            step: { action: "press", key: " " },
+            then: [
+                { observe: { kind: "focused" }, is: "Recipes" },
+                {
+                    observe: { kind: "name", target: { role: "option", selected: true } },
+                    is: "Recipes",
+                },
+                { observe: { kind: "text", target: { role: "status" } }, is: "recipes" },
+            ],
+        },
+        {
+            step: { action: "press", key: "Home" },
+            then: [
+                { observe: { kind: "focused" }, is: "Trips" },
+                {
+                    observe: { kind: "name", target: { role: "option", selected: true } },
+                    is: "Recipes",
+                },
+                { observe: { kind: "text", target: { role: "status" } }, is: "recipes" },
+            ],
+        },
+        {
+            step: { action: "press", key: "r" },
+            then: [
+                { observe: { kind: "focused" }, is: "Recipes" },
+                {
+                    observe: { kind: "name", target: { role: "option", selected: true } },
+                    is: "Recipes",
+                },
+                { observe: { kind: "text", target: { role: "status" } }, is: "recipes" },
+            ],
+        },
+    ],
 });
 
 /** Move through a list box's grid by rows and columns, the focus selecting. */
@@ -44,24 +90,57 @@ export const listBoxMoveThroughGrid = defineScenario({
     description:
         "move the focus along a row and down a column of a grid layout, to the row's end and the grid's start, each option it lands on selected",
     given: { examples: [listBoxLabelGrid] },
+    parameters: {},
     when: [
-        { action: "focus", target: { role: "option", name: "Urgent" } },
-        { action: "press", key: "ArrowRight" },
-        { action: "press", key: "ArrowDown" },
-        { action: "press", key: "End" },
-        { action: "press", key: "Control+Home" },
-    ],
-    then: {
-        observe: {
-            focused: { kind: "focused" },
-            selected: { kind: "name", target: { role: "option", selected: true } },
+        {
+            step: { action: "focus", target: { role: "option", name: "Urgent" } },
+            then: [
+                { observe: { kind: "focused" }, is: "Urgent" },
+                {
+                    observe: { kind: "name", target: { role: "option", selected: true } },
+                    is: "Urgent",
+                },
+            ],
         },
-        each: [
-            { focused: "Urgent", selected: "Urgent" },
-            { focused: "Later", selected: "Later" },
-            { focused: "Done", selected: "Done" },
-            { focused: "Someday", selected: "Someday" },
-            { focused: "Urgent", selected: "Urgent" },
-        ],
-    },
+        {
+            step: { action: "press", key: "ArrowRight" },
+            then: [
+                { observe: { kind: "focused" }, is: "Later" },
+                {
+                    observe: { kind: "name", target: { role: "option", selected: true } },
+                    is: "Later",
+                },
+            ],
+        },
+        {
+            step: { action: "press", key: "ArrowDown" },
+            then: [
+                { observe: { kind: "focused" }, is: "Done" },
+                {
+                    observe: { kind: "name", target: { role: "option", selected: true } },
+                    is: "Done",
+                },
+            ],
+        },
+        {
+            step: { action: "press", key: "End" },
+            then: [
+                { observe: { kind: "focused" }, is: "Someday" },
+                {
+                    observe: { kind: "name", target: { role: "option", selected: true } },
+                    is: "Someday",
+                },
+            ],
+        },
+        {
+            step: { action: "press", key: "Control+Home" },
+            then: [
+                { observe: { kind: "focused" }, is: "Urgent" },
+                {
+                    observe: { kind: "name", target: { role: "option", selected: true } },
+                    is: "Urgent",
+                },
+            ],
+        },
+    ],
 });
