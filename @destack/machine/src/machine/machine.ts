@@ -1,4 +1,6 @@
 import { StackError } from "@destack/stack/error";
+import { Failure } from "@destack/error";
+import { ObjectError } from "@destack/object/error";
 import type { PackageFile } from "@destack/package/file";
 import { type Lock, type PackageManifest } from "@destack/package/manifest";
 import { type BuildStore } from "@destack/build/store";
@@ -732,10 +734,20 @@ export class Machine {
             return Promise.reject(refused);
         }
 
-        // start it once
+        // start it once, refusing its calls as unavailable while a start fails
         let started = this.#started.get(space);
         if (started === undefined) {
-            started = Space.start(this, space);
+            started = Space.start(this, space).catch((error: unknown) => {
+                // pass an unavailable start on with its wait, and name any other failure
+                if (ObjectError.is(error, "SERVER_UNAVAILABLE")) {
+                    throw error;
+                }
+                throw ObjectError.of(
+                    "SERVER_UNAVAILABLE",
+                    `space '${space}' is unavailable: it cannot start: ${Failure.of(error).message}`,
+                    { data: {}, cause: error },
+                );
+            });
             started.catch(() => this.#started.delete(space));
             this.#started.set(space, started);
         }
