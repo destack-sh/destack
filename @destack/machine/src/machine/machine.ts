@@ -545,7 +545,12 @@ export class Machine {
     }
 
     /** Revoke an enrollment of this machine at its universe as itself and forget its key. */
-    async revoke(enrollment: MachineEnrollment): Promise<void> {
+    revoke(enrollment: MachineEnrollment): Promise<void> {
+        return this.scope.span("destack.machine.revoke", {}, () => this.#revoke(enrollment));
+    }
+
+    /** Delete the enrollment's machine at its universe, then forget the key. */
+    async #revoke(enrollment: MachineEnrollment): Promise<void> {
         const accounts = createClient(
             accountPackage,
             {

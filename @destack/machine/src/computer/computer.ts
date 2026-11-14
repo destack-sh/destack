@@ -1064,14 +1064,14 @@ export class Computer implements AsyncDisposable {
         }
         cleanup.defer(() => lock.close());
 
-        // choose the keys' store, and report it in the machine's log
-        const store = Computer.keychainStore(directory, environment);
-        environment.process.stderr.writeSync(`keychain: ${store.kind}\n`);
-
         // record the process's telemetry from its start: in its own log, and in its owner's home once enrolled
         let running: Computer | undefined;
         const telemetry = await Computer.#startTelemetry(environment, () => running?.machine);
         const instruments = TelemetryScope.of(MACHINE_PACKAGE, telemetry);
+
+        // choose the keys' store, and log it
+        const store = Computer.keychainStore(directory, environment);
+        instruments.log.info("destack.keychain.chosen", { "destack.keychain.store": store.kind });
         const recorded = Environment.instrument(environment, telemetry);
 
         // compose the machine with the system's keychains, this channel's distribution and its toolchain

@@ -350,6 +350,8 @@ export class SpaceTransfer {
     readonly target: Identifier<"machine">;
     /** The replica of the space's rows. */
     readonly space: SpaceReplica;
+    /** The transfer's telemetry, on its space's database. */
+    readonly #scope: TelemetryScope;
 
     /** The space moving. */
     get spaceId(): Identifier<"space"> {
@@ -488,55 +490,68 @@ export class SpaceTransfer {
         this.placement = options.placement;
         this.target = options.target;
         this.space = options.space;
+        this.#scope = TelemetryScope.of(
+            import.meta.destack.package,
+            options.space.database.state.environment.telemetry,
+        );
     }
 
     /** Fence the space against writes unless fenced already, then its resources. */
     fence(options: Pick<HandoffOptions, "providers" | "runtimes">, now: number): Promise<Fence> {
         // fence the space in its span
-        return TelemetryScope.of(
-            import.meta.destack.package,
-            this.space.database.state.environment.telemetry,
-        ).span("destack.transfer.fence", { "destack.space.id": this.space.spaceId }, async () => {
-            // fence the space once, reading the database's position and the digest of the space's rows at it
-            await Transaction.run(this.space.database, async (transaction) => {
-                const chain = await Scope.chain(transaction.view(), this.placement.space);
-                if (chain.every((link) => link.movedTo === undefined)) {
-                    await Scope.fence(transaction, this.placement.space, this.target, now);
-                }
-            });
+        return this.#scope.span(
+            "destack.transfer.fence",
+            { "destack.space.id": this.space.spaceId },
+            async () => {
+                // fence the space once, reading the database's position and the digest of the space's rows at it
+                await Transaction.run(this.space.database, async (transaction) => {
+                    const chain = await Scope.chain(transaction.view(), this.placement.space);
+                    if (chain.every((link) => link.movedTo === undefined)) {
+                        await Scope.fence(transaction, this.placement.space, this.target, now);
+                    }
+                });
 
-            // read the space's latest change, its rows' digest and its subtree
-            const fenced = await this.space.database.transaction(async (database) => {
-                const scopes = await Scope.subtree(Snapshot.live(database), this.placement.space);
+                // read the space's latest change, its rows' digest and its subtree
+                const fenced = await this.space.database.transaction(async (database) => {
+                    const scopes = await Scope.subtree(
+                        Snapshot.live(database),
+                        this.placement.space,
+                    );
 
-                return {
-                    position: await database.log.changed(this.space.tables, scopes),
-                    digest: await SpaceReplica.digest(database, this.space.digestTables(), scopes),
-                    scopes,
-                };
-            });
+                    return {
+                        position: await database.log.changed(this.space.tables, scopes),
+                        digest: await SpaceReplica.digest(
+                            database,
+                            this.space.digestTables(),
+                            scopes,
+                        ),
+                        scopes,
+                    };
+                });
 
-            // fence each resource's content once its writes in flight finish
-            const fences = await this.#fences(options.providers);
-            await Promise.all(fences.map((resource) => resource.fence.fence(resource.record)));
+                // fence each resource's content once its writes in flight finish
+                const fences = await this.#fences(options.providers);
+                await Promise.all(fences.map((resource) => resource.fence.fence(resource.record)));
 
-            // stop the space's instances running here before their resources are captured
-            await this.#stop(options);
+                // stop the space's instances running here before their resources are captured
+                await this.#stop(options);
 
-            return fenced;
-        });
+                return fenced;
+            },
+        );
     }
 
     /** Lift the fences of the space's resources here, once its move was cancelled. */
     lift(providers: ProviderIndex): Promise<void> {
         // lift its fences in its span
-        return TelemetryScope.of(
-            import.meta.destack.package,
-            this.space.database.state.environment.telemetry,
-        ).span("destack.transfer.lift", { "destack.space.id": this.space.spaceId }, async () => {
-            const fences = await this.#fences(providers);
-            await Promise.all(fences.map((resource) => resource.fence.lift(resource.record)));
-        });
+        return this.#scope.span(
+            "destack.transfer.lift",
+            { "destack.space.id": this.space.spaceId },
+            async () => {
+                const fences = await this.#fences(providers);
+                await Promise.all(fences.map((resource) => resource.fence.lift(resource.record)));
+            },
+        );
     }
 
     /** Remove the source's replica of a space its target serves now. */
@@ -572,25 +587,26 @@ export class SpaceTransfer {
         store: TransferStore,
     ): Promise<void> {
         // cut the space over in its span
-        return TelemetryScope.of(
-            import.meta.destack.package,
-            this.space.database.state.environment.telemetry,
-        ).span("destack.transfer.cutover", { "destack.space.id": this.space.spaceId }, async () => {
-            // follow the source's rows up to its fence, restoring resources and builds meanwhile
-            const fenced = await this.#followToFence(source, signal, options, store);
+        return this.#scope.span(
+            "destack.transfer.cutover",
+            { "destack.space.id": this.space.spaceId },
+            async () => {
+                // follow the source's rows up to its fence, restoring resources and builds meanwhile
+                const fenced = await this.#followToFence(source, signal, options, store);
 
-            // capture the space's rows, copy the blobs they reference and index the builds among them
-            await this.#captureRows(source, fenced, options);
-            await this.#copyBlobs(source, options.blobs, signal);
-            await this.#indexBuilds(options.builds);
+                // capture the space's rows, copy the blobs they reference and index the builds among them
+                await this.#captureRows(source, fenced, options);
+                await this.#copyBlobs(source, options.blobs, signal);
+                await this.#indexBuilds(options.builds);
 
-            // catch each resource up on what changed since its snapshot
-            await this.#catchUp(signal, options, store, store.clock.now());
+                // catch each resource up on what changed since its snapshot
+                await this.#catchUp(signal, options, store, store.clock.now());
 
-            // take over the space's rows and point each resource here
-            await this.#takeOver(store);
-            await this.settle(options, store);
-        });
+                // take over the space's rows and point each resource here
+                await this.#takeOver(store);
+                await this.settle(options, store);
+            },
+        );
     }
 
     /** Follow the source's rows up to its fence, restoring resources and builds meanwhile. */
@@ -860,34 +876,35 @@ export class SpaceTransfer {
         environment: UuidEnvironment,
     ): Promise<Placement> {
         // place it here in its span
-        return TelemetryScope.of(
-            import.meta.destack.package,
-            this.space.database.state.environment.telemetry,
-        ).span("destack.transfer.place", { "destack.space.id": this.space.spaceId }, async () => {
-            // place the space here at the next epoch, and replace the keys of its source
-            const placed = {
-                ...this.placement,
-                machine: this.target,
-                epoch: this.placement.epoch + 1,
-            };
-            await options.publisher.receive({
-                id: RequestId.create(environment),
-                calls: [SpaceTransfer.placing(placed)],
-            });
-            await options.keystore.rekey(database, this.spaceId);
+        return this.#scope.span(
+            "destack.transfer.place",
+            { "destack.space.id": this.space.spaceId },
+            async () => {
+                // place the space here at the next epoch, and replace the keys of its source
+                const placed = {
+                    ...this.placement,
+                    machine: this.target,
+                    epoch: this.placement.epoch + 1,
+                };
+                await options.publisher.receive({
+                    id: RequestId.create(environment),
+                    calls: [SpaceTransfer.placing(placed)],
+                });
+                await options.keystore.rekey(database, this.spaceId);
 
-            // serve the replica and forget the restores the takeover recorded
-            await Transaction.run(database, async (transaction) => {
-                await Scope.unfence(transaction, this.placement.space);
-                for (const row of await transaction
-                    .read(restore.table)
-                    .findMany({ where: this.#restoring() })) {
-                    await this.space.rewrite(transaction, restore.table, row, null);
-                }
-            });
+                // serve the replica and forget the restores the takeover recorded
+                await Transaction.run(database, async (transaction) => {
+                    await Scope.unfence(transaction, this.placement.space);
+                    for (const row of await transaction
+                        .read(restore.table)
+                        .findMany({ where: this.#restoring() })) {
+                        await this.space.rewrite(transaction, restore.table, row, null);
+                    }
+                });
 
-            return placed;
-        });
+                return placed;
+            },
+        );
     }
 
     /** Call the space's placement at an epoch as the calling machine. */
@@ -900,18 +917,26 @@ export class SpaceTransfer {
     }
 
     /** Abort the move as its target: forget its restores and destroy what they restored here. */
-    async abort(providers: ProviderIndex, database: DatabaseConnection): Promise<void> {
-        // forget the restores and destroy their resources
-        await this.#forget(database, providers, Condition.render(this.#restoring(), restore.table));
+    abort(providers: ProviderIndex, database: DatabaseConnection): Promise<void> {
+        // abort it in its span
+        return this.#scope.span(
+            "destack.transfer.abort",
+            { "destack.space.id": this.spaceId },
+            async () => {
+                // forget the restores and destroy their resources
+                const restoring = Condition.render(this.#restoring(), restore.table);
+                await this.#forget(database, providers, restoring);
 
-        // drop a replica still following its source
-        if (await this.space.replica.isRecorded(Snapshot.live(database))) {
-            await Replica.drop(database, this.space.replica);
-        }
-        // delete the rows taken over
-        else {
-            await this.space.delete();
-        }
+                // drop a replica still following its source
+                if (await this.space.replica.isRecorded(Snapshot.live(database))) {
+                    await Replica.drop(database, this.space.replica);
+                }
+                // delete the rows taken over
+                else {
+                    await this.space.delete();
+                }
+            },
+        );
     }
 
     /** Report whether the target took the space over, completing the move's transfer. */
@@ -997,6 +1022,19 @@ export class SpaceTransfer {
 
     /** Promote the replicated rows and point each resource at its restore here. */
     async settle(
+        options: Pick<TransferOptions, "providers" | "machine">,
+        store: TransferStore,
+    ): Promise<void> {
+        // settle it in its span
+        await this.#scope.span(
+            "destack.transfer.settle",
+            { "destack.space.id": this.spaceId },
+            () => this.#promote(options, store),
+        );
+    }
+
+    /** Promote the replicated rows and repoint the resources, in one transaction. */
+    async #promote(
         options: Pick<TransferOptions, "providers" | "machine">,
         store: TransferStore,
     ): Promise<void> {

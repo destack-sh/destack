@@ -275,10 +275,8 @@ export class BunRuntime implements Runtime {
 
     /** Start an instance's runner and resolve when it serves. */
     start(spec: InstanceSpec, exited: (exit: InstanceExit) => Promise<void>): Promise<void> {
-        return this.#scope.span("destack.runtime.start", {}, async () => {
-            // spawn the runner or join a start in progress
-            return this.#registry.start(spec, (identify) => this.#spawn(spec, exited, identify));
-        });
+        // spawn the runner or join a start in progress
+        return this.#registry.start(spec, (identify) => this.#spawn(spec, exited, identify));
     }
 
     /** Report whether an instance's runner serves now. */
@@ -293,11 +291,8 @@ export class BunRuntime implements Runtime {
 
     /** Stop an instance after any start in progress, draining its runner before killing it. */
     stop(instanceId: Identifier<"instance">): Promise<void> {
-        // stop the instance in its span
-        return this.#scope.span("destack.runtime.stop", {}, async () => {
-            // drain the child after any start in progress, killing it once the drain runs out
-            await this.#registry.stop(instanceId, (child) => child.stop());
-        });
+        // drain the child after any start in progress, killing it once the drain runs out
+        return this.#registry.stop(instanceId, (child) => child.stop());
     }
 
     /** Stop every instance, as the machine stops. */

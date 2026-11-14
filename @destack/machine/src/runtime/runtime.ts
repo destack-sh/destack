@@ -284,16 +284,18 @@ export class InstanceRegistry<
     readonly #secrets = new Map<string, Running["spec"]>();
     /** The running instances, counted by the runtime running them. */
     readonly #count: UpDownCounter<{ readonly "destack.runtime": string }>;
-    /** The runtime's bounded attribute on the count. */
+    /** The runtime's bounded attribute on the count and the durations. */
     readonly #runtime: { readonly "destack.runtime": string };
+    /** The runner of the launches' and drains' spans. */
+    readonly #span: TelemetryScope["span"];
 
     /** Keep a runtime's instances, counting them on its telemetry. */
     constructor(runtime: string, telemetry: Telemetry) {
+        // time and count the instances by their runtime
         this.#runtime = { "destack.runtime": runtime };
-        this.#count = TelemetryScope.of(
-            import.meta.destack.package,
-            telemetry,
-        ).metric.upDownCounter("destack.runtime.instance.count", {
+        const scope = TelemetryScope.of(import.meta.destack.package, telemetry);
+        this.#span = scope.span;
+        this.#count = scope.metric.upDownCounter("destack.runtime.instance.count", {
             unit: "{instance}",
             attributes: { "destack.runtime": [runtime] },
         });
@@ -320,7 +322,11 @@ export class InstanceRegistry<
             secrets.add(secret);
             this.#secrets.set(secret, spec);
         };
-        const starting = launch(identify)
+        const attributes = { ...this.#runtime, "destack.instance.id": spec.instanceId };
+        const launched = this.#span("destack.runtime.start", attributes, () => launch(identify), {
+            duration: { attributes: this.#runtime },
+        });
+        const starting = launched
             .then(
                 (running) => {
                     this.#running.set(spec.instanceId, running);
@@ -356,9 +362,12 @@ export class InstanceRegistry<
         this.#running.delete(instanceId);
         this.#count.add(-1, this.#runtime);
 
-        // drop its secret once it drains
+        // drain it in its span, dropping its secret once it drains
+        const attributes = { ...this.#runtime, "destack.instance.id": instanceId };
         try {
-            await drain(running);
+            await this.#span("destack.runtime.stop", attributes, () => drain(running), {
+                duration: { attributes: this.#runtime },
+            });
         } finally {
             this.#secrets.delete(running.secret);
         }

@@ -1,3 +1,4 @@
+import { TelemetryScope } from "@destack/telemetry";
 import { Bookmark } from "@destack/object/client";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -55,10 +56,15 @@ export class MachineProcess {
     /** The owner's loopback connection to the running machine. */
     readonly loopback: Loopback;
 
+    /** The telemetry of the launches and shutdowns. */
+    readonly #scope: TelemetryScope;
+
     /** Address the machine process of a state directory. */
     constructor(directory: string, environment: CommandHost) {
+        // take the directory and the environment, with the telemetry and the loopback on them
         this.directory = directory;
         this.environment = environment;
+        this.#scope = TelemetryScope.of(import.meta.destack.package, environment.telemetry);
         this.loopback = new Loopback(directory, environment, new Bookmark());
     }
 
@@ -102,11 +108,18 @@ export class MachineProcess {
     }
 
     /** Start a detached machine and wait until it accepts requests. */
-    async start(
+    start(
         entry: string,
         executable = MachineProcess.executable(this.environment),
         isStandalone = this.environment.process.runtime.isStandalone,
     ): Promise<void> {
+        return this.#scope.span("destack.machine.launch", {}, () =>
+            this.#start(entry, executable, isStandalone),
+        );
+    }
+
+    /** Start a detached machine unless one answers, one launch at a time. */
+    async #start(entry: string, executable: string, isStandalone: boolean): Promise<void> {
         // reuse an authenticated machine that is already running
         if (await this.#answers()) {
             return;
@@ -141,7 +154,12 @@ export class MachineProcess {
     }
 
     /** Stop the machine and wait until it releases its database and process lock. */
-    async stop(): Promise<void> {
+    stop(): Promise<void> {
+        return this.#scope.span("destack.machine.shutdown", {}, () => this.#stop());
+    }
+
+    /** Stop the machine through its supervisor or loopback, then wait for its lock. */
+    async #stop(): Promise<void> {
         // stop OS supervision before waiting for the process to release its database
         const autostart = await Autostart.of(this.directory, this.environment);
         if (autostart.isSupervised && (await autostart.isRegistered())) {
