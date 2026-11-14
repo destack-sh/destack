@@ -49,6 +49,12 @@ export const MachineStep = schema.discriminatedUnion("action", [
         member: schema.number().int().nonnegative(),
     }),
     schema.object({
+        /** Create a space in the owner's account, waiting until the home computer serves it. */
+        action: schema.literal("create"),
+        /** The space's name, a label such as `team-{n}`, `{n}` replaced by its number. */
+        space: schema.string().min(1),
+    }),
+    schema.object({
         /** Call an object method, then wait until every device's replica has the result. */
         action: schema.literal("call"),
         /** The object type. */

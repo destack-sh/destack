@@ -65,7 +65,11 @@ test("answer a relay-less computer's spaces at its loopback endpoint, and a rela
     for (const computer of [local, relayed]) {
         const login = await computer.signIn(OWNER_EMAIL);
         await computer.enroll(login, world.owner.account);
-        await computer.space(login, world.owner.account, `work-${computer.machine.id.slice(-6)}`);
+        await computer.space(
+            login.id,
+            world.owner.account,
+            `work-${computer.machine.id.slice(-6)}`,
+        );
     }
 
     // wait until the relay publishes the relayed computer's tunnel, at the name it told the computer

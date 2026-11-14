@@ -463,7 +463,7 @@ test("pause serving while the account drains the machine, refusing its space's c
     const { owner } = opened.world;
     const signedIn = await opened.signIn(OWNER_EMAIL);
     await opened.enroll(signedIn, owner.account);
-    const created = await opened.space(signedIn, owner.account, "work");
+    const created = await opened.space(signedIn.id, owner.account, "work");
     const service = await stackOf(opened, signedIn.id, created);
 
     // drain or enable the machine as the owner, and list the space's sockets
@@ -603,7 +603,7 @@ test("register a working tree's directory, build its stack in a space as the per
     const { owner } = opened.world;
     const signedIn = await opened.signIn(OWNER_EMAIL);
     await opened.enroll(signedIn, owner.account);
-    const space = await opened.space(signedIn, owner.account, "work");
+    const space = await opened.space(signedIn.id, owner.account, "work");
     const service = await stackOf(opened, signedIn.id, space);
     const client = opened.connect(machinePackage);
     const machineId = machine.id;
