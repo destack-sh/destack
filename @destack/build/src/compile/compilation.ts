@@ -39,7 +39,7 @@ import { PackageJson, type Sandbox } from "@destack/package";
 import { PackagePath } from "@destack/package/file";
 import { type OutputContent, type OutputExport } from "@destack/package/manifest";
 import { type SourceMapReference } from "@destack/package/source";
-import { modulePlugin } from "@destack/package/vite";
+import { baselinePlugin, modulePlugin } from "@destack/package/vite";
 import type { ModuleTransformer } from "@destack/package/transform";
 import { type Runtime } from "@destack/package/runtime";
 import { type PackageSource } from "../source/index.ts";
@@ -380,14 +380,14 @@ export class OutputCompilation implements Compilation {
                 resolve: { conditions },
             },
             plugins: [
-                // refuse a module script a browser module references as an asset, as no browser runs one
-                ...(project.runtime === "browser" ? [moduleScriptPlugin()] : []),
+                // refuse module scripts referenced as assets, and run the browser baseline first in each entry
+                ...(project.runtime === "browser" ? [moduleScriptPlugin(), baselinePlugin()] : []),
                 ...this.#packagePlugins(compiled, facades, input, locations),
                 ...plugins,
                 modulePlugin(this.#transformer),
             ],
-            // give worker bundles their modules' metadata too
-            worker: { plugins: () => [modulePlugin(this.#transformer)] },
+            // give worker bundles their modules' metadata and the browser baseline too
+            worker: { plugins: () => [modulePlugin(this.#transformer), baselinePlugin()] },
             build: {
                 emitAssets: true,
                 write: true,

@@ -2,7 +2,7 @@ import { yieldToEventLoop } from "@destack/environment";
 import { testSimulation } from "../test/world.ts";
 import { expect, refusal, test } from "@destack/test";
 import { testHost } from "@destack/test/host";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { PackageBuild, Compiler } from "../index.ts";
 import type { PackageManifest } from "@destack/package/manifest";
@@ -743,3 +743,73 @@ test("bundle a module a page starts as a worker, and refuse one it references as
         await files.remove(directory, { recursive: true });
     }
 });
+
+test("run the browser baseline first in a worker, leaving a library's entries alone", async () => {
+    await using simulation = testSimulation();
+    const environment = simulation.environment("test");
+    const { files } = environment;
+    const directory = await files.makeTemporaryDirectory("build-baseline-");
+    const source = join(directory, "source");
+    const browser = {
+        directory: source,
+        dependencies: {},
+        links: {},
+        outputs: { library: { ...request.outputs.library, runtime: "browser" } },
+    } as const;
+
+    try {
+        // start an echo worker from the library's note module
+        await files.copy(
+            fileURLToPath(new URL("../../tests/fixture/library/source/", import.meta.url)),
+            source,
+        );
+        await files.writeTextFile(
+            join(source, "src/echo.worker.ts"),
+            'self.addEventListener("message", (event) => self.postMessage(event.data));\n',
+        );
+        const notePath = join(source, "src/note.ts");
+        await files.writeTextFile(
+            notePath,
+            `${await files.readTextFile(notePath)}\n/** Start the echo worker. */\nexport const echo = () =>\n    new Worker(new URL("./echo.worker.ts", import.meta.url), { type: "module" });\n`,
+        );
+        await using store = await LocalBuildStore.temporary(environment);
+        await using builder = await Compiler.start(source, {
+            store,
+            toolchain: async () => Toolchain.workspace(),
+        });
+        const built = await builder.build(browser);
+
+        // read each emitted entry's code with the code of the modules it imports first
+        const scripts = (await built.files()).filter((file) => file.path.endsWith(".js"));
+        const texts = new Map<string, string>();
+        for (const file of scripts) {
+            texts.set(file.path, new TextDecoder().decode(await built.load(file.path)));
+        }
+
+        // expect the baseline's code to run before the worker's own, and in no library entry
+        expect({
+            note: runsBaselineFirst(texts, "output/library/src/note.js", "createNote"),
+            index: runsBaselineFirst(texts, "output/library/src/index.js", "createNote"),
+            worker: runsBaselineFirst(
+                texts,
+                [...texts.keys()].find((path) => /echo\.worker[^/]*\.js$/u.test(path)) ?? "",
+                "addEventListener",
+            ),
+        }).toEqual({ note: false, index: false, worker: true });
+    } finally {
+        await files.remove(directory, { recursive: true });
+    }
+});
+
+/** Decide whether a built script runs the baseline before its own code. */
+function runsBaselineFirst(texts: ReadonlyMap<string, string>, path: string, own: string): boolean {
+    // follow the script's first import or re-export to the module that runs first
+    const text = texts.get(path) ?? "";
+    const first = /^(?:import|export)[^"']*["'](\.{1,2}\/[^"']+)["']/mu.exec(text)?.[1];
+    const running = first === undefined ? text : (texts.get(join(dirname(path), first)) ?? "");
+
+    // find the baseline's data in it before the code it runs as its own
+    const marker = running.indexOf("javascript.builtins.Set.union");
+
+    return marker !== -1 && marker < running.lastIndexOf(own);
+}
