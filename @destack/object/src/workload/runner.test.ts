@@ -313,6 +313,17 @@ test("start the workload with its installation's settings, serve a forwarded cal
                 ],
                 events: ["destack.workload.started"],
             },
+            {
+                url: "http://host.test/.destack/telemetry/v1/logs",
+                authorization: "Bearer forwarding",
+                release: [
+                    {
+                        "service.name": notes.name,
+                        "service.version": notes.version,
+                    },
+                ],
+                events: ["destack.workload.stopped"],
+            },
         ],
     });
 });

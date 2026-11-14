@@ -17,23 +17,21 @@ export function traceCalls(
     next: () => Promise<unknown>,
     labels?: Attributes,
 ) => Promise<unknown> {
-    // declare the statements per call
+    // declare the statements per call, by method, as the procedure tree bounds the methods
     const scope = TelemetryScope.of(import.meta.destack.package, environment.telemetry);
-    const methods: readonly string[] = [];
-    const statements = scope.metric.histogram("destack.call.statements", {
+    const statements = scope.meter.createHistogram("destack.call.statements", {
         unit: "{statement}",
-        attributes: { "rpc.method": methods },
     });
 
     return (path, next, labels = {}) => {
-        // run the call in a span named by its method, recording the server's statements per call
+        // run the call in a span named by its method, its labels on the span alone
         const method = path.join("/");
-        const attributes = { "rpc.system.name": RPC_SYSTEM, "rpc.method": method, ...labels };
-        const duration = { name: `rpc.${kind}.call.duration`, attributes };
+        const bounded = { "rpc.system.name": RPC_SYSTEM, "rpc.method": method };
+        const duration = { name: `rpc.${kind}.call.duration`, attributes: bounded };
 
         return scope.span(
             method,
-            attributes,
+            { ...bounded, ...labels },
             async () => {
                 // answer the call, then record the statements it ran on the server
                 const result = await next();

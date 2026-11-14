@@ -79,6 +79,8 @@ export class WorkloadRunner implements AsyncDisposable {
     readonly #report: (error: unknown) => void;
     /** Whether the runner stops, its telemetry exporting what remains as it shuts down. */
     #isClosing = false;
+    /** The workload's bounded attribute on its spans, durations and logs. */
+    readonly #attributes: { readonly "destack.workload.name": string };
 
     /** Create the runner with a started instance and its telemetry. */
     private constructor(
@@ -90,9 +92,11 @@ export class WorkloadRunner implements AsyncDisposable {
         hibernation: Hibernation,
         scheduler: Environment["scheduler"],
         report: (error: unknown) => void,
+        attributes: { readonly "destack.workload.name": string },
     ) {
         // set the instance and what it runs with
         this.start = start;
+        this.#attributes = attributes;
         this.instance = instance;
         this.#packages = packages;
         this.#telemetry = running;
@@ -157,6 +161,7 @@ export class WorkloadRunner implements AsyncDisposable {
                 hibernation,
                 runner.environment.scheduler,
                 report,
+                attributes,
             );
             started.#export();
 
@@ -388,9 +393,20 @@ export class WorkloadRunner implements AsyncDisposable {
 
     /** Drain and stop the instance with its resources and its remaining telemetry. */
     async close(): Promise<void> {
+        // stop the instance and its resources in the stop's span, then log the stop and flush
+        const scope = TelemetryScope.of(import.meta.destack.package, this.#telemetry);
+        const attributes = this.#attributes;
         try {
-            await this.instance.close();
-            await this.#connections.disposeAsync();
+            await scope.span(
+                "destack.workload.stop",
+                attributes,
+                async () => {
+                    await this.instance.close();
+                    await this.#connections.disposeAsync();
+                },
+                { duration: { attributes } },
+            );
+            scope.log.info("destack.workload.stopped", attributes);
         } finally {
             this.#isClosing = true;
             await this.#telemetry.shutdown();

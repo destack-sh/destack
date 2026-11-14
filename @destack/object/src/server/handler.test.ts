@@ -265,13 +265,9 @@ test("enforce access and audit requirements through streamed HTTP calls", async 
             count: 1,
         },
     ];
-    const released = outcomes.map((outcome) => ({
-        ...outcome,
-        attributes: { ...outcome.attributes, "destack.caller.version": fixturePackage.version },
-    }));
     expect(calls).toEqual([
         { name: "rpc.client.call.duration", calls: outcomes },
-        { name: "rpc.server.call.duration", calls: released },
+        { name: "rpc.server.call.duration", calls: outcomes },
     ]);
     expect(new Set(simulation.telemetry.spans.map((span) => span.spanContext().traceId)).size).toBe(
         4,
