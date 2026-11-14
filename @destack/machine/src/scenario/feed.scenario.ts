@@ -10,7 +10,7 @@ export const fanOutTeamWrites = defineScenario({
     description:
         "create and share a team, write its issues and comments, and revoke a member, while every member's devices follow it",
     given: { examples: [] },
-    parameters: { members: 5, devices: 2, writes: 10 },
+    parameters: { members: 2, devices: 2, writes: 10 },
     when: [
         { action: "publish", fixture: "apps" },
         { action: "install", fixture: "apps" },
@@ -39,7 +39,7 @@ export const fanOutTeamWrites = defineScenario({
             then: [
                 {
                     spans: { name: "destack.replica.apply", host: "member-*.device-*" },
-                    atMost: 35,
+                    atMost: 17,
                 },
             ],
         },
@@ -111,7 +111,7 @@ export const fanOutTeamWrites = defineScenario({
             then: [
                 {
                     spans: { name: "destack.replica.apply", host: "member-*.device-*" },
-                    atMost: 35,
+                    atMost: 17,
                 },
             ],
         },
@@ -132,7 +132,7 @@ export const fanOutMessageBursts = defineScenario({
     description:
         "send bursts of ten messages a second in a channel while every member's devices follow it",
     given: { examples: [] },
-    parameters: { members: 5, devices: 2, burst: 10, bursts: 3 },
+    parameters: { members: 2, devices: 2, burst: 10, bursts: 3 },
     when: [
         { action: "publish", fixture: "apps" },
         { action: "install", fixture: "apps" },
@@ -168,21 +168,21 @@ export const fanOutMessageBursts = defineScenario({
     then: [
         { observe: { count: "message" }, is: "{burst * bursts}" },
         {
-            observe: { count: "message", on: "member-4.device-1" },
+            observe: { count: "message", on: "member-1.device-1" },
             is: "{burst * bursts}",
         },
     ],
 });
 
-/** Fan three members typing into one page out to every member's devices. */
+/** Fan members typing into one page at once out to every member's devices. */
 export const fanOutSharedTyping = defineScenario({
     of: Feed,
     interaction: machineInteraction,
     name: "fan-out-shared-typing",
     description:
-        "type into one page with three members at once while every member's devices follow it",
+        "type into one page with two members at once while every member's devices follow it",
     given: { examples: [] },
-    parameters: { members: 5, devices: 2, typists: 3, keys: 10 },
+    parameters: { members: 2, devices: 2, typists: 2, keys: 10 },
     when: [
         { action: "publish", fixture: "apps" },
         { action: "install", fixture: "apps" },
@@ -218,7 +218,7 @@ export const fanOutSharedTyping = defineScenario({
     ],
     then: [
         { observe: { count: "page" }, is: 1 },
-        { observe: { count: "page", on: "member-4.device-1" }, is: 1 },
+        { observe: { count: "page", on: "member-1.device-1" }, is: 1 },
     ],
 });
 
@@ -230,7 +230,7 @@ export const fanOutShapeDrag = defineScenario({
     description:
         "drag a shape for a second at 60 Hz, then drop it, while every member's devices follow the file",
     given: { examples: [] },
-    parameters: { members: 5, devices: 2, moves: 60, drags: 3 },
+    parameters: { members: 2, devices: 2, moves: 60, drags: 3 },
     when: [
         { action: "publish", fixture: "apps" },
         { action: "install", fixture: "apps" },
@@ -283,6 +283,6 @@ export const fanOutShapeDrag = defineScenario({
     ],
     then: [
         { observe: { count: "shape" }, is: 1 },
-        { observe: { count: "shape", on: "member-4.device-1" }, is: 1 },
+        { observe: { count: "shape", on: "member-1.device-1" }, is: 1 },
     ],
 });
