@@ -1,17 +1,28 @@
 import { ENVIRONMENT_SCOPE, SpanRunner } from "../telemetry/runner.ts";
+import { SpanPath } from "../telemetry/span.ts";
 import type { Telemetry } from "../telemetry/telemetry.ts";
 import type { FileSystem } from "./file.ts";
 
-/** A file system running each verb that moves data or changes the tree in a span, timing it. */
+/** The running spans' total of quick file reads. */
+const READS = "destack.file.read.count";
+
+/** The running spans' total of quick file writes, copies, renames and removals. */
+const WRITES = "destack.file.write.count";
+
+/** A file system spanning its slow verbs and counting its quick ones in the running spans. */
 export class InstrumentedFiles implements FileSystem {
     /** The file system the verbs go to. */
     readonly source: FileSystem;
-    /** The runner of the verbs' spans. */
+    /** The runner of the slow verbs' spans. */
     readonly #span: SpanRunner;
+    /** The telemetry whose running spans count the quick verbs. */
+    readonly #telemetry: Telemetry;
 
     /** Instrument a file system on a telemetry, leaving its cheap reads such as stat dark. */
     constructor(source: FileSystem, telemetry: Telemetry) {
+        // take the source, the spans' runner and the telemetry counting quick verbs
         this.source = source;
+        this.#telemetry = telemetry;
         this.#span = SpanRunner.of(
             telemetry.tracers.getTracer(ENVIRONMENT_SCOPE),
             telemetry.meters.getMeter(ENVIRONMENT_SCOPE),
@@ -24,26 +35,33 @@ export class InstrumentedFiles implements FileSystem {
         return files instanceof InstrumentedFiles ? files.source : files;
     }
 
-    /** Run a verb on a path in its span. */
+    /** Run a slow verb on a path in its span. */
     #run<Value>(name: string, path: string, run: () => Promise<Value>): Promise<Value> {
         return this.#span(name, { "file.path": path }, run);
     }
 
+    /** Count a quick verb in the running spans' totals, as a span would cost as much as it. */
+    #count<Value>(total: string, run: () => Promise<Value>): Promise<Value> {
+        SpanPath.add(this.#telemetry.context.active(), total, 1);
+
+        return run();
+    }
+
     /** Read a file's bytes. */
     readonly readFile: FileSystem["readFile"] = (path) =>
-        this.#run("destack.file.read", path, () => this.source.readFile(path));
+        this.#count(READS, () => this.source.readFile(path));
 
     /** Read a file's text. */
     readonly readTextFile: FileSystem["readTextFile"] = (path) =>
-        this.#run("destack.file.read", path, () => this.source.readTextFile(path));
+        this.#count(READS, () => this.source.readTextFile(path));
 
     /** Write a file's bytes. */
     readonly writeFile: FileSystem["writeFile"] = (path, data, options) =>
-        this.#run("destack.file.write", path, () => this.source.writeFile(path, data, options));
+        this.#count(WRITES, () => this.source.writeFile(path, data, options));
 
     /** Write a file's text. */
     readonly writeTextFile: FileSystem["writeTextFile"] = (path, text, options) =>
-        this.#run("destack.file.write", path, () => this.source.writeTextFile(path, text, options));
+        this.#count(WRITES, () => this.source.writeTextFile(path, text, options));
 
     /** List a directory's entries. */
     readonly readDirectory: FileSystem["readDirectory"] = (path, options) =>
@@ -51,25 +69,25 @@ export class InstrumentedFiles implements FileSystem {
 
     /** Create a directory. */
     readonly mkdir: FileSystem["mkdir"] = (path, options) =>
-        this.#run("destack.file.mkdir", path, () => this.source.mkdir(path, options));
+        this.#count(WRITES, () => this.source.mkdir(path, options));
 
     /** Create a fresh temporary directory. */
     readonly makeTemporaryDirectory: FileSystem["makeTemporaryDirectory"] = (prefix, options) =>
-        this.#run("destack.file.mkdir", prefix, () =>
-            this.source.makeTemporaryDirectory(prefix, options),
-        );
+        this.#count(WRITES, () => this.source.makeTemporaryDirectory(prefix, options));
 
     /** Remove a path. */
     readonly remove: FileSystem["remove"] = (path, options) =>
-        this.#run("destack.file.remove", path, () => this.source.remove(path, options));
+        options?.recursive === true
+            ? this.#run("destack.file.remove", path, () => this.source.remove(path, options))
+            : this.#count(WRITES, () => this.source.remove(path, options));
 
     /** Move a path. */
     readonly rename: FileSystem["rename"] = (from, to) =>
-        this.#run("destack.file.rename", from, () => this.source.rename(from, to));
+        this.#count(WRITES, () => this.source.rename(from, to));
 
     /** Copy a file. */
     readonly copyFile: FileSystem["copyFile"] = (from, to) =>
-        this.#run("destack.file.copy", from, () => this.source.copyFile(from, to));
+        this.#count(WRITES, () => this.source.copyFile(from, to));
 
     /** Copy a file or a tree. */
     readonly copy: FileSystem["copy"] = (from, to) =>
