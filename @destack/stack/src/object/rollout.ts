@@ -136,6 +136,8 @@ export const rollout = defineObject(
             appliedRevision: field.reference(() => installationRevision).optional(),
             /** The revision the space serves, absent before it serves one. */
             servedRevision: field.reference(() => installationRevision).optional(),
+            /** Why the space refuses to serve the installation, absent otherwise. */
+            refusal: field.string().optional(),
             /** The revision applied before the applied one, which a rollback targets again. */
             previousRevision: field.reference(() => installationRevision).optional(),
             /** The digest of the objects the installation last related as their consumer. */
@@ -189,7 +191,13 @@ export const rollout = defineObject(
         /** Record the revisions the installation applied and serves, and what it consumes. */
         update: method.update("update", {
             visibility: "installation",
-            fields: ["appliedRevisionId", "previousRevisionId", "servedRevisionId", "consumption"],
+            fields: [
+                "appliedRevisionId",
+                "previousRevisionId",
+                "servedRevisionId",
+                "refusal",
+                "consumption",
+            ],
         }),
 
         /** Read the plan waiting for approval with the digest approving it names. */
@@ -675,22 +683,32 @@ export const Rollout = {
         );
     },
 
-    /** Record the revision a space serves each of its installations at, none for the others. */
+    /** Record the revision a space serves each of its installations at, and why it refuses any. */
     async serve(
         store: Pick<ObjectStore, "database" | "mutate" | "principal" | "clock" | "environment">,
         spaceId: Identifier<"space">,
         revisions: ReadonlyMap<Identifier<"installation">, Identifier<"installation-revision">>,
+        refusals: ReadonlyMap<Identifier<"installation">, string>,
     ): Promise<void> {
-        // observe each installation whose served revision changed, as the space's store
+        // observe each installation whose served revision or refusal changed, as the space's store
         const rows = await Snapshot.live(store.database)
             .read(rollout.table)
             .findMany({ where: { scope: spaceId } });
         const calls = rows.flatMap((row) => {
+            // update a row whose served revision or refusal moved
             const served = revisions.get(row.installationId) ?? null;
+            const refusal = refusals.get(row.installationId) ?? null;
+            const isSame = row.servedRevisionId === served && row.refusal === refusal;
 
-            return row.servedRevisionId === served
+            return isSame
                 ? []
-                : [rollout.call("update", { ...rollout.target(row), servedRevisionId: served })];
+                : [
+                      rollout.call("update", {
+                          ...rollout.target(row),
+                          servedRevisionId: served,
+                          refusal,
+                      }),
+                  ];
         });
         if (calls.length > 0) {
             const now = store.clock.now();
