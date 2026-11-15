@@ -1,18 +1,9 @@
 import { account } from "@destack/account/object";
-import { Change, Projection, Snapshot, TABLE } from "@destack/db";
+import { Snapshot } from "@destack/db";
 import { EventView } from "@destack/object";
 import type { ObjectStore } from "@destack/object/server";
 import { RequestId } from "@destack/sync";
-import {
-    customer,
-    Customer,
-    type Resolution,
-    product,
-    productFeature,
-    subscription,
-    subscriptionItem,
-} from "../object/index.ts";
-import { tag } from "@destack/registry/object";
+import { customer, Customer, type Resolution } from "../object/index.ts";
 import { usage } from "@destack/stack/object";
 import type { Metering } from "./metering.ts";
 
@@ -30,92 +21,6 @@ export class CustomerEntitlement {
         this.#store = store;
         this.#home = home;
         this.#metering = metering;
-    }
-
-    /** Project each account's entitlements from its replica, usage, subscriptions and defaults. */
-    projection(): Projection {
-        return new Projection(this.#store.database, {
-            name: "entitlement",
-            tables: [
-                account.table,
-                usage.table,
-                subscription.table,
-                subscriptionItem.table,
-                product.table,
-                productFeature.table,
-                tag.table,
-            ],
-            keys: (change) => this.keys(change),
-            all: () => this.list(),
-            project: (scope) => this.derive(scope),
-        });
-    }
-
-    /** Select a change's accounts, all on a rare default edit: about 1 ms each, 100 s per 100k. */
-    async keys(change: Change): Promise<readonly string[]> {
-        // key an account's replica by itself
-        if (Change.of(change, account.table)) {
-            return [Change.image(change).id];
-        }
-        // key arriving usage by its paying account
-        else if (Change.of(change, usage.table)) {
-            return change.operation === "insert" ? [Change.image(change).scope] : [];
-        }
-        // key a subscription by its account
-        else if (Change.of(change, subscription.table)) {
-            return [Change.image(change).accountId];
-        }
-        // key an item by its subscription's account, none once the subscription is deleted
-        else if (Change.of(change, subscriptionItem.table)) {
-            const parent = await Snapshot.live(this.#store.database)
-                .read(subscription.table)
-                .findFirst({
-                    where: {
-                        id: Change.image(change).parentId,
-                    },
-                });
-
-            return parent === undefined ? [] : [parent.accountId];
-        }
-        // key every account by a default product changing
-        else if (Change.of(change, product.table)) {
-            const isDefault = [Change.before(change), Change.after(change)].some(
-                (image) => image?.isDefault === true,
-            );
-
-            return isDefault ? this.list() : [];
-        }
-        // key every account by a default product's grant changing, as subscriptions have their own
-        else if (Change.of(change, productFeature.table)) {
-            const parent = await Snapshot.live(this.#store.database)
-                .read(product.table)
-                .findFirst({
-                    where: {
-                        id: Change.image(change).parentId,
-                    },
-                });
-
-            return parent !== undefined && parent.isDefault ? this.list() : [];
-        }
-        // key every account by the metering tag moving to another release
-        else if (Change.of(change, tag.table)) {
-            return Change.image(change).name === this.#metering.tag ? this.list() : [];
-        }
-        // refuse an unread table
-        else {
-            throw new TypeError(
-                `table '${change.table[TABLE].name}' is not read by the entitlement projection`,
-            );
-        }
-    }
-
-    /** List every account replicated here. */
-    async list(): Promise<readonly string[]> {
-        const rows = await this.#store.database
-            .select({ id: account.table.id })
-            .from(account.table);
-
-        return rows.map((row) => row.id);
     }
 
     /** Resolve each feature an account's sources grant now, with its metered usage. */

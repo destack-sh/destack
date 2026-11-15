@@ -10,15 +10,12 @@ import { implementSubscription } from "./subscription.ts";
 import { Billing } from "./billing.ts";
 import type { Metering } from "./metering.ts";
 import { account, entitlementShape } from "@destack/account/object";
-import { Scope, RequestId } from "@destack/sync";
+import { Scope } from "@destack/sync";
 import type { ImplementationInput } from "@destack/object/server";
 import type { ServerContext } from "@destack/object/workload";
 import { stripeWebhook } from "../declare/webhook.ts";
 import financePackage from "../package.ts";
 import { type PaymentProvider, ProviderEvent } from "../provider/provider.ts";
-import { CustomerEntitlement } from "./entitlement.ts";
-import { usage } from "@destack/stack/object";
-import { charge } from "../object/index.ts";
 import type {} from "@destack/package/import-meta";
 
 /** Implement the finance package in a home: its types, the provider's webhook, its cursors. */
@@ -46,8 +43,8 @@ export function implementFinance(
             implementPrice(metering),
             implementSubscription(billing),
             implementCheckoutSession(billing),
-            implementCustomer(),
-            implementCharge(metering),
+            implementCustomer(home, metering),
+            implementCharge(home, metering),
         ],
 
         mounts: {
@@ -66,34 +63,6 @@ export function implementFinance(
             entitlementShape.per(account, {
                 key: async (row) => ({ key: { scope: Scope.universe.id, account: row.id } }),
             }),
-        ],
-
-        // rate the usage routed here and derive each account's entitlements
-        cursors: [
-            // read each payer's usage, held thirty days past any rating outage
-            usage.cursor(
-                "usage",
-                async (page, { store, transaction }) => {
-                    // rate the claimed page through the charges' method, moving the cursor in the same commit
-                    await store.mutate(
-                        store.as(charge),
-                        {
-                            id: RequestId.create(store.environment),
-                            calls: [
-                                charge.call("rate", {
-                                    ...charge.in(home),
-                                    accountId: account.identifier(page.scope),
-                                    after: page.after,
-                                    through: page.through,
-                                }),
-                            ],
-                        },
-                        { transaction, scope: home },
-                    );
-                },
-                { hold: { days: 30 } },
-            ),
-            (store) => new CustomerEntitlement(store, home, metering).projection(),
         ],
     };
 }
