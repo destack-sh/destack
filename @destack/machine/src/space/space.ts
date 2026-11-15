@@ -1833,14 +1833,13 @@ export class Space {
         return changed === this.id ? [this.id] : [];
     }
 
-    /** List the space while placed here awaiting birth, a main database, or its changed stack. */
+    /** List the space while placed here awaiting birth or its changed stack. */
     async #placed(): Promise<readonly string[]> {
         // read the space while placed here with its stack and the stack its installation last followed
         const rows = await this.database
             .select({
                 id: accountObject.placement.table.spaceId,
                 born: Scope.table.scope,
-                main: database.table.id,
                 stack: accountObject.space.table.stack,
                 followed: rollout.table.spaceStack,
             })
@@ -1850,13 +1849,6 @@ export class Space {
                 eq(accountObject.space.table.id, accountObject.placement.table.spaceId),
             )
             .leftJoin(Scope.table, eq(Scope.table.scope, accountObject.space.table.id))
-            .leftJoin(
-                database.table,
-                and(
-                    eq(database.table.scope, accountObject.placement.table.spaceId),
-                    eq(database.table.name, MAIN_DATABASE),
-                ),
-            )
             .leftJoin(
                 installation.table,
                 and(
@@ -1873,13 +1865,11 @@ export class Space {
                 ),
             );
 
-        // select it unborn, without a main database, or with a stack changed since its installation followed it
+        // select it unborn, or with a stack changed since its installation followed it
         const { crypto } = this.database.state.environment;
         const listed = await Promise.all(
             rows.map(async (row) =>
-                row.born === null ||
-                row.main === null ||
-                (await Digest.json(row.stack, crypto)) !== row.followed
+                row.born === null || (await Digest.json(row.stack, crypto)) !== row.followed
                     ? [row.id]
                     : [],
             ),
@@ -1888,7 +1878,7 @@ export class Space {
         return listed.flat();
     }
 
-    /** Give birth to the placed space from its replicated row, and install its stack. */
+    /** Place the space here: instantiate it, else follow its changed stack. */
     async #place(
         key: string,
         store: ObjectStore,
@@ -1915,55 +1905,70 @@ export class Space {
             return;
         }
 
-        // open the space once its parent's scope arrived
+        // instantiate the space once its parent's scope arrived
         if (placed.born === null) {
             const [parent] = await this.database
                 .select({ ancestors: Scope.table.ancestors })
                 .from(Scope.table)
                 .where(eq(Scope.table.scope, placed.parent));
-            if (parent === undefined) {
-                return;
+            if (parent !== undefined) {
+                const ancestors = [placed.parent, ...parent.ancestors];
+                await this.#instantiate(store, main, spaceId, ancestors);
             }
-            await this.#receive(store, spaceId, [placed.parent, ...parent.ancestors]);
         }
-
-        // create its main database as the space
-        const [created] = await this.database
-            .select({ id: database.table.id })
-            .from(database.table)
-            .where(and(eq(database.table.scope, spaceId), eq(database.table.name, MAIN_DATABASE)));
-        if (created === undefined) {
-            await this.#createMain(store, main, spaceId);
+        // otherwise follow the space's stack once it changed, leaving a stack its owner applied since
+        else {
+            await Transaction.run(this.database, (transaction) =>
+                this.#followChangedStack(store, spaceId, transaction),
+            );
         }
+    }
 
-        // follow the space's stack once it changed, leaving a stack its owner applied since
-        const [received] = await this.database
-            .select({
-                stack: accountObject.space.table.stack,
-                installed: installation.table.id,
-                installedPackage: installation.table.packageId,
-                followed: rollout.table.spaceStack,
-            })
-            .from(accountObject.space.table)
-            .leftJoin(
-                installation.table,
-                and(
-                    eq(installation.table.scope, accountObject.space.table.id),
-                    isNotNull(installation.table.export),
-                ),
-            )
-            .leftJoin(rollout.table, eq(rollout.table.installationId, installation.table.id))
-            .where(eq(accountObject.space.table.id, spaceId));
-        const row = present(received, `the row of ${spaceId}`);
-        const digest = await Digest.json(row.stack, this.database.state.environment.crypto);
-        if (digest !== row.followed) {
+    /** Instantiate a placed space in one transaction: its scope, main database and stack. */
+    async #instantiate(
+        store: ObjectStore,
+        main: ReturnType<typeof defineDatabase>,
+        spaceId: Identifier<"space">,
+        ancestors: readonly string[],
+    ): Promise<void> {
+        await Transaction.run(this.database, async (transaction) => {
+            await this.#receive(store, spaceId, ancestors, transaction);
+            await this.#createMain(store, main, spaceId, transaction);
+            await this.#followChangedStack(store, spaceId, transaction);
+        });
+    }
+
+    /** Follow the space's stack once it changed, leaving a stack its owner applied since. */
+    async #followChangedStack(
+        store: ObjectStore,
+        spaceId: Identifier<"space">,
+        transaction: Transaction,
+    ): Promise<void> {
+        // read the stack the space declares and the one its installation last followed
+        const snapshot = transaction.view();
+        const [declared] = await snapshot
+            .read(accountObject.space.table)
+            .findMany({ where: { id: spaceId } });
+        const { stack } = present(declared, `the row of ${spaceId}`);
+        const [installed] = await snapshot.read(installation.table).findMany({
+            where: { scope: spaceId, export: { isNotNull: true } },
+        });
+        const [followed] =
+            installed === undefined
+                ? []
+                : await snapshot
+                      .read(rollout.table)
+                      .findMany({ where: { installationId: installed.id } });
+        const digest = await Digest.json(stack, transaction.database.state.environment.crypto);
+        if (digest !== followed?.spaceStack) {
             await this.#followStack(
                 store,
+                transaction,
                 spaceId,
-                row.stack,
+                stack,
                 digest,
-                row.installed,
-                row.installedPackage,
+                installed?.id ?? null,
+                installed?.packageId ?? null,
             );
         }
     }
@@ -1973,23 +1978,24 @@ export class Space {
         store: ObjectStore,
         spaceId: Identifier<"space">,
         ancestors: readonly string[],
+        transaction: Transaction,
     ): Promise<void> {
         // read the account the space lives in
-        const [row] = await this.database
-            .select({ scope: accountObject.space.table.scope })
-            .from(accountObject.space.table)
-            .where(eq(accountObject.space.table.id, spaceId));
+        const [row] = await transaction
+            .view()
+            .read(accountObject.space.table)
+            .findMany({ where: { id: spaceId } });
         const replicated = present(row, `the row of ${spaceId}`);
         const now = store.clock.now();
         // record its scope here, its primary
         const scope = accountObject.space.reference(replicated.scope, spaceId);
-        await Authorization.run(
+        const authorization = new Authorization(
             store.authorizer,
-            this.database,
+            transaction,
             () => AccessContext.of(Caller.of(store.principal), now),
             store.environment,
-            (authorization) => authorization.receive(scope, ancestors),
         );
+        await authorization.receive(scope, ancestors);
     }
 
     /** Create a space's main database where its stack places it. */
@@ -1997,37 +2003,36 @@ export class Space {
         store: ObjectStore,
         main: ReturnType<typeof defineDatabase>,
         spaceId: Identifier<"space">,
+        transaction: Transaction,
     ): Promise<void> {
-        // describe the main database every space has in its own storage
-        await Transaction.run(this.database, async (transaction) => {
-            // create the main database as the space
-            await store.mutate(
-                store.as(database),
-                {
-                    id: RequestId.create(store.environment),
-                    calls: [
-                        database.call("create", {
-                            ...database.in(spaceId),
-                            ...ObjectReference.columns(
-                                "owner",
-                                principal.space.reference(Scope.universe.id, spaceId),
-                            ),
-                            name: MAIN_DATABASE,
-                            ...main.provision({
-                                placement: { provider: SPACE_PROVIDER },
-                                retention: "forever",
-                            }),
+        // create the main database every space has in its own storage, as the space
+        await store.mutate(
+            store.as(database),
+            {
+                id: RequestId.create(store.environment),
+                calls: [
+                    database.call("create", {
+                        ...database.in(spaceId),
+                        ...ObjectReference.columns(
+                            "owner",
+                            principal.space.reference(Scope.universe.id, spaceId),
+                        ),
+                        name: MAIN_DATABASE,
+                        ...main.provision({
+                            placement: { provider: SPACE_PROVIDER },
+                            retention: "forever",
                         }),
-                    ],
-                },
-                { transaction, scope: spaceId },
-            );
-        });
+                    }),
+                ],
+            },
+            { transaction, scope: spaceId },
+        );
     }
 
     /** Create the space's stack installation following its stack, or point it at a changed one. */
     async #followStack(
         store: ObjectStore,
+        transaction: Transaction,
         spaceId: Identifier<"space">,
         stack: accountObject.StackRelease,
         digest: Digest,
@@ -2043,35 +2048,43 @@ export class Space {
 
         // install the stack package once, else follow the changed release and export
         const followed = { selection: stack.selection, export: stack.export };
-        const [created] = await store.mutate(store.as(rollout), {
-            id: RequestId.create(store.environment),
-            calls: [
-                installed === null
-                    ? installation.call("create", {
-                          ...installation.in(spaceId),
-                          packageId: stack.packageId,
-                          ...followed,
-                          parameters: {},
-                          name: STACK_INSTALLATION,
-                      })
-                    : installation.call("update", {
-                          ...installation.target({ scope: spaceId, id: installed }),
-                          ...followed,
-                      }),
-            ],
-        });
+        const [created] = await store.mutate(
+            store.as(rollout),
+            {
+                id: RequestId.create(store.environment),
+                calls: [
+                    installed === null
+                        ? installation.call("create", {
+                              ...installation.in(spaceId),
+                              packageId: stack.packageId,
+                              ...followed,
+                              parameters: {},
+                              name: STACK_INSTALLATION,
+                          })
+                        : installation.call("update", {
+                              ...installation.target({ scope: spaceId, id: installed }),
+                              ...followed,
+                          }),
+                ],
+            },
+            { transaction, scope: spaceId },
+        );
 
         // record the stack followed and drop an owner's earlier apply, so one its owner applies later stays
         const id = installed ?? present(created, `the stack of ${spaceId}`).id;
-        await store.mutate(store.as(rollout), {
-            id: RequestId.create(store.environment),
-            calls: [
-                rollout.call("follow", {
-                    ...rollout.target({ scope: spaceId, id }),
-                    spaceStack: digest,
-                }),
-            ],
-        });
+        await store.mutate(
+            store.as(rollout),
+            {
+                id: RequestId.create(store.environment),
+                calls: [
+                    rollout.call("follow", {
+                        ...rollout.target({ scope: spaceId, id }),
+                        spaceStack: digest,
+                    }),
+                ],
+            },
+            { transaction, scope: spaceId },
+        );
     }
 
     /** List the space a change of its work, its placement or its assignments touches. */
