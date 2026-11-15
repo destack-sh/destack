@@ -325,7 +325,7 @@ export const Reservation = {
         );
 
         return {
-            name: "claim-reservation",
+            name: "destack.claim_reservation.expire",
             table: claimReservation,
             pending: { expiresAt: { lte: now } },
             key: [],

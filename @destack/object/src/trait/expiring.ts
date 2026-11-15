@@ -38,7 +38,7 @@ const expiringTrait: TraitBehavior<readonly ExpiryRule[]> & {
     // expire each scope's objects once a rule's window passed
     controllers: (rules, object) =>
         rules.map((rule, index) => ({
-            name: `expiry-${String(index)}`,
+            name: rules.length === 1 ? "expire" : `expire.${String(index)}`,
             pending: { ...rule.where, [rule.from]: { lte: new Now().minus(rule.after) } },
             key: ["scope"],
             reconcile: async ({ rows, mutate }) => {

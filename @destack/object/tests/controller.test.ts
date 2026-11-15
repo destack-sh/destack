@@ -48,6 +48,7 @@ const reminder = defineObject(
     methods: { send: (call) => call.update({ sentAt: call.now }) },
     controllers: [
         {
+            name: "send",
             pending: { sentAt: { isNull: true }, dueAt: { lte: now } },
             key: ["topic"],
             // send the due reminders of a topic together
@@ -91,6 +92,7 @@ const gate = defineObject(
 ).implement({
     controllers: [
         {
+            name: "sync",
             pending: { generation: { gt: { field: "syncedGeneration" } } },
             // refuse, fail or hold each gate as its outcome says
             reconcile: async ({ rows, signal }) => {
@@ -143,6 +145,7 @@ const latch = defineObject(
 ).implement({
     projections: [
         {
+            name: "derive",
             watches: [],
             // refuse a latch whose outcome says so
             project: async (_id, { rows }) => {
@@ -198,6 +201,7 @@ const lever = defineObject(
 ).implement({
     projections: [
         {
+            name: "derive",
             watches: [],
             reports: { object: toggle, identifiers: (rows) => rows.map((row) => row.toggleId) },
             // refuse a lever whose outcome says so
@@ -307,6 +311,7 @@ test("reconcile a pending object again as a gate naming its topic changes", asyn
     const watched = reminder.implement({
         controllers: [
             {
+                name: "send",
                 pending: { sentAt: { isNull: true } },
                 watches: [
                     {
@@ -785,6 +790,7 @@ test("project a type's objects at a start, then each one its own or a watched in
     const projectedReminder = reminder.implement({
         projections: [
             {
+                name: "derive",
                 watches: [
                     {
                         table: gate.table,

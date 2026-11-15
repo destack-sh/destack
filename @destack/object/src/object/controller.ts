@@ -20,6 +20,7 @@ import { RequestId, Scope } from "@destack/sync";
 import { Failure } from "@destack/error";
 import { found, schema } from "@destack/schema";
 import { waitAborted } from "@destack/environment";
+import { PackageName } from "@destack/package";
 import type { ObjectType } from "./object.ts";
 import {
     ConditionMap,
@@ -68,8 +69,8 @@ type ObjectWork<Object extends ObjectType> =
 
 /** A type's reactive behavior beside its methods: the objects with work, and the work. */
 export type ObjectController<Object extends ObjectType = ObjectType> = {
-    /** The controller's name within its type, absent for the type's own controller. */
-    readonly name?: string;
+    /** What the controller does to its type's objects, a verb such as `run`. */
+    readonly name: string;
     /** The objects with work now, which may compare time fields to `now`. */
     readonly pending: Condition<RowImage<Object["table"]>>;
     /** The fields grouping objects reconciled together, the identifier by default. */
@@ -88,8 +89,8 @@ export type ObjectWatch = Omit<Watch, "path"> & {
 
 /** Objects a type projects from input tables, projected again as the inputs' changes touch them. */
 export interface ObjectProjection<Object extends ObjectType = ObjectType> {
-    /** The projection's name within its type, absent for the type's own projection. */
-    readonly name?: string;
+    /** What the projection does to its type's objects, a verb such as `resume`. */
+    readonly name: string;
     /** The type's field holding the key, its key field by default. */
     readonly key?: string;
     /** The inputs whose changed rows touch keys, beside the type's own rows. */
@@ -147,12 +148,19 @@ export interface ObjectFollowing<
 
 /** Build the controllers object types declare. */
 export const ObjectController = {
+    /** Read a job's name as signals have theirs: its package's account, its type and its verb. */
+    job(object: ObjectType, verb: string): string {
+        const { handle } = PackageName.split(object.package.name);
+
+        return `${handle}.${object.name.replaceAll("-", "_")}.${verb}`;
+    },
+
     /** Build a type's declared controller over its table, as the store's principal. */
     control(store: ObjectStore, object: ObjectType, declared: ObjectController): Controller {
         // list the type again once a scope's fence or suspension changes, which releases its rows
         const key = declared.key ?? ["id"];
         const shape = {
-            name: declared.name === undefined ? object.name : `${object.name}:${declared.name}`,
+            name: ObjectController.job(object, declared.name),
             table: object.table,
             pending: declared.pending,
             key,
@@ -215,10 +223,9 @@ export const ObjectController = {
         // watch the type's own changed rows by the field, unless a declared watch reads them
         const isOwnWatched = declared.watches.some((watch) => watch.table === object.table);
         const own: Watch = { table: object.table, on: { [all.column]: field } };
-        const name = declared.name === undefined ? object.name : `${object.name}:${declared.name}`;
 
         return {
-            name: `project:${name}`,
+            name: ObjectController.job(object, declared.name),
             key: field,
             watches: [
                 ...(isOwnWatched ? [] : [own]),

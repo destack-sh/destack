@@ -1126,8 +1126,13 @@ test("follow replicates as a server without methods, journal or call key", async
     const controllers = sets.flatMap((set) => set.controllers);
     const cursors = sets.flatMap((set) => set.cursors);
     expect([controllers.map((each) => each.name), cursors.map((each) => each.name)]).toEqual([
-        ["replica", "blob-leases", "blob-retired", "blob-freed"],
-        ["subscriptions"],
+        [
+            "destack.replica.follow",
+            "destack.blob.release",
+            "destack.blob.collect",
+            "destack.blob.delete",
+        ],
+        ["destack.replica.request"],
     ]);
 });
 

@@ -175,7 +175,7 @@ export const Settlement = {
     /** Settle what servers left once the grace passes. */
     controller(store: ObjectStore): Controller<typeof settlement> {
         return {
-            name: "settlement",
+            name: "destack.settlement.recover",
             table: settlement,
             pending: { settleAt: { lte: now } },
             reconcile: async (rows) => Settlement.recover(store, rows),

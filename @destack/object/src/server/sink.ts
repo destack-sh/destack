@@ -19,7 +19,7 @@ import type { ObjectStore, Subscriber } from "./store.ts";
 import { replicaRequest } from "../replica/request.ts";
 
 /** The cursor deciding the replicas a store follows, whose checkpoint each decision moves. */
-const SUBSCRIPTIONS_CURSOR = "subscriptions";
+const SUBSCRIPTIONS_CURSOR = "destack.replica.request";
 
 /** One requested replica as its row stores it. */
 type ReplicaRequest = typeof replicaRequest.$inferSelect;
@@ -53,7 +53,7 @@ export class ObjectSink {
     /** Build the controller following each requested replica and dropping each unrequested one. */
     controller(subscriber: Subscriber): Controller<typeof replicaRequest> {
         return {
-            name: "replica",
+            name: "destack.replica.follow",
             table: replicaRequest,
             pending: {},
             concurrency: Infinity,
