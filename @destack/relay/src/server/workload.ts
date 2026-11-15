@@ -125,7 +125,7 @@ async function serveRoot(
     });
 
     // serve the package, and project the tunnels' names from the replica in the store's loop
-    const control = [{ controllers: [], projections: [relay.projection()], cursors: [] }];
+    const control = () => [{ controllers: [], projections: [relay.projection()], cursors: [] }];
 
     return { packages: [store.package(relayPackage)], store, control };
 }
