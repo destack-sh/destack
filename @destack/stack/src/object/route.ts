@@ -171,7 +171,6 @@ export const route = defineObject(
     },
     (method) => ({
         create: method.create("write"),
-        get: method.get("read"),
         list: method.list("read"),
         update: method.update("write", { fields: ["installationId", "rules"] }),
         delete: method.delete("write"),

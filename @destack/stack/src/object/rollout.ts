@@ -334,7 +334,7 @@ export const rollout = defineObject(
                 );
             }
 
-            // select its release on the installation and target it
+            // pin the installation to the release's build and target it
             const target = installation.target({
                 scope: call.target.scope,
                 id: call.target.installationId,
@@ -342,7 +342,8 @@ export const rollout = defineObject(
             await call.mutate(call.self, [
                 installation.call("update", {
                     ...target,
-                    selection: { kind: "release", version: built.source.version },
+                    ...ObjectReference.columns("follows", build.reference(built.scope, built.id)),
+                    directory: null,
                 }),
                 installation.call("target", { ...target, revisionId: previous.id }),
             ]);
@@ -470,11 +471,11 @@ export const Rollout = {
 
     /** Report whether one following the host's release runs a lock this machine does not. */
     isSuperseded(
-        installed: Pick<Installation, "selection">,
+        installed: Pick<Installation, "followsId">,
         lock: Digest,
         trusted: ReadonlySet<Digest>,
     ): boolean {
-        return installed.selection.kind === "host" && !trusted.has(lock);
+        return installed.followsId === null && !trusted.has(lock);
     },
 
     /** Read the rollouts of some installations joined with them. */

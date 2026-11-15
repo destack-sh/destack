@@ -79,22 +79,24 @@ destack apply ./stack --export personal
 
 ### Follow a tag
 
-A rollout resolves a tag to a release version, as npm's dist-tags do.
+A rollout follows a tag's row and resolves it to a release version, as npm's dist-tags do.
 
 ```ts
 import type { ClientOf } from "@destack/object/client";
 import type { Identifier } from "@destack/schema";
+import type { ObjectReference } from "@destack/sync";
 import type stackPackage from "@destack/stack/package";
 
-/** Follow the latest release tag. */
+/** Follow the latest release tag by its row. */
 export async function followLatest(
     client: ClientOf<typeof stackPackage>,
     spaceId: Identifier<"space">,
     id: Identifier<"rollout">,
     requestId: string,
+    latest: ObjectReference,
 ): Promise<void> {
-    const latest = { kind: "tag", tag: "latest" } as const;
-    await client.rollout.submit({ spaceId, id, requestId, selection: latest, build: latest });
+    const build = { kind: "tag", tag: "latest" } as const;
+    await client.rollout.submit({ spaceId, id, requestId, follows: latest, build });
 }
 ```
 

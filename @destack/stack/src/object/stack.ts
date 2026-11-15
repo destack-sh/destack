@@ -1,5 +1,6 @@
 import { schema } from "@destack/schema";
-import { AWAITING_APPROVAL, InstallationSelection } from "@destack/object";
+import { AWAITING_APPROVAL, PackageDirectory } from "@destack/object";
+import { ObjectReference } from "@destack/sync";
 import { BuildReference, StackDefinition } from "../declare/index.ts";
 
 /** A stack's evaluation: its export, arguments, settings, and the definition they give. */
@@ -18,8 +19,10 @@ export type StackEvaluation = schema.Infer<typeof StackEvaluation>;
 
 /** A build submitted to the installation following it, with a stack's export and arguments. */
 export const Submission = schema.object({
-    /** The release, repository reference or checkout the installation follows. */
-    selection: InstallationSelection,
+    /** The tag, release, reference or checkout the installation follows, absent for the host's. */
+    follows: ObjectReference.exactOptional(),
+    /** The package directory within a followed repository or checkout. */
+    directory: PackageDirectory.exactOptional(),
     /** The build to evaluate: a release, or a succeeded build of the space. */
     build: BuildReference,
     /** The export the space evaluates and its arguments, absent for an application. */

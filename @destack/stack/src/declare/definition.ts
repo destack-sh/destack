@@ -82,7 +82,7 @@ export const StackDefinition = Object.assign(schema.jsonObject(), {
         // read each installation's build in the stack's lock, but for one the host provides
         const declaredInstallations = Object.entries(document.installations).flatMap(
             ([key, installed]) => {
-                if (installed.selection.kind === "host") {
+                if (installed.selection?.kind === "host") {
                     return [];
                 }
                 const built = builds.get(installed.packageId);
