@@ -112,6 +112,29 @@ export class ModelQueryBuilder<Entity extends Model = Model> {
               );
     }
 
+    /** Read the rows a relation relates to some rows of this table, meeting its condition. */
+    async related(relation: Relation, rows: readonly Row[]): Promise<Row[]> {
+        // read the related rows of every distinct parent value at once
+        const parent = parentOf(this.#table, relation.on);
+        const values = new Map<string, Comparable>();
+        for (const row of rows) {
+            const value = parentValue(parent, { columns: row, row, parent: undefined });
+            if (value !== undefined) {
+                values.set(nameOf(value), value);
+            }
+        }
+        const link = { path: relation.on, values };
+        const reads = await read(
+            this.#connection,
+            this.#relations,
+            relation.table,
+            related(relation, {}),
+            link,
+        );
+
+        return reads.map((entry) => entry.columns);
+    }
+
     /** Read the rows of a level and below in one read transaction. */
     #find(options: FindOptions): Promise<Record<string, unknown>[]> {
         return this.#connection.transaction(

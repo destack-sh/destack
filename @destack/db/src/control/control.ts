@@ -4,10 +4,25 @@ import { Lock, lock } from "../limit/index.ts";
 import type { Tracker } from "../tracker/index.ts";
 import { Change, LogColumn, type LogCursor } from "../log/index.ts";
 import { LOG, LOG_CHECKPOINT } from "../log/schema.ts";
-import { and, gt, gte, min, Placeholder, type SQL, sql } from "../sql/index.ts";
-import { Condition, type Match, Namespace, Predicate, Scalar } from "../query/index.ts";
-import { TABLE, type Row, type RowImage, type Select, type Table } from "../table/index.ts";
-import { canonicalize, Duration, found, nth, schema, Uuid } from "@destack/schema";
+import { and, eq, gt, gte, lte, min, or, Placeholder, type SQL, sql } from "../sql/index.ts";
+import {
+    Condition,
+    type Match,
+    ModelQueryBuilder,
+    Namespace,
+    Predicate,
+    type Relation,
+    Scalar,
+} from "../query/index.ts";
+import {
+    type ColumnValue,
+    TABLE,
+    type Row,
+    type RowImage,
+    type Select,
+    type Table,
+} from "../table/index.ts";
+import { canonicalize, Duration, found, nth, present, schema, Uuid } from "@destack/schema";
 import { TelemetryScope } from "@destack/telemetry";
 import type {} from "@destack/package/import-meta";
 import { Failure } from "@destack/error";
@@ -35,6 +50,15 @@ const KEY_ROWS = 1000;
 
 /** The fields of a key, as its canonical JSON text has them. */
 const KEY_FIELDS = schema.record(schema.string(), Scalar);
+
+/** A projection's key, its key field's value as text. */
+const ProjectionKey = schema.union([schema.string(), schema.number()]).transform(String);
+
+/** The most compiled stored conditions a loop keeps: 10,000 at about 1 KB each, about 10 MB. */
+const STORED_CONDITIONS = 10_000;
+
+/** How long the log keeps changes past a stopped loop's position: a week. */
+const POSITION_HOLD_MILLISECONDS = 7 * 24 * 60 * 60_000;
 
 /** The key of a cursor's one checkpoint. */
 const ONE_CHECKPOINT = "";
@@ -93,17 +117,29 @@ export const now = new Now();
 /** The fields that group a controller's rows into one key, in JSON form. */
 export type KeyFields = Readonly<Record<string, Scalar>>;
 
-/** Another table whose changed rows select a controller's keys. */
+/** Another table whose changed rows wake the keys they reference, along a path of references. */
 export interface Watch<Watched extends Table = Table> {
     /** The watched table. */
     readonly table: Watched;
-    /** Whether observations of its rows select keys too, as an owner waits for what it owns. */
+    /** The relations from a changed row to the rows holding the keys, none for the row itself. */
+    readonly path?: readonly Relation[];
+    /** The job's columns equal to the reached rows' columns, its key fields by name by default. */
+    readonly on?: Readonly<Record<string, string>>;
+    /** The job's rows with a stored condition the changed row must match, as stored queries. */
+    readonly matches?: {
+        /** The column with the stored condition. */
+        readonly column: string;
+        /** The job's rows that count, every row when absent. */
+        readonly where?: Condition;
+    };
+    /** Whether a change lists the job again instead of waking keys, as a lifted fence does. */
+    readonly isListing?: boolean;
+    /** The changed rows that wake keys, every row when absent. */
+    readonly where?: Condition;
+    /** The fields whose change wakes keys, any field when absent. */
+    readonly fields?: readonly string[];
+    /** Whether observations of its rows wake keys too, as an owner waits for what it owns. */
     readonly isObserving?: boolean;
-    /** Read the keys a changed row selects. */
-    keys(
-        change: Change<Watched>,
-        database: DatabaseConnection,
-    ): readonly KeyFields[] | Promise<readonly KeyFields[]>;
 }
 
 /** What a controller does with its pending rows: converge them, or hold work while they stay. */
@@ -136,6 +172,29 @@ export type Controller<Definition extends Table = Table> = {
     readonly concurrency?: number;
 } & Work<Definition>;
 
+/** Rows derived from inputs by key, absent ones included, projected again as the inputs change. */
+export interface Projection {
+    /** The projection's name in reports and locks. */
+    readonly name: string;
+    /** The key's field name, which its watches map. */
+    readonly key: string;
+    /** The inputs whose changed rows touch keys. */
+    readonly watches: readonly Watch[];
+    /** Every key: the distinct values of one input's column. */
+    readonly all: {
+        /** The input defining the keys. */
+        readonly table: Table;
+        /** Its column holding the key. */
+        readonly column: string;
+        /** Its rows that define keys, every row when absent. */
+        readonly where?: Condition;
+    };
+    /** Project one key from its inputs as they are now. */
+    readonly project: (key: string, reconciliation: Reconciliation) => Promise<void>;
+    /** The most keys it projects at once, one by default. */
+    readonly concurrency?: number;
+}
+
 /** A position in the log: some tables' changes past one checkpoint, each taken once. */
 export interface Cursor extends LogCursor {
     /** Whether hosts share it by claiming pages, so a pass reads again for untaken changes. */
@@ -150,16 +209,20 @@ export interface Cursor extends LogCursor {
     readonly settle?: () => Promise<void>;
 }
 
-/** What a loop runs: controllers over rows, and cursors over the log. */
+/** What a loop runs: controllers over rows, projections over inputs, and cursors over the log. */
 export interface ControllerSet {
     /** The controllers converging or following rows. */
     readonly controllers: readonly Controller[];
+    /** The projections deriving rows from inputs by key. */
+    readonly projections: readonly Projection[];
     /** The cursors taking changes past their checkpoints. */
     readonly cursors: readonly Cursor[];
+    /** Wait until the set may run. */
+    readonly activation?: (signal: AbortSignal) => Promise<void>;
 }
 
-/** One job of a loop: a controller or a cursor, each locked and retried alike. */
-type Job = Controller | Cursor;
+/** One job of a loop: a controller, a projection or a cursor, each locked and retried alike. */
+type Job = Controller | Projection | Cursor;
 
 /** One running reconciliation of a key. */
 export interface Reconciliation {
@@ -239,6 +302,8 @@ interface Compiled {
     readonly pending: Match;
     /** The comparisons to the loop's time. */
     readonly terms: readonly TimeTerm[];
+    /** The comparisons of each OR branch with the top's, or the top's alone without branches. */
+    readonly branches: readonly (readonly TimeTerm[])[];
     /** The placeholders of the loop's time the condition reads, by name with their offsets. */
     readonly times: ReadonlyMap<string, Now>;
     /** The fields grouping rows into one key. */
@@ -252,11 +317,19 @@ export class ControlLoop {
 
     /** The database with the controllers' rows and the log that selects keys. */
     readonly database: DatabaseConnection;
-    /** The controllers and cursors run. */
-    readonly control: ControllerSet;
-    /** The controllers and cursors as one list of jobs. */
+    /** The stored conditions of matching watches, compiled by table and JSON. */
+    readonly #conditions = new Map<string, Match>();
+    /** The job sets. */
+    readonly sets: readonly ControllerSet[];
+    /** Every set's jobs. */
+    readonly #control: ControllerSet;
+    /** The jobs waiting for activation. */
+    readonly #inactive = new Set<Job>();
+    /** Settles after the first listing. */
+    readonly #started = Promise.withResolvers<void>();
+    /** The controllers, projections and cursors as one list of jobs. */
     readonly #jobs: readonly Job[];
-    /** Each row controller compiled, by controller. */
+    /** Each controller compiled, by controller. */
     readonly #compiled: Map<Job, Compiled>;
     /** Report a failed reconciliation. */
     readonly #report: (controller: Job, key: string, error: unknown) => void;
@@ -316,6 +389,8 @@ export class ControlLoop {
     #isListening = false;
     /** Whether every controller was listed once since the loop started. */
     #isListed = false;
+    /** The sequence of the last change whose jobs the follow selected. */
+    #selected = 0;
     /** The log sequence the follow consumed, moved forward by the follow and by idle checks. */
     #followed = 0;
     /** Aborts once an idle check found the follow behind a compaction, making it list again. */
@@ -328,26 +403,51 @@ export class ControlLoop {
     readonly #changes = new Map<Job, Map<string, (() => void)[]>>();
     /** Aborts once work arrives after the worker last looked for it. */
     #woken = new AbortController();
+    /** The name of the loop's position in the log, absent for a loop listing at every start. */
+    readonly #position: string | undefined;
+    /** The position as the loop last read or wrote it, absent before the first. */
+    #checkpointed: number | undefined;
 
     /** Create the loop. */
     constructor(
         database: DatabaseConnection,
-        control: ControllerSet,
+        sets: readonly ControllerSet[],
         options: {
             /** Report a failed reconciliation, beside the loop recording it. */
-            readonly report: (controller: Controller | Cursor, key: string, error: unknown) => void;
+            readonly report: (
+                controller: Controller | Projection | Cursor,
+                key: string,
+                error: unknown,
+            ) => void;
             /** How a transiently failed key retries. */
             readonly retry?: Partial<RetryPolicy>;
             /** Set a wake-up for the earliest due key, so an evicted instance runs it. */
             readonly alarm?: Alarm;
             /** How long a key may fail transiently before reporting. */
             readonly transientFor?: number;
+            /** The name of the log position a start resumes from, none to list every start. */
+            readonly position?: string;
         },
     ) {
-        // start with no key due and no failure
+        // start idle
         this.database = database;
-        this.control = control;
-        const jobs: readonly Job[] = [...control.controllers, ...control.cursors];
+        this.sets = sets;
+        const control: ControllerSet = {
+            controllers: sets.flatMap((set) => set.controllers),
+            projections: sets.flatMap((set) => set.projections),
+            cursors: sets.flatMap((set) => set.cursors),
+        };
+        this.#control = control;
+        for (const set of sets.filter((each) => each.activation !== undefined)) {
+            for (const job of [...set.controllers, ...set.projections, ...set.cursors]) {
+                this.#inactive.add(job);
+            }
+        }
+        const jobs: readonly Job[] = [
+            ...control.controllers,
+            ...control.projections,
+            ...control.cursors,
+        ];
         this.#jobs = jobs;
         const instruments = TelemetryScope.of(
             import.meta.destack.package,
@@ -356,7 +456,7 @@ export class ControlLoop {
         this.#instruments = instruments;
         const passed = {
             "destack.controller.name": jobs.map((job) => job.name),
-            "destack.controller.kind": ["reconcile", "follow", "take"],
+            "destack.controller.kind": ["reconcile", "follow", "project", "take"],
         };
         this.#monotonic = database.state.environment.telemetry.monotonic;
         this.#waits = instruments.metric.histogram("destack.controller.wait_time", {
@@ -382,6 +482,7 @@ export class ControlLoop {
         if (options.alarm !== undefined) {
             this.#alarm = options.alarm;
         }
+        this.#position = options.position;
 
         // lock each controller as this loop when instances share the database
         if (database.isShared) {
@@ -391,6 +492,14 @@ export class ControlLoop {
             for (const controller of jobs) {
                 const name = ControlLoop.#lockName(controller);
                 this.#locks.set(controller, new Lock(database, name, tracker.instance, holder));
+            }
+        }
+
+        // refuse a watch with both a path and stored conditions
+        for (const job of jobs.filter((each) => !ControlLoop.#isCursor(each))) {
+            const watches = ControlLoop.#isCursor(job) ? [] : (job.watches ?? []);
+            if (watches.some((watch) => watch.matches !== undefined && watch.path !== undefined)) {
+                throw new TypeError(`job '${job.name}' matches stored conditions along a path`);
             }
         }
 
@@ -435,6 +544,7 @@ export class ControlLoop {
                 [
                     this.#listen(running),
                     this.#follow(running),
+                    ...this.sets.map((set) => this.#activate(set, running)),
                     this.#listUnlogged(running),
                     this.#work(running),
                 ].map(stopping),
@@ -514,21 +624,26 @@ export class ControlLoop {
     /** Compile a controller: its condition, the comparisons to the loop's time and its key. */
     static #compile(controller: Controller): Compiled {
         // find the comparisons to the loop's time at the top of the condition
-        const terms: TimeTerm[] = [];
-        for (const [field, entry] of Object.entries<unknown>(controller.pending)) {
-            if (Condition.is(entry)) {
-                for (const [operator, value] of Object.entries<unknown>(entry)) {
-                    if ((operator === "lte" || operator === "lt") && value instanceof Now) {
-                        terms.push({ field, isInclusive: operator === "lte", now: value });
-                    }
-                }
-            }
+        const top = ControlLoop.#termsOf(controller.pending);
+
+        // find each OR branch's own comparisons, which join the top's
+        const either: unknown = controller.pending["OR"];
+        const branches = (Array.isArray(either) ? either : [])
+            .filter(Condition.is)
+            .map((branch) => [...top, ...ControlLoop.#termsOf(branch)]);
+        const terms = [...top, ...branches.flat().filter((term) => !top.includes(term))];
+
+        // refuse a reconcile of every row, which has no work to tell apart
+        if ("reconcile" in controller && Object.keys(controller.pending).length === 0) {
+            throw new TypeError(
+                `controller '${controller.name}' reconciles every row: declare the rows pending`,
+            );
         }
 
         // refuse the loop's time anywhere but a field's upper bound at the top of the condition
         if (ControlLoop.#countNows(controller.pending) !== terms.length) {
             throw new TypeError(
-                `controller '${controller.name}' compares now outside a field's lt or lte at the top of its pending condition`,
+                `controller '${controller.name}' compares now outside a field's lt or lte at the top of its pending condition or of its OR's branches`,
             );
         }
 
@@ -536,8 +651,59 @@ export class ControlLoop {
             controller,
             pending: ControlLoop.#match(controller.table, controller.pending),
             terms,
+            branches: branches.length === 0 ? [top] : branches,
             times: new Map(terms.map((term) => [term.now.placeholder, term.now])),
             key: controller.key ?? controller.table[TABLE].key,
+        };
+    }
+
+    /** Read the comparisons to the loop's time at the top of a condition. */
+    static #termsOf(condition: Readonly<Record<string, unknown>>): TimeTerm[] {
+        return Object.entries(condition).flatMap(([field, entry]) =>
+            Condition.is(entry)
+                ? Object.entries<unknown>(entry).flatMap(([operator, value]) =>
+                      (operator === "lte" || operator === "lt") && value instanceof Now
+                          ? [{ field, isInclusive: operator === "lte", now: value }]
+                          : [],
+                  )
+                : [],
+        );
+    }
+
+    /** Declare the controller deleting a table's expired rows, a page at a time. */
+    static expiry(table: Table, database: DatabaseConnection): Controller {
+        // delete the rows whose expiry passed, refusing a table without one
+        const { expiry, key } = table[TABLE];
+        if (expiry === undefined) {
+            throw new TypeError(`table '${table[TABLE].name}' has no expiry column`);
+        }
+
+        return {
+            name: `expiry:${table[TABLE].sqlName}`,
+            table,
+            pending: { [expiry]: { lte: now } },
+            key: [],
+            reconcile: async (rows) => {
+                // delete the page's rows still expired, in one statement
+                const matches = rows.map((row) => {
+                    const equalities = key.map((field) =>
+                        eq(
+                            table[TABLE].column(field),
+                            present(row[field], `the key field '${field}'`),
+                        ),
+                    );
+
+                    return and(nth(equalities, 0), ...equalities.slice(1));
+                });
+                const expired = lte(
+                    table[TABLE].column(expiry),
+                    database.state.environment.clock.now(),
+                );
+                const where = and(or(nth(matches, 0), ...matches.slice(1)), expired);
+                await database.transaction(
+                    async (transaction) => await transaction.delete(table).where(where),
+                );
+            },
         };
     }
 
@@ -546,11 +712,19 @@ export class ControlLoop {
         return "take" in controller;
     }
 
-    /** List the tables a job reads: a controller's own and watched tables, or a cursor's. */
-    static #tables(controller: Job): readonly Table[] {
-        return ControlLoop.#isCursor(controller)
-            ? controller.tables
-            : [controller.table, ...(controller.watches ?? []).map((watch) => watch.table)];
+    /** Report whether a job is a projection over inputs. */
+    static #isProjection(job: Job): job is Projection {
+        return "project" in job;
+    }
+
+    /** List the tables a job reads: its own and watched tables, or a cursor's. */
+    static #tables(job: Job): readonly Table[] {
+        if (ControlLoop.#isCursor(job)) {
+            return job.tables;
+        }
+        const own = ControlLoop.#isProjection(job) ? job.all.table : job.table;
+
+        return [own, ...(job.watches ?? []).map((watch) => watch.table)];
     }
 
     /** Count the comparisons to the loop's time anywhere in a condition. */
@@ -617,17 +791,31 @@ export class ControlLoop {
         this.#wake();
     }
 
-    /** List every controller's pending rows, then follow the logged tables they read. */
+    /** List the pending rows, then follow the logged tables from the loop's position. */
     async #follow(signal: AbortSignal): Promise<void> {
-        let listed = this.#jobs;
+        // resume from the loop's position, else list every job
+        const resumed =
+            this.#position === undefined
+                ? undefined
+                : await this.database.log.checkpoint(this.#position);
+        this.#checkpointed = resumed;
+        const active = () => this.#jobs.filter((job) => !this.#inactive.has(job));
+        let listed =
+            resumed === undefined
+                ? active()
+                : active().filter((job) => !ControlLoop.#isProjection(job));
+        let start = resumed;
         while (!signal.aborted) {
             // read the position before listing
-            const after = (await this.database.log.position()).sequence;
+            const after = start ?? (await this.database.log.position()).sequence;
+            start = undefined;
             for (const controller of listed) {
                 await this.#list(controller);
             }
             this.#followed = after;
+            this.#selected = after;
             this.#isListed = true;
+            this.#started.resolve();
             this.#wake();
             const tables = this.#watched;
             if (tables.length === 0) {
@@ -654,21 +842,122 @@ export class ControlLoop {
                     throw error;
                 }
             }
-            listed = this.#jobs;
+            listed = active();
+        }
+    }
+
+    /** Run a set's jobs once activated. */
+    async #activate(set: ControllerSet, signal: AbortSignal): Promise<void> {
+        // wait for activation
+        const { activation } = set;
+        if (activation === undefined) {
+            return;
+        }
+        await activation(signal);
+        await Promise.race([this.#started.promise, waitAborted(signal)]);
+        if (signal.aborted) {
+            return;
+        }
+
+        // mark the loop busy
+        const unsettled = Symbol("activation");
+        this.#unsettled.add(unsettled);
+        try {
+            // activate the jobs, noting the last change selected without them
+            const jobs = [...set.controllers, ...set.projections, ...set.cursors];
+            for (const job of jobs) {
+                this.#inactive.delete(job);
+            }
+            const until = this.#selected;
+
+            // list the controllers and cursors
+            for (const job of [...set.controllers, ...set.cursors]) {
+                await this.#list(job);
+            }
+
+            // replay the projections, else list them
+            const isReplayed = await this.#replay(set.projections, until, signal);
+            if (!isReplayed) {
+                for (const projection of set.projections) {
+                    await this.#list(projection);
+                }
+            }
+        } finally {
+            this.#unsettled.delete(unsettled);
+            this.#wake();
+        }
+    }
+
+    /** Replay the changes since the position to projections, false when compacted. */
+    async #replay(
+        projections: readonly Projection[],
+        until: number,
+        signal: AbortSignal,
+    ): Promise<boolean> {
+        // check projections and position
+        const from = this.#checkpointed;
+        if (projections.length === 0) {
+            return true;
+        } else if (from === undefined) {
+            return false;
+        }
+
+        // read the changes up to the last one selected without the set
+        if (until <= from) {
+            return true;
+        }
+        const tables = [...new Set(projections.flatMap((each) => ControlLoop.#tables(each)))];
+        const reading = new AbortController();
+        try {
+            const selection = { tables, after: from };
+            const pages = this.database.log.follow(
+                selection,
+                AbortSignal.any([signal, reading.signal]),
+                {
+                    isAdvancing: true,
+                },
+            );
+            for await (const page of pages) {
+                for (const change of page.changes.filter((each) => each.sequence <= until)) {
+                    for (const projection of projections) {
+                        await this.#wakeWatched(
+                            projection,
+                            change,
+                            Change.isObservation(change),
+                            (fields) => ProjectionKey.parse(fields[projection.key]),
+                        );
+                    }
+                }
+                if (page.sequence >= until) {
+                    break;
+                }
+            }
+
+            return true;
+        } catch (error) {
+            // report compaction
+            if (DatabaseError.is(error, "CHANGES_NOT_FOUND")) {
+                return false;
+            }
+            throw error;
+        } finally {
+            reading.abort();
         }
     }
 
     /** Select the keys a committed change makes pending, wakes or changes. */
     async #changed(change: Change): Promise<void> {
-        // read the change's table and time
+        // read the change's table, time and active projections
         const name = change.table[TABLE].sqlName;
         const at = this.#clock.now();
+        const projections = this.#control.projections.filter((each) => !this.#inactive.has(each));
+        this.#selected = change.sequence;
 
         // leave an observation to the jobs reading observations, as they alone wait for it
         const isObservation = Change.isObservation(change);
 
         // take a read table's change, due once the cursor's batch passed
-        for (const cursor of this.control.cursors) {
+        for (const cursor of this.#control.cursors.filter((each) => !this.#inactive.has(each))) {
             const isRead = (tables: readonly Table[]) =>
                 tables.some((table) => table[TABLE].sqlName === name);
             if (isRead(cursor.tables) && (!isObservation || isRead(cursor.observed ?? []))) {
@@ -678,6 +967,9 @@ export class ControlLoop {
         for (const compiled of this.#compiled.values()) {
             // take a change of the controller's own rows
             const { controller } = compiled;
+            if (this.#inactive.has(controller)) {
+                continue;
+            }
             if (controller.table[TABLE].sqlName === name) {
                 // tell the running key of the row before its change, then select the row after it
                 //  unless an observation leaves it in a pending condition that reads no fields
@@ -695,32 +987,243 @@ export class ControlLoop {
             }
 
             // take the keys a watched table's change selects
-            const watches = (controller.watches ?? []).filter(
-                (watch) =>
-                    watch.table[TABLE].sqlName === name &&
-                    (!isObservation || watch.isObserving === true),
+            await this.#wakeWatched(controller, change, isObservation, (fields) =>
+                canonicalize(fields),
             );
-            for (const watch of watches) {
-                const keys = await (async () => watch.keys(change, this.database))().catch(
-                    (error: unknown) => {
-                        this.#report(controller, watch.table[TABLE].name, error);
+        }
 
-                        return undefined;
-                    },
-                );
+        // take the keys a projection's watched inputs' change touches
+        for (const projection of projections) {
+            await this.#wakeWatched(projection, change, isObservation, (fields) =>
+                ProjectionKey.parse(fields[projection.key]),
+            );
+        }
+    }
 
-                // list a controller whose watch failed again in its place, else take the keys
-                if (keys === undefined) {
-                    await this.#list(controller);
-                } else {
-                    for (const fields of keys) {
-                        const key = canonicalize(fields);
-                        this.#notify(controller, key);
-                        this.enqueue(controller, key);
-                    }
+    /** Enqueue the keys a change of a job's watched tables reaches along their references. */
+    async #wakeWatched(
+        job: Controller | Projection,
+        change: Change,
+        isObservation: boolean,
+        keyOf: (fields: KeyFields) => string,
+    ): Promise<void> {
+        // take the watches of the changed table
+        const name = change.table[TABLE].sqlName;
+        const watches = (job.watches ?? []).filter(
+            (watch) =>
+                watch.table[TABLE].sqlName === name &&
+                (!isObservation || watch.isObserving === true),
+        );
+        const fields = ControlLoop.#isProjection(job)
+            ? [job.key]
+            : (job.key ?? job.table[TABLE].key);
+        const table = ControlLoop.#isProjection(job) ? job.all.table : job.table;
+        const columns = ControlLoop.#isProjection(job) ? [job.all.column] : fields;
+        const space = ControlLoop.#isProjection(job) ? job.all.where : undefined;
+        for (const watch of watches) {
+            // list the job again on a listing watch's change
+            if (watch.isListing === true) {
+                if (ControlLoop.#images(watch, change).length > 0) {
+                    await this.#list(job);
+                }
+            }
+            // take the keys reached
+            else {
+                const reached = await this.#reached(watch, change, {
+                    fields,
+                    columns,
+                    table,
+                    ...(space === undefined ? {} : { where: space }),
+                });
+                for (const keyFields of reached) {
+                    const key = keyOf(keyFields);
+                    this.#notify(job, key);
+                    this.enqueue(job, key);
                 }
             }
         }
+    }
+
+    /** Read the key fields a watched change reaches: its rows before and after, along the path. */
+    async #reached(
+        watch: Watch,
+        change: Change,
+        job: {
+            /** The job's key fields. */
+            readonly fields: readonly string[];
+            /** The columns of the job's table holding them, in order. */
+            readonly columns: readonly string[];
+            /** The table with the job's keys. */
+            readonly table: Table;
+            /** The rows of the table that hold keys, every row when absent. */
+            readonly where?: Condition;
+        },
+    ): Promise<readonly KeyFields[]> {
+        // take the images the watch reads
+        const { fields: keyFields, table } = job;
+        const images = ControlLoop.#images(watch, change);
+        let rows = images;
+
+        // follow each relation to its rows
+        let reaching: Table = watch.table;
+        for (const relation of watch.path ?? []) {
+            rows =
+                rows.length === 0
+                    ? []
+                    : await new ModelQueryBuilder(
+                          this.database,
+                          reaching,
+                          this.database.relations,
+                      ).related(relation, rows);
+            reaching = relation.table;
+        }
+
+        // take the job's rows whose stored condition a changed image matches
+        const { matches } = watch;
+        if (matches !== undefined) {
+            const stored = await this.#where(table, matches.where);
+            rows = stored.filter((row) => {
+                const match = this.#stored(watch.table, row[matches.column]);
+
+                return images.some((image) => ControlLoop.#isMatch(match, image));
+            });
+        }
+
+        // take the values the job's columns equal
+        const { columns } = job;
+        const on = watch.on ?? Object.fromEntries(columns.map((column) => [column, column]));
+        const matched: Row[] = [];
+        for (const row of rows) {
+            const values: Record<string, ColumnValue> = {};
+            for (const [field, column] of Object.entries(on)) {
+                const value = row[column];
+                if (value !== null && value !== undefined) {
+                    values[field] = value;
+                }
+            }
+            if (Object.keys(values).length === Object.keys(on).length) {
+                matched.push(values);
+            }
+        }
+
+        // read the key columns from the values or from the job's rows
+        const isKeyed = columns.every((column) => Object.hasOwn(on, column));
+        const keyed =
+            isKeyed || matched.length === 0
+                ? matched
+                : await this.#equal(table, matched, job.where);
+        const keys = keyed.map((row) =>
+            KEY_FIELDS.parse(
+                Object.fromEntries(
+                    keyFields.map((field, index) => [field, row[nth(columns, index)]]),
+                ),
+            ),
+        );
+
+        return [...new Map(keys.map((each) => [canonicalize(each), each])).values()];
+    }
+
+    /** Compile a stored condition on a watched table once, by its JSON. */
+    #stored(table: Table, value: unknown): Match {
+        // reuse the condition compiled before
+        const name = `${table[TABLE].sqlName} ${canonicalize(value)}`;
+        const cached = this.#conditions.get(name);
+        if (cached !== undefined) {
+            return cached;
+        }
+
+        // compile it, starting over once the cache is full
+        const match = ControlLoop.#match(table, Condition.schema.parse(value));
+        if (this.#conditions.size >= STORED_CONDITIONS) {
+            this.#conditions.clear();
+        }
+        this.#conditions.set(name, match);
+
+        return match;
+    }
+
+    /** Read the images of a change a watch reads, none once no watched field changed. */
+    static #images(watch: Watch, change: Change): readonly Row[] {
+        // leave a change of no watched field
+        const before = Change.before(change);
+        const after = Change.after(change);
+        const fields = watch.fields;
+        if (
+            fields !== undefined &&
+            before !== null &&
+            after !== null &&
+            fields.every(
+                (field) =>
+                    canonicalize(before[field] ?? null) === canonicalize(after[field] ?? null),
+            )
+        ) {
+            return [];
+        }
+
+        // take the images the watch's condition matches
+        const where =
+            watch.where === undefined ? undefined : ControlLoop.#match(watch.table, watch.where);
+
+        return [before, after].filter(
+            (image): image is Row =>
+                image !== null && (where === undefined || ControlLoop.#isMatch(where, image)),
+        );
+    }
+
+    /** Read a job's rows matching a condition. */
+    async #where(table: Table, where: Condition | undefined): Promise<readonly Row[]> {
+        // read the rows matching the condition
+        const condition =
+            where === undefined
+                ? undefined
+                : Predicate.render(
+                      Condition.resolve(where, Namespace.fields(table)),
+                      Predicate.bind(table, {}),
+                  );
+
+        return await this.database.select().from(table).where(condition);
+    }
+
+    /** Read a job's rows equal to some values by column, within the rows that hold keys. */
+    async #equal(
+        table: Table,
+        values: readonly Row[],
+        where: Condition | undefined,
+    ): Promise<readonly Row[]> {
+        // read the rows equal to any of the values
+        const matches = values.map((row) => {
+            const equalities = Object.entries(row).map(([field, value]) =>
+                eq(table[TABLE].column(field), value),
+            );
+
+            return and(nth(equalities, 0), ...equalities.slice(1));
+        });
+
+        // keep the rows holding keys
+        const holding =
+            where === undefined
+                ? undefined
+                : Predicate.render(
+                      Condition.resolve(where, Namespace.fields(table)),
+                      Predicate.bind(table, {}),
+                  );
+
+        return await this.database
+            .select()
+            .from(table)
+            .where(and(or(nth(matches, 0), ...matches.slice(1)), holding));
+    }
+
+    /** Report whether a row matches a compiled condition without the loop's time. */
+    static #isMatch(match: Match, row: Row): boolean {
+        return (
+            match({
+                field: (name) => row[name],
+                placeholder: (name) => Predicate.unbound(name),
+                exists: () => undefined,
+                search: () => undefined,
+            }) === true
+        );
     }
 
     /** Make a row's key pending, or wake the controller once its waiting row comes due. */
@@ -744,20 +1247,24 @@ export class ControlLoop {
         }
     }
 
-    /** Read when a waiting row's time comparisons all turn true, absent for one never due. */
+    /** Read when a waiting row turns pending: the earliest branch whose comparisons all hold. */
     static #dueOf(compiled: Compiled, row: Row): number | undefined {
-        const times = compiled.terms.map((term) => {
-            const value = row[term.field];
-            if (typeof value !== "number") {
-                return undefined;
-            }
+        // read when each branch's comparisons all hold
+        const dues = compiled.branches.flatMap((terms) => {
+            const times = terms.map((term) => {
+                const value = row[term.field];
 
-            return term.now.due(value, term.isInclusive);
+                return typeof value === "number"
+                    ? term.now.due(value, term.isInclusive)
+                    : undefined;
+            });
+
+            return terms.length === 0 || times.some((time) => time === undefined)
+                ? []
+                : [Math.max(...times.filter((time) => time !== undefined))];
         });
 
-        return times.some((time) => time === undefined)
-            ? undefined
-            : Math.max(...times.filter((time) => time !== undefined));
+        return dues.length === 0 ? undefined : Math.min(...dues);
     }
 
     /** Wake a controller to list its rows again at a time, keeping an earlier wake. */
@@ -783,7 +1290,7 @@ export class ControlLoop {
     }
 
     /** List a keyless controller's one key while any of its rows is pending. */
-    async #isPending(table: Table, where: SQL | undefined): Promise<readonly Row[]> {
+    async #firstPending(table: Table, where: SQL | undefined): Promise<readonly Row[]> {
         const [pending] = await this.database.select().from(table).where(where).limit(1);
 
         return pending === undefined ? [] : [{}];
@@ -795,6 +1302,31 @@ export class ControlLoop {
         if (ControlLoop.#isCursor(controller)) {
             this.#wakes.delete(controller);
             this.enqueue(controller, ONE_CHECKPOINT, this.#clock.now() + (controller.batch ?? 0));
+
+            return;
+        }
+
+        // take every key of a projection: the distinct values of its key-defining input's column
+        if (ControlLoop.#isProjection(controller)) {
+            const { table, column, where } = controller.all;
+            const condition =
+                where === undefined
+                    ? undefined
+                    : Predicate.render(
+                          Condition.resolve(where, Namespace.fields(table)),
+                          Predicate.bind(table, {}),
+                      );
+            const rows = await this.database
+                .selectDistinct({ key: table[TABLE].column(column) })
+                .from(table)
+                .where(condition);
+            const failures = found(this.#failures, controller);
+            for (const row of rows) {
+                const key = ProjectionKey.parse(row.key);
+                if (!failures.has(key)) {
+                    this.enqueue(controller, key);
+                }
+            }
 
             return;
         }
@@ -813,7 +1345,7 @@ export class ControlLoop {
         );
         const rows =
             compiled.key.length === 0
-                ? await this.#isPending(table, where)
+                ? await this.#firstPending(table, where)
                 : await this.database.selectDistinct(columns).from(table).where(where);
         const failures = found(this.#failures, controller);
         for (const row of rows) {
@@ -896,7 +1428,7 @@ export class ControlLoop {
         await this.database.log.waitUntil((committed) => {
             // wake each controller
             const at = this.#clock.now();
-            for (const controller of this.#jobs) {
+            for (const controller of this.#jobs.filter((job) => !this.#inactive.has(job))) {
                 if (found(unlogged, controller).some((table) => committed.has(table))) {
                     this.#wakeAt(controller, at);
                 }
@@ -907,7 +1439,7 @@ export class ControlLoop {
     }
 
     /** Mark a key due. */
-    enqueue(controller: Controller | Cursor, key: string, at = this.#clock.now()): void {
+    enqueue(controller: Job, key: string, at = this.#clock.now()): void {
         // record the earliest due time
         const due = found(this.#due, controller);
         const current = due.get(key);
@@ -988,7 +1520,7 @@ export class ControlLoop {
             else {
                 await this.#schedule(this.#busy ?? earliest([next, skipped]));
 
-                // settle idle waiters once every key settled, none waits for its controller's concurrency, and every change is followed
+                // settle idle waiters once every key and change is settled
                 if (
                     this.#idle.length > 0 &&
                     this.#isListed &&
@@ -1020,10 +1552,48 @@ export class ControlLoop {
         await Promise.all(this.#reconciling);
     }
 
-    /** Write what the cursors deferred, each in turn. */
+    /** Write what the cursors deferred, each in turn, then the loop's position. */
     async #settleCursors(): Promise<void> {
-        for (const cursor of this.control.cursors) {
+        for (const cursor of this.#control.cursors) {
             await cursor.settle?.();
+        }
+        await this.#settlePosition();
+    }
+
+    /** Write the loop's position once no projection key waits. */
+    async #settlePosition(): Promise<void> {
+        // leave an unnamed or unmoved position, and one past a projection key still waiting
+        const name = this.#position;
+        const after = this.#followed;
+        const isWaiting =
+            this.#inactive.size > 0 ||
+            this.#control.projections.some(
+                (projection) =>
+                    found(this.#due, projection).size > 0 ||
+                    found(this.#running, projection).size > 0 ||
+                    found(this.#failures, projection).size > 0,
+            );
+        if (name === undefined || after === this.#checkpointed || isWaiting) {
+            return;
+        }
+
+        // move the position from where it was read
+        const expiresAt = this.#clock.now() + POSITION_HOLD_MILLISECONDS;
+        try {
+            await this.database.log.move(
+                { name, tables: this.#watched },
+                this.#checkpointed ?? 0,
+                after,
+                expiresAt,
+            );
+            this.#checkpointed = after;
+        }
+        // read the position again after another instance moved it
+        catch (error) {
+            if (!DatabaseError.is(error, "UPDATE_CONFLICT")) {
+                throw error;
+            }
+            this.#checkpointed = await this.database.log.checkpoint(name);
         }
     }
 
@@ -1163,14 +1733,16 @@ export class ControlLoop {
     /** Name a job and its kind as its signals' attributes. */
     static #attributes(work: Due): {
         readonly "destack.controller.name": string;
-        readonly "destack.controller.kind": "reconcile" | "follow" | "take";
+        readonly "destack.controller.kind": "reconcile" | "follow" | "project" | "take";
     } {
         const { controller } = work;
         const kind = ControlLoop.#isCursor(controller)
             ? "take"
-            : "follow" in controller
-              ? "follow"
-              : "reconcile";
+            : ControlLoop.#isProjection(controller)
+              ? "project"
+              : "follow" in controller
+                ? "follow"
+                : "reconcile";
 
         return { "destack.controller.name": controller.name, "destack.controller.kind": kind };
     }
@@ -1191,6 +1763,13 @@ export class ControlLoop {
                         if (controller.isClaimed === true) {
                             await this.#readUntaken(controller);
                         }
+
+                        return;
+                    }
+
+                    // project a projection's key from its inputs as they are now
+                    if (ControlLoop.#isProjection(controller)) {
+                        await controller.project(key, reconciliation);
 
                         return;
                     }
@@ -1453,9 +2032,9 @@ export class ControlLoop {
 
 /** Take the earliest of some times, absent for none. */
 function earliest(times: readonly (number | undefined)[]): number | undefined {
-    const present = times.filter((time) => time !== undefined);
+    const known = times.filter((time) => time !== undefined);
 
-    return present.length === 0 ? undefined : Math.min(...present);
+    return known.length === 0 ? undefined : Math.min(...known);
 }
 
 /** One key due at a time. */

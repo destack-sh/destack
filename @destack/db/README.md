@@ -21,6 +21,7 @@ Logged tables let your code react to every commit:
 
 - `Log`: every commit to a logged table, in order.
 - `Controller`: updates the rows matching its `pending` condition until none match.
+- `Projection`: writes rows derived from other tables, one key at a time.
 
 Files and limits live next to the rows:
 
@@ -183,22 +184,97 @@ The log has every commit to a logged table, in order, so a reader resumes where 
 
 ### Controller
 
-A controller updates the rows matching its `pending` condition until none match.
-A `ControlLoop` runs it whenever a commit makes rows pending.
+A controller updates rows until they no longer match `pending`, and its `watches` reconcile the keys another table's changes point to.
 
-| Field             | What it is                                                              |
-| ----------------- | ----------------------------------------------------------------------- |
-| `name`            | its name in reports and locks                                           |
-| `table`           | the table with the work                                                 |
-| `pending`         | the condition of rows with work, comparing times to `now` where needed  |
-| `key`             | the fields grouping rows into one key, the primary key by default       |
-| `watches`         | other tables whose changes select keys                                  |
-| `concurrency`     | the most keys at once, one by default                                   |
-| `reconcile(rows)` | updates one key's rows out of `pending`                                 |
-| `follow(rows)`    | instead of `reconcile`: runs one key's work while its rows stay pending |
+```ts
+import { type Controller, defineTable, eq, text, type DatabaseConnection } from "@destack/db";
 
-`new ControlLoop(database, { controllers, cursors }, options)` creates the loop, `run(signal)` starts it, and `idle()` waits until nothing is due.
-A `Cursor` reads the log in the same loop, taking each page of changes once.
+// define orders and their payments
+const order = defineTable(
+    "order",
+    { id: text("id").primaryKey(), status: text("status").notNull() },
+    { log: {} },
+);
+const payment = defineTable(
+    "payment",
+    { id: text("id").primaryKey(), orderId: text("order_id").notNull() },
+    { log: {} },
+);
+
+/** Ship each open order, again whenever one of its payments changes. */
+export const ship = (database: DatabaseConnection): Controller<typeof order> => ({
+    name: "ship",
+    table: order,
+    pending: { status: "open" },
+    watches: [{ table: payment, on: { id: "orderId" } }],
+    concurrency: 4,
+    reconcile: async ([row]) => {
+        // mark the order shipped
+        if (row !== undefined) {
+            await database.update(order).set({ status: "shipped" }).where(eq(order.id, row.id));
+        }
+    },
+});
+```
+
+### Projection
+
+A projection keeps rows derived from other tables up to date one key at a time, with `all` listing every key and `path` following relations from a changed row to its key.
+
+```ts
+import { defineRelations, defineTable, type Projection, text } from "@destack/db";
+
+// define spaces and their notes, and relate a note to its space
+const space = defineTable(
+    "space",
+    { id: text("id").primaryKey(), account: text("account").notNull() },
+    { log: {} },
+);
+const note = defineTable(
+    "note",
+    { id: text("id").primaryKey(), space: text("space").notNull() },
+    { log: {} },
+);
+const relations = defineRelations({ space, note }, (r) => ({
+    note: { space: r.one.space({ from: r.note.space, to: r.space.id }) },
+}));
+
+/** Count each account's notes across its spaces. */
+export const countNotes = (write: (account: string) => Promise<void>): Projection => ({
+    name: "note-usage",
+    key: "account",
+    all: { table: space, column: "account" },
+    watches: [
+        { table: space },
+        { table: note, path: [relations.get(note, "space")] },
+    ],
+    project: (account) => write(account),
+});
+```
+
+### ControlLoop
+
+A `ControlLoop` runs sets of controllers, projections and cursors, starts a set once its `activation` resolves, and continues from its `position` after a restart.
+
+```ts
+import { ControlLoop, type DatabaseConnection, type Projection } from "@destack/db";
+
+/** Run a projection once the replicas caught up, until stopped. */
+export async function project(
+    database: DatabaseConnection,
+    projection: Projection,
+    synced: (signal: AbortSignal) => Promise<void>,
+    signal: AbortSignal,
+) {
+    // run the projection after the replicas sync
+    const sets = [{ controllers: [], projections: [projection], cursors: [], activation: synced }];
+    const loop = new ControlLoop(database, sets, { report: console.error, position: "control" });
+    void loop.run(signal);
+
+    // wait until nothing is due among the active sets
+    await loop.idle();
+}
+```
 
 ### BlobStore
 
@@ -479,7 +555,7 @@ export function closeJobs(database: DatabaseConnection, signal: AbortSignal) {
     // run the controller in a loop
     const loop = new ControlLoop(
         database,
-        { controllers: [close], cursors: [] },
+        [{ controllers: [close], projections: [], cursors: [] }],
         { report: console.error },
     );
     void loop.run(signal);
@@ -543,11 +619,12 @@ Transactions rerun on conflicts, migrations are planned from your tables instead
 
 Controllers basically follow Kubernetes: they're level-triggered and converge rows to a condition.
 
-| Kubernetes                | `@destack/db`                      | Difference                                                                      |
-| ------------------------- | ---------------------------------- | ------------------------------------------------------------------------------- |
-| A watched resource        | `table` and `pending`              | The rows with work are a query.                                                 |
-| `Watches(...)`            | `watches`                          | A changed row of another table selects keys.                                    |
-| `Reconcile(request)`      | `reconcile(rows)`                  | Takes the rows of one key.                                                      |
-| `RequeueAfter`            | a `pending` time compared to `now` | The loop wakes at the earliest due row.                                         |
-| The work queue            | `ControlLoop`                      | Keys are deduplicated, and commits to an unlogged table wake a controller once. |
-| `MaxConcurrentReconciles` | `concurrency`                      | The same.                                                                       |
+| Kubernetes                                       | `@destack/db`                      | Difference                                                                      |
+| ------------------------------------------------ | ---------------------------------- | ------------------------------------------------------------------------------- |
+| A watched resource                               | `table` and `pending`              | The rows with work are a query.                                                 |
+| `Watches(...)` with `EnqueueRequestsFromMapFunc` | `watches` with `on` or a `path`    | The mapping is declared as references, so a restart replays it from the log.    |
+| `resourceVersion`                                | the loop's `position`              | One position per database covers every job.                                     |
+| `Reconcile(request)`                             | `reconcile(rows)`                  | Takes the rows of one key.                                                      |
+| `RequeueAfter`                                   | a `pending` time compared to `now` | The loop wakes at the earliest due row.                                         |
+| The work queue                                   | `ControlLoop`                      | Keys are deduplicated, and commits to an unlogged table wake a controller once. |
+| `MaxConcurrentReconciles`                        | `concurrency`                      | The same.                                                                       |

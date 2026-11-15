@@ -132,6 +132,7 @@ export class Table<
             {
                 constraints: () => [],
                 retention: state.log?.retention ?? "none",
+                expiry: undefined,
                 isAppendOnly: state.log?.appendOnly === true,
                 generation: undefined,
                 moved: {},
@@ -279,6 +280,8 @@ export class TableDefinition<Name extends string = string, Columns extends Colum
     readonly columns: Columns;
     /** How long the log retains the table's changes. */
     readonly retention: ChangeRetention;
+    /** The column whose time deletes a row once passed, absent for rows kept until deleted. */
+    readonly expiry: string | undefined;
     /** Whether rows are only ever inserted, deletes going unlogged. */
     readonly isAppendOnly: boolean;
     /** The column counting the desired state's changes, absent for a table without one. */
@@ -342,6 +345,7 @@ export class TableDefinition<Name extends string = string, Columns extends Colum
         this.sqlName = identity.sqlName;
         this.columns = columns;
         this.retention = declaration.retention;
+        this.expiry = declaration.expiry;
         this.isAppendOnly = declaration.isAppendOnly;
         this.generation = declaration.generation;
         this.moved = declaration.moved;
@@ -641,6 +645,8 @@ interface TableDeclaration {
     readonly constraints: () => readonly TableConstraint[];
     /** How long the log retains the table's changes. */
     readonly retention: ChangeRetention;
+    /** The column whose time deletes a row once passed, absent for rows kept until deleted. */
+    readonly expiry: string | undefined;
     /** Whether rows are only ever inserted, deletes going unlogged. */
     readonly isAppendOnly: boolean;
     /** The column counting the desired state's changes, absent for a table without one. */
@@ -737,6 +743,8 @@ export interface TableOptions<Columns> {
     readonly constraints?: (columns: Columns) => readonly TableConstraint[];
     /** Log committed changes under the scope column, or the database's scope without one. */
     readonly log?: LogOptions;
+    /** The time column past which a row is deleted, as a MongoDB TTL index deletes documents. */
+    readonly expiry?: keyof Columns & string;
     /** The properties of a single-parent tree per scope. */
     readonly tree?: TreeColumns<keyof Columns & string>;
     /** The previous names of the table and its columns. */
@@ -887,6 +895,7 @@ export function defineTable<Name extends string, Builders extends ColumnBuilderM
         {
             constraints: () => options.constraints?.(columns) ?? [],
             retention: options.log === undefined ? "none" : (options.log.retention ?? "window"),
+            expiry: options.expiry,
             isAppendOnly: options.log?.appendOnly === true,
             generation: options.log?.generation,
             moved: options.moved ?? {},
@@ -927,6 +936,7 @@ export function alias<Definition extends Table, Name extends string>(
         {
             constraints: () => [],
             retention: source[TABLE].retention,
+            expiry: source[TABLE].expiry,
             isAppendOnly: source[TABLE].isAppendOnly,
             generation: source[TABLE].generation,
             moved: source[TABLE].moved,
