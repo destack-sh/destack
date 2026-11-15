@@ -1,6 +1,5 @@
 import { Subscription } from "@destack/notification/object";
-import { ObjectWatch, Observation } from "@destack/object";
-import { Change, now, Snapshot } from "@destack/db";
+import { now } from "@destack/db";
 import { EventTime } from "@destack/event";
 import { implementPackage } from "@destack/object/server";
 import { present, schema } from "@destack/schema";
@@ -47,6 +46,26 @@ const responses = respond.implement({
 export default implementPackage(observabilityPackage, {
     objects: [
         issue.implement({
+            cursors: [
+                // count each space's exceptions into its issues
+                exception.cursor(
+                    "issues",
+                    async (page, { store, transaction }) => {
+                        const { scope, after, through } = page;
+                        await store.mutate(
+                            store.as(issue),
+                            {
+                                id: RequestId.create(store.environment),
+                                calls: [
+                                    issue.call("count", { ...issue.in(scope), after, through }),
+                                ],
+                            },
+                            { transaction, scope },
+                        );
+                    },
+                    { hold: { days: 1 }, batch: { minutes: 1 } },
+                ),
+            ],
             methods: {
                 record: async (call) => {
                     // find the issue of the fingerprint, or open it at its first exceptions
@@ -253,57 +272,21 @@ export default implementPackage(observabilityPackage, {
         alertRule.implement({
             // let stacks declare rules as code, applied through create and update, which check each rule
             declaration: {},
+            // mark a space's event rules due as its events append
+            cursors: [(store) => AlertRule.cursor(store)],
             controllers: [
                 {
-                    // evaluate a rule as it, its space's issues, silences or its alerts change, and once its due time clears
-                    pending: {},
-                    watches: [
-                        ObjectWatch.of(issue.table, async (row, database) => {
-                            const rules = await Snapshot.live(database)
-                                .read(alertRule.table)
-                                .findMany({ where: { scope: row.scope } });
-
-                            return rules
-                                .filter((rule) => rule.condition.kind === "issue")
-                                .map((rule) => ({ id: rule.id }));
-                        }),
-                        ObjectWatch.of(silence.table, async (row, database) => {
-                            const rules = await Snapshot.live(database)
-                                .read(alertRule.table)
-                                .findMany({ where: { scope: row.scope } });
-
-                            return rules.map((rule) => ({ id: rule.id }));
-                        }),
-                        ObjectWatch.of(alert.table, (row) => [{ id: row.ruleId }]),
-                        ObjectWatch.of(
-                            alertRule.table,
-                            (row, _database, change) =>
-                                row.evaluateAt === null &&
-                                Change.before(change)?.["evaluateAt"] !== null
-                                    ? [{ id: row.id }]
-                                    : [],
-                            { isObserving: true },
-                        ),
-                    ],
+                    // evaluate a rule once it changes or comes due
+                    pending: {
+                        OR: [
+                            { generation: { gt: { field: "syncedGeneration" } } },
+                            { evaluateAt: { lte: now } },
+                        ],
+                    },
                     reconcile: async (reconciliation) => {
                         for (const row of reconciliation.rows) {
                             await new AlertRule(row).evaluate(reconciliation);
                         }
-                    },
-                },
-                {
-                    // clear a rule's due time once it comes, which its evaluation then takes
-                    name: "due",
-                    pending: { evaluateAt: { lte: now } },
-                    reconcile: async ({ rows, mutate }) => {
-                        await mutate(
-                            rows.map((row) =>
-                                Observation.call(alertRule, row, {
-                                    conditions: {},
-                                    fields: { evaluateAt: null },
-                                }),
-                            ),
-                        );
                     },
                 },
             ],
@@ -403,28 +386,6 @@ export default implementPackage(observabilityPackage, {
         }),
         silence,
         ...responses.objects,
-    ],
-    // run the responses to fired alerts
-    cursors: [
-        ...responses.cursors,
-        // mark a space's events rules due as its events append, a minute at a time
-        (store) => AlertRule.cursor(store),
-        // count each space's exceptions into its issues a minute at a time, kept a day past a stalled cursor
-        exception.cursor(
-            "issues",
-            async (page, { store, transaction }) => {
-                const { scope, after, through } = page;
-                await store.mutate(
-                    store.as(issue),
-                    {
-                        id: RequestId.create(store.environment),
-                        calls: [issue.call("count", { ...issue.in(scope), after, through })],
-                    },
-                    { transaction, scope },
-                );
-            },
-            { hold: { days: 1 }, batch: { minutes: 1 } },
-        ),
     ],
     // take OTLP exports, grouping a space's exceptions into its issues
     mounts: {

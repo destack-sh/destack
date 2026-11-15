@@ -71,6 +71,9 @@ const MINUTE_MILLISECONDS = 60_000;
 /** How long a space's first unconsumed event waits before its events rules are due: a minute. */
 const EVALUATION_MILLISECONDS = MINUTE_MILLISECONDS;
 
+/** How often a rule evaluates at the latest: a minute, as Prometheus and Grafana default to. */
+const INTERVAL_MILLISECONDS = MINUTE_MILLISECONDS;
+
 /** The cursor marking a space's events rules due as its events append. */
 const EVENTS_CURSOR = "alert-events";
 
@@ -375,11 +378,11 @@ export class AlertRule {
         }
     }
 
-    /** Read when the evaluation can next change without new input, null while nothing is due. */
+    /** Read when the rule next evaluates, within the interval at the latest. */
     async #due(
         reconciliation: ObjectReconciliation<typeof alertRule>,
         crossings: readonly Crossing[],
-    ): Promise<number | null> {
+    ): Promise<number> {
         // read the rule's alerts as the evaluation left them, and the subjects crossing
         const { now, store } = reconciliation;
         const interval = Duration.milliseconds(this.row.interval);
@@ -407,10 +410,10 @@ export class AlertRule {
         const { condition } = this.row;
         const moved = condition.kind === "events" ? await this.#moves(store, condition, now) : [];
 
-        // take the earliest time after now
+        // take the earliest time after now, evaluating again within the interval
         const times = [...fired, ...repeated, ...released, ...moved].filter((time) => time > now);
 
-        return times.length === 0 ? null : Math.min(...times);
+        return Math.min(...times, now + INTERVAL_MILLISECONDS);
     }
 
     /** Read when the oldest event in the window leaves it and the next later event enters it. */
@@ -830,7 +833,7 @@ export class AlertRule {
     /** Report the rule evaluated at its generation and when it is next due, once each changes. */
     async #observe(
         reconciliation: ObjectReconciliation<typeof alertRule>,
-        evaluateAt: number | null,
+        evaluateAt: number,
     ): Promise<void> {
         await reconciliation.observe(alertRule, this.row, {
             conditions: { Ready: { status: "true", reason: "Evaluated", message: "" } },
