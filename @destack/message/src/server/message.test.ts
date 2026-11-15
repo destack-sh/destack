@@ -47,7 +47,7 @@ const EMAIL_ONLY = implementPackage(messagePackage, (context) =>
 
 /** List each journaled call of messages and attempts with the component making it, sorted. */
 async function listCalls(fixture: TestMessage) {
-    const rows = await fixture.served.database.select().from(journal);
+    const rows = await fixture.space.database.select().from(journal);
 
     // sort by method and component, as calls in one millisecond have no order the journal records
     return rows
@@ -64,7 +64,7 @@ async function listLeaks(fixture: TestMessage): Promise<string[]> {
     const leaking: string[] = [];
     const tables = { message: message.table, attempt: messageAttempt.table };
     for (const [name, table] of Object.entries(tables)) {
-        const text = JSON.stringify(await fixture.served.database.select().from(table));
+        const text = JSON.stringify(await fixture.space.database.select().from(table));
         if (text.includes(TEXT)) {
             leaking.push(`${name}: text`);
         }
@@ -156,7 +156,7 @@ test("forget a browser its push service forgot, as the space, once its push fail
     await fixture.simulation.idle();
 
     // fail it as gone, and start the browser's unsubscription as the space
-    const started = await fixture.served.database.select().from(task.run.table);
+    const started = await fixture.space.database.select().from(task.run.table);
     expect({
         sending: await fixture.sending(id),
         started: started.map((row) => ({
@@ -235,7 +235,7 @@ test("send a provider's message as it is created, and show a desktop one at once
         await refusal(fixture.send(to)),
         await refusal(fixture.send({ ...to, client: CLIENT })),
     ];
-    const rows = await fixture.served.database
+    const rows = await fixture.space.database
         .select({
             id: message.table.id,
             status: message.table.status,

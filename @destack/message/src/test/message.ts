@@ -6,7 +6,7 @@ import type { TestPerson } from "@destack/account/test";
 import { eq } from "@destack/db";
 import type { Simulation, SimulatedClock } from "@destack/environment/simulation";
 import type { ObjectStore, PackageImplementation } from "@destack/object/server";
-import type { TestCaller, TestObjectStore } from "@destack/object/test";
+import type { TestCaller } from "@destack/object/test";
 import { testBuild } from "@destack/object/test";
 import { type Identifier, present, schema } from "@destack/schema";
 import {
@@ -168,8 +168,6 @@ export interface TestSending {
 export class TestMessage {
     /** The space serving messages. */
     readonly space: TestSpace;
-    /** The space's object store as its machine serves it. */
-    readonly served: TestObjectStore;
     /** The simulation the space's machine runs in. */
     readonly simulation: Simulation;
     /** The simulation's clock. */
@@ -189,13 +187,12 @@ export class TestMessage {
 
     /** The world the space's servers run in, its store's. */
     get environment(): Environment {
-        return this.served.environment;
+        return this.space.environment;
     }
 
-    /** Open a fixture over a served space with its installation and outside systems. */
+    /** Open a fixture over a space with its installation and outside systems. */
     private constructor(fields: {
         readonly space: TestSpace;
-        readonly served: TestObjectStore;
         readonly simulation: Simulation;
         readonly installation: Identifier<"installation">;
         readonly mails: TestMailTransport;
@@ -204,11 +201,10 @@ export class TestMessage {
     }) {
         // store the space, its installation and the outside systems, and call as its owner
         this.space = fields.space;
-        this.served = fields.served;
         this.simulation = fields.simulation;
         this.clock = fields.simulation.clock;
         this.installation = fields.installation;
-        this.owner = fields.space.person(fields.served, fields.space.owner);
+        this.owner = fields.space.person(fields.space.owner);
         this.mails = fields.mails;
         this.hooks = fields.hooks;
         this.pushes = fields.pushes;
@@ -239,12 +235,11 @@ export class TestMessage {
         const { simulation } = hosted;
         const hooks = TestReceiver.listen(simulation, HOOKS_ORIGIN, options.hooks);
         const pushes = TestReceiver.listen(simulation, PUSH_ORIGIN, options.pushes);
-        const served = await hosted.serve();
+        await hosted.serve();
         const installation = schema.identifier("installation").parse(world.installation);
 
         return new TestMessage({
             space: hosted,
-            served,
             simulation,
             installation,
             mails,
@@ -271,13 +266,12 @@ export class TestMessage {
     /** Install the vault, message and documents in the space. */
     static async #write(hosted: TestSpace): Promise<MessageWorld> {
         // install the vault, message and documents, then stop serving, as the machine does once installations change
-        const installing = await hosted.serve();
-        await hosted.install(installing, VAULT.build, { isolation: "host" });
-        const installation = await hosted.install(installing, MESSAGE.build, {
+        await hosted.serve();
+        await hosted.install(VAULT.build, { isolation: "host" });
+        const installation = await hosted.install(MESSAGE.build, {
             capabilities: [DELIVER_CAPABILITY],
         });
-        await hosted.install(installing, DOCUMENTS.build);
-        await installing[Symbol.asyncDispose]();
+        await hosted.install(DOCUMENTS.build);
 
         return { installation };
     }
@@ -305,7 +299,7 @@ export class TestMessage {
 
     /** Grant a person exactly some permissions through a role the space's stack declares. */
     async allow(person: TestPerson, permissions: readonly PermissionReference[]): Promise<void> {
-        await this.space.apply(this.served, [], {
+        await this.space.apply([], {
             roles: { member: { description: "Use messages", permissions: [...permissions] } },
             relationships: { member: { role: "member", subject: { id: person.id } } },
         });
@@ -339,7 +333,7 @@ export class TestMessage {
     /** Reach a pending message's next attempt, running what is due then. */
     async retry(id: Identifier<"message">): Promise<void> {
         // read when the message's next attempt is due
-        const [row] = await this.served.database
+        const [row] = await this.space.database
             .select({ retryAt: message.table.retryAt })
             .from(message.table)
             .where(eq(message.table.id, id));
@@ -356,7 +350,7 @@ export class TestMessage {
     /** Read a message's sending: its status, its erasure, its attempts and its Sent condition. */
     async sending(id: Identifier<"message">): Promise<TestSending> {
         // read the message and its attempts
-        const { database } = this.served;
+        const { database } = this.space;
         const [row] = await database.select().from(message.table).where(eq(message.table.id, id));
         const found = present(row, `message ${id}`);
         const attempts = await database
@@ -402,11 +396,11 @@ export class TestMessage {
     /** Store a text as a secret of the vault the space's stack declares, as its owner writes it. */
     async secret(value: string): Promise<ObjectReference> {
         // declare the vault through the space's stack
-        await this.space.apply(this.served, [vaultPackage], {
+        await this.space.apply([vaultPackage], {
             vaults: { secrets: SECRETS.provision({ retention: "delete" }) },
         });
         const client = this.owner.client(vaultPackage);
-        const [declared] = await this.served.database
+        const [declared] = await this.space.database
             .select({ id: vault.table.id })
             .from(vault.table);
 

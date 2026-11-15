@@ -43,11 +43,11 @@ function documents(fixture: TestMessage) {
 
 /** Read an endpoint's message count and Delivered condition. */
 async function delivery(fixture: TestMessage, id: string) {
-    const [row] = await fixture.served.database
+    const [row] = await fixture.space.database
         .select({ conditions: endpoint.table.conditions })
         .from(endpoint.table)
         .where(eq(endpoint.table.id, endpoint.identifier(id)));
-    const sent = await fixture.served.database.select({ id: message.table.id }).from(message.table);
+    const sent = await fixture.space.database.select({ id: message.table.id }).from(message.table);
     const delivered = row?.conditions["Delivered"];
 
     return {
@@ -81,7 +81,7 @@ test("refuse a webhook message to an endpoint from a sender who does not manage 
 
     // refuse the member's webhook message posting to the endpoint with the endpoint's secret
     const created = fixture.space
-        .person(fixture.served, member)
+        .person(member)
         .client(messagePackage)
         .message.create({
             ...message.target({
@@ -115,7 +115,7 @@ test("let the installation consume an endpoint's new secret as the manager who s
     const rotated = await fixture.secret("whsec_cm90YXRlZA==");
     const id = await fixture.subscribe({ ...EVENTS, secret: first });
     const person = await fixture.member([endpoint.permission("manage")]);
-    const manager = fixture.space.person(fixture.served, person).client(messagePackage);
+    const manager = fixture.space.person(person).client(messagePackage);
     const rotate = () =>
         manager.endpoint.update({
             scope: fixture.space.id,
@@ -131,7 +131,7 @@ test("let the installation consume an endpoint's new secret as the manager who s
 
     // read each secret as the installation, which consumes only the second one
     const read = (kept: typeof first) =>
-        fixture.served
+        fixture.space
             .as(principal.installation.reference(fixture.space.id, fixture.installation))
             .client(vaultPackage)
             .secret.read({ scope: fixture.space.id, id: secret.identifier(kept.id) });
@@ -259,7 +259,7 @@ test("mark an endpoint failing once the message controller gives up a message it
     await fixture.simulation.idle();
 
     // give the batch up after the retries, and flag the endpoint with the URL's answer
-    const [sent] = await fixture.served.database
+    const [sent] = await fixture.space.database
         .select({ id: message.table.id })
         .from(message.table);
     for (let attempt = 1; attempt < 8; attempt++) {
@@ -288,7 +288,7 @@ test("fail a webhook message once its endpoint is disabled or deleted, or answer
         requestId: RequestId.create(fixture.environment),
     });
     const sentTo = async (id: string) => {
-        const [row] = await fixture.served.database
+        const [row] = await fixture.space.database
             .select({ id: message.table.id })
             .from(message.table)
             .where(eq(message.table.sourceId, id));
