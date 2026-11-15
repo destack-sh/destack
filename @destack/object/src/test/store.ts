@@ -18,7 +18,7 @@ import { Clock, type Environment, waitAborted } from "@destack/environment";
 import { Simulation, SimulatedScheduler } from "@destack/environment/simulation";
 import { PackageVersion, type PackageId } from "@destack/package";
 import { ResourceContext } from "@destack/resource/context";
-import { Identifier, present, schema } from "@destack/schema";
+import { Identifier, present } from "@destack/schema";
 import {
     type ObjectReference,
     ObjectTypeReference,
@@ -40,7 +40,7 @@ import { ObjectStore, type ObjectStoreOptions } from "../server/store.ts";
 import { tablesOf } from "../stack/db.ts";
 import objectPackage from "../package.ts";
 import { TestBearer } from "./bearer.ts";
-import { TestCaller, type TestServed } from "./caller.ts";
+import { TestCaller, type TestScope } from "./caller.ts";
 import { testCallKey } from "./context.ts";
 import { testEvents } from "./events.ts";
 
@@ -108,7 +108,7 @@ export interface TestObjectStoreOptions {
 }
 
 /** An object store serving packages in one space over a test database, called as its users. */
-export class TestObjectStore implements TestServed, AsyncDisposable {
+export class TestObjectStore implements TestScope, AsyncDisposable {
     /** The store. */
     readonly store: ObjectStore;
     /** The scope it serves. */
@@ -476,34 +476,7 @@ export class TestObjectStore implements TestServed, AsyncDisposable {
 
     /** Call the store as a subject, or by an identifier whose type names its principal kind. */
     as(caller: string | Subject): TestCaller {
-        const subject = typeof caller === "string" ? this.#subject(caller) : caller;
-
-        return new TestCaller(this, subject);
-    }
-
-    /** Read an identifier's principal by its kind, such as a machine, space or user. */
-    #subject(id: string): Subject {
-        // take the universe
-        if (id === Scope.universe.id) {
-            return universe.reference(Scope.universe.id, Scope.universe.id);
-        }
-
-        // take the principal type whose identifiers it is: a machine, space or user at the universe, an installation in the served scope
-        const kind = [
-            principal.machine,
-            principal.space,
-            principal.installation,
-            principal.user,
-        ].find((policy) => schema.identifier(policy.name).safeParse(id).success);
-        if (kind !== undefined) {
-            return kind.reference(
-                kind === principal.installation ? this.scope : Scope.universe.id,
-                id,
-            );
-        }
-
-        // refuse an identifier of no principal kind
-        throw new TypeError(`'${id}' names no principal kind: pass its subject`);
+        return new TestCaller(this, caller);
     }
 
     /** The clock the store runs at. */

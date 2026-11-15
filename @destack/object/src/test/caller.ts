@@ -1,7 +1,9 @@
 import type { Simulation } from "@destack/environment/simulation";
 import type { Environment } from "@destack/environment";
 import type { Example } from "@destack/package/declare";
-import { type Call, type ObjectTypeReference, RequestId, type Subject } from "@destack/sync";
+import { principal, universe } from "@destack/access";
+import { schema } from "@destack/schema";
+import { type Call, type ObjectTypeReference, RequestId, Scope, type Subject } from "@destack/sync";
 import { type ClientOptions, type ClientTarget, createClient } from "../client/package.ts";
 import type { Package } from "../declare/package.ts";
 import type { ObjectType } from "../object/object.ts";
@@ -13,8 +15,8 @@ import type { TestSigner } from "./store.ts";
 /** The origin test clients address the servers at, which no request leaves the process for. */
 const TEST_ORIGIN = "https://objects.test";
 
-/** A scope served to test callers: its package servers and the object types they serve. */
-export interface TestServed {
+/** A scope test callers call: its packages' servers and their object types. */
+export interface TestScope {
     /** The served scope. */
     readonly scope: string;
     /** The world the calls run in. */
@@ -40,20 +42,43 @@ export class TestCaller {
     /** The caller. */
     readonly subject: Subject;
     /** The scope it calls. */
-    readonly #served: TestServed;
+    readonly #scope: TestScope;
     /** Whether the caller authenticated with a second factor just before each call. */
     readonly #isSteppedUp: boolean;
 
-    /** Call a served scope as a subject, stepped up when asked. */
-    constructor(served: TestServed, subject: Subject, isSteppedUp = false) {
-        this.#served = served;
-        this.subject = subject;
+    /** Call a served scope as a subject or a principal's identifier, stepped up when asked. */
+    constructor(scope: TestScope, caller: string | Subject, isSteppedUp = false) {
+        this.#scope = scope;
+        this.subject =
+            typeof caller === "string" ? TestCaller.#subject(caller, scope.scope) : caller;
         this.#isSteppedUp = isSteppedUp;
+    }
+
+    /** Read the principal an identifier names, an installation in the called scope. */
+    static #subject(id: string, scope: string): Subject {
+        // take the universe
+        if (id === Scope.universe.id) {
+            return universe.reference(Scope.universe.id, Scope.universe.id);
+        }
+
+        // take the principal type whose identifiers it is, an installation in the called scope
+        const kind = [
+            principal.machine,
+            principal.space,
+            principal.installation,
+            principal.user,
+        ].find((policy) => schema.identifier(policy.name).safeParse(id).success);
+        if (kind !== undefined) {
+            return kind.reference(kind === principal.installation ? scope : Scope.universe.id, id);
+        }
+
+        // refuse an identifier of no principal kind
+        throw new TypeError(`'${id}' names no principal kind: pass its subject`);
     }
 
     /** Call as the same subject having just authenticated with a second factor (RFC 9470). */
     stepUp(): TestCaller {
-        return new TestCaller(this.#served, this.subject, true);
+        return new TestCaller(this.#scope, this.subject, true);
     }
 
     /** Call a package's typed client at the package implementing it, its own by default. */
@@ -61,7 +86,7 @@ export class TestCaller {
         handle: Package & ClientTarget<Definition>,
         implementer: Package = handle,
     ): Client<Definition> {
-        return createClient(handle, this.endpoint(implementer), this.#served.environment);
+        return createClient(handle, this.endpoint(implementer), this.#scope.environment);
     }
 
     /** Address a served package through a fetch that signs each request. */
@@ -79,9 +104,9 @@ export class TestCaller {
 
                 // wait on the world to sign and answer through the package's current server, moving its time as the call needs
                 const answer = async () =>
-                    this.#served.server(handle).fetch(await this.#served.sign(request, signer));
+                    this.#scope.server(handle).fetch(await this.#scope.sign(request, signer));
 
-                return this.#served.simulation.wait(answer());
+                return this.#scope.simulation.wait(answer());
             },
         };
     }
@@ -92,11 +117,11 @@ export class TestCaller {
         options: { readonly writerId?: string } = {},
     ): Promise<Result> {
         // find the called procedure on the client of the type's package
-        const served = this.#served.type(called.type);
-        if (served === undefined) {
+        const found = this.#scope.type(called.type);
+        if (found === undefined) {
             throw new TypeError(`the test store serves no object type ${called.type.type}`);
         }
-        const { type, handle } = served;
+        const { type, handle } = found;
         const client: unknown = Reflect.get(this.client(handle), type.name);
         const procedure: unknown = Reflect.get(Object(client), called.method);
         if (typeof procedure !== "function") {
@@ -108,7 +133,7 @@ export class TestCaller {
             ? {}
             : type.storage === "ephemeral"
               ? { writerId: options.writerId ?? `writer-${this.subject.id}` }
-              : { requestId: RequestId.create(this.#served.environment) };
+              : { requestId: RequestId.create(this.#scope.environment) };
         const answered: unknown = await Reflect.apply(procedure, undefined, [
             { ...called.input, ...named },
         ]);
@@ -131,12 +156,12 @@ export class TestCaller {
 
             // call each method in the served scope through the package's client
             for (const { object, method, input } of calls) {
-                const served = this.#served.named(object.name);
+                const served = this.#scope.named(object.name);
                 if (served === undefined) {
                     throw new TypeError(`the test store serves no object type ${object.name}`);
                 }
                 const { type } = served;
-                await this.call(type.call(method, { ...type.in(this.#served.scope), ...input }));
+                await this.call(type.call(method, { ...type.in(this.#scope.scope), ...input }));
             }
         }
     }
