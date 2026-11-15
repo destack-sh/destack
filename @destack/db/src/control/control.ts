@@ -57,9 +57,6 @@ const ProjectionKey = schema.union([schema.string(), schema.number()]).transform
 /** The most compiled stored conditions a loop keeps: 10,000 at about 1 KB each, about 10 MB. */
 const STORED_CONDITIONS = 10_000;
 
-/** How long the log keeps changes past a stopped loop's position: a week. */
-const POSITION_HOLD_MILLISECONDS = 7 * 24 * 60 * 60_000;
-
 /** The key of a cursor's one checkpoint. */
 const ONE_CHECKPOINT = "";
 
@@ -389,8 +386,6 @@ export class ControlLoop {
     #isListening = false;
     /** Whether every controller was listed once since the loop started. */
     #isListed = false;
-    /** The sequence of the last change whose jobs the follow selected. */
-    #selected = 0;
     /** The log sequence the follow consumed, moved forward by the follow and by idle checks. */
     #followed = 0;
     /** Aborts once an idle check found the follow behind a compaction, making it list again. */
@@ -403,10 +398,6 @@ export class ControlLoop {
     readonly #changes = new Map<Job, Map<string, (() => void)[]>>();
     /** Aborts once work arrives after the worker last looked for it. */
     #woken = new AbortController();
-    /** The name of the loop's position in the log, absent for a loop listing at every start. */
-    readonly #position: string | undefined;
-    /** The position as the loop last read or wrote it, absent before the first. */
-    #checkpointed: number | undefined;
 
     /** Create the loop. */
     constructor(
@@ -425,8 +416,6 @@ export class ControlLoop {
             readonly alarm?: Alarm;
             /** How long a key may fail transiently before reporting. */
             readonly transientFor?: number;
-            /** The name of the log position a start resumes from, none to list every start. */
-            readonly position?: string;
         },
     ) {
         // start idle
@@ -482,7 +471,6 @@ export class ControlLoop {
         if (options.alarm !== undefined) {
             this.#alarm = options.alarm;
         }
-        this.#position = options.position;
 
         // lock each controller as this loop when instances share the database
         if (database.isShared) {
@@ -791,29 +779,18 @@ export class ControlLoop {
         this.#wake();
     }
 
-    /** List the pending rows, then follow the logged tables from the loop's position. */
+    /** List every job's keys, then follow the logged tables from the listing on. */
     async #follow(signal: AbortSignal): Promise<void> {
-        // resume from the loop's position, else list every job
-        const resumed =
-            this.#position === undefined
-                ? undefined
-                : await this.database.log.checkpoint(this.#position);
-        this.#checkpointed = resumed;
+        // list every job at each start, as its process may have changed
         const active = () => this.#jobs.filter((job) => !this.#inactive.has(job));
-        let listed =
-            resumed === undefined
-                ? active()
-                : active().filter((job) => !ControlLoop.#isProjection(job));
-        let start = resumed;
+        let listed = active();
         while (!signal.aborted) {
             // read the position before listing
-            const after = start ?? (await this.database.log.position()).sequence;
-            start = undefined;
+            const after = (await this.database.log.position()).sequence;
             for (const controller of listed) {
                 await this.#list(controller);
             }
             this.#followed = after;
-            this.#selected = after;
             this.#isListed = true;
             this.#started.resolve();
             this.#wake();
@@ -863,85 +840,17 @@ export class ControlLoop {
         const unsettled = Symbol("activation");
         this.#unsettled.add(unsettled);
         try {
-            // activate the jobs, noting the last change selected without them
+            // activate the jobs and list them
             const jobs = [...set.controllers, ...set.projections, ...set.cursors];
             for (const job of jobs) {
                 this.#inactive.delete(job);
             }
-            const until = this.#selected;
-
-            // list the controllers and cursors
-            for (const job of [...set.controllers, ...set.cursors]) {
+            for (const job of jobs) {
                 await this.#list(job);
-            }
-
-            // replay the projections, else list them
-            const isReplayed = await this.#replay(set.projections, until, signal);
-            if (!isReplayed) {
-                for (const projection of set.projections) {
-                    await this.#list(projection);
-                }
             }
         } finally {
             this.#unsettled.delete(unsettled);
             this.#wake();
-        }
-    }
-
-    /** Replay the changes since the position to projections, false when compacted. */
-    async #replay(
-        projections: readonly Projection[],
-        until: number,
-        signal: AbortSignal,
-    ): Promise<boolean> {
-        // check projections and position
-        const from = this.#checkpointed;
-        if (projections.length === 0) {
-            return true;
-        } else if (from === undefined) {
-            return false;
-        }
-
-        // read the changes up to the last one selected without the set
-        if (until <= from) {
-            return true;
-        }
-        const tables = [...new Set(projections.flatMap((each) => ControlLoop.#tables(each)))];
-        const reading = new AbortController();
-        try {
-            const selection = { tables, after: from };
-            const pages = this.database.log.follow(
-                selection,
-                AbortSignal.any([signal, reading.signal]),
-                {
-                    isAdvancing: true,
-                },
-            );
-            for await (const page of pages) {
-                for (const change of page.changes.filter((each) => each.sequence <= until)) {
-                    for (const projection of projections) {
-                        await this.#wakeWatched(
-                            projection,
-                            change,
-                            Change.isObservation(change),
-                            (fields) => ProjectionKey.parse(fields[projection.key]),
-                        );
-                    }
-                }
-                if (page.sequence >= until) {
-                    break;
-                }
-            }
-
-            return true;
-        } catch (error) {
-            // report compaction
-            if (DatabaseError.is(error, "CHANGES_NOT_FOUND")) {
-                return false;
-            }
-            throw error;
-        } finally {
-            reading.abort();
         }
     }
 
@@ -951,7 +860,6 @@ export class ControlLoop {
         const name = change.table[TABLE].sqlName;
         const at = this.#clock.now();
         const projections = this.#control.projections.filter((each) => !this.#inactive.has(each));
-        this.#selected = change.sequence;
 
         // leave an observation to the jobs reading observations, as they alone wait for it
         const isObservation = Change.isObservation(change);
@@ -1562,48 +1470,10 @@ export class ControlLoop {
         await Promise.all(this.#reconciling);
     }
 
-    /** Write what the cursors deferred, each in turn, then the loop's position. */
+    /** Write what the cursors deferred, each in turn. */
     async #settleCursors(): Promise<void> {
         for (const cursor of this.#control.cursors) {
             await cursor.settle?.();
-        }
-        await this.#settlePosition();
-    }
-
-    /** Write the loop's position once no projection key waits. */
-    async #settlePosition(): Promise<void> {
-        // leave an unnamed or unmoved position, and one past a projection key still waiting
-        const name = this.#position;
-        const after = this.#followed;
-        const isWaiting =
-            this.#inactive.size > 0 ||
-            this.#control.projections.some(
-                (projection) =>
-                    found(this.#due, projection).size > 0 ||
-                    found(this.#running, projection).size > 0 ||
-                    found(this.#failures, projection).size > 0,
-            );
-        if (name === undefined || after === this.#checkpointed || isWaiting) {
-            return;
-        }
-
-        // move the position from where it was read
-        const expiresAt = this.#clock.now() + POSITION_HOLD_MILLISECONDS;
-        try {
-            await this.database.log.move(
-                { name, tables: this.#watched },
-                this.#checkpointed ?? 0,
-                after,
-                expiresAt,
-            );
-            this.#checkpointed = after;
-        }
-        // read the position again after another instance moved it
-        catch (error) {
-            if (!DatabaseError.is(error, "UPDATE_CONFLICT")) {
-                throw error;
-            }
-            this.#checkpointed = await this.database.log.checkpoint(name);
         }
     }
 
