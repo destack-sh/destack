@@ -7,8 +7,7 @@ import {
     type SQLWrapper,
     type Snapshot,
 } from "@destack/db";
-import { placement } from "./placement.ts";
-import { approval, defineObject, field, type KeyFields, ObjectWatch } from "@destack/object";
+import { approval, defineObject, field, type KeyFields } from "@destack/object";
 import { RISKS } from "@destack/resource";
 import { type Identifier, present, schema } from "@destack/schema";
 import { replica, Scope } from "@destack/sync";
@@ -265,17 +264,5 @@ export const Space = {
                 `space '${row.id}' exceeds its entitlement: ${message}`,
             );
         }
-    },
-
-    /** Watch the directory's placements, and select the keys of a space whose placement changed. */
-    watch(
-        keys: (
-            spaceId: Identifier<"space">,
-            database: DatabaseConnection,
-        ) => PromiseLike<readonly KeyFields[]>,
-    ): ObjectWatch<typeof placement.table> {
-        return ObjectWatch.of(placement.table, async (row, database) =>
-            keys(row.spaceId, database),
-        );
     },
 };

@@ -1,12 +1,17 @@
 import { none, through, union } from "@destack/access";
-import { type DatabaseConnection, type Select, Snapshot, Transaction } from "@destack/db";
+import {
+    type DatabaseConnection,
+    type Select,
+    Snapshot,
+    Transaction,
+    type Watch,
+} from "@destack/db";
 import {
     type MethodContext,
     type Condition,
     defineObject,
     defineShape,
     field,
-    ObjectWatch,
 } from "@destack/object";
 import { type PackageVersion, PackageId } from "@destack/package";
 import { DeclarationReference } from "@destack/package/declare";
@@ -318,11 +323,9 @@ export const Entitlement = {
         },
     }),
 
-    /** Watch the replicated entitlements, selecting the spaces of the account they limit. */
-    watches(): readonly ObjectWatch[] {
-        return [
-            ObjectWatch.of(entitlement.table, (row, database) => Space.within(database, row.scope)),
-        ];
+    /** Watch the replicated entitlements, waking the spaces they limit. */
+    watches(): readonly Watch[] {
+        return [{ table: entitlement.table, on: { scope: "scope" } }];
     },
 
     /** Decide a served space's database, bucket, compute and network conditions. */

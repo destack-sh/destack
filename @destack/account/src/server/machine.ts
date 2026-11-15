@@ -89,7 +89,11 @@ async function declare(
     // create the machine with its key and its endpoint at its origin
     const row = await next();
     await provision(context, row, context.input.publicKey);
-    await Endpoint.upsert(context, row.id, { url: context.input.origin, relay: null });
+    await Endpoint.upsert(context, row.id, {
+        url: context.input.origin,
+        relay: null,
+        lapsesAt: null,
+    });
 
     return row;
 }
@@ -121,7 +125,8 @@ async function relay(
     // replace the machine's endpoint, or record its first one
     await Endpoint.upsert(context, context.target.id, {
         url: `https://${name}`,
-        relay: context.input,
+        relay: context.input.url,
+        lapsesAt: context.input.lapsesAt,
     });
 
     return context.target;

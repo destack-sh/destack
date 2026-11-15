@@ -1,13 +1,11 @@
 import { Caller, principal, Relationship } from "@destack/access";
 import {
-    type KeyFields,
     type MethodContext,
     type MethodContextOf,
     type ObjectReconciliation,
-    ObjectWatch,
     type ResultOf,
 } from "@destack/object";
-import { Change, type DatabaseConnection, type Select, Snapshot } from "@destack/db";
+import { type Select, Snapshot } from "@destack/db";
 import { canonicalize, type DigestCrypto, type Identifier, present, schema } from "@destack/schema";
 import { Account, account } from "../object/account.ts";
 import { Entitlement, entitlement } from "../object/entitlement.ts";
@@ -36,31 +34,32 @@ export function implementPlacement(): typeof placement {
             {
                 // decide a placement again after each of its writes, which converges a decision a concurrent change outdated
                 watches: [
-                    // decide again once a machine comes, goes or changes its standing, for its account or its residency's
-                    ObjectWatch.of(machine.table, async (_row, database, change) => {
-                        // leave a change no decision reads, such as a heartbeat
-                        const before = Change.before(change);
-                        const after = Change.after(change);
-                        if (!isMachineChanged(before, after)) {
-                            return [];
-                        }
-
-                        // decide again for the accounts before and after the change
-                        const sides = [before, after].filter((side) => side !== null);
-                        const keys = await Promise.all(
-                            sides.map((side) => machinePlacements(database, side)),
-                        );
-
-                        return keys.flat();
-                    }),
+                    // decide again once a machine comes, goes or changes its standing, for its account
+                    {
+                        table: machine.table,
+                        fields: ["status", "deletedAt"],
+                        on: { scope: "scope" },
+                    },
+                    // decide again for every account of a shared machine's residency
+                    {
+                        table: machine.table,
+                        where: { scope: Scope.universe.id },
+                        fields: ["status", "deletedAt"],
+                        path: [
+                            {
+                                table: account.table,
+                                cardinality: "many",
+                                on: { kind: "key", column: "residencyId", parent: "residencyId" },
+                            },
+                        ],
+                        on: { scope: "id" },
+                    },
                     // decide again for an account whose tenancy entitlement changed
-                    ObjectWatch.of(entitlement.table, (row, database) =>
-                        row.resource === "tenancy"
-                            ? accountPlacements(database, [
-                                  schema.identifier("account").parse(row.scope),
-                              ])
-                            : [],
-                    ),
+                    {
+                        table: entitlement.table,
+                        where: { resource: "tenancy" },
+                        on: { scope: "scope" },
+                    },
                 ],
                 project,
             },
@@ -271,53 +270,6 @@ async function tenancyMachine(
     else {
         return { kind: "move", machine: only };
     }
-}
-
-/** Decide whether a machine change can change a decision: added, deleted or standing. */
-function isMachineChanged(
-    before: Select<typeof machine.table> | null,
-    after: Select<typeof machine.table> | null,
-): boolean {
-    return (
-        before === null ||
-        after === null ||
-        after.status !== before.status ||
-        after.deletedAt !== before.deletedAt
-    );
-}
-
-/** List the placements of a machine's account, or of its residency's accounts for a shared one. */
-async function machinePlacements(
-    database: DatabaseConnection,
-    row: Pick<Select<typeof machine.table>, "scope" | "residencyId">,
-): Promise<readonly KeyFields[]> {
-    // take an account machine's account
-    if (row.scope !== Scope.universe.id) {
-        return await accountPlacements(database, [schema.identifier("account").parse(row.scope)]);
-    }
-
-    // take every account of a shared machine's residency
-    const residencyId = present(row.residencyId, "the residency of a shared machine");
-    const accounts = await Snapshot.live(database)
-        .read(account.table)
-        .findMany({ where: { residencyId } });
-
-    return await accountPlacements(
-        database,
-        accounts.map((each) => each.id),
-    );
-}
-
-/** List the placements of some accounts as controller keys. */
-async function accountPlacements(
-    database: DatabaseConnection,
-    accounts: readonly Identifier<"account">[],
-): Promise<readonly KeyFields[]> {
-    const rows = await Snapshot.live(database)
-        .read(placement.table)
-        .findMany({ where: { scope: { in: [...accounts] } } });
-
-    return rows.map((row) => ({ spaceId: row.spaceId }));
 }
 
 /** End a space's placement as the machine serving it, its work with it. */
