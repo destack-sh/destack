@@ -510,10 +510,12 @@ export class ChangeSet {
 
             // refuse a change up to the position that touched a read, skipping SQLite's own writes past it
             const committed = page.changes.filter((change) => change.sequence <= position.sequence);
-            if (committed.some((change) => reads.touches(change))) {
+            const touched = committed.find((change) => reads.touches(change));
+            if (touched !== undefined) {
+                const name = touched.table[TABLE].name;
                 throw DatabaseError.of(
                     "UPDATE_CONFLICT",
-                    "cannot commit the transaction: another commit changed what it read",
+                    `cannot commit the transaction: another commit changed what it read in '${name}'`,
                 );
             }
 

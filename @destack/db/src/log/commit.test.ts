@@ -351,12 +351,12 @@ test("refuse a transaction another commit raced on a row it read or a row its sc
         [
             "CONFLICT",
             "UPDATE_CONFLICT",
-            "cannot commit the transaction: another commit changed what it read",
+            "cannot commit the transaction: another commit changed what it read in 'commit_task'",
         ],
         [
             "CONFLICT",
             "UPDATE_CONFLICT",
-            "cannot commit the transaction: another commit changed what it read",
+            "cannot commit the transaction: another commit changed what it read in 'commit_task'",
         ],
         "committed",
     ]);
@@ -743,7 +743,7 @@ test("refuse a unique key a commit after the transaction's base took as a lost r
         [
             "CONFLICT",
             "UPDATE_CONFLICT",
-            "cannot commit the transaction: another commit changed what it read",
+            "cannot commit the transaction: another commit changed what it read in 'commit_label'",
         ],
         ["CONFLICT", "ROW_EXISTS", "a record with the same unique key already exists"],
     ]);
@@ -775,7 +775,7 @@ test("refuse a unique key a commit took after the transaction checked it as a lo
     expect(await refusal(late.commit())).toEqual([
         "CONFLICT",
         "UPDATE_CONFLICT",
-        "cannot commit the transaction: another commit changed what it read",
+        "cannot commit the transaction: another commit changed what it read in 'commit_label'",
     ]);
 });
 
