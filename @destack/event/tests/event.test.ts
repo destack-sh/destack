@@ -739,7 +739,7 @@ test("seal a person's personal values at rest, drop secrets, and erase the value
     ]);
 });
 
-test("lock a locked kind's segments for its retention, chained by digest and never compacted", async () => {
+test("lock a locked kind's segments until they expire, chained by digest and never compacted", async () => {
     const fixture = await open([call]);
     const { store, database, bucket } = fixture;
 
@@ -758,7 +758,7 @@ test("lock a locked kind's segments for its retention, chained by digest and nev
     const segments = await database.database.select().from(eventSegment).orderBy(eventSegment.from);
     const [first, second] = segments;
 
-    // deleting a segment's file is refused while it is locked
+    // lock the first segment's file until it expires, a retention after its last event, refusing its deletion
     const deleting = await bucket
         .delete([first?.file ?? ""])
         .then(() => "deleted")
@@ -769,7 +769,15 @@ test("lock a locked kind's segments for its retention, chained by digest and nev
         first?.previous,
         deleting === "deleted",
         (await bucket.head(first?.file ?? ""))?.retainUntil?.getTime(),
-    ]).toEqual([2, true, null, false, TEST_START + 61 * MINUTE + 365 * DAY]);
+        first?.expiresAt,
+    ]).toEqual([
+        2,
+        true,
+        null,
+        false,
+        TEST_START + 2 * MINUTE + 365 * DAY,
+        TEST_START + 2 * MINUTE + 365 * DAY,
+    ]);
 });
 
 test("compact an unlocked kind's small segments and expire them past the retention their scope reads", async () => {
@@ -807,6 +815,30 @@ test("compact an unlocked kind's small segments and expire them past the retenti
         (await database.database.select().from(eventSegment)).length,
         (await store.query(scoped, { scopes: ["space-1"] })).events,
     ]).toEqual([[2, 1], ["r1", "r2", "r3"], 0, []]);
+});
+
+test("leave a locked kind's events past their retention unarchived when they settle, dropping them", async () => {
+    // settle a call only once it is past its retention of a year
+    const fixture = await open([call]);
+    const { store, database, bucket } = fixture;
+    await store.append(call, [
+        {
+            scope: "space-1",
+            id: "c1",
+            time: at(1),
+            keys: { actor: "ada", method: "update" },
+            data: {},
+        },
+    ]);
+    await fixture.simulation.jump(TEST_START + 366 * DAY);
+
+    // write no segment, no locked file and no deletion its lock would refuse, and read nothing
+    expect([
+        (await database.database.select().from(eventSegment)).length,
+        (await database.database.select().from(segmentDeletion)).length,
+        (await bucket.list({ prefix: "" })).files.length,
+        (await store.query(call, { scopes: ["space-1"] })).events,
+    ]).toEqual([0, 0, 0, []]);
 });
 
 test("refuse a condition with a key the kind lacks", async () => {

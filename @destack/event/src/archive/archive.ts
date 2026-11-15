@@ -380,24 +380,36 @@ export class EventArchive {
         previous: string | null,
         change: (transaction: DatabaseConnection) => Promise<void>,
     ): Promise<void> {
-        // write and verify the file, locked for the retention when the kind is locked
+        // apply the caller's change alone for events already past their retention
         const first = present(events.at(0), "a segment's first event");
         const last = present(events.at(-1), "a segment's last event");
+        const retention = await kind.retention(scope, this.#settings);
+        const expiresAt = EventTime.milliseconds(last.time) + retention;
+        if (expiresAt <= now) {
+            await this.#database.transaction(change);
+
+            return;
+        }
+
+        // delete the file unless catalogued, after the upload's grace and once its lock lifts
         const data = await SegmentFile.encode(kind, events);
         const digest = await Digest.of(data, this.#database.state.environment.crypto);
         const id = `${String(first.time)}-${String(last.time)}-${digest.slice(0, 16)}`;
         const file = `${this.#directory(kind, scope)}/${id}.parquet`;
-        const retention = await kind.retention(scope, this.#settings);
+        const graced = now + UPLOAD_GRACE_MILLISECONDS;
+        const deleteAt = kind.isLocked ? Math.max(graced, expiresAt) : graced;
         await this.#database.transaction(
             async (transaction) =>
                 await transaction
                     .insert(segmentDeletion)
-                    .values({ file, scope, deleteAt: now + UPLOAD_GRACE_MILLISECONDS })
+                    .values({ file, scope, deleteAt })
                     .onConflictDoNothing(),
         );
+
+        // write and verify the file, locked until its segment expires when the kind is locked
         await this.#files(scope).put(file, data, {
             sha256: digest,
-            ...(kind.isLocked ? { retainUntil: new Date(now + retention) } : {}),
+            ...(kind.isLocked ? { retainUntil: new Date(expiresAt) } : {}),
         });
 
         // catalog it with the caller's change
@@ -419,7 +431,7 @@ export class EventArchive {
                     digest,
                     previous,
                     flushedAt: now,
-                    expiresAt: EventTime.milliseconds(last.time) + retention,
+                    expiresAt,
                 })
                 .onConflictDoNothing();
             await transaction.delete(segmentDeletion).where(eq(segmentDeletion.file, file));
