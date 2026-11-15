@@ -23,7 +23,7 @@ import {
     type Table,
 } from "../table/index.ts";
 import { canonicalize, Duration, found, nth, present, schema, Uuid } from "@destack/schema";
-import { TelemetryScope } from "@destack/telemetry";
+import { type Link, TelemetryScope } from "@destack/telemetry";
 import type {} from "@destack/package/import-meta";
 import { Failure } from "@destack/error";
 import { RetryPolicy, waitAborted, Clock } from "@destack/environment";
@@ -44,6 +44,25 @@ const TRANSIENT_REPORT_MILLISECONDS = 60_000;
 
 /** The transient failures a key reaches before a report, its retries 1, 2 and 4 s apart. */
 const TRANSIENT_REPORT_ATTEMPTS = 4;
+
+/** The most links a pass has, OpenTelemetry's default span link limit. */
+const LINK_LIMIT = 128;
+
+/** What makes a key due: a change, a listing, a retry, a released lock or its rows' next page. */
+type Wake = "change" | Listing | "retry" | "release" | "page";
+
+/** What lists a job's keys: the loop's start, its set's activation, a watch or a row come due. */
+type Listing = "start" | "activation" | "watch" | "time";
+
+/** A due key: when it is due, what made it so, and the spans of the transactions that did. */
+interface DueKey {
+    /** The time the key is due at, in UTC epoch milliseconds. */
+    at: number;
+    /** What set the time the key is due at. */
+    wake: Wake;
+    /** The spans of the transactions whose changes made it due. */
+    readonly links: Link[];
+}
 
 /** The most pending rows one reconciliation takes: 1,000 rows of about 0.5 KB, half a megabyte. */
 const KEY_ROWS = 1000;
@@ -336,12 +355,14 @@ export class ControlLoop {
     readonly #waits;
     /** The time each follow took to catch up, by job. */
     readonly #catchUps;
+    /** The keys a table's changes made due or due sooner, by job and table. */
+    readonly #keyWakes;
     /** The host clock the waits and catch-ups read. */
     readonly #monotonic: Environment["telemetry"]["monotonic"];
     /** How a transiently failed key retries. */
     readonly #retry: RetryPolicy;
-    /** The keys due, by controller and key, with the time each is due at. */
-    readonly #due = new Map<Job, Map<string, number>>();
+    /** The keys due, by controller and key. */
+    readonly #due = new Map<Job, Map<string, DueKey>>();
     /** The due keys, earliest first. */
     readonly #queue = new DueQueue();
     /** When each controller lists its rows again as the earliest waiting one comes due. */
@@ -455,6 +476,19 @@ export class ControlLoop {
         this.#catchUps = instruments.metric.histogram("destack.controller.catch_up.duration", {
             unit: "s",
             attributes: passed,
+        });
+        const watched = jobs.flatMap((job) =>
+            "watches" in job ? (job.watches ?? []).map((watch) => watch.table) : [],
+        );
+        const owned = control.controllers.map((controller) => controller.table);
+        this.#keyWakes = instruments.metric.counter("destack.controller.wakes", {
+            unit: "{wake}",
+            attributes: {
+                "destack.controller.name": passed["destack.controller.name"],
+                "db.collection.name": [
+                    ...new Set([...watched, ...owned].map((table) => table[TABLE].sqlName)),
+                ],
+            },
         });
         this.#report = (controller, key, error) => {
             // record the failure with the controller and the failed key, then report it
@@ -576,8 +610,8 @@ export class ControlLoop {
         let due = 0;
         for (const [controller, keys] of this.#due) {
             const running = found(this.#running, controller);
-            for (const [key, time] of keys) {
-                due += time <= at && !running.has(key) ? 1 : 0;
+            for (const [key, entry] of keys) {
+                due += entry.at <= at && !running.has(key) ? 1 : 0;
             }
         }
 
@@ -788,7 +822,7 @@ export class ControlLoop {
             // read the position before listing
             const after = (await this.database.log.position()).sequence;
             for (const controller of listed) {
-                await this.#list(controller);
+                await this.#list(controller, "start");
             }
             this.#followed = after;
             this.#isListed = true;
@@ -846,7 +880,7 @@ export class ControlLoop {
                 this.#inactive.delete(job);
             }
             for (const job of jobs) {
-                await this.#list(job);
+                await this.#list(job, "activation");
             }
         } finally {
             this.#unsettled.delete(unsettled);
@@ -869,7 +903,7 @@ export class ControlLoop {
             const isRead = (tables: readonly Table[]) =>
                 tables.some((table) => table[TABLE].sqlName === name);
             if (isRead(cursor.tables) && (!isObservation || isRead(cursor.observed ?? []))) {
-                this.enqueue(cursor, ONE_CHECKPOINT, at + (cursor.batch ?? 0));
+                this.#enqueue(cursor, ONE_CHECKPOINT, at + (cursor.batch ?? 0), change);
             }
         }
         for (const compiled of this.#compiled.values()) {
@@ -890,7 +924,7 @@ export class ControlLoop {
                     after !== null &&
                     (!isObservation || Object.keys(controller.pending).length > 0)
                 ) {
-                    this.#select(compiled, after, at);
+                    this.#select(compiled, after, at, change);
                 }
             }
 
@@ -932,7 +966,7 @@ export class ControlLoop {
             // list the job again once a listing watch's change reaches a row
             if (watch.isListing === true) {
                 if ((await this.#walk(watch, ControlLoop.#images(watch, change))).length > 0) {
-                    await this.#list(job);
+                    await this.#list(job, "watch");
                 }
             }
             // take the keys reached
@@ -946,7 +980,7 @@ export class ControlLoop {
                 for (const keyFields of reached) {
                     const key = keyOf(keyFields);
                     this.#notify(job, key);
-                    this.enqueue(job, key);
+                    this.#enqueue(job, key, this.#clock.now(), change);
                 }
             }
         }
@@ -1145,7 +1179,7 @@ export class ControlLoop {
     }
 
     /** Make a row's key pending, or wake the controller once its waiting row comes due. */
-    #select(compiled: Compiled, row: Row, at: number): void {
+    #select(compiled: Compiled, row: Row, at: number, change: Change): void {
         // tell the running key its rows changed
         const { controller } = compiled;
         const key = ControlLoop.#keyOf(compiled, row);
@@ -1153,7 +1187,7 @@ export class ControlLoop {
 
         // take a pending row's key, or wake at a waiting row's due time
         if (this.#matches(compiled, compiled.pending, row, at)) {
-            this.enqueue(controller, key);
+            this.#enqueue(controller, key, at, change);
         } else if (
             compiled.terms.length > 0 &&
             this.#matches(compiled, compiled.pending, row, undefined)
@@ -1195,9 +1229,9 @@ export class ControlLoop {
     }
 
     /** List a controller's pending keys and its next wake, one listing at a time. */
-    #list(controller: Job): Promise<void> {
+    #list(controller: Job, by: Listing): Promise<void> {
         const listing = (this.#listing.get(controller) ?? Promise.resolve()).then(() =>
-            this.#read(controller),
+            this.#read(controller, by),
         );
         this.#listing.set(
             controller,
@@ -1215,11 +1249,16 @@ export class ControlLoop {
     }
 
     /** Read a controller's pending keys, enqueueing those not failing, and its next due row. */
-    async #read(controller: Job): Promise<void> {
+    async #read(controller: Job, by: Listing): Promise<void> {
         // take a listed cursor once its batch passes
         if (ControlLoop.#isCursor(controller)) {
             this.#wakes.delete(controller);
-            this.enqueue(controller, ONE_CHECKPOINT, this.#clock.now() + (controller.batch ?? 0));
+            this.#enqueue(
+                controller,
+                ONE_CHECKPOINT,
+                this.#clock.now() + (controller.batch ?? 0),
+                by,
+            );
 
             return;
         }
@@ -1242,7 +1281,7 @@ export class ControlLoop {
             for (const row of rows) {
                 const key = ProjectionKey.parse(row.key);
                 if (!failures.has(key)) {
-                    this.enqueue(controller, key);
+                    this.#enqueue(controller, key, this.#clock.now(), by);
                 }
             }
 
@@ -1269,7 +1308,7 @@ export class ControlLoop {
         for (const row of rows) {
             const key = ControlLoop.#keyOf(compiled, row);
             if (!failures.has(key)) {
-                this.enqueue(controller, key);
+                this.#enqueue(controller, key, at, by);
             }
         }
 
@@ -1323,9 +1362,9 @@ export class ControlLoop {
         const isPlaced = LogColumn.integer(row?.["placed"]) > 0;
         const first = LogColumn.nullableInteger(row?.["first"]);
         if (!isPlaced) {
-            this.enqueue(cursor, ONE_CHECKPOINT);
+            this.#enqueue(cursor, ONE_CHECKPOINT, this.#clock.now(), "page");
         } else if (first !== null) {
-            this.enqueue(cursor, ONE_CHECKPOINT, first + (cursor.batch ?? 0));
+            this.#enqueue(cursor, ONE_CHECKPOINT, first + (cursor.batch ?? 0), "page");
         }
     }
 
@@ -1356,14 +1395,38 @@ export class ControlLoop {
         }, signal);
     }
 
-    /** Mark a key due. */
-    enqueue(controller: Job, key: string, at = this.#clock.now()): void {
-        // record the earliest due time
+    /** Mark a key due by a change or another wake. */
+    #enqueue(controller: Job, key: string, at: number, by: Change | Exclude<Wake, "change">): void {
+        // find the due key, new without a time yet
         const due = found(this.#due, controller);
-        const current = due.get(key);
-        if (current === undefined || at < current) {
-            due.set(key, at);
+        const known = due.get(key);
+        const entry: DueKey = known ?? { at: Infinity, wake: "change", links: [] };
+        due.set(key, entry);
+
+        // take the earliest time and what set it, counting a key a change made due or due sooner
+        if (at < entry.at) {
+            entry.at = at;
+            entry.wake = typeof by === "string" ? by : "change";
             this.#queue.push({ controller, key, at });
+            if (typeof by !== "string") {
+                this.#keyWakes.add(1, {
+                    "destack.controller.name": controller.name,
+                    "db.collection.name": by.table[TABLE].sqlName,
+                });
+            }
+        }
+
+        // link the key's pass to the span of a change's transaction, once
+        const span =
+            typeof by === "string" || by.transaction === null
+                ? undefined
+                : this.database.state.transactionSpans.get(by.transaction);
+        const isLinked = entry.links.some((link) => link.context.spanId === span?.spanId);
+        if (typeof by !== "string" && span !== undefined && !isLinked) {
+            if (entry.links.length < LINK_LIMIT) {
+                const attributes = { "db.collection.name": by.table[TABLE].sqlName };
+                entry.links.push({ context: span, attributes });
+            }
         }
         this.#wake();
     }
@@ -1415,7 +1478,7 @@ export class ControlLoop {
             const at = this.#clock.now();
             const woken = [...this.#wakes].filter(([, wake]) => wake <= at);
             if (woken.length > 0) {
-                await Promise.all(woken.map(([controller]) => this.#list(controller)));
+                await Promise.all(woken.map(([controller]) => this.#list(controller, "time")));
                 continue;
             }
 
@@ -1484,13 +1547,13 @@ export class ControlLoop {
 
     /** Take the earliest runnable key, or the next due time. */
     #take(at: number): {
-        readonly runnable?: Due;
+        readonly runnable?: Pass;
         readonly due?: number;
         readonly skipped?: number;
     } {
         // skip running keys and keys of a full controller
         const skipped: Due[] = [];
-        let taken: { readonly runnable?: Due; readonly due?: number; readonly skipped?: number } =
+        let taken: { readonly runnable?: Pass; readonly due?: number; readonly skipped?: number } =
             {};
         for (let next = this.#next(); next !== undefined; next = this.#next()) {
             const running = found(this.#running, next.controller);
@@ -1506,8 +1569,10 @@ export class ControlLoop {
                 skipped.push(next);
             } else {
                 this.#queue.pop();
-                found(this.#due, next.controller).delete(next.key);
-                taken = { runnable: next };
+                const due = found(this.#due, next.controller);
+                const { wake, links } = found(due, next.key);
+                due.delete(next.key);
+                taken = { runnable: { ...next, wake, links } };
                 break;
             }
         }
@@ -1526,7 +1591,7 @@ export class ControlLoop {
     }
 
     /** Start a reconciliation or follow of a key. */
-    #start(work: Due): void {
+    #start(work: Pass): void {
         // mark the key running with the controller aborting it
         const running = found(this.#running, work.controller);
         const stop = new AbortController();
@@ -1577,19 +1642,20 @@ export class ControlLoop {
     }
 
     /** Run one pass of a job over a key in its span, recording its lock wait and duration. */
-    #pass(work: Due, queued: number, run: () => Promise<void>): Promise<void> {
+    #pass(work: Pass, queued: number, run: () => Promise<void>): Promise<void> {
         // record how long the pass waited for the key's lock
         const attributes = ControlLoop.#attributes(work);
         this.#waits.record((this.#monotonic.now() - queued) / MILLISECONDS_PER_SECOND, attributes);
 
         // run it in its span, timing a reconcile or a take, as a follow lasts until stopped
         const isFollow = attributes["destack.controller.kind"] === "follow";
+        const woken = { ...attributes, "destack.wake.kind": work.wake };
 
         return this.#instruments.span(
             "destack.controller.pass",
-            { ...attributes, "destack.key": work.key },
+            { ...woken, "destack.key": work.key },
             run,
-            { duration: isFollow ? false : { attributes } },
+            { duration: isFollow ? false : { attributes: woken }, links: work.links },
         );
     }
 
@@ -1628,7 +1694,7 @@ export class ControlLoop {
     }
 
     /** Reconcile one key's pending rows, or follow them until they leave, retrying failures. */
-    async #reconcile(work: Due, stop: AbortController, synced: () => void): Promise<void> {
+    async #reconcile(work: Pass, stop: AbortController, synced: () => void): Promise<void> {
         // reconcile under the lock
         const { controller, key } = work;
         const failures = found(this.#failures, controller);
@@ -1691,7 +1757,7 @@ export class ControlLoop {
 
                     // take the key's next page of pending rows after a full one
                     if (rows.length === KEY_ROWS) {
-                        this.enqueue(controller, key);
+                        this.#enqueue(controller, key, this.#clock.now(), "page");
                     }
                 }),
             );
@@ -1736,10 +1802,11 @@ export class ControlLoop {
             // retry a transient failure on backoff, leaving any other to the key's next change
             if (Failure.isTransient(failure)) {
                 const drawn = RetryPolicy.draw(`${controller.name} ${key} ${failed}`);
-                this.enqueue(
+                this.#enqueue(
                     controller,
                     key,
                     this.#clock.now() + RetryPolicy.interval(this.#retry, failed, () => drawn),
+                    "retry",
                 );
             }
         }
@@ -1840,7 +1907,7 @@ export class ControlLoop {
             }
             // take the lock again at once after a release during the take
             else {
-                this.enqueue(controller, key);
+                this.#enqueue(controller, key, this.#clock.now(), "release");
             }
 
             return undefined;
@@ -1865,7 +1932,7 @@ export class ControlLoop {
     /** Find the earliest due key. */
     #next(): Due | undefined {
         for (let next = this.#queue.peek(); next !== undefined; next = this.#queue.peek()) {
-            if (found(this.#due, next.controller).get(next.key) === next.at) {
+            if (found(this.#due, next.controller).get(next.key)?.at === next.at) {
                 return next;
             }
             this.#queue.pop();
@@ -1898,7 +1965,7 @@ export class ControlLoop {
         this.#releases += 1;
         for (const [controller, keys] of this.#waiting) {
             for (const key of keys) {
-                this.enqueue(controller, key);
+                this.#enqueue(controller, key, this.#clock.now(), "release");
             }
             keys.clear();
         }
@@ -1925,6 +1992,14 @@ interface Due {
     readonly key: string;
     /** The time the key is due at, in UTC epoch milliseconds. */
     readonly at: number;
+}
+
+/** One pass of a job over a key taken from the due keys, with what made the key due. */
+interface Pass extends Due {
+    /** What set the time the key was due at. */
+    readonly wake: Wake;
+    /** The spans of the transactions whose changes made the key due. */
+    readonly links: readonly Link[];
 }
 
 /** Due keys in a binary min-heap by due time. */

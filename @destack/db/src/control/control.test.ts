@@ -266,6 +266,60 @@ test("reconcile the pending rows listed at the start and those a change makes pe
     ]);
 });
 
+test("report what made each pass's key due, and link the pass to the span of the transaction whose change did", async () => {
+    // record a job open at the start
+    await using simulation = testSimulation();
+    const recorded = new SimulatedTelemetry(simulation.environment("test"));
+    const { database, write } = await openJobs(simulation, [job, note, lock], recorded);
+    await write([{ id: "listed", status: "open", dueAt: 0 }]);
+
+    // close each reconciled job
+    const reconciled: string[] = [];
+    const controller: Controller<typeof job> = {
+        name: "job",
+        table: job,
+        pending: { status: "open" },
+        reconcile: async (rows) => {
+            const row = nth(rows, 0);
+            reconciled.push(row.id);
+            await database.transaction((transaction) =>
+                transaction.update(job).set({ status: "done" }).where(eq(job.id, row.id)).execute(),
+            );
+        },
+    };
+    running(
+        new ControlLoop(database, [{ projections: [], controllers: [controller], cursors: [] }], {
+            report: failReconcile,
+        }),
+    );
+
+    // open another job once the listed one is reconciled
+    await waitEqual(simulation, () => reconciled, ["listed"]);
+    await write([{ id: "written", status: "open", dueAt: 0 }]);
+    await waitEqual(simulation, () => reconciled, ["listed", "written"]);
+
+    // run the listed job by the start's listing, and the written one by its change, linked to its transaction's span
+    const names = new Map(recorded.spans.map((span) => [span.spanContext().spanId, span.name]));
+    const passes = recorded.spans
+        .filter((span) => span.name === "destack.controller.pass")
+        .map((span) => [
+            span.attributes["destack.key"],
+            span.attributes["destack.wake.kind"],
+            span.links.map((link) => [
+                names.get(link.context.spanId),
+                link.attributes?.["db.collection.name"],
+            ]),
+        ]);
+    expect(passes).toEqual([
+        ['{"id":"listed"}', "start", []],
+        [
+            '{"id":"written"}',
+            "change",
+            [["destack.transaction.run", "destack__db__controller_job"]],
+        ],
+    ]);
+});
+
 test("reconcile a waiting row once its time comes due, waking at the earliest one and setting the host's alarm there", async () => {
     // record jobs due later, one already due, and a done one never due
     const simulation = testSimulation();

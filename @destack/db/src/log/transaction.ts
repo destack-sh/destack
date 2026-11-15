@@ -165,12 +165,12 @@ export class TransactionIdentity {
         // set the time alone without a listener to receive the token
         const time = String(this.#connection.clock.now());
         const { commits } = this.#connection;
-        let timed: Promise<unknown>;
+        let timed: Promise<unknown[][]>;
         if (!commits.isShared) {
-            timed = this.#session.run("SELECT set_config($1, $2, true)", [
-                CHANGED_AT_SETTING,
-                time,
-            ]);
+            timed = this.#session.values(
+                "SELECT pg_current_xact_id()::TEXT, set_config($1, $2, true)",
+                [CHANGED_AT_SETTING, time],
+            );
         }
         // set the token beside the time, for the stamp trigger's commit notification to send
         else {
@@ -180,18 +180,20 @@ export class TransactionIdentity {
                 delivered: commits.expect(value),
                 isLogged: Promise.resolve(false),
             };
-            timed = this.#session.run("SELECT set_config($1, $2, true), set_config($3, $4, true)", [
-                CHANGED_AT_SETTING,
-                time,
-                COMMIT_TOKEN_SETTING,
-                value,
-            ]);
+            timed = this.#session.values(
+                "SELECT pg_current_xact_id()::TEXT, set_config($1, $2, true), set_config($3, $4, true)",
+                [CHANGED_AT_SETTING, time, COMMIT_TOKEN_SETTING, value],
+            );
         }
 
-        // surface a failure at the close
-        timed.catch(() => undefined);
+        // keep the span the transaction runs in under the id PostgreSQL assigned
+        const { transactionSpans } = this.#connection;
+        const kept = timed.then(([row]) => transactionSpans.add(schema.string().parse(row?.[0])));
 
-        return timed;
+        // surface a failure at the close
+        kept.catch(() => undefined);
+
+        return kept;
     }
 
     /** Read PostgreSQL's transaction id, assigning it. */
@@ -227,6 +229,7 @@ export class TransactionIdentity {
             id,
             connection.clock.now(),
         ]);
+        connection.transactionSpans.add(id);
 
         return id;
     }

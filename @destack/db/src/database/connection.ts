@@ -14,6 +14,7 @@ import {
 import { classifyError, DatabaseError, type DeclaredNames } from "../error/error.ts";
 import { DatabaseDriver } from "./driver.ts";
 import { StatementRecords } from "./statements.ts";
+import { TransactionSpans } from "./spans.ts";
 import type { ColumnCipher } from "./cipher.ts";
 import type { Session } from "./session.ts";
 import { type Insert, type Table, TABLE } from "../table/table.ts";
@@ -450,7 +451,7 @@ export class DatabaseConnection<
             .filter((entry) => entry.manager !== manager && names.has(entry.local.table.name))
             .map((entry) => ({
                 table: entry.local.table.name,
-                reason: `manager '${entry.manager}' applied it`,
+                reason: `manager '${entry.manager}' applied it, and '${manager}' plans it`,
             }));
 
         // read the changed tables without rows, then plan
@@ -668,6 +669,8 @@ export class ConnectionState {
     readonly retries: ReturnType<TelemetryScope["meter"]["createCounter"]>;
     /** The records of the statements the connection ran, by span path and text. */
     readonly statementRecords = new StatementRecords();
+    /** The spans this process's latest logging transactions ran in. */
+    readonly transactionSpans: TransactionSpans;
     /** The SQL names of the tables the database replicates, empty over bare tables. */
     readonly replicated: ReadonlySet<string>;
     /** The tables each operation on each declared table changes, itself first, through cascades. */
@@ -730,6 +733,7 @@ export class ConnectionState {
         this.environment = options.environment;
         this.name = options.name;
         this.scope = TelemetryScope.of(import.meta.destack.package, options.environment.telemetry);
+        this.transactionSpans = new TransactionSpans(this.scope);
         this.retries = this.scope.meter.createCounter("destack.transaction.retries", {
             unit: "{retry}",
         });

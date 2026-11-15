@@ -321,7 +321,7 @@ test("refuse taking over a table another manager applied, leaving it as applied"
         taking: [
             "PRECONDITION_FAILED",
             "PLAN_BLOCKED",
-            `cannot reach the desired state: table/${table(taskOne)}: manager 'tasks' applied it`,
+            `cannot reach the desired state: table/${table(taskOne)}: manager 'tasks' applied it, and 'labels' plans it`,
         ],
         unapplied: [],
     });
