@@ -132,7 +132,7 @@ export interface Watch<Watched extends Table = Table> {
         /** The job's rows that count, every row when absent. */
         readonly where?: Condition;
     };
-    /** Whether a change lists the job again instead of waking keys, as a lifted fence does. */
+    /** Whether a change reaching a row lists the job again instead of waking keys. */
     readonly isListing?: boolean;
     /** The changed rows that wake keys, every row when absent. */
     readonly where?: Condition;
@@ -1021,9 +1021,9 @@ export class ControlLoop {
         const columns = ControlLoop.#isProjection(job) ? [job.all.column] : fields;
         const space = ControlLoop.#isProjection(job) ? job.all.where : undefined;
         for (const watch of watches) {
-            // list the job again on a listing watch's change
+            // list the job again once a listing watch's change reaches a row
             if (watch.isListing === true) {
-                if (ControlLoop.#images(watch, change).length > 0) {
+                if ((await this.#walk(watch, ControlLoop.#images(watch, change))).length > 0) {
                     await this.#list(job);
                 }
             }
@@ -1064,19 +1064,8 @@ export class ControlLoop {
         const images = ControlLoop.#images(watch, change);
         let rows = images;
 
-        // follow each relation to its rows
-        let reaching: Table = watch.table;
-        for (const relation of watch.path ?? []) {
-            rows =
-                rows.length === 0
-                    ? []
-                    : await new ModelQueryBuilder(
-                          this.database,
-                          reaching,
-                          this.database.relations,
-                      ).related(relation, rows);
-            reaching = relation.table;
-        }
+        // walk the path to its rows
+        rows = await this.#walk(watch, rows);
 
         // take the job's rows whose stored condition a changed image matches
         const { matches } = watch;
@@ -1106,8 +1095,9 @@ export class ControlLoop {
             }
         }
 
-        // read the key columns from the values or from the job's rows
-        const isKeyed = columns.every((column) => Object.hasOwn(on, column));
+        // read the key columns from the values, else from the job's rows within its key space
+        const isKeyRow = job.where === undefined || watch.table === table;
+        const isKeyed = isKeyRow && columns.every((column) => Object.hasOwn(on, column));
         const keyed =
             isKeyed || matched.length === 0
                 ? matched
@@ -1140,6 +1130,26 @@ export class ControlLoop {
         this.#conditions.set(name, match);
 
         return match;
+    }
+
+    /** Walk a watch's path from some rows to the rows its relations reach. */
+    async #walk(watch: Watch, images: readonly Row[]): Promise<readonly Row[]> {
+        // start at the images
+        let rows = images;
+        let reaching: Table = watch.table;
+        for (const relation of watch.path ?? []) {
+            // stop once no row is left
+            if (rows.length === 0) {
+                return [];
+            }
+
+            // read the related rows
+            const reader = new ModelQueryBuilder(this.database, reaching, this.database.relations);
+            rows = await reader.related(relation, rows);
+            reaching = relation.table;
+        }
+
+        return rows;
     }
 
     /** Read the images of a change a watch reads, none once no watched field changed. */
