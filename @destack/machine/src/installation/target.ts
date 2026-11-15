@@ -89,6 +89,14 @@ interface SelectedBuild {
 
 /** The revision a rollout targets: selecting its build, evaluating its stack, recording it. */
 export const RolloutTarget = {
+    /** Attribute a rollout step's span to the target's space and installation. */
+    attributes(target: Pick<InstallationRollout, "scope" | "installationId">) {
+        return {
+            "destack.space.id": target.scope,
+            "destack.installation.id": target.installationId,
+        };
+    },
+
     /** Read the release this machine links or ships of a package, none for one it lacks. */
     provided(
         packageId: PackageId,

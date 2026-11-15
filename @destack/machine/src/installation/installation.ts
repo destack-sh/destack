@@ -174,6 +174,10 @@ function rolloutProjection(options: InstallationOptions): ObjectProjection<typeo
                 return;
             }
 
+            // span each step by its space and installation
+            const { scope: telemetry } = options.space.machine;
+            const attributes = RolloutTarget.attributes(target);
+
             // fail an installation the space fails to serve, else apply the space's stack or deploy the application at the release it selects
             const failure = Rollout.servingFailure(target.installation);
             if (failure !== undefined) {
@@ -191,22 +195,27 @@ function rolloutProjection(options: InstallationOptions): ObjectProjection<typeo
             const { forge } = options;
             const { selection } = target.installation;
             if (forge !== null && selection.kind === "repository") {
-                await new CommitBuild(target, selection, { ...options, forge }).reconcile(
-                    reconciliation,
+                await telemetry.span("destack.rollout.build", attributes, () =>
+                    new CommitBuild(target, selection, { ...options, forge }).reconcile(
+                        reconciliation,
+                    ),
                 );
             }
 
             // keep one change request open for the plan it waits on now, none once none waits
-            const snapshot = Snapshot.live(reconciliation.database);
-            const rolled = await snapshot
-                .read(rollout.table)
-                .findMany({ where: { installationId: target.installationId } });
-            const [current] = await Rollout.read(snapshot, rolled);
-            const [row] = rolled;
-            if (current !== undefined && row !== undefined) {
-                const waiting = await Approval.of(snapshot, options.resources, current);
-                await waiting.request(row, reconciliation);
-            }
+            await telemetry.span("destack.rollout.approval", attributes, async () => {
+                // read the rollout as it stands now, then the plan it waits on
+                const snapshot = Snapshot.live(reconciliation.database);
+                const rolled = await snapshot
+                    .read(rollout.table)
+                    .findMany({ where: { installationId: target.installationId } });
+                const [current] = await Rollout.read(snapshot, rolled);
+                const [row] = rolled;
+                if (current !== undefined && row !== undefined) {
+                    const waiting = await Approval.of(snapshot, options.resources, current);
+                    await waiting.request(row, reconciliation);
+                }
+            });
         },
     };
 }

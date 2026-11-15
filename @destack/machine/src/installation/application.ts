@@ -191,14 +191,22 @@ export class ApplicationInstallation {
             return undefined;
         }
 
+        // span each step by its space and installation
+        const { scope: telemetry } = this.#options.space.machine;
+        const attributes = RolloutTarget.attributes(target);
+
         // revise it once its build or bindings moved, then deploy it
-        await RolloutTarget.revise(reconciliation, [target], this.#options);
-        await reconciliation.mutate([
-            rollout.call(
-                "deploy",
-                rollout.target({ scope: target.scope, id: target.installationId }),
-            ),
-        ]);
+        await telemetry.span("destack.rollout.revise", attributes, () =>
+            RolloutTarget.revise(reconciliation, [target], this.#options),
+        );
+        await telemetry.span("destack.rollout.deploy", attributes, () =>
+            reconciliation.mutate([
+                rollout.call(
+                    "deploy",
+                    rollout.target({ scope: target.scope, id: target.installationId }),
+                ),
+            ]),
+        );
 
         // read what the committed deploy left: the rollout targeting its revision, or none once removed
         const snapshot = Snapshot.live(reconciliation.database);
@@ -223,23 +231,25 @@ export class ApplicationInstallation {
         const set = Rollout.permissions((deployed ?? target).installation, description, "space");
 
         // relate it at the universe as its space, through the uplink, converging on each pass
-        const version =
-            build === undefined ? undefined : PackageManifest.package(build.manifest).version;
-        const calls = await InstallationAccess.relate(
-            snapshot,
-            target,
-            deployed ?? target,
-            set,
-            version,
-        );
-        if (calls.length > 0) {
-            const delegator = principal.space.reference(Scope.universe.id, target.scope);
-            const lending = Caller.acting(delegator, reconciliation.caller.subject);
-            await reconciliation.store.mutate(AccessContext.of(lending, reconciliation.now), {
-                id: RequestId.create(reconciliation.store.environment),
-                calls,
-            });
-        }
+        await telemetry.span("destack.rollout.relate", attributes, async () => {
+            const version =
+                build === undefined ? undefined : PackageManifest.package(build.manifest).version;
+            const calls = await InstallationAccess.relate(
+                snapshot,
+                target,
+                deployed ?? target,
+                set,
+                version,
+            );
+            if (calls.length > 0) {
+                const delegator = principal.space.reference(Scope.universe.id, target.scope);
+                const lending = Caller.acting(delegator, reconciliation.caller.subject);
+                await reconciliation.store.mutate(AccessContext.of(lending, reconciliation.now), {
+                    id: RequestId.create(reconciliation.store.environment),
+                    calls,
+                });
+            }
+        });
 
         return undefined;
     }

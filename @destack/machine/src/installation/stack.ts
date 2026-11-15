@@ -40,6 +40,10 @@ export class StackInstallation {
 
     /** Target the stack's selected release, apply its revision, then target what it manages. */
     async reconcile(reconciliation: ObjectReconciliation): Promise<undefined> {
+        // span each step by its space and installation
+        const { scope: telemetry } = this.#options.space.machine;
+        const attributes = RolloutTarget.attributes(this.#target);
+
         // target the release or tag of a stack following its space's, evaluating its export on each new build, leaving an owner's apply
         const spaceId = space.identifier(this.#target.scope);
         const following = await readServedStack(spaceId, reconciliation.database);
@@ -49,13 +53,19 @@ export class StackInstallation {
             isFollowing &&
             InstallationSelection.isRelease(following.stack.installation.selection)
         ) {
-            await RolloutTarget.revise(reconciliation, [following.stack], this.#options);
+            await telemetry.span("destack.rollout.revise", attributes, () =>
+                RolloutTarget.revise(reconciliation, [following.stack], this.#options),
+            );
         }
 
         // apply the stack's document, then target the revisions of the installations it manages while it lives
-        const applied = await this.#apply(reconciliation);
+        const applied = await telemetry.span("destack.rollout.apply", attributes, () =>
+            this.#apply(reconciliation),
+        );
         if (applied !== undefined && applied.stack.installation.deletedAt === null) {
-            await this.#targetRevisions(reconciliation, applied.stack);
+            await telemetry.span("destack.rollout.target", attributes, () =>
+                this.#targetRevisions(reconciliation, applied.stack),
+            );
         }
 
         // fail with a blocked apply once its managed installations follow their releases
