@@ -385,7 +385,7 @@ test("administer releases and distribution tags of a published package as its ac
     // audit each caller's change once, failures too, never a nested call or a read
     await forge.simulation.idle();
     const forgeTypes = ["package.", "release.", "tag."];
-    const audited = (await auditedCalls(forge.served.database))
+    const audited = (await auditedCalls(forge.home.database))
         .filter((ended) => ended.execution.category === "activity")
         .filter((ended) => forgeTypes.some((prefix) => ended.method.startsWith(prefix)))
         .map((ended) => [ended.method, ended.execution.outcome.kind]);
@@ -631,7 +631,7 @@ test("publish a builtin under the platform's organization, which owns the forge'
     const forge = await TestForge.open();
     const { crypto } = forge.environment;
     const platformId = Account.ofHome(forge.space);
-    const platformAccount = await Snapshot.live(forge.served.database)
+    const platformAccount = await Snapshot.live(forge.home.database)
         .read(account.table)
         .findFirst({ where: { id: platformId } });
     const platformHandle = present(platformAccount, "the platform account").handle;

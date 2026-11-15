@@ -21,7 +21,6 @@ import { ClaimLookup, claimTable } from "@destack/object";
 import { createClient } from "@destack/object/client";
 import registryPackage from "@destack/registry/package";
 import objectPackage from "@destack/object/package";
-import type { TestObjectStore } from "@destack/object/test";
 import { testBuild } from "@destack/object/test";
 import { PackageVersion, PackageName, type PackageId } from "@destack/package";
 import { type BuildReader, Lock, PackageManifest } from "@destack/package/manifest";
@@ -61,7 +60,7 @@ const GITHUB_NODE = "github";
 /** The port GitHub's hosts answer HTTPS at. */
 const HTTPS_PORT = 443;
 
-/** The origin the fixture's requests name, which the served home answers at any host. */
+/** The origin of the test requests. */
 const ORIGIN = "http://forge.test";
 
 /** The residency whose home the fixture's forge serves in. */
@@ -168,10 +167,10 @@ export const FORGE_HOME_STACK = {
     },
 };
 
-/** The residency's home its tests copy: the forge with the vault's tables and Git storage. */
+/** The residency's home template with vault, connection and forge. */
 export const FORGE_HOME_OPTIONS = {
     residencies: RESIDENCIES,
-    ...TestPackage.options([VAULT, FORGE]),
+    ...TestPackage.options([VAULT, CONNECTION, FORGE]),
     tables: gitStorage.tables,
     // replicate the connections the forge follows as its installation, beside its names and callers
     follows: [{ shape: connectionShape, keys: [] }, claimFollow, standingFollow],
@@ -243,8 +242,6 @@ export interface Published {
 export class TestForge {
     /** The residency's home serving the forge. */
     readonly home: TestSpace;
-    /** The home as its machine serves it. */
-    readonly served: TestObjectStore;
     /** The forge's installation in the home. */
     readonly installation: Identifier<"installation">;
     /** GitHub, as the world's stand-in answers at its hosts. */
@@ -256,18 +253,16 @@ export class TestForge {
     /** The tenants the fixture took or created, which number their people and handles. */
     #tenants = 0;
 
-    /** Keep a served home and the forge it installs. */
+    /** Keep the home and the forge it installs. */
     private constructor(fields: {
         readonly home: TestSpace;
-        readonly served: TestObjectStore;
         readonly installation: Identifier<"installation">;
         readonly github: GitHubStandIn;
         readonly owner: TestPerson;
         readonly tenants: readonly Identifier<"account">[];
     }) {
-        // keep the home, how it is served, the forge's installation, GitHub, the publisher and the tenants
+        // keep the home, the forge's installation, GitHub, the publisher and the tenants
         this.home = fields.home;
-        this.served = fields.served;
         this.installation = fields.installation;
         this.github = fields.github;
         this.#owner = fields.owner;
@@ -298,7 +293,7 @@ export class TestForge {
 
     /** The world the home's servers run in. */
     get environment(): Environment {
-        return this.served.environment;
+        return this.home.environment;
     }
 
     /** Serve a copy of the template's home with the forge installed, in a fork of its world. */
@@ -308,11 +303,11 @@ export class TestForge {
         const standIn = TestForge.#github(home);
 
         // serve it with the forge
-        const served = await home.serve();
+        await home.serve();
         const owner = home.universe.person(OWNER_EMAIL);
         const { installation, tenants } = world;
 
-        return new TestForge({ home, served, installation, github: standIn, owner, tenants });
+        return new TestForge({ home, installation, github: standIn, owner, tenants });
     }
 
     /** Answer as GitHub at its API and Git hosts on the world's network until the test ends. */
@@ -333,15 +328,15 @@ export class TestForge {
     /** Run the forge's GitHub App: its key and webhook secret, and its setting. */
     static async #runGitHubApp(home: TestSpace): Promise<void> {
         // write the App's key and webhook secret into the platform vault as the operator stepped up
-        const configuring = await home.serve();
+        await home.serve();
         const operator = await home.universe.elevate(await home.universe.operator());
-        const vaults = home.person(configuring, operator).client(vaultPackage);
+        const vaults = home.person(operator).client(vaultPackage);
         const values = {
             "github-private-key": githubPrivateKey(),
             "github-webhook": WEBHOOK_SECRET,
         };
         for (const [name, value] of Object.entries(values)) {
-            const row = await Snapshot.live(configuring.database)
+            const row = await Snapshot.live(home.database)
                 .read(secret.table)
                 .findFirst({ where: { name } });
             const { id } = present(row, `the platform secret ${name}`);
@@ -360,7 +355,7 @@ export class TestForge {
         }
 
         // select the App in the forge's setting, then stop serving for the forge to restart with it
-        await home.apply(configuring, FORGE_HOME_TYPES, {
+        await home.apply(FORGE_HOME_TYPES, {
             ...FORGE_HOME_STACK,
             settings: {
                 github: {
@@ -370,14 +365,13 @@ export class TestForge {
                 },
             },
         });
-        await configuring[Symbol.asyncDispose]();
     }
 
     /** Write the world: the forge, its GitHub App, the publishing account and the tenants. */
     static async write(home: TestSpace): Promise<ForgeWorld> {
         // install the forge with its vaults, Git storage, secrets and the GitHub App's issuer, as the residency's stack declares it
-        const installing = await home.serve();
-        await home.apply(installing, FORGE_HOME_TYPES, FORGE_HOME_STACK);
+        await home.serve();
+        await home.apply(FORGE_HOME_TYPES, FORGE_HOME_STACK);
 
         // create the publishing account as its owner, then stop serving
         const owner = await home.universe.signIn(OWNER_EMAIL);
@@ -398,8 +392,7 @@ export class TestForge {
         }
         await home.universe.signIn(STRANGER_EMAIL);
         await home.simulation.idle();
-        const installation = await TestForge.#installation(installing);
-        await installing[Symbol.asyncDispose]();
+        const installation = await TestForge.#installation(home);
 
         // run the GitHub App, as the platform does
         await TestForge.#runGitHubApp(home);
@@ -408,8 +401,8 @@ export class TestForge {
     }
 
     /** Read the forge's installation from its revision's binding of the repository storage. */
-    static async #installation(served: TestObjectStore): Promise<Identifier<"installation">> {
-        const revisions = await Snapshot.live(served.database)
+    static async #installation(home: TestSpace): Promise<Identifier<"installation">> {
+        const revisions = await Snapshot.live(home.database)
             .read(installationRevision.table)
             .findMany({});
         const bound = revisions.find((revision) =>
@@ -433,11 +426,11 @@ export class TestForge {
         readonly fetch: (request: Request) => Promise<Response>;
     } {
         // sign a person's requests with their token, and send anonymous ones as they are
-        const server = this.served.server(forgePackage);
+        const server = this.home.server(forgePackage);
         const signed =
             person === undefined
                 ? (request: Request) => server.fetch(request)
-                : this.home.person(this.served, person).endpoint(forgePackage).fetch;
+                : this.home.person(person).endpoint(forgePackage).fetch;
 
         return { url: ORIGIN, fetch: signed };
     }
@@ -547,7 +540,7 @@ export class TestForge {
     /** Open the store of builds and npm archives in the forge home's blobs. */
     async store(): Promise<BuildStore> {
         return Forge.openStore({
-            blobs: this.served.store.blobs,
+            blobs: (await this.home.store()).blobs,
             environment: this.environment,
             distribution: BuildLayer.empty(),
         });
@@ -634,20 +627,19 @@ export class TestForge {
         // host the account's home with its connections and their vault in the account
         const home = await TestSpace.open({
             world: this.home,
-            machine: this.home.machine,
             owner: tenant.owner,
             account: tenant.accountId,
             id: Account.home(tenant.accountId),
             ...TestPackage.options([VAULT, CONNECTION]),
         });
-        // apply the home's stack, serving its installations in place
-        const served = await home.serve();
-        await home.apply(served, [vaultPackage], HOME_STACK);
-        await home.applyInstalled(served.store);
+        // apply the home's stack, and wait until its machine serves the installations
+        await home.serve();
+        await home.apply([vaultPackage], HOME_STACK);
+        await home.simulation.idle();
 
         // register the forge's App and create the installation's connection as the owner
         const scope = tenant.accountId;
-        const owner = home.person(served, tenant.owner, tenant.accountId).client(connectionPackage);
+        const owner = home.person(tenant.owner, tenant.accountId).client(connectionPackage);
         const id = await Issuer.declared({ id: this.space }, "github", this.environment.crypto);
         const app = await owner.integration.create({
             scope,
@@ -731,18 +723,18 @@ export class TestForge {
 
     /** Call the forge as a principal its stores verify, such as a machine or a space. */
     as(subject: Subject) {
-        return this.served.as(subject).client(forgePackage);
+        return this.home.as(subject).client(forgePackage);
     }
 
     /** Call the registry protocol the forge implements as a subject. */
     asRegistry(subject: Subject) {
-        return this.served.as(subject).client(registryPackage, forgePackage);
+        return this.home.as(subject).client(registryPackage, forgePackage);
     }
 
     /** Open the forge's platform repositories as its bound Git storage keeps them. */
     async storage(): Promise<LocalGitStorage> {
         // take the target its revisions bind the repository storage to
-        const revisions = await Snapshot.live(this.served.database)
+        const revisions = await Snapshot.live(this.home.database)
             .read(installationRevision.table)
             .findMany({ where: { installationId: this.installation } });
         const bound = revisions.flatMap((revision) => revision.bindings);

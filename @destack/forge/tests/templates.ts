@@ -1,13 +1,9 @@
-import { BORN_SPACE, ids, TestSpace } from "@destack/machine/test";
+import { BORN_SPACE, TestSpace } from "@destack/machine/test";
 import { Forge } from "@destack/registry/client";
 import { FOLLOW_TEMPLATE, FORGE_TEMPLATE } from "../src/test/index.ts";
 
-/** The forge a template's space follows, claiming no names: it selects no repository or tag. */
-const TEMPLATE_FORGE = new Forge(
-    { resolve: async () => new Map() },
-    async () => ids.space,
-    ids.machine,
-);
+/** The forge a template's space follows, claiming no names. */
+const TEMPLATE_FORGE = new Forge({ resolve: async () => new Map() });
 
 /** The templates forge's tests copy, which the run writes once. */
 export const templates = [

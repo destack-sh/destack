@@ -147,7 +147,7 @@ test("stage a machine's push without releasing it", async () => {
 
     // push it as the forge's machine
     const { url } = forge.endpoint();
-    const { fetch } = forge.served.as(forge.home.machine.id).endpoint(forgePackage);
+    const { fetch } = forge.home.as(forge.home.machine.id).endpoint(forgePackage);
     const builds = (packageId: string) =>
         new PackageClient(`${url}${forgePackage.mounts.builds.path}/${packageId}/`, fetch);
     const handle = PackageName.split(build.manifest.package.name).handle;

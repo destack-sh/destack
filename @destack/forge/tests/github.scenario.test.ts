@@ -185,7 +185,7 @@ async function connected(forge: TestForge) {
 
 /** Read GitHub's identifier of a repository at the forge. */
 async function identifier(forge: TestForge, id: Identifier<"repository">) {
-    const [row] = await forge.served.database
+    const [row] = await forge.home.database
         .select({ providerRepositoryId: repository.table.providerRepositoryId })
         .from(repository.table)
         .where(eq(repository.table.id, id));
@@ -199,7 +199,7 @@ test("connect a GitHub repository, refresh it, and refresh it again as the syste
 
     // connect acme/site, and record GitHub's identifier once the forge settles
     const audited = new Set(
-        (await auditedCalls(forge.served.database)).map((call) => call.execution.id),
+        (await auditedCalls(forge.home.database)).map((call) => call.execution.id),
     );
     const created = await owner.repository.create({
         spaceId: forge.space,
@@ -341,7 +341,7 @@ test("connect a GitHub repository, refresh it, and refresh it again as the syste
     const target = { type: "repository", id: created.id };
     const refreshed = ["repository.refresh", target, success];
     expect(
-        (await auditedCalls(forge.served.database))
+        (await auditedCalls(forge.home.database))
             .filter(
                 ({ execution }) =>
                     !audited.has(execution.id) &&
@@ -443,7 +443,7 @@ test("issue checkout access to a GitHub repository as installation tokens limite
     const actor = { subject: tenant.owner.subject };
     const target = { type: "repository", id: created.id };
     expect(
-        (await auditedCalls(forge.served.database))
+        (await auditedCalls(forge.home.database))
             .filter(
                 (call) =>
                     call.method === "repository.open" && call.execution.target.id === created.id,

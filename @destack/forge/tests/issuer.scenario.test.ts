@@ -18,8 +18,8 @@ const OTHER_INSTALLATION = "5151";
 test("declare the residency home's GitHub issuer at the id its home and declaration name derive, related to the residency", async () => {
     // read the issuer the home's stack declares, and its relationship to the residency
     const forge = await TestForge.open();
-    const issuers = await forge.served.database.select({ id: issuer.table.id }).from(issuer.table);
-    const related = await forge.served.database
+    const issuers = await forge.home.database.select({ id: issuer.table.id }).from(issuer.table);
+    const related = await forge.home.database
         .select({
             objectId: accessRelationship.objectId,
             relation: accessRelationship.relation,
@@ -105,7 +105,7 @@ test("issue a GitHub installation's tokens to the resident account's installatio
         unclaimed: await refusal(issue(claimer, OTHER_INSTALLATION)),
         reclaimed: await refusal(claim(outsider, INSTALLATION)),
         foreign: await refusal(claim(foreigner, OTHER_INSTALLATION)),
-        claims: await forge.served.database
+        claims: await forge.home.database
             .select({
                 installation: appInstallation.table.installation,
                 accountId: appInstallation.table.accountId,

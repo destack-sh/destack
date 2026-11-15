@@ -306,6 +306,14 @@ test("stream the references a space inside the account selects to the space, and
         requestId: RequestId.create(forge.environment),
     });
 
+    // read the main branch's row
+    const { items } = await owner.reference.list({
+        spaceId: forge.space,
+        where: { parentId: site.id, name: "refs/heads/main" },
+        limit: 1,
+    });
+    const main = nth(items, 0);
+
     // create a space of the account and one of another account, as their owner does
     const inside = await forge.createSpace(accountId, tenant.owner);
     const outside = await forge.createSpace(other.accountId, other.owner);
@@ -323,7 +331,7 @@ test("stream the references a space inside the account selects to the space, and
                         [
                             {
                                 shape: referenceShape,
-                                keys: [{ repository: site.id, name: "refs/heads/main" }],
+                                keys: [{ id: main.id }],
                             },
                         ],
                         target,
@@ -341,12 +349,19 @@ test("stream the references a space inside the account selects to the space, and
         return page.value.changes.map((change) => [change.row["name"], change.row["commit"]]);
     };
 
-    // replicate the branch for the space inside the account, and nothing for the other account's space even where it follows for the inside one
+    // replicate the branch and its repository to the account's space only
     expect([
         await follow(inside, inside),
         await follow(outside, outside),
         await follow(outside, inside),
-    ]).toEqual([[["refs/heads/main", commit]], [], []]);
+    ]).toEqual([
+        [
+            ["refs/heads/main", commit],
+            ["site", undefined],
+        ],
+        [],
+        [],
+    ]);
 });
 
 test("let a space inside the account read its private packages, and no other account's space", async () => {
@@ -430,7 +445,7 @@ test("delete and restore a repository through the trash, and purge its storage a
         await held(forge, accountId, ["mirror", "site"]),
         await stored(forge, [site.id, mirror.id]),
         (
-            await forge.served.database
+            await forge.home.database
                 .select()
                 .from(reference.table)
                 .where(inArray(reference.table.parentId, [site.id, mirror.id]))
@@ -766,7 +781,7 @@ async function stored(forge: TestForge, repositories: readonly string[]): Promis
 
 /** Read the settlements recorded for a repository's calls. */
 function settlements(forge: TestForge, id: string) {
-    return forge.served.database.select().from(settlement).where(eq(settlement.target, id));
+    return forge.home.database.select().from(settlement).where(eq(settlement.target, id));
 }
 
 /** Encode ada's password as a Git remote's Basic authorization. */
@@ -819,7 +834,7 @@ test("store a Git remote's credential in the forge's vault, lease it to pushers 
     await update({ credential: { user: "ada", password: "token-2" } });
     const rotated = await open("read");
     await update({ authentication: "anonymous" });
-    const live = await forge.served.database
+    const live = await forge.home.database
         .select({ name: secret.table.name })
         .from(secret.table)
         .where(and(eq(secret.table.name, mirror.id), isNull(secret.table.purgedAt)));
