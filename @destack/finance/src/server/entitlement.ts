@@ -12,6 +12,7 @@ import {
     subscription,
     subscriptionItem,
 } from "../object/index.ts";
+import { tag } from "@destack/registry/object";
 import { usage } from "@destack/stack/object";
 import type { Metering } from "./metering.ts";
 
@@ -42,6 +43,7 @@ export class CustomerEntitlement {
                 subscriptionItem.table,
                 product.table,
                 productFeature.table,
+                tag.table,
             ],
             keys: (change) => this.keys(change),
             all: () => this.list(),
@@ -94,6 +96,10 @@ export class CustomerEntitlement {
                 });
 
             return parent !== undefined && parent.isDefault ? this.list() : [];
+        }
+        // key every account by the metering tag moving to another release
+        else if (Change.of(change, tag.table)) {
+            return Change.image(change).name === this.#metering.tag ? this.list() : [];
         }
         // refuse an unread table
         else {
