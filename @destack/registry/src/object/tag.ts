@@ -53,6 +53,6 @@ export const tagShape = defineShape({
         /** The followed tag. */
         id: schema.identifier("tag"),
     }),
-    objects: [tag],
-    queries: ({ id }) => [tag.query({ where: { id } })],
+    objects: [packageObject, tag],
+    queries: ({ id }) => [tag.query({ where: { id }, with: { parent: true } })],
 });

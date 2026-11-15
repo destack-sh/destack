@@ -80,6 +80,6 @@ export const referenceShape = defineShape({
         /** The followed reference. */
         id: schema.identifier("reference"),
     }),
-    objects: [reference],
-    queries: ({ id }) => [reference.query({ where: { id } })],
+    objects: [repository, reference],
+    queries: ({ id }) => [reference.query({ where: { id }, with: { parent: true } })],
 });
