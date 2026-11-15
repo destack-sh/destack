@@ -4,7 +4,6 @@ import { RequestId, type ObjectReference, Subject } from "@destack/sync";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { Connection, integration, authorizationRequest, connection } from "../object/index.ts";
 import { TestConnection, RESOURCE, TEST_CONNECTION, testIssuer } from "../test/index.ts";
-import { Runner } from "./token.ts";
 import type { Material } from "../credential/credential.ts";
 
 /** The redirect URI the test integration registered. */
@@ -224,13 +223,13 @@ test("acquire a client credentials token in the controller, refresh it before ex
     const first = await lease(fixture, reference);
 
     // lease a token near its expiry as it is, then refresh it once in the controller
-    await moveExpiry(fixture, fixture.environment.clock.now() + 1000);
+    await jumpToExpiry(fixture, -1000);
     const near = await Promise.all([1, 2, 3].map(() => lease(fixture, reference)));
     await fixture.control();
     const refreshed = await lease(fixture, reference);
 
     // refuse a lapsed token the controller has yet to refresh
-    await moveExpiry(fixture, fixture.environment.clock.now() - 1000);
+    await jumpToExpiry(fixture, 1000);
     const lapsed = await refusal(lease(fixture, reference));
     const tokenRequests = fixture.server.requests.filter(
         (request) => request.path === "https://auth.test/token",
@@ -258,18 +257,10 @@ test("acquire a client credentials token in the controller, refresh it before ex
     });
 });
 
-/** Move the fixture's one connection's token expiry, in its row and its vault. */
-async function moveExpiry(fixture: TestConnection, expiresAt: number): Promise<void> {
-    await fixture.database.transaction(
-        async (transaction) => await transaction.update(connection.table).set({ expiresAt }),
-    );
+/** Move the world to the fixture's one connection's token expiry, plus an offset. */
+async function jumpToExpiry(fixture: TestConnection, offset: number): Promise<void> {
     const row = present((await fixture.connections())[0], "the connection");
-    const runner = Runner.of(fixture.objects);
-    const credential = await fixture.tokens.read(runner, row);
-    await fixture.tokens.write(runner, row, {
-        ...credential,
-        token: { ...present(credential.token, "the token"), expiresAt },
-    });
+    await fixture.simulation.jump(present(row.expiresAt, "the token's expiry") + offset);
 }
 
 test("back off a connection's failing refreshes by their count, and reset the count once a refresh succeeds", async () => {
@@ -294,8 +285,8 @@ test("back off a connection's failing refreshes by their count, and reset the co
     expect([await refresh(), await refresh(), await refresh()]).toEqual([
         // retry after the jittered refresh intervals, then refresh a minute before expiry
         { renewals: [now + 688], failures: 1, reason: "Failing" },
-        { renewals: [now + 9737], failures: 2, reason: "Failing" },
-        { renewals: [now + 3_540_000], failures: 0, reason: "Authorized" },
+        { renewals: [now + 688 + 9737], failures: 2, reason: "Failing" },
+        { renewals: [now + 688 + 9737 + 3_540_000], failures: 0, reason: "Authorized" },
     ]);
 });
 
@@ -331,7 +322,7 @@ test("keep a person's token leasable while its refresh fails, and refresh it aga
 
     // fail the refresh due a second before expiry, leasing the same token meanwhile, then refresh on the next pass
     const before = await lease(fixture, reference);
-    await moveExpiry(fixture, fixture.environment.clock.now() + 1000);
+    await jumpToExpiry(fixture, -1000);
     fixture.server.failTokens([503]);
     await fixture.control();
     const failing = await authorized(fixture, reference);
@@ -482,6 +473,7 @@ test("poll a slowed device authorization five seconds slower from then on, and r
     fixture.server.answerDevice(expired.userCode, "expired_token");
     fixture.server.answerDevice(invalid.userCode, "invalid_grant");
     await fixture.control();
+    await fixture.control();
     expect({
         first,
         later,
@@ -491,7 +483,7 @@ test("poll a slowed device authorization five seconds slower from then on, and r
         invalid: await authorized(fixture, invalid.reference),
     }).toEqual({
         first: [1000, 1000, 6000],
-        later: [1000, 1000, 6000],
+        later: [2000, 2000, 6000],
         intervals: { expired: 1, invalid: 1, slowed: 6 },
         denied: ["false", "Denied", false],
         expired: ["false", "Expired", false],
@@ -717,34 +709,14 @@ test("refresh a person's token with its rotating refresh token, and mark the con
     const registered = await fixture.staticIntegration();
     const reference = await authorizeCode(fixture, registered);
 
-    // expire the token and let the controller refresh it with the refresh token
-    const expire = async (refreshToken: string) => {
-        const credential = await fixture.tokens.read(
-            Runner.of(fixture.objects),
-            await readConnection(fixture, reference),
-        );
-        const token = present(credential.token, "the token");
-        await fixture.tokens.write(
-            Runner.of(fixture.objects),
-            { id: reference.id },
-            {
-                ...credential,
-                token: { ...token, refreshToken, expiresAt: fixture.environment.clock.now() },
-            },
-        );
-        await fixture.database.transaction(
-            async (transaction) =>
-                await transaction
-                    .update(connection.table)
-                    .set({ expiresAt: fixture.environment.clock.now() }),
-        );
-    };
-    await expire("refresh-1");
+    // reach the token's expiry and let the controller refresh it with the refresh token
+    await jumpToExpiry(fixture, 0);
     await fixture.control();
     const refreshed = [await lease(fixture, reference), await authorized(fixture, reference)];
 
-    // present the used refresh token again for the server to refuse
-    await expire("refresh-1");
+    // revoke the grant at the server, then reach the expiry again
+    fixture.server.revoke();
+    await jumpToExpiry(fixture, 0);
     await fixture.control();
 
     expect({ refreshed, expired: await authorized(fixture, reference) }).toEqual({

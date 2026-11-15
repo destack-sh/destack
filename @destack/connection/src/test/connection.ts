@@ -16,7 +16,7 @@ import { Account, account, space } from "@destack/account/object";
 import { AccessContext, Authentication, Caller, principal, relation } from "@destack/access";
 import { TestAccess } from "@destack/access/test";
 import { STACKS } from "@destack/account/test";
-import { TestDatabase, reconciliation } from "@destack/db/test";
+import { TestDatabase } from "@destack/db/test";
 import { defineObject, type ObjectType, Egress, Package, PackageMount } from "@destack/object";
 import {
     Health,
@@ -283,6 +283,11 @@ export class TestAuthorizationServer {
                 device.answer = answer;
             }
         }
+    }
+
+    /** Revoke every refresh token, as a person revoking the grant at the provider does. */
+    revoke(): void {
+        this.#refreshTokens.clear();
     }
 
     /** Fail the token endpoint's next requests with some server failure statuses, in turn. */
@@ -706,12 +711,11 @@ export class TestConnection {
         });
     }
 
-    /** Answer clients sending their principal, leaving the controllers to the test. */
+    /** Answer clients sending their principal, the test running the controllers. */
     static #serve(objects: ObjectStore, handle: Package): Server {
         return Server.start({
             environment: objects.environment,
             ...objects.package(handle),
-            control: { controllers: [], cursors: [] },
             drainTimeout: 1000,
             health: new Health("connection"),
             resources: new ResourceContext(),
@@ -971,37 +975,33 @@ export class TestConnection {
         );
     }
 
-    /** Reconcile every connection once as its due time came, answering each one's next due time. */
+    /** Run the controllers once at the earliest due time, answering each connection's next one. */
     async control(): Promise<(number | null)[]> {
-        // find the connection controller and its due one
-        const { controllers } = this.objects.control();
-        const [reconciling, due] = [connection.name, `${connection.name}:due`].map((name) => {
-            const found = controllers.find((each) => each.name === name);
-            if (found === undefined || !("reconcile" in found)) {
-                throw new TypeError(`the connection package reconciles no '${name}' controller`);
-            }
-
-            return found;
-        });
-        if (reconciling === undefined || due === undefined) {
-            throw new TypeError("the connection package controls its connections");
-        }
-
-        // clear each connection's due time as it comes, then reconcile it
+        // move the world to the earliest due time ahead while no connection changed
         const { database } = this.objects;
         const rows = await database.select().from(connection.table);
-        for (const row of rows) {
-            if (row.renewAt !== null) {
-                await due.reconcile([row], reconciliation());
-            }
-            const [current] = await database
-                .select()
-                .from(connection.table)
-                .where(eq(connection.table.id, row.id));
-            if (current !== undefined) {
-                await reconciling.reconcile([current], reconciliation());
-            }
+        const now = this.environment.clock.now();
+        const isChanged = rows.some(
+            (row) => row.generation > row.syncedGeneration || row.deletedAt !== null,
+        );
+        const ahead = rows.flatMap((row) =>
+            row.renewAt !== null && row.renewAt > now ? [row.renewAt] : [],
+        );
+        if (!isChanged && ahead.length > 0) {
+            await this.simulation.jump(Math.min(...ahead));
         }
+
+        // run the package's controllers until they idle, failing on any report
+        const stopping = new AbortController();
+        const failures: unknown[] = [];
+        const loop = new ControlLoop(database, this.objects.control(), {
+            report: (_controller, _key, error) => failures.push(error),
+        });
+        const running = loop.run(stopping.signal);
+        await loop.idle();
+        stopping.abort();
+        await running;
+        expect(failures).toEqual([]);
 
         // read each connection's next due time, none for a removed one
         const after = await database.select().from(connection.table);
@@ -1014,7 +1014,7 @@ export class TestConnection {
         // run the store's replica syncing, collecting every failure
         const controller = new AbortController();
         const failures: unknown[] = [];
-        const loop = new ControlLoop(this.database, this.objects.syncing(), {
+        const loop = new ControlLoop(this.database, [this.objects.syncing()], {
             report: (_controller, _key, error) => failures.push(error),
         });
         const running = loop.run(controller.signal);
