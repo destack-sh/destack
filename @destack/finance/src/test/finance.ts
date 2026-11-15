@@ -533,8 +533,9 @@ export class TestFinance {
     async rateTwice(): Promise<void> {
         // build the usage cursor over the store serving now, and take it twice at once
         const usageCursor = present(
-            (this.#implementation.definition.cursors ?? [])
-                .map((cursor) => cursor(this.#store))
+            this.#store
+                .control()
+                .flatMap((set) => set.cursors)
                 .find((each) => each.tables.includes(usage.table)),
             "finance's usage cursor",
         );
