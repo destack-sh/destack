@@ -99,25 +99,16 @@ export function implementConnection(tokens: ConnectionCredential): typeof connec
             },
         },
         controllers: [
-            // reconcile a connection as it changes, recording when it is next due
+            // reconcile a connection once it changed, goes, or comes due
             {
-                pending: {},
-                reconcile: (reconciliation) => reconcile(reconciliation, tokens, authorization),
-            },
-            {
-                // clear a connection's due time once it comes, which its reconcile then takes
-                name: "due",
-                pending: { renewAt: { lte: now } },
-                reconcile: async ({ rows, mutate }) => {
-                    await mutate(
-                        rows.map((row) =>
-                            Observation.call(connection, row, {
-                                conditions: {},
-                                fields: { renewAt: null },
-                            }),
-                        ),
-                    );
+                pending: {
+                    OR: [
+                        { generation: { gt: { field: "syncedGeneration" } } },
+                        { deletedAt: { isNotNull: true } },
+                        { renewAt: { lte: now } },
+                    ],
                 },
+                reconcile: (reconciliation) => reconcile(reconciliation, tokens, authorization),
             },
         ],
     });
@@ -154,7 +145,7 @@ async function lease(
     return { protocol: row.protocol, credential, resource: row.spec.resource };
 }
 
-/** Mark a connection disconnected, leaving its credential for its controller to withdraw. */
+/** Mark a connection disconnected and due now, for its controller to withdraw its credential. */
 async function disconnect(
     context: MethodContextOf<typeof connection, "disconnect">,
 ): Promise<ResultOf<typeof connection, "disconnect">> {
@@ -162,6 +153,7 @@ async function disconnect(
 
     return context.updateStatus({
         expiresAt: null,
+        renewAt: context.now,
         conditions: {
             ...target.conditions,
             Authorized: StatusCondition.observe(
@@ -391,7 +383,10 @@ async function refresh(
         const { token } = await tokens.refresh(runner, row, time);
         const expiresAt = token?.expiresAt;
 
-        return expiresAt === undefined ? null : Math.max(time, expiresAt - REFRESH_MARGIN);
+        // renew a margin before expiry, and halfway through a token living shorter than the margin
+        return expiresAt === undefined
+            ? null
+            : expiresAt - Math.min(REFRESH_MARGIN, (expiresAt - time) / 2);
     } catch (error) {
         // pass on a failure that is no connection refusal
         if (!ConnectionError.is(error)) {
