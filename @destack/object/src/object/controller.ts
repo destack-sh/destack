@@ -90,6 +90,8 @@ export type ObjectWatch = Omit<Watch, "path"> & {
 export interface ObjectProjection<Object extends ObjectType = ObjectType> {
     /** The projection's name within its type, absent for the type's own projection. */
     readonly name?: string;
+    /** The type's field holding the key, its key field by default. */
+    readonly key?: string;
     /** The inputs whose changed rows touch keys, beside the type's own rows. */
     readonly watches: readonly ObjectWatch[];
     /** Every key: one input's column, the type's own key column by default. */
@@ -205,21 +207,25 @@ export const ObjectController = {
 
     /** Build a type's projection over its own rows and its inputs, keyed by its key field. */
     project(store: ObjectStore, object: ObjectType, declared: ObjectProjection): Projection {
-        // key the type's own changed rows by its key field, beside the inputs' declared watches
-        const field = object.keyed ?? "id";
+        // key the projection by its field, listing every key from its input
+        const field = declared.key ?? object.keyed ?? "id";
         const keyColumn = object.table[TABLE].column(field);
-        const own: Watch = { table: object.table };
+        const all = declared.all ?? { table: object.table, column: field };
+
+        // watch the type's own changed rows by the field, unless a declared watch reads them
+        const isOwnWatched = declared.watches.some((watch) => watch.table === object.table);
+        const own: Watch = { table: object.table, on: { [all.column]: field } };
         const name = declared.name === undefined ? object.name : `${object.name}:${declared.name}`;
 
         return {
             name: `project:${name}`,
             key: field,
             watches: [
-                own,
+                ...(isOwnWatched ? [] : [own]),
                 ...declared.watches.map((watch) => ObjectController.watch(store, watch)),
                 ObjectController.released(),
             ],
-            all: declared.all ?? { table: object.table, column: field },
+            all,
             project: async (key, reconciliation) => {
                 // project an absent object or one of the store's scopes, left to its home where it is a replica
                 const rows = await store.database
