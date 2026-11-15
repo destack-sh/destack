@@ -18,6 +18,7 @@ import { Scope, ObjectReference, ObjectTypeReference, type Subject, Call } from 
 import {
     Expression,
     Condition,
+    type Cursor,
     eq,
     inArray,
     DatabaseError,
@@ -556,6 +557,8 @@ export interface ObjectImplementation<Self extends ObjectType = ObjectType> {
     readonly controllers?: readonly ObjectController<Self>[];
     /** Project the objects from input tables again as their changes touch them. */
     readonly projections?: readonly ObjectProjection<Self>[];
+    /** Fold other types' events into the objects, each event once, over the store. */
+    readonly cursors?: readonly ((store: ObjectStore) => Cursor)[];
     /** How a stack's declarations of the objects become their managed records. */
     readonly declaration?: DeclarationHandler<Self>;
 }
@@ -676,6 +679,8 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
     readonly controllers: readonly ObjectController[];
     /** The projections the type's code implements, none until implemented with some. */
     readonly projections: readonly ObjectProjection[];
+    /** The cursors folding events into the type, none until implemented with some. */
+    readonly cursors: readonly ((store: ObjectStore) => Cursor)[];
     /** How stack declarations become managed records, absent for types they cannot declare. */
     readonly declaration: DeclarationHandler | undefined;
 
@@ -738,6 +743,7 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
         this.declaration = ObjectType.#declarationOf(definition);
         this.controllers = [];
         this.projections = [];
+        this.cursors = [];
 
         // compute the scopes, nesting, sharing, presentation, ordering, search and the event kind once
         this.scopes = ObjectType.#scopeTypes(this.definition.scope);
@@ -2055,11 +2061,12 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
         }
 
         // leave ephemeral and external objects off the controllers
-        const { controllers, projections, declaration } = implementation;
-        const isReactive = controllers !== undefined || projections !== undefined;
+        const { controllers, projections, cursors, declaration } = implementation;
+        const isReactive =
+            controllers !== undefined || projections !== undefined || cursors !== undefined;
         if (isReactive && this.storage !== "durable") {
             throw new TypeError(
-                `${this.storage} object '${this.name}' cannot have controllers or projections`,
+                `${this.storage} object '${this.name}' cannot have controllers, projections or cursors`,
             );
         }
 
@@ -2070,6 +2077,7 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
                 methods,
                 ...(controllers === undefined ? {} : { controllers }),
                 ...(projections === undefined ? {} : { projections }),
+                ...(cursors === undefined ? {} : { cursors }),
                 ...(declaration === undefined ? {} : { declaration }),
             },
             this.derived,
@@ -2099,7 +2107,10 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
     with<Self extends ObjectType>(
         this: Self,
         changes: Partial<
-            Pick<Self, "methods" | "controllers" | "projections" | "declaration" | "definition">
+            Pick<
+                Self,
+                "methods" | "controllers" | "projections" | "cursors" | "declaration" | "definition"
+            >
         >,
     ): Self {
         // replicate the members, building the changed type's schemas and procedures afresh
@@ -2110,7 +2121,10 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
     static #copy<Type extends ObjectType>(
         type: Type,
         changes: Partial<
-            Pick<Type, "methods" | "controllers" | "projections" | "declaration" | "definition">
+            Pick<
+                Type,
+                "methods" | "controllers" | "projections" | "cursors" | "declaration" | "definition"
+            >
         >,
         derived: Derived,
     ): Type {

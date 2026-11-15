@@ -2326,14 +2326,12 @@ export class ObjectStore {
 
         // run each package's jobs once synced and its installation activated
         const packages = served.map((entry): ControllerSet => {
-            // read the package's types' jobs and its cursors
-            const { cursors = [] } = entry.definition;
+            // read the package's types' jobs
             const objects = this.#objectControl((packageId) => packageId === entry.package.id);
             const activation = entry.server?.activation;
 
             return {
                 ...objects,
-                cursors: [...objects.cursors, ...cursors.map((cursor) => cursor(this))],
                 activation: async (signal) => {
                     await synced(signal);
                     await activation?.(signal);
@@ -2362,7 +2360,10 @@ export class ObjectStore {
             this.#reloading = reloading;
 
             // name the loop's position by the projections, so a changed set lists its keys again
-            const sets = [...this.control(), ...(options.sets ?? [])];
+            const sets = [
+                ...this.control(),
+                ...(options.sets ?? []).map((set) => this.#synced(set)),
+            ];
             const projections = sets.flatMap((set) => set.projections.map((each) => each.name));
             const digest = await Digest.json(projections.toSorted(), this.environment.crypto);
             const position = `${POSITION_PREFIX}${digest}`;
@@ -2414,6 +2415,24 @@ export class ObjectStore {
         }
     }
 
+    /** Run a process's job set once the replicas are synced and its own activation settles. */
+    #synced(set: ControllerSet): ControllerSet {
+        // run it at once without replicas
+        const { subscriber } = this;
+        if (subscriber === undefined) {
+            return set;
+        }
+        const { activation } = set;
+
+        return {
+            ...set,
+            activation: async (signal) => {
+                await this.#waitReady(signal);
+                await activation?.(signal);
+            },
+        };
+    }
+
     /** List the cursor and controller syncing the store's replicas. */
     syncing(): ControllerSet {
         const { subscriber } = this;
@@ -2444,7 +2463,7 @@ export class ObjectStore {
                     ObjectController.project(this, object, declared),
                 ),
             ),
-            cursors: [],
+            cursors: selected.flatMap((object) => object.cursors.map((cursor) => cursor(this))),
         };
     }
 
