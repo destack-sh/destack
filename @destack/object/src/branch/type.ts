@@ -1,6 +1,6 @@
 import type { Method } from "../method/method.ts";
 import { ObjectError } from "../error/error.ts";
-import { TABLE, LogPosition, type Row, Snapshot, type Table, Condition } from "@destack/db";
+import { TABLE, LogPosition, type Row, Snapshot, type Table } from "@destack/db";
 
 import { schema } from "@destack/schema";
 import * as sync from "@destack/sync";
@@ -116,36 +116,12 @@ export class BranchType {
 
     /** Rebuild open branches whose rows a main-line write may have changed. */
     controller(objects: readonly ObjectType[]): ObjectController {
-        const branches = this.object.table;
-
         return {
             pending: { state: "open" },
+            // decide the open branches of a changed row's scope again
             watches: [...this.tables(objects).values()].map((table) => ({
                 table,
-                keys: async (row, database) => {
-                    // select the open branches of the row's scope that touch its table
-                    const open = await database
-                        .select()
-                        .from(branches)
-                        .where(
-                            Condition.render(
-                                {
-                                    AND: [
-                                        { state: "open" },
-                                        ...(typeof row["scope"] === "string"
-                                            ? [{ scope: row["scope"] }]
-                                            : []),
-                                    ],
-                                },
-                                branches,
-                            ),
-                        );
-
-                    return open
-                        .map((entry) => BranchType.record(entry))
-                        .filter((entry) => entry.tables.includes(table[TABLE].sqlName))
-                        .map((entry) => ({ id: entry.id }));
-                },
+                on: { scope: "scope" },
             })),
             reconcile: async (reconciliation) => {
                 // rebuild the open branches whose rows the main line moved under

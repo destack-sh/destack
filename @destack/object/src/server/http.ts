@@ -13,7 +13,6 @@ import { refusal, reportError } from "../error/report.ts";
 import { BOOKMARK_HEADER, type Bookmark } from "../procedure/bookmark.ts";
 import { LINK_SECRET_HEADER, RequestContext, type ServerAccess } from "./context.ts";
 import type { ProcedureContext } from "./procedure.ts";
-import { type Alarm, type ControllerSet, ControlLoop } from "@destack/db";
 import { copyRequest, type Environment, LONGEST_DELAY } from "@destack/environment";
 
 import type {} from "@destack/package/import-meta";
@@ -36,18 +35,12 @@ export class Server implements AsyncDisposable {
     #closing?: Promise<void>;
     /** End the streams of accepted requests once draining starts. */
     readonly #draining = new AbortController();
-    /** Stop the controllers after draining. */
-    readonly #reconciling = new AbortController();
-    /** The running controllers and the readiness wait. */
-    #controlled?: Promise<void>;
-    /** The running controllers, settled once they stop. */
-    #running?: Promise<void>;
+    /** Abort the readiness wait once the server closes. */
+    readonly #starting = new AbortController();
+    /** The readiness wait. */
+    #readiness?: Promise<void>;
     /** The lapse of each credential in use by its key and expiry, one timer per credential. */
     readonly #lapses = new Map<string, AbortSignal>();
-    /** The loop running the controllers syncing the replicas, absent without them. */
-    readonly #syncing: ControlLoop | undefined;
-    /** The loop running the other controllers once the replicas are synced, absent without them. */
-    readonly #loop: ControlLoop | undefined;
 
     /** Wait until the server stopped. */
     get stopped(): Promise<void> {
@@ -84,36 +77,6 @@ export class Server implements AsyncDisposable {
             ...options,
             authorize: (context) => Server.#authorize(context, options),
         });
-
-        // run the controllers syncing the replicas, and the others once they are synced
-        this.#syncing = Server.#loopOf(
-            options.syncing ?? { controllers: [], cursors: [] },
-            options,
-        );
-        this.#loop = Server.#loopOf(options.control ?? { controllers: [], cursors: [] }, options);
-    }
-
-    /** Create the loop of a package's control over the access database, absent for none. */
-    static #loopOf(control: ControllerSet, options: ServerOptions): ControlLoop | undefined {
-        // run no loop without work, and refuse work without an access database
-        const { access } = options;
-        if (control.controllers.length === 0 && control.cursors.length === 0) {
-            return undefined;
-        } else if (access === undefined) {
-            throw new TypeError("a server with controllers needs an access database");
-        }
-
-        return new ControlLoop(access.database, control, {
-            report: (controller, key, error) => {
-                // report the failure with the controller and the failed key
-                options.report?.(
-                    new Error(`'${controller.name}' did not reconcile '${key}'`, {
-                        cause: error,
-                    }),
-                );
-            },
-            ...(options.alarm === undefined ? {} : { alarm: options.alarm }),
-        });
     }
 
     /** Settle once the server serves, refusing once it fails or stops first. */
@@ -121,33 +84,20 @@ export class Server implements AsyncDisposable {
         return this.health.waitUp();
     }
 
-    /** Settle once no controller key is due now or reconciling, or at a deadline. */
-    idle(deadline?: number): Promise<void> {
-        return Promise.all([this.#syncing?.idle(deadline), this.#loop?.idle(deadline)]).then(
-            () => undefined,
-        );
-    }
-
-    /** Start the server: run the controllers maintaining its replicas, then serve once ready. */
+    /** Start the server, serving once ready. */
     static start(options: ServerOptions): Server {
-        // create the server, run its controllers and wait for its readiness in the background
+        // create the server and wait for its readiness in the background
         const server = new Server(options);
-        server.#running = (async () => {
-            // run the controllers once activated, as a workload's next start once it is current
-            const signal = server.#reconciling.signal;
-            await options.activation?.(signal);
-            await Promise.all([server.#syncing?.run(signal), server.#runOnceSynced(signal)]);
-        })();
-        server.#controlled = Promise.all([server.#running, server.#serve()]).then(() => undefined);
+        server.#readiness = server.#serve();
 
-        // stop serving once readiness or the controllers fail, a stop's own abort ending them quietly
-        server.#controlled.catch((error: unknown) => {
-            if (error === server.#reconciling.signal.reason) {
+        // stop serving once readiness fails, a stop's own abort ending it quietly
+        server.#readiness.catch((error: unknown) => {
+            if (error === server.#starting.signal.reason) {
                 return;
             }
             reportError(error, options.environment.telemetry);
             options.report?.(error);
-            if (!server.#reconciling.signal.aborted) {
+            if (!server.#starting.signal.aborted) {
                 const message = error instanceof Error ? error.message : String(error);
                 server.health.set("down", `the server failed: ${message}`);
             }
@@ -156,22 +106,10 @@ export class Server implements AsyncDisposable {
         return server;
     }
 
-    /** Run the other controllers once the replicas are synced, or stop them at once. */
-    async #runOnceSynced(signal: AbortSignal): Promise<void> {
-        await this.#options.synced?.(signal);
-        await this.#loop?.run(signal);
-    }
-
-    /** Stop the controllers at once, while the server serves its requests until it drains. */
-    async stopControllers(): Promise<void> {
-        this.#reconciling.abort();
-        await this.#running?.catch(() => undefined);
-    }
-
     /** Serve at once without a readiness wait, else once ready. */
     async #serve(): Promise<void> {
         // serve at once without a readiness wait
-        const signal = this.#reconciling.signal;
+        const signal = this.#starting.signal;
         const { ready } = this.#options;
         if (ready === undefined) {
             this.health.set("up", "the server serves without a readiness wait");
@@ -553,13 +491,13 @@ export class Server implements AsyncDisposable {
         try {
             await Promise.race([completion, deadline]);
         } finally {
-            // stop the deadline and the controllers
+            // stop the deadline and the readiness wait
             disarm.abort();
             deadline.catch(() => undefined);
-            this.#reconciling.abort();
-            await this.#controlled?.catch((error: unknown) => {
+            this.#starting.abort();
+            await this.#readiness?.catch((error: unknown) => {
                 // end quietly on the stop's own abort, failing the close on any other error
-                if (error !== this.#reconciling.signal.reason) {
+                if (error !== this.#starting.signal.reason) {
                     throw error;
                 }
             });
@@ -615,9 +553,7 @@ export interface ServerOptions extends PackageHandler {
     readonly authorizeMachine: (call: ProcedureContext<RequestContext>) => Promise<void>;
     /** The longest drain, in milliseconds. */
     drainTimeout: number;
-    /** Set a wake-up for the controllers' earliest due key, so an evicted instance runs it. */
-    alarm?: Alarm;
-    /** Report a controller's failure to the host beside its telemetry. */
+    /** Report a failure to the host beside its telemetry. */
     readonly report?: (error: unknown) => void;
 }
 
@@ -636,16 +572,8 @@ export interface PackageHandler extends Omit<
     readonly fetch?: (request: Request, context: RequestContext) => Promise<Response | undefined>;
     /** The routes of each protocol the package implements, by the protocol's package. */
     readonly protocols?: ReadonlyMap<string, ReadonlySet<string>>;
-    /** The package's controllers and cursors, started once its replicas are synced. */
-    readonly control?: ControllerSet;
-    /** The controllers and cursors syncing the package's replicas, started at once. */
-    readonly syncing?: ControllerSet;
-    /** Wait until the package's replicas are synced, at once when absent. */
-    readonly synced?: (signal: AbortSignal) => Promise<void>;
     /** Wait until the package can answer before it serves. */
     readonly ready?: (signal: AbortSignal, health?: Health) => Promise<void>;
-    /** Activate the package before its controllers run, stopping once the signal aborts. */
-    readonly activation?: (signal: AbortSignal) => Promise<void>;
 }
 
 /** Attach the request's watermarks to its response. */

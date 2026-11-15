@@ -2,7 +2,7 @@ import type { AccessContext } from "@destack/access";
 import type { Package } from "../declare/package.ts";
 import type { PackageHandler } from "./http.ts";
 import type { RequestContext } from "./context.ts";
-import type { Controller, Cursor } from "@destack/db";
+import type { Cursor } from "@destack/db";
 import type { PackageContext, ServerContext } from "../workload/workload.ts";
 import type { ObjectType } from "../object/object.ts";
 import type { Follow } from "../replica/shape.ts";
@@ -29,8 +29,6 @@ export type ObjectPackage = Package & {
 export type ImplementationInput<Handle extends ObjectPackage = ObjectPackage> = {
     /** The handle's object types with handlers; the others serve their declared defaults. */
     readonly objects?: readonly ObjectType[];
-    /** The controllers beside the objects' controllers, each built over the package's store. */
-    readonly controllers?: readonly ((store: ObjectStore) => Controller)[];
     /** The cursors beside the objects' projections, each built over the package's store. */
     readonly cursors?: readonly ((store: ObjectStore) => Cursor)[];
     /** The providers of the resource kinds the package provides to every space serving it. */

@@ -43,9 +43,9 @@ export {
     type KeyFields,
     ObjectController,
     type ObjectProjection,
+    type ObjectWatch,
     type ObjectReport,
     type ObjectReconciliation,
-    ObjectWatch,
 } from "./controller.ts";
 export { ObjectPolicy } from "./access.ts";
 export * from "./cursor.ts";

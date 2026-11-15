@@ -32,9 +32,11 @@ import {
     RequestId,
 } from "@destack/sync";
 import {
+    type Alarm,
     and,
     BlobStore,
     Change,
+    ControlLoop,
     type ControllerSet,
     type Controller,
     type DatabaseConnection,
@@ -64,6 +66,7 @@ import type { CallKey } from "../audit/key.ts";
 import {
     nth,
     canonicalize,
+    Digest,
     Duration,
     Identifier,
     type JsonObject,
@@ -132,6 +135,9 @@ import type { MountFetch, PackageImplementation } from "./implementation.ts";
 import type { Clock, Environment } from "@destack/environment";
 
 import type {} from "@destack/package/import-meta";
+
+/** The prefix of the store loop's log position, which a digest of its projections completes. */
+const POSITION_PREFIX = "control:";
 
 /** The recent pages sharing grant readers: 64 readers of a few KiB, well under a megabyte. */
 const SHARED_READERS = 64;
@@ -525,8 +531,15 @@ export class ObjectStore {
         Catalog["served"][number],
         PackageHandler & { readonly objects: ObjectStore }
     >();
-    /** What the first handler's store controllers were built over: the served types and tables. */
+    /** The served jobs by name and the tables they watch, which a change restarts the loop over. */
     #controlled = "";
+    /** The next or running loop, with the signal of its reload. */
+    #loop = Promise.withResolvers<{
+        readonly loop: ControlLoop;
+        readonly reloading: AbortSignal;
+    }>();
+    /** Aborts the running loop once the served jobs change. */
+    #reloading = new AbortController();
     /** The wait for the replicas gating readiness, shared by every implemented package. */
     #readiness: Promise<boolean> | undefined;
     /** The health of each server waiting on the replicas gating readiness. */
@@ -692,33 +705,34 @@ export class ObjectStore {
         );
     }
 
-    /** Implement each served package once, the first again once its store controllers change. */
+    /** Implement each newly served package, and restart the loop once the served jobs change. */
     #implement(): void {
-        // keep the handlers of packages still served, the first while its store controllers read the same types and tables
+        // keep the handlers of packages still served
         const { served } = this.#catalog;
-        const servedIds = new Set(served.map((entry) => entry.package.id));
+        this.#handlers = new Map(
+            served.map((entry) => [
+                entry,
+                this.#handlers.get(entry) ?? this.#packageHandler(entry),
+            ]),
+        );
+
+        // restart the loop over changed jobs
         const types = [...this.objects, ...this.#catalog.provisioned].map((object) =>
             ObjectTypeReference.key(object.typeReference),
         );
         const watched = [...this.watched, ...this.replicated.map((each) => each.table)].map(
             (table) => table[TABLE].sqlName,
         );
+        const packages = served.map((entry) => entry.package.id);
         const controlled = canonicalize([
             [...new Set(types)].toSorted(),
             [...new Set(watched)].toSorted(),
+            packages,
         ]);
-        const handlers = new Map<
-            Catalog["served"][number],
-            PackageHandler & { readonly objects: ObjectStore }
-        >();
-        for (const [index, entry] of served.entries()) {
-            const isFirst = index === 0;
-            const kept = this.#handlers.get(entry);
-            const isKept = kept !== undefined && (!isFirst || controlled === this.#controlled);
-            handlers.set(entry, isKept ? kept : this.#packageHandler(entry, isFirst, servedIds));
+        if (controlled !== this.#controlled) {
+            this.#controlled = controlled;
+            this.#reloading.abort();
         }
-        this.#handlers = handlers;
-        this.#controlled = controlled;
     }
 
     /** The object types served. */
@@ -1059,7 +1073,6 @@ export class ObjectStore {
     implement(
         handle: Package,
         routed: readonly ObjectType[],
-        control: ControllerSet,
     ): PackageHandler & { readonly objects: ObjectStore } {
         const { subscriber } = this;
 
@@ -1074,13 +1087,9 @@ export class ObjectStore {
                     { package: PackageVersion.of(handle), requestId: call.request.requestId },
                 ),
             ),
-            control,
             ...(subscriber === undefined
                 ? {}
-                : {
-                      ready: (signal, health) => this.#waitReady(signal, health),
-                      synced: (signal) => this.#waitReady(signal),
-                  }),
+                : { ready: (signal, health) => this.#waitReady(signal, health) }),
             router: this.router(routed),
         };
     }
@@ -2288,19 +2297,121 @@ export class ObjectStore {
         return (await this.#readHomeAll(sent)).receive(sent, signer);
     }
 
-    /** List what the served objects need: the store's controllers, then each type's. */
-    control(): ControllerSet {
+    /** List the store's job sets: the replicas' sync, then the store's and each package's. */
+    control(): readonly ControllerSet[] {
+        // sync the replicas at once
+        const { subscriber } = this;
         const syncing = this.syncing();
-        const objects = this.#objectControl(() => true);
+        const synced = (signal: AbortSignal) =>
+            subscriber === undefined ? Promise.resolve() : this.#waitReady(signal);
 
-        return {
+        // run the store's own jobs and those of unserved packages' types once synced
+        const { served } = this.#catalog;
+        const servedIds = new Set(served.map((entry) => entry.package.id));
+        const own = this.#objectControl((packageId) => !servedIds.has(packageId));
+        const tables = [
+            ...this.#catalog.tables,
+            ...served.flatMap((entry) => entry.package.tables),
+        ];
+        const expiring = [...new Set(tables)].filter((table) => table[TABLE].expiry !== undefined);
+        const store: ControllerSet = {
+            ...own,
             controllers: [
                 ...this.#storeControllers(),
-                ...syncing.controllers,
-                ...objects.controllers,
+                ...expiring.map((table) => ControlLoop.expiry(table, this.database)),
+                ...own.controllers,
             ],
-            cursors: [...syncing.cursors, ...objects.cursors],
+            activation: synced,
         };
+
+        // run each package's jobs once synced and its installation activated
+        const packages = served.map((entry): ControllerSet => {
+            // read the package's types' jobs and its cursors
+            const { cursors = [] } = entry.definition;
+            const objects = this.#objectControl((packageId) => packageId === entry.package.id);
+            const activation = entry.server?.activation;
+
+            return {
+                ...objects,
+                cursors: [...objects.cursors, ...cursors.map((cursor) => cursor(this))],
+                activation: async (signal) => {
+                    await synced(signal);
+                    await activation?.(signal);
+                },
+            };
+        });
+
+        return [syncing, store, ...packages];
+    }
+
+    /** Run the store's jobs in one loop until stopped, restarting it as the jobs change. */
+    async run(
+        signal: AbortSignal,
+        options: {
+            /** Set a wake-up for the earliest due key, so an evicted instance runs it. */
+            readonly alarm?: Alarm;
+            /** Report a failed reconciliation, the store's report by default. */
+            readonly report?: ConstructorParameters<typeof ControlLoop>[2]["report"];
+            /** The process's own job sets, run beside the store's. */
+            readonly sets?: readonly ControllerSet[];
+        } = {},
+    ): Promise<void> {
+        while (!signal.aborted) {
+            // take the reload signal before reading the jobs, so a reload meanwhile restarts them
+            const reloading = new AbortController();
+            this.#reloading = reloading;
+
+            // name the loop's position by the projections, so a changed set lists its keys again
+            const sets = [...this.control(), ...(options.sets ?? [])];
+            const projections = sets.flatMap((set) => set.projections.map((each) => each.name));
+            const digest = await Digest.json(projections.toSorted(), this.environment.crypto);
+            const position = `${POSITION_PREFIX}${digest}`;
+
+            // drop the positions of other sets, which would hold the log
+            const positions = await this.database.log.checkpoints(POSITION_PREFIX);
+            for (const replaced of positions.filter((name) => name !== position)) {
+                await this.database.log.drop(replaced);
+            }
+
+            // run the loop until stopped or reloaded
+            const loop = new ControlLoop(this.database, sets, {
+                report:
+                    options.report ??
+                    ((job, key, error) => {
+                        this.#report(
+                            new Error(`'${job.name}' did not reconcile '${key}'`, { cause: error }),
+                        );
+                    }),
+                position,
+                ...(options.alarm === undefined ? {} : { alarm: options.alarm }),
+            });
+            this.#loop.resolve({ loop, reloading: reloading.signal });
+            await loop.run(AbortSignal.any([signal, reloading.signal]));
+            this.#loop = Promise.withResolvers();
+        }
+    }
+
+    /** Settle once the running loop has no key due now or running, or at a deadline. */
+    async idle(deadline?: number): Promise<void> {
+        // wait for a running loop, up to the deadline
+        const passed = new AbortController();
+        const timeout =
+            deadline === undefined
+                ? new Promise<undefined>(() => {})
+                : this.clock
+                      .sleep(deadline - this.clock.now(), passed.signal)
+                      .then(() => undefined);
+        const running = await Promise.race([this.#loop.promise, timeout]);
+        passed.abort();
+        if (running === undefined) {
+            return;
+        }
+
+        // wait for it, then for the next loop once a reload stopped it
+        await running.loop.idle(deadline);
+        if (running.reloading.aborted) {
+            await this.idle(deadline);
+        }
     }
 
     /** List the cursor and controller syncing the store's replicas. */
@@ -2308,9 +2419,10 @@ export class ObjectStore {
         const { subscriber } = this;
 
         return subscriber === undefined
-            ? { controllers: [], cursors: [] }
+            ? { controllers: [], projections: [], cursors: [] }
             : {
                   controllers: [this.sink.controller(subscriber)],
+                  projections: [],
                   cursors: [this.sink.cursor(subscriber)],
               };
     }
@@ -2327,11 +2439,12 @@ export class ObjectStore {
                     ObjectController.control(this, object, declared),
                 ),
             ),
-            cursors: selected.flatMap((object) =>
+            projections: selected.flatMap((object) =>
                 object.projections.map((declared) =>
                     ObjectController.project(this, object, declared),
                 ),
             ),
+            cursors: [],
         };
     }
 
@@ -3698,28 +3811,10 @@ export class ObjectStore {
     /** Implement a served package: its routes, mounts, controllers, access and headers. */
     #packageHandler(
         entry: Catalog["served"][number],
-        isFirst: boolean,
-        servedIds: ReadonlySet<PackageId>,
     ): PackageHandler & { readonly objects: ObjectStore } {
-        // run the package's types' controllers, the first package also the store's and unserved types'
-        const {
-            controllers = [],
-            cursors = [],
-            mounts = {},
-            access,
-            responseHeaders,
-        } = entry.definition;
-        const objects = this.#objectControl(
-            (packageId) => packageId === entry.package.id || (isFirst && !servedIds.has(packageId)),
-        );
-        const implemented = this.implement(entry.package, entry.objects, {
-            controllers: [
-                ...(isFirst ? this.#storeControllers() : []),
-                ...objects.controllers,
-                ...controllers.map((controller) => controller(this)),
-            ],
-            cursors: [...objects.cursors, ...cursors.map((cursor) => cursor(this))],
-        });
+        // implement the package's types
+        const { mounts = {}, access, responseHeaders } = entry.definition;
+        const implemented = this.implement(entry.package, entry.objects);
 
         // answer the package's mounts below its path, and the routes of each protocol it implements
         const fetch = ObjectStore.#mountFetch(entry.package, mounts, this);
@@ -3730,17 +3825,11 @@ export class ObjectStore {
             ]),
         );
 
-        // run an installation's controllers once its host activates it, an own package's at once
-        const { server } = entry;
-        const activation = server?.activation;
-
         return {
             ...implemented,
-            ...(isFirst ? { syncing: this.syncing() } : {}),
             ...(access === undefined ? {} : { access }),
             ...(responseHeaders === undefined ? {} : { responseHeaders }),
             ...(fetch === undefined ? {} : { fetch }),
-            ...(activation === undefined ? {} : { activation }),
             protocols,
         };
     }

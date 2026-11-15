@@ -19,16 +19,20 @@ import { CallError } from "../error/call.ts";
 import { ObjectError } from "../error/error.ts";
 import { field } from "../field/field.ts";
 import type { MethodContext } from "../method/context.ts";
-import { ObjectWatch, type ObjectReconciliation } from "../object/controller.ts";
+import { type ObjectReconciliation } from "../object/controller.ts";
 import { defineObject } from "../object/object.ts";
 import { Approval, approval, ApprovalQuorum, type ApprovalState } from "./approval.ts";
 import { nested } from "../trait/index.ts";
 import { argument, plural, t } from "@destack/locale";
+import type {} from "@destack/package/import-meta";
+
+/** The change request type's name, which its approvals name as their parent type. */
+const CHANGE_REQUEST = "change-request";
 
 /** A call one principal asks others to approve, made once approved as requester or approver. */
 export const changeRequest = defineObject(
     {
-        name: "change-request",
+        name: CHANGE_REQUEST,
         plural: "change-requests",
         title: t`${plural(argument("count"), { one: "Change request", other: "Change requests" })}`,
         scope: [principal.space],
@@ -205,12 +209,14 @@ export const changeRequest = defineObject(
             pending: { state: "open" },
             // decide a change again as each of its approvals changes
             watches: [
-                ObjectWatch.of(approval.table, (row): { readonly id: string }[] =>
-                    row.parentPackageId === changeRequest.package.id &&
-                    row.parentType === changeRequest.name
-                        ? [{ id: row.parentId }]
-                        : [],
-                ),
+                {
+                    table: approval.table,
+                    where: {
+                        parentPackageId: import.meta.destack.package.id,
+                        parentType: CHANGE_REQUEST,
+                    },
+                    on: { id: "parentId" },
+                },
             ],
             reconcile: async (reconciliation) => {
                 for (const row of reconciliation.rows) {

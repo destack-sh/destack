@@ -1,5 +1,13 @@
 import { accessRelationship } from "@destack/access";
-import { and, type BlobStore, type DatabaseConnection, eq, now, Table } from "@destack/db";
+import {
+    and,
+    type BlobStore,
+    type DatabaseConnection,
+    eq,
+    now,
+    Table,
+    type Watch,
+} from "@destack/db";
 import {
     Address,
     Plan,
@@ -10,11 +18,7 @@ import {
 } from "@destack/resource";
 import { ResourceError } from "@destack/resource/error";
 import { nth, Digest, Duration, type Identifier, present, schema, zip } from "@destack/schema";
-import {
-    ObjectWatch,
-    type ObjectController,
-    type ObjectReconciliation,
-} from "../object/controller.ts";
+import { type ObjectController, type ObjectReconciliation } from "../object/controller.ts";
 import {
     AWAITING_APPROVAL,
     type Condition,
@@ -52,7 +56,7 @@ interface ReconcileOptions extends ResourceControllerOptions {
 /** The control loop of one kind's provisioned objects through a process's providers. */
 export class ResourceController {
     /** The consumer relationships, whose changes select the resource they relate. */
-    readonly #watches: readonly ObjectWatch[];
+    readonly #watches: readonly Watch[];
     /** The provisioned object type. */
     readonly #object: ResourceType<"space">;
     /** The process's providers of the kind and its machine. */
@@ -83,13 +87,11 @@ export class ResourceController {
         // wake a resource once its consumers change
         const { packageId } = object.policy.definition;
         this.#watches = [
-            ObjectWatch.of(accessRelationship, (row) =>
-                row.objectPackageId === packageId &&
-                row.objectType === object.name &&
-                row.relation === CONSUMER
-                    ? [{ id: row.objectId }]
-                    : [],
-            ),
+            {
+                table: accessRelationship,
+                where: { objectPackageId: packageId, objectType: object.name, relation: CONSUMER },
+                on: { id: "objectId" },
+            },
         ];
     }
 

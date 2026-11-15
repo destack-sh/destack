@@ -5,7 +5,7 @@ import type { Authentication } from "@destack/access";
 import type { ResourceContext } from "@destack/resource/context";
 import { Server, type ServerOptions, type PackageHandler } from "../server/index.ts";
 import type { Package } from "../declare/package.ts";
-import { type Alarm, AlarmClock, AlarmStorage } from "@destack/db";
+import { type Alarm, AlarmClock, AlarmStorage, type ControllerSet } from "@destack/db";
 import { Health } from "../server/health.ts";
 
 import type {
@@ -14,6 +14,7 @@ import type {
     ServerContext,
     Workload,
     WorkloadContext,
+    WorkloadImplementation,
 } from "./workload.ts";
 import { CallKey } from "../audit/key.ts";
 import type { Hibernation, SocketHandler } from "./socket.ts";
@@ -238,6 +239,12 @@ class WorkloadStart {
     readonly #draining = new Set<Promise<void>>();
     /** The resources released after draining. */
     readonly #cleanup = new AsyncDisposableStack();
+    /** The store whose jobs the start runs, absent for none. */
+    #store: WorkloadImplementation["store"];
+    /** Aborts the store's loop. */
+    readonly #stopping = new AbortController();
+    /** The store's running loop, settled once it stops. */
+    #running: Promise<void> | undefined;
     /** What the start does with its hibernated sockets' events, absent for a start without them. */
     #sockets: SocketHandler | undefined;
     /** What the start does with its store's hook requests, absent for a start serving none. */
@@ -285,10 +292,12 @@ class WorkloadStart {
                 defer: (dispose) => start.#cleanup.defer(dispose),
             });
 
-            // start a server per package and take the handlers, replacing none in this start
+            // start a server per package, and run the store's jobs once this start is current
             for (const served of implementation.packages) {
-                start.#serve(served, Promise.resolve());
+                start.#serve(served);
             }
+            start.#store = implementation.store;
+            start.#running = start.#run(implementation.store, implementation.control ?? []);
             start.#sockets = implementation.sockets;
             start.#hooks = implementation.hooks;
 
@@ -309,17 +318,43 @@ class WorkloadStart {
         return start;
     }
 
-    /** Start a served package's server once the servers it replaces stopped their controllers. */
-    #serve(served: PackageHandler, handover: Promise<unknown>): void {
+    /** Run a store's jobs once the start is current, until stopped. */
+    async #run(
+        store: WorkloadImplementation["store"],
+        sets: readonly ControllerSet[],
+    ): Promise<void> {
+        // wait for the start's turn
+        const { options, clock, activation } = this.#serving;
+        const signal = AbortSignal.any([this.#controller.signal, this.#stopping.signal]);
+        await Promise.race([activation, waitAborted(signal)]);
+        if (store === undefined || signal.aborted) {
+            return;
+        }
+
+        // run the loop, reporting its failure and marking every server down
+        const alarm = clock?.alarm(`store/${Uuid.v4(options.environment.random)}`);
+        try {
+            await store.run(signal, { sets, ...(alarm === undefined ? {} : { alarm }) });
+        } catch (error) {
+            options.report(error);
+            const message = error instanceof Error ? error.message : String(error);
+            for (const { server } of this.#packages.values()) {
+                server.health.set("down", `the controllers failed: ${message}`);
+            }
+        }
+    }
+
+    /** Start a served package's server. */
+    #serve(served: PackageHandler): void {
         // refuse a cancelled start and a package served twice
         this.#controller.signal.throwIfAborted();
-        const { options, clock, activation } = this.#serving;
+        const { options } = this.#serving;
         const handle = served.package;
         if (this.#packages.has(handle.id)) {
             throw new TypeError(`duplicate workload package: '${handle.name}'`);
         }
 
-        // start the server, reporting its controllers' failures to the host
+        // start the server, reporting its failures to the host
         const server = Server.start({
             ...options.serverOptions(handle),
             ...served,
@@ -327,18 +362,8 @@ class WorkloadStart {
             resources: options.resources,
             environment: options.environment,
             report: (error) => options.report(error),
-            // name each server's alarm uniquely, as a reload serves a package beside its draining server
-            ...(clock === undefined
-                ? {}
-                : { alarm: clock.alarm(`${handle.id}/${Uuid.v4(options.environment.random)}`) }),
-            activation: async (signal) => {
-                // wait for this start's turn and the replaced controllers' stop, then the package's own activation
-                await Promise.race([Promise.all([activation, handover]), waitAborted(signal)]);
-                if (!signal.aborted) {
-                    await served.activation?.(signal);
-                }
-            },
         });
+
         // match each protocol route's path and the paths below it, each parameter one segment
         const protocols = new Map(
             [...(served.protocols ?? [])].map(([protocol, routes]) => [
@@ -362,10 +387,9 @@ class WorkloadStart {
             this.#packages.delete(packageId);
         }
 
-        // serve the added and changed packages once the replaced controllers stopped, as one key has one writer
-        const handover = Promise.all(replaced.map(([, served]) => served.server.stopControllers()));
+        // serve the added and changed packages
         for (const handler of handlers.filter((each) => !this.#packages.has(each.package.id))) {
-            this.#serve(handler, handover);
+            this.#serve(handler);
         }
 
         // drain the replaced servers beside the start, which may run the caller's own controller
@@ -391,11 +415,10 @@ class WorkloadStart {
         return [...this.#packages.values()].map((served) => served.handle);
     }
 
-    /** Stop every server's controllers at once, while it serves its requests until it drains. */
+    /** Stop the store's loop at once, while the servers serve their requests until they drain. */
     async stopControllers(): Promise<void> {
-        await Promise.all(
-            [...this.#packages.values()].map(({ server }) => server.stopControllers()),
-        );
+        this.#stopping.abort();
+        await this.#running;
     }
 
     /** Report whether the start serves a package. */
@@ -431,11 +454,9 @@ class WorkloadStart {
         this.#controller.abort();
     }
 
-    /** Run the servers' controllers due by a deadline. */
+    /** Run the store's keys due by a deadline. */
     async alarm(deadline: number): Promise<void> {
-        await Promise.all(
-            [...this.#packages.values()].map((served) => served.server.idle(deadline)),
-        );
+        await this.#store?.idle(deadline);
     }
 
     /** Dispatch a request to a served package. */
@@ -462,7 +483,8 @@ class WorkloadStart {
 
     /** Close every server and resource, reporting all failures. */
     async #close(): Promise<void> {
-        // drain each server, and the replaced ones still draining
+        // stop the store's loop, then drain each server and the replaced ones still draining
+        await this.stopControllers();
         const servers = [...this.#packages.values()].map((served) => served.server);
         const results = await Promise.allSettled(servers.map((server) => server.close()));
         await Promise.all(this.#draining);

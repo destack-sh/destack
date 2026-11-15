@@ -1,20 +1,18 @@
 import type { Call } from "@destack/sync";
 import {
-    Change,
     type Condition,
-    type Cursor,
     type Controller,
     type DatabaseConnection,
-    Projection,
+    type Projection,
     eq,
     type KeyFields,
     type Reconciliation,
+    type Relation,
     type RowImage,
     type Row,
-    Scalar,
     Snapshot,
-    type Table,
     TABLE,
+    type Table,
     type Watch,
 } from "@destack/db";
 import { AccessContext } from "@destack/access";
@@ -51,8 +49,8 @@ const ObservedFields = schema
     })
     .strip();
 
-/** The scalar fields of a key, as watches select them. */
-const KEY_FIELDS = schema.record(schema.string(), Scalar);
+/** The scope fields whose change releases a scope's rows: its fence and its suspension. */
+const RELEASING_FIELDS = ["movedTo", "suspendedAt"] as const;
 
 /** The fields grouping objects a controller reconciles together, in JSON form. */
 export type { KeyFields };
@@ -76,18 +74,26 @@ export type ObjectController<Object extends ObjectType = ObjectType> = {
     readonly pending: Condition<RowImage<Object["table"]>>;
     /** The fields grouping objects reconciled together, the identifier by default. */
     readonly key?: readonly (keyof RowImage<Object["table"]> & string)[];
-    /** The tables whose changed rows select keys beside the type's own pending objects. */
+    /** The tables whose changed rows wake the keys they reference. */
     readonly watches?: readonly ObjectWatch[];
     /** The keys worked on at once, one by default. */
     readonly concurrency?: number;
 } & ObjectWork<Object>;
 
+/** Another table whose changed rows wake the keys its relations reach, by name or as a relation. */
+export type ObjectWatch = Omit<Watch, "path"> & {
+    /** The relations from a changed row to the rows holding the keys, none for the row itself. */
+    readonly path?: readonly (string | Relation)[];
+};
+
 /** Objects a type projects from input tables, projected again as the inputs' changes touch them. */
 export interface ObjectProjection<Object extends ObjectType = ObjectType> {
     /** The projection's name within its type, absent for the type's own projection. */
     readonly name?: string;
-    /** The input tables, the type's own among them, and the keys their changed rows touch. */
+    /** The inputs whose changed rows touch keys, beside the type's own rows. */
     readonly watches: readonly ObjectWatch[];
+    /** Every key: one input's column, the type's own key column by default. */
+    readonly all?: Projection["all"];
     /** The controlled objects each pass reports Synced on, the projected objects by default. */
     readonly reports?: ObjectReport<Object>;
     /** Project the object of one key again from its inputs as they are now, absent or not. */
@@ -101,32 +107,6 @@ export interface ObjectReport<Object extends ObjectType = ObjectType> {
     /** Read the identifiers of the objects reported on for a key's projected objects. */
     identifiers(rows: readonly RowImage<Object["table"]>[]): readonly string[];
 }
-
-/** Another table whose changed rows select a controller's keys. */
-export interface ObjectWatch<Watched extends Table = Table> {
-    /** The watched table. */
-    readonly table: Watched;
-    /** Whether observations of its rows select keys too, as an owner waits for what it owns. */
-    readonly isObserving?: boolean;
-    /** Read the keys a changed row selects, given the change with its row before and after. */
-    keys(
-        row: RowImage<Watched>,
-        database: DatabaseConnection,
-        change: Change<Watched>,
-    ): readonly KeyFields[] | Promise<readonly KeyFields[]>;
-}
-
-/** Watch other tables for a controller. */
-export const ObjectWatch = {
-    /** Watch a table's changed rows, typing them by the table, observations too if asked. */
-    of<Watched extends Table>(
-        table: Watched,
-        keys: ObjectWatch<Watched>["keys"],
-        options: { readonly isObserving?: boolean } = {},
-    ): ObjectWatch<Watched> {
-        return { table, keys, ...options };
-    },
-};
 
 /** One key's reconciliation: pending objects, and methods reconciling them as the store. */
 export interface ObjectReconciliation<
@@ -167,42 +147,17 @@ export interface ObjectFollowing<
 export const ObjectController = {
     /** Build a type's declared controller over its table, as the store's principal. */
     control(store: ObjectStore, object: ObjectType, declared: ObjectController): Controller {
-        // select a watched table's keys from each changed row's latest image
+        // list the type again once a scope's fence or suspension changes, which releases its rows
         const key = declared.key ?? ["id"];
-        const watches = (declared.watches ?? []).map((watch): Watch => ({
-            table: watch.table,
-            ...(watch.isObserving === undefined ? {} : { isObserving: watch.isObserving }),
-            keys: (change, database) => watch.keys(Change.image(change), database, change),
-        }));
-
-        // select the keys of a scope's subtree again once its fence or suspension lifts
-        const released: Watch = {
-            table: Scope.table,
-            keys: async (change, database) => {
-                // read the released scopes
-                const scopes = await ObjectController.released(change, database);
-                if (scopes.length === 0) {
-                    return [];
-                }
-
-                // select their keys
-                const columns = Object.fromEntries(
-                    key.map((field) => [field, object.table[TABLE].column(field)]),
-                );
-                const rows = await database
-                    .selectDistinct(columns)
-                    .from(object.table)
-                    .where(object.inScopes(scopes));
-
-                return rows.map((row) => KEY_FIELDS.parse(row));
-            },
-        };
         const shape = {
             name: declared.name === undefined ? object.name : `${object.name}:${declared.name}`,
             table: object.table,
             pending: declared.pending,
             key,
-            watches: [...watches, released],
+            watches: [
+                ...(declared.watches ?? []).map((watch) => ObjectController.watch(store, watch)),
+                ObjectController.released(),
+            ],
             ...(declared.concurrency === undefined ? {} : { concurrency: declared.concurrency }),
         };
 
@@ -248,55 +203,23 @@ export const ObjectController = {
               };
     },
 
-    /** Build a type's projection as a consumer of its inputs' changes past one checkpoint. */
-    project(store: ObjectStore, object: ObjectType, declared: ObjectProjection): Cursor {
-        // read the touched keys: the watches' of the changed table, else the type's own changed row's
+    /** Build a type's projection over its own rows and its inputs, keyed by its key field. */
+    project(store: ObjectStore, object: ObjectType, declared: ObjectProjection): Projection {
+        // key the type's own changed rows by its key field, beside the inputs' declared watches
         const field = object.keyed ?? "id";
         const keyColumn = object.table[TABLE].column(field);
-        const watches = Map.groupBy(declared.watches, (watch) => watch.table);
-        const keys = async (change: Change, database: DatabaseConnection) => {
-            // project the keys of a subtree whose fence or suspension lifted
-            if (change.table === Scope.table) {
-                const scopes = await ObjectController.released(change, database);
-                const rows =
-                    scopes.length === 0
-                        ? []
-                        : await database
-                              .selectDistinct({ key: keyColumn })
-                              .from(object.table)
-                              .where(object.inScopes(scopes));
-
-                return rows.map((row) => schema.string().parse(row.key));
-            }
-            const watching = watches.get(change.table);
-            const touched =
-                watching !== undefined
-                    ? (
-                          await Promise.all(
-                              watching.map(async (watch) =>
-                                  watch.keys(Change.image(change), database, change),
-                              ),
-                          )
-                      ).flat()
-                    : change.table === object.table
-                      ? [Change.image(change)]
-                      : [];
-
-            return [...new Set(touched.map((fields) => schema.string().parse(fields[field])))];
-        };
+        const own: Watch = { table: object.table };
         const name = declared.name === undefined ? object.name : `${object.name}:${declared.name}`;
 
-        return new Projection(store.database, {
+        return {
             name: `project:${name}`,
-            tables: [...new Set([object.table, Scope.table, ...watches.keys()])],
-            observed: declared.watches.flatMap((watch) =>
-                watch.isObserving === true ? [watch.table] : [],
-            ),
-            keys,
-            all: async (database) =>
-                (await database.select({ key: keyColumn }).from(object.table)).map((row) =>
-                    schema.string().parse(row.key),
-                ),
+            key: field,
+            watches: [
+                own,
+                ...declared.watches.map((watch) => ObjectController.watch(store, watch)),
+                ObjectController.released(),
+            ],
+            all: declared.all ?? { table: object.table, column: field },
             project: async (key, reconciliation) => {
                 // project an absent object or one of the store's scopes, left to its home where it is a replica
                 const rows = await store.database
@@ -314,25 +237,33 @@ export const ObjectController = {
                     await ObjectController.projectKey(store, object, declared, key, context);
                 }
             },
-        });
+        };
     },
 
-    /** List the subtree a scope's change releases once its fence or suspension lifts. */
-    async released(change: Change, database: DatabaseConnection): Promise<string[]> {
-        // release nothing on an insert or a delete
-        const before = Change.before(change);
-        const after = Change.after(change);
-        if (before === null || after === null) {
-            return [];
+    /** Watch the scopes whose fence or suspension changes, listing the job again. */
+    released(): Watch {
+        return { table: Scope.table, fields: [...RELEASING_FIELDS], isListing: true };
+    },
+
+    /** Resolve a watch's relation names along its path through the store's relations. */
+    watch(store: ObjectStore, declared: ObjectWatch): Watch {
+        // leave a watch without a path as it is
+        const { path, ...rest } = declared;
+        if (path === undefined) {
+            return rest;
         }
 
-        // release the subtree of a lifted fence or suspension
-        const isUnfenced = before["movedTo"] !== null && after["movedTo"] === null;
-        const isResumed = before["suspendedAt"] !== null && after["suspendedAt"] === null;
+        // follow each named relation from the table the path reached
+        let table: Table = declared.table;
+        const relations = path.map((step) => {
+            const relation =
+                typeof step === "string" ? store.relations.relations.get(table, step) : step;
+            table = relation.table;
 
-        return !isUnfenced && !isResumed
-            ? []
-            : await Scope.subtree(Snapshot.live(database), schema.string().parse(after["scope"]));
+            return relation;
+        });
+
+        return { ...rest, path: relations };
     },
 
     /** Select the rows of active scopes the store writes now, fenced ones only for a mover. */
