@@ -208,8 +208,8 @@ export interface BuildStoreOptions<StoreEnvironment, Storage extends BlobStorage
     ) => Promise<void>;
 }
 
-/** Tell whether some files are here, held or layered, and the layer holding any not held. */
-type FilesHere = (files: readonly PackageFile[]) => { readonly layer: Digest | null } | undefined;
+/** Locate some files: absent unless the store has each, else the layer holding any it lacks. */
+type FileLocator = (files: readonly PackageFile[]) => { readonly layer: Digest | null } | undefined;
 
 /** Immutable package builds in a partition's blobs, kept while any of its rows references them. */
 export class BuildStore<
@@ -596,7 +596,7 @@ export class BuildStore<
         root: Pick<BuildObject, "kind" | "digest">,
         runtimes: readonly Runtime[] | "all",
     ): Promise<void> {
-        // pull nothing for a held root whose every build the store holds whole
+        // pull nothing for a root the store has with every build whole
         if ((await this.#head(root.digest)) !== undefined) {
             const builds =
                 root.kind === "lock" ? Lock.builds(await this.lock(root.digest)) : [root.digest];
@@ -1612,12 +1612,12 @@ export class BuildStore<
             ...build.outputs.flatMap((output) => output.files),
         ]);
         const digests = [...new Set(listed.map((file) => file.digest))];
-        const held = new Set((await this.blobs.placements(digests)).map(({ digest }) => digest));
+        const packed = new Set((await this.blobs.placements(digests)).map(({ digest }) => digest));
         const isLayered = (file: PackageFile) => this.layer.size(file.digest) !== undefined;
-        const here: FilesHere = (files) =>
-            files.every((file) => held.has(file.digest) || isLayered(file))
+        const locate: FileLocator = (files) =>
+            files.every((file) => packed.has(file.digest) || isLayered(file))
                 ? {
-                      layer: files.every((file) => held.has(file.digest))
+                      layer: files.every((file) => packed.has(file.digest))
                           ? null
                           : this.#layerDigest(),
                   }
@@ -1658,7 +1658,7 @@ export class BuildStore<
                     transaction,
                     digest,
                     build,
-                    here,
+                    locate,
                     found(readers, digest),
                 );
             }
@@ -1679,12 +1679,12 @@ export class BuildStore<
         transaction: DatabaseConnection,
         digest: Digest,
         build: RecordedBuild,
-        here: FilesHere,
+        locate: FileLocator,
         reader: BuildReader,
     ): Promise<void> {
         // record it whole with its files, and the layer holding the ones the store lacks
         const { size } = build;
-        const whole = here(build.files);
+        const whole = locate(build.files);
         if (whole !== undefined) {
             const referenced = build.files.map((file) => file.digest);
             await BuildStore.#recordManifest(transaction, digest, size, referenced, whole.layer);
@@ -1699,7 +1699,7 @@ export class BuildStore<
                 .onConflictDoNothing();
             for (const output of build.outputs) {
                 // record an output whose files are here, with the layer holding the ones the store lacks
-                const located = here(output.files);
+                const located = locate(output.files);
                 if (located === undefined) {
                     continue;
                 }
