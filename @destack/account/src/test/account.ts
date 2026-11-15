@@ -3,7 +3,7 @@ import { Bookmark } from "@destack/object/client";
 import type { Environment, HostCapability } from "@destack/environment";
 import { type DatabaseConnection, type Dialect, eq, Snapshot } from "@destack/db";
 import { MemoryBlobStorage } from "@destack/resource";
-import { type ImageIndex, TestDatabase, TestTemplate } from "@destack/db/test";
+import { TestTemplate, TestDatabase, TestRun } from "@destack/db/test";
 import { Scope, Subject, RequestId } from "@destack/sync";
 import {
     AccessContext,
@@ -294,12 +294,8 @@ export interface TestAccountStoreOptions {
     readonly policies?: readonly Policy[];
     /** The sign-in options the test changes. */
     readonly signIn?: Partial<BetterAuthAuthenticatorOptions>;
-    /** The template images to copy from, the run's when absent. */
-    readonly images?: ImageIndex;
     /** The DNS domain claims verify through, none answering by default. */
     readonly resolver?: DnsResolver;
-    /** The database the images are of, the test project's when absent. */
-    readonly dialect?: Dialect;
 }
 
 /** How a test serves the account package over its template's stacks and homes, in its world. */
@@ -498,7 +494,7 @@ export class TestAccountStore implements AsyncDisposable {
                 world: world.value,
             }),
             world: { seed: WORLD_SEED, start: WORLD_START },
-            write: async ({ universe: storage }, directory, simulation) => {
+            build: async ({ databases: { universe: storage }, directory, simulation }) => {
                 // write and serve the fixture's rows, then the world over them
                 const served = {
                     ...options.serve,
@@ -555,12 +551,9 @@ export class TestAccountStore implements AsyncDisposable {
         template: TestTemplate<AccountTemplateValue<World>, AccountTemplateDatabases>,
         options: TestAccountStoreOptions = {},
     ): Promise<{ readonly accounts: TestAccountStore; readonly world: World }> {
-        // copy the template into a fork of its world
-        const { simulation, databases, value } = await TestDatabase.copy(template, {
-            label: "copy",
-            ...(options.images === undefined ? {} : { images: options.images }),
-            ...(options.dialect === undefined ? {} : { dialect: options.dialect }),
-        });
+        // fork the template's image
+        const image = await TestRun.image(template);
+        const { simulation, databases, value } = await image.fork("copy");
 
         // serve it with the keys, stacks and homes the template's write ended with
         const keys = AccountKeys.of(value.keys);
