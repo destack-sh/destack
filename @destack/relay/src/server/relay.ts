@@ -21,7 +21,7 @@ import {
     Placement,
     space,
 } from "@destack/account/object";
-import { Change, type DatabaseConnection, Projection, type Snapshot } from "@destack/db";
+import { type Projection, type Snapshot } from "@destack/db";
 import { type Clock, type Environment, Forwarded } from "@destack/environment";
 import { Failure } from "@destack/error";
 import { type Identifier, schema } from "@destack/schema";
@@ -191,35 +191,9 @@ export class Relay {
         return { machineId, lapsesAt, kid, name: standing.name, account: standing.account };
     }
 
-    /** List the live machines of an account. */
-    async machines(accountId: Identifier<"account">): Promise<readonly Identifier<"machine">[]> {
-        const rows = await this.#view
-            .read(machine.table)
-            .findMany({ where: { scope: accountId, deletedAt: { isNull: true } } });
-
-        return rows.map((row) => row.id);
-    }
-
     /** Report whether an endpoint leads to a tunnel at this relay. */
     isHere(published: Pick<Endpoint, "relay">): boolean {
-        return published.relay !== null && new URL(published.relay.url).host === this.#origin.host;
-    }
-
-    /** List the machines whose endpoints lead to tunnels here. */
-    async tunnelled(): Promise<readonly Identifier<"machine">[]> {
-        const relayed = { relay: { isNotNull: true } } as const;
-        const rows = await this.#view.read(endpoint.table).findMany({ where: relayed });
-
-        return rows.filter((row) => this.isHere(row)).map((row) => row.parentId);
-    }
-
-    /** Report whether a machine's endpoint leads to a tunnel here. */
-    async isTunnelled(machineId: Identifier<"machine">): Promise<boolean> {
-        const published = await this.#view
-            .read(endpoint.table)
-            .findFirst({ where: { parentId: machineId } });
-
-        return published !== undefined && this.isHere(published);
+        return published.relay === this.#origin.origin;
     }
 
     /** Read whether a machine stands with a standing key: its name, or why its tunnel ends. */
@@ -261,62 +235,42 @@ export class Relay {
     }
 
     /** Project the tunnels here from the replica, telling each machine its name or ending it. */
-    projection(database: DatabaseConnection): Projection {
-        return new Projection(database, {
+    projection(): Projection {
+        // key each tunnel by its machine, among the endpoints here
+        const here = { relay: this.#origin.origin };
+
+        return {
             name: "tunnel",
-            tables: [machine.table, endpoint.table, key.table, account.table],
-            keys: (change) => this.#touched(change),
-            all: () => this.tunnelled(),
+            key: "parentId",
+            all: { table: endpoint.table, column: "parentId", where: here },
+            watches: [
+                // take a machine whose endpoint came here or left
+                { table: endpoint.table, fields: ["relay"], where: here },
+                // take a renamed machine tunnelled here
+                { table: machine.table, fields: ["name"], on: { parentId: "id" } },
+                // take the machine of a key that was revoked, suspended, restored or removed
+                {
+                    table: key.table,
+                    fields: ["revokedAt", "suspendedAt"],
+                    where: { parentType: machine.name },
+                    on: { parentId: "parentId" },
+                },
+                // take the machines of an account whose handle changed
+                {
+                    table: account.table,
+                    fields: ["handle"],
+                    path: [
+                        {
+                            table: machine.table,
+                            cardinality: "many",
+                            on: { kind: "key", column: "scope", parent: "id" },
+                        },
+                    ],
+                    on: { parentId: "id" },
+                },
+            ],
             project: (machineId) => this.reconcile(schema.identifier("machine").parse(machineId)),
-        });
-    }
-
-    /** List the machines tunnelled here whose endpoint, name, keys or standing a change touched. */
-    async #touched(change: Change): Promise<readonly string[]> {
-        // select a machine whose endpoint came here or left, not one renewing its tunnel here
-        if (Change.of(change, endpoint.table)) {
-            const [before, after] = [Change.before(change), Change.after(change)];
-            const wasHere = before !== null && this.isHere(before);
-            const isHere = after !== null && this.isHere(after);
-
-            return wasHere !== isHere ? [Change.image(change).parentId] : [];
-        }
-        // select a renamed machine tunnelled here, its deletion selected by its endpoint's deletion
-        else if (Change.of(change, machine.table)) {
-            const isRenamed = Change.before(change)?.name !== Change.after(change)?.name;
-            const { id } = Change.image(change);
-
-            return isRenamed && (await this.isTunnelled(id)) ? [id] : [];
-        }
-        // select the machine tunnelled here of a key that was revoked, suspended, restored or removed
-        else if (Change.of(change, key.table)) {
-            const before = Change.before(change);
-            const after = Change.after(change);
-            const image = Change.image(change);
-            const isStandingChanged =
-                before?.revokedAt !== after?.revokedAt ||
-                before?.suspendedAt !== after?.suspendedAt;
-            const isMachine = image.parentType === machine.name && image.parentId !== null;
-            if (!isMachine || !isStandingChanged) {
-                return [];
-            }
-            const machineId = schema.identifier("machine").parse(image.parentId);
-
-            return (await this.isTunnelled(machineId)) ? [machineId] : [];
-        }
-        // select the machines of an account whose handle changed
-        else if (Change.of(change, account.table)) {
-            const isRenamed = Change.before(change)?.handle !== Change.after(change)?.handle;
-
-            const machines = isRenamed ? await this.machines(Change.image(change).id) : [];
-            const tunnelled = await Promise.all(machines.map((id) => this.isTunnelled(id)));
-
-            return machines.filter((_, index) => tunnelled[index] === true);
-        }
-        // select nothing for other tables
-        else {
-            return [];
-        }
+        };
     }
 
     /** Post a body to a machine's tunnel, failing with its refusal. */
@@ -524,7 +478,7 @@ export class Relay {
         // route through its tunnel here, else to the relay with its tunnel or its own URL
         return this.isHere(published)
             ? { kind: "tunnel", machineId }
-            : { kind: "endpoint", url: published.relay?.url ?? published.url };
+            : { kind: "endpoint", url: published.relay ?? published.url };
     }
 
     /** Read a live machine's name and its account, absent once deleted. */

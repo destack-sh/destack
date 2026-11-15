@@ -13,7 +13,7 @@ import {
 } from "@destack/account/object";
 import { Egress, type Follow, PackageMount, tablesOf } from "@destack/object";
 import objectPackage from "@destack/object/package";
-import { implementPackage, ObjectStore, type PackageHandler } from "@destack/object/server";
+import { implementPackage, ObjectStore } from "@destack/object/server";
 import {
     defineWorkload,
     ClientHead,
@@ -124,17 +124,10 @@ async function serveRoot(
         },
     });
 
-    // project the tunnels' names from the replica
-    const handler = store.package(relayPackage);
-    const served: PackageHandler = {
-        ...handler,
-        control: {
-            controllers: handler.control?.controllers ?? [],
-            cursors: [...(handler.control?.cursors ?? []), relay.projection(store.database)],
-        },
-    };
+    // serve the package, and project the tunnels' names from the replica in the store's loop
+    const control = [{ controllers: [], projections: [relay.projection()], cursors: [] }];
 
-    return { packages: [served] };
+    return { packages: [store.package(relayPackage)], store, control };
 }
 
 /** Serve a machine's partition: its tunnel over the hibernated sockets. */
@@ -195,7 +188,7 @@ async function servePartition(
     running.sweep().catch((error: unknown) => context.report(error));
 
     // serve the tunnel's sockets, which close as they lapse on the next wake or use
-    return { packages: [store.package(relayPackage)], sockets: running };
+    return { packages: [store.package(relayPackage)], store, sockets: running };
 }
 
 /** Open a store following some of the universe's rows into the instance's memory. */
