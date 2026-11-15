@@ -232,7 +232,6 @@ export async function openServed<Input, Output>(
                     ...implementations.flatMap((each) => each.objects),
                     ...objects,
                 ],
-                cursors: implementations.flatMap((each) => each.cursors),
                 mounts: Object.fromEntries(
                     implementations.flatMap((each) => Object.entries(each.mounts)),
                 ),
