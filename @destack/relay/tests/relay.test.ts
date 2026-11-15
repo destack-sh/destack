@@ -281,10 +281,11 @@ test("publish a machine's tunnel as the relay accepting it, at the machine's nam
     const published = await computer.endpoint();
     const [renewal] = renewals;
     const name = await computer.computer();
-    expect([renewals.length, published?.url, published?.relay]).toEqual([
+    expect([renewals.length, published?.url, published?.relay, published?.lapsesAt]).toEqual([
         1,
         `https://${name}`,
-        { url: new URL(relay.url).origin, lapsesAt: renewal?.lapsesAt },
+        new URL(relay.url).origin,
+        renewal?.lapsesAt,
     ]);
 });
 

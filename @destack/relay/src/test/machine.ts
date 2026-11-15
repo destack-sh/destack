@@ -297,9 +297,7 @@ export class TestTunnelMachine implements AsyncDisposable {
         await this.waitUntil(async () => {
             const published = await this.endpoint();
 
-            return (
-                (await relay.isCaughtUp()) && published?.relay?.url === new URL(relay.url).origin
-            );
+            return (await relay.isCaughtUp()) && published?.relay === new URL(relay.url).origin;
         });
 
         return client;
