@@ -3,13 +3,10 @@ import { schema } from "@destack/schema";
 import { ResourceContext } from "@destack/resource/context";
 import { MemoryBuild } from "@destack/package/test";
 import { type Uplink } from "@destack/sync";
-import { Authorizer } from "@destack/access";
-import { defineTable, text } from "@destack/db";
+import { ControlLoop, defineTable, text } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
 import { expect, onTestFinished, test } from "@destack/test";
 import type { Controller } from "@destack/db";
-import { Health } from "../server/health.ts";
-import { Server } from "../server/index.ts";
 import { defineWorkload, type ServerContext } from "./workload.ts";
 import { WorkloadInstance } from "./instance.ts";
 import { PackageVersion } from "@destack/package";
@@ -436,6 +433,53 @@ test("fold the reloads requested during a start into one start after it", async 
     await instance.close();
 });
 
+test("close the instance while a reload starts, never running the unfinished start's store", async () => {
+    // run in a world of its own, recording which starts run their store
+    const world = testSimulation().environment("test");
+    const runs: number[] = [];
+    let starts = 0;
+    const instance = await WorkloadInstance.start(
+        defineWorkload({
+            name: "fixture",
+            start: () => {
+                const start = ++starts;
+
+                return {
+                    packages: [],
+                    store: {
+                        run: async (signal) => {
+                            runs.push(start);
+                            await waitAborted(signal);
+                        },
+                        idle: async () => {},
+                    },
+                };
+            },
+        }),
+        {
+            environment: world,
+            callKey: testCallKey,
+            report: (error) => {
+                throw error;
+            },
+            resources: hosting.resources,
+            server: await serverIn(world),
+            serverOptions: (handle) => ({
+                ...hosting,
+                authenticate: authenticateByName(world.clock),
+                package: handle,
+                drainTimeout: 100,
+            }),
+        },
+    );
+
+    // reload and close at once
+    const reloading = instance.reload();
+    await instance.close();
+    await reloading.catch(() => undefined);
+    expect(runs).toEqual([1]);
+});
+
 test("run one start's controllers at a time, stopping the previous start's before the next start's run", async () => {
     // run in a world of its own
     const world = testSimulation().environment("test");
@@ -473,19 +517,16 @@ test("run one start's controllers at a time, stopping the previous start's befor
                     },
                 };
 
+                // run the controller in the start's store loop
+                const loop = new ControlLoop(
+                    storage.database,
+                    [{ controllers: [controller], projections: [], cursors: [] }],
+                    { report: (_job, _key, error) => events.push(String(error)) },
+                );
+
                 return {
-                    packages: [
-                        {
-                            package: first,
-                            router: {},
-                            control: { controllers: [controller], cursors: [] },
-                            access: {
-                                authorizer: new Authorizer([], []),
-                                database: storage.database,
-                                environment: world,
-                            },
-                        },
-                    ],
+                    packages: [{ package: first, router: {} }],
+                    store: { run: (signal) => loop.run(signal), idle: () => loop.idle() },
                 };
             },
         }),
@@ -514,49 +555,4 @@ test("run one start's controllers at a time, stopping the previous start's befor
 
     // stop the first start's controller before the second start's runs
     expect(events).toEqual(["run 1", "stop 1", "run 2", "stop 2"]);
-});
-
-test("close a server whose controllers were never activated, running none of them", async () => {
-    // run in a world of its own
-    const world = testSimulation().environment("test");
-
-    // start a server whose controllers wait for an activation that never comes
-    const storage = await TestDatabase.create(
-        tablesOf({ packages: [], follows: [], tables: [marker] }).tables,
-        { environment: world, isMigrated: true },
-    );
-    onTestFinished(() => storage.close());
-    await storage.database.transaction(
-        async (transaction) =>
-            await transaction.insert(marker).values({ id: "key", scope: "space" }),
-    );
-    const runs: string[] = [];
-    const controller: Controller<typeof marker> = {
-        name: "never",
-        table: marker,
-        pending: {},
-        reconcile: async (rows) => {
-            runs.push(...rows.map((row) => row.id));
-        },
-    };
-    const started = Server.start({
-        ...hosting,
-        authenticate: authenticateByName(world.clock),
-        package: first,
-        environment: world,
-        health: new Health(first.name),
-        drainTimeout: 100,
-        router: {},
-        control: { controllers: [controller], cursors: [] },
-        access: {
-            authorizer: new Authorizer([], []),
-            database: storage.database,
-            environment: world,
-        },
-        activation: (signal) => waitAborted(signal),
-    });
-
-    // close it at once, as a retired start's server closes
-    await started.close();
-    expect(runs).toEqual([]);
 });

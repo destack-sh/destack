@@ -254,7 +254,10 @@ async function serve(
     // reconcile one resource as its kind's control loop does, whether or not it is pending
     const reconcile = async (name: "box" | "link", id: string) => {
         const controller = present(
-            store.control().controllers.find((each) => each.name === name),
+            store
+                .control()
+                .flatMap((set) => set.controllers)
+                .find((each) => each.name === name),
             `the ${name} controller`,
         );
         if (!("reconcile" in controller)) {
@@ -687,7 +690,10 @@ test("leave an external kind's resources to their own type's controller, and ref
     const sockets = socket.implement({ controllers: [own] });
     const implemented = box.implement({ controllers: [own] });
     const { store } = await serve(world, new Boxes(), [box, link, sockets]);
-    const names = store.control().controllers.map((each) => each.name);
+    const names = store
+        .control()
+        .flatMap((set) => set.controllers)
+        .map((each) => each.name);
 
     // run the sockets' own controller alone, and refuse a box store
     expect(names.filter((name) => name === "socket")).toEqual(["socket"]);

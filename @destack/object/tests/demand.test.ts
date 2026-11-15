@@ -166,7 +166,7 @@ async function openStores(): Promise<{
         uplink: publisher,
     });
     const controller = new AbortController();
-    const loop = new ControlLoop(followerTest.database, follower.syncing(), {
+    const loop = new ControlLoop(followerTest.database, [follower.syncing()], {
         report: (_controller, _key, error) => {
             throw error;
         },

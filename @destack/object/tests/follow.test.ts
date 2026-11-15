@@ -708,7 +708,7 @@ test("report a follow its source refuses, and drop its replica once a change of 
     const failures: unknown[] = [];
     const loop = new ControlLoop(
         machine.database,
-        store.syncing(),
+        [store.syncing()],
         // run the loop at a frozen clock, so a drop that waits out a failure's backoff never comes
         {
             report: (_controller, _key, error) => failures.push(error),
@@ -826,7 +826,7 @@ test("finish a wait through a store's replica of a scope once it stops following
 
     // follow the replicas to the home's head
     const controller = new AbortController();
-    const loop = new ControlLoop(machine.database, store.syncing(), { report: failing });
+    const loop = new ControlLoop(machine.database, [store.syncing()], { report: failing });
     const running = loop.run(controller.signal);
     onTestFinished(async () => {
         controller.abort();
@@ -940,7 +940,7 @@ test("replicate a person's grant to an installation of the space from the univer
         origin: { package: document.package },
     });
     const controller = new AbortController();
-    const loop = new ControlLoop(machine.database, store.syncing(), { report: failing });
+    const loop = new ControlLoop(machine.database, [store.syncing()], { report: failing });
     const running = loop.run(controller.signal);
     onTestFinished(async () => {
         controller.abort();
@@ -1009,7 +1009,7 @@ test("serve a woken store only once the replicas it stored are live again", asyn
         return store;
     };
     const follow = (store: ObjectStore, signal: AbortSignal) => {
-        const loop = new ControlLoop(installed.database, store.syncing(), { report: failing });
+        const loop = new ControlLoop(installed.database, [store.syncing()], { report: failing });
 
         return loop.run(signal);
     };
@@ -1046,7 +1046,7 @@ test("serve a woken store only once the replicas it stored are live again", asyn
         ...testIdentity,
         objects: [document],
     });
-    const implemented = woken.implement(handle, [], { controllers: [], cursors: [] });
+    const implemented = woken.implement(handle, []);
     const ready = present(implemented.ready, "the readiness wait");
     const waking = new AbortController();
     onTestFinished(() => waking.abort());
@@ -1122,9 +1122,11 @@ test("follow replicates as a server without methods, journal or call key", async
     await Replica.wait(follower.database, Scope.universe.id, head, controller.signal);
 
     // run only compaction, the blob collection and the replica follow, with no event log
-    const { controllers, cursors } = store.control();
+    const sets = store.control();
+    const controllers = sets.flatMap((set) => set.controllers);
+    const cursors = sets.flatMap((set) => set.cursors);
     expect([controllers.map((each) => each.name), cursors.map((each) => each.name)]).toEqual([
-        ["blob-leases", "blob-retired", "blob-freed", "replica"],
+        ["replica", "blob-leases", "blob-retired", "blob-freed"],
         ["subscriptions"],
     ]);
 });
@@ -1731,9 +1733,9 @@ test("serve a store once its chain is confirmed while the source of a followed s
     // follow both, and serve once the chain is confirmed
     const stopping = new AbortController();
     onTestFinished(() => stopping.abort());
-    const following = new ControlLoop(installed.database, store.syncing(), { report: failing }).run(
-        stopping.signal,
-    );
+    const following = new ControlLoop(installed.database, [store.syncing()], {
+        report: failing,
+    }).run(stopping.signal);
     const ready = present(
         store.implement(
             definePackage({
@@ -1741,10 +1743,6 @@ test("serve a store once its chain is confirmed while the source of a followed s
                 objects: [document],
             }),
             [],
-            {
-                controllers: [],
-                cursors: [],
-            },
         ).ready,
         "the readiness wait",
     );
@@ -1859,7 +1857,7 @@ test("replicate a scoped table an installation's database declares beside its fo
         origin: { package: document.package },
     });
     const controller = new AbortController();
-    const loop = new ControlLoop(installed.database, replicating.syncing(), {
+    const loop = new ControlLoop(installed.database, [replicating.syncing()], {
         report: failing,
     }).run(controller.signal);
     onTestFinished(async () => {
@@ -2144,7 +2142,7 @@ test("replicate the chain of an account another replica brought first, once the 
 
     // run the replicas, whose universe replica then only records the account it shares with the other replica
     const controller = new AbortController();
-    const loop = new ControlLoop(installed.database, replicating.syncing(), { report: failing });
+    const loop = new ControlLoop(installed.database, [replicating.syncing()], { report: failing });
     const running = loop.run(controller.signal);
     onTestFinished(async () => {
         controller.abort();

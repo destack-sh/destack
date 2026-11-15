@@ -14,7 +14,7 @@ import { TOKEN_LIFETIME_MILLISECONDS } from "@destack/access/token";
 import { TestAccess } from "@destack/access/test";
 import { connectBunSqlite } from "@destack/db/bun";
 import { TestDatabase } from "@destack/db/test";
-import { Clock, type Environment, waitAborted } from "@destack/environment";
+import { Clock, type Environment } from "@destack/environment";
 import { Simulation, SimulatedScheduler } from "@destack/environment/simulation";
 import { PackageVersion, type PackageId } from "@destack/package";
 import { ResourceContext } from "@destack/resource/context";
@@ -127,6 +127,10 @@ export class TestObjectStore implements TestScope, AsyncDisposable {
     readonly #scopes: readonly string[] | undefined;
     /** Take what the servers report. */
     readonly #report: (error: unknown) => void;
+    /** Aborts the store's loop. */
+    readonly #stopping = new AbortController();
+    /** The store's running loop. */
+    readonly #running: Promise<void>;
 
     /** The world it runs in, its store's environment. */
     get environment(): Environment {
@@ -156,8 +160,12 @@ export class TestObjectStore implements TestScope, AsyncDisposable {
         this.#scopes = run.scopes;
         this.#report = run.report;
 
-        // close the servers first on disposal, and wait for the replaced ones to drain
+        // run the store's jobs
+        this.#running = store.run(this.#stopping.signal).catch(run.report);
+
+        // stop the loop and close the servers first on disposal, and wait for the replaced ones to drain
         this.#disposables.defer(async () => {
+            await this.stopControllers();
             await Promise.all([...this.#servers.values()].map((server) => server.close()));
             await Promise.all(this.#draining);
         });
@@ -178,10 +186,9 @@ export class TestObjectStore implements TestScope, AsyncDisposable {
             this.#servers.delete(packageId);
         }
 
-        // serve the added and changed packages once the replaced controllers stopped, as one key has one writer
-        const handover = Promise.all(replaced.map(([, server]) => server.stopControllers()));
+        // serve the added and changed packages
         for (const handler of handlers.filter((each) => !this.#servers.has(each.package.id))) {
-            this.#start(handler, handover);
+            this.#start(handler);
         }
 
         // drain the replaced servers beside the call, which may run the caller's own controller
@@ -192,18 +199,11 @@ export class TestObjectStore implements TestScope, AsyncDisposable {
         }
     }
 
-    /** Start the server of a package's handler, its controllers once a handover ends. */
-    #start(handler: PackageHandler, handover: Promise<unknown> = Promise.resolve()): void {
+    /** Start the server of a package's handler. */
+    #start(handler: PackageHandler): void {
         const server = Server.start({
             environment: this.store.environment,
             ...handler,
-            activation: async (signal) => {
-                // wait for the replaced controllers' stop, then the package's own activation
-                await Promise.race([handover, waitAborted(signal)]);
-                if (!signal.aborted) {
-                    await handler.activation?.(signal);
-                }
-            },
             // serve the store's scopes, or every scope as the universe's store does
             ...(this.#scopes === undefined ? {} : { scopes: this.#scopes }),
             resources: new ResourceContext(),
@@ -519,9 +519,10 @@ export class TestObjectStore implements TestScope, AsyncDisposable {
         await Promise.race([ready, SimulatedScheduler.of(this.environment).failed]);
     }
 
-    /** Stop every server's controllers at once, while it serves its requests until it drains. */
+    /** Stop the store's loop at once, while the servers serve their requests until they drain. */
     async stopControllers(): Promise<void> {
-        await Promise.all([...this.#servers.values()].map((server) => server.stopControllers()));
+        this.#stopping.abort();
+        await this.#running;
     }
 
     /** Run a cleanup once the store closes, before its servers and databases close. */

@@ -38,8 +38,10 @@ export async function followReplicas(
     const controller = new AbortController();
     const loop = new ControlLoop(
         store.database,
-        { controllers: [follow], cursors: [] },
-        { report: options.report },
+        [{ controllers: [follow], projections: [], cursors: [] }],
+        {
+            report: options.report,
+        },
     );
 
     return { keys, controller, running: loop.run(controller.signal) };
@@ -47,14 +49,13 @@ export async function followReplicas(
 
 /** Run a store's controllers and cursors until they settle, failing on a report. */
 export async function settleControl(store: ObjectStore): Promise<void> {
-    // run the loop until it idles, collecting its reports
+    // run the store's loop until it idles, from its position, collecting its reports
     const stopping = new AbortController();
     const reported: unknown[] = [];
-    const loop = new ControlLoop(store.database, store.control(), {
-        report: (_controller, _key, error) => reported.push(error),
+    const running = store.run(stopping.signal, {
+        report: (_job, _key, error) => reported.push(error),
     });
-    const running = loop.run(stopping.signal);
-    await loop.idle();
+    await store.idle();
     stopping.abort();
     await running;
 

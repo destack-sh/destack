@@ -234,7 +234,7 @@ async function followChain(
 ): Promise<void> {
     // run the store's replicas until the test ends: its consumer lists them, its controller follows each
     const controller = new AbortController();
-    const loop = new ControlLoop(database, replica.syncing(), { report: () => {} });
+    const loop = new ControlLoop(database, [replica.syncing()], { report: () => {} });
     const running = loop.run(controller.signal);
     onTestFinished(async () => {
         controller.abort();

@@ -92,9 +92,7 @@ export class ObjectDriver implements Driver<ObjectStep, ObjectObservation> {
             const bound = this.#bound.get(step.bind) ?? [];
             this.#bound.set(step.bind, [...bound, CallOutput.parse(output).id]);
         }
-        for (const served of this.#packages) {
-            await this.#store.server(served).idle();
-        }
+        await this.#store.store.idle();
     }
 
     /** Count the objects of a type the store holds. */

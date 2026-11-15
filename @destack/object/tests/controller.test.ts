@@ -7,11 +7,11 @@ import { testEvents, serversOf } from "../src/test/index.ts";
 import { AccessContext, Caller, none, principal, relation } from "@destack/access";
 
 import { Scope, RequestId } from "@destack/sync";
-import { asc, ControlLoop, eq, defineDatabase, now } from "@destack/db";
+import { asc, ControlLoop, defineDatabase, now } from "@destack/db";
 import { Failure } from "@destack/error";
 import { schema, present, type Identifier } from "@destack/schema";
 
-import { defineObject, field, ObjectWatch } from "../src/index.ts";
+import { defineObject, field } from "../src/index.ts";
 import { openSpace, space, spacePrincipal } from "../src/test/space.ts";
 import { userContext, users } from "./fixture/user.ts";
 import { auditedCalls, settleControl } from "../src/test/index.ts";
@@ -298,18 +298,22 @@ test("reconcile a type's due objects together by the key its controller declares
     ]);
 });
 
-test("reconcile a pending object again as a watched table's change selects it", async () => {
+test("reconcile a pending object again as a gate naming its topic changes", async () => {
     // run in a world of its own
     const world = testSimulation().environment("test");
 
-    // keep every reminder pending, and select the first one again once any reminder changes
+    // keep every reminder pending, and wake the reminder a changed gate names
     const reconciled: string[] = [];
-    let firstId = "";
     const watched = reminder.implement({
         controllers: [
             {
                 pending: { sentAt: { isNull: true } },
-                watches: [ObjectWatch.of(reminder.table, () => [{ id: firstId }])],
+                watches: [
+                    {
+                        table: gate.table,
+                        on: { topic: "outcome" },
+                    },
+                ],
                 reconcile: async ({ rows }) => {
                     reconciled.push(...rows.map((row) => row.topic));
                 },
@@ -327,7 +331,7 @@ test("reconcile a pending object again as a watched table's change selects it", 
         chain: async () => undefined,
         environment: world,
         principal: spacePrincipal(spaceId),
-        servers: serversOf([watched]),
+        servers: serversOf([watched, gate]),
         database,
         callKey: testCallKey,
         events: await testEvents(database, world),
@@ -340,26 +344,24 @@ test("reconcile a pending object again as a watched table's change selects it", 
         stopping.abort();
         await running;
     });
+    const mutate = (calls: Parameters<typeof store.mutate>[1]["calls"]) =>
+        store.mutate(userContext(users.frank, spaceId, { environment: world }).access(), {
+            id: RequestId.create(world),
+            calls,
+        });
 
-    // reconcile the first at its creation, then again beside the second as the second is created
-    const create = async (topic: string) =>
-        store
-            .mutate(userContext(users.frank, spaceId, { environment: world }).access(), {
-                id: RequestId.create(world),
-                calls: [reminder.call("create", { spaceId, topic, dueAt: 1 })],
-            })
-            .then(([written]) => written);
-    firstId = (await create("first")).id;
+    // reconcile both reminders at their creation
+    await mutate([
+        reminder.call("create", { spaceId, topic: "tea", dueAt: 1 }),
+        reminder.call("create", { spaceId, topic: "cake", dueAt: 1 }),
+    ]);
     await loop.idle();
     const created = new Set(reconciled.splice(0));
-    await create("second");
-    await loop.idle();
 
-    // reconcile each object at least once per phase, a race of the start and the commit running one twice
-    expect([[...created], [...new Set(reconciled)].toSorted()]).toEqual([
-        ["first"],
-        ["first", "second"],
-    ]);
+    // reconcile tea again for the gate naming it
+    await mutate([gate.call("create", { spaceId, outcome: "tea" })]);
+    await loop.idle();
+    expect([[...created].toSorted(), [...new Set(reconciled)]]).toEqual([["cake", "tea"], ["tea"]]);
 });
 
 test("run a controller's calls as the space, audited with the controller's name, and refuse principals lacking the method's permission", async () => {
@@ -784,14 +786,16 @@ test("project a type's objects at the first start, then each one its own or a wa
         projections: [
             {
                 watches: [
-                    ObjectWatch.of(gate.table, async (row, database) =>
-                        (
-                            await database
-                                .select({ id: reminder.table.id })
-                                .from(reminder.table)
-                                .where(eq(reminder.table.topic, row.outcome))
-                        ).map((each) => ({ id: each.id })),
-                    ),
+                    {
+                        table: gate.table,
+                        path: [
+                            {
+                                table: reminder.table,
+                                cardinality: "many",
+                                on: { kind: "key", column: "topic", parent: "outcome" },
+                            },
+                        ],
+                    },
                 ],
                 project: async (_id, { rows }) => {
                     projected.push(...rows.map((row) => row.topic));
