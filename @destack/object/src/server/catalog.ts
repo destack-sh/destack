@@ -53,6 +53,15 @@ export interface CatalogExclusion {
     readonly error: Error;
 }
 
+/** The stores a catalog's types need beside its database, and the principal owning local ones. */
+type CatalogStores = Pick<
+    CatalogOptions,
+    "database" | "claims" | "ephemeral" | "events" | "principal"
+> & {
+    /** The files of the external types. */
+    readonly external: readonly ExternalStorage[];
+};
+
 /** What a catalog compiles from: a store's servers and sandboxes over its database. */
 export interface CatalogOptions {
     /** The package servers. */
@@ -244,15 +253,21 @@ export class Catalog {
             }),
         ];
 
-        // route every package's types, refusing a package served twice
-        const routes = Catalog.#routes(served);
-        const servedIds = new Set<string>();
-        for (const each of served) {
-            if (servedIds.has(each.package.id)) {
-                throw new TypeError(`package '${each.package.name}' is served twice`);
-            }
-            servedIds.add(each.package.id);
+        // refuse each installation whose package or types this store cannot serve, failing loudly on its own
+        const external = served.flatMap((each) =>
+            each.definition.external === undefined ? [] : [each.definition.external],
+        );
+        const left = Catalog.#refuse(Catalog.#refusals(served, { ...given, external }), {
+            given,
+            previous,
+            refused,
+        });
+        if (left !== undefined) {
+            return left;
         }
+
+        // route every package's types
+        const routes = Catalog.#routes(served);
 
         // answer queries of replicated types nothing here serves, and list the follows and files
         const replicas = known
@@ -264,9 +279,6 @@ export class Catalog {
             );
         const declared = [...routes.values()].map((route) => route.type);
         const follows = served.flatMap((each) => Catalog.#follows(each.definition));
-        const external = served.flatMap((each) =>
-            each.definition.external === undefined ? [] : [each.definition.external],
-        );
 
         // serve each type at its package's installation, else the store's, else as the scope's own
         const installed = new Map(
@@ -298,13 +310,12 @@ export class Catalog {
         const shapes = [...new Set(follows.flatMap((each) => each.shape.objects))];
         const policies = Catalog.#policies(declared, referencing, shapes);
 
-        // require each object type once apart from the shared procedures, and the stores its storage needs
+        // require each type valid, then store the ephemeral and events types
         const objects = ObjectType.served(declared);
         for (const type of declared) {
             type.requireValid();
         }
-        Catalog.#requireRoutes(declared);
-        Catalog.#requireStores(objects, { ...given, external });
+        Catalog.#serveStores(objects, given);
 
         // authorize the objects and the replicas the policies do not already decide
         const policed = new Set(policies.map((each) => Catalog.#policyKey(each)));
@@ -316,39 +327,20 @@ export class Catalog {
             ...(given.partition === undefined ? {} : { partition: given.partition }),
         });
 
-        // refuse a store's own tracked type reading through a type without history
-        const refusals = TrackedHistory.refusals(objects, authorizer).map(({ object, error }) => ({
-            entry: found(routes, ObjectTypeReference.key(object.typeReference)).entry,
-            error,
-        }));
-        const own = refusals.find(({ entry }) => entry.server === undefined);
-        if (own !== undefined) {
-            throw own.error;
-        }
-
-        // leave out each installation whose tracked types do, and compile the rest
-        const left = refusals.flatMap(({ entry, error }) =>
-            entry.server === undefined
-                ? []
-                : [
-                      {
-                          source: entry.source,
-                          refusal: { installation: entry.server.installation, error },
-                      },
-                  ],
+        // refuse each installation whose tracked types read through a type without history
+        const tracked = Catalog.#refuse(
+            new Map(
+                TrackedHistory.refusals(objects, authorizer)
+                    .toReversed()
+                    .map(({ object, error }) => [
+                        found(routes, ObjectTypeReference.key(object.typeReference)).entry,
+                        error,
+                    ]),
+            ),
+            { given, previous, refused },
         );
-        if (left.length > 0) {
-            const sources = new Set(left.map(({ source }) => source));
-
-            return Catalog.#compile(
-                {
-                    ...given,
-                    servers: servers.filter((each) => !sources.has(each)),
-                    sandboxes: sandboxes.filter((each) => !sources.has(each)),
-                },
-                previous,
-                [...refused, ...left.map(({ refusal }) => refusal)],
-            );
+        if (tracked !== undefined) {
+            return tracked;
         }
 
         // follow the durable tables and the decision tables, the replicated ones no installation here serves
@@ -488,80 +480,142 @@ export class Catalog {
         );
     }
 
-    /** Require each object type once, apart from the shared procedures. */
-    static #requireRoutes(objects: readonly ObjectType[]): void {
-        const routed = new Set<string>();
-        for (const object of objects) {
-            // refuse a type served twice, and one under the shared replica procedures' name
-            const key = ObjectTypeReference.key(object.typeReference);
-            if (routed.has(key)) {
-                throw new TypeError(
-                    `object ${object.name} of '${object.package.id}' is served twice`,
-                );
-            } else if (Object.hasOwn(object.shared, object.key)) {
-                throw new TypeError(
-                    `object ${object.name} has the same name as the shared '${object.key}' procedures`,
-                );
+    /** List the served entries a store cannot serve, with why: served twice, or lacking a store. */
+    static #refusals(served: readonly Served[], options: CatalogStores): Map<Served, TypeError> {
+        // check the store's own packages first, so an installation never takes their types
+        const packages = new Set<string>();
+        const types = new Map<string, Served>();
+        const refusals = new Map<Served, TypeError>();
+        const ordered = [
+            ...served.filter((entry) => entry.server === undefined),
+            ...served.filter((entry) => entry.server !== undefined),
+        ];
+        for (const entry of ordered) {
+            // refuse the entry's first type the store cannot serve, else its package served twice
+            const refused = entry.objects
+                .map((type) => Catalog.#typeRefusal(type, entry, types, options))
+                .find((each) => each !== undefined);
+            const error =
+                refused ??
+                (packages.has(entry.package.id)
+                    ? new TypeError(`package '${entry.package.name}' is served twice`)
+                    : undefined);
+
+            // record a refusal, else serve the entry's package and types
+            if (error !== undefined) {
+                refusals.set(entry, error);
+            } else {
+                packages.add(entry.package.id);
+                for (const type of entry.objects) {
+                    types.set(ObjectTypeReference.key(type.typeReference), entry);
+                }
             }
-            routed.add(key);
         }
+
+        return refusals;
     }
 
-    /** Refuse others' local types, require claims and files, store ephemeral types. */
-    static #requireStores(
-        objects: readonly ObjectType[],
-        options: Pick<
-            CatalogOptions,
-            "database" | "claims" | "ephemeral" | "events" | "principal"
-        > & { readonly external: readonly ExternalStorage[] },
-    ): void {
-        // refuse local objects outside the scope of the store's principal
-        const local = objects.find(
-            (object) =>
-                object.storage === "local" &&
-                !object.scopes.some((scope) => scope.policy.is(options.principal)),
-        );
-        if (local !== undefined) {
-            throw new TypeError(`local object '${local.name}' only exists in its scope's store`);
-        }
+    /** Explain why a store cannot serve a type, absent when it can. */
+    static #typeRefusal(
+        type: ObjectType,
+        entry: Served,
+        routed: ReadonlyMap<string, Served>,
+        options: CatalogStores,
+    ): TypeError | undefined {
+        // refuse a type served twice, and one under the shared replica procedures' name
+        const earlier = routed.get(ObjectTypeReference.key(type.typeReference));
+        if (earlier !== undefined) {
+            const earlierDescription = Catalog.#servedBy(earlier);
+            const laterDescription = Catalog.#servedBy(entry);
 
-        // require claims for indexed objects
-        const indexed = objects.find((object) => Object.keys(object.indexes).length > 0);
-        if (indexed !== undefined && options.claims === undefined) {
-            throw new TypeError(
-                `object '${indexed.name}' declares indexes but has no claim type for their names`,
+            return new TypeError(
+                `${earlierDescription} and ${laterDescription} both implement ${type.name} objects of '${type.package.id}'`,
+            );
+        } else if (Object.hasOwn(type.shared, type.key)) {
+            return new TypeError(
+                `object ${type.name} has the same name as the shared '${type.key}' procedures`,
             );
         }
-
-        // require a memory store for ephemeral objects, storing them in it
-        const ephemeral = objects.filter((object) => object.storage === "ephemeral");
-        const [unstored] = ephemeral;
-        if (unstored !== undefined && options.ephemeral === undefined) {
-            throw new TypeError(`ephemeral object '${unstored.name}' needs a store`);
+        // refuse a local type outside the scope of the store's principal
+        else if (
+            type.storage === "local" &&
+            !type.scopes.some((scope) => scope.policy.is(options.principal))
+        ) {
+            return new TypeError(`local object ${type.name} only exists in its scope's store`);
         }
-        options.ephemeral?.serve(ephemeral);
-
-        // require the event log over the store's database for events types, storing their kinds in it
-        const events = objects.filter((object) => object.storage === "events");
-        const [unlogged] = events;
-        const isLogged =
-            options.events !== undefined && options.events.database === options.database;
-        if (unlogged !== undefined && !isLogged) {
-            throw new TypeError(`events object '${unlogged.name}' needs the store's event log`);
+        // refuse indexes without the claims recording their names
+        else if (Object.keys(type.indexes).length > 0 && options.claims === undefined) {
+            return new TypeError(
+                `object ${type.name} declares indexes but has no claim type for their names`,
+            );
         }
-        options.events?.register(events.map((object) => object.eventKind()));
+        // refuse an ephemeral type without a memory store
+        else if (type.storage === "ephemeral" && options.ephemeral === undefined) {
+            return new TypeError(`ephemeral object ${type.name} needs a store`);
+        }
+        // refuse an events type without the event log over the store's database
+        else if (type.storage === "events" && options.events?.database !== options.database) {
+            return new TypeError(`events object ${type.name} needs the store's event log`);
+        }
+        // refuse an external type without files
+        else if (
+            type.storage === "external" &&
+            !options.external.some((storage) => storage.objects.some((each) => each.same(type)))
+        ) {
+            return new TypeError(`external object ${type.name} needs files`);
+        }
 
-        // require files for external objects
-        const unfiled = objects.find(
-            (object) =>
-                object.storage === "external" &&
-                !options.external.some((storage) =>
-                    storage.objects.some((stored) => stored.same(object)),
-                ),
+        return undefined;
+    }
+
+    /** Compile again without the refused installations, failing on the store's own package. */
+    static #refuse(
+        refusals: ReadonlyMap<Served, Error>,
+        compiling: {
+            readonly given: CatalogOptions;
+            readonly previous: Catalog | undefined;
+            readonly refused: readonly CatalogExclusion[];
+        },
+    ): Catalog | undefined {
+        // fail on the store's own package, which no installation stands for
+        const entries = [...refusals];
+        const own = entries.find(([entry]) => entry.server === undefined);
+        if (own !== undefined) {
+            throw own[1];
+        }
+
+        // compile again without the refused installations, recording why each is left out
+        if (entries.length === 0) {
+            return undefined;
+        }
+        const { given, previous, refused } = compiling;
+        const sources = new Set(entries.map(([entry]) => entry.source));
+        const left = entries.flatMap(([entry, error]) =>
+            entry.server === undefined ? [] : [{ installation: entry.server.installation, error }],
         );
-        if (unfiled !== undefined) {
-            throw new TypeError(`external object '${unfiled.name}' needs files`);
-        }
+
+        return Catalog.#compile(
+            {
+                ...given,
+                servers: given.servers.filter((each) => !sources.has(each)),
+                sandboxes: (given.sandboxes ?? []).filter((each) => !sources.has(each)),
+            },
+            previous,
+            [...refused, ...left],
+        );
+    }
+
+    /** Store the ephemeral and events types in their stores. */
+    static #serveStores(
+        objects: readonly ObjectType[],
+        options: Pick<CatalogOptions, "ephemeral" | "events">,
+    ): void {
+        options.ephemeral?.serve(objects.filter((object) => object.storage === "ephemeral"));
+        options.events?.register(
+            objects
+                .filter((object) => object.storage === "events")
+                .map((object) => object.eventKind()),
+        );
     }
 
     /** List a package's follows, its standing ones among them. */
@@ -614,24 +668,15 @@ export class Catalog {
     static #routes(
         served: readonly Served[],
     ): ReadonlyMap<string, { readonly type: ObjectType; readonly entry: Served }> {
-        // implement each package's declared types, once
-        const routes = new Map<string, { readonly type: ObjectType; readonly entry: Served }>();
-        for (const entry of served) {
-            for (const type of entry.objects) {
-                const key = ObjectTypeReference.key(type.typeReference);
-                const earlier = routes.get(key);
-                if (earlier !== undefined) {
-                    const earlierDescription = Catalog.#servedBy(earlier.entry);
-                    const laterDescription = Catalog.#servedBy(entry);
-                    throw new TypeError(
-                        `${earlierDescription} and ${laterDescription} both implement ${type.name} objects of '${type.package.id}'`,
-                    );
-                }
-                routes.set(key, { type, entry });
-            }
-        }
-
-        return routes;
+        // implement each package's declared types, which the refusals left served once
+        return new Map(
+            served.flatMap((entry) =>
+                entry.objects.map(
+                    (type) =>
+                        [ObjectTypeReference.key(type.typeReference), { type, entry }] as const,
+                ),
+            ),
+        );
     }
 
     /** Describe who serves a package: its installation, else its scope as its own. */

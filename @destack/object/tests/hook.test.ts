@@ -808,11 +808,15 @@ test("refuse serving the cards of two installations of one package from one stor
             sandboxes: [sandbox(first), sandbox(second)],
         });
 
-    expect(serve).toThrow(
-        new TypeError(
-            `installation '${first}' and installation '${second}' both implement card objects of '${card.package.id}'`,
-        ),
-    );
+    // refuse the second installation alone, serving the first
+    expect(serve().refused).toEqual([
+        {
+            installation: second,
+            error: new TypeError(
+                `installation '${first}' and installation '${second}' both implement card objects of '${card.package.id}'`,
+            ),
+        },
+    ]);
 });
 
 test("serve the cards of the platform and of an installed package from one store, each under its package", async () => {

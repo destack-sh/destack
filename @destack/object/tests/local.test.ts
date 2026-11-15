@@ -218,7 +218,7 @@ test("refuse to serve local objects at another principal's store, and refuse loc
             ),
         ),
     ]).toEqual([
-        "local object 'draft' only exists in its scope's store",
+        "local object draft only exists in its scope's store",
         "local object 'shared' must belong to one scope type",
         "local object 'spread' must belong to one scope type",
         "local object 'sticky' cannot have 'propagated'",
