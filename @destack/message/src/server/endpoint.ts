@@ -1,14 +1,8 @@
 import type { Deriver } from "@destack/identity";
 import { ObjectReference, RequestId, Subject } from "@destack/sync";
 import { Caller } from "@destack/access";
-import { and, type DatabaseConnection, desc, eq, inArray, isNull, ne } from "@destack/db";
-import {
-    CallEvent,
-    call,
-    type MethodContext,
-    type ObjectReconciliation,
-    ObjectWatch,
-} from "@destack/object";
+import { and, type DatabaseConnection, desc, eq, inArray, ne } from "@destack/db";
+import { CallEvent, call, type MethodContext, type ObjectReconciliation } from "@destack/object";
 import { secret } from "@destack/vault/object";
 import { type DigestCrypto, nth, Identifier, present } from "@destack/schema";
 import {
@@ -75,32 +69,18 @@ export function implementEndpoint(keys: Pick<Deriver, "derivePrivateKey">) {
             {
                 pending: { status: "enabled", deletedAt: { isNull: true } },
                 watches: [
-                    ObjectWatch.of(message.table, (row) => {
-                        // wake the endpoint a sent message of it names
-                        const source = ObjectReference.at("source", row);
-
-                        return endpoint.is(source) && row.status !== "pending"
-                            ? [{ id: source.id }]
-                            : [];
-                    }),
-                    ObjectWatch.of(call.table, async (row, database) => {
-                        // wake the live enabled endpoints of the scope with a succeeded call
-                        if (call.eventKind().event(row).keys.outcome !== "success") {
-                            return [];
-                        }
-                        const enabled = await database
-                            .select({ id: endpoint.table.id })
-                            .from(endpoint.table)
-                            .where(
-                                and(
-                                    eq(endpoint.table.scope, row.scope),
-                                    eq(endpoint.table.status, "enabled"),
-                                    isNull(endpoint.table.deletedAt),
-                                ),
-                            );
-
-                        return enabled.map((entry) => ({ id: entry.id }));
-                    }),
+                    // wake the endpoint of a sent message
+                    {
+                        table: message.table,
+                        where: {
+                            sourcePackageId: endpoint.package.id,
+                            sourceType: endpoint.name,
+                            status: { ne: "pending" },
+                        },
+                        on: { id: "sourceId" },
+                    },
+                    // wake the endpoints of the scope with a succeeded call
+                    { table: call.table, where: { outcome: "success" }, on: { scope: "scope" } },
                 ],
                 reconcile: async (reconciliation) => {
                     // deliver the endpoint's calls page by page until a page comes back short

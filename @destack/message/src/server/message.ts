@@ -111,15 +111,12 @@ export function implementMessage(options: MessageOptions) {
             }),
         },
         controllers: [
-            // send pending messages, then each refused one again once its next try is due
+            // send pending messages, and each refused one again once its next try is due
             {
-                pending: { status: "pending", retryAt: { isNull: true } },
-                concurrency: CONCURRENCY,
-                reconcile: (reconciliation) => reconcile(reconciliation, sending),
-            },
-            {
-                name: "retry",
-                pending: { status: "pending", retryAt: { lte: now } },
+                pending: {
+                    status: "pending",
+                    OR: [{ retryAt: { isNull: true } }, { retryAt: { lte: now } }],
+                },
                 concurrency: CONCURRENCY,
                 reconcile: (reconciliation) => reconcile(reconciliation, sending),
             },
