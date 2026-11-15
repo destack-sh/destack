@@ -66,7 +66,6 @@ import type { CallKey } from "../audit/key.ts";
 import {
     nth,
     canonicalize,
-    Digest,
     Duration,
     Identifier,
     type JsonObject,
@@ -135,9 +134,6 @@ import type { MountFetch, PackageImplementation } from "./implementation.ts";
 import type { Clock, Environment } from "@destack/environment";
 
 import type {} from "@destack/package/import-meta";
-
-/** The prefix of the store loop's log position, which a digest of its projections completes. */
-const POSITION_PREFIX = "control:";
 
 /** The recent pages sharing grant readers: 64 readers of a few KiB, well under a megabyte. */
 const SHARED_READERS = 64;
@@ -2350,8 +2346,8 @@ export class ObjectStore {
             readonly alarm?: Alarm;
             /** Report a failed reconciliation, the store's report by default. */
             readonly report?: ConstructorParameters<typeof ControlLoop>[2]["report"];
-            /** The process's own job sets, run beside the store's. */
-            readonly sets?: readonly ControllerSet[];
+            /** Read the process's own job sets, run beside the store's, again at each restart. */
+            readonly sets?: () => readonly ControllerSet[];
         } = {},
     ): Promise<void> {
         while (!signal.aborted) {
@@ -2359,20 +2355,11 @@ export class ObjectStore {
             const reloading = new AbortController();
             this.#reloading = reloading;
 
-            // name the loop's position by the projections, so a changed set lists its keys again
+            // read the store's job sets and the process's
             const sets = [
                 ...this.control(),
-                ...(options.sets ?? []).map((set) => this.#synced(set)),
+                ...(options.sets?.() ?? []).map((set) => this.#synced(set)),
             ];
-            const projections = sets.flatMap((set) => set.projections.map((each) => each.name));
-            const digest = await Digest.json(projections.toSorted(), this.environment.crypto);
-            const position = `${POSITION_PREFIX}${digest}`;
-
-            // drop the positions of other sets, which would hold the log
-            const positions = await this.database.log.checkpoints(POSITION_PREFIX);
-            for (const replaced of positions.filter((name) => name !== position)) {
-                await this.database.log.drop(replaced);
-            }
 
             // run the loop until stopped or reloaded
             const loop = new ControlLoop(this.database, sets, {
@@ -2383,7 +2370,6 @@ export class ObjectStore {
                             new Error(`'${job.name}' did not reconcile '${key}'`, { cause: error }),
                         );
                     }),
-                position,
                 ...(options.alarm === undefined ? {} : { alarm: options.alarm }),
             });
             this.#loop.resolve({ loop, reloading: reloading.signal });

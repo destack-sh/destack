@@ -776,7 +776,7 @@ test("record a projection's lasting failure and its sync on the controlled objec
     });
 });
 
-test("project a type's objects at the first start, then each one its own or a watched input's change touches, and none at an unchanged restart", async () => {
+test("project a type's objects at a start, then each one its own or a watched input's change touches, and every one again at a restart", async () => {
     // run in a world of its own
     const world = testSimulation().environment("test");
 
@@ -825,24 +825,29 @@ test("project a type's objects at the first start, then each one its own or a wa
     const mutate = (calls: Parameters<typeof store.mutate>[1]["calls"]) =>
         store.mutate(access, { id: RequestId.create(world), calls });
 
-    // project the existing reminder at the first start, due a day later so the type's controller leaves it
+    // project the existing reminder at the start, due a day later so the type's controller leaves it
     await mutate([reminder.call("create", { spaceId, topic: "tea", dueAt: later })]);
-    await settleControl(store);
+    const stopping = new AbortController();
+    const running = store.run(stopping.signal);
+    await store.idle();
     const first = projected.splice(0);
 
-    // project a created reminder, then the reminder a gate's topic names, across restarts
+    // project a created reminder, then the reminder a gate's topic names, while running
     await mutate([reminder.call("create", { spaceId, topic: "cake", dueAt: later })]);
-    await settleControl(store);
+    await store.idle();
     const created = projected.splice(0);
     await mutate([gate.call("create", { spaceId, outcome: "tea" })]);
-    await settleControl(store);
+    await store.idle();
     const watched = projected.splice(0);
+    stopping.abort();
+    await running;
+
+    // project every reminder again at a restart, as the process may have changed
     await settleControl(store);
-    // project tea once for the gate naming it, its controller's sync being status alone
-    expect({ first, created, watched, unchanged: projected }).toEqual({
+    expect({ first, created, watched, restarted: projected.toSorted() }).toEqual({
         first: ["tea"],
         created: ["cake"],
         watched: ["tea"],
-        unchanged: [],
+        restarted: ["cake", "tea"],
     });
 });

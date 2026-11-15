@@ -153,8 +153,8 @@ export interface WorkloadImplementation {
     readonly packages: readonly PackageHandler[];
     /** The store whose jobs the start runs, absent for a workload without one. */
     readonly store?: Pick<ObjectStore, "run" | "idle">;
-    /** The process's own jobs, run in the store's loop beside its types' jobs. */
-    readonly control?: readonly ControllerSet[];
+    /** Read the process's own jobs, run in the store's loop again at each restart. */
+    readonly control?: () => readonly ControllerSet[];
     /** What the workload does with its hibernated sockets' messages and closes. */
     readonly sockets?: SocketHandler;
     /** What the workload does with its space store's requests to run its objects' hooks. */

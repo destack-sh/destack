@@ -297,7 +297,7 @@ class WorkloadStart {
                 start.#serve(served);
             }
             start.#store = implementation.store;
-            start.#running = start.#run(implementation.store, implementation.control ?? []);
+            start.#running = start.#run(implementation.store, implementation.control ?? (() => []));
             start.#sockets = implementation.sockets;
             start.#hooks = implementation.hooks;
 
@@ -321,7 +321,7 @@ class WorkloadStart {
     /** Run a store's jobs once the start is current, until stopped. */
     async #run(
         store: WorkloadImplementation["store"],
-        sets: readonly ControllerSet[],
+        sets: () => readonly ControllerSet[],
     ): Promise<void> {
         // wait for the start's turn
         const { options, clock, activation } = this.#serving;
