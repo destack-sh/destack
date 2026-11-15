@@ -19,7 +19,7 @@ import {
     type LogPosition,
     Transaction,
 } from "@destack/db";
-import { ObjectType, type ObjectReconciliation, ObjectWatch, refuseInput } from "@destack/object";
+import { ObjectType, type ObjectReconciliation, refuseInput } from "@destack/object";
 import type { MountFetch, ObjectStore } from "@destack/object/server";
 import type { Cursor } from "@destack/db";
 import { RequestId, type Call, Scope } from "@destack/sync";
@@ -116,32 +116,21 @@ export class TriggerServer<Input> {
                             name: declared.name,
                         },
                         key: ["name" as const],
-                        watches: [
-                            ObjectWatch.of(TriggerServer.#table(declared), () => [
-                                { name: declared.name },
-                            ]),
-                        ],
+                        watches: [{ table: TriggerServer.#table(declared), isListing: true }],
                         reconcile: async (reconciliation: ObjectReconciliation<typeof trigger>) => {
                             await this.#follow(reconciliation.store, declared);
                         },
                     })),
                 {
-                    // fire a declared schedule once, recording its next occurrence
-                    name: "start",
+                    // fire a schedule once declared and each time its next occurrence comes due
                     pending: {
                         state: "active",
                         kind: "schedule",
-                        nextScheduledAt: { isNull: true },
+                        OR: [
+                            { nextScheduledAt: { isNull: true } },
+                            { nextScheduledAt: { lte: now } },
+                        ],
                     },
-                    reconcile: async (reconciliation) => {
-                        await Promise.all(
-                            reconciliation.rows.map((row) => this.#fireDue(row, reconciliation)),
-                        );
-                    },
-                },
-                {
-                    // fire each active schedule's due occurrences once its next one comes due
-                    pending: { state: "active", kind: "schedule", nextScheduledAt: { lte: now } },
                     reconcile: async (reconciliation) => {
                         await Promise.all(
                             reconciliation.rows.map((row) => this.#fireDue(row, reconciliation)),

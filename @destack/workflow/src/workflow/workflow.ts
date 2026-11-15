@@ -1,6 +1,6 @@
 import { none, relation, through } from "@destack/access";
 import { space } from "@destack/account/object";
-import { and, eq, now, TABLE } from "@destack/db";
+import { Condition, now } from "@destack/db";
 import {
     defineObject,
     field,
@@ -8,7 +8,6 @@ import {
     method,
     type ObjectReconciliation,
     ObjectType,
-    ObjectWatch,
 } from "@destack/object";
 import { DeclarationName, ModuleMetadata } from "@destack/package";
 import type { Declaration } from "@destack/package/declare";
@@ -275,24 +274,16 @@ export function defineWorkflow<
                         {
                             // advance a pending run, and a waiting one once a type it waits for changes
                             pending: { state: { in: ["pending", "waiting"] } },
-                            watches: waits.map((type) =>
-                                ObjectWatch.of(type.table, async (_changed, database) =>
-                                    (
-                                        await database
-                                            .select({ id: run.table[TABLE].column("id") })
-                                            .from(run.table)
-                                            .where(
-                                                and(
-                                                    eq(run.table[TABLE].column("state"), "waiting"),
-                                                    eq(
-                                                        run.table[TABLE].column("waitType"),
-                                                        ObjectTypeReference.key(type.typeReference),
-                                                    ),
-                                                ),
-                                            )
-                                    ).map((row) => ({ id: schema.string().parse(row.id) })),
-                                ),
-                            ),
+                            watches: waits.map((type) => ({
+                                table: type.table,
+                                matches: {
+                                    column: "waitCondition",
+                                    where: {
+                                        state: "waiting",
+                                        waitType: ObjectTypeReference.key(type.typeReference),
+                                    },
+                                },
+                            })),
                             reconcile: async (reconciliation) => advance(reconciliation),
                         },
                         {
@@ -368,7 +359,7 @@ function declareRun(
                             to: "waiting",
                             permission: "advance",
                             visibility: "package",
-                            fields: ["waitType", "wakeAt"],
+                            fields: ["waitType", "waitCondition", "wakeAt"],
                         },
                         complete: {
                             from: ["pending", "waiting"],
@@ -421,6 +412,8 @@ function declareRun(
                 startedAt: field.time().optional(),
                 /** The object type a waiting run waits for, by its reference key. */
                 waitType: field.string().optional(),
+                /** The condition one of that type's rows meets once the run should advance. */
+                waitCondition: field.json(Condition.schema).optional(),
                 /** The output of a completed run, null for a workflow returning nothing. */
                 output: field.json(schema.json()).optional(),
                 /** The failure the run last answered, its final one once failed. */

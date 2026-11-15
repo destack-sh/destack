@@ -16,7 +16,7 @@ import {
 } from "@destack/object";
 import { CallError, ObjectError } from "@destack/object";
 import { RetryPolicy } from "@destack/environment";
-import { Duration, present, schema } from "@destack/schema";
+import { canonicalize, Duration, present, schema } from "@destack/schema";
 import { type Call, ObjectReference, ObjectTypeReference, Subject } from "@destack/sync";
 import { Failure } from "@destack/error";
 import type { ObjectStore } from "@destack/object/server";
@@ -424,15 +424,22 @@ export class Run<Input = unknown, Output = unknown, Waits extends ObjectType = O
             // wait at a waiting step until its time, or for its type's writes, unless the run waits so already
             if (error instanceof Suspension) {
                 const wakeAt = this.#due(error.at ?? null);
-                const waitType = error.waitType ?? null;
+                const waitType = error.wait?.type ?? null;
+                const waitCondition = error.wait?.condition ?? null;
                 if (
                     this.row.state === "waiting" &&
                     this.row.wakeAt === wakeAt &&
-                    this.row.waitType === waitType
+                    this.row.waitType === waitType &&
+                    canonicalize(this.row.waitCondition) === canonicalize(waitCondition)
                 ) {
                     return false;
                 }
-                const waited = this.workflow.run.call("wait", { ...target, waitType, wakeAt });
+                const waited = this.workflow.run.call("wait", {
+                    ...target,
+                    waitType,
+                    waitCondition,
+                    wakeAt,
+                });
                 const isWaiting = await this.#transition(reconciliation, waited);
 
                 return !isWaiting;

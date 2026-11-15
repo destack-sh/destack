@@ -1,5 +1,14 @@
 import { type AccessContext, AccessError } from "@destack/access";
-import { and, eq, type Select, TABLE, Transaction } from "@destack/db";
+import {
+    and,
+    Condition,
+    eq,
+    type JsonCondition,
+    Namespace,
+    type Select,
+    TABLE,
+    Transaction,
+} from "@destack/db";
 import { CallSite, MethodContext, type ObjectCall, ObjectType } from "@destack/object";
 import type { ObjectStore } from "@destack/object/server";
 import {
@@ -66,18 +75,26 @@ export interface RunContext {
     readonly scope: string;
 }
 
+/** The objects a waiting run waits for: a type's rows meeting a condition. */
+export interface Wait {
+    /** The object type, by its reference key. */
+    readonly type: string;
+    /** The condition one of its rows meets once the run should advance. */
+    readonly condition: JsonCondition;
+}
+
 /** The interruption of a run's function at a step that waits, with when it wakes. */
 export class Suspension extends Error {
-    /** When the run wakes, absent while it waits for an object alone. */
+    /** When the run wakes, absent while it waits for objects alone. */
     readonly at: number | undefined;
-    /** The object type the run waits for, by its reference key, absent otherwise. */
-    readonly waitType: string | undefined;
+    /** The objects the run waits for, absent while it waits for a time alone. */
+    readonly wait: Wait | undefined;
 
     /** Interrupt at a waiting step. */
-    constructor(at: number | undefined, waitType: string | undefined) {
+    constructor(at: number | undefined, wait: Wait | undefined) {
         super("the run waits");
         this.at = at;
-        this.waitType = waitType;
+        this.wait = wait;
     }
 }
 
@@ -264,9 +281,9 @@ export class Step<Waits extends ObjectType = ObjectType> {
         if (opening === undefined) {
             return error;
         }
-        await Transaction.run(this.#store.database, async (transaction) => {
+        const opened = await Transaction.run(this.#store.database, async (transaction) => {
             // open the change request as the run's actor
-            const [opened] = await this.#store.mutate(
+            const [request] = await this.#store.mutate(
                 this.#caller,
                 {
                     id: RequestId.create(this.#store.environment),
@@ -277,7 +294,7 @@ export class Step<Waits extends ObjectType = ObjectType> {
 
             // record the step waiting on it
             const existing = await this.#started(name);
-            const values = { changeRequestId: opened.id };
+            const values = { changeRequestId: request.id };
             await this.#record(
                 existing === undefined
                     ? this.#run.workflow.step.call("create", {
@@ -296,10 +313,12 @@ export class Step<Waits extends ObjectType = ObjectType> {
                       }),
                 transaction,
             );
+
+            return request;
         });
 
         // suspend the run until the change request decides
-        throw new Suspension(undefined, this.#waitType(changeRequest.typeReference));
+        throw new Suspension(undefined, this.#waitOn(changeRequest, { id: opened.id }));
     }
 
     /** Answer a call awaiting approval once its change request is decided. */
@@ -341,7 +360,7 @@ export class Step<Waits extends ObjectType = ObjectType> {
         }
 
         // wait for the decision
-        throw new Suspension(undefined, this.#waitType(changeRequest.typeReference));
+        throw new Suspension(undefined, this.#waitOn(changeRequest, { id: changeRequestId }));
     }
 
     /** Read an object query method once as the run's actor. */
@@ -411,7 +430,7 @@ export class Step<Waits extends ObjectType = ObjectType> {
         options: { readonly timeout?: Duration } = {},
     ): Promise<Item | undefined> {
         // require a type the workflow declares it waits for
-        const waitType = this.#waitType(listing.type);
+        const wait = this.#waitOn(this.#waited(listing.type), Step.#where(listing));
 
         // answer a recorded wait again: its listing's first object, or none past its timeout
         const recordedStep = this.#take(name);
@@ -446,7 +465,7 @@ export class Step<Waits extends ObjectType = ObjectType> {
             return undefined;
         }
         await this.#wait(name, at, recordedStep);
-        throw new Suspension(at, waitType);
+        throw new Suspension(at, wait);
     }
 
     /** Ask approvers to decide on an object, answering the decision, requested past a timeout. */
@@ -457,7 +476,7 @@ export class Step<Waits extends ObjectType = ObjectType> {
         ..._undeclared: typeof approval extends Waits ? [] : [never]
     ): Promise<ApprovalState> {
         // answer a recorded decision again
-        const waitType = this.#waitType(approval.typeReference);
+        const wait = this.#waitOn(approval, { parentId: subject.id });
         const recordedStep = this.#take(name);
         const completed = Step.#completed(recordedStep);
         if (completed !== undefined) {
@@ -503,7 +522,7 @@ export class Step<Waits extends ObjectType = ObjectType> {
 
             return decided;
         }
-        throw new Suspension(at, waitType);
+        throw new Suspension(at, wait);
     }
 
     /** Start a run of a workflow the store serves once, answering its output once it ends. */
@@ -524,7 +543,7 @@ export class Step<Waits extends ObjectType = ObjectType> {
         options: InvokeOptions,
     ): Promise<Output> {
         // answer a recorded run's output again
-        const waitType = this.#waitType(workflow.run.typeReference);
+        const waited = this.#waited(workflow.run.typeReference);
         const output = workflow.output;
         const recordedStep = this.#take(name);
         const completed = Step.#completed(recordedStep);
@@ -534,8 +553,10 @@ export class Step<Waits extends ObjectType = ObjectType> {
 
         // start the run as this run's actor under a key the step derives, recording it with the waiting step
         if (recordedStep === undefined) {
+            // start it once by its key, recording the child with the waiting step
             const key = `${this.#run.row.id}/${name}`;
-            await Transaction.run(this.#store.database, async (transaction) => {
+            const childId = await Transaction.run(this.#store.database, async (transaction) => {
+                // start the child as the run's type
                 const [started] = await this.#store.mutate(
                     this.#store.as(workflow.run),
                     {
@@ -553,8 +574,10 @@ export class Step<Waits extends ObjectType = ObjectType> {
                     onParentClose: options.onParentClose ?? "cancel",
                 };
                 await this.#wait(name, undefined, recordedStep, transaction, child);
+
+                return child.run.id;
             });
-            throw new Suspension(undefined, waitType);
+            throw new Suspension(undefined, this.#waitOn(waited, { id: childId }));
         }
 
         // answer the child run the step recorded once it ends
@@ -581,23 +604,39 @@ export class Step<Waits extends ObjectType = ObjectType> {
             await this.#complete(name, { failure });
             throw Failure.error(failure);
         }
-        throw new Suspension(undefined, waitType);
+        throw new Suspension(undefined, this.#waitOn(waited, { id: child.id }));
     }
 
-    /** Read a type's reference key, refusing a type the workflow does not declare it waits for. */
-    #waitType(type: sync.ObjectTypeReference): string {
-        const waitType = ObjectTypeReference.key(type);
-        if (
-            !this.#run.workflow.waits.some(
-                (waited) => ObjectTypeReference.key(waited.typeReference) === waitType,
-            )
-        ) {
+    /** Find a type the workflow declares it waits for, refusing one it does not. */
+    #waited(type: sync.ObjectTypeReference): ObjectType {
+        // find the declared type by its reference key
+        const key = ObjectTypeReference.key(type);
+        const waited = this.#run.workflow.waits.find(
+            (each) => ObjectTypeReference.key(each.typeReference) === key,
+        );
+        if (waited === undefined) {
             throw new TypeError(
-                `'${this.#run.workflow.name}' waits for '${waitType}', which it does not declare`,
+                `'${this.#run.workflow.name}' waits for '${key}', which it does not declare`,
             );
         }
 
-        return waitType;
+        return waited;
+    }
+
+    /** Wait for a declared type's rows meeting a condition on their fields. */
+    #waitOn(type: ObjectType, condition: JsonCondition): Wait {
+        // refuse a type the workflow does not declare, and a condition on fields its rows lack
+        const waited = this.#waited(type.typeReference);
+        Condition.resolve(condition, Namespace.fields(waited.table));
+
+        return { type: ObjectTypeReference.key(waited.typeReference), condition };
+    }
+
+    /** Read a listing's condition on its type's rows, every row without one. */
+    static #where(listing: sync.Call): JsonCondition {
+        const where = listing.input["where"];
+
+        return where === undefined ? {} : Condition.schema.parse(where);
     }
 
     /** Read each approver's approval of an object, absent for one never asked. */
