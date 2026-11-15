@@ -252,7 +252,6 @@ export async function openServed<Input, Output>(
                 scope: spaceId,
                 name: context.name,
                 packageId: note.package.id,
-                selection: { kind: "release", version: note.package.version },
                 createdAt: at,
                 updatedAt: at,
                 ...ObjectReference.columns("createdBy", scope),
