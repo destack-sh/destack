@@ -195,9 +195,9 @@ export async function checkout(
 ```ts
 import { TestFinance } from "@destack/finance/test";
 
-// open finance, derive the entitlements, and close it
+// open finance, wait until its machine derives the entitlements, and close it
 const finance = await TestFinance.open([]);
-await finance.entitle();
+await finance.idle();
 await finance.close();
 ```
 
