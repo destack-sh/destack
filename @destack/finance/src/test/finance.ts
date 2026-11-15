@@ -3,7 +3,7 @@ import objectPackage from "@destack/object/package";
 import { AccessContext, Caller, principal } from "@destack/access";
 import { account, organization, Residency } from "@destack/account/object";
 import { OPERATOR_EMAIL, type TestPerson } from "@destack/account/test";
-import { type Cursor, eq, Snapshot, TABLE } from "@destack/db";
+import { Snapshot } from "@destack/db";
 import { reconciliation } from "@destack/db/test";
 import type { Crypto, Clock, Environment } from "@destack/environment";
 import type { Simulation } from "@destack/environment/simulation";
@@ -23,7 +23,6 @@ import { EventView, PACKAGE_KIND, PACKAGE_EXPORT } from "@destack/object";
 import { describePackage } from "@destack/object/inspect";
 import { implementPackage, type ObjectStore } from "@destack/object/server";
 import type { ServerContext } from "@destack/object/workload";
-import { type TestObjectStore } from "@destack/object/test";
 import { describeMeter } from "@destack/telemetry/inspect";
 import { Meter, METER_KIND } from "@destack/telemetry/meter";
 import { PackageVersion } from "@destack/package";
@@ -215,8 +214,8 @@ type FinanceWorld = schema.Infer<typeof FinanceWorld>;
 export class TestFinance {
     /** The residency's home serving finance. */
     readonly space: TestSpace;
-    /** The home as its machine serves it, its cursors stepped by the test. */
-    readonly served: TestObjectStore;
+    /** The home's object store, as its machine serves it now. */
+    #store: ObjectStore;
     /** The payment provider billing through, absent for a fixture selling nothing. */
     readonly provider: PaymentProvider | undefined;
     /** The telemetry recording the exceptions finance captures, refused at close unless taken. */
@@ -225,33 +224,30 @@ export class TestFinance {
     readonly platform: Identifier<"account">;
     /** The published builds the metering reads, by package and version. */
     readonly #published: Map<string, BuildReader>;
-    /** Finance's cursors, which the test runs where the control loop would. */
-    readonly #cursors: readonly Cursor[];
     /** The derivation of customers' entitlements, which the test runs as the loop would. */
-    readonly #entitlement: CustomerEntitlement;
+    /** What finance's server implements in the home, which the test builds its readers from. */
+    readonly #implementation: FinanceDefinition;
 
-    /** Keep a served home with finance and the world the template wrote. */
+    /** Keep the home serving finance and the world the template wrote. */
     private constructor(fields: {
         readonly space: TestSpace;
-        readonly served: TestObjectStore;
+        readonly store: ObjectStore;
+        readonly implementation: FinanceDefinition;
         readonly provider: PaymentProvider | undefined;
         readonly telemetry: TestTelemetry;
         readonly world: FinanceWorld;
         readonly published: Map<string, BuildReader>;
-        readonly cursors: readonly Cursor[];
-        readonly entitlement: CustomerEntitlement;
     }) {
-        // keep the home, how it is served, and the metering and provider finance runs with
+        // keep the home, its metering and its payment provider
         this.space = fields.space;
-        this.served = fields.served;
+        this.#store = fields.store;
         this.provider = fields.provider;
         this.telemetry = fields.telemetry;
 
         // keep the world's accounts and machines, and the published builds
         this.platform = fields.world.platform;
         this.#published = fields.published;
-        this.#cursors = fields.cursors;
-        this.#entitlement = fields.entitlement;
+        this.#implementation = fields.implementation;
     }
 
     /** Serve a copy of the template's home with package releases, billing through a provider. */
@@ -280,32 +276,25 @@ export class TestFinance {
             ),
         });
 
-        // serve it at the test's start, its cursors stepped by the test, and publish the releases as the platform
-        const served = await home.serve({ isControlled: false });
+        // serve it at the test's start, and publish the releases as the platform
+        await home.serve();
+        const store = await home.store();
         const implementation = await implemented.promise;
-        const { cursors = [] } = implementation.definition;
-        const built = cursors.map((cursor) => cursor(served.store));
-        const entitlement = new CustomerEntitlement(
-            served.store,
-            implementation.home,
-            implementation.metering,
-        );
         if (options.start !== undefined) {
             await home.simulation.jump(options.start);
         }
         for (const build of published.values()) {
-            await publishBuild(served.database, home.id, world.platform, build, home.environment);
+            await publishBuild(home.database, home.id, world.platform, build, home.environment);
         }
 
         return new TestFinance({
             space: home,
-            served,
+            store,
+            implementation,
             provider: charging === undefined ? undefined : charging(home.id),
             telemetry: new TestTelemetry(home.simulation.telemetry),
             world,
             published,
-            cursors: built,
-            entitlement,
         });
     }
 
@@ -322,9 +311,8 @@ export class TestFinance {
     /** Install finance in the residency's home, and create Acme, the shop and their spaces. */
     static async #write(home: TestSpace): Promise<FinanceWorld> {
         // install finance bound to the Stripe connection, with the vault and connections it uses, in one apply
-        const installing = await home.serve();
-        await home.apply(installing, HOME_TYPES, RESIDENCY_STACK);
-        await installing[Symbol.asyncDispose]();
+        await home.serve();
+        await home.apply(HOME_TYPES, RESIDENCY_STACK);
 
         // sign the people in, alice creating Acme paying with its billing account, and carol her shop
         const { universe } = home;
@@ -389,9 +377,9 @@ export class TestFinance {
         }
 
         // follow them in the home, and read the platform's account there
-        await using served = await home.serve();
+        await home.serve();
         await home.simulation.idle();
-        const platform = await Snapshot.live(served.database)
+        const platform = await Snapshot.live(home.database)
             .read(account.table)
             .findFirst({ where: { handle: "destack" } });
 
@@ -403,29 +391,29 @@ export class TestFinance {
         return this.space.id;
     }
 
-    /** The served store of the home. */
+    /** The home's object store, as its machine serves it now. */
     get store(): ObjectStore {
-        return this.served.store;
+        return this.#store;
     }
 
     /** The home's database. */
     get database() {
-        return this.served.database;
+        return this.space.database;
     }
 
     /** The event log recording the calls and the payers' usage. */
     get events(): EventStore {
-        return this.served.store.events;
+        return this.#store.events;
     }
 
     /** The world the home's servers run in. */
     get environment(): Environment {
-        return this.served.environment;
+        return this.space.environment;
     }
 
     /** The clock finance runs at, its world's. */
     get clock(): Clock {
-        return this.served.environment.clock;
+        return this.space.environment.clock;
     }
 
     /** Declare dedicated cloud machines of an account, as the platform does under its plan. */
@@ -469,7 +457,7 @@ export class TestFinance {
     /** Append an account's uses, then rate them. */
     async use(payer: string, uses: readonly FinanceUse[]): Promise<void> {
         await this.append(payer, uses);
-        await this.rate(payer);
+        await this.idle();
     }
 
     /** Fold a paying account's usage of a meter as rating reads it, in a period or now. */
@@ -506,9 +494,9 @@ export class TestFinance {
         // act as the machine in its residency's servers
         const subject = principal.machine.reference(Scope.universe.id, this.space.machine.id);
         const universe = Snapshot.live(this.space.universe.storage.database);
-        const served = await Residency.require(universe, RESIDENCY);
+        const home = await Residency.require(universe, RESIDENCY);
 
-        return { ...Caller.of(subject), groups: [Residency.servers(served.id)] };
+        return { ...Caller.of(subject), groups: [Residency.servers(home.id)] };
     }
 
     /** Write a use as the usage append method takes it, identified by its name. */
@@ -527,65 +515,44 @@ export class TestFinance {
         };
     }
 
-    /** The cursor rating the usage, which the test takes where the control loop would. */
-    get #usage(): Cursor {
-        return present(
-            this.#cursors.find((each) => each.tables.includes(usage.table)),
-            "finance's usage cursor",
-        );
-    }
-
     /** Resolve each feature an account's sources grant now, with its metered usage. */
     resolutions(scope: string): Promise<Resolution[]> {
-        return this.#entitlement.resolve(scope);
-    }
+        const { home } = this.#implementation;
 
-    /** Rate the new usage and derive an account's entitlements, as the loop does. */
-    async rate(scope: string): Promise<void> {
-        // rate every payer's new usage, then derive the account's entitlements and run the world idle
-        await this.#usage.take(reconciliation());
-        await this.#entitlement.derive(scope);
-        await this.space.simulation.idle();
-    }
-
-    /** Flush the hot usage of an account into segments, as the event store's flush does. */
-    async flush(payer: string): Promise<void> {
-        // read the payer's hot usage, and flush it through the kind's flush controller
-        const kind = usage.eventKind();
-        const flush = present(
-            this.events.controllers().find((each) => each.name === `event-flush:${kind.key}`),
-            `the flush of ${kind.key}`,
+        return new CustomerEntitlement(this.#store, home, this.#implementation.metering).resolve(
+            scope,
         );
-        const rows = await this.database
-            .select()
-            .from(kind.table)
-            .where(eq(kind.table[TABLE].column("scope"), payer))
-            .limit(1);
-        if (!("reconcile" in flush)) {
-            throw new TypeError(`the flush of '${kind.key}' follows instead of reconciling`);
-        }
-        await flush.reconcile(rows, reconciliation());
     }
 
-    /** Rate every payer's new usage once, as a restarted loop takes its cursors at its start. */
-    async restart(): Promise<void> {
-        await this.#usage.take(reconciliation());
+    /** Wait until the machine's loop rates the new usage and derives the accounts' entitlements. */
+    async idle(): Promise<void> {
         await this.space.simulation.idle();
     }
 
-    /** Derive every account's entitlements, as the projection does at its start. */
-    async entitle(): Promise<void> {
-        const entitlements = this.#entitlement;
-        for (const key of await entitlements.list()) {
-            await entitlements.derive(key);
-        }
+    /** Rate the new usage in two concurrent takes, as two machines' loops can. */
+    async rateTwice(): Promise<void> {
+        // build the usage cursor over the store serving now, and take it twice at once
+        const usageCursor = present(
+            (this.#implementation.definition.cursors ?? [])
+                .map((cursor) => cursor(this.#store))
+                .find((each) => each.tables.includes(usage.table)),
+            "finance's usage cursor",
+        );
+        await Promise.all([0, 1].map(() => usageCursor.take(reconciliation())));
+        await this.space.simulation.idle();
+    }
+
+    /** Restart the home's machine, whose loop takes its cursors again at its start. */
+    async restart(): Promise<void> {
+        await this.space.restart({});
+        this.#store = await this.space.store();
         await this.space.simulation.idle();
     }
 
     /** Apply sellers and products through the home's stack, its controllers running. */
     async declare(definition: StackDocument<readonly [typeof financePackage]>): Promise<void> {
-        await using applying = await this.space.serve();
-        await this.space.apply(applying, [financePackage], definition);
+        await this.space.serve();
+        await this.space.apply([financePackage], definition);
     }
 
     /** Publish a package release declaring features, meters and SKUs, which becomes its latest. */
@@ -635,7 +602,7 @@ export class TestFinance {
 
     /** Stop serving, refusing exceptions no test took. */
     async close(): Promise<void> {
-        await this.served[Symbol.asyncDispose]();
+        await this.space[Symbol.asyncDispose]();
         await this.space[Symbol.asyncDispose]();
         this.telemetry[Symbol.dispose]();
     }

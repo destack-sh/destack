@@ -100,15 +100,17 @@ const RELEASES = [
 
 /** Finance in the residency's home with Acme's buyer and payer accounts and Carol's shop. */
 export class Finance {
-    /** The served finance objects. */
-    readonly store: ObjectStore;
-    /** The served fixture. */
+    /** The finance fixture in the residency's home. */
     readonly fixture: TestFinance;
 
-    /** Keep a served fixture. */
+    /** Keep a finance fixture. */
     private constructor(fixture: TestFinance) {
         this.fixture = fixture;
-        this.store = fixture.store;
+    }
+
+    /** The home's object store, as its machine serves it now. */
+    get store(): ObjectStore {
+        return this.fixture.store;
     }
 
     /** Open finance with the storage and hosting packages' releases. */
@@ -315,9 +317,9 @@ export class Finance {
             : this.store.query(caller, call);
     }
 
-    /** Derive every account's entitlements, as the controller does after each change. */
+    /** Wait until the machine derives every account's entitlements. */
     entitle(): Promise<void> {
-        return this.fixture.entitle();
+        return this.fixture.idle();
     }
 
     /** Resolve each feature an account's sources grant now, with its metered usage. */

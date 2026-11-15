@@ -492,34 +492,30 @@ test("rate each space's SKU usage at list cost, billing nothing without a subscr
             },
         ],
     );
-    const ended = await subscribe(finance, offer, paid, {
+    await subscribe(finance, offer, paid, {
         start: now - 30 * DAY,
         end: now - DAY,
     });
-    const late = await refusal(
-        append(finance, {
-            name: "3",
-            space: spaces.notes,
-            meter: disk.name,
-            value: GB,
-            level: GB,
-            sku: diskSku.reference,
-            time: now - 2 * DAY,
-        }),
-    );
-
-    // spend 2 euro and 1 euro of list cost billing nothing, and wait for the provider to start the next period
-    expect({ rated, late }).toEqual({
-        rated: [
-            ["Usage", spaces.notes, 100, "200", "0", "open"],
-            ["Usage", spaces.docs, 50, "100", "0", "open"],
-        ],
-        late: [
-            "SERVICE_UNAVAILABLE",
-            "PERIOD_UNAVAILABLE",
-            `subscription '${ended.id}' is unavailable: its period ended, so retry once the next one starts`,
-        ],
+    await append(finance, {
+        name: "3",
+        space: spaces.notes,
+        meter: disk.name,
+        value: GB,
+        level: GB,
+        sku: diskSku.reference,
+        time: now - 2 * DAY,
     });
+
+    // leave the late use unrated until the next period starts
+    await finance.fixture.idle();
+    const late = await charges(finance);
+
+    // spend 2 euro and 1 euro of list cost billing nothing, and charge nothing for the late use
+    const billed = [
+        ["Usage", spaces.notes, 100, "200", "0", "open"],
+        ["Usage", spaces.docs, 50, "100", "0", "open"],
+    ];
+    expect({ rated, late }).toEqual({ rated: billed, late: billed });
 });
 
 test("charge each machine's awake hours up to the SKU's 10 hour cap per period, two machines apart, and start the next period fresh", async () => {
@@ -565,7 +561,7 @@ test("charge each machine's awake hours up to the SKU's 10 hour cap per period, 
 });
 
 test("rate an account's usage after its hot rows flush, as a restarted loop takes its cursor", async () => {
-    // append 100 GB-months measured two hours ago, and flush them before any rating
+    // append 100 GB-months measured two hours ago, which the machine flushes at once as past the flush age
     const { finance } = await open();
     const now = finance.fixture.clock.now();
     await finance.fixture.append(ids.buyer, [
@@ -579,7 +575,7 @@ test("rate an account's usage after its hot rows flush, as a restarted loop take
             time: now - 2 * HOUR,
         },
     ]);
-    await finance.fixture.flush(ids.buyer);
+    await finance.fixture.idle();
 
     // rate the flushed usage once the restarted loop takes the cursor
     await finance.fixture.restart();
@@ -605,7 +601,7 @@ test("rate an account's usage once when two ratings of it overlap", async () => 
             time: now,
         })),
     );
-    await Promise.all([finance.fixture.rate(ids.buyer), finance.fixture.rate(ids.buyer)]);
+    await finance.fixture.rateTwice();
 
     // count each space's use once
     expect(await charges(finance)).toEqual([
