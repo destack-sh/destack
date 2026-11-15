@@ -25,19 +25,19 @@ declare module "vitest" {
     }
 }
 
-/** Write the templates and build each fixture release once per run, removed at its end. */
+/** Open the run and build each fixture release once per run, removed at its end. */
 export default async function setup(project: TestProject): Promise<() => Promise<void>> {
-    // write the templates the tests copy, in the project's database
+    // open the run of the project's database
     const dialect = TestDatabase.target(project);
-    const run = await TestRun.write(new URL("./templates.ts", import.meta.url), dialect);
+    const run = await TestRun.open(new URL(import.meta.url), dialect);
 
     // build the releases into a directory, through the store builds keep across runs
     const { files } = testHost();
     const builds = await files.makeTemporaryDirectory("destack-forge-builds-");
     await build(builds);
 
-    // provide the templates and the builds to the tests, releasing the templates and removing the builds at the run's end
-    project.provide("templates", run.images);
+    // provide the run and the builds to the tests, releasing the run and removing the builds at its end
+    project.provide("run", run.record);
     project.provide("builds", builds);
 
     return async () => {

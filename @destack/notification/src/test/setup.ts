@@ -1,4 +1,4 @@
 import { TestRun } from "@destack/db/test/run";
 
-/** Write notification's test templates once per run. */
-export default TestRun.setup(new URL("./templates.ts", import.meta.url));
+/** Open the run of notification's tests. */
+export default TestRun.setup(new URL(import.meta.url));
