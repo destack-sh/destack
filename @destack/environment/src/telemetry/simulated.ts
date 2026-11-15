@@ -213,7 +213,7 @@ export class SimulatedTelemetry implements Telemetry {
 
     /** Describe the spans as a tree of name paths with world and host time, then histograms. */
     async describe(): Promise<string> {
-        // sum the spans along their name paths from their roots
+        // sum the spans along their name paths from their roots, a linked span below its first recorded cause
         const byId = new Map(this.spans.map((span) => [span.spanContext().spanId, span]));
         const root: SpanTotals = {
             count: 0,
@@ -226,7 +226,11 @@ export class SimulatedTelemetry implements Telemetry {
             const names: string[] = [];
             for (let current: ReadableSpan | undefined = span; current !== undefined;) {
                 names.unshift(SpanPath.label(current.name, current.attributes));
-                const parent: string | undefined = current.parentSpanContext?.spanId;
+                const cause: string | undefined = current.links[0]?.context.spanId;
+                const parent: string | undefined =
+                    cause !== undefined && byId.has(cause)
+                        ? cause
+                        : current.parentSpanContext?.spanId;
                 current = parent === undefined ? undefined : byId.get(parent);
             }
             let path = root;

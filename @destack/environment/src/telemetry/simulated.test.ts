@@ -1,3 +1,4 @@
+import { ROOT_CONTEXT, trace } from "@opentelemetry/api";
 import { expect, test } from "@destack/test";
 import { SimulatedClock } from "../clock/simulated.ts";
 import { SimulatedRandom } from "../random/simulated.ts";
@@ -42,6 +43,36 @@ test("count each histogram's records and seconds, in all and by the namespace, o
         "rpc.server.call.duration.count.get": 1,
         "rpc.server.call.duration.seconds.get": 5,
     });
+});
+
+test("describe a linked span below its first recorded cause, and below its parent when the cause is not recorded", async () => {
+    // end a cause, a span linked to it below another parent, and a span linked to a cause never recorded
+    const telemetry = new SimulatedTelemetry({
+        clock: SimulatedClock.owned(0).clock,
+        random: new SimulatedRandom(1),
+    });
+    const tracer = telemetry.tracers.getTracer("test");
+    const cause = tracer.startSpan("commit");
+    cause.end();
+    const parent = tracer.startSpan("start");
+    const below = trace.setSpan(ROOT_CONTEXT, parent);
+    tracer.startSpan("pass", { links: [{ context: cause.spanContext() }] }, below).end();
+    const absent = { traceId: "1".repeat(32), spanId: "2".repeat(16), traceFlags: 1 };
+    tracer.startSpan("follow", { links: [{ context: absent }] }, below).end();
+    parent.end();
+
+    // read each span's path from the tree's indented names
+    const described = await telemetry.describe();
+    const paths: string[] = [];
+    const open: string[] = [];
+    for (const line of described.split("\n").slice(1, 5)) {
+        const name = line.slice(0, line.indexOf("  ×"));
+        const depth = (name.length - name.trimStart().length) / 2 - 1;
+        open.length = depth;
+        open.push(name.trim());
+        paths.push(open.join(" > "));
+    }
+    expect(paths.toSorted()).toEqual(["commit", "commit > pass", "start", "start > follow"]);
 });
 
 test("name each host on its signals", async () => {
