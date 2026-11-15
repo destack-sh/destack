@@ -1,11 +1,22 @@
 import { expect, onTestFinished, Recording, refusal, test } from "@destack/test";
-import { Change, defineTable, eq, inArray, integer, lock, type Table, text } from "../index.ts";
+import {
+    Condition,
+    defineRelations,
+    defineTable,
+    eq,
+    json,
+    inArray,
+    integer,
+    lock,
+    type Projection,
+    type Table,
+    text,
+} from "../index.ts";
 import { TestDatabase } from "../test/index.ts";
 import { testSimulation } from "@destack/test/world";
 import { testHost } from "@destack/test/host";
-import { canonicalize, nth, found, schema } from "@destack/schema";
+import { canonicalize, nth, found } from "@destack/schema";
 import { ControlLoop, type Controller, now, type Cursor } from "./control.ts";
-import { Projection } from "./projection.ts";
 import { waitAborted, yieldToEventLoop } from "@destack/environment";
 import { SimulatedTelemetry, Simulation } from "@destack/environment/simulation";
 import { Failure } from "@destack/error";
@@ -99,6 +110,32 @@ const ticket = defineTable("controller_ticket", {
     status: text("status").notNull(),
 });
 
+/** A job waiting for a note its stored condition matches. */
+const waiter = defineTable(
+    "controller_waiter",
+    {
+        /** The waiter's name. */
+        id: text("id").primaryKey(),
+        /** The space with the waiter. */
+        scope: text("scope").notNull(),
+        /** The condition a note it waits for matches. */
+        condition: json("condition", Condition.schema).notNull(),
+    },
+    { log: {} },
+);
+
+/** A challenge deleted once its expiry passes. */
+const challenge = defineTable(
+    "controller_challenge",
+    {
+        /** The challenge's name. */
+        id: text("id").primaryKey(),
+        /** When the challenge expires. */
+        expiresAt: integer("expires_at").notNull(),
+    },
+    { expiry: "expiresAt" },
+);
+
 /** How many notes a test commits one at a time. */
 const NOTE_COMMITS = 20;
 
@@ -118,7 +155,11 @@ async function waitEqual<Value>(simulation: Simulation, read: () => Value, expec
 }
 
 /** Fail on a reported reconciliation failure. */
-function failReconcile(_controller: Controller | Cursor, key: string, error: unknown): void {
+function failReconcile(
+    _controller: Controller | Projection | Cursor,
+    key: string,
+    error: unknown,
+): void {
     throw new Error(`reconciling '${key}' failed`, { cause: error });
 }
 
@@ -194,13 +235,9 @@ test("reconcile the pending rows listed at the start and those a change makes pe
         },
     };
     running(
-        new ControlLoop(
-            database,
-            { controllers: [controller], cursors: [] },
-            {
-                report: (_controller, key, error) => reported.push(`${key}: ${message(error)}`),
-            },
-        ),
+        new ControlLoop(database, [{ projections: [], controllers: [controller], cursors: [] }], {
+            report: (_controller, key, error) => reported.push(`${key}: ${message(error)}`),
+        }),
     );
 
     // reconcile the listed job, then the written ones entering pending
@@ -263,7 +300,7 @@ test("reconcile a waiting row once its time comes due, waking at the earliest on
     };
     const loop = new ControlLoop(
         database,
-        { controllers: [controller], cursors: [] },
+        [{ projections: [], controllers: [controller], cursors: [] }],
         {
             report: (_controller, _key, error) => {
                 throw error;
@@ -333,7 +370,7 @@ test("reconcile every pending row under one key when a controller groups by no f
     };
     const loop = new ControlLoop(
         database,
-        { controllers: [controller], cursors: [] },
+        [{ projections: [], controllers: [controller], cursors: [] }],
         { report: ignore },
     );
     running(loop);
@@ -376,7 +413,7 @@ test("compare a microsecond field to the loop's time a window earlier, waking as
     };
     const loop = new ControlLoop(
         database,
-        { controllers: [controller], cursors: [] },
+        [{ projections: [], controllers: [controller], cursors: [] }],
         { report: ignore },
     );
     running(loop);
@@ -391,28 +428,161 @@ test("compare a microsecond field to the loop's time a window earlier, waking as
     ]);
 });
 
+test("wake the jobs a relation reaches from a watched table's changed row", async () => {
+    // record an open job in each of two spaces, and relate a note to its space's jobs
+    await using simulation = testSimulation();
+    const { database } = await openJobs(simulation);
+    await database.transaction((transaction) =>
+        transaction
+            .insert(job)
+            .values([
+                { id: "first", scope: "space", status: "open", dueAt: 0 },
+                { id: "second", scope: "other", status: "open", dueAt: 0 },
+            ])
+            .execute(),
+    );
+    const related = defineRelations({ note, job }, (relate) => ({
+        note: { jobs: relate.many.job({ from: relate.note.scope, to: relate.job.scope }) },
+    }));
+
+    // reconcile each job alone, woken through a note's relation to its space's jobs
+    const reconciled: string[] = [];
+    const controller: Controller<typeof job> = {
+        name: "job",
+        table: job,
+        pending: { status: "open" },
+        watches: [{ table: note, path: [related.get(note, "jobs")] }],
+        reconcile: async (rows) => {
+            reconciled.push(nth(rows, 0).id);
+        },
+    };
+    const loop = new ControlLoop(
+        database,
+        [{ controllers: [controller], projections: [], cursors: [] }],
+        { report: ignore },
+    );
+    running(loop);
+    await loop.idle();
+    const listed = reconciled.splice(0).toSorted();
+
+    // reconcile the first again on a note in its space
+    await database.transaction((transaction) =>
+        transaction.insert(note).values({ id: "note", scope: "space" }).execute(),
+    );
+    await loop.idle();
+    expect({ listed, woken: reconciled }).toEqual({
+        listed: ["first", "second"],
+        woken: ["first"],
+    });
+});
+
+test("wake only the jobs whose stored condition a watched table's changed row matches", async () => {
+    // record two waiting jobs in one space, each waiting for a note of its own name
+    await using simulation = testSimulation();
+    const { database } = await openJobs(simulation, [waiter, note, lock]);
+    await database.transaction((transaction) =>
+        transaction
+            .insert(waiter)
+            .values([
+                { id: "first", scope: "space", condition: { id: "first" } },
+                { id: "second", scope: "space", condition: { id: "second" } },
+            ])
+            .execute(),
+    );
+
+    // reconcile a waiter once a note matching its condition changes
+    const reconciled: string[] = [];
+    const controller: Controller<typeof waiter> = {
+        name: "waiter",
+        table: waiter,
+        pending: { scope: "space" },
+        watches: [{ table: note, matches: { column: "condition", where: { scope: "space" } } }],
+        reconcile: async (rows) => {
+            reconciled.push(nth(rows, 0).id);
+        },
+    };
+    const loop = new ControlLoop(
+        database,
+        [{ controllers: [controller], projections: [], cursors: [] }],
+        { report: ignore },
+    );
+    running(loop);
+    await loop.idle();
+    reconciled.splice(0);
+
+    // reconcile the second alone on the note it waits for
+    await database.transaction((transaction) =>
+        transaction.insert(note).values({ id: "second", scope: "space" }).execute(),
+    );
+    await loop.idle();
+    expect(reconciled).toEqual(["second"]);
+});
+
 test("refuse a pending condition comparing now anywhere but a field's upper bound at its top", async () => {
     await using simulation = testSimulation();
     const { database } = await openJobs(simulation);
     const declare = (pending: Controller<typeof job>["pending"]) => () =>
         new ControlLoop(
             database,
-            {
-                controllers: [{ name: "job", table: job, pending, reconcile: async () => {} }],
-                cursors: [],
-            },
+            [
+                {
+                    projections: [],
+                    controllers: [{ name: "job", table: job, pending, reconcile: async () => {} }],
+                    cursors: [],
+                },
+            ],
             { report: ignore },
         );
 
     expect(declare({ dueAt: { gte: now } })).toThrow(
-        "controller 'job' compares now outside a field's lt or lte at the top of its pending condition",
+        "controller 'job' compares now outside a field's lt or lte at the top of its pending condition or of its OR's branches",
     );
-    expect(declare({ OR: [{ dueAt: { lte: now } }] })).toThrow(
-        "controller 'job' compares now outside a field's lt or lte at the top of its pending condition",
+    expect(declare({ OR: [{ AND: [{ dueAt: { lte: now } }] }] })).toThrow(
+        "controller 'job' compares now outside a field's lt or lte at the top of its pending condition or of its OR's branches",
     );
 });
 
-test("select the jobs a watched table's change names, reporting a failing watch and listing in its place", async () => {
+test("reconcile a row once the time in one of its pending condition's OR branches comes", async () => {
+    // keep a done job due in a minute, pending while open or once due
+    await using simulation = testSimulation();
+    const { database, world, write } = await openJobs(simulation);
+    const start = world.clock.now();
+    await write([{ id: "later", status: "done", dueAt: start + 60_000 }]);
+    const reconciled: number[] = [];
+    const controller: Controller<typeof job> = {
+        name: "job",
+        table: job,
+        pending: { OR: [{ status: "open" }, { dueAt: { lte: now } }] },
+        reconcile: async (rows) => {
+            reconciled.push(world.clock.now() - start);
+            await database.transaction((transaction) =>
+                transaction
+                    .update(job)
+                    .set({ dueAt: Number.MAX_SAFE_INTEGER })
+                    .where(eq(job.id, nth(rows, 0).id))
+                    .execute(),
+            );
+        },
+    };
+    const loop = new ControlLoop(
+        database,
+        [{ controllers: [controller], projections: [], cursors: [] }],
+        { report: failReconcile },
+    );
+    const stopping = new AbortController();
+    const run = loop.run(stopping.signal);
+
+    // reconcile it at its due time, not before
+    await loop.idle();
+    const before = [...reconciled];
+    await simulation.jump(start + 60_000);
+    await loop.idle();
+    stopping.abort();
+    await run;
+    expect({ before, after: reconciled }).toEqual({ before: [], after: [60_000] });
+});
+
+test("select the jobs a watched table's change names", async () => {
     // record an open job in each of two spaces
     await using simulation = testSimulation();
     const { database } = await openJobs(simulation);
@@ -428,52 +598,30 @@ test("select the jobs a watched table's change names, reporting a failing watch 
 
     // reconcile each space's jobs together, selected by a note in the space
     const reconciled: string[] = [];
-    const reported: string[] = [];
     const controller: Controller<typeof job> = {
         name: "job",
         table: job,
         pending: { status: "open" },
         key: ["scope"],
-        watches: [
-            {
-                table: note,
-                keys: (change) => {
-                    const scope = schema.string().parse(Change.image(change)["scope"]);
-                    if (scope === "broken") {
-                        throw new Error("unreadable note");
-                    }
-
-                    return [{ scope }];
-                },
-            },
-        ],
+        watches: [{ table: note, on: { scope: "scope" } }],
         reconcile: async (rows) => {
             reconciled.push(rows.map((row) => row.id).join(","));
         },
     };
     const loop = new ControlLoop(
         database,
-        { controllers: [controller], cursors: [] },
-        {
-            report: (_controller, key, error) => reported.push(`${key}: ${message(error)}`),
-        },
+        [{ controllers: [controller], projections: [], cursors: [] }],
+        { report: ignore },
     );
     running(loop);
     await loop.idle();
 
-    // reconcile a space's jobs again on a note, and list every space in place of a failing watch
+    // reconcile a space's jobs again on a note in the space
     await database.transaction((transaction) =>
         transaction.insert(note).values({ id: "note", scope: "space" }).execute(),
     );
     await loop.idle();
-    await database.transaction((transaction) =>
-        transaction.insert(note).values({ id: "broken", scope: "broken" }).execute(),
-    );
-    await loop.idle();
-    expect({ reconciled: reconciled.toSorted(), reported }).toEqual({
-        reconciled: ["first", "first", "first", "second", "second"],
-        reported: ["controller_note: unreadable note"],
-    });
+    expect(reconciled.toSorted()).toEqual(["first", "first", "second"]);
 });
 
 test("wake a watch on an observation only when it observes, and on a desired change always", async () => {
@@ -507,7 +655,7 @@ test("wake a watch on an observation only when it observes, and on a desired cha
             {
                 table: order,
                 isObserving,
-                keys: (change) => [{ scope: schema.string().parse(Change.image(change)["scope"]) }],
+                on: { scope: "scope" },
             },
         ],
         reconcile: async () => {
@@ -516,7 +664,13 @@ test("wake a watch on an observation only when it observes, and on a desired cha
     });
     const loop = new ControlLoop(
         database,
-        { controllers: [controller("desired", false), controller("observing", true)], cursors: [] },
+        [
+            {
+                projections: [],
+                controllers: [controller("desired", false), controller("observing", true)],
+                cursors: [],
+            },
+        ],
         { report: ignore },
     );
     running(loop);
@@ -586,7 +740,7 @@ test("report a key failing transiently only once its retries last past the windo
     };
     const loop = new ControlLoop(
         database,
-        { controllers: [controller], cursors: [] },
+        [{ projections: [], controllers: [controller], cursors: [] }],
         {
             report: (_controller, key) => reported.push([key, clock.now() - started]),
             retry: { initialInterval: 5, maximumInterval: 5 },
@@ -630,7 +784,7 @@ test("fail the loop, its run and its idle waiters, once a controller throws a fa
     };
     const loop = new ControlLoop(
         database,
-        { controllers: [controller], cursors: [] },
+        [{ projections: [], controllers: [controller], cursors: [] }],
         { report: ignore },
     );
     const run = loop.run(new AbortController().signal);
@@ -681,7 +835,7 @@ test("reconcile keys up to a controller's concurrency, never one key twice at on
     const stopping = new AbortController();
     const loop = new ControlLoop(
         database,
-        { controllers: [controller], cursors: [] },
+        [{ projections: [], controllers: [controller], cursors: [] }],
         { report: ignore },
     );
     const looping = loop.run(stopping.signal);
@@ -735,12 +889,12 @@ test("lock each key to one instance of several sharing a database, handing it ov
     const runs = [
         new ControlLoop(
             database,
-            { controllers: [controllerOf("first")], cursors: [] },
+            [{ projections: [], controllers: [controllerOf("first")], cursors: [] }],
             { report: ignore },
         ).run(first.signal),
         new ControlLoop(
             other,
-            { controllers: [controllerOf("second")], cursors: [] },
+            [{ projections: [], controllers: [controllerOf("second")], cursors: [] }],
             { report: ignore },
         ).run(second.signal),
     ];
@@ -785,7 +939,7 @@ test("follow a key while its rows stay pending, stopping it once they leave or t
     const stopping = new AbortController();
     const loop = new ControlLoop(
         database,
-        { controllers: [controller], cursors: [] },
+        [{ projections: [], controllers: [controller], cursors: [] }],
         { report: ignore },
     );
     const run = loop.run(stopping.signal);
@@ -823,11 +977,9 @@ test("report a follow that fails while its key stays pending", async () => {
         },
     };
     running(
-        new ControlLoop(
-            database,
-            { controllers: [controller], cursors: [] },
-            { report: (_controller, key, error) => reported.push(`${key}: ${message(error)}`) },
-        ),
+        new ControlLoop(database, [{ projections: [], controllers: [controller], cursors: [] }], {
+            report: (_controller, key, error) => reported.push(`${key}: ${message(error)}`),
+        }),
     );
 
     // report the refusal for the key
@@ -865,7 +1017,7 @@ test("take a cursor's changes past its checkpoint, those before the start and th
     const reported: string[] = [];
     const loop = new ControlLoop(
         database,
-        { controllers: [], cursors: [cursor] },
+        [{ projections: [], controllers: [], cursors: [cursor] }],
         {
             report: (_controller, key, error) => reported.push(`${key}: ${message(error)}`),
         },
@@ -913,7 +1065,7 @@ test("take a cursor's changes once its first untaken one is a batch old, at the 
     };
     const loop = new ControlLoop(
         database,
-        { controllers: [], cursors: [cursor] },
+        [{ projections: [], controllers: [], cursors: [cursor] }],
         { report: ignore },
     );
     const stopping = new AbortController();
@@ -933,42 +1085,7 @@ test("take a cursor's changes once its first untaken one is a batch old, at the 
     expect(taken).toEqual([50, 110]);
 });
 
-test("project the keys of changes past one log page in one take, through the log's head", async () => {
-    // place the projection's checkpoint, then record more notes than one page reads
-    await using simulation = testSimulation();
-    const { database } = await openJobs(simulation, [note, lock]);
-    await database.log.place({ name: "note-pages", tables: [note] }, Number.MAX_SAFE_INTEGER);
-    const scopes = Array.from({ length: 1100 }, (_, index) => `space-${index}`);
-    for (let first = 0; first < scopes.length; first += 100) {
-        const rows = scopes.slice(first, first + 100).map((scope) => ({ id: scope, scope }));
-        await database.transaction((transaction) =>
-            transaction.insert(note).values(rows).execute(),
-        );
-    }
-
-    // project each space a note touches
-    const projected: string[] = [];
-    const projection = new Projection(database, {
-        name: "note-pages",
-        tables: [note],
-        keys: async (change) => [schema.string().parse(Change.image(change)["scope"])],
-        all: async () => [],
-        project: async (key) => {
-            projected.push(key);
-        },
-    });
-
-    // take once, projecting every space, then settle, moving the checkpoint to the head
-    await projection.take({ signal: new AbortController().signal, changed: async () => {} });
-    await projection.settle();
-    const { sequence } = await database.log.position();
-    expect({
-        projected: projected.toSorted(),
-        checkpoint: await database.log.checkpoint("note-pages"),
-    }).toEqual({ projected: scopes.toSorted(), checkpoint: sequence });
-});
-
-test("project every key at the first start, then only the keys the changes past its checkpoint touch, across restarts", async () => {
+test("project every key at the first start, then only the keys the changes past the loop's position touch, across restarts", async () => {
     // record notes in two spaces before the first start
     await using simulation = testSimulation();
     const { database } = await openJobs(simulation, [note, lock]);
@@ -981,25 +1098,21 @@ test("project every key at the first start, then only the keys the changes past 
 
     // project a space from its notes, listing every space with notes
     const projected: string[] = [];
-    const projection = () =>
-        new Projection(database, {
-            name: "note-spaces",
-            tables: [note],
-            keys: async (change) => [schema.string().parse(Change.image(change)["scope"])],
-            all: async (connection) =>
-                (await connection.selectDistinct({ scope: note.scope }).from(note)).map(
-                    (row) => row.scope,
-                ),
-            project: async (key) => {
-                projected.push(key);
-            },
-        });
+    const projection: Projection = {
+        name: "note-spaces",
+        key: "scope",
+        watches: [{ table: note, on: { scope: "scope" } }],
+        all: { table: note, column: "scope" },
+        project: async (key) => {
+            projected.push(key);
+        },
+    };
     const start = async () => {
         const stopping = new AbortController();
         const loop = new ControlLoop(
             database,
-            { controllers: [], cursors: [projection()] },
-            { report: ignore },
+            [{ controllers: [], projections: [projection], cursors: [] }],
+            { report: ignore, position: "control" },
         );
         const run = loop.run(stopping.signal);
         await loop.idle();
@@ -1034,6 +1147,155 @@ test("project every key at the first start, then only the keys the changes past 
     });
 });
 
+test("replay a late set's projection from the position", async () => {
+    // place the position
+    await using simulation = testSimulation();
+    const { database } = await openJobs(simulation, [note, lock]);
+    const append = (id: string, scope: string) =>
+        database.transaction((transaction) =>
+            transaction.insert(note).values({ id, scope }).execute(),
+        );
+    await append("first", "a");
+    const projected: string[] = [];
+    const projection: Projection = {
+        name: "note-spaces",
+        key: "scope",
+        watches: [{ table: note, on: { scope: "scope" } }],
+        all: { table: note, column: "scope" },
+        project: async (key) => {
+            projected.push(key);
+        },
+    };
+    const start = async (activation?: Promise<void>) => {
+        const stopping = new AbortController();
+        const set = { controllers: [], projections: [projection], cursors: [] };
+        const loop = new ControlLoop(
+            database,
+            [activation === undefined ? set : { ...set, activation: () => activation }],
+            { report: ignore, position: "control" },
+        );
+        const run = loop.run(stopping.signal);
+        await loop.idle();
+
+        return {
+            loop,
+            stop: async () => {
+                stopping.abort();
+                await run;
+            },
+        };
+    };
+    await (await start()).stop();
+    projected.splice(0);
+
+    // note a space, then start inactive
+    await append("second", "b");
+    const activated = Promise.withResolvers<void>();
+    const waiting = await start(activated.promise);
+    const before = projected.splice(0);
+
+    // activate
+    activated.resolve();
+    await simulation.waitUntil(() => projected.length > 0);
+    await waiting.loop.idle();
+    const after = projected.splice(0);
+    await waiting.stop();
+    expect({ before, after }).toEqual({ before: [], after: ["b"] });
+});
+
+test("wake a row at its earliest OR branch's time, a branch with a missing time leaving it", async () => {
+    // keep jobs pending once done and due, or due a moment later when early
+    await using simulation = testSimulation();
+    const { database, world } = await openJobs(simulation, [ticket, job, lock]);
+    const start = world.clock.now();
+    const reconciled: [string, number][] = [];
+    const controller: Controller<typeof job> = {
+        name: "job",
+        table: job,
+        pending: {
+            OR: [
+                { dueAt: { lte: now }, status: "done" },
+                { dueAt: { lt: now }, id: "early" },
+            ],
+        },
+        reconcile: async (rows) => {
+            const { id } = nth(rows, 0);
+            reconciled.push([id, world.clock.now() - start]);
+            await database.transaction((transaction) =>
+                transaction
+                    .update(job)
+                    .set({ dueAt: Number.MAX_SAFE_INTEGER })
+                    .where(eq(job.id, id))
+                    .execute(),
+            );
+        },
+    };
+    const loop = new ControlLoop(
+        database,
+        [{ controllers: [controller], projections: [], cursors: [] }],
+        { report: failReconcile },
+    );
+    running(loop);
+
+    // add the jobs once the loop runs, so each change sets its own wake
+    await loop.idle();
+    await database.transaction((transaction) =>
+        transaction
+            .insert(job)
+            .values([
+                { id: "early", scope: "space", status: "done", dueAt: start + 60_000 },
+                { id: "late", scope: "space", status: "done", dueAt: start + 120_000 },
+            ])
+            .execute(),
+    );
+
+    // reconcile each at its own time
+    await loop.idle();
+    await simulation.jump(start + 60_000);
+    await loop.idle();
+    await simulation.jump(start + 120_000);
+    await loop.idle();
+    expect(reconciled).toEqual([
+        ["early", 60_000],
+        ["late", 120_000],
+    ]);
+});
+
+test("delete a table's rows once their expiry passes", async () => {
+    // store a challenge expiring now and one expiring in a minute
+    await using simulation = testSimulation();
+    const { database, world } = await openJobs(simulation, [challenge, lock]);
+    const start = world.clock.now();
+    await database.transaction((transaction) =>
+        transaction
+            .insert(challenge)
+            .values([
+                { id: "lapsed", expiresAt: start },
+                { id: "fresh", expiresAt: start + 60_000 },
+            ])
+            .execute(),
+    );
+    const loop = new ControlLoop(
+        database,
+        [{ controllers: [ControlLoop.expiry(challenge, database)], projections: [], cursors: [] }],
+        { report: failReconcile },
+    );
+    const stopping = new AbortController();
+    const run = loop.run(stopping.signal);
+    const read = async () =>
+        (await database.select().from(challenge)).map((row) => row.id).toSorted();
+
+    // delete the lapsed one at once, and the fresh one a minute later
+    await loop.idle();
+    const first = await read();
+    await simulation.jump(start + 60_000);
+    await loop.idle();
+    const second = await read();
+    stopping.abort();
+    await run;
+    expect({ first, second }).toEqual({ first: ["fresh"], second: [] });
+});
+
 test("list a controller of an unlogged table again after a commit to its table", async () => {
     // reconcile open tickets of an unlogged table
     await using simulation = testSimulation();
@@ -1051,7 +1313,7 @@ test("list a controller of an unlogged table again after a commit to its table",
     };
     const loop = new ControlLoop(
         database,
-        { controllers: [controller], cursors: [] },
+        [{ projections: [], controllers: [controller], cursors: [] }],
         { report: ignore },
     );
     running(loop);
@@ -1076,7 +1338,7 @@ test("take a cursor once more after a commit to an unlogged table it reads, then
     };
     const loop = new ControlLoop(
         database,
-        { controllers: [], cursors: [cursor] },
+        [{ projections: [], controllers: [], cursors: [cursor] }],
         { report: ignore },
     );
     running(loop);
@@ -1090,54 +1352,56 @@ test("take a cursor once more after a commit to an unlogged table it reads, then
     expect(takes).toBe(before + 1);
 });
 
-test("list again after the follow's changes were compacted, reconciling the rows pending meanwhile", async () => {
-    // reconcile open jobs, holding the first until its follow's later changes are compacted
+test("project every key again once the changes past the loop's position were compacted while stopped", async () => {
+    // project the spaces with notes, resuming from the loop's position
     await using simulation = testSimulation();
-    const { database, write, world } = await openJobs(simulation);
-    const reconciled: string[] = [];
-    const held = Promise.withResolvers<void>();
-    const release = Promise.withResolvers<void>();
-    const controller: Controller<typeof job> = {
-        name: "job",
-        table: job,
-        pending: { status: "open" },
-        watches: [
-            {
-                table: note,
-                keys: async () => {
-                    held.resolve();
-                    await release.promise;
-
-                    return [];
-                },
-            },
-        ],
-        reconcile: async (rows) => {
-            reconciled.push(nth(rows, 0).id);
+    const { database, world } = await openJobs(simulation, [note, lock]);
+    const append = (id: string, scope: string) =>
+        database.transaction((transaction) =>
+            transaction.insert(note).values({ id, scope }).execute(),
+        );
+    await append("first", "a");
+    const projected: string[] = [];
+    const projection: Projection = {
+        name: "note-spaces",
+        key: "scope",
+        watches: [{ table: note, on: { scope: "scope" } }],
+        all: { table: note, column: "scope" },
+        project: async (key) => {
+            projected.push(key);
         },
     };
-    const loop = new ControlLoop(
-        database,
-        { controllers: [controller], cursors: [] },
-        { report: ignore },
-    );
-    running(loop);
-    await loop.idle();
+    const start = async () => {
+        const stopping = new AbortController();
+        const loop = new ControlLoop(
+            database,
+            [{ controllers: [], projections: [projection], cursors: [] }],
+            { report: ignore, position: "control" },
+        );
+        const run = loop.run(stopping.signal);
+        await loop.idle();
 
-    // stop the follow at a note, write a job, and compact both
-    await database.transaction((transaction) =>
-        transaction.insert(note).values({ id: "note", scope: "space" }).execute(),
-    );
-    await held.promise;
-    await write([{ id: "meanwhile", status: "open", dueAt: 0 }]);
-    const at = world.clock.now();
-    await database.log.compact(at + 1, at);
+        return async () => {
+            stopping.abort();
+            await run;
+        };
+    };
+    await (
+        await start()
+    )();
+    projected.splice(0);
 
-    // list again across the compaction, reconciling the job pending meanwhile
-    const idling = loop.idle();
-    release.resolve();
-    await idling;
-    expect(reconciled).toEqual(["meanwhile"]);
+    // note a second space while stopped
+    await append("second", "b");
+
+    // compact the log past the position's expired hold
+    const expired = world.clock.now() + 8 * 24 * 60 * 60_000;
+    await database.log.compact(expired, expired);
+
+    // project both again
+    const stop = await start();
+    await stop();
+    expect(projected.toSorted()).toEqual(["a", "b"]);
 });
 
 test("select a reloaded table's changes by its name, reading pending rows through a table defined anew", async () => {
@@ -1155,7 +1419,7 @@ test("select a reloaded table's changes by its name, reading pending rows throug
     };
     const loop = new ControlLoop(
         database,
-        { controllers: [controller], cursors: [] },
+        [{ projections: [], controllers: [controller], cursors: [] }],
         { report: ignore },
     );
     running(loop);
@@ -1178,7 +1442,7 @@ test("spend no statement on commits to tables no controller reads", async () => 
     };
     const loop = new ControlLoop(
         database,
-        { controllers: [controller], cursors: [] },
+        [{ projections: [], controllers: [controller], cursors: [] }],
         { report: ignore },
     );
     running(loop);
@@ -1266,7 +1530,7 @@ test("run timers between the reconciliations of a synchronous database, one key 
     const stopping = new AbortController();
     const loop = new ControlLoop(
         database,
-        { controllers: [controller], cursors: [] },
+        [{ projections: [], controllers: [controller], cursors: [] }],
         { report: failReconcile },
     );
     const looping = loop.run(stopping.signal);
