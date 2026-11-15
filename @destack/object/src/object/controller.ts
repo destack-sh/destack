@@ -362,7 +362,7 @@ export const ObjectController = {
         // build the context and the observation of the rows the pass read
         const context = ObjectController.context(store, object, rows, reconciliation);
         const { mutate } = context;
-        const isObserved = object.isControlled && !store.database.replicates(object.table);
+        const isObserved = ObjectController.isObserved(store, object);
         const observeRead = async (observation: ObservationReport) => {
             // observe each row at the generation the pass read, leaving out the ones removed since
             const read = (isObserved ? rows : []).map((row) => ({
@@ -406,6 +406,11 @@ export const ObjectController = {
         }
     },
 
+    /** Report whether a store records conditions on a controlled type it does not replicate. */
+    isObserved(store: ObjectStore, object: ObjectType): boolean {
+        return object.isControlled && !store.database.replicates(object.table);
+    },
+
     /** Project one key, recording Synced on the objects it reports on once projected or failed. */
     async projectKey(
         store: ObjectStore,
@@ -420,8 +425,8 @@ export const ObjectController = {
             identifiers: (rows) => rows.map((row) => ObjectController.readIdentifier(row)),
         };
         const record = async (condition: ObservationReport["conditions"][string]) => {
-            // read the objects again as the pass left them, none of an uncontrolled type
-            const rows = reported.object.isControlled
+            // read the objects again as the pass left them, none the store only replicates
+            const rows = ObjectController.isObserved(store, reported.object)
                 ? await ObjectController.reread(
                       store,
                       reported.object,
