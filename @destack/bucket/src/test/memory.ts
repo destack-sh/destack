@@ -84,8 +84,9 @@ export class MemoryBucket implements Bucket {
         body: BucketBody | null,
         options: BucketPutOptions = {},
     ): Promise<BucketFile> {
-        // refuse a failed precondition and a locked file
+        // refuse a failed precondition, a locked file and a lock not ahead
         BucketKey.check(key);
+        BucketFile.checkRetainUntil(options.retainUntil, this.#clock.now());
         const current = this.#files.get(key)?.file ?? null;
         if (!BucketCondition.matches(current, options.onlyIf)) {
             throw preconditionFailed(current);

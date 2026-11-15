@@ -156,9 +156,12 @@ export class CatalogueBucket implements S3Bucket, AsyncDisposable {
 
     /** Write immutable contents, then atomically publish their catalogue entry. */
     put(key: string, body: BucketBody | null, options: BucketPutOptions = {}): Promise<BucketFile> {
-        return this.#storage.trace("put", { "destack.bucket.key": key }, () =>
-            this.#write(key, body, options),
-        );
+        return this.#storage.trace("put", { "destack.bucket.key": key }, () => {
+            // refuse a lock not ahead, then write
+            BucketFile.checkRetainUntil(options.retainUntil, this.#storage.environment.clock.now());
+
+            return this.#write(key, body, options);
+        });
     }
 
     /** Write a file with the entity tag, version and upload time another bucket gave it. */

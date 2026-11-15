@@ -106,6 +106,16 @@ export class BucketFile {
         };
     }
 
+    /** Refuse a retain-until date not after a time, as an object lock only holds ahead. */
+    static checkRetainUntil(retainUntil: Date | undefined, now: number): void {
+        if (retainUntil !== undefined && retainUntil.getTime() <= now) {
+            throw BucketError.of(
+                "ARGUMENT_INVALID",
+                `retain-until date '${retainUntil.toISOString()}' is invalid: it is not in the future`,
+            );
+        }
+    }
+
     /** Report whether the file is locked at a time, before its retain-until date. */
     isLocked(now: number): boolean {
         return this.retainUntil !== undefined && this.retainUntil.getTime() > now;

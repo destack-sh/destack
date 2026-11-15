@@ -428,7 +428,7 @@ test("count the bytes a bucket's published files keep, a replaced file once and 
     });
 });
 
-test("refuse replacing or deleting a locked file until its retain-until date, then allow both", async () => {
+test("refuse replacing or deleting a locked file until its retain-until date, then allow both, and a lock not ahead", async () => {
     await using simulation = testSimulation();
     const world = simulation.environment("host");
     const directory = await world.files.makeTemporaryDirectory("bucket-lock-");
@@ -438,8 +438,10 @@ test("refuse replacing or deleting a locked file until its retain-until date, th
     await bucket.put("audit/segment", "sealed", { retainUntil });
     await bucket.put("notes", "free");
 
-    // refuse replacing it, and refuse a batch deleting it, keeping the batch's other file
+    // refuse replacing it, refuse a batch deleting it, keeping the batch's other file, and refuse a lock lapsing now
     const replaced = await refusal(bucket.put("audit/segment", "changed"));
+    const lapsing = new Date(world.clock.now());
+    const lapsed = await refusal(bucket.put("audit/late", "sealed", { retainUntil: lapsing }));
     const deleted = await refusal(bucket.delete(["notes", "audit/segment"]));
     const held = [
         (await bucket.head("audit/segment"))?.retainUntil?.getTime(),
@@ -449,7 +451,7 @@ test("refuse replacing or deleting a locked file until its retain-until date, th
     // once the date passes, delete it
     await simulation.jump(simulation.clock.now() + 250);
     await bucket.delete("audit/segment");
-    expect([replaced, deleted, held, await bucket.head("audit/segment")]).toEqual([
+    expect([replaced, deleted, held, await bucket.head("audit/segment"), lapsed]).toEqual([
         [
             "FORBIDDEN",
             "ACCESS_DENIED",
@@ -462,6 +464,11 @@ test("refuse replacing or deleting a locked file until its retain-until date, th
         ],
         [retainUntil.getTime(), false],
         null,
+        [
+            "BAD_REQUEST",
+            "ARGUMENT_INVALID",
+            `retain-until date '${lapsing.toISOString()}' is invalid: it is not in the future`,
+        ],
     ]);
 });
 

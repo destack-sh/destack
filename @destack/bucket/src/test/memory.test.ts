@@ -33,7 +33,8 @@ test("keep files in memory as a host does: conditional reads and writes, ranges,
         cursor = page.truncated ? page.cursor : undefined;
     } while (cursor !== undefined);
 
-    // refuse deleting the locked file until its lock lapses
+    // refuse a lock lapsing now, and deleting the locked file until its lock lapses
+    const lapsed = await refusal(bucket.put("c", "late", { retainUntil: new Date(clock.now()) }));
     const locked = await refusal(bucket.delete("a/2"));
     clock.advance(60_000);
     await bucket.delete("a/2");
@@ -43,6 +44,7 @@ test("keep files in memory as a host does: conditional reads and writes, ranges,
         unchanged: unchanged[0],
         refusedWrite: refusedWrite[0],
         pages,
+        lapsed,
         locked,
         deleted: await bucket.head("a/2"),
     }).toEqual({
@@ -50,6 +52,11 @@ test("keep files in memory as a host does: conditional reads and writes, ranges,
         unchanged: "PRECONDITION_FAILED",
         refusedWrite: "PRECONDITION_FAILED",
         pages: [["a/"], ["b"]],
+        lapsed: [
+            "BAD_REQUEST",
+            "ARGUMENT_INVALID",
+            "retain-until date '2026-10-01T00:00:00.000Z' is invalid: it is not in the future",
+        ],
         locked: ["FORBIDDEN", "ACCESS_DENIED", "file 'a/2' is forbidden: it is locked"],
         deleted: null,
     });
