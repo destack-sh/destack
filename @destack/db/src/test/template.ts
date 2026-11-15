@@ -26,32 +26,26 @@ export const ImageSource = schema.discriminatedUnion("dialect", [
 /** Where one database of a template's image keeps its rows. */
 export type ImageSource = schema.Infer<typeof ImageSource>;
 
-/** A template's image in a run, which tests copy: its databases by name and its value. */
-export const TemplateImage = schema.object({
+/** What a build leaves of a template in a run: its rows' places, its files, value and end. */
+export const ImageRecord = schema.object({
     /** Where each database's rows are, by the template's name for it. */
     sources: schema.record(schema.string(), ImageSource),
-    /** Where each database the write opened as it ran keeps its rows, by its key. */
+    /** Where each database the build opened as it ran keeps its rows, by its key. */
     volumes: schema.record(schema.string(), ImageSource),
-    /** What writing the rows returned, as JSON. */
+    /** The directory with the files the build wrote. */
+    files: schema.string(),
+    /** What the build returned, as JSON. */
     value: schema.json(),
-    /** The template world's time once the write ended, in UTC epoch milliseconds. */
+    /** The template world's time once the build ended, in UTC epoch milliseconds. */
     end: schema.number(),
 });
-/** A template's image in a run, which tests copy. */
-export type TemplateImage = schema.Infer<typeof TemplateImage>;
+/** What a build leaves of a template in a run. */
+export type ImageRecord = schema.Infer<typeof ImageRecord>;
 
-/** The images of a run's templates, by template name and dialect. */
-export const ImageIndex = schema.record(
-    schema.string(),
-    schema.partialRecord(schema.enum(["sqlite", "postgresql"]), TemplateImage),
-);
-/** The images of a run's templates, by template name and dialect. */
-export type ImageIndex = schema.Infer<typeof ImageIndex>;
-
-/** The tables of one database a template writes. */
+/** The tables of one database a template builds. */
 export type TemplateTables = declaration.Database | readonly Table[];
 
-/** The databases a template writes, by name. */
+/** The databases a template builds, by name. */
 export type TemplateDatabases = Readonly<Record<string, TemplateTables>>;
 
 /** The models of one database's tables. */
@@ -63,7 +57,7 @@ export type TemplateStorage<Databases extends TemplateDatabases> = {
     readonly [Name in keyof Databases]: TestDatabase<ModelsOf<Databases[Name]>>;
 };
 
-/** The seed and start of the world a template's write runs in. */
+/** The seed and start of the world a template's build runs in. */
 export interface TemplateWorld {
     /** The seed of its randomness. */
     readonly seed: number;
@@ -71,53 +65,79 @@ export interface TemplateWorld {
     readonly start: number;
 }
 
-/** Rows tests start with: a named write into migrated databases, once per run. */
+/** What a build runs in: databases, a directory and a world, its parent's when it has one. */
+export interface TemplateBuild<Databases extends TemplateDatabases = TemplateDatabases> {
+    /** The template's databases, a parent's with its rows. */
+    readonly databases: TemplateStorage<Databases>;
+    /** The directory for the files the build writes, a parent's with its files. */
+    readonly directory: string;
+    /** The world the build runs in, a parent's forked at its end. */
+    readonly simulation: Simulation;
+    /** Open a database the build keeps by a key, a parent's with its rows. */
+    readonly open: (key: string) => Promise<TestDatabase>;
+    /** What the parent's build returned, absent for a template built from nothing. */
+    readonly parent: JsonValue | undefined;
+}
+
+/** A world tests start from: a named build on its parent's image, built when first forked. */
 export class TestTemplate<
     Value extends JsonValue = JsonValue,
     Databases extends TemplateDatabases = TemplateDatabases,
 > {
     /** The template's name in its run, such as `stack.space`. */
     readonly name: string;
-    /** The tables each of its databases migrates, by name. */
+    /** The template whose image the build starts from, absent for one built from nothing. */
+    readonly from: TestTemplate<JsonValue, Databases> | undefined;
+    /** The tables each of its databases migrates, by name, its parent's when it has one. */
     readonly databases: Databases;
-    /** The dialects tests copy it in, every test dialect when absent. */
+    /** The dialects tests fork it in, every test dialect when absent. */
     readonly dialects: readonly Dialect[] | undefined;
-    /** The value every copy shares, as its JSON form crosses from the run to the tests. */
+    /** The value every fork shares, as its JSON form is kept with the image. */
     readonly value: schema.Schema<Value>;
-    /** The tables of each database the write opens as it runs, none when absent. */
+    /** The tables of each database the build opens as it runs, none when absent. */
     readonly volume: TemplateTables | undefined;
-    /** The seed and start of the world the write runs in, which the run opens for it. */
+    /** The seed and start of the world the first build of its line runs in. */
     readonly world: TemplateWorld;
-    /** Write the rows and files in the run's world, answering what every copy shares. */
-    readonly write: (
-        databases: TemplateStorage<Databases>,
-        directory: string,
-        simulation: Simulation,
-        open: (key: string) => Promise<TestDatabase>,
-    ) => Promise<Value>;
+    /** Build the rows and files in the world, answering what every fork shares. */
+    readonly build: (world: TemplateBuild<Databases>) => Promise<Value>;
 
-    /** Define a template by its name, databases, value and write. */
-    constructor(fields: {
-        readonly name: string;
-        readonly databases: Databases;
-        readonly dialects?: readonly Dialect[];
-        readonly value: schema.Schema<Value>;
-        readonly volume?: TemplateTables;
-        readonly world: TemplateWorld;
-        readonly write: (
-            databases: TemplateStorage<Databases>,
-            directory: string,
-            simulation: Simulation,
-            open: (key: string) => Promise<TestDatabase>,
-        ) => Promise<Value>;
-    }) {
-        // store the fields
+    /** Define a template by its name, its parent or its databases, its value and its build. */
+    constructor(
+        fields: {
+            readonly name: string;
+            readonly dialects?: readonly Dialect[];
+            readonly value: schema.Schema<Value>;
+            readonly build: (world: TemplateBuild<Databases>) => Promise<Value>;
+        } & (
+            | {
+                  /** The template whose image the build starts from. */
+                  readonly from: TestTemplate<JsonValue, Databases>;
+              }
+            | {
+                  /** The tables each of its databases migrates, by name. */
+                  readonly databases: Databases;
+                  /** The tables of each database the build opens as it runs. */
+                  readonly volume?: TemplateTables;
+                  /** The seed and start of the world the build runs in. */
+                  readonly world: TemplateWorld;
+              }
+        ),
+    ) {
+        // store the fields, a parent giving the databases, volume tables and world
         this.name = fields.name;
-        this.databases = fields.databases;
         this.dialects = fields.dialects;
         this.value = fields.value;
-        this.volume = fields.volume;
-        this.world = fields.world;
-        this.write = fields.write;
+        this.build = fields.build;
+        if ("from" in fields) {
+            this.from = fields.from;
+            this.databases = fields.from.databases;
+            this.volume = fields.from.volume;
+            this.world = fields.from.world;
+        } else {
+            this.from = undefined;
+            this.databases = fields.databases;
+            this.volume = fields.volume;
+            this.world = fields.world;
+        }
     }
 }

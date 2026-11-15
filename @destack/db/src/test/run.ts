@@ -1,23 +1,17 @@
-import { Digest, schema } from "@destack/schema";
+import { Digest, type JsonValue, present, schema } from "@destack/schema";
 import { dirname, join, relative } from "node:path";
 import { testHost } from "@destack/test/host";
-import { fileURLToPath, pathToFileURL } from "node:url";
+import { fileURLToPath } from "node:url";
 import postgres from "postgres";
-import type { Subprocess } from "@destack/environment";
-import type { TestProject } from "@destack/test";
-import type { Dialect } from "../dialect/dialect.ts";
+import { inject, type TestProject } from "@destack/test";
+import { Dialect } from "../dialect/dialect.ts";
 import { TestDatabase } from "./database.ts";
-import { ImageIndex } from "./template.ts";
+import { ImageRecord, type TestTemplate, type TemplateDatabases } from "./template.ts";
 
-export type { ImageIndex } from "./template.ts";
-
-/** The host the run's setup writes templates on, as the run's entrypoint. */
+/** The host the run keeps its images on, shared by the test processes of a run. */
 const HOST = testHost();
 
-/** The file the writer leaves the index of the run's template images in. */
-const INDEX = "images.json";
-
-/** The directory of written templates below the person's cache directory. */
+/** The directory of built images below the person's cache directory. */
 const CACHE = join("destack", "templates");
 
 /** The hex digits of a checkout root's digest naming its templates' directory: 64 bits. */
@@ -29,14 +23,14 @@ const LOCKFILE = "bun.lock";
 /** The hexadecimal characters of a key in its schemas' names: 64 bits. */
 const ID_LENGTH = 16;
 
-/** The default longest write of one template: 60 s, about 8x the longest measured, 7.1 s. */
-const TEMPLATE_MILLISECONDS = 60_000;
+/** The default longest build of one template: 60 s, about 8x the longest measured, 7.1 s. */
+const BUILD_MILLISECONDS = 60_000;
+
+/** The hex digits of a template name's digest in its image's file name: 64 bits. */
+const NAME_DIGITS = 16;
 
 /** Milliseconds per second. */
 const MILLISECONDS_PER_SECOND = 1000;
-
-/** The start of the line the writer reports each written template's time on. */
-const TEMPLATE_LINE = "template ";
 
 /** The files the key reads at once: well below the default limit of 256 open files on macOS. */
 const READ_BATCH = 64;
@@ -52,41 +46,108 @@ const PackageManifest = schema.looseObject({
     peerDependencies: schema.record(schema.string(), schema.string()).exactOptional(),
 });
 
-/** The templates a test run copies, reused by every run while their inputs stay the same. */
+/** Where a run keeps its images and what they are of, as its setup provides it to the tests. */
+export const RunRecord = schema.object({
+    /** The directory of the run's images, one per key of its inputs. */
+    directory: schema.string(),
+    /** The key's first digits, which start the names of the images' PostgreSQL schemas. */
+    id: schema.string(),
+    /** The database the images are of. */
+    dialect: Dialect,
+    /** The longest one template's build may take, in milliseconds. */
+    deadline: schema.number(),
+});
+/** Where a run keeps its images and what they are of. */
+export type RunRecord = schema.Infer<typeof RunRecord>;
+
+/** The run's provided values the templates read. */
+declare module "vitest" {
+    /** The values a run's setup provides to its tests. */
+    export interface ProvidedContext {
+        /** Where the run keeps its images, absent without a setup. */
+        run?: RunRecord;
+    }
+}
+
+/** A template's built image in a run, which tests fork. */
+export class TestImage<
+    Value extends JsonValue = JsonValue,
+    Databases extends TemplateDatabases = TemplateDatabases,
+> {
+    /** The template the image is of. */
+    readonly template: TestTemplate<Value, Databases>;
+    /** What the build left: where the rows and files are, its value and its end. */
+    readonly record: ImageRecord;
+
+    /** Take a template's image as its build left it. */
+    constructor(template: TestTemplate<Value, Databases>, record: ImageRecord) {
+        this.template = template;
+        this.record = record;
+    }
+
+    /** Fork the image for a test: its world at the build's end, its databases copied, its value. */
+    fork(label: string): ReturnType<typeof TestDatabase.fork<Value, Databases>> {
+        return TestDatabase.fork(this.template, this.record, label);
+    }
+}
+
+/** The images this process read or built, by run directory and template name. */
+const IMAGES = new Map<string, Promise<ImageRecord>>();
+
+/** A test run: its images, built when first forked and reused while their inputs stay the same. */
 export const TestRun = {
-    /** Provide a module's templates, written with some variables, to a project's tests. */
+    /** Open a run for a package's tests, keyed by its sources and some variables. */
     setup(module: URL, variables: Readonly<Record<string, string>> = {}) {
         return async (project: TestProject): Promise<() => Promise<void>> => {
-            const run = await TestRun.write(module, TestDatabase.target(project), { variables });
-            project.provide("templates", run.images);
+            const run = await TestRun.open(module, TestDatabase.target(project), { variables });
+            project.provide("run", run.record);
 
             return run.release;
         };
     },
 
-    /** Use a module's templates for a database, writing them first when their inputs changed. */
-    async write(
+    /** Open the run of a module's package for a database, used until released. */
+    async open(
         module: URL,
         dialect: Dialect,
-        options: TemplateWriteOptions = {},
-    ): Promise<{
-        readonly images: ImageIndex;
-        readonly release: () => Promise<void>;
-    }> {
-        const { variables = {}, deadline = TEMPLATE_MILLISECONDS } = options;
-        const cache = await TemplateCache.open(fileURLToPath(module), dialect, variables, deadline);
+        options: RunOptions = {},
+    ): Promise<{ readonly record: RunRecord; readonly release: () => Promise<void> }> {
+        // open the cache keyed by the package's sources and the variables, and hold it in use
+        const { variables = {}, deadline = BUILD_MILLISECONDS } = options;
+        const cache = await ImageCache.open(fileURLToPath(module), dialect, variables);
+        const release = await cache.use();
 
-        return await cache.use();
+        return {
+            record: { directory: cache.directory, id: cache.id, dialect, deadline },
+            release,
+        };
     },
 
-    /** Read the index of a run's template images from its file. */
-    async read(index: string): Promise<ImageIndex> {
-        const parsed: unknown = JSON.parse(await HOST.files.readTextFile(index));
+    /** Read a template's image in a run, building it and its parents the first time. */
+    async image<Value extends JsonValue, Databases extends TemplateDatabases>(
+        template: TestTemplate<Value, Databases>,
+        given?: RunRecord,
+    ): Promise<TestImage<Value, Databases>> {
+        // require a run, and an image of its database
+        const run = given ?? inject("run");
+        if (run === undefined) {
+            throw new TypeError(
+                `no run to read the image of template '${template.name}' in: set up TestRun in its package's test setup`,
+            );
+        } else if (template.dialects?.includes(run.dialect) === false) {
+            throw new TypeError(`template '${template.name}' has no '${run.dialect}' image`);
+        }
 
-        return ImageIndex.parse(parsed);
+        // read or build it once per process
+        const key = `${run.directory} ${template.name}`;
+        const known = IMAGES.get(key) ?? ImageCache.image(template, run);
+        IMAGES.set(key, known);
+        known.catch(() => IMAGES.delete(key));
+
+        return new TestImage(template, await known);
     },
 
-    /** Drop the PostgreSQL schemas of a run's template images. */
+    /** Drop the PostgreSQL schemas of a run's images. */
     async drop(id: string, dialect: Dialect): Promise<void> {
         // leave a SQLite run's images to its directory
         if (dialect === "sqlite") {
@@ -104,60 +165,43 @@ export const TestRun = {
     },
 };
 
-/** How a run writes a module's templates. */
-export interface TemplateWriteOptions {
-    /** The variables the templates are written with beside the process's own, none by default. */
+/** How a run is keyed and how long its builds may take. */
+export interface RunOptions {
+    /** The variables the images depend on beside the sources, none by default. */
     readonly variables?: Readonly<Record<string, string>>;
-    /** The longest one template's write may take in milliseconds, 60 s by default. */
+    /** The longest one template's build may take in milliseconds, 60 s by default. */
     readonly deadline?: number;
 }
 
-/** The written images of one template module for one database, keyed by their inputs. */
-class TemplateCache {
-    /** The template module's path. */
-    readonly module: string;
+/** The images of one package's run for one database, in a directory keyed by their inputs. */
+class ImageCache {
     /** The database the images are for. */
     readonly dialect: Dialect;
-    /** The directory of the module's entries, one per key. */
+    /** The directory of the package's entries, one per key. */
     readonly entries: string;
     /** The digest of every input of the images. */
     readonly key: Digest;
-    /** The variables the images are written with, beside the process's own. */
-    readonly variables: Readonly<Record<string, string>>;
-    /** The longest one template's write may take, in milliseconds. */
-    readonly deadline: number;
 
-    /** Describe a module's cache in its entries' directory, keyed by its inputs. */
-    private constructor(
-        module: string,
-        dialect: Dialect,
-        entries: string,
-        key: Digest,
-        variables: Readonly<Record<string, string>>,
-        deadline: number,
-    ) {
-        // keep the module, its database, its key, its variables, its deadline and its entries' directory
-        this.module = module;
+    /** Describe a package's cache in its entries' directory, keyed by its inputs. */
+    private constructor(dialect: Dialect, entries: string, key: Digest) {
+        // keep its database, its key and its entries' directory
         this.dialect = dialect;
         this.key = key;
-        this.variables = variables;
-        this.deadline = deadline;
         this.entries = entries;
     }
 
-    /** Open a module's cache, reading its checkout's root and the key of its inputs. */
+    /** Open the cache of a module's package, keyed by the digest of its inputs. */
     static async open(
         module: string,
         dialect: Dialect,
         variables: Readonly<Record<string, string>>,
-        deadline: number,
-    ): Promise<TemplateCache> {
+    ): Promise<ImageCache> {
         // find the checkout's root, the module's package and the packages it depends on
-        const root = await TemplateCache.#root(module);
-        const packages = await TemplateCache.#closure(module, root);
+        const root = await ImageCache.#root(module);
+        const packages = await ImageCache.#closure(module, root);
 
         // key the inputs: the database, the runtime, the checkout, the module and the sources
-        const digests = await TemplateCache.#digests(root, packages);
+        const digests = await ImageCache.#digests(root, packages);
         const key = await Digest.json(
             {
                 dialect,
@@ -171,13 +215,13 @@ class TemplateCache {
             HOST.crypto,
         );
 
-        // place the module's entries in the person's cache, apart per checkout and database
+        // place the package's entries in the person's cache, apart per checkout and database
         const checkout = (await Digest.json(root, HOST.crypto)).slice(0, CHECKOUT_DIGITS);
         const name = relative(root, module).replaceAll("/", "_");
         const cache = join(await HOST.files.cacheDirectory(), CACHE);
         const entries = join(cache, checkout, name, dialect);
 
-        return new TemplateCache(module, dialect, entries, key, variables, deadline);
+        return new ImageCache(dialect, entries, key);
     }
 
     /** The directory of the images for the current key. */
@@ -190,138 +234,111 @@ class TemplateCache {
         return this.key.slice(0, ID_LENGTH);
     }
 
-    /** Use the current key's images, writing them first when missing or incomplete. */
-    async use(): Promise<{ readonly images: ImageIndex; readonly release: () => Promise<void> }> {
+    /** Use the current key's entry until released, removing other keys' entries no run uses. */
+    async use(): Promise<() => Promise<void>> {
         // hold the entry shared while in use, which every cleanup then leaves
-        await HOST.files.mkdir(this.entries, { recursive: true });
+        await HOST.files.mkdir(this.directory, { recursive: true });
         const using = await HOST.files.lock(`${this.directory}.use`, "shared");
         try {
-            // write the images unless complete, one writer at a time
-            let images = await this.#complete();
-            if (images === undefined) {
-                await using _writing = await HOST.files.lock(
-                    `${this.directory}.write`,
-                    "exclusive",
-                );
-                images = (await this.#complete()) ?? (await this.#write());
+            // drop the schemas of ended runs, then remove other keys' entries
+            if (this.dialect === "postgresql") {
+                await TestDatabase.sweep();
+                await TestDatabase.close();
             }
-
-            // claim the images' schemas shared until the run ends, then remove other keys' entries
-            const claims = await TemplateCache.#claim(images, this.dialect);
             await this.#clean();
 
-            return {
-                images,
-                release: async () => {
-                    await claims?.end();
-                    await using.close();
-                },
-            };
+            return () => using.close();
         } catch (error) {
             await using.close();
             throw error;
         }
     }
 
-    /** Read the current key's images when written in full with every schema present. */
-    async #complete(): Promise<ImageIndex | undefined> {
-        // read a written index
-        const index = join(this.directory, INDEX);
-        if (!(await HOST.files.exists(index))) {
+    /** Read a template's image in a run, building it under its lock when it is missing. */
+    static async image<Value extends JsonValue, Databases extends TemplateDatabases>(
+        template: TestTemplate<Value, Databases>,
+        run: RunRecord,
+    ): Promise<ImageRecord> {
+        // read a built image, one builder at a time otherwise
+        const name = (await Digest.json(template.name, HOST.crypto)).slice(0, NAME_DIGITS);
+        const file = join(run.directory, `image-${name}.json`);
+        const built = await ImageCache.#read(file);
+        if (built !== undefined) {
+            return built;
+        }
+        await using _building = await HOST.files.lock(`${file}.build`, "exclusive");
+
+        return (await ImageCache.#read(file)) ?? (await ImageCache.#build(template, run, file));
+    }
+
+    /** Read a built image's record and claim its schemas, absent when unbuilt or not whole. */
+    static async #read(file: string): Promise<ImageRecord | undefined> {
+        // read the record
+        if (!(await HOST.files.exists(file))) {
             return undefined;
         }
-        const images = await TestRun.read(index);
+        const record = ImageRecord.parse(JSON.parse(await HOST.files.readTextFile(file)));
 
-        return (await TemplateCache.#restamp(images, this.dialect)) ? images : undefined;
+        // claim its PostgreSQL schemas, which every sweep then skips
+        const sources = [...Object.values(record.sources), ...Object.values(record.volumes)];
+        const schemas = sources.flatMap((source) =>
+            source.dialect === "postgresql" ? [source.schema] : [],
+        );
+        const isWhole = schemas.length === 0 || (await TestDatabase.claimImage(schemas));
+
+        return isWhole ? record : undefined;
     }
 
-    /** Write the current key's images in a child, after removing an earlier failed write. */
-    async #write(): Promise<ImageIndex> {
-        // clear an earlier write, then write in a child
-        await this.#remove(this.directory, this.id);
-        await HOST.files.mkdir(this.directory, { recursive: true });
-        const writer = fileURLToPath(new URL("./write.ts", import.meta.url));
-        const module = pathToFileURL(this.module).href;
-        const arguments_ = [writer, module, this.directory, this.id, this.dialect];
-        const child = HOST.process.spawn([HOST.process.executable, ...arguments_], {
-            variables: { ...HOST.process.variables, ...this.variables },
-            stdin: "pipe",
-            stdout: "inherit",
-            stderr: "pipe",
-        });
-        const [code, report] = await Promise.all([child.exited, this.#watch(child)]);
+    /** Build a template's image on its parent's, within the run's deadline, and record it last. */
+    static async #build<Value extends JsonValue, Databases extends TemplateDatabases>(
+        template: TestTemplate<Value, Databases>,
+        run: RunRecord,
+        file: string,
+    ): Promise<ImageRecord> {
+        // read or build the parent's image first
+        const started = HOST.clock.now();
+        const parent =
+            template.from === undefined ? undefined : await ImageCache.image(template.from, run);
 
-        // remove a failed write's images, stalled writes being killed
-        if (code !== 0) {
-            await this.#remove(this.directory, this.id);
-            const seconds = this.deadline / MILLISECONDS_PER_SECOND;
-            throw new Error(
-                report.isStalled
-                    ? `writing a template took over ${seconds} s and was stopped: ${report.text}`
-                    : `writing the run's templates failed with ${code}: ${report.text}`,
-            );
+        // build until the deadline stops it
+        const deadline = new AbortController();
+        const seconds = run.deadline / MILLISECONDS_PER_SECOND;
+        const built = new AbortController();
+        void HOST.clock.sleep(run.deadline, built.signal).then(
+            () =>
+                deadline.abort(
+                    new Error(`building template '${template.name}' took over ${seconds} s`),
+                ),
+            () => {},
+        );
+        let record: ImageRecord;
+        try {
+            record = await TestDatabase.build(template, run.dialect, run, parent, deadline.signal);
+        } finally {
+            built.abort();
         }
 
-        return await TestRun.read(join(this.directory, INDEX));
+        // record it once whole, then report its time
+        await HOST.files.writeTextFile(`${file}.building`, JSON.stringify(record));
+        await HOST.files.rename(`${file}.building`, file);
+        const taken = ((HOST.clock.now() - started) / MILLISECONDS_PER_SECOND).toFixed(1);
+        HOST.process.stderr.writeSync(`template ${template.name}: ${taken} s\n`);
+
+        return present(await ImageCache.#read(file), `the built image of '${template.name}'`);
     }
 
-    /** Read a writer's report, showing each line and stopping a template past its deadline. */
-    async #watch(
-        child: Pick<Subprocess, "stderr" | "kill">,
-    ): Promise<{ readonly text: string; readonly isStalled: boolean }> {
-        // stop the writer once one template runs past the deadline, rearmed as each finishes
-        let isStalled = false;
-        let deadline = new AbortController();
-        const arm = () => {
-            deadline.abort();
-            deadline = new AbortController();
-            HOST.clock.sleep(this.deadline, deadline.signal).then(
-                () => {
-                    isStalled = true;
-                    child.kill("SIGKILL");
-                },
-                () => {},
-            );
-        };
-        arm();
-
-        // collect the report, showing each whole line and rearming at each finished template's
-        let text = "";
-        let read = 0;
-        const decoder = new TextDecoder();
-        for await (const chunk of child.stderr) {
-            text += decoder.decode(chunk, { stream: true });
-            for (let end = text.indexOf("\n", read); end !== -1; end = text.indexOf("\n", read)) {
-                const line = text.slice(read, end);
-                read = end + 1;
-                HOST.process.stderr.writeSync(`${line}\n`);
-                if (line.startsWith(TEMPLATE_LINE)) {
-                    arm();
-                }
-            }
-        }
-        deadline.abort();
-
-        return { text, isStalled };
-    }
-
-    /** Remove the module's entries of other keys that no run uses or writes. */
+    /** Remove the package's entries of other keys that no run uses. */
     async #clean(): Promise<void> {
         for (const entry of await HOST.files.readDirectory(this.entries)) {
-            // lock each other entry exclusive now, else leave it to its users
+            // lock each other entry exclusive now, else leave it to the runs using it
             const isOther = entry.kind === "directory" && entry.name !== this.key;
             const path = join(this.entries, entry.name);
             const used = isOther ? await HOST.files.tryLock(`${path}.use`, "exclusive") : undefined;
-            const written =
-                used === undefined
-                    ? undefined
-                    : await HOST.files.tryLock(`${path}.write`, "exclusive");
 
-            // remove it, leaving its lock files, which a waiting process may have open
-            if (used !== undefined && written !== undefined) {
+            // remove it, leaving its lock file, which a waiting process may have open
+            if (used !== undefined) {
                 await this.#remove(path, entry.name.slice(0, ID_LENGTH));
             }
-            await written?.close();
             await used?.close();
         }
     }
@@ -352,7 +369,7 @@ class TemplateCache {
         const workspace = WorkspaceManifest.parse(await readJson(join(root, "package.json")));
         const named = new Map<string, string>();
         for (const pattern of workspace.workspaces) {
-            for (const directory of await TemplateCache.#expand(root, pattern.split("/"))) {
+            for (const directory of await ImageCache.#expand(root, pattern.split("/"))) {
                 const manifest = join(directory, "package.json");
                 if (await HOST.files.exists(manifest)) {
                     const { name } = PackageManifest.parse(await readJson(manifest));
@@ -362,7 +379,7 @@ class TemplateCache {
         }
 
         // walk from the path's package through every workspace dependency once
-        const start = await TemplateCache.#package(path, root);
+        const start = await ImageCache.#package(path, root);
         const visited = new Set<string>([start]);
         const pending = [start];
         for (let next = pending.pop(); next !== undefined; next = pending.pop()) {
@@ -395,7 +412,7 @@ class TemplateCache {
         else if (segment !== "*") {
             const next = join(directory, segment);
 
-            return (await HOST.files.exists(next)) ? TemplateCache.#expand(next, rest) : [];
+            return (await HOST.files.exists(next)) ? ImageCache.#expand(next, rest) : [];
         }
         // descend into every directory
         else {
@@ -403,7 +420,7 @@ class TemplateCache {
             const matched = await Promise.all(
                 entries
                     .filter((entry) => entry.kind === "directory")
-                    .map((entry) => TemplateCache.#expand(join(directory, entry.name), rest)),
+                    .map((entry) => ImageCache.#expand(join(directory, entry.name), rest)),
             );
 
             return matched.flat();
@@ -464,64 +481,6 @@ class TemplateCache {
         }
 
         return digests;
-    }
-
-    /** Restamp the PostgreSQL schemas of written images, answering whether every one exists. */
-    static async #restamp(images: ImageIndex, dialect: Dialect): Promise<boolean> {
-        // take SQLite images as their directory has them
-        const schemas = TemplateCache.#schemas(images);
-        if (dialect === "sqlite" || schemas.length === 0) {
-            return true;
-        }
-
-        // restamp each schema, which spares it other runs' sweeps for another retention
-        const session = postgres(TestDatabase.address(), { max: 1, fetch_types: false });
-        try {
-            const found = await session<{ name: string }[]>`
-                SELECT nspname AS name FROM pg_namespace WHERE nspname IN ${session(schemas)}`;
-            if (found.length !== schemas.length) {
-                return false;
-            }
-            for (const name of schemas) {
-                await session.unsafe(`COMMENT ON SCHEMA "${name}" IS '${HOST.clock.now()} image'`);
-            }
-
-            return true;
-        } finally {
-            await session.end();
-        }
-    }
-
-    /** Claim the PostgreSQL schemas of images shared, which every sweep's claim then skips. */
-    static async #claim(images: ImageIndex, dialect: Dialect): Promise<postgres.Sql | undefined> {
-        // claim nothing for SQLite images
-        const schemas = TemplateCache.#schemas(images);
-        if (dialect === "sqlite" || schemas.length === 0) {
-            return undefined;
-        }
-
-        // hold a shared advisory lock on each schema until the session ends
-        const session = postgres(TestDatabase.address(), {
-            max: 1,
-            max_lifetime: null,
-            fetch_types: false,
-        });
-        for (const name of schemas) {
-            await session`SELECT pg_advisory_lock_shared(hashtext(${name}))`.values();
-        }
-
-        return session;
-    }
-
-    /** List the distinct PostgreSQL schemas of images. */
-    static #schemas(images: ImageIndex): string[] {
-        const schemas = Object.values(images).flatMap((image) =>
-            Object.values(image.postgresql?.sources ?? {}).flatMap((source) =>
-                source.dialect === "postgresql" ? [source.schema] : [],
-            ),
-        );
-
-        return [...new Set(schemas)];
     }
 }
 

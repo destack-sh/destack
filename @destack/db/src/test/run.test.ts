@@ -1,17 +1,18 @@
-import { expect, test } from "@destack/test";
+import { present } from "@destack/schema";
+import { expect, inject, test } from "@destack/test";
 import { TestRun } from "./run.ts";
+import { stalledTemplate } from "./stalled.ts";
 
-/** The deadline the stalled write runs past: 200 ms, far below the writer's start. */
+/** The deadline the stalled build runs past: 200 ms. */
 const DEADLINE_MILLISECONDS = 200;
 
-test("stop a template write running past its deadline, failing loudly", async () => {
-    // write a module whose one template never finishes
-    const writing = TestRun.write(new URL("./stalled.ts", import.meta.url), "sqlite", {
-        deadline: DEADLINE_MILLISECONDS,
-    });
+test("stop waiting for a template's build past its deadline, failing loudly", async () => {
+    // build a template whose build never finishes, in the run with a short deadline
+    const run = { ...present(inject("run"), "the run"), deadline: DEADLINE_MILLISECONDS };
+    const building = TestRun.image(stalledTemplate, run);
 
-    // fail once the writer is stopped
-    await expect(writing).rejects.toEqual(
-        new Error("writing a template took over 0.2 s and was stopped: "),
+    // fail at the deadline
+    await expect(building).rejects.toEqual(
+        new Error("building template 'db.stalled' took over 0.2 s"),
     );
 });

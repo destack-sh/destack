@@ -24,16 +24,15 @@ import { createLog } from "../log/trigger.ts";
 import { sql } from "../sql/index.ts";
 import { channelHub } from "../channel/channel.ts";
 import { upsertPredefined } from "../migration/plan.ts";
-import { inject, onTestFinished, type TestProject, testTarget } from "@destack/test";
+import { onTestFinished, type TestProject, testTarget } from "@destack/test";
 import { type DigestCrypto, type JsonValue, mapValues, present, Uuid } from "@destack/schema";
 import type {
-    ImageIndex,
+    ImageRecord,
     ImageSource,
+    TestTemplate,
     TemplateDatabases,
-    TemplateImage,
     TemplateStorage,
     TemplateTables,
-    TestTemplate,
 } from "./template.ts";
 import { testWorldOptions } from "@destack/test/world";
 
@@ -54,15 +53,6 @@ const SCHEMA_RETENTION_MILLISECONDS = 60 * 60 * 1000;
 
 /** The mark a schema's stamp ends with once its release emptied it. */
 const CLEAN_STAMP = "clean";
-
-/** The run's provided values the test databases read. */
-declare module "vitest" {
-    /** The values a run's setup provides to its tests. */
-    export interface ProvidedContext {
-        /** The images of the run's templates by name and dialect, absent without a setup. */
-        templates?: ImageIndex;
-    }
-}
 
 /** An isolated database for one test: a SQLite memory or file database, or a PostgreSQL schema. */
 export class TestDatabase<
@@ -149,31 +139,20 @@ export class TestDatabase<
         return TestDatabase.#sqliteFile(declared, tables, options);
     }
 
-    /** Copy a template's image into a fork of its world at its write's end, with its value. */
-    static async copy<Value extends JsonValue, Databases extends TemplateDatabases>(
+    /** Fork a template's image: its world at its build's end, its databases and volumes copied. */
+    static async fork<Value extends JsonValue, Databases extends TemplateDatabases>(
         template: TestTemplate<Value, Databases>,
-        options: TemplateCopyOptions,
+        image: ImageRecord,
+        label: string,
     ): Promise<{
         readonly simulation: Simulation;
         readonly databases: TemplateStorage<Databases>;
         readonly volumes: ReadonlyMap<string, TestDatabase>;
         readonly value: Value;
     }> {
-        // read the template's image in the run, refusing a template no setup of the run lists
-        const images = options.images ?? inject("templates");
-        const dialect = options.dialect ?? TestDatabase.target();
-        const image = images?.[template.name]?.[dialect];
-        if (image === undefined) {
-            throw new TypeError(
-                `the run has no '${dialect}' image of template '${template.name}': list it in its package's test templates`,
-            );
-        }
-
         // fork the template's world by the label, its databases running as the write's node
         const recorded = { seed: template.world.seed, start: image.end };
-        const simulation = Simulation.fork(recorded, options.label, {
-            world: testWorldOptions(),
-        });
+        const simulation = Simulation.fork(recorded, label, { world: testWorldOptions() });
         onTestFinished(() => simulation[Symbol.asyncDispose]());
         const environment = simulation.environment(TEMPLATE_NODE);
 
@@ -197,7 +176,7 @@ export class TestDatabase<
     /** Copy each database of a template's image into a claimed schema or a temporary file. */
     static async #copyDatabases(
         template: Pick<TestTemplate, "name" | "databases">,
-        image: TemplateImage,
+        image: ImageRecord,
         environment: DatabaseEnvironment,
     ): Promise<Map<string, TestDatabase>> {
         const copied = await Promise.all(
@@ -220,7 +199,7 @@ export class TestDatabase<
     /** Copy each database a template's write opened as it ran, by its key. */
     static async #copyVolumes(
         template: Pick<TestTemplate, "name" | "volume">,
-        image: TemplateImage,
+        image: ImageRecord,
         environment: DatabaseEnvironment,
     ): Promise<Map<string, TestDatabase>> {
         // refuse volumes in an image of a template without volume tables
@@ -248,35 +227,93 @@ export class TestDatabase<
         return new Map(copied);
     }
 
-    /** Write a template's image once for a run: a file or schema per database the run stores. */
-    static async image<Value extends JsonValue, Databases extends TemplateDatabases>(
+    /** Restamp an image's PostgreSQL schemas and claim them shared until this process exits. */
+    static async claimImage(schemas: readonly string[]): Promise<boolean> {
+        // answer false when a schema is gone, which leaves the image to be built again
+        const { session } = TestServer.of(TestDatabase.address());
+        const found = await session<{ name: string }[]>`
+            SELECT nspname AS name FROM pg_namespace WHERE nspname IN ${session(schemas)}`;
+        if (found.length !== schemas.length) {
+            return false;
+        }
+
+        // restamp each, sparing it other runs' sweeps for a retention, and lock it shared against them
+        for (const name of schemas) {
+            await session.unsafe(`COMMENT ON SCHEMA "${name}" IS '${HOST.clock.now()} image'`);
+            await session`SELECT pg_advisory_lock_shared(hashtext(${name}))`.values();
+        }
+
+        return true;
+    }
+
+    /** Build a template's image in a run's directory on its parent's, until a signal stops it. */
+    static async build<Value extends JsonValue, Databases extends TemplateDatabases>(
         template: TestTemplate<Value, Databases>,
         dialect: Dialect,
         run: { readonly id: string; readonly directory: string },
-    ): Promise<TemplateImage> {
-        // open the template's world, then each database migrated in turn, named by the digest of the template's name and its own
-        await using simulation = new Simulation({
-            ...template.world,
-            world: testWorldOptions(),
-        });
+        parent: ImageRecord | undefined,
+        signal: AbortSignal,
+    ): Promise<ImageRecord> {
+        // open the template's world, a parent's forked at its build's end
+        await using simulation =
+            parent === undefined
+                ? new Simulation({ ...template.world, world: testWorldOptions() })
+                : Simulation.fork(
+                      { seed: template.world.seed, start: parent.end },
+                      `build ${template.name}`,
+                      { world: testWorldOptions() },
+                  );
         const environment = simulation.environment(TEMPLATE_NODE);
         const opened = new Map<string, ImageDatabase>();
         const openedVolumes = new Map<string, ImageDatabase>();
+        const place = async (path: string) =>
+            (await digestOf(`${template.name}/${path}`, environment.crypto)).slice(0, 16);
         let value: Value;
         let end: number;
+        let files: string;
         try {
+            // open each database migrated, with its parent's rows
             for (const [name, tables] of Object.entries(template.databases)) {
-                const key = (await digestOf(`${template.name}/${name}`, environment.crypto)).slice(
-                    0,
-                    16,
+                const from = parent?.sources[name];
+                const key = await place(name);
+                const image = await TestDatabase.#openImage(
+                    tables,
+                    dialect,
+                    key,
+                    run,
+                    environment,
+                    from,
                 );
-                opened.set(
-                    name,
-                    await TestDatabase.#openImage(tables, dialect, key, run, environment),
-                );
+                opened.set(name, image);
             }
 
-            // write the rows into them, opening each volume the write asks for as it runs
+            // open each volume the parent's build opened, with its rows
+            const volume = template.volume;
+            for (const [key, from] of Object.entries(parent?.volumes ?? {})) {
+                const tables = present(volume, `the volume tables of ${template.name}`);
+                const at = await place(`volume/${key}`);
+                const image = await TestDatabase.#openImage(
+                    tables,
+                    dialect,
+                    at,
+                    run,
+                    environment,
+                    from,
+                );
+                openedVolumes.set(key, image);
+            }
+
+            // start the files' directory from the parent's
+            files = join(run.directory, `files-${await place("files")}`);
+            const copied = parent?.files;
+            await environment.scheduler.run(async () => {
+                await HOST.files.remove(files, { recursive: true, force: true });
+                await (copied === undefined
+                    ? HOST.files.mkdir(files)
+                    : HOST.files.copy(copied, files));
+            });
+
+            // build the rows into them, opening each new volume the build asks for as it runs
             const databases = mapValues<Databases, TemplateStorage<Databases>>(
                 template.databases,
                 (_, name) => present(opened.get(name), `the image's database ${name}`).storage,
@@ -287,42 +324,39 @@ export class TestDatabase<
                 if (known !== undefined) {
                     return known.storage;
                 }
-                const tables = present(template.volume, `the volume tables of ${template.name}`);
-                const digest = await digestOf(`${template.name}/volume/${key}`, environment.crypto);
-                const image = await TestDatabase.#openImage(
-                    tables,
-                    dialect,
-                    digest.slice(0, 16),
-                    run,
-                    environment,
-                );
+                const tables = present(volume, `the volume tables of ${template.name}`);
+                const at = await place(`volume/${key}`);
+                const image = await TestDatabase.#openImage(tables, dialect, at, run, environment);
                 openedVolumes.set(key, image);
 
                 return image.storage;
             };
-            value = await TestDatabase.#write(
-                template,
+            const stopped = new Promise<never>((_, reject) => {
+                signal.addEventListener("abort", () => reject(signal.reason), { once: true });
+            });
+            const building = template.build({
                 databases,
-                open,
-                run.directory,
-                environment,
+                directory: files,
                 simulation,
-            );
+                open,
+                parent: parent?.value,
+            });
+            value = await Promise.race([building, stopped]);
             end = simulation.clock.now();
         } catch (error) {
-            // close what a failed write opened
+            // close what a failed build opened
             const failed = [...opened.values(), ...openedVolumes.values()];
             await Promise.all(failed.map((entry) => entry.storage.close()));
             throw error;
         }
 
-        // close the written databases and volumes, then read where each keeps its rows
-        const written = [...opened.values(), ...openedVolumes.values()];
-        await Promise.all(written.map((entry) => entry.storage.close()));
+        // close the built databases and volumes, then read where each keeps its rows
+        const built = [...opened.values(), ...openedVolumes.values()];
+        await Promise.all(built.map((entry) => entry.storage.close()));
         const sources = await TestDatabase.#sources(opened);
         const volumes = await TestDatabase.#sources(openedVolumes);
 
-        return { sources, volumes, value, end };
+        return { sources, volumes, files, value, end };
     }
 
     /** Read where each written database keeps its rows, by name. */
@@ -361,6 +395,7 @@ export class TestDatabase<
         key: string,
         run: { readonly id: string; readonly directory: string },
         environment: DatabaseEnvironment,
+        from?: ImageSource,
     ): Promise<ImageDatabase> {
         // write it into a migrated schema that stays until the run's end
         const declared = "tables" in tables ? tables.tables : tables;
@@ -368,6 +403,7 @@ export class TestDatabase<
             // stamp its creation, which stops other runs' sweeps dropping it until it expires
             const server = TestServer.of(TestDatabase.address());
             const schema = `test_t${run.id}_${key}`;
+            await server.session.unsafe(`DROP SCHEMA IF EXISTS "${schema}" CASCADE`);
             await server.session.unsafe(`CREATE SCHEMA "${schema}"`);
             await server.session.unsafe(
                 `COMMENT ON SCHEMA "${schema}" IS '${HOST.clock.now()} image'`,
@@ -390,6 +426,15 @@ export class TestDatabase<
                 DATABASE_MANAGER,
             );
             await migrated.close();
+
+            // take the parent's rows
+            if (from?.dialect === "postgresql") {
+                const state = declareState(declared, "postgresql", {
+                    isReplica: false,
+                    replicated: replicatedOf(tables),
+                });
+                await TestSchema.fill(server, schema, state, environment, from);
+            }
             const storage = new TestDatabase(await open(tables), open, async () => {});
             const source = async (): Promise<ImageSource> => ({
                 dialect,
@@ -400,11 +445,14 @@ export class TestDatabase<
             return { storage, source };
         }
 
-        // write a migrated file in the run's directory, and checkpoint its WAL into it once written
+        // start a file in the run's directory from the parent's, else migrated, and checkpoint its WAL once built
         const file = join(run.directory, `${key}.db`);
-        const template = await environment.scheduler.waitUntil(
-            sqliteTemplate(declared, false, replicatedOf(tables), environment),
-        );
+        const template =
+            from?.dialect === "sqlite"
+                ? from.file
+                : await environment.scheduler.waitUntil(
+                      sqliteTemplate(declared, false, replicatedOf(tables), environment),
+                  );
         await environment.scheduler.run(() => HOST.files.copyFile(template, file));
         const source = async (): Promise<ImageSource> => {
             // checkpoint the WAL into the file
@@ -415,13 +463,13 @@ export class TestDatabase<
             return { dialect, file };
         };
 
-        // open the file the template writes into, in the template's environment
+        // open the file the template builds into, in the template's environment, a parent's keeping its log epoch
         const storage = await TestDatabase.#sqliteAt(
             file,
             tables,
             async () => {},
             environment,
-            "renew",
+            from === undefined ? "renew" : "keep",
         );
 
         return { storage, source };
@@ -454,23 +502,6 @@ export class TestDatabase<
     /** Close the process's pools and claim sessions, releasing its claims. */
     static close(): Promise<void> {
         return TestServer.close();
-    }
-
-    /** Write a template into its databases and a directory of the run's, then close them. */
-    static async #write<Value extends JsonValue, Databases extends TemplateDatabases>(
-        template: TestTemplate<Value, Databases>,
-        databases: TemplateStorage<Databases>,
-        open: (key: string) => Promise<TestDatabase>,
-        directory: string,
-        environment: DatabaseEnvironment,
-        simulation: Simulation,
-    ): Promise<Value> {
-        // make the template's files directory under its name's digest
-        const key = (await digestOf(template.name, environment.crypto)).slice(0, 16);
-        const files = join(directory, `files-${key}`);
-        await environment.scheduler.run(() => HOST.files.mkdir(files));
-
-        return await template.write(databases, files, simulation, open);
     }
 
     /** Claim a migrated PostgreSQL schema reset to a template's rows, or create an empty one. */
@@ -607,16 +638,6 @@ export class TestDatabase<
     }
 }
 
-/** Where a template's copy reads its image and how it forks the template's world. */
-export interface TemplateCopyOptions {
-    /** The label the copy forks the template's world by, distinct per copy in one world. */
-    readonly label: string;
-    /** The images of the run's templates, the test run's by default. */
-    readonly images?: ImageIndex | undefined;
-    /** The database the images are of, the test project's by default. */
-    readonly dialect?: Dialect;
-}
-
 /** The options of a test database. */
 export interface TestDatabaseOptions {
     /** The database, the project's by default, given only by tests of one database's behavior. */
@@ -719,6 +740,18 @@ class TestSchema {
         }
 
         return schema;
+    }
+
+    /** Replace a migrated schema's rows with an image's and its log identity. */
+    static async fill(
+        server: TestServer,
+        name: string,
+        state: readonly TableState[],
+        environment: DatabaseEnvironment,
+        image: PostgresImage,
+    ): Promise<void> {
+        const schema = new TestSchema(server, name, await readShape(server.session, name));
+        await schema.#reset(state, environment, image, false);
     }
 
     /** Drop the expired schemas no test claims and the templates of runs that ended long ago. */
