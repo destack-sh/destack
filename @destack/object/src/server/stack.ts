@@ -63,12 +63,14 @@ const MANAGEMENT_KEYS: ReadonlySet<string> = new Set(["adopted", "released"]);
 export interface DeclarationHandler<Object extends ObjectType = ObjectType> {
     /** The object types applied before and retired after this one, or "every". */
     readonly after?: readonly ObjectType[] | "every";
-    /** Resolve references within a declaration, returning it unchanged by default. */
+    /** Resolve a declaration and its document's other fields into its create input. */
     resolve?(
         name: string,
-        declared: DeclarationOf<Object>,
+        declared: DeclarationOf<Object> & { readonly [field: string]: unknown },
         plan: StackPlan,
     ): Promise<DeclarationOf<Object>>;
+    /** The declaration its resolve reads, by default the create input with references by name. */
+    readonly schema?: schema.Schema;
     /** The fields a declaration sets once, refusing another value later. */
     readonly immutable?: readonly (keyof DeclarationOf<Object> & string)[];
     /** The document collection naming what users declare, such as `installations` for rollouts. */

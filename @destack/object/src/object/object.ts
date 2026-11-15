@@ -1839,9 +1839,10 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
             return undefined;
         }
 
-        // derive the declaration from each create input variant once, without the name and the supplied fields
+        // take the handler's declaration, else derive it from each create input variant once, without the supplied fields
         const { supplied, stackTargets } = this;
         const derived =
+            this.declaration.schema ??
             this.derived.declaration ??
             InputSchema.map(this.input("create"), (created) =>
                 schema.object(
