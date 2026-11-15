@@ -74,8 +74,12 @@ test("publish exact bytes at the bucket's root, and reject stale replacements th
                 return new Response(null, { status: 404 });
             }
 
+            // compress unless asked for the stored bytes, weakening the validator as a transforming cache does
+            const isStored = request.headers.get("accept-encoding") === "identity";
+            const etag = isStored ? current.revision : `W/${current.revision}`;
+
             return new Response(request.method === "HEAD" ? null : new Uint8Array(current.bytes), {
-                headers: { etag: current.revision, "content-length": String(current.bytes.length) },
+                headers: { etag, "content-length": String(current.bytes.length) },
             });
         },
     });

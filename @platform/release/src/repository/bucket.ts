@@ -14,6 +14,9 @@ const UPLOAD_TIMEOUT_MILLISECONDS = 15 * 60 * 1000;
 /** Maximum duration of a read from storage, in milliseconds. */
 const READ_TIMEOUT_MILLISECONDS = 15_000;
 
+/** Ask for an object's stored bytes, whose strong validator a conditional replacement matches. */
+const STORED_BYTES = { "accept-encoding": "identity" } as const;
+
 /** Bucket-scoped release transport with conditional object replacement. */
 export class R2ReleaseBucket {
     /** Native S3 signer configured for one bucket. */
@@ -62,6 +65,7 @@ export class R2ReleaseBucket {
 
         return await network.fetch(
             new Request(url, {
+                headers: STORED_BYTES,
                 redirect: "error",
                 signal: clock.timeout(READ_TIMEOUT_MILLISECONDS),
             }),
@@ -76,6 +80,7 @@ export class R2ReleaseBucket {
         const response = await network.fetch(
             new Request(url, {
                 method: "HEAD",
+                headers: STORED_BYTES,
                 redirect: "error",
                 signal: clock.timeout(READ_TIMEOUT_MILLISECONDS),
             }),
