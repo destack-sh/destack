@@ -143,6 +143,31 @@ export class BunClient extends BunQuery implements SqliteConnectionClient {
         ).file;
     }
 
+    /** Commit the transaction, adding the failing row to a foreign key error. */
+    #commit(): void {
+        try {
+            this.database.run("COMMIT");
+        } catch (error) {
+            // read the first row with a missing parent
+            const failing = this.database
+                .query<{ table: string; rowid: number; parent: string }, []>(
+                    "PRAGMA foreign_key_check",
+                )
+                .get();
+
+            // pass any other failure on
+            if (failing === null) {
+                throw error;
+            }
+            const { table, rowid, parent } = failing;
+
+            throw new Error(
+                `FOREIGN KEY constraint failed: '${table}' row '${rowid}' lacks its '${parent}'`,
+                { cause: error },
+            );
+        }
+    }
+
     /** Close the database after its work. */
     async close(): Promise<void> {
         await this.#queue.run(async () => {
@@ -159,7 +184,7 @@ export class BunClient extends BunQuery implements SqliteConnectionClient {
                 this.database.run(`BEGIN ${mode}`);
                 try {
                     const value = await operation(new BunQuery(this.database, this.statements));
-                    this.database.run("COMMIT");
+                    this.#commit();
 
                     return value;
                 } catch (error) {
