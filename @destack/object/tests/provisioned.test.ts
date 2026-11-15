@@ -603,7 +603,7 @@ test("retry a failed provisioning without recording it, and provision on the nex
         provisioned: ready?.reason,
         sizes: [...boxes.sizes.keys()],
     }).toEqual({
-        failed: ["the disk is full", {}],
+        failed: ["provider 'memory' is unavailable: the disk is full", {}],
         provisioned: "Applied",
         sizes: [ids.first],
     });

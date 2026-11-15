@@ -1,3 +1,4 @@
+import { Failure } from "@destack/error";
 import { accessRelationship } from "@destack/access";
 import {
     and,
@@ -219,9 +220,9 @@ export class ResourceController {
         }
 
         // record the provider reference for this generation, a failure recorded as Synced
-        const provisioned = await provider.provision.provision(
-            ResourceRecord.of(provider.kind, row),
-        );
+        const provisioned = await provider.provision
+            .provision(ResourceRecord.of(provider.kind, row))
+            .catch((error: unknown) => ResourceController.#unavailable(provider.code, error));
         const fields = {
             provider: provider.code,
             reference: provisioned.reference,
@@ -313,6 +314,25 @@ export class ResourceController {
                 options,
             );
         }
+    }
+
+    /** Declare a provider's own failure unavailable, retried until the provider recovers. */
+    static #unavailable(code: string, error: unknown): never {
+        // pass a failure the provider declared
+        if (Failure.isDeclared(error)) {
+            throw error;
+        }
+
+        // declare any other one unavailable
+        const { message } = Failure.of(error);
+
+        throw ResourceError.of(
+            "RESOURCE_UNAVAILABLE",
+            `provider '${code}' is unavailable: ${message}`,
+            {
+                cause: error,
+            },
+        );
     }
 
     /** Plan a resource's desired states, or a recreation without draining-only states. */
@@ -455,7 +475,9 @@ export class ResourceController {
         // destroy provisioned content, a failure recorded as Synced
         const provider = ResourceController.select(options.providers, row);
         if (row.reference !== null && provider?.provision !== undefined) {
-            await provider.provision.destroy(ResourceRecord.of(provider.kind, row));
+            await provider.provision
+                .destroy(ResourceRecord.of(provider.kind, row))
+                .catch((error: unknown) => ResourceController.#unavailable(provider.code, error));
         }
 
         // finish the record's deletion
