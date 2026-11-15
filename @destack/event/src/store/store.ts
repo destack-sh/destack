@@ -478,6 +478,11 @@ export class EventStore {
         return events;
     }
 
+    /** Delete every segment file the store wrote. */
+    clear(): Promise<void> {
+        return this.#archive.clear();
+    }
+
     /** Forget a person by their subject keys' values, erasing their sealed personal values. */
     forget(subject: readonly string[]): Promise<void> {
         return this.#telemetry.span("destack.event.forget", {}, async () => {

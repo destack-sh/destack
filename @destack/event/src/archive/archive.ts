@@ -202,6 +202,29 @@ export class EventArchive {
         });
     }
 
+    /** Delete every segment file and every file pending deletion, then their rows. */
+    clear(): Promise<void> {
+        return this.#scope.span("destack.event.clear", {}, async () => {
+            // read every segment's and pending deletion's file by scope
+            const segments = await this.#database
+                .select({ scope: eventSegment.scope, file: eventSegment.file })
+                .from(eventSegment);
+            const deletions = await this.#database
+                .select({ scope: segmentDeletion.scope, file: segmentDeletion.file })
+                .from(segmentDeletion);
+            const scoped = Map.groupBy([...segments, ...deletions], (entry) => entry.scope);
+
+            // delete each scope's files, then the rows
+            for (const [scope, entries] of scoped) {
+                await this.#files(scope).delete(entries.map((entry) => entry.file));
+            }
+            await this.#database.transaction(async (transaction) => {
+                await transaction.delete(eventSegment);
+                await transaction.delete(segmentDeletion);
+            });
+        });
+    }
+
     /** Remove segments from the catalog and record their files' deletion in one transaction. */
     static async #retire(
         transaction: DatabaseConnection,

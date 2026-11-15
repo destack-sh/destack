@@ -145,7 +145,10 @@ test("store a kind registered after opening like one opened with, once the datab
     const fixture = await open();
     const { store } = fixture;
     const before = store.has(line);
-    await fixture.database.database.migrate(eventTables([line]), { others: "retain" });
+    await fixture.database.database.migrate(eventTables([line]), {
+        manager: "database-01996ab0-0000-7000-8000-0000000000e1",
+        packages: [meters.id],
+    });
     store.register([line]);
 
     // append and read a line, and refuse a registration naming one kind twice
@@ -414,6 +417,38 @@ test("delete an upload's file an hour after it started unless catalogued, keepin
         [...catalogued.map((segment) => segment.file), `${directory}/inflight.parquet`].toSorted(),
         [`${directory}/inflight.parquet`],
     ]);
+});
+
+test("clear every segment file and pending upload of a store, leaving no file or catalog row", async () => {
+    const fixture = await open();
+    const { store, bucket, database } = fixture;
+    const directory = `events/${meters.id}/reading/space-1`;
+
+    // flush a segment, then start an upload still in flight
+    await store.append(
+        reading,
+        [1, 2, 3].map((minute) => measured(`r${String(minute)}`, minute, "db.bytes", minute)),
+    );
+    await fixture.simulation.run(TEST_START + 61 * MINUTE);
+    await database.database.transaction((transaction) =>
+        transaction
+            .insert(segmentDeletion)
+            .values({
+                file: `${directory}/inflight.parquet`,
+                scope: "space-1",
+                deleteAt: fixture.simulation.clock.now() + 60 * MINUTE,
+            })
+            .execute(),
+    );
+    await bucket.put(`${directory}/inflight.parquet`, "writing");
+
+    // clear the store, deleting both files and every catalog row
+    await store.clear();
+    expect({
+        files: (await bucket.list({ prefix: "events/" })).files.map((file) => file.key),
+        segments: await database.database.select().from(eventSegment),
+        deletions: await database.database.select().from(segmentDeletion),
+    }).toEqual({ files: [], segments: [], deletions: [] });
 });
 
 test("fold a measure per step and group across hot events in SQL and flushed ones", async () => {
