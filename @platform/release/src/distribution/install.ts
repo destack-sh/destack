@@ -64,7 +64,7 @@ async function verifyInstall(
     installation: Installation,
     environment: Environment<HostCapability>,
 ): Promise<void> {
-    // pipe the feed's install script into the shell, as the site's install command does
+    // install through the feed's install script, failing when its download fails
     const { executable } = installation;
     const version = present(
         environment.process.variables["DESTACK_RELEASE_VERSION"],
@@ -76,7 +76,22 @@ async function verifyInstall(
         DESTACK_UPDATE_URL: configuration.url.href,
     };
     const script = new URL("install", configuration.url).href;
-    await command("sh", ["-c", 'curl -fsSL "$1" | sh', "sh", script], variables, environment);
+    const output = await command(
+        "bash",
+        ["-o", "pipefail", "-c", 'curl -fsSL "$1" | sh', "bash", script],
+        variables,
+        environment,
+    );
+    print(output, environment);
+
+    // require the installed command
+    if (!(await environment.files.exists(executable))) {
+        const entries = await environment.files.readDirectory(installation.directory);
+        const names = entries.map((entry) => entry.name).join(", ");
+        throw new Error(
+            `cannot find '${executable}': '${installation.directory}' contains '${names}'`,
+        );
+    }
     installation.isRunning = true;
 
     // install again through the shipped command, then restart its machine
