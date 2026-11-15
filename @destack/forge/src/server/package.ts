@@ -2,6 +2,8 @@ import { present, schema } from "@destack/schema";
 import type { MethodContextOf, ResultOf } from "@destack/object";
 import type { ObjectReference } from "@destack/sync";
 import { packageObject, release, tag } from "@destack/registry/object";
+import { setting } from "@destack/setting/object";
+import { buildRetention } from "@destack/stack/setting";
 import { Forge } from "./forge.ts";
 import { ReleaseMethod, type ReleaseOptions } from "./release.ts";
 
@@ -98,5 +100,18 @@ export function implementPackageObject(options: ReleaseOptions): typeof packageO
             },
             point: (context) => PackageMethod.point(context),
         },
+        projections: [
+            {
+                // delete a package's prereleases past the space's retention
+                name: "retention",
+                watches: [
+                    { table: release.table, on: { id: "parentId" } },
+                    { table: tag.table, on: { id: "parentId" } },
+                    { table: setting.table, where: { name: buildRetention.name }, isListing: true },
+                ],
+                project: (packageId, { store }) =>
+                    ReleaseMethod.retain(store, schema.identifier("package").parse(packageId)),
+            },
+        ],
     });
 }

@@ -1,5 +1,5 @@
 import { type Select, Snapshot } from "@destack/db";
-import { BATCH_LIMIT, type MethodContextOf, ObjectWatch } from "@destack/object";
+import { BATCH_LIMIT, type MethodContextOf } from "@destack/object";
 import { connection } from "@destack/connection";
 import { present } from "@destack/schema";
 import type { Runner } from "@destack/connection/server";
@@ -166,17 +166,7 @@ export function implementRepository(options: RepositoryOptions): typeof reposito
                               deletedAt: { isNull: true },
                           },
                           // identify an account's waiting repositories again as their connection's replica changes
-                          watches: [
-                              ObjectWatch.of(connection.table, async (row, database) => {
-                                  const rows = await Snapshot.live(database)
-                                      .read(repository.table)
-                                      .findMany({
-                                          where: { connectionId: row.id, hosting: "github" },
-                                      });
-
-                                  return rows.map((each) => ({ id: each.id }));
-                              }),
-                          ],
+                          watches: [{ table: connection.table, on: { connectionId: "id" } }],
                           reconcile: async (reconciliation) => {
                               for (const row of reconciliation.rows) {
                                   // identify the repository once its connection's replica names an installation

@@ -3,9 +3,9 @@ import { PackageManifest } from "@destack/package/manifest";
 import { type DependencyRelease, type PackageId, PackageName } from "@destack/package";
 import { type MethodContextOf, type NextOf, type ResultOf } from "@destack/object";
 import { Vocabulary } from "@destack/resource";
-import { present, Version, schema } from "@destack/schema";
+import { type Identifier, present, Version, schema } from "@destack/schema";
 import { RequestId } from "@destack/sync";
-import { Projection, Snapshot } from "@destack/db";
+import { Snapshot } from "@destack/db";
 import type { ObjectStore } from "@destack/object/server";
 import { SettingValue } from "@destack/setting/object";
 import { buildRetention } from "@destack/stack/setting";
@@ -215,29 +215,22 @@ export const ReleaseMethod = {
         return await next(call);
     },
 
-    /** Delete each package's prereleases past its build retention, keeping tagged ones. */
-    retention(store: ObjectStore): Projection {
-        return new Projection(store.database, {
-            name: "release-retention",
-            tables: [release.table, tag.table],
-            keys: async () => [store.scope],
-            all: async () => [store.scope],
-            project: async () => ReleaseMethod.retain(store),
-        });
-    },
-
-    /** Delete prereleases past the build retention, keeping the newest and the tagged ones. */
-    async retain(store: ObjectStore): Promise<void> {
+    /** Delete a package's prereleases past the build retention, keeping the newest and tagged. */
+    async retain(store: ObjectStore, packageId: Identifier<"package">): Promise<void> {
         // read how many prereleases of each package the space keeps
         const { database, scope } = store;
         const snapshot = Snapshot.live(database);
         const kept = await SettingValue.resolve(snapshot, buildRetention, { scope });
         const space = schema.identifier("space").parse(scope);
-        const releases = await snapshot.read(release.table).findMany({ where: { scope: space } });
+        const releases = await snapshot
+            .read(release.table)
+            .findMany({ where: { scope: space, parentId: packageId } });
         const tagged = new Set(
-            (await snapshot.read(tag.table).findMany({ where: { scope: space } })).map(
-                (each) => `${each.parentId} ${each.version}`,
-            ),
+            (
+                await snapshot
+                    .read(tag.table)
+                    .findMany({ where: { scope: space, parentId: packageId } })
+            ).map((each) => `${each.parentId} ${each.version}`),
         );
 
         // drop each package's untagged prereleases past the newest it keeps

@@ -34,7 +34,7 @@ import {
 import type { GitStorage } from "@destack/git";
 import { ForgeError, type ForgeReason } from "../error/index.ts";
 import { implementPackageObject } from "./package.ts";
-import { implementRelease, ReleaseMethod } from "./release.ts";
+import { implementRelease } from "./release.ts";
 import { implementRepository } from "./repository.ts";
 import { implementTag } from "./tag.ts";
 import { implementIssuer } from "./issuer.ts";
@@ -191,8 +191,6 @@ export class Forge {
 
         return {
             objects: this.handled,
-            // delete the prereleases past the space's retention
-            cursors: [(store) => ReleaseMethod.retention(store)],
             follows: [this.#connectionFollow(), claimFollow],
             standing: [standingFollow],
             // answer builds, and the GitHub App's deliveries
