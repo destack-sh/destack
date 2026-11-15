@@ -2,12 +2,7 @@ import { now, Snapshot } from "@destack/db";
 import { Account } from "@destack/account/object";
 import { Subject } from "@destack/sync";
 import { Destination } from "@destack/message/object";
-import {
-    type MethodContextOf,
-    type ObjectReconciliation,
-    ObjectWatch,
-    type ResultOf,
-} from "@destack/object";
+import { type MethodContextOf, type ObjectReconciliation, type ResultOf } from "@destack/object";
 import { Duration, type Identifier, nth, present, schema } from "@destack/schema";
 import { Recipient, Routing, Settings } from "../message/index.ts";
 import { InboxEntry } from "../notification/inbox.ts";
@@ -24,7 +19,8 @@ export function implementNotification(server: NotificationServer): typeof notifi
         projections: [
             {
                 // plan a home's notification of an activity as the activity changes, and again once it is stale or missing
-                watches: [ObjectWatch.of(activity.table, (row) => [{ activityId: row.id }])],
+                watches: [{ table: activity.table }],
+                all: { table: activity.table, column: "id" },
                 project: (activityId, reconciliation) =>
                     plan(schema.identifier("activity").parse(activityId), reconciliation),
             },
