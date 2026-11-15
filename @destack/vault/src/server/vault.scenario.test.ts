@@ -42,7 +42,7 @@ async function installConsumer(
     );
     const name = isVault ? CONSUMER_VAULT.name : CONSUMER_SECRET.name;
 
-    return fixture.space.install(fixture.served, build, {
+    return fixture.space.install(build, {
         bindings: { [CONSUMER.id]: { [name]: { target } } },
     });
 }
@@ -109,7 +109,6 @@ test("let an installation bound to a vault read its secrets by name without a st
     const credentials = await fixture.vault();
     const consumer = await installConsumer(fixture, { type: "vault", id: credentials });
     const stranger = await fixture.space.install(
-        fixture.served,
         await TestVault.build(STRANGER, [], [], fixture.environment.crypto),
     );
 
@@ -129,7 +128,6 @@ test("put a consumer's secret as one live version through its vault, refuse anot
     // put twice through the vault as the application binding it, at a paused time
     const fixture = await TestVault.open();
     const stranger = await fixture.space.install(
-        fixture.served,
         await TestVault.build(STRANGER, [], [], fixture.environment.crypto),
     );
     const target = { vault: await fixture.vault(), secret: secret.generateId(fixture.environment) };
@@ -158,7 +156,7 @@ test("put a consumer's secret as one live version through its vault, refuse anot
             .secret.read({ scope: ids.space, id: target.secret });
     const live = await read(fixture.installation);
     const concealed = await refusal(read(stranger));
-    const versions = await fixture.served.database
+    const versions = await fixture.space.database
         .select({
             number: secretVersion.table.number,
             state: secretVersion.table.state,
@@ -174,7 +172,7 @@ test("put a consumer's secret as one live version through its vault, refuse anot
             secret: target.secret,
         }),
     );
-    const removed = await fixture.served.database
+    const removed = await fixture.space.database
         .select({
             name: secret.table.name,
             deletedAt: secret.table.deletedAt,
@@ -204,7 +202,6 @@ test("let installations bound to a vault put and rotate their own secrets there,
     const declared = await fixture.createSecret(fixture.owner);
     const other = await installConsumer(fixture, { type: "vault", id: credentials });
     const reader = await fixture.space.install(
-        fixture.served,
         await TestVault.build(
             STRANGER,
             [],
@@ -264,10 +261,10 @@ test("let installations bound to a vault put and rotate their own secrets there,
 test("destroy a vault's secrets with their records on its removal from the stack", async () => {
     // keep a secret in a vault the space's stack declares, deleted at once on removal
     const fixture = await TestVault.open({ vaults: [] });
-    await fixture.space.apply(fixture.served, [vaultPackage], {
+    await fixture.space.apply([vaultPackage], {
         vaults: { shared: shared.provision({ retention: "delete" }) },
     });
-    const { database } = fixture.served;
+    const { database } = fixture.space;
     const provisioned = single(await database.select({ id: vault.table.id }).from(vault.table));
     const client = fixture.owner.client(vaultPackage);
     const created = await client.secret.create({
@@ -284,7 +281,7 @@ test("destroy a vault's secrets with their records on its removal from the stack
     });
 
     // remove the vault from the stack, destroying its secret and its versions with it
-    await fixture.space.apply(fixture.served, [vaultPackage], { vaults: {} });
+    await fixture.space.apply([vaultPackage], { vaults: {} });
     const remaining = await Promise.all(
         [vault.table, secret.table, secretVersion.table].map((table: Table) =>
             database.select().from(table),
@@ -296,10 +293,10 @@ test("destroy a vault's secrets with their records on its removal from the stack
 test("refuse removing a vault while an installation binds one of its secrets", async () => {
     // keep a secret in a vault the space's stack declares, bound by the consumer's installation
     const fixture = await TestVault.open({ vaults: [] });
-    await fixture.space.apply(fixture.served, [vaultPackage], {
+    await fixture.space.apply([vaultPackage], {
         vaults: { shared: shared.provision({ retention: "delete" }) },
     });
-    const provisioned = single(await fixture.served.database.select().from(vault.table));
+    const provisioned = single(await fixture.space.database.select().from(vault.table));
     const token = await fixture.owner.client(vaultPackage).secret.create({
         scope: ids.space,
         parentId: provisioned.id,
@@ -309,16 +306,14 @@ test("refuse removing a vault while an installation binds one of its secrets", a
     await installConsumer(fixture, { type: "secret", id: token.id });
 
     // refuse the vault's removal, the stack reporting why, keeping the vault and its secret
-    const refused = await TestSpace.refusals(
-        fixture.space.apply(fixture.served, [vaultPackage], { vaults: {} }),
-    );
+    const refused = await TestSpace.refusals(fixture.space.apply([vaultPackage], { vaults: {} }));
     expect({
         refused,
         kept: [
-            await fixture.served.database
+            await fixture.space.database
                 .select({ deletedAt: vault.table.deletedAt })
                 .from(vault.table),
-            await fixture.served.database
+            await fixture.space.database
                 .select({ deletedAt: secret.table.deletedAt })
                 .from(secret.table),
         ],
@@ -337,19 +332,17 @@ test("refuse removing a vault while an installation binds one of its secrets", a
 test("refuse removing a vault while an installation binds the vault itself", async () => {
     // bind the consumer to a vault the space's stack declares
     const fixture = await TestVault.open({ vaults: [] });
-    await fixture.space.apply(fixture.served, [vaultPackage], {
+    await fixture.space.apply([vaultPackage], {
         vaults: { shared: shared.provision({ retention: "delete" }) },
     });
-    const provisioned = single(await fixture.served.database.select().from(vault.table));
+    const provisioned = single(await fixture.space.database.select().from(vault.table));
     await installConsumer(fixture, { type: "vault", id: provisioned.id });
 
     // refuse the vault's removal, the stack reporting why, keeping the vault
-    const refused = await TestSpace.refusals(
-        fixture.space.apply(fixture.served, [vaultPackage], { vaults: {} }),
-    );
+    const refused = await TestSpace.refusals(fixture.space.apply([vaultPackage], { vaults: {} }));
     expect({
         refused,
-        kept: await fixture.served.database
+        kept: await fixture.space.database
             .select({ deletedAt: vault.table.deletedAt })
             .from(vault.table),
     }).toEqual({
@@ -375,10 +368,10 @@ test("trash a vault's secrets with it once its installation goes", async () => {
         ],
     });
     const removedAt = fixture.clock.now();
-    await fixture.space.uninstall(fixture.served, "application");
+    await fixture.space.uninstall("application");
 
     // trash the vault and its key in the same request
-    const { database } = fixture.served;
+    const { database } = fixture.space;
     expect([
         await database.select({ deletedAt: vault.table.deletedAt }).from(vault.table),
         await database.select({ deletedAt: secret.table.deletedAt }).from(secret.table),
@@ -391,15 +384,15 @@ test("store a vault the account's home declares in the enclosing scope in the ac
         id: Account.home(ids.account),
         ...TestPackage.options([VAULT]),
     });
-    const served = await home.serve();
-    await home.install(served, VAULT.build, { isolation: "host" });
+    await home.serve();
+    await home.install(VAULT.build, { isolation: "host" });
     const credentials = defineVault({ name: "credentials" });
-    await home.apply(served, [vaultPackage], {
+    await home.apply([vaultPackage], {
         vaults: { credentials: { ...credentials.provision(), scope: "enclosing" } },
     });
 
     // store the vault in the account, below the home
-    const rows = await served.database
+    const rows = await home.database
         .select({ scope: vault.table.scope, name: vault.table.name })
         .from(vault.table);
     expect(rows).toEqual([{ scope: ids.account, name: "credentials" }]);

@@ -99,7 +99,7 @@ test("add a version, point the current alias at it, destroy and restore, recordi
     const caller = await fixture.elevated();
     const client = caller.client(vaultPackage);
     const time = fixture.clock.now();
-    const { sequence } = await fixture.served.database.log.position();
+    const { sequence } = await fixture.space.database.log.position();
     const { secret: created, key, version: written } = await fixture.createSecret(caller);
 
     // add a second version, then point the current alias at it
@@ -190,11 +190,9 @@ test("add a version, point the current alias at it, destroy and restore, recordi
     });
 
     // record the version each read disclosed, and no value, in commit order
-    const { events } = await fixture.served.store.events.changes(
-        call.eventKind(),
-        { scopes: [ids.space] },
-        sequence,
-    );
+    const { events } = await (
+        await fixture.space.store()
+    ).events.changes(call.eventKind(), { scopes: [ids.space] }, sequence);
     const reads = events
         .map((event) => CallEvent.parse(event.data))
         .filter((ended) => ended.method === "secret.read")
@@ -295,7 +293,7 @@ test("rotate to a given value, keeping the rotated-out version live through its 
 test("rotate a generated secret to a new value of its algorithm, a capture of it using the version retiring beside it", async () => {
     // install the application with a key the space generates, then rotate it as the owner
     const fixture = await TestVault.open({ secrets: [KEY] });
-    const { database } = fixture.served;
+    const { database } = fixture.space;
     const row = single(await database.select().from(secret.table));
     const key = { scope: ids.space, id: row.id };
     const client = (await fixture.elevated()).client(vaultPackage);
@@ -378,7 +376,7 @@ test("keep a secret's name in its vault until its deletion, then refuse restorin
 test("purge a deleted secret at once or when its window ends, destroying its values and keeping its records", async () => {
     const fixture = await TestVault.open();
     const client = fixture.owner.client(vaultPackage);
-    const { database } = fixture.served;
+    const { database } = fixture.space;
     const { key, version: written } = await fixture.createSecret(fixture.owner);
 
     // delete it at a paused time
@@ -419,7 +417,7 @@ test("purge a deleted secret at once or when its window ends, destroying its val
 
     // sign the owner in again, as their sign-in lapsed within the window
     const owner = await fixture.space.universe.signIn(fixture.space.owner.email);
-    const later = fixture.space.person(fixture.served, owner).client(vaultPackage);
+    const later = fixture.space.person(owner).client(vaultPackage);
     const kept = {
         secret: await later.secret.get(key),
         version: single(
@@ -431,7 +429,7 @@ test("purge a deleted secret at once or when its window ends, destroying its val
     };
 
     // read the code serving secrets, which destroys them
-    const serving = fixture.served.store.as(secret).subject;
+    const serving = (await fixture.space.store()).as(secret).subject;
     expect({ otherPurged, kept }).toEqual({
         otherPurged: { ...otherDeleted, purgedAt: deletedAt, revision: otherDeleted.revision + 1 },
         kept: {
@@ -458,7 +456,7 @@ test("refuse deleting a secret its installation's declaration manages", async ()
     // install the application with a key generated in its vault, bound to the installation
     const fixture = await TestVault.open({ secrets: [KEY] });
     const client = fixture.owner.client(vaultPackage);
-    const bound = single(await fixture.served.database.select().from(secret.table));
+    const bound = single(await fixture.space.database.select().from(secret.table));
     const current = await client.secret.get({ scope: ids.space, id: bound.id });
 
     // refuse the deletion, which the installation's declaration alone retires
@@ -482,7 +480,7 @@ test("refuse reading a version whose stored value was copied from another versio
     const fixture = await TestVault.open();
     const caller = await fixture.elevated();
     const client = caller.client(vaultPackage);
-    const { database } = fixture.served;
+    const { database } = fixture.space;
     const { key, version: written } = await fixture.createSecret(caller);
     const second = await client.version.create({
         scope: ids.space,
@@ -607,7 +605,7 @@ test("challenge a person's reveal for a step-up, and reveal once they authentica
 test("generate a declared key in the vault its installation binds, and read what a capture of each version uses", async () => {
     // install the application declaring its credentials vault and a key generated in it
     const fixture = await TestVault.open({ secrets: [KEY] });
-    const { database } = fixture.served;
+    const { database } = fixture.space;
 
     // read the generated key, its binding and what a capture of each version uses
     const row = single(await database.select().from(secret.table));
@@ -654,11 +652,11 @@ test("read a bound secret in process as its installation, and refuse another ins
         [otherKey],
         fixture.environment.crypto,
     );
-    const otherInstallation = await fixture.space.install(fixture.served, built);
+    const otherInstallation = await fixture.space.install(built);
 
     // connect the application to its own key and to the other application's, as its server in process
-    const { database } = fixture.served;
-    const store = Promise.resolve(fixture.served.store);
+    const { database } = fixture.space;
+    const store = Promise.resolve(await fixture.space.store());
     const snapshot = Snapshot.live(database);
     const rows = await snapshot
         .read(rollout.table)
@@ -705,11 +703,11 @@ test("fail installing a key generated in a vault the installation declares nowhe
 test("bind a secret the stack declares at a fixed version, and trash it once the stack drops it", async () => {
     // declare a vault and a secret in it through the space's stack, with two versions
     const fixture = await TestVault.open({ vaults: [] });
-    await fixture.space.apply(fixture.served, [vaultPackage], {
+    await fixture.space.apply([vaultPackage], {
         vaults: { shared: SHARED.provision({ retention: "delete" }) },
         secrets: { github: { parent: "shared", name: "github" } },
     });
-    const declared = single(await fixture.served.database.select().from(secret.table));
+    const declared = single(await fixture.space.database.select().from(secret.table));
     const client = fixture.owner.client(vaultPackage);
     for (const value of ["first", "second"]) {
         await client.version.create({
@@ -722,7 +720,6 @@ test("bind a secret the stack declares at a fixed version, and trash it once the
 
     // install the consumer bound to the first version of the stack's secret
     const consumer = await fixture.space.install(
-        fixture.served,
         await TestVault.build(
             CONSUMER,
             [],
@@ -737,7 +734,7 @@ test("bind a secret the stack declares at a fixed version, and trash it once the
             },
         },
     );
-    const bound = (await targetedBindings(fixture.served.database))
+    const bound = (await targetedBindings(fixture.space.database))
         .filter((entry) => entry.name === "token")
         .map((entry) => ({
             installationId: entry.installationId,
@@ -748,8 +745,8 @@ test("bind a secret the stack declares at a fixed version, and trash it once the
     // drop the consumer and the secret from the stack at a paused time, trashing the secret
     const before = await client.secret.get({ scope: ids.space, id: declared.id });
     const droppedAt = fixture.clock.now();
-    await fixture.space.uninstall(fixture.served, "consumer");
-    await fixture.space.apply(fixture.served, [vaultPackage], { secrets: {} });
+    await fixture.space.uninstall("consumer");
+    await fixture.space.apply([vaultPackage], { secrets: {} });
     expect({
         bound,
         trashed: await client.secret.get({ scope: ids.space, id: declared.id }),
@@ -772,8 +769,8 @@ test("point a secret the stack declares at a version as the space's owner, keepi
         vaults: { shared: SHARED.provision({ retention: "delete" }) },
         secrets: { github: { parent: "shared", name: "github" } },
     };
-    await fixture.space.apply(fixture.served, [vaultPackage], stack);
-    const declared = single(await fixture.served.database.select().from(secret.table));
+    await fixture.space.apply([vaultPackage], stack);
+    const declared = single(await fixture.space.database.select().from(secret.table));
     const caller = await fixture.elevated();
     const client = caller.client(vaultPackage);
     const version = await client.version.create({
@@ -786,7 +783,7 @@ test("point a secret the stack declares at a version as the space's owner, keepi
     // point the current alias at it, and apply the stack again
     const key = { scope: ids.space, id: declared.id };
     await fixture.point(caller, key, version.number);
-    await fixture.space.apply(fixture.served, [vaultPackage], stack);
+    await fixture.space.apply([vaultPackage], stack);
     const kept = await client.secret.get(key);
     expect({ current: kept.currentVersion, name: kept.name }).toEqual({
         current: version.number,

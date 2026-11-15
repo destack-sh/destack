@@ -7,7 +7,7 @@ import * as account from "@destack/account/object";
 import type { TestPerson } from "@destack/account/test";
 import { Snapshot } from "@destack/db";
 import { SimulatedClock } from "@destack/environment/simulation";
-import type { TestCaller, TestObjectStore } from "@destack/object/test";
+import type { TestCaller } from "@destack/object/test";
 import { testBuild } from "@destack/object/test";
 import { type BuildReader, PackageVersion } from "@destack/package";
 import { MemoryBuild } from "@destack/package/test";
@@ -69,8 +69,6 @@ export interface SecretKey {
 export class TestVault {
     /** The space serving the vault package. */
     readonly space: TestSpace;
-    /** The space's object store as its machine serves it. */
-    readonly served: TestObjectStore;
     /** The clock the space's servers read, which tests pause. */
     readonly clock: SimulatedClock;
     /** The application's installation. */
@@ -82,22 +80,20 @@ export class TestVault {
 
     /** The world the space's servers run in, its store's. */
     get environment(): Environment {
-        return this.served.environment;
+        return this.space.environment;
     }
 
     /** Keep a served space with its installed application. */
     private constructor(fields: {
         readonly space: TestSpace;
-        readonly served: TestObjectStore;
         readonly clock: SimulatedClock;
         readonly installation: Identifier<"installation">;
     }) {
-        // keep the space and how it is served, and call as its owner
+        // keep the space, and call as its owner
         this.space = fields.space;
-        this.served = fields.served;
         this.clock = fields.clock;
         this.installation = fields.installation;
-        this.owner = fields.space.person(fields.served, fields.space.owner);
+        this.owner = fields.space.person(fields.space.owner);
     }
 
     /** Serve the template's space with the application installed. */
@@ -115,20 +111,15 @@ export class TestVault {
         if (!(clock instanceof SimulatedClock)) {
             throw new TypeError("the test space runs on the system clock");
         }
-        const served = await space.serve();
-        await space.install(served, VAULT.build, { isolation: "host" });
+        await space.serve();
+        await space.install(VAULT.build, { isolation: "host" });
 
         // install the application declaring the vaults and secrets
         const { vaults = [TestVault.declare(CREDENTIALS)], secrets = [] } = options;
-        const build = await TestVault.build(
-            APPLICATION,
-            vaults,
-            secrets,
-            served.environment.crypto,
-        );
-        const installation = await space.install(served, build);
+        const build = await TestVault.build(APPLICATION, vaults, secrets, space.environment.crypto);
+        const installation = await space.install(build);
 
-        return new TestVault({ space, served, clock, installation });
+        return new TestVault({ space, clock, installation });
     }
 
     /** Declare a vault of the application. */
@@ -197,7 +188,7 @@ export class TestVault {
             return known;
         }
         const stepped = (async () =>
-            this.space.person(this.served, await this.space.universe.elevate(person)))();
+            this.space.person(await this.space.universe.elevate(person)))();
         this.#elevated.set(person, stepped);
 
         return stepped;
@@ -213,13 +204,15 @@ export class TestVault {
 
     /** Call the space as an installation of it. */
     installed(installation: Identifier<"installation">): TestCaller {
-        return this.served.as(principal.installation.reference(ids.space, installation));
+        return this.space.as(principal.installation.reference(ids.space, installation));
     }
 
     /** Mutate as an installation in process, as its server calls the vault package. */
     async mutate(installation: Identifier<"installation">, called: Call): Promise<void> {
         const caller = Caller.of(principal.installation.reference(ids.space, installation));
-        await this.served.store.mutate(AccessContext.of(caller, this.clock.now()), {
+        await (
+            await this.space.store()
+        ).mutate(AccessContext.of(caller, this.clock.now()), {
             id: RequestId.create(this.environment),
             calls: [called],
         });
@@ -227,7 +220,7 @@ export class TestVault {
 
     /** Find the vault the application's binding of a declared vault targets. */
     async vault(name = CREDENTIALS): Promise<Identifier<"vault">> {
-        const reader = Snapshot.live(this.served.database);
+        const reader = Snapshot.live(this.space.database);
         const bound = await Binding.targeted(reader, this.space.id, this.installation);
 
         return vault.identifier(single(bound.filter((entry) => entry.name === name)).target);
@@ -235,7 +228,7 @@ export class TestVault {
 
     /** Grant a person exactly some permissions through a role the space's stack declares. */
     async allow(person: TestPerson, permissions: readonly PermissionReference[]): Promise<void> {
-        await this.space.apply(this.served, [], {
+        await this.space.apply([], {
             roles: { member: { description: "Use the vaults", permissions: [...permissions] } },
             relationships: { member: { role: "member", subject: { id: person.id } } },
         });

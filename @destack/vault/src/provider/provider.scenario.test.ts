@@ -13,7 +13,7 @@ test("provision the vault an installed build declares at the vault package's add
 
     // record the vault provider and its address on the provisioned vault
     const provisioned = single(
-        await fixture.served.database
+        await fixture.space.database
             .select({ provider: vault.table.provider, reference: vault.table.reference })
             .from(vault.table),
     );
@@ -31,11 +31,11 @@ test("read a bound vault's secret in process as its installation, and refuse ano
         [],
         fixture.environment.crypto,
     );
-    const otherInstallation = await fixture.space.install(fixture.served, built);
+    const otherInstallation = await fixture.space.install(built);
     const bindingOf = async (installationId: typeof otherInstallation) =>
         single(
             await Binding.targeted(
-                Snapshot.live(fixture.served.database),
+                Snapshot.live(fixture.space.database),
                 fixture.space.id,
                 installationId,
             ),
@@ -44,8 +44,8 @@ test("read a bound vault's secret in process as its installation, and refuse ano
     const strayId = strayBinding.target;
 
     // connect the application to its own vault and to the other application's, as its server in process
-    const { database } = fixture.served;
-    const store = Promise.resolve(fixture.served.store);
+    const { database } = fixture.space;
+    const store = fixture.space.store();
     const snapshot = Snapshot.live(database);
     const rows = await snapshot
         .read(rollout.table)
