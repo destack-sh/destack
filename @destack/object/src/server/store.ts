@@ -123,7 +123,12 @@ import {
     type CatalogExclusion,
     type ObjectTypeImplementation,
 } from "./catalog.ts";
-import type { ResourceControllerOptions } from "./provisioned.ts";
+import {
+    type ResourceApply,
+    ResourceController,
+    type ResourceControllerOptions,
+} from "./provisioned.ts";
+import type { Resource, ResourceType } from "../trait/provisioned.ts";
 import { TrackedHistory } from "./tracked.ts";
 import { Settlement } from "./settlement.ts";
 import { TelemetryScope } from "@destack/telemetry";
@@ -789,6 +794,21 @@ export class ObjectStore {
     /** The providers reconciling the served kinds' resources, none for a store reconciling none. */
     get providers(): ResourceControllerOptions["providers"] {
         return this.#catalog.providers;
+    }
+
+    /** Reconcile a provisioned resource inside a method call, as its kind's controller does. */
+    async reconcileResource(
+        call: MethodContext,
+        object: ResourceType<"space">,
+        row: Resource,
+        apply?: ResourceApply,
+    ): Promise<void> {
+        // require the machine provisioned resources are placed on
+        const { providers, machine } = this.#catalog;
+        if (machine === undefined) {
+            throw new TypeError("provisioned resources need a machine");
+        }
+        await new ResourceController(object, { providers, machine }).reconcileIn(call, row, apply);
     }
 
     /** The declarations installed object types resolve against: the types, policies and kinds. */

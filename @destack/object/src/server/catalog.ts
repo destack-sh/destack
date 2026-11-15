@@ -145,6 +145,8 @@ export class Catalog {
     readonly provisioned: readonly ObjectType[];
     /** The providers reconciling the served kinds' resources. */
     readonly providers: ResourceControllerOptions["providers"];
+    /** The machine running the provisioned resources, absent for a store reconciling none. */
+    readonly machine: Identifier<"machine"> | undefined;
     /** The declarations installed object types resolve against: the types, policies and kinds. */
     readonly known: readonly KnownDeclaration[];
     /** The scope's branch types, absent for a store without branches. */
@@ -180,6 +182,7 @@ export class Catalog {
         this.tables = fields.tables;
         this.provisioned = fields.provisioned;
         this.providers = fields.providers;
+        this.machine = fields.machine;
         this.known = fields.known;
         this.branch = fields.branch;
         this.refused = fields.refused;
@@ -378,6 +381,7 @@ export class Catalog {
                 machine === undefined ? undefined : { providers, machine },
             ),
             providers,
+            machine,
             known: ObjectType.known(declared, policies),
             branch: objects.some((type) => type.same(branchType.object)) ? branchType : undefined,
             refused,

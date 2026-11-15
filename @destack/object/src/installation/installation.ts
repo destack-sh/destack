@@ -25,8 +25,6 @@ export const installation = defineObject(
             follows: field.object().optional(),
             /** The package directory within a followed repository or checkout. */
             directory: field.string(PackageDirectory).optional(),
-            /** The revision its selection resolves to, absent before the first. */
-            revisionId: field.string(schema.identifier("installation-revision")).optional(),
             /** The targets it selects for its package's declarations. */
             bindings: field.json(InstallationBindings).default({}),
             /** The stack its package exports for its space, absent for an application. */
@@ -152,16 +150,6 @@ export const installation = defineObject(
             ],
         }),
         delete: method.delete("delete"),
-
-        /** Target a revision its selection resolves to, which its controller rolls out. */
-        target: method.mutation({
-            title: t`Target revision`,
-            permission: "control",
-            input: schema.object({
-                /** The revision to roll out. */
-                revisionId: schema.identifier("installation-revision"),
-            }),
-        }),
 
         /** Allow one of the package's optional capabilities, as the installation asked for it. */
         allow: method.mutation({

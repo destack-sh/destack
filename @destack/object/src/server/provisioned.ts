@@ -29,6 +29,7 @@ import {
 import { type ObjectType } from "../object/object.ts";
 import { CONSUMER } from "../trait/bindable.ts";
 import { type ResourceType, type Resource } from "../trait/provisioned.ts";
+import type { MethodContext } from "../method/context.ts";
 import type { Kind, Provisioning } from "@destack/package";
 
 /** The condition of a resource waiting for draining consumers to stop before recreation. */
@@ -52,7 +53,22 @@ export interface ResourceControllerOptions {
 interface ReconcileOptions extends ResourceControllerOptions {
     /** Read the desired states of some digests a resource lists. */
     readonly states: (row: Resource, digests: readonly Digest[]) => Promise<unknown[]>;
+    /** Apply a reviewed plan in place of the provider, such as within the caller's commit. */
+    readonly apply?: ResourceApply;
 }
+
+/** Apply a resource's reviewed plan toward its desired states. */
+export type ResourceApply = (
+    record: ResourceRecord,
+    desired: readonly unknown[],
+    digest: Digest,
+) => Promise<void>;
+
+/** What one pass over a resource reads and writes through, a controller's or a method call's. */
+type ResourcePass = Pick<
+    ObjectReconciliation<ResourceType<"space">>,
+    "store" | "database" | "now" | "observe" | "mutate"
+>;
 
 /** The control loop of one kind's provisioned objects through a process's providers. */
 export class ResourceController {
@@ -103,12 +119,37 @@ export class ResourceController {
 
         return [
             {
+                name: "provision",
                 pending: { generation: { gt: { field: "syncedGeneration" } } },
                 watches: this.#watches,
                 reconcile,
             },
             { name: "retention", pending: { retainedUntil: { lte: now } }, reconcile },
         ];
+    }
+
+    /** Reconcile one resource inside a method call, as a pass of the controller does. */
+    reconcileIn(
+        call: MethodContext,
+        row: Resource,
+        apply?: ResourceApply,
+    ): Promise<void | "waiting"> {
+        // read and write through the call, as the store's principal for the resource's type
+        const { store } = call.execution;
+        const object = this.#object;
+        const pass: ResourcePass = {
+            store,
+            database: store.database,
+            now: call.now,
+            observe: (type, record, report) => call.observe(type, record, report),
+            mutate: (calls) => call.mutate(store.as(object), calls),
+        };
+
+        return ResourceController.#reconcileRow(object, this.#kind, row, pass, {
+            ...this.#options,
+            states: (_row, digests) => this.#read(store.blobs, digests),
+            ...(apply === undefined ? {} : { apply }),
+        });
     }
 
     /** Reconcile one resource. */
@@ -170,7 +211,7 @@ export class ResourceController {
         object: ResourceType<"space">,
         kind: Kind<schema.Schema, Provisioning>,
         row: Resource,
-        reconciliation: ObjectReconciliation<ResourceType<"space">>,
+        reconciliation: ResourcePass,
         options: ReconcileOptions,
     ): Promise<void | "waiting"> {
         // retire a deleted resource, and wait for the owner to set an approval threshold
@@ -200,7 +241,7 @@ export class ResourceController {
     static async #provision(
         object: ResourceType<"space">,
         row: Resource,
-        reconciliation: ObjectReconciliation<ResourceType<"space">>,
+        reconciliation: ResourcePass,
         options: ResourceControllerOptions,
     ): Promise<Resource> {
         // select the requested provider or the first one providing the kind
@@ -240,7 +281,7 @@ export class ResourceController {
         object: ResourceType<"space">,
         row: Resource,
         approval: Risk,
-        reconciliation: ObjectReconciliation<ResourceType<"space">>,
+        reconciliation: ResourcePass,
         options: ReconcileOptions,
     ): Promise<void> {
         // require the resource's provider
@@ -340,7 +381,7 @@ export class ResourceController {
         object: ResourceType<"space">,
         row: Resource,
         provider: ResourceControllerOptions["providers"][number],
-        reconciliation: ObjectReconciliation<ResourceType<"space">>,
+        reconciliation: ResourcePass,
         options: ReconcileOptions,
     ): Promise<{ readonly plan: Plan; readonly isDraining: boolean }> {
         // plan the desired states
@@ -393,17 +434,17 @@ export class ResourceController {
         provider: ResourceControllerOptions["providers"][number],
         plan: Plan,
         digests: { readonly plan: Digest; readonly states: readonly Digest[] },
-        reconciliation: ObjectReconciliation<ResourceType<"space">>,
+        reconciliation: ResourcePass,
         options: ReconcileOptions,
     ): Promise<void> {
         try {
             // apply the plan
-            if (provider.reconcile !== undefined) {
-                await provider.reconcile.apply(
-                    ResourceRecord.of(provider.kind, row),
-                    await options.states(row, [...row.states, ...row.drainingStates]),
-                    digests.plan,
-                );
+            const record = ResourceRecord.of(provider.kind, row);
+            const desired = await options.states(row, [...row.states, ...row.drainingStates]);
+            if (options.apply !== undefined) {
+                await options.apply(record, desired, digests.plan);
+            } else if (provider.reconcile !== undefined) {
+                await provider.reconcile.apply(record, desired, digests.plan);
             }
 
             // record the desired states it applied and the end of a drain
@@ -435,7 +476,7 @@ export class ResourceController {
         object: ResourceType<"space">,
         row: Resource,
         requestedAt: number,
-        reconciliation: ObjectReconciliation<ResourceType<"space">>,
+        reconciliation: ResourcePass,
         options: ResourceControllerOptions,
     ): Promise<void | "waiting"> {
         // retain the record and content of retained resources until claimed again or expired
@@ -511,7 +552,7 @@ export class ResourceController {
     static async #observe(
         object: ResourceType<"space">,
         row: Resource,
-        reconciliation: ObjectReconciliation<ResourceType<"space">>,
+        reconciliation: ResourcePass,
         fields: NonNullable<ObservationReport["fields"]>,
         conditions: Readonly<Record<string, Condition>>,
     ): Promise<Resource> {

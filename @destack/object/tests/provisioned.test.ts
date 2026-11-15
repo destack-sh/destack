@@ -10,6 +10,7 @@ import {
     AccessContext,
     accessRelationship,
     Caller,
+    none,
     principal,
     Relationship,
 } from "@destack/access";
@@ -24,6 +25,7 @@ import {
     CONSUMER,
     controlled,
     defineObject,
+    ObjectController,
     type ObjectType,
     provisioned,
     type Resource,
@@ -92,6 +94,49 @@ const link = defineObject({
     traits: [provisioned({ kind: LinkKind })],
 });
 
+/** What a packer's applied plans leave: each box applied, with the sizes it was applied at. */
+const packed: [string, readonly unknown[]][] = [];
+
+/** A space's packer, whose one method reconciles a box inside its own call. */
+const packer = defineObject(
+    {
+        name: "packer",
+        plural: "packers",
+        title: t`${plural(argument("count"), { one: "Packer", other: "Packers" })}`,
+        scope: space,
+        fields: {},
+        access: { permissions: { read: none(), pack: none() } },
+    },
+    (method) => ({
+        pack: method.mutation({
+            title: t`Pack`,
+            permission: "pack",
+            visibility: "package",
+            input: schema.object({ box: schema.identifier("box") }),
+        }),
+    }),
+).implement({
+    methods: {
+        pack: async (call) => {
+            // reconcile the box in this call, recording what the plan applies
+            const [row] = await call.execution.store.database
+                .select()
+                .from(box.table)
+                .where(eq(box.table.id, call.input.box));
+            await call.execution.store.reconcileResource(
+                call,
+                box,
+                present(row, "the box"),
+                async (record, desired) => {
+                    packed.push([record.id, desired]);
+                },
+            );
+
+            return call.target;
+        },
+    },
+});
+
 /** The boxes and links the scenarios use. */
 const ids = {
     first: box.identifier("box-01996ab0-0000-7000-8000-000000000053"),
@@ -105,7 +150,10 @@ const boxDatabase = defineDatabase({
     tables: [
         ...new Set(
             tablesOf({
-                packages: [objectPackage, { objects: { space, box, link, socket }, tables: [] }],
+                packages: [
+                    objectPackage,
+                    { objects: { space, box, link, socket, packer }, tables: [] },
+                ],
                 follows: [],
                 tables: [],
             }).tables,
@@ -257,7 +305,11 @@ async function serve(
             store
                 .control()
                 .flatMap((set) => set.controllers)
-                .find((each) => each.name === name),
+                .find(
+                    (each) =>
+                        each.name ===
+                        ObjectController.job(name === "box" ? box : link, "provision"),
+                ),
             `the ${name} controller`,
         );
         if (!("reconcile" in controller)) {
@@ -686,7 +738,7 @@ function conditions(row: { readonly conditions: Resource["conditions"] }) {
 test("leave an external kind's resources to their own type's controller, and refuse one for an internal kind's", async () => {
     // serve sockets controlled by their own type, and boxes given a controller of their own
     const world = testSimulation().environment("provisioned");
-    const own = { pending: {}, reconcile: async () => {} };
+    const own = { name: "provision", pending: {}, reconcile: async () => {} };
     const sockets = socket.implement({ controllers: [own] });
     const implemented = box.implement({ controllers: [own] });
     const { store } = await serve(world, new Boxes(), [box, link, sockets]);
@@ -696,7 +748,8 @@ test("leave an external kind's resources to their own type's controller, and ref
         .map((each) => each.name);
 
     // run the sockets' own controller alone, and refuse a box store
-    expect(names.filter((name) => name === "socket")).toEqual(["socket"]);
+    const job = ObjectController.job(socket, "provision");
+    expect(names.filter((name) => name === job)).toEqual([job]);
     await expect(serve(world, new Boxes(), [implemented, link])).rejects.toThrow(
         new TypeError("resources box cannot have a controller: their kind provides it"),
     );
@@ -713,4 +766,55 @@ test("refuse a resource type declaring its own controlled trait, which its kind 
             traits: [provisioned({ kind: SocketKind }), controlled()],
         }),
     ).toThrow(new TypeError("resources 'socket' take their kind's controlled trait"));
+});
+
+test("reconcile a box inside a method call, applying its plan through the call's own apply", async () => {
+    // serve a box wanting a size, and a packer beside it
+    const world = testSimulation().environment("test");
+    const boxes = new Boxes();
+    const { store, database, read, want } = await serve(world, boxes, [box, link, packer]);
+    const now = world.clock.now();
+    const packerId = packer.identifier("packer-01996ab0-0000-7000-8000-000000000057");
+    await database.transaction(async (transaction) => {
+        await transaction.insert(box.table).values({
+            ...declared,
+            approval: null,
+            id: ids.first,
+            name: "first",
+            createdAt: now,
+            updatedAt: now,
+        });
+        await transaction
+            .insert(packer.table)
+            .values({ id: packerId, scope: spaceId, createdAt: now, updatedAt: now });
+    });
+    await want(ids.first, [{ size: 2 }]);
+
+    // pack the box, which reconciles it in the packer's call
+    packed.length = 0;
+    await Transaction.run(database, async (transaction) => {
+        await store.mutate(
+            AccessContext.of(Caller.of(spacePrincipal(spaceId)), world.clock.now()),
+            {
+                id: RequestId.create(world),
+                calls: [packer.call("pack", { id: packerId, spaceId, box: ids.first })],
+            },
+            { transaction },
+        );
+    });
+
+    // provision the box and hand its plan to the call's apply, recording it applied
+    const row = present(await read(ids.first), "the packed box");
+    expect({
+        packed,
+        provider: [...boxes.sizes],
+        conditions: conditions(row),
+        applied: row.appliedStates.length,
+    }).toEqual({
+        packed: [[ids.first, [{ size: 2 }]]],
+        // provisioned at no size, as the call's apply ran in the provider's place
+        provider: [[ids.first, 0]],
+        conditions: ["Applied", undefined],
+        applied: 1,
+    });
 });
