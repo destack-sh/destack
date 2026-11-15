@@ -80,6 +80,8 @@ export class TriggerServer<Input> {
         const { trigger } = this.#workflow;
 
         return trigger.implement({
+            // record the declared triggers at each start
+            cursors: [this.cursor()],
             methods: {
                 create: (call, next) => {
                     // check the created schedule and its runs' input

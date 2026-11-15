@@ -18,8 +18,7 @@ import { Failure } from "@destack/error";
 import { changeRequest } from "@destack/object";
 import type { RunContext, Step } from "../step/step.ts";
 import { ENDED_STATES, LIVE_STATES, Run, RUN_STATES } from "../run/run.ts";
-import type { MountFetch, ObjectStore } from "@destack/object/server";
-import type { Cursor } from "@destack/db";
+import type { MountFetch } from "@destack/object/server";
 import type { ServerContext } from "@destack/object/workload";
 import { ScheduleOn, ScheduleSkip } from "../trigger/schedule.ts";
 import {
@@ -107,8 +106,6 @@ export interface WorkflowCode<Input = unknown, Output = unknown, Waits extends O
 export interface WorkflowImplementation {
     /** The run, step and trigger types with their handlers and controllers. */
     readonly objects: readonly ObjectType[];
-    /** The cursors recording the declared triggers at each start. */
-    readonly cursors: readonly ((store: ObjectStore) => Cursor)[];
     /** The mounts of the triggers' webhooks, by webhook name. */
     readonly mounts: Readonly<Record<string, MountFetch>>;
 }
@@ -312,11 +309,7 @@ export function defineWorkflow<
                 triggers.implement(),
             ];
 
-            return {
-                objects,
-                cursors: [triggers.cursor()],
-                mounts: Object.fromEntries(webhooks),
-            };
+            return { objects, mounts: Object.fromEntries(webhooks) };
         },
     });
 
