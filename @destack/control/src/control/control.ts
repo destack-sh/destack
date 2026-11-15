@@ -119,6 +119,10 @@ export class Control implements AsyncDisposable {
     readonly store: ObjectStore;
     /** The account package's server, which answers as the universe's issuer. */
     readonly issuer: Server;
+    /** Aborts the store's loop. */
+    readonly #stopping: AbortController;
+    /** The store's running loop. */
+    readonly #running: Promise<void>;
 
     /** Create a started control. */
     private constructor(
@@ -126,12 +130,15 @@ export class Control implements AsyncDisposable {
         servers: ReadonlyMap<string, Server>,
         store: ObjectStore,
         issuer: Server,
+        loop: { readonly stopping: AbortController; readonly running: Promise<void> },
     ) {
-        // keep the definition, the servers, the store and the issuer
+        // keep the definition, the servers, the store, the issuer and the store's loop
         this.definition = definition;
         this.servers = servers;
         this.store = store;
         this.issuer = issuer;
+        this.#stopping = loop.stopping;
+        this.#running = loop.running;
     }
 
     /** Migrate the universe's database to this release, then start its packages over it. */
@@ -197,10 +204,7 @@ export class Control implements AsyncDisposable {
                 releases,
             }),
             settingServer({ after: [] }),
-            implementPackage(controlPackage, {
-                objects: applied.objects,
-                cursors: applied.cursors,
-            }),
+            implementPackage(controlPackage, { objects: applied.objects }),
         ];
         const store: ObjectStore = new ObjectStore({
             // open the version a value names, else the release the universe runs: the distribution's
@@ -304,14 +308,14 @@ export class Control implements AsyncDisposable {
             }
         };
 
-        // answer each package to bearers of the universe's access tokens, the first running the controllers
+        // answer each package to bearers of the universe's access tokens
         const verifier = AccountAuthentication.universe(
             Snapshot.live(database),
             issuer,
             options.environment,
         );
         const servers = new Map(
-            store.packages.map((implementation, index) => [
+            store.packages.map((implementation) => [
                 implementation.package.id,
                 Server.start({
                     ...implementation,
@@ -326,7 +330,6 @@ export class Control implements AsyncDisposable {
                     authorizeMachine: async () => {},
                     drainTimeout: DRAIN_MILLISECONDS,
                     ready,
-                    ...(options.alarm === undefined || index > 0 ? {} : { alarm: options.alarm }),
                     report: (error) => options.report(error),
                 }),
             ]),
@@ -337,7 +340,12 @@ export class Control implements AsyncDisposable {
         if (accounts === undefined) {
             throw ControlError.of("ISSUER_BROKEN", "the universe serves no account package");
         }
-        const control = new Control(definition, servers, store, accounts);
+        // run the store's jobs in its loop
+        const stopping = new AbortController();
+        const running = store
+            .run(stopping.signal, options.alarm === undefined ? {} : { alarm: options.alarm })
+            .catch((error: unknown) => options.report(error));
+        const control = new Control(definition, servers, store, accounts, { stopping, running });
         serving.resolve(control);
 
         return control;
@@ -387,13 +395,15 @@ export class Control implements AsyncDisposable {
         return new Response(page, { headers: { "content-type": "text/html; charset=utf-8" } });
     }
 
-    /** Wait until every package's controllers are idle, or until a deadline. */
+    /** Wait until the store's loop is idle, or until a deadline. */
     async idle(deadline?: number): Promise<void> {
-        await Promise.all([...this.servers.values()].map((server) => server.idle(deadline)));
+        await this.store.idle(deadline);
     }
 
-    /** Drain every package. */
+    /** Stop the store's loop, then drain every package. */
     async [Symbol.asyncDispose](): Promise<void> {
+        this.#stopping.abort();
+        await this.#running;
         for (const server of this.servers.values()) {
             await server.close();
         }
