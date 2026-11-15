@@ -106,8 +106,8 @@ jobs:
                       ~/.cache/destack/test/files
                       ~/.cache/destack/test/layered
                       ~/.cache/destack/templates
-                  key: destack-test-${{ runner.os }}-${{ github.sha }}
-                  restore-keys: destack-test-${{ runner.os }}-
+                  key: destack-test-records-2-${{ runner.os }}-${{ github.sha }}
+                  restore-keys: destack-test-records-2-${{ runner.os }}-
             - name: Run the gates
               env:
                   PACKAGE: ${{ matrix.package }}
@@ -123,7 +123,7 @@ jobs:
                       ~/.cache/destack/test/files
                       ~/.cache/destack/test/layered
                       ~/.cache/destack/templates
-                  key: destack-test-${{ runner.os }}-${{ github.sha }}
+                  key: destack-test-records-2-${{ runner.os }}-${{ github.sha }}
 
     macos:
         name: Test updates on macOS
