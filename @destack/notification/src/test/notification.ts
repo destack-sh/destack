@@ -12,7 +12,7 @@ import { message } from "@destack/message/object";
 import { MethodContext, ViewSubscriber } from "@destack/object";
 import objectPackage from "@destack/object/package";
 import { implementPackage } from "@destack/object/server";
-import { testBuild, type TestCaller, TestObjectStore } from "@destack/object/test";
+import { testBuild, type TestCaller } from "@destack/object/test";
 import type { BuildReader } from "@destack/package/manifest";
 import { type Identifier, present, schema } from "@destack/schema";
 import type { Setting } from "@destack/setting";
@@ -62,8 +62,6 @@ export type Person = (typeof PEOPLE)[number];
 export interface TestHome {
     /** The hosted home. */
     readonly space: TestSpace;
-    /** The served home. */
-    readonly served: TestObjectStore;
     /** The person's caller in the home, with their client's tokens. */
     readonly caller: TestCaller;
 }
@@ -120,21 +118,19 @@ export class TestPushService {
 
 /** A space with the documents application and notifications, and five people with their homes. */
 export class TestNotification implements AsyncDisposable {
-    /** The space serving the documents and their notifications. */
+    /** The space holding the documents and their notifications. */
     readonly space: TestSpace;
-    /** The served space. */
-    readonly served: TestObjectStore;
     /** The clock the servers read. */
     readonly clock: SimulatedClock;
     /** The people the tests act as, signed in at the universe. */
     readonly people: Readonly<Record<Person, TestPerson>>;
     /** The people's hosted homes, each served on first use. */
     readonly #hosted: ReadonlyMap<Person, TestSpace>;
-    /** The homes served so far, by person. */
+    /** The homes opened so far, by person. */
     readonly #homes = new Map<Person, Promise<TestHome>>();
     /** Every space the world hosts, by identifier. */
     readonly #spaces: ReadonlyMap<Identifier<"space">, TestSpace>;
-    /** The other hosted spaces served so far, such as the account's home. */
+    /** The other spaces opened so far, such as the account's home. */
     readonly #others: TestHome[] = [];
     /** The mail transport the homes' messages send through. */
     readonly mails: TestMailTransport;
@@ -147,13 +143,12 @@ export class TestNotification implements AsyncDisposable {
 
     /** The world the space's servers run in, its store's. */
     get environment(): Environment {
-        return this.served.environment;
+        return this.space.environment;
     }
 
-    /** Open a fixture over a served space, its people and their homes. */
+    /** Open the space, its people and their homes. */
     private constructor(fields: {
         readonly space: TestSpace;
-        readonly served: TestObjectStore;
         readonly people: Readonly<Record<Person, TestPerson>>;
         readonly hosted: ReadonlyMap<Person, TestSpace>;
         readonly spaces: ReadonlyMap<Identifier<"space">, TestSpace>;
@@ -162,7 +157,6 @@ export class TestNotification implements AsyncDisposable {
     }) {
         // store the space, its people, their homes and the outside systems
         this.space = fields.space;
-        this.served = fields.served;
         this.clock = fields.space.simulation.clock;
         this.people = fields.people;
         this.#hosted = fields.hosted;
@@ -170,11 +164,11 @@ export class TestNotification implements AsyncDisposable {
         this.mails = fields.mails;
         this.pushes = fields.pushes;
         this.#callers = {
-            alice: fields.space.person(fields.served, fields.people.alice),
-            bob: fields.space.person(fields.served, fields.people.bob),
-            carol: fields.space.person(fields.served, fields.people.carol),
-            dave: fields.space.person(fields.served, fields.people.dave),
-            erin: fields.space.person(fields.served, fields.people.erin),
+            alice: fields.space.person(fields.people.alice),
+            bob: fields.space.person(fields.people.bob),
+            carol: fields.space.person(fields.people.carol),
+            dave: fields.space.person(fields.people.dave),
+            erin: fields.space.person(fields.people.erin),
         };
     }
 
@@ -206,7 +200,7 @@ export class TestNotification implements AsyncDisposable {
 
         // serve the space beside the push service, finding each person's hosted home
         const pushes = TestPushService.listen(space.simulation);
-        const served = await space.serve();
+        await space.serve();
         const person = (name: Person) => space.universe.person(TestNotification.#email(name));
         const people = {
             alice: person("alice"),
@@ -225,7 +219,7 @@ export class TestNotification implements AsyncDisposable {
             ]),
         );
 
-        return new TestNotification({ space, served, people, hosted, spaces, mails, pushes });
+        return new TestNotification({ space, people, hosted, spaces, mails, pushes });
     }
 
     /** Read notification as a package a space installs, with message beside it. */
@@ -280,29 +274,23 @@ export class TestNotification implements AsyncDisposable {
         spaces: ReadonlyMap<Identifier<"space">, TestSpace>,
     ): Promise<null> {
         // install each package in dependency order, as the space's stack does
-        const installing = await space.serve();
+        await space.serve();
         for (const installed of PACKAGES) {
-            await space.install(installing, installed.build, TestNotification.#install(installed));
+            await space.install(installed.build, TestNotification.#install(installed));
         }
-        await installing[Symbol.asyncDispose]();
 
         // install the messages and notifications in each person's home
         for (const home of spaces.values()) {
             if (home.id !== space.id) {
-                const serving = await home.serve();
+                await home.serve();
                 for (const installed of HOME_PACKAGES) {
-                    await home.install(
-                        serving,
-                        installed.build,
-                        TestNotification.#install(installed),
-                    );
+                    await home.install(installed.build, TestNotification.#install(installed));
                 }
-                await serving[Symbol.asyncDispose]();
             }
         }
 
         // serve again, as the machine does once installations change, and name the people their homes signed in and relate them as guests
-        await using served = await space.serve();
+        await space.serve();
         for (const name of PEOPLE) {
             const person = space.universe.person(TestNotification.#email(name));
             await person.client(accountPackage).user.update({
@@ -352,21 +340,21 @@ export class TestNotification implements AsyncDisposable {
             return known;
         }
         const space = present(this.#hosted.get(person), `the home of ${person}`);
-        const serving = (async () => {
-            const served = await space.serve();
+        const home = (async () => {
+            await space.serve();
 
-            return { space, served, caller: space.person(served, this.people[person]) };
+            return { space, caller: space.person(this.people[person]) };
         })();
-        this.#homes.set(person, serving);
+        this.#homes.set(person, home);
 
-        return serving;
+        return home;
     }
 
     /** Serve another space of the world, such as the account's home, until the fixture closes. */
     async serve(id: Identifier<"space">): Promise<void> {
         const space = present(this.#spaces.get(id), `the hosted space ${id}`);
-        const served = await space.serve();
-        this.#others.push({ space, served, caller: space.person(served, space.owner) });
+        await space.serve();
+        this.#others.push({ space, caller: space.person(space.owner) });
     }
 
     /** Read a person's home's selection, which the calls of the home's types spread. */
@@ -378,9 +366,9 @@ export class TestNotification implements AsyncDisposable {
     async call<Result>(person: Person, called: Call<Result>): Promise<Result> {
         // find the called procedure on the person's client of the type's package, in the store serving it
         const home = HOME_TYPES.has(called.type.type) ? await this.home(person) : undefined;
-        const served = home?.served ?? this.served;
+        const space = home?.space ?? this.space;
         const caller = home?.caller ?? this.#callers[person];
-        const { type, handle } = present(served.type(called.type), "the called type");
+        const { type, handle } = present(space.type(called.type), "the called type");
         const client: unknown = Reflect.get(caller.client(handle), type.name);
         const procedure: unknown = Reflect.get(Object(client), called.method);
         if (typeof procedure !== "function") {
@@ -514,7 +502,7 @@ export class TestNotification implements AsyncDisposable {
     async activities() {
         const { table } = activity;
 
-        return await this.served.database
+        return await this.space.database
             .select()
             .from(table)
             .where(eq(table.scope, this.scope.spaceId))
@@ -523,7 +511,10 @@ export class TestNotification implements AsyncDisposable {
 
     /** Read a person's inbox: their home's notifications with their activity replicas. */
     async inbox(person: Person): Promise<Inbox> {
-        const { database, store } = (await this.home(person)).served;
+        // read the home's notifications through its store's relations
+        const { space } = await this.home(person);
+        const { database } = space;
+        const store = await space.store();
         const rows = await ViewSubscriber.queries(
             { notification, activity },
             store.relations,
@@ -535,7 +526,7 @@ export class TestNotification implements AsyncDisposable {
 
     /** Read a person's messages of a notification, by channel. */
     async messages(person: Person, id: string) {
-        const { database } = (await this.home(person)).served;
+        const { database } = (await this.home(person)).space;
         const rows = await database.select().from(message.table);
 
         return rows
@@ -562,17 +553,17 @@ export class TestNotification implements AsyncDisposable {
         await this.simulation.run(at);
     }
 
-    /** List the homes and other spaces served so far. */
+    /** List the homes and other spaces opened so far. */
     async #served(): Promise<TestHome[]> {
         return [...(await Promise.all(this.#homes.values())), ...this.#others];
     }
 
-    /** Stop serving the homes and the space, then close it. */
+    /** Close the homes and the space. */
     async [Symbol.asyncDispose](): Promise<void> {
         for (const home of await this.#served()) {
-            await home.served[Symbol.asyncDispose]();
+            await home.space[Symbol.asyncDispose]();
         }
-        await this.served[Symbol.asyncDispose]();
+        await this.space[Symbol.asyncDispose]();
         await this.space[Symbol.asyncDispose]();
     }
 }

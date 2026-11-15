@@ -8,7 +8,7 @@ import { TestNotification } from "../src/test/notification.ts";
 test("plan an activity's notification as the activity changes, again once the notification is stale or missing", async () => {
     // open bob's home, mention him once and plan his notification
     await using fixture = await TestNotification.open();
-    const { served: home } = await fixture.home("bob");
+    const { space: home } = await fixture.home("bob");
     const plan = await fixture.call(
         "alice",
         document.call("create", { ...fixture.scope, title: "Launch plan" }),

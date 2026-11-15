@@ -73,7 +73,7 @@ export async function openHome(): Promise<Home> {
 
     // serve the home over HTTP to bob, then follow it from his device
     const endpoint = serveHome(
-        home.served.store,
+        await home.space.store(),
         home.space.id,
         scenario.subject("bob"),
         scenario.environment,

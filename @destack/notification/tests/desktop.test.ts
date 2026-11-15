@@ -45,7 +45,7 @@ test("defer a mention through quiet hours, show it on the desktops still signed 
     await fixture.simulation.idle();
     const mentioned = nth((await fixture.inbox("carol")).entries, 0).notification;
     const end = Date.UTC(2026, 8, 28, 12, 0);
-    const { served: home } = await fixture.home("carol");
+    const { space: home } = await fixture.home("carol");
     const desktops = async () =>
         (await home.database.select().from(message.table))
             .filter((row) => Notification.from(row) === mentioned.id)

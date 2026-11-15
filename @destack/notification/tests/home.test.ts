@@ -51,7 +51,7 @@ test("replicate a person's activities from a space as the person, and none of th
         );
         const { environment } = fixture;
         const signal = environment.clock.timeout(RELAY_TIMEOUT);
-        const pages = fixture.served.store.source.relayed(
+        const pages = (await fixture.space.store()).source.relayed(
             { ...subscription, revision: FOLLOWER_REVISION },
             subjectContext(person, fixture.scope.spaceId, { signal, environment }),
         );
@@ -103,7 +103,7 @@ test("seal an emailed notification's content to its home's message key, so no jo
     await fixture.wait(16);
 
     // list where the text appears in alice's home beside the activity replica: the journal, the notifications' delivery state, and the messages' changes
-    const { served: home } = await fixture.home("alice");
+    const { space: home } = await fixture.home("alice");
     const traces = {
         journal: await home.database.select().from(journal),
         notifications: await home.database.select().from(notification.table),
@@ -121,13 +121,14 @@ test("seal an emailed notification's content to its home's message key, so no jo
 test("follow the spaces of an account once the person owns it, and their activities", async () => {
     // list alice's home's follows of the fixture account's spaces and their activities
     await using fixture = await TestNotification.open();
-    const { served: home } = await fixture.home("alice");
+    const { space: home } = await fixture.home("alice");
     const follows = async () => {
         await fixture.simulation.idle();
+        const store = await home.store();
         const subscriptions = await present(
-            home.store.subscriber,
+            store.subscriber,
             "the home's subscriber",
-        ).subscriptions(Snapshot.live(home.store.database));
+        ).subscriptions(Snapshot.live(store.database));
 
         const listed = subscriptions
             .map((entry) => entry.subscription)
