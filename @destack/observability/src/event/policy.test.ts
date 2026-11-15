@@ -12,7 +12,7 @@ const DAY = 86_400_000;
 test("keep a space's telemetry and analytics as long as its settings say, and a machine's as long as the settings' defaults", async () => {
     await using fixture = await TestObservability.open();
     const retention = (kind: EventKind, scope: string) =>
-        kind.retention(scope, SettingValue.retention(fixture.served.database));
+        kind.retention(scope, SettingValue.retention(fixture.space.database));
     const defaults = {
         log: await retention(log.eventKind(), ids.space),
         visit: await retention(visit.eventKind(), ids.space),

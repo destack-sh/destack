@@ -66,7 +66,7 @@ function rule(
 
 /** Read the space's alerts' statuses, the announcements made, and the responses started. */
 async function outcome(fixture: TestObservability) {
-    const { database } = fixture.served;
+    const { database } = fixture.space;
     const alerts = await database.select().from(alert.table);
     const announced = await database.select().from(announcement.table);
     const responses = await database
@@ -222,9 +222,9 @@ test("refuse a rule calling an installation's method from an editor who does not
 test("refuse a rule calling an installation once the space's owner withdraws observability's respond capability", async () => {
     await using fixture = await TestObservability.open();
 
-    // let the owner detach observability's installation from the space's stack and withdraw the capability, then serve the space again
-    const owner = fixture.space.person(fixture.served, fixture.space.owner).client(objectPackage);
-    const [installed] = await fixture.served.database
+    // let the owner detach observability's installation from the space's stack and withdraw the capability, then let the machine apply it
+    const owner = fixture.space.person(fixture.space.owner).client(objectPackage);
+    const [installed] = await fixture.space.database
         .select()
         .from(installation.table)
         .where(eq(installation.table.packageId, observabilityPackage.id));
@@ -239,7 +239,6 @@ test("refuse a rule calling an installation once the space's owner withdraws obs
         requestId: RequestId.create(fixture.environment),
     });
     await fixture.space.simulation.idle();
-    await fixture.restart();
 
     // refuse the member's rule rolling the installation back
     expect(
@@ -259,7 +258,7 @@ test("make the manager who last sets a rule's condition or actions its author, w
     const now = fixture.clock.now();
     const created = await rule(fixture, "Roll back", ERROR_COUNT);
     const author = async () => {
-        const [row] = await fixture.served.database
+        const [row] = await fixture.space.database
             .select()
             .from(alertRule.table)
             .where(eq(alertRule.table.id, created.id));
@@ -269,9 +268,7 @@ test("make the manager who last sets a rule's condition or actions its author, w
     const first = await author();
 
     // let the space's owner make it roll the installation back, then let it fire on errors
-    const owner = fixture.space
-        .person(fixture.served, fixture.space.owner)
-        .client(observabilityPackage);
+    const owner = fixture.space.person(fixture.space.owner).client(observabilityPackage);
     const update = (fields: Partial<Parameters<typeof owner.alertRule.update>[0]>) => ({
         ...alertRule.target(created),
         requestId: RequestId.create(fixture.environment),
@@ -326,7 +323,7 @@ test("declare alert rules as code through the space's stack, checking each rule 
             errors: { title: "Errors", condition: ERROR_COUNT, actions: [{ kind: "notify" }] },
         },
     });
-    const rules = await fixture.served.database.select().from(alertRule.table);
+    const rules = await fixture.space.database.select().from(alertRule.table);
 
     // refuse a declared rule over a type the space serves none of
     const unserved = { ...ERROR_COUNT, event: { packageId: NOTES.id, type: "page-view" } };
@@ -447,12 +444,12 @@ test("fire an issue rule once per opened issue and once per regression, and not 
     const now = fixture.clock.now();
     const client = fixture.member.client(observabilityPackage);
     const fired = async (title: string) => {
-        const rules = await fixture.served.database.select().from(alertRule.table);
+        const rules = await fixture.space.database.select().from(alertRule.table);
         const ruleId = present(
             rules.find((row) => row.title === title),
             title,
         ).id;
-        const alerts = await fixture.served.database.select().from(alert.table);
+        const alerts = await fixture.space.database.select().from(alert.table);
 
         return alerts.filter((row) => row.ruleId === ruleId).map((row) => row.status);
     };

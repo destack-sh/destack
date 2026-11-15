@@ -60,7 +60,9 @@ test("append an export through the otlp mount as the machine forwarding it, and 
     );
 
     // keep the machine's records alone, stamped with the forwarder's installation and build
-    const kept = await fixture.served.store.events.query(log.eventKind(), { scopes: [ids.space] });
+    const kept = await (
+        await fixture.space.store()
+    ).events.query(log.eventKind(), { scopes: [ids.space] });
     expect({
         forwarded,
         refused,
@@ -93,8 +95,10 @@ test("group an export's failures in the transaction appending it, opening no iss
 
     // refuse its exception's append, hidden from the member, keeping neither the record nor an issue
     await fixture.count();
-    const issues = await fixture.served.database.select().from(issue.table);
-    const kept = await fixture.served.store.events.query(log.eventKind(), { scopes: [ids.space] });
+    const issues = await fixture.space.database.select().from(issue.table);
+    const kept = await (
+        await fixture.space.store()
+    ).events.query(log.eventKind(), { scopes: [ids.space] });
     expect({ refused, issues, kept: kept.events }).toEqual({
         refused: ["NOT_FOUND", "NOT_FOUND", "items.0: exception not found"],
         issues: [],
@@ -243,7 +247,7 @@ test("group failures logged and annotated on spans into an issue at their declar
     const client = fixture.member.client(observabilityPackage);
     const issues = async () => (await client.issue.list({ ...issue.in(ids.space) })).items;
     const opened = present((await issues())[0], "the issue");
-    const { events } = fixture.served.store;
+    const { events } = await fixture.space.store();
     const stamped = async () => ({
         logs: (await events.query(log.eventKind(), { scopes: [ids.space] })).events.map(
             (event) => event.keys.issue,
@@ -280,7 +284,7 @@ test("group failures logged and annotated on spans into an issue at their declar
             people: opened.people,
             firstRevision: opened.firstRevisionId,
         },
-        people: (await fixture.served.database.select().from(issuePerson.table))
+        people: (await fixture.space.database.select().from(issuePerson.table))
             .map(({ person }) => person)
             .toSorted(),
         before,
@@ -316,8 +320,10 @@ test("count an exporter's retry of an untraced export once", async () => {
     await fixture.count();
 
     // keep each record once, and one issue counting each failure once
-    const issues = await fixture.served.database.select().from(issue.table);
-    const logs = await fixture.served.store.events.query(log.eventKind(), { scopes: [ids.space] });
+    const issues = await fixture.space.database.select().from(issue.table);
+    const logs = await (
+        await fixture.space.store()
+    ).events.query(log.eventKind(), { scopes: [ids.space] });
     expect({
         logs: logs.events.length,
         issues: issues.map(({ count, people }) => ({ count, people })),
@@ -391,14 +397,14 @@ test("keep a page's visits and actions apart from its logs, its visitor a hash o
     await fixture.post("logs", visited(midnight + 1));
 
     // read the visits once both arrived, the action, the logs and the salts kept
-    const { events } = fixture.served.store;
+    const { events } = await fixture.space.store();
     const scopes: EventFilter = { scopes: [ids.space] };
     const read = async () => (await events.query(visit.eventKind(), scopes)).events;
     await fixture.simulation.waitUntil(async () => (await read()).length === 2);
     const visits = await read();
     const actions = (await events.query(action.eventKind(), scopes)).events;
     const logs = (await events.query(log.eventKind(), scopes)).events;
-    const salts = await fixture.served.database.select().from(visitorSalt.table);
+    const salts = await fixture.space.database.select().from(visitorSalt.table);
     const hashed = async (day: string) => {
         const salt = present(
             salts.find((each) => each.day === day),
@@ -463,7 +469,7 @@ test("record each session's end with its build and status, keying its records by
     );
 
     // read the failure's session, and count the sessions per build and status
-    const { events } = fixture.served.store;
+    const { events } = await fixture.space.store();
     const logs = (await events.query(log.eventKind(), { scopes: [ids.space] })).events;
     const health = await events.series(
         session.eventKind(),

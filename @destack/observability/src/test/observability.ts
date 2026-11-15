@@ -7,7 +7,7 @@ import { notification } from "@destack/notification/object";
 import { TestNotification } from "@destack/notification/test";
 import { testHost } from "@destack/test/host";
 import { CallError } from "@destack/object";
-import type { TestCaller, TestObjectStore } from "@destack/object/test";
+import type { TestCaller } from "@destack/object/test";
 import { testBuild } from "@destack/object/test";
 import { type Identifier, present, schema } from "@destack/schema";
 import { describeSetting } from "@destack/setting/inspect";
@@ -104,8 +104,6 @@ export const OBSERVER_PERMISSIONS: readonly PermissionReference[] = [
 export class TestObservability implements AsyncDisposable {
     /** The space serving observability. */
     readonly space: TestSpace;
-    /** The served space, served anew on each restart. */
-    #served: TestObjectStore;
     /** The simulation the space runs on, its clock moving only as tests run it. */
     readonly simulation: Simulation;
     /** The notes application's installation. */
@@ -117,14 +115,9 @@ export class TestObservability implements AsyncDisposable {
     /** The attributed frames of a `Note.rename` failure, as the machine forwards them. */
     readonly #renameFrames: string;
 
-    /** The served space. */
-    get served(): TestObjectStore {
-        return this.#served;
-    }
-
     /** The world the space's servers run in, its store's. */
     get environment(): Environment {
-        return this.served.environment;
+        return this.space.environment;
     }
 
     /** The member of the space, allowed what the test grants, calling under the simulation. */
@@ -134,24 +127,20 @@ export class TestObservability implements AsyncDisposable {
 
     /** The space's machine, forwarding its workloads' exports. */
     get machine(): TestCaller {
-        return this.served.as(
-            principal.machine.reference(Scope.universe.id, this.space.machine.id),
-        );
+        return this.space.as(principal.machine.reference(Scope.universe.id, this.space.machine.id));
     }
 
     /** Keep a served space with its installations and member. */
     private constructor(fields: {
         readonly space: TestSpace;
-        readonly served: TestObjectStore;
         readonly simulation: Simulation;
         readonly notes: Identifier<"installation">;
         readonly emitter: TestEmitter;
         readonly member: TestPerson;
         readonly renameFrames: string;
     }) {
-        // keep the space and how it is served, and address the member and the machine
+        // keep the space, the member and the machine
         this.space = fields.space;
-        this.#served = fields.served;
         this.simulation = fields.simulation;
         this.notes = fields.notes;
         this.emitter = fields.emitter;
@@ -173,7 +162,7 @@ export class TestObservability implements AsyncDisposable {
     static async #open(space: TestSpace, world: ObservabilityWorld): Promise<TestObservability> {
         // serve the space with notifications, read by its member
         const { simulation } = space;
-        const served = await space.serve();
+        await space.serve();
         const member = space.universe.person(MEMBER_EMAIL);
 
         // emit as the notes installation's workload, its build's frames attributed
@@ -192,7 +181,6 @@ export class TestObservability implements AsyncDisposable {
 
         return new TestObservability({
             space,
-            served,
             simulation,
             notes,
             emitter,
@@ -216,20 +204,18 @@ export class TestObservability implements AsyncDisposable {
     /** Install observability and the notes application, and sign up a member allowed to observe. */
     static async #write(space: TestSpace): Promise<ObservabilityWorld> {
         // install notifications, social, observability allowed to respond to alerts, and the notes application
-        const installing = await space.serve();
+        await space.serve();
         for (const installed of [...NOTIFICATIONS, SOCIAL]) {
-            await space.install(installing, installed.build);
+            await space.install(installed.build);
         }
-        await space.install(installing, OBSERVABILITY.build, {
+        await space.install(OBSERVABILITY.build, {
             capabilities: [RESPOND_CAPABILITY],
         });
-        const notes = await space.install(installing, await TestNotes.build());
-        await installing[Symbol.asyncDispose]();
+        const notes = await space.install(await TestNotes.build());
 
-        // serve again, as the machine does once installations change, and let a member observe
-        await using served = await space.serve();
+        // let a member observe
         const member = await space.universe.signIn(MEMBER_EMAIL);
-        await space.apply(served, [], TestObservability.#observer(member.id, OBSERVER_PERMISSIONS));
+        await space.apply([], TestObservability.#observer(member.id, OBSERVER_PERMISSIONS));
 
         return { notes };
     }
@@ -267,7 +253,7 @@ export class TestObservability implements AsyncDisposable {
 
     /** Address the space as a person, each call run under the simulation. */
     person(person: TestPerson): TestCaller {
-        return this.space.person(this.served, person);
+        return this.space.person(person);
     }
 
     /** Apply a stack document declaring records of some types to the space under the simulation. */
@@ -275,7 +261,7 @@ export class TestObservability implements AsyncDisposable {
         types: Types,
         document: StackDocument<Types>,
     ): Promise<void> {
-        return this.space.apply(this.served, types, document);
+        return this.space.apply(types, document);
     }
 
     /** Submit a stack document to the space, answering how its stack stands. */
@@ -283,7 +269,7 @@ export class TestObservability implements AsyncDisposable {
         types: Types,
         document: StackDocument<Types>,
     ): Promise<readonly [string | undefined, string | undefined]> {
-        return this.space.submit(this.served, types, document);
+        return this.space.submit(types, document);
     }
 
     /** Grant the member exactly some permissions through a role the space's stack declares. */
@@ -323,15 +309,9 @@ export class TestObservability implements AsyncDisposable {
         return this.simulation.clock;
     }
 
-    /** Serve the space anew, as its machine does once its installations change. */
-    async restart(): Promise<void> {
-        await this.#served[Symbol.asyncDispose]();
-        this.#served = await this.space.serve();
-    }
-
     /** Stop serving the space, then close it, running the simulation while they wind down. */
     async [Symbol.asyncDispose](): Promise<void> {
-        await this.served[Symbol.asyncDispose]();
+        await this.space[Symbol.asyncDispose]();
         await this.space[Symbol.asyncDispose]();
     }
 }
