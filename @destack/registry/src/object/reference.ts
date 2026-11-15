@@ -53,6 +53,7 @@ export const reference = defineObject(
         traits: [nested({ in: repository, delete: "cascade", add: "record" })],
     },
     (method) => ({
+        list: method.list("read"),
         create: method.create("record", {
             visibility: "package",
             fields: ["name", "object", "commit", "observedAt"],
@@ -76,11 +77,9 @@ export const reference = defineObject(
 export const referenceShape = defineShape({
     name: "reference",
     parameters: schema.object({
-        /** The repository. */
-        repository: schema.identifier("repository"),
-        /** The reference's complete name, such as `refs/heads/main`. */
-        name: schema.string().min(1),
+        /** The followed reference. */
+        id: schema.identifier("reference"),
     }),
     objects: [reference],
-    queries: ({ repository: parentId, name }) => [reference.query({ where: { parentId, name } })],
+    queries: ({ id }) => [reference.query({ where: { id } })],
 });

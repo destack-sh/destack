@@ -57,6 +57,7 @@ export const release = defineObject(
         traits: [nested({ in: packageObject, add: "publish", delete: "restrict" })],
     },
     (method) => ({
+        get: method.get("read"),
         /** Insert a checked lock's release under a tag, which only the package's publish calls. */
         create: method.create("publish", {
             visibility: "package",

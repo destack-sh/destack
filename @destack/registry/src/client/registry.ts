@@ -9,16 +9,17 @@ import {
     type PackageLocation,
     PackageManifest,
 } from "@destack/package/manifest";
-import { Digest, type Identifier, nth, present, schema } from "@destack/schema";
+import { Commit, Digest, type Identifier, nth, present, schema } from "@destack/schema";
 import type { Fetch } from "@destack/object";
 import { type ClientOf, createClient } from "@destack/object/client";
 import { Failure } from "@destack/error";
 import { RegistryError } from "../error/index.ts";
-import { packageObject } from "../object/index.ts";
+import { packageObject, reference, release, repository, tag } from "../object/index.ts";
 import registryPackage from "../package.ts";
 import type { Environment } from "@destack/environment";
 import type { Lease } from "@destack/resource";
-import { RequestId } from "@destack/sync";
+import { type ObjectReference, RequestId } from "@destack/sync";
+import type { InstallationSelection } from "@destack/object";
 import { TarballEntry } from "@destack/package/archive";
 import type { Runtime } from "@destack/package/runtime";
 import { TelemetryScope } from "@destack/telemetry";
@@ -41,7 +42,11 @@ type LockStore = Pick<
 >;
 
 /** Whose forge a caller calls: a package's publisher's, or an account's. */
-type ForgeOwner = { readonly package: PackageId } | { readonly account: Identifier<"account"> };
+type ForgeOwner =
+    | { readonly package: PackageId }
+    | { readonly repository: Identifier<"repository"> }
+    | { readonly account: Identifier<"account"> }
+    | { readonly home: Identifier<"space"> };
 
 /** The forges of published releases and repositories, called as one caller. */
 export class Registry {
@@ -82,9 +87,11 @@ export class Registry {
 
         return new Registry(
             async (owner) => {
-                // call the forge below its installation in the home of the owning account's residency
-                const accountId = await Registry.#account(claims, owner);
-                const spaceId = await home(accountId);
+                // call the forge below its installation in its home, or in the owning account's residency home
+                const spaceId =
+                    "home" in owner
+                        ? owner.home
+                        : await home(await Registry.#account(claims, owner));
                 const now = environment.clock.now();
                 const url = await directory.mount(spaceId, installation, registryPackage.id, now);
 
@@ -96,18 +103,24 @@ export class Registry {
     }
 
     /** Read the account owning a forge: an account itself, or the one publishing a package. */
-    static async #account(claims: ClaimLookup, owner: ForgeOwner): Promise<Identifier<"account">> {
+    static async #account(
+        claims: ClaimLookup,
+        owner: Exclude<ForgeOwner, { readonly home: unknown }>,
+    ): Promise<Identifier<"account">> {
         // take an account itself
         if ("account" in owner) {
             return owner.account;
         }
 
-        // find the account claiming the package's identifier
-        const found = await Claim.lookup(packageObject, claims, "id", [owner.package]);
+        // find the account claiming the repository's or the package's identifier
+        const found =
+            "repository" in owner
+                ? await Claim.lookup(repository, claims, "id", [owner.repository])
+                : await Claim.lookup(packageObject, claims, "id", [owner.package]);
         if (found === undefined) {
             throw RegistryError.of(
                 "PUBLISHER_NOT_FOUND",
-                `publishing account for '${owner.package}' not found`,
+                `owning account for '${"repository" in owner ? owner.repository : owner.package}' not found`,
             );
         }
 
@@ -115,14 +128,98 @@ export class Registry {
     }
 
     /** Resolve a package's published release of a version, or of the version a tag points at. */
-    async resolve(packageId: PackageId, release: string) {
+    async resolve(packageId: PackageId, named: string) {
         const forge = await this.#find({ package: packageId });
 
         return createClient(registryPackage, forge, this.#environment).release.resolve({
             spaceId: forge.space,
             parentId: packageId,
-            release,
+            release: named,
         });
+    }
+
+    /** Read the version a followed release or tag names at its package's forge. */
+    async version(packageId: PackageId, followed: ObjectReference): Promise<string> {
+        // read the release itself, or the tag, by its identifier
+        const forge = await this.#find({ package: packageId });
+        const client = createClient(registryPackage, forge, this.#environment);
+        const row =
+            followed.type === tag.name
+                ? await client.tag.get({
+                      spaceId: forge.space,
+                      id: schema.identifier("tag").parse(followed.id),
+                  })
+                : await client.release.get({
+                      spaceId: forge.space,
+                      id: schema.identifier("release").parse(followed.id),
+                  });
+
+        return row.version;
+    }
+
+    /** Read the release, tag or repository reference a selection names, at its forge's home. */
+    async followed(
+        packageId: PackageId,
+        selection: Exclude<InstallationSelection, { readonly kind: "host" | "checkout" }>,
+    ): Promise<ObjectReference> {
+        // take the release a version names
+        if (selection.kind === "release") {
+            const found = await this.resolve(packageId, selection.version);
+
+            return release.reference(found.scope, found.id);
+        }
+
+        // find the tag of the package, or the reference of the repository, by its name
+        const forge =
+            selection.kind === "tag"
+                ? await this.#find({ package: packageId })
+                : await this.#find({ repository: selection.repository });
+        const client = createClient(registryPackage, forge, this.#environment);
+        const { items } =
+            selection.kind === "tag"
+                ? await client.tag.list({
+                      spaceId: forge.space,
+                      where: { parentId: packageId, name: selection.tag },
+                      limit: 1,
+                  })
+                : await client.reference.list({
+                      spaceId: forge.space,
+                      where: { parentId: selection.repository, name: selection.reference },
+                      limit: 1,
+                  });
+        const [row] = items;
+        if (row === undefined) {
+            throw RegistryError.of(
+                "RELEASE_NOT_FOUND",
+                selection.kind === "tag"
+                    ? `tag '${selection.tag}' of '${packageId}' not found`
+                    : `reference '${selection.reference}' of repository '${selection.repository}' not found`,
+            );
+        }
+
+        return selection.kind === "tag"
+            ? tag.reference(row.scope, row.id)
+            : reference.reference(row.scope, row.id);
+    }
+
+    /** Read a followed reference at its forge's home: its repository, name and commit. */
+    async reference(followed: ObjectReference): Promise<{
+        readonly repository: Identifier<"repository">;
+        readonly name: string;
+        readonly commit: Commit | undefined;
+    }> {
+        // read the reference by its identifier at its home
+        const forge = await this.#find({ home: schema.identifier("space").parse(followed.scope) });
+        const client = createClient(registryPackage, forge, this.#environment);
+        const row = await client.reference.get({
+            spaceId: forge.space,
+            id: schema.identifier("reference").parse(followed.id),
+        });
+
+        // read its commit, absent before its first push
+        const commit = row.commit === null ? undefined : Commit.parse(row.commit);
+
+        return { repository: row.parentId, name: row.name, commit };
     }
 
     /** Lease short-lived access to read a repository at the forge of its account. */
@@ -137,15 +234,15 @@ export class Registry {
     }
 
     /** Find the digest of the lock of a shipped release, or of a package's published one. */
-    async find(packageId: PackageId, release: string): Promise<Digest> {
+    async find(packageId: PackageId, named: string): Promise<Digest> {
         // take a shipped release first, a dev build of it among them
-        const shipped = PackageRelease.select(this.#releases, packageId, release);
+        const shipped = PackageRelease.select(this.#releases, packageId, named);
         if (shipped !== undefined) {
             return shipped.lock;
         }
 
         // resolve the release at its forge
-        const { lock } = await this.resolve(packageId, release);
+        const { lock } = await this.resolve(packageId, named);
 
         return lock;
     }
@@ -177,7 +274,7 @@ export class Registry {
         store: LockStore,
         locks: readonly Digest[],
         account: Identifier<"account">,
-        tag: string,
+        tagName: string,
         commit?: string,
     ): Promise<readonly PackageRelease[]> {
         return this.#scope.span(
@@ -212,7 +309,9 @@ export class Registry {
                 const forge = await this.#find({ account });
                 const client = createClient(registryPackage, forge, this.#environment);
                 const tagged = await Promise.all(
-                    [...roots.values()].map((root) => Registry.#tagged(client, forge, root, tag)),
+                    [...roots.values()].map((root) =>
+                        Registry.#tagged(client, forge, root, tagName),
+                    ),
                 );
                 const pending = new Set(
                     [...roots.values()]
@@ -232,7 +331,7 @@ export class Registry {
                     await Promise.all(
                         layer
                             .filter((root) => pending.has(root.lock))
-                            .map((root) => this.#publish(forge, root, account, tag, commit)),
+                            .map((root) => this.#publish(forge, root, account, tagName, commit)),
                     );
                 }
 
@@ -246,7 +345,7 @@ export class Registry {
         store: LockStore,
         lock: Digest,
         account: Identifier<"account">,
-        tag: string,
+        tagName: string,
         commit?: string,
     ): Promise<readonly PackageRelease[]> {
         return this.#scope.span(
@@ -269,7 +368,7 @@ export class Registry {
                     }
                 }
 
-                return await this.release(store, owned, account, tag, commit);
+                return await this.release(store, owned, account, tagName, commit);
             },
         );
     }
@@ -279,7 +378,7 @@ export class Registry {
         forge: ForgeEndpoint,
         root: PackageRelease,
         account: Identifier<"account">,
-        tag: string,
+        tagName: string,
         commit: string | undefined,
     ): Promise<PackageRelease> {
         await createClient(registryPackage, forge, this.#environment).package.publish({
@@ -290,7 +389,7 @@ export class Registry {
             name: PackageName.split(root.package.name).local,
             lock: root.lock,
             ...(commit === undefined ? {} : { commit }),
-            tag,
+            tag: tagName,
         });
 
         return root;
@@ -301,16 +400,16 @@ export class Registry {
         client: ClientOf<typeof registryPackage>,
         forge: ForgeEndpoint,
         root: PackageRelease,
-        tag: string,
+        tagName: string,
     ): Promise<Digest | undefined> {
         try {
-            const release = await client.release.resolve({
+            const named = await client.release.resolve({
                 spaceId: forge.space,
                 parentId: root.package.id,
-                release: tag,
+                release: tagName,
             });
 
-            return release.lock;
+            return named.lock;
         } catch (error) {
             // publish a package the caller cannot see yet, whose publish then decides
             const { code } = Failure.of(error);
@@ -456,13 +555,13 @@ export class Registry {
     }
 
     /** Open the build of a package's published release, by its version or a distribution tag. */
-    open(packageId: PackageId, release: string): Promise<BuildReader> {
+    open(packageId: PackageId, named: string): Promise<BuildReader> {
         return this.#scope.span(
             "destack.registry.open",
             { "destack.package.id": packageId },
             async () => {
                 // read the release's lock from its forge, then open its root build
-                const digest = await this.find(packageId, release);
+                const digest = await this.find(packageId, named);
                 const source = await this.store(packageId, { kind: "lock", digest });
                 let bytes: Uint8Array<ArrayBuffer> | undefined;
                 for await (const entry of source.read([{ kind: "lock", digest }])) {

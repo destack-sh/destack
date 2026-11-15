@@ -1,28 +1,14 @@
-import { principal } from "@destack/access";
-import { account, claimShape, Space, space } from "@destack/account/object";
-import { and, type DatabaseConnection, eq, type Snapshot } from "@destack/db";
+import { Space } from "@destack/account/object";
+import { type Snapshot } from "@destack/db";
 import {
     Claim,
-    ClaimLookup,
-    claimTable,
+    type ClaimLookup,
     type Follow,
     installation,
     type Installation,
 } from "@destack/object";
-import { type Identifier, present, schema } from "@destack/schema";
-import { PackageId } from "@destack/package";
-import { Scope } from "@destack/sync";
-import {
-    packageObject,
-    reference,
-    referenceShape,
-    repository,
-    tag,
-    tagShape,
-} from "../object/index.ts";
-
-/** The fields of a reference or tag row in its changes: its parent and name. */
-const ChildKey = schema.looseObject({ parentId: schema.string(), name: schema.string() });
+import { Commit, type Identifier, schema } from "@destack/schema";
+import { reference, referenceShape, repository, tag, tagShape } from "../object/index.ts";
 
 /** The forge as a space reads it: the references and tags it replicates from forge homes. */
 export class Forge {
@@ -32,22 +18,12 @@ export class Forge {
     readonly tags = tag.table;
     /** The forge rows a space's database replicates. */
     static readonly replicated = [reference, tag];
-    /** The universe's name owners, which tell a repository's and a package's account. */
+    /** The universe's name owners, which tell a repository's account. */
     readonly #claims: ClaimLookup;
-    /** Read the residency home of an account, where its forge lives. */
-    readonly #home: (account: Identifier<"account">) => Promise<string>;
-    /** The machine serving the spaces, which follows the packages' claims for them. */
-    readonly #machine: Identifier<"machine">;
 
-    /** Read the forge through the universe's name owners and each account's residency home. */
-    constructor(
-        claims: ClaimLookup,
-        home: (account: Identifier<"account">) => Promise<string>,
-        machine: Identifier<"machine">,
-    ) {
+    /** Read the forge through the universe's name owners. */
+    constructor(claims: ClaimLookup) {
         this.#claims = claims;
-        this.#home = home;
-        this.#machine = machine;
     }
 
     /** Read the account of a repository, absent for a repository without an account. */
@@ -57,118 +33,88 @@ export class Forge {
         return owner === undefined ? undefined : schema.identifier("account").parse(owner.scope);
     }
 
-    /** Read the repository and name of a changed reference row. */
-    reference(row: Readonly<Record<string, unknown>>) {
-        const { parentId, name } = ChildKey.parse(row);
+    /** Read a followed reference in a space's replica, absent once deleted. */
+    async reference(
+        reader: Pick<Snapshot, "read">,
+        id: string,
+    ): Promise<
+        | {
+              readonly repository: Identifier<"repository">;
+              readonly name: string;
+              readonly commit: Commit | undefined;
+          }
+        | undefined
+    > {
+        const followed = await reader
+            .read(reference.table)
+            .findFirst({ where: { id: schema.identifier("reference").parse(id) } });
 
-        return { repository: parentId, name };
+        return followed === undefined || followed.deletedAt !== null
+            ? undefined
+            : {
+                  repository: followed.parentId,
+                  name: followed.name,
+                  commit: followed.commit === null ? undefined : Commit.parse(followed.commit),
+              };
     }
 
-    /** Read the commit a reference resolves to in a space's replica, absent while none. */
-    async commit(database: DatabaseConnection, id: string, name: string) {
-        const parent = schema.identifier("repository").parse(id);
-        const [followed] = await database
-            .select({ commit: reference.table.commit, deletedAt: reference.table.deletedAt })
-            .from(reference.table)
-            .where(and(eq(reference.table.parentId, parent), eq(reference.table.name, name)));
-
-        return followed?.deletedAt === null ? (followed.commit ?? undefined) : undefined;
-    }
-
-    /** Read the package and name of a changed tag row. */
-    tag(row: Readonly<Record<string, unknown>>) {
-        const { parentId, name } = ChildKey.parse(row);
-
-        return { package: parentId, name };
-    }
-
-    /** Read the version a tag points at in a space's replica, absent while none. */
-    async version(reader: Pick<Snapshot, "read">, packageId: string, name: string) {
-        const [followed] = await reader
+    /** Read the version a followed tag points at in a space's replica, absent while none. */
+    async version(reader: Pick<Snapshot, "read">, id: string): Promise<string | undefined> {
+        const followed = await reader
             .read(tag.table)
-            .findMany({ where: { parentId: PackageId.parse(packageId), name }, limit: 1 });
+            .findFirst({ where: { id: schema.identifier("tag").parse(id) } });
 
         return followed?.version;
     }
 
-    /** Follow each served installation's selected reference and tag from its forge home. */
+    /** Follow each served installation's followed reference and tag from its home. */
     follows(): Follow[] {
         return [
             referenceShape.per(installation, {
-                where: { deletedAt: { isNull: true } },
+                where: { deletedAt: { isNull: true }, followsType: reference.name },
                 key: async (row, view) => {
-                    // follow nothing for an installation selecting no repository, or outside a space served here
-                    const { selection } = row;
-                    const spaceId = await this.#served(row, view);
-                    if (selection.kind !== "repository" || spaceId === undefined) {
-                        return undefined;
-                    }
+                    const followed = await Forge.#followed(row, view);
 
-                    // follow it from the forge in the home of the space's account's residency
-                    const served = present(
-                        await view.read(space.table).findFirst({ where: { id: spaceId } }),
-                        `space ${spaceId}`,
-                    );
-                    const scope = await this.#home(account.identifier(served.scope));
-
-                    return {
-                        key: { scope, repository: selection.repository, name: selection.reference },
-                    };
-                },
-            }),
-            claimShape.per(installation, {
-                where: { deletedAt: { isNull: true } },
-                key: async (row, view) => {
-                    // follow nothing for an installation selecting no tag, or outside a space served here
-                    const spaceId = await this.#served(row, view);
-                    if (row.selection.kind !== "tag" || spaceId === undefined) {
-                        return undefined;
-                    }
-
-                    // follow its package's claim as the machine, which reads the universe's claims
-                    const { key } = Claim.key(packageObject, "id", [row.packageId]);
-                    const index = Claim.index(packageObject, "id");
-
-                    return {
-                        key: { scope: Scope.universe.id, index, key },
-                        subject: principal.machine.reference(Scope.universe.id, this.#machine),
-                    };
+                    return followed === undefined
+                        ? undefined
+                        : {
+                              key: {
+                                  scope: followed.scope,
+                                  id: schema.identifier("reference").parse(followed.id),
+                              },
+                          };
                 },
             }),
             tagShape.per(installation, {
-                where: { deletedAt: { isNull: true } },
+                where: { deletedAt: { isNull: true }, followsType: tag.name },
                 key: async (row, view) => {
-                    // follow nothing for an installation selecting no tag, or outside a space served here
-                    const { selection } = row;
-                    const spaceId = await this.#served(row, view);
-                    if (selection.kind !== "tag" || spaceId === undefined) {
-                        return undefined;
-                    }
+                    const followed = await Forge.#followed(row, view);
 
-                    // follow it at the publisher's residency home, once its claim replicates here
-                    const claims = ClaimLookup.of(view.read(claimTable));
-                    const ids = [row.packageId];
-                    const publisher = await Claim.lookup(packageObject, claims, "id", ids);
-                    if (publisher === undefined) {
-                        return undefined;
-                    }
-                    const scope = await this.#home(account.identifier(publisher.scope));
-
-                    return { key: { scope, package: row.packageId, name: selection.tag } };
+                    return followed === undefined
+                        ? undefined
+                        : {
+                              key: {
+                                  scope: followed.scope,
+                                  id: schema.identifier("tag").parse(followed.id),
+                              },
+                          };
                 },
             }),
         ];
     }
 
-    /** Read the space an installation lives in when this machine serves it. */
-    async #served(
-        row: Pick<Installation, "scope">,
+    /** Read the home and id of the row an installation follows, none outside a served space. */
+    static async #followed(
+        row: Pick<Installation, "scope" | "followsScope" | "followsId">,
         view: Pick<Snapshot, "read">,
-    ): Promise<Identifier<"space"> | undefined> {
+    ): Promise<{ readonly scope: string; readonly id: string } | undefined> {
+        // follow nothing outside a space served here
         const spaceId = schema.identifier("space").safeParse(row.scope);
+        const isServed = spaceId.success && (await Space.isServing(view, spaceId.data));
+        if (!isServed || row.followsScope === null || row.followsId === null) {
+            return undefined;
+        }
 
-        return spaceId.success && (await Space.isServing(view, spaceId.data))
-            ? spaceId.data
-            : undefined;
+        return { scope: row.followsScope, id: row.followsId };
     }
 }

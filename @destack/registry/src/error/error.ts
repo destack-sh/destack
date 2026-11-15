@@ -6,6 +6,7 @@ export const RegistryError = defineErrorFamily({
     reasons: {
         // not found
         PUBLISHER_NOT_FOUND: {},
+        RELEASE_NOT_FOUND: {},
 
         // invalid
         MANIFEST_INVALID: {},

@@ -2,7 +2,6 @@ import { through } from "@destack/access";
 import { space } from "@destack/account/object";
 import type { Select } from "@destack/db";
 import { defineObject, defineShape, field } from "@destack/object";
-import { PackageId } from "@destack/package";
 import { schema } from "@destack/schema";
 import { packageObject, TagName } from "./package.ts";
 import { release } from "./release.ts";
@@ -37,6 +36,7 @@ export const tag = defineObject(
         traits: [nested({ in: packageObject, add: "publish", delete: "restrict" })],
     },
     (method) => ({
+        list: method.list("read"),
         create: method.create("publish", { fields: ["name", "version"] }),
         update: method.update("publish", { fields: ["version"] }),
         delete: method.delete("publish"),
@@ -50,11 +50,9 @@ export type Tag = Select<typeof tag.table>;
 export const tagShape = defineShape({
     name: "tag",
     parameters: schema.object({
-        /** The package. */
-        package: PackageId,
-        /** The distribution tag, such as latest. */
-        name: TagName,
+        /** The followed tag. */
+        id: schema.identifier("tag"),
     }),
     objects: [tag],
-    queries: ({ package: parentId, name }) => [tag.query({ where: { parentId, name } })],
+    queries: ({ id }) => [tag.query({ where: { id } })],
 });
