@@ -10,7 +10,7 @@ import { notification } from "@destack/notification/object";
 import { TestNotification } from "@destack/notification/test";
 import { ObjectType } from "@destack/object";
 import { ObjectClient } from "@destack/object/client";
-import { type TestCaller, type TestObjectStore, testBuild } from "@destack/object/test";
+import { type TestCaller, testBuild } from "@destack/object/test";
 import { PackageVersion } from "@destack/package";
 import { MemoryBuild } from "@destack/package/test";
 import { nth, schema } from "@destack/schema";
@@ -98,12 +98,10 @@ export type Actor = (typeof PEOPLE)[number] | "agent";
 /** A principal as comments mention it. */
 export type Mentioned = Mention["principal"];
 
-/** A space installing articles with social attachments, used by people and an agent. */
+/** A space serving articles with social attachments, used by people and an agent. */
 export class TestSocial implements AsyncDisposable {
     /** The space serving social. */
     readonly space: TestSpace;
-    /** The served space. */
-    readonly served: TestObjectStore;
     /** The simulation the space runs on. */
     readonly simulation: Simulation;
     /** The principals the tests act as: people reading the space, and the agent installation. */
@@ -115,17 +113,15 @@ export class TestSocial implements AsyncDisposable {
     /** The followers reading presence, closed once the fixture closes. */
     readonly #followers: TestFollower[] = [];
 
-    /** Keep a served space with its actors. */
+    /** Keep the space and its actors. */
     private constructor(fields: {
         readonly space: TestSpace;
-        readonly served: TestObjectStore;
         readonly simulation: Simulation;
         readonly actors: Readonly<Record<Actor, Mentioned>>;
         readonly callers: Readonly<Record<Actor, TestCaller>>;
     }) {
-        // keep the space, how it is served, and its actors with their callers
+        // keep the space and its actors with their callers
         this.space = fields.space;
-        this.served = fields.served;
         this.simulation = fields.simulation;
         this.actors = fields.actors;
         this.#callers = fields.callers;
@@ -144,7 +140,7 @@ export class TestSocial implements AsyncDisposable {
     static async #open(space: TestSpace, world: SocialWorld): Promise<TestSocial> {
         // serve the space with notifications, read by its people and the agent
         const { simulation } = space;
-        const served = await space.serve();
+        await space.serve();
         const people = PEOPLE.map((name) => space.universe.person(TestSocial.#email(name)));
         const actors = {
             alice: TestSocial.#mentioned(principal.user, nth(people, 0).id),
@@ -156,38 +152,34 @@ export class TestSocial implements AsyncDisposable {
 
         // call as the people and the agent's installation
         const callers = {
-            alice: space.person(served, nth(people, 0)),
-            bob: space.person(served, nth(people, 1)),
-            carol: space.person(served, nth(people, 2)),
-            dave: space.person(served, nth(people, 3)),
-            agent: served.as(principal.installation.reference(ids.space, world.agent)),
+            alice: space.person(nth(people, 0)),
+            bob: space.person(nth(people, 1)),
+            carol: space.person(nth(people, 2)),
+            dave: space.person(nth(people, 3)),
+            agent: space.as(principal.installation.reference(ids.space, world.agent)),
         };
 
-        return new TestSocial({ space, served, simulation, actors, callers });
+        return new TestSocial({ space, simulation, actors, callers });
     }
 
     /** Install articles, social and the agent, sign the people up and let them read the space. */
     static async write(space: TestSpace): Promise<SocialWorld> {
         // install each package in dependency order, as the space's stack does, then the agent
-        const installing = await space.serve();
+        await space.serve();
         for (const installed of PACKAGES) {
-            await space.install(installing, installed.build);
+            await space.install(installed.build);
         }
-        const agent = await space.install(
-            installing,
-            await MemoryBuild.of(AGENT, [], testHost().crypto),
-        );
-        await installing[Symbol.asyncDispose]();
+        const agent = await space.install(await MemoryBuild.of(AGENT, [], testHost().crypto));
 
         // serve again, as the machine does once installations change, and sign the people up
-        await using served = await space.serve();
+        await space.serve();
         const people = await Promise.all(
             PEOPLE.map((name) => space.universe.signIn(TestSocial.#email(name))),
         );
 
         // let the people and the agent read the space through a role its stack declares
         const readers = [...people.map((person) => person.id), agent];
-        await space.apply(served, [], {
+        await space.apply([], {
             roles: {
                 reader: {
                     description: "Read the space",
@@ -293,7 +285,7 @@ export class TestSocial implements AsyncDisposable {
         await Promise.all(this.#followers.map((follower) => follower.close()));
 
         // stop serving, then close the space, under the simulation
-        await this.served[Symbol.asyncDispose]();
+        await this.space[Symbol.asyncDispose]();
         await this.space[Symbol.asyncDispose]();
     }
 }
