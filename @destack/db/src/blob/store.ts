@@ -422,7 +422,7 @@ export class BlobStore<Storage extends BlobStorage = BlobStorage> implements Con
 
         return [
             {
-                name: "blob-leases",
+                name: "destack.blob.release",
                 table,
                 pending: { leasedUntil: { gt: 0, lte: new Now() } },
                 key: [],
@@ -440,14 +440,14 @@ export class BlobStore<Storage extends BlobStorage = BlobStorage> implements Con
                 },
             },
             {
-                name: "blob-retired",
+                name: "destack.blob.collect",
                 table,
                 pending: { isRetired: true, freedAt: { isNull: true } },
                 key: [],
                 reconcile: collect,
             },
             {
-                name: "blob-freed",
+                name: "destack.blob.delete",
                 table,
                 pending: {
                     isRetired: true,

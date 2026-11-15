@@ -18,6 +18,7 @@ export function implementNotification(server: NotificationServer): typeof notifi
         methods: { deliver: (context) => deliver(context, server) },
         projections: [
             {
+                name: "plan",
                 // plan a home's notification of an activity as the activity changes, and again once it is stale or missing
                 watches: [{ table: activity.table }],
                 all: { table: activity.table, column: "id" },
@@ -27,6 +28,7 @@ export function implementNotification(server: NotificationServer): typeof notifi
         ],
         controllers: [
             {
+                name: "deliver",
                 // deliver a home's due notifications in one mutation, one home at a time
                 pending: { deliveryAt: { lte: now } },
                 key: ["scope"],

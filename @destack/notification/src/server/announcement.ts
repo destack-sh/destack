@@ -37,6 +37,7 @@ export function implementAnnouncement(server: NotificationServer): typeof announ
         },
         controllers: [
             {
+                name: "expand",
                 // expand a thread's announcements together, in the order they were posted
                 pending: { expandedAt: { isNull: true } },
                 key: ["thread"],

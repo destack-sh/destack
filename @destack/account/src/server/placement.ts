@@ -32,6 +32,7 @@ export function implementPlacement(): typeof placement {
         },
         projections: [
             {
+                name: "decide",
                 // decide a placement again after each of its writes, which converges a decision a concurrent change outdated
                 watches: [
                     // decide again once a machine comes, goes or changes its standing, for its account

@@ -19,7 +19,12 @@ import {
     type LogPosition,
     Transaction,
 } from "@destack/db";
-import { ObjectType, type ObjectReconciliation, refuseInput } from "@destack/object";
+import {
+    ObjectController,
+    ObjectType,
+    type ObjectReconciliation,
+    refuseInput,
+} from "@destack/object";
 import type { MountFetch, ObjectStore } from "@destack/object/server";
 import type { Cursor } from "@destack/db";
 import { RequestId, type Call, Scope } from "@destack/sync";
@@ -111,7 +116,7 @@ export class TriggerServer<Input> {
                         (declared): declared is ChangeTrigger<Input> => declared.kind === "change",
                     )
                     .map((declared) => ({
-                        name: declared.name,
+                        name: `start.${declared.name}`,
                         pending: {
                             state: "active" as const,
                             kind: "change" as const,
@@ -124,6 +129,7 @@ export class TriggerServer<Input> {
                         },
                     })),
                 {
+                    name: "fire",
                     // fire a schedule once declared and each time its next occurrence comes due
                     pending: {
                         state: "active",
@@ -148,7 +154,7 @@ export class TriggerServer<Input> {
         const { trigger } = this.#workflow;
 
         return (store) => ({
-            name: `${trigger.name}:declared`,
+            name: ObjectController.job(trigger, "declare"),
             tables: [],
             take: async () => this.#declare(store, this.scope(store)),
         });

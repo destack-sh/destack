@@ -103,7 +103,7 @@ export function implementPackageObject(options: ReleaseOptions): typeof packageO
         projections: [
             {
                 // delete a package's prereleases past the space's retention
-                name: "retention",
+                name: "expire",
                 watches: [
                     { table: release.table, on: { id: "parentId" } },
                     { table: tag.table, on: { id: "parentId" } },

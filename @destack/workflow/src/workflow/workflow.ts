@@ -270,6 +270,7 @@ export function defineWorkflow<
                     controllers: [
                         {
                             // advance a pending run, and a waiting one once a type it waits for changes
+                            name: "advance",
                             pending: { state: { in: ["pending", "waiting"] } },
                             watches: waits.map((type) => ({
                                 table: type.table,

@@ -67,6 +67,7 @@ export function implementEndpoint(keys: Pick<Deriver, "derivePrivateKey">) {
         },
         controllers: [
             {
+                name: "deliver",
                 pending: { status: "enabled", deletedAt: { isNull: true } },
                 watches: [
                     // wake the endpoint of a sent message

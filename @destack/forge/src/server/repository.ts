@@ -160,6 +160,7 @@ export function implementRepository(options: RepositoryOptions): typeof reposito
             : {
                   controllers: [
                       {
+                          name: "identify",
                           pending: {
                               hosting: "github",
                               providerRepositoryId: { isNull: true },

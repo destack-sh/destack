@@ -98,6 +98,7 @@ export function serveDistributions(host: DistributionHost | undefined) {
                 ? []
                 : [
                       {
+                          name: "stage",
                           pending: { checkedAt: { isNull: true } },
                           reconcile: stage,
                       },

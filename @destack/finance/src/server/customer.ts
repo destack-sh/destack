@@ -44,7 +44,7 @@ export function implementCustomer(home: string, metering: Metering): typeof cust
         projections: [
             {
                 // derive each replicated account's entitlements
-                name: "entitlement",
+                name: "entitle",
                 key: "accountId",
                 all: { table: account.table, column: "id" },
                 watches: [

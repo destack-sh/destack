@@ -101,6 +101,7 @@ export function implementConnection(tokens: ConnectionCredential): typeof connec
         controllers: [
             // reconcile a connection once it changed, goes, or comes due
             {
+                name: "refresh",
                 pending: {
                     OR: [
                         { generation: { gt: { field: "syncedGeneration" } } },

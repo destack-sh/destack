@@ -276,6 +276,7 @@ export default implementPackage(observabilityPackage, {
             cursors: [(store) => AlertRule.cursor(store)],
             controllers: [
                 {
+                    name: "evaluate",
                     // evaluate a rule once it changes or comes due
                     pending: {
                         OR: [

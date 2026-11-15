@@ -27,6 +27,7 @@ export function implementSummary(server: NotificationServer): typeof summary {
         },
         controllers: [
             {
+                name: "send",
                 // send each summary once its time comes
                 pending: { sentAt: { isNull: true }, at: { lte: now } },
                 reconcile: async ({ rows, mutate }) => {

@@ -25,6 +25,7 @@ import {
 import { canonicalize, Duration, found, nth, present, schema, Uuid } from "@destack/schema";
 import { type Link, TelemetryScope } from "@destack/telemetry";
 import type {} from "@destack/package/import-meta";
+import { PackageName } from "@destack/package";
 import { Failure } from "@destack/error";
 import { RetryPolicy, waitAborted, Clock } from "@destack/environment";
 import type { Alarm } from "./alarm.ts";
@@ -700,8 +701,11 @@ export class ControlLoop {
             throw new TypeError(`table '${table[TABLE].name}' has no expiry column`);
         }
 
+        // take the job's name as signals have theirs: the package's account, the table and the verb
+        const { handle } = PackageName.split(table[TABLE].package.name);
+
         return {
-            name: `expiry:${table[TABLE].sqlName}`,
+            name: `${handle}.${table[TABLE].name.replaceAll("-", "_")}.expire`,
             table,
             pending: { [expiry]: { lte: now } },
             key: [],
