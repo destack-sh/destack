@@ -93,6 +93,7 @@ export class PostgresDatabaseHost implements DatabaseHost {
         return DatabaseHandle.plan(
             connect,
             desired.map((state) => state.tables.postgresql),
+            record.id,
         );
     }
 
@@ -120,6 +121,7 @@ export class PostgresDatabaseHost implements DatabaseHost {
         return DatabaseHandle.open(
             connect,
             desired.map((state) => state.tables.postgresql),
+            record.id,
         );
     }
 

@@ -4,7 +4,7 @@ import { present, schema, Uuid } from "@destack/schema";
 import { Commit, typedChannel } from "../channel/channel.ts";
 import type { DatabaseConnection } from "../database/connection.ts";
 import { applyPlan } from "../migration/apply.ts";
-import { declareState } from "../migration/state.ts";
+import { DATABASE_MANAGER, declareState } from "../migration/state.ts";
 import { asc, eq, sql, type SQL } from "../sql/index.ts";
 import { integer, text } from "../table/column.ts";
 import { defineTable, TABLE } from "../table/table.ts";
@@ -140,7 +140,11 @@ test("list text keys in byte order through their index once migrated to byte col
             columns: state.table.columns.map(({ collation: _collation, ...column }) => column),
         },
     }));
-    await applyPlan(database, await database.plan({ declared: earlier }));
+    await applyPlan(
+        database,
+        await database.plan({ declared: earlier }, DATABASE_MANAGER),
+        DATABASE_MANAGER,
+    );
     await database.insert(entry).values(KEYS.toReversed().map((key) => ({ key, size: 1 })));
     const table = entry[TABLE].sqlName;
     const listing = sql`SELECT key, size FROM ${sql.relation(table)} ORDER BY key COLLATE "C" LIMIT 3`;
@@ -151,7 +155,7 @@ test("list text keys in byte order through their index once migrated to byte col
     const before = { keys: await list(), plan: await explain(database, listing) };
 
     // collate the key by byte in one safe step
-    const plan = await database.plan({ declared });
+    const plan = await database.plan({ declared }, DATABASE_MANAGER);
     expect(
         plan.steps.map((step) => [step.risk, step.action, step.target, step.statements]),
     ).toEqual([
@@ -162,7 +166,7 @@ test("list text keys in byte order through their index once migrated to byte col
             [`ALTER TABLE "${table}" ALTER COLUMN "key" TYPE text COLLATE "C"`],
         ],
     ]);
-    await applyPlan(database, plan);
+    await applyPlan(database, plan, DATABASE_MANAGER);
 
     // sort beside the index before the migration and read the index in byte order after it
     expect({

@@ -87,6 +87,7 @@ export class BunSqliteDatabaseHost implements DatabaseHost {
         return DatabaseHandle.plan(
             connect,
             desired.map((state) => state.tables.sqlite),
+            record.id,
         );
     }
 
@@ -112,6 +113,7 @@ export class BunSqliteDatabaseHost implements DatabaseHost {
         return DatabaseHandle.open(
             connect,
             desired.map((state) => state.tables.sqlite),
+            record.id,
         );
     }
 

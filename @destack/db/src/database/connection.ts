@@ -29,6 +29,7 @@ import {
     unappliedTables,
     type DeclareOptions,
     type TableState,
+    DATABASE_MANAGER,
     readStamp,
     STAMP,
     writeStamp,
@@ -342,16 +343,8 @@ export class DatabaseConnection<
         );
     }
 
-    /** Plan and apply tables at once, beside declared states, such as a resource's desired ones. */
-    async migrate(
-        tables: readonly Table[],
-        options: DeclareOptions & {
-            /** The states stored beside the tables, such as a resource's desired ones. */
-            readonly states?: readonly (readonly TableState[])[];
-            /** What happens to the applied tables neither the tables nor the states declare. */
-            readonly others?: "retain" | "drop";
-        } = {},
-    ): Promise<TablePlan> {
+    /** Plan and apply a manager's tables at once. */
+    async migrate(tables: readonly Table[], options: MigrateOptions = {}): Promise<TablePlan> {
         // run the migration in its span, its duration by whether it applied or found its stamp
         let outcome: MigrationOutcome = "applied";
 
@@ -371,28 +364,21 @@ export class DatabaseConnection<
         );
     }
 
-    /** Plan and apply tables unless the database applied the same declaration last. */
+    /** Plan and apply a manager's tables unless it applied the same declaration last. */
     async #migrate(
         tables: readonly Table[],
-        options: DeclareOptions & {
-            /** The states stored beside the tables, such as a resource's desired ones. */
-            readonly states?: readonly (readonly TableState[])[];
-            /** What happens to the applied tables neither the tables nor the states declare. */
-            readonly others?: "retain" | "drop";
-        },
+        options: MigrateOptions,
     ): Promise<{ readonly plan: TablePlan; readonly outcome: MigrationOutcome }> {
         // declare the tables, its replicated tables as replicas
+        const { manager = DATABASE_MANAGER, states = [], ...declaring } = options;
         const declared = declareState(tables, this.dialect, {
             replicated: this.state.replicated,
-            ...options,
+            ...declaring,
         });
 
-        // skip a declaration the database applied last, by the stamp of the declared and given states
-        const stamp = await Digest.json(
-            { declared, states: options.states ?? [], others: options.others ?? "drop" },
-            this.state.environment.crypto,
-        );
-        const stamped = await readStamp(this);
+        // skip a declaration the manager applied last
+        const stamp = await Digest.json({ declared, states }, this.state.environment.crypto);
+        const stamped = await readStamp(this, manager);
         if (stamped.kind === "stamped" && stamped.digest === stamp) {
             this.state.declare(tables);
 
@@ -409,21 +395,16 @@ export class DatabaseConnection<
             };
         }
 
-        // retain the other applied tables as they are when asked, as their declarations had them
-        const { namespace } = this.state;
-        const names = new Set(declared.map((entry) => namespaceState(entry, namespace).table.name));
-        const others =
-            options.others === "retain"
-                ? (await readState(this))
-                      .filter((applied) => !names.has(applied.table.name))
-                      .map((applied) => localState(applied, namespace))
-                : [];
-
-        // plan the declared, given and retained tables, then apply the plan and stamp the declaration
-        const merged = mergeStates([...(options.states ?? []), others, declared]);
-        const plan = await this.plan(merged);
-        await this.apply(plan);
-        await writeStamp(this, stamp, stamped.kind === "unstamped" && plan.steps.length === 0);
+        // plan the declared and given tables, then apply the plan and stamp the declaration
+        const merged = mergeStates([...states, declared]);
+        const plan = await this.plan(merged, manager);
+        await this.apply(plan, manager);
+        await writeStamp(
+            this,
+            manager,
+            stamp,
+            stamped.kind === "unstamped" && plan.steps.length === 0,
+        );
         this.state.declare(tables);
 
         return { plan, outcome: "applied" };
@@ -438,26 +419,51 @@ export class DatabaseConnection<
         });
 
         return unappliedTables(
-            await readState(this),
+            (await readState(this)).map((applied) => applied.state),
             declared.map((entry) => namespaceState(entry, namespace)),
         );
     }
 
-    /** Plan the migration from applied to declared tables, within the database's namespace. */
-    async plan(state: Pick<Merge, "declared"> & Partial<Merge>): Promise<TablePlan> {
-        // read the applied tables a declaration changes that have no rows
+    /** Plan a manager's migration from its applied tables to the declared ones. */
+    async plan(
+        state: Pick<Merge, "declared"> & Partial<Merge>,
+        manager: string,
+    ): Promise<TablePlan> {
+        // name the declared tables and their previous names
         const { namespace } = this.state;
-        const applied = await readState(this);
         const declared = state.declared.map((entry) => namespaceState(entry, namespace));
-        const changed = changedTables(applied, declared);
+        const names = new Set(
+            state.declared.flatMap((entry) =>
+                entry.moved?.table === undefined
+                    ? [entry.table.name]
+                    : [entry.table.name, entry.moved.table],
+            ),
+        );
+
+        // plan against the manager's applied tables and the declared ones
+        const applied = (await readState(this))
+            .map((entry) => ({ ...entry, local: localState(entry.state, namespace) }))
+            .filter((entry) => entry.manager === manager || names.has(entry.local.table.name));
+
+        // refuse declared tables another manager applied
+        const taken = applied
+            .filter((entry) => entry.manager !== manager && names.has(entry.local.table.name))
+            .map((entry) => ({
+                table: entry.local.table.name,
+                reason: `manager '${entry.manager}' applied it`,
+            }));
+
+        // read the changed tables without rows, then plan
+        const states = applied.map((entry) => entry.state);
+        const changed = changedTables(states, declared);
 
         return planTables({
-            applied,
+            applied: states,
             existing: await readTables(this),
             declared,
             changed,
             empty: await readEmpty(this, [...changed]),
-            conflicts: (state.conflicts ?? []).map((conflict) => ({
+            conflicts: [...(state.conflicts ?? []), ...taken].map((conflict) => ({
                 ...conflict,
                 table: relation(conflict.table, namespace),
             })),
@@ -466,9 +472,9 @@ export class DatabaseConnection<
         });
     }
 
-    /** Apply a plan in one transaction and record the declared state. */
-    async apply(plan: TablePlan): Promise<void> {
-        await applyPlan(this, plan);
+    /** Apply a manager's plan in one transaction. */
+    async apply(plan: TablePlan, manager: string): Promise<void> {
+        await applyPlan(this, plan, manager);
     }
 
     /** Commit a callback, or roll back on failure or on its rollback, then resolve undefined. */
@@ -606,6 +612,14 @@ export class DatabaseConnection<
 
 /** Where a connection's database runs: in the process, or across a network. */
 export type Locality = "embedded" | "networked";
+
+/** How a manager migrates its tables. */
+export interface MigrateOptions extends DeclareOptions {
+    /** The states stored beside the tables, such as a resource's desired ones. */
+    readonly states?: readonly (readonly TableState[])[];
+    /** The manager of the tables, the database's own by default. */
+    readonly manager?: string;
+}
 
 /** Whether a connection writes its database, or only reads one others write unseen. */
 export type ConnectionRole = "writer" | "reader";

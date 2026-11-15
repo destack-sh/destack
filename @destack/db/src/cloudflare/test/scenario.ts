@@ -3,7 +3,7 @@ import { present } from "@destack/schema";
 import { WorkerdEnvironment } from "@destack/environment/workerd";
 import { ModuleMetadata } from "@destack/package";
 import { and, count, eq, inArray, or } from "../../sql/index.ts";
-import { readEmpty, readTables } from "../../migration/state.ts";
+import { DATABASE_MANAGER, readEmpty, readTables } from "../../migration/state.ts";
 import { Change } from "../../log/log.ts";
 import { defineDatabase } from "../../declare/database.ts";
 import { ResourceId, Plan } from "@destack/resource";
@@ -447,7 +447,9 @@ export class Notes {
                 changes: (await database.log.read({ tables: [entry], after: 0 })).changes.map(
                     (change) => [change.operation, change.scope, Change.image(change)],
                 ),
-                steps: (await database.plan({ declared: [] })).steps.map((step) => step.target),
+                steps: (await database.plan({ declared: [] }, DATABASE_MANAGER)).steps.map(
+                    (step) => step.target,
+                ),
             })),
         );
 

@@ -8,7 +8,14 @@ import type { Model } from "../query/model.ts";
 import { Dialect } from "../dialect/dialect.ts";
 import type { Table } from "../table/table.ts";
 import type * as declaration from "../declare/database.ts";
-import { declareState } from "../migration/state.ts";
+import {
+    createStamp,
+    createState,
+    DATABASE_MANAGER,
+    declareState,
+    STATE,
+    type TableState,
+} from "../migration/state.ts";
 import * as sqlite from "../bun/connection.ts";
 import * as postgresql from "../postgres/index.ts";
 import { ColumnCipher } from "../database/cipher.ts";
@@ -16,7 +23,6 @@ import { LOG_EPOCH, LOG_HORIZON } from "../log/schema.ts";
 import { createLog } from "../log/trigger.ts";
 import { sql } from "../sql/index.ts";
 import { channelHub } from "../channel/channel.ts";
-import { STATE, type TableState } from "../migration/state.ts";
 import { upsertPredefined } from "../migration/plan.ts";
 import { inject, onTestFinished, type TestProject, testTarget } from "@destack/test";
 import { type DigestCrypto, type JsonValue, mapValues, present, Uuid } from "@destack/schema";
@@ -150,6 +156,7 @@ export class TestDatabase<
     ): Promise<{
         readonly simulation: Simulation;
         readonly databases: TemplateStorage<Databases>;
+        readonly volumes: ReadonlyMap<string, TestDatabase>;
         readonly value: Value;
     }> {
         // read the template's image in the run, refusing a template no setup of the run lists
@@ -179,7 +186,12 @@ export class TestDatabase<
             (_, name) => present(copied.get(name), `the copy's database ${name}`),
         );
 
-        return { simulation, databases, value: template.value.parse(image.value) };
+        // copy each database the write opened as it ran
+        const volumes = await environment.scheduler.waitUntil(
+            TestDatabase.#copyVolumes(template, image, environment),
+        );
+
+        return { simulation, databases, volumes, value: template.value.parse(image.value) };
     }
 
     /** Copy each database of a template's image into a claimed schema or a temporary file. */
@@ -205,6 +217,37 @@ export class TestDatabase<
         return new Map(copied);
     }
 
+    /** Copy each database a template's write opened as it ran, by its key. */
+    static async #copyVolumes(
+        template: Pick<TestTemplate, "name" | "volume">,
+        image: TemplateImage,
+        environment: DatabaseEnvironment,
+    ): Promise<Map<string, TestDatabase>> {
+        // refuse volumes in an image of a template without volume tables
+        const entries = Object.entries(image.volumes);
+        const { volume } = template;
+        if (volume === undefined && entries.length > 0) {
+            throw new TypeError(`the template '${template.name}' declares no volume tables`);
+        }
+
+        // copy each volume with the template's volume tables
+        const copied = await Promise.all(
+            entries.map(
+                async ([key, source]) =>
+                    [
+                        key,
+                        await TestDatabase.#copy(
+                            present(volume, "the volume tables"),
+                            source,
+                            environment,
+                        ),
+                    ] as const,
+            ),
+        );
+
+        return new Map(copied);
+    }
+
     /** Write a template's image once for a run: a file or schema per database the run stores. */
     static async image<Value extends JsonValue, Databases extends TemplateDatabases>(
         template: TestTemplate<Value, Databases>,
@@ -218,6 +261,7 @@ export class TestDatabase<
         });
         const environment = simulation.environment(TEMPLATE_NODE);
         const opened = new Map<string, ImageDatabase>();
+        const openedVolumes = new Map<string, ImageDatabase>();
         let value: Value;
         let end: number;
         try {
@@ -232,14 +276,34 @@ export class TestDatabase<
                 );
             }
 
-            // write the rows into them
+            // write the rows into them, opening each volume the write asks for as it runs
             const databases = mapValues<Databases, TemplateStorage<Databases>>(
                 template.databases,
                 (_, name) => present(opened.get(name), `the image's database ${name}`).storage,
             );
+            const open = async (key: string): Promise<TestDatabase> => {
+                // reuse the key's database, else open it in the run migrated with the volume tables
+                const known = openedVolumes.get(key);
+                if (known !== undefined) {
+                    return known.storage;
+                }
+                const tables = present(template.volume, `the volume tables of ${template.name}`);
+                const digest = await digestOf(`${template.name}/volume/${key}`, environment.crypto);
+                const image = await TestDatabase.#openImage(
+                    tables,
+                    dialect,
+                    digest.slice(0, 16),
+                    run,
+                    environment,
+                );
+                openedVolumes.set(key, image);
+
+                return image.storage;
+            };
             value = await TestDatabase.#write(
                 template,
                 databases,
+                open,
                 run.directory,
                 environment,
                 simulation,
@@ -247,17 +311,29 @@ export class TestDatabase<
             end = simulation.clock.now();
         } catch (error) {
             // close what a failed write opened
-            await Promise.all([...opened.values()].map((entry) => entry.storage.close()));
+            const failed = [...opened.values(), ...openedVolumes.values()];
+            await Promise.all(failed.map((entry) => entry.storage.close()));
             throw error;
         }
 
-        // close the written databases, then read where each keeps its rows
-        await Promise.all([...opened.values()].map((entry) => entry.storage.close()));
-        const sources = await Promise.all(
-            [...opened].map(async ([name, entry]) => [name, await entry.source()] as const),
+        // close the written databases and volumes, then read where each keeps its rows
+        const written = [...opened.values(), ...openedVolumes.values()];
+        await Promise.all(written.map((entry) => entry.storage.close()));
+        const sources = await TestDatabase.#sources(opened);
+        const volumes = await TestDatabase.#sources(openedVolumes);
+
+        return { sources, volumes, value, end };
+    }
+
+    /** Read where each written database keeps its rows, by name. */
+    static async #sources(
+        databases: ReadonlyMap<string, ImageDatabase>,
+    ): Promise<Record<string, ImageSource>> {
+        const read = await Promise.all(
+            [...databases].map(async ([name, entry]) => [name, await entry.source()] as const),
         );
 
-        return { sources: Object.fromEntries(sources), value, end };
+        return Object.fromEntries(read);
     }
 
     /** Copy one database of an image into a claimed schema or a temporary file. */
@@ -302,12 +378,16 @@ export class TestDatabase<
                 server.connect(schema, connected, environment);
             const migrated = await open(tables);
             await migrated.apply(
-                await migrated.plan({
-                    declared: declareState(declared, "postgresql", {
-                        isReplica: false,
-                        replicated: replicatedOf(tables),
-                    }),
-                }),
+                await migrated.plan(
+                    {
+                        declared: declareState(declared, "postgresql", {
+                            isReplica: false,
+                            replicated: replicatedOf(tables),
+                        }),
+                    },
+                    DATABASE_MANAGER,
+                ),
+                DATABASE_MANAGER,
             );
             await migrated.close();
             const storage = new TestDatabase(await open(tables), open, async () => {});
@@ -380,6 +460,7 @@ export class TestDatabase<
     static async #write<Value extends JsonValue, Databases extends TemplateDatabases>(
         template: TestTemplate<Value, Databases>,
         databases: TemplateStorage<Databases>,
+        open: (key: string) => Promise<TestDatabase>,
         directory: string,
         environment: DatabaseEnvironment,
         simulation: Simulation,
@@ -389,7 +470,7 @@ export class TestDatabase<
         const files = join(directory, `files-${key}`);
         await environment.scheduler.run(() => HOST.files.mkdir(files));
 
-        return await template.write(databases, files, simulation);
+        return await template.write(databases, files, simulation, open);
     }
 
     /** Claim a migrated PostgreSQL schema reset to a template's rows, or create an empty one. */
@@ -585,10 +666,15 @@ class TestSchema {
         environment: DatabaseEnvironment,
         template?: PostgresImage,
     ): Promise<TestSchema> {
-        // derive the schema names from the digest of the state and the log it migrates beside
+        // derive the schema names from the digest of the state, log and records
         const server = TestServer.of(address);
         const { session } = server;
-        const layout = JSON.stringify([state, createLog("postgresql")]);
+        const layout = JSON.stringify([
+            state,
+            createLog("postgresql"),
+            createState(),
+            createStamp(),
+        ]);
         const prefix = `test_s${(await digestOf(layout, environment.crypto)).slice(0, 16)}_`;
 
         // claim a free schema of the same state whose shape still matches its stamp, clean ones first
@@ -621,7 +707,10 @@ class TestSchema {
         await server.claim(name);
         await session.unsafe(`CREATE SCHEMA "${name}"`);
         const database = await server.connect(name, tables, environment);
-        await database.apply(await database.plan({ declared: state }));
+        await database.apply(
+            await database.plan({ declared: state }, DATABASE_MANAGER),
+            DATABASE_MANAGER,
+        );
         await database.close();
         const schema = new TestSchema(server, name, await readShape(session, name));
         await schema.#stamp(false);
@@ -972,9 +1061,9 @@ async function sqliteTemplate(
     replicated: ReadonlySet<string>,
     environment: DatabaseEnvironment,
 ): Promise<string> {
-    // name the file by the digest of the state and the log it migrates beside
+    // name the file by the digest of the state, log and records
     const key = JSON.stringify(declareState(tables, "sqlite", { isReplica, replicated }));
-    const layout = JSON.stringify([key, createLog("sqlite")]);
+    const layout = JSON.stringify([key, createLog("sqlite"), createState(), createStamp()]);
     const directory = join(await HOST.files.runtimeDirectory(), "destack-template");
     const file = join(directory, `${await digestOf(layout, environment.crypto)}.db`);
 

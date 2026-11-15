@@ -57,11 +57,15 @@ type Connect = (
 
 /** Plan, apply and open a host's databases. */
 export const DatabaseHandle = {
-    /** Diff a database's applied state against the desired table states. */
-    async plan(connect: Connect, desired: readonly (readonly TableState[])[]): Promise<Plan> {
+    /** Diff the applied state of a resource's tables against its desired states. */
+    async plan(
+        connect: Connect,
+        desired: readonly (readonly TableState[])[],
+        id: string,
+    ): Promise<Plan> {
         await using database = await connect([]);
 
-        return await database.plan(mergeStates(desired));
+        return await database.plan(mergeStates(desired), id);
     },
 
     /** Apply the reviewed plan of a database, refusing one that changed since review. */
@@ -73,11 +77,11 @@ export const DatabaseHandle = {
     ): Promise<void> {
         // plan again and apply the plan only while it matches the reviewed digest
         await using database = await connect([]);
-        const plan = await database.plan(mergeStates(desired));
+        const plan = await database.plan(mergeStates(desired), id);
         if ((await Plan.digest(plan, database.state.environment.crypto)) !== digest) {
             throw DatabaseError.of("PLAN_BROKEN", `plan of '${id}' changed since review`);
         }
-        await database.apply(plan);
+        await database.apply(plan, id);
     },
 
     /** Describe the tables some desired states declare together. */
@@ -89,6 +93,7 @@ export const DatabaseHandle = {
     async open(
         connect: Connect,
         desired: readonly (readonly TableState[])[],
+        id: string,
     ): Promise<DatabaseHandle> {
         // open the desired tables and reopen them with the tables beside once migrated
         const described = DatabaseHandle.tables(desired);
@@ -98,7 +103,8 @@ export const DatabaseHandle = {
                 return database;
             },
             migrate: async (beside) => {
-                await database.migrate(beside, { states: desired });
+                // migrate the resource's tables beside the desired ones
+                await database.migrate(beside, { states: desired, manager: id });
                 await database.close();
                 database = await connect([...described, ...beside]);
             },

@@ -140,14 +140,14 @@ test("list the tables each write operation changes, with tables declared after o
 });
 
 test("declare a table migrated after opening on the connection and every connection sharing its state", async () => {
-    // open posts and their remarks, then migrate counters
+    // open posts and their remarks, then migrate counters as another manager
     const storage = await TestDatabase.create([remark, post], {
         environment: testSimulation().environment("test"),
     });
     onTestFinished(() => storage.close());
     const { database } = storage;
     const before = sqlNames(database.tables);
-    await database.migrate([counter], { others: "retain" });
+    await database.migrate([counter], { manager: "counters" });
 
     // list the counters after the opened tables, in a transaction's connection over the same state too
     const opened = sqlNames([remark, post]);

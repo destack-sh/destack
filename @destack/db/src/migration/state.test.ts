@@ -10,7 +10,7 @@ const OTHER = PackageId.parse("package-01996ab0-0000-7000-8000-0000000000e1");
 
 test("describe the aggregates of the described tables alone, a replica's too, requiring their tables by name", () => {
     // place another package's aggregated table without describing its aggregates
-    const placed = declareState([item], "sqlite", { package: OTHER });
+    const placed = declareState([item], "sqlite", { packages: [OTHER] });
 
     // describe a replica's aggregates, which its predictions maintain
     const replicated = declareState([item, list], "sqlite", { isReplica: true }).map((state) =>

@@ -8,7 +8,7 @@ import { defineDatabase } from "../declare/database.ts";
 import { mergeStates } from "./merge.ts";
 import { applyPlan } from "./apply.ts";
 import { TestDatabase } from "../test/database.ts";
-import { declareState, STATE } from "./state.ts";
+import { DATABASE_MANAGER, declareState, STATE } from "./state.ts";
 import type { TablePlan } from "./plan.ts";
 import { Expression } from "../expression/expression.ts";
 import { ResourceError } from "@destack/resource/error";
@@ -243,7 +243,12 @@ test("create declared tables once and plan nothing afterwards", async () => {
     const plan = await database.migrate([taskOne]);
     expect(review(plan)).toEqual([`safe create table/${table(taskOne)}: create table`]);
     expect(
-        review(await database.plan({ declared: declareState([taskOne], TestDatabase.target()) })),
+        review(
+            await database.plan(
+                { declared: declareState([taskOne], TestDatabase.target()) },
+                DATABASE_MANAGER,
+            ),
+        ),
     ).toEqual([]);
 });
 
@@ -277,16 +282,22 @@ test("write a table's predefined rows in a fresh database, unlogged, and plan no
     const changes = await database.log.read({ tables: [unit], after: 0 });
     expect(changes.changes.map((change) => change.key)).toEqual([{ id: "mile" }]);
     expect(
-        review(await database.plan({ declared: declareState([unit], TestDatabase.target()) })),
+        review(
+            await database.plan(
+                { declared: declareState([unit], TestDatabase.target()) },
+                DATABASE_MANAGER,
+            ),
+        ),
     ).toEqual([]);
 });
 
-test("retain the applied tables a migration leaves out when asked, and drop them otherwise", async () => {
+test("drop only the applied tables of the migrating manager that it leaves out", async () => {
     const database = await open([]);
-    await database.migrate([labelPlain, taskOne]);
+    await database.migrate([labelPlain]);
+    await database.migrate([taskOne], { manager: "tasks" });
 
-    // change the labels and retain the tasks
-    const kept = await database.migrate([labelUnique], { others: "retain" });
+    // change the labels, leaving the tasks of their manager
+    const kept = await database.migrate([labelUnique]);
     expect(review(kept)).toEqual([
         TestDatabase.target() === "sqlite"
             ? `fallible replace table/${table(labelUnique)}: rebuild table: constraints`
@@ -294,9 +305,26 @@ test("retain the applied tables a migration leaves out when asked, and drop them
     ]);
     expect(await database.unapplied([taskOne, labelUnique])).toEqual([]);
 
-    // drop the tasks a migration leaves out by default
-    const dropped = await database.migrate([labelUnique]);
+    // drop the tasks once their manager leaves them out
+    const dropped = await database.migrate([], { manager: "tasks" });
     expect(review(dropped)).toEqual([`destructive delete table/${table(taskOne)}: drop table`]);
+});
+
+test("refuse taking over a table another manager applied, leaving it as applied", async () => {
+    // apply the tasks as one manager, then declare them as another
+    const database = await open([]);
+    await database.migrate([taskOne], { manager: "tasks" });
+    const taking = await refusal(database.migrate([taskOne], { manager: "labels" }));
+
+    // refuse the plan naming the tasks' manager, and keep them applied
+    expect({ taking, unapplied: await database.unapplied([taskOne]) }).toEqual({
+        taking: [
+            "PRECONDITION_FAILED",
+            "PLAN_BLOCKED",
+            `cannot reach the desired state: table/${table(taskOne)}: manager 'tasks' applied it`,
+        ],
+        unapplied: [],
+    });
 });
 
 test("drop a column a partial unique index uses, keeping the index's name over another column", async () => {
@@ -354,7 +382,10 @@ test("rename, drop, add and index columns while preserving rows", async () => {
     );
 
     // classify the rename, addition and dropped note
-    const plan = await database.plan({ declared: declareState([taskTwo], TestDatabase.target()) });
+    const plan = await database.plan(
+        { declared: declareState([taskTwo], TestDatabase.target()) },
+        DATABASE_MANAGER,
+    );
     expect(review(plan)).toEqual(
         TestDatabase.target() === "sqlite"
             ? [
@@ -370,12 +401,17 @@ test("rename, drop, add and index columns while preserving rows", async () => {
     );
 
     // move the row's value to the renamed column
-    await applyPlan(database, plan);
+    await applyPlan(database, plan, DATABASE_MANAGER);
     expect(await database.select().from(taskTwo)).toEqual([
         { id: "a", scope: "inbox", title: "Plan", urgent: 1, dueAt: null },
     ]);
     expect(
-        review(await database.plan({ declared: declareState([taskTwo], TestDatabase.target()) })),
+        review(
+            await database.plan(
+                { declared: declareState([taskTwo], TestDatabase.target()) },
+                DATABASE_MANAGER,
+            ),
+        ),
     ).toEqual([]);
 });
 
@@ -430,9 +466,12 @@ test("name what the declarations must fix instead of planning", async () => {
     // report the column no task row fills and the unmanaged table
     expect(
         await refusal(
-            database.plan({
-                declared: declareState([taskUnfilled, labelPlain], TestDatabase.target()),
-            }),
+            database.plan(
+                {
+                    declared: declareState([taskUnfilled, labelPlain], TestDatabase.target()),
+                },
+                DATABASE_MANAGER,
+            ),
         ),
     ).toEqual([
         "PRECONDITION_FAILED",
@@ -492,15 +531,21 @@ test("widen column values freely and narrow them only by a conversion", async ()
     );
 
     // accept the widened mode, refuse the unconverted narrowing and convert the declared one
-    const wide = await database.plan({
-        declared: declareState([preferenceWide], TestDatabase.target()),
-    });
+    const wide = await database.plan(
+        {
+            declared: declareState([preferenceWide], TestDatabase.target()),
+        },
+        DATABASE_MANAGER,
+    );
     expect(review(wide)).toEqual([
         `safe update table/${table(preferenceWide)}/column/mode: wider values`,
     ]);
     expect(
         await refusal(
-            database.plan({ declared: declareState([preferenceNarrow], TestDatabase.target()) }),
+            database.plan(
+                { declared: declareState([preferenceNarrow], TestDatabase.target()) },
+                DATABASE_MANAGER,
+            ),
         ),
     ).toEqual([
         "PRECONDITION_FAILED",
@@ -549,7 +594,10 @@ test("refuse requiring a key stored values lack without a conversion, reading ro
     // refuse the key every stored row lacks, and read a row exactly as stored
     expect(
         await refusal(
-            database.plan({ declared: declareState([layoutSized], TestDatabase.target()) }),
+            database.plan(
+                { declared: declareState([layoutSized], TestDatabase.target()) },
+                DATABASE_MANAGER,
+            ),
         ),
     ).toEqual([
         "PRECONDITION_FAILED",
@@ -858,9 +906,12 @@ test("make a column unique and enforce it", async () => {
     await database.migrate([labelPlain]);
 
     // add the unique constraint
-    const plan = await database.plan({
-        declared: declareState([labelUnique], TestDatabase.target()),
-    });
+    const plan = await database.plan(
+        {
+            declared: declareState([labelUnique], TestDatabase.target()),
+        },
+        DATABASE_MANAGER,
+    );
     expect(review(plan)).toEqual(
         TestDatabase.target() === "sqlite"
             ? [`fallible replace table/${table(labelUnique)}: rebuild table: constraints`]
@@ -868,12 +919,15 @@ test("make a column unique and enforce it", async () => {
                   `fallible create table/${table(labelUnique)}/constraint/${table(labelUnique)}_code_unique: add constraint ${table(labelUnique)}_code_unique`,
               ],
     );
-    await applyPlan(database, plan);
+    await applyPlan(database, plan, DATABASE_MANAGER);
 
     // plan nothing more
     expect(
         review(
-            await database.plan({ declared: declareState([labelUnique], TestDatabase.target()) }),
+            await database.plan(
+                { declared: declareState([labelUnique], TestDatabase.target()) },
+                DATABASE_MANAGER,
+            ),
         ),
     ).toEqual([]);
     const name = sql.relation(table(labelUnique));
@@ -887,13 +941,18 @@ test("plan the union of declarations sharing a database", async () => {
     const database = await open([taskOne]);
 
     // create a shared table once
-    const plan = await database.plan(mergeStates([stateOf([taskOne]), stateOf([taskOne])]));
+    const plan = await database.plan(
+        mergeStates([stateOf([taskOne]), stateOf([taskOne])]),
+        DATABASE_MANAGER,
+    );
     expect(review(plan)).toEqual([`safe create table/${table(taskOne)}: create table`]);
-    await applyPlan(database, plan);
+    await applyPlan(database, plan, DATABASE_MANAGER);
 
     // refuse conflicting column types
     expect(
-        await refusal(database.plan(mergeStates([stateOf([taskOne]), stateOf([taskText])]))),
+        await refusal(
+            database.plan(mergeStates([stateOf([taskOne]), stateOf([taskText])]), DATABASE_MANAGER),
+        ),
     ).toEqual([
         "PRECONDITION_FAILED",
         "PLAN_BLOCKED",
@@ -912,7 +971,10 @@ test("expand for two running releases, bridge a renamed column, then contract", 
     );
 
     // expand the table for both releases and bridge the renamed column
-    const expand = await database.plan(mergeStates([stateOf([taskOne]), stateOf([taskTwo])]));
+    const expand = await database.plan(
+        mergeStates([stateOf([taskOne]), stateOf([taskTwo])]),
+        DATABASE_MANAGER,
+    );
     expect(review(expand)).toEqual(
         TestDatabase.target() === "sqlite"
             ? [
@@ -928,9 +990,14 @@ test("expand for two running releases, bridge a renamed column, then contract", 
               ],
     );
     expect(
-        review(await database.plan(mergeStates([stateOf([taskTwo]), stateOf([taskOne])]))),
+        review(
+            await database.plan(
+                mergeStates([stateOf([taskTwo]), stateOf([taskOne])]),
+                DATABASE_MANAGER,
+            ),
+        ),
     ).toEqual(review(expand));
-    await applyPlan(database, expand);
+    await applyPlan(database, expand, DATABASE_MANAGER);
 
     // connect both releases
     expect(await release([taskOne]).check(database)).toEqual([]);
@@ -961,7 +1028,7 @@ test("expand for two running releases, bridge a renamed column, then contract", 
     ]);
 
     // drop the old release's columns
-    const contract = await database.plan(mergeStates([stateOf([taskTwo])]));
+    const contract = await database.plan(mergeStates([stateOf([taskTwo])]), DATABASE_MANAGER);
     expect(review(contract)).toEqual(
         TestDatabase.target() === "sqlite"
             ? [
@@ -973,7 +1040,7 @@ test("expand for two running releases, bridge a renamed column, then contract", 
                   `fallible update table/${table(taskTwo)}/column/title: change column title`,
               ],
     );
-    await applyPlan(database, contract);
+    await applyPlan(database, contract, DATABASE_MANAGER);
     expect(await release([taskOne]).check(database)).toEqual([table(taskOne)]);
     expect(await release([taskTwo]).check(database)).toEqual([]);
     expect(await database.all(sql`SELECT id, title FROM ${name} ORDER BY id`)).toEqual([
@@ -1129,7 +1196,7 @@ test("describe one package's tables as the whole database describes them", async
     const tables = [folderTwo, document, attachment];
     const owner = attachment[TABLE].package.id;
     const whole = declareState(tables, TestDatabase.target());
-    expect(declareState(tables, TestDatabase.target(), { package: owner })).toEqual(
+    expect(declareState(tables, TestDatabase.target(), { packages: [owner] })).toEqual(
         whole.filter((state) => state.package.id === owner),
     );
 });

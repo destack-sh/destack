@@ -21,8 +21,11 @@ import { DatabaseError } from "../error/error.ts";
 /** The SQL name of the applied state table. */
 export const STATE = "__destack_state";
 
-/** The table with the stamp of the declaration the database applied last: its digest. */
+/** The table with each manager's last applied declaration digest. */
 export const STAMP = "__destack_stamp";
+
+/** The manager of a database's own tables. */
+export const DATABASE_MANAGER = "database";
 
 /** A managed table as declared or applied. */
 export const TableState = schema.object({
@@ -119,8 +122,8 @@ export interface DeclareOptions {
     readonly isReplica?: boolean;
     /** The SQL names of replicated tables, which have no unique constraints or foreign keys. */
     readonly replicated?: ReadonlySet<string>;
-    /** The package whose tables to describe, the others' only placing them, every table without. */
-    readonly package?: PackageId;
+    /** The packages whose tables to describe, placing the others' tables; all when absent. */
+    readonly packages?: readonly PackageId[];
 }
 
 /** List the declared tables with an unapplied declaration. */
@@ -202,10 +205,11 @@ export function declareState(
     const declared = isReplica ? tables : expandTrees(tables);
     const local = new Set(isReplica ? [] : declared.map((table) => table[TABLE].sqlName));
     const replicated = options.replicated ?? new Set<string>();
+    const { packages } = options;
     const included =
-        options.package === undefined
+        packages === undefined
             ? declared
-            : declared.filter((table) => table[TABLE].package.id === options.package);
+            : declared.filter((table) => packages.includes(table[TABLE].package.id));
 
     // attach each aggregate of a described table to it, a replica's too
     const named = new Set(declared.map((table) => table[TABLE].sqlName));
@@ -320,7 +324,7 @@ function renameState(state: TableState, name: (relation: string) => string): Tab
 /** Create the stamp table within a database's namespace. */
 export function createStamp(namespace?: string): string {
     return `CREATE TABLE IF NOT EXISTS ${quote(relation(STAMP, namespace))} (
-        slot INTEGER PRIMARY KEY,
+        manager TEXT PRIMARY KEY,
         digest TEXT NOT NULL
     )`;
 }
@@ -329,6 +333,7 @@ export function createStamp(namespace?: string): string {
 export function createState(namespace?: string): string {
     return `CREATE TABLE IF NOT EXISTS ${quote(relation(STATE, namespace))} (
         "table" TEXT PRIMARY KEY,
+        manager TEXT NOT NULL,
         package_id TEXT NOT NULL,
         state TEXT NOT NULL,
         applied_at BIGINT NOT NULL
@@ -384,14 +389,22 @@ export async function readEmpty(
     return empty;
 }
 
+/** A table's applied state and the manager whose plan applied it. */
+export interface AppliedState {
+    /** The manager that applied it. */
+    readonly manager: string;
+    /** The applied state. */
+    readonly state: TableState;
+}
+
 /** The stamp of a database's last declaration: its digest, none before stamps, or none yet. */
 export type Stamp =
     | { readonly kind: "stamped"; readonly digest: string }
     | { readonly kind: "unstamped" }
     | { readonly kind: "new" };
 
-/** Read the stamp of the declaration a database applied last. */
-export async function readStamp(database: DatabaseConnection): Promise<Stamp> {
+/** Read the stamp of the declaration a manager applied last. */
+export async function readStamp(database: DatabaseConnection, manager: string): Promise<Stamp> {
     // read a database migrated before stamps, whose stamp table an applied plan creates, apart from a new one
     const tables = await readTables(database);
     if (!tables.includes(relation(STAMP, database.state.namespace))) {
@@ -400,18 +413,19 @@ export async function readStamp(database: DatabaseConnection): Promise<Stamp> {
             : { kind: "new" };
     }
 
-    // read the one stamp
+    // read every manager's stamp
     const [row] = await database.execute(
-        sql`SELECT digest FROM ${sql.relation(STAMP)} WHERE slot = 1`,
+        sql`SELECT digest FROM ${sql.relation(STAMP)} WHERE manager = ${manager}`,
         schema.object({ digest: schema.string() }),
     );
 
     return row === undefined ? { kind: "new" } : { kind: "stamped", digest: row.digest };
 }
 
-/** Record the stamp of a database's applied declaration, creating a missing stamp table first. */
+/** Record the stamp of a manager's applied declaration, creating a missing stamp table first. */
 export async function writeStamp(
     database: DatabaseConnection,
+    manager: string,
     digest: string,
     isUnstamped: boolean,
 ): Promise<void> {
@@ -420,13 +434,13 @@ export async function writeStamp(
         await database.executeScript(createStamp(database.state.namespace));
     }
     await database.run(
-        sql`INSERT INTO ${sql.relation(STAMP)} (slot, digest) VALUES (1, ${digest})
-            ON CONFLICT (slot) DO UPDATE SET digest = excluded.digest`,
+        sql`INSERT INTO ${sql.relation(STAMP)} (manager, digest) VALUES (${manager}, ${digest})
+            ON CONFLICT (manager) DO UPDATE SET digest = excluded.digest`,
     );
 }
 
-/** Read every managed table's applied state. */
-export async function readState(database: DatabaseConnection): Promise<TableState[]> {
+/** Read every managed table's applied state, with its manager. */
+export async function readState(database: DatabaseConnection): Promise<AppliedState[]> {
     // find the state table
     const tables = await readTables(database);
     if (!tables.includes(relation(STATE, database.state.namespace))) {
@@ -435,12 +449,12 @@ export async function readState(database: DatabaseConnection): Promise<TableStat
 
     // read each table's state in name order
     const rows = await database.execute(
-        sql`SELECT "table", state FROM ${sql.relation(STATE)} ORDER BY "table"`,
-        schema.object({ table: schema.string(), state: schema.string() }),
+        sql`SELECT "table", state, manager FROM ${sql.relation(STATE)} ORDER BY "table"`,
+        schema.object({ table: schema.string(), state: schema.string(), manager: schema.string() }),
     );
 
     // decode each state, refusing one in a format this release no longer reads
-    const states: TableState[] = [];
+    const states: AppliedState[] = [];
     for (const row of rows) {
         const parsed = TableState.safeParse(JSON.parse(row.state));
         if (!parsed.success) {
@@ -452,14 +466,14 @@ export async function readState(database: DatabaseConnection): Promise<TableStat
                 { cause: parsed.error },
             );
         }
-        states.push(parsed.data);
+        states.push({ manager: row.manager, state: parsed.data });
     }
 
     return states;
 }
 
 /** Read the database's name: the server's database and schema, or a SQLite store's namespace. */
-async function readName(database: DatabaseConnection): Promise<string> {
+export async function readName(database: DatabaseConnection): Promise<string> {
     // read a SQLite database's namespace in a shared store
     const { namespace } = database.state;
     if (database.dialect === "sqlite") {
@@ -476,14 +490,20 @@ async function readName(database: DatabaseConnection): Promise<string> {
 }
 
 /** Record the applied state of one table, its applied time past the previous one on every apply. */
-export function writeState(state: TableState, appliedAt: number, namespace?: string): string {
+export function writeState(
+    state: TableState,
+    manager: string,
+    appliedAt: number,
+    namespace?: string,
+): string {
     // store the conversions, so a rebuilt release runs only the ones it adds
     const encoded = literal(JSON.stringify(state));
     const table = quote(relation(STATE, namespace));
 
-    return `INSERT INTO ${table} ("table", package_id, state, applied_at)
-        VALUES (${literal(state.table.name)}, ${literal(state.package.id)}, ${encoded}, ${appliedAt})
-        ON CONFLICT ("table") DO UPDATE SET package_id = excluded.package_id,
+    return `INSERT INTO ${table} ("table", manager, package_id, state, applied_at)
+        VALUES (${literal(state.table.name)}, ${literal(manager)}, ${literal(state.package.id)}, ${encoded}, ${appliedAt})
+        ON CONFLICT ("table") DO UPDATE SET manager = excluded.manager,
+            package_id = excluded.package_id,
             state = excluded.state,
             applied_at = CASE WHEN excluded.applied_at > ${table}.applied_at
                 THEN excluded.applied_at ELSE ${table}.applied_at + 1 END`;

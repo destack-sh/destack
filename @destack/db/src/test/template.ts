@@ -30,6 +30,8 @@ export type ImageSource = schema.Infer<typeof ImageSource>;
 export const TemplateImage = schema.object({
     /** Where each database's rows are, by the template's name for it. */
     sources: schema.record(schema.string(), ImageSource),
+    /** Where each database the write opened as it ran keeps its rows, by its key. */
+    volumes: schema.record(schema.string(), ImageSource),
     /** What writing the rows returned, as JSON. */
     value: schema.json(),
     /** The template world's time once the write ended, in UTC epoch milliseconds. */
@@ -82,6 +84,8 @@ export class TestTemplate<
     readonly dialects: readonly Dialect[] | undefined;
     /** The value every copy shares, as its JSON form crosses from the run to the tests. */
     readonly value: schema.Schema<Value>;
+    /** The tables of each database the write opens as it runs, none when absent. */
+    readonly volume: TemplateTables | undefined;
     /** The seed and start of the world the write runs in, which the run opens for it. */
     readonly world: TemplateWorld;
     /** Write the rows and files in the run's world, answering what every copy shares. */
@@ -89,6 +93,7 @@ export class TestTemplate<
         databases: TemplateStorage<Databases>,
         directory: string,
         simulation: Simulation,
+        open: (key: string) => Promise<TestDatabase>,
     ) => Promise<Value>;
 
     /** Define a template by its name, databases, value and write. */
@@ -97,11 +102,13 @@ export class TestTemplate<
         readonly databases: Databases;
         readonly dialects?: readonly Dialect[];
         readonly value: schema.Schema<Value>;
+        readonly volume?: TemplateTables;
         readonly world: TemplateWorld;
         readonly write: (
             databases: TemplateStorage<Databases>,
             directory: string,
             simulation: Simulation,
+            open: (key: string) => Promise<TestDatabase>,
         ) => Promise<Value>;
     }) {
         // store the fields
@@ -109,6 +116,7 @@ export class TestTemplate<
         this.databases = fields.databases;
         this.dialects = fields.dialects;
         this.value = fields.value;
+        this.volume = fields.volume;
         this.world = fields.world;
         this.write = fields.write;
     }

@@ -10,7 +10,11 @@ import type { Dialect } from "../dialect/dialect.ts";
 import type { TablePlan, TableStep } from "./plan.ts";
 
 /** Apply a plan in one transaction and record the declared state. */
-export async function applyPlan(database: DatabaseConnection, plan: TablePlan): Promise<void> {
+export async function applyPlan(
+    database: DatabaseConnection,
+    plan: TablePlan,
+    manager: string,
+): Promise<void> {
     // skip empty plans
     if (plan.steps.length === 0) {
         return;
@@ -40,7 +44,7 @@ export async function applyPlan(database: DatabaseConnection, plan: TablePlan): 
     // apply every phase and record the state
     const appliedAt = database.state.clock.now();
     try {
-        await applySteps(database, plan, changes, appliedAt, isRebuilt);
+        await applySteps(database, plan, manager, changes, appliedAt, isRebuilt);
     } finally {
         // restore foreign keys
         if (isRebuilt) {
@@ -53,6 +57,7 @@ export async function applyPlan(database: DatabaseConnection, plan: TablePlan): 
 async function applySteps(
     database: DatabaseConnection,
     plan: TablePlan,
+    manager: string,
     changes: readonly string[],
     appliedAt: number,
     isRebuilt: boolean,
@@ -87,7 +92,9 @@ async function applySteps(
         // record the declared state
         await runScript(transaction, [
             ...pending,
-            ...plan.state.map((state) => writeState(state, appliedAt, database.state.namespace)),
+            ...plan.state.map((state) =>
+                writeState(state, manager, appliedAt, database.state.namespace),
+            ),
         ]);
 
         // require every converted value to pass its column's schema, since reads trust stored values
