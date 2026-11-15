@@ -6,6 +6,7 @@ import { defineTable, TABLE } from "../table/table.ts";
 import { integer, json, text } from "../table/column.ts";
 import { unique, uniqueIndex } from "../table/constraint.ts";
 import { ChangeSet, Transaction, ReadSet } from "./commit.ts";
+import type { DatabaseConnection } from "../database/connection.ts";
 import { LOG } from "./schema.ts";
 import { STATE } from "../migration/state.ts";
 import { testSimulation } from "@destack/test/world";
@@ -483,6 +484,30 @@ test("drop a failed step's writes and records as a savepoint does, leaving the w
         failed: "refused",
         committed: ["a", "b", "c", "d"],
     });
+});
+
+test("commit the last record of a key alone, and the earlier one once a savepoint drops the later", async () => {
+    const { database } = await open();
+    const write = (id: string) => async (recording: DatabaseConnection) => {
+        await recording.insert(task).values({ id, scope: "records", priority: 0 });
+    };
+
+    // record a key twice, then a third time in a failed step
+    const transaction = await Transaction.open(database);
+    transaction.record(write("first"), "key");
+    transaction.record(write("second"), "key");
+    transaction.record(write("other"));
+    await transaction
+        .savepoint(async () => {
+            transaction.record(write("dropped"), "key");
+            throw new Error("refused");
+        })
+        .catch(() => undefined);
+    await transaction.commit();
+
+    // keep the second record of the key and the record without one
+    const recorded = (await tasks(database)).filter((row) => row.scope === "records");
+    expect(recorded.map((row) => row.id).toSorted()).toEqual(["other", "second"]);
 });
 
 test("refuse a write sharing a unique key with a committed row, the transaction's or its batch's, nulls being equal and archived rows outside the key", async () => {

@@ -538,8 +538,11 @@ export class Transaction {
     readonly reads = new ReadSet();
     /** What the transaction writes. */
     readonly changes = new ChangeSet();
-    /** The records the transaction writes once at commit, such as its journal entry. */
-    readonly #records: ((transaction: DatabaseConnection) => Promise<void>)[] = [];
+    /** The records the transaction writes once at commit, the last of a key alone. */
+    readonly #records: {
+        readonly write: (transaction: DatabaseConnection) => Promise<void>;
+        readonly key?: string;
+    }[] = [];
     /** The items the transaction writes in one batch per writer at commit, in order. */
     readonly #batched: { readonly writer: BatchWriter<unknown>; readonly item: unknown }[] = [];
     /** The identifiers the transaction derived so far, counted from zero in every attempt. */
@@ -938,9 +941,9 @@ export class Transaction {
         return position;
     }
 
-    /** Write a record once at commit, before the changes, such as a journal entry. */
-    record(write: (transaction: DatabaseConnection) => Promise<void>): void {
-        this.#records.push(write);
+    /** Write a record once at commit, before the changes, the last one of a key alone. */
+    record(write: (transaction: DatabaseConnection) => Promise<void>, key?: string): void {
+        this.#records.push(key === undefined ? { write } : { write, key });
     }
 
     /** Write an item at commit in one batch with the other items of its writer. */
@@ -980,10 +983,17 @@ export class Transaction {
             batches.set(writer, items);
         }
 
+        // keep the last record of each key
+        const records = this.#records.filter(
+            (record, index) =>
+                record.key === undefined ||
+                this.#records.findLastIndex((each) => each.key === record.key) === index,
+        );
+
         // write every record and batch with the changes
         await this.changes.commit(this.database, this.base, this.reads, async (transaction) => {
             await Promise.all([
-                ...this.#records.map((write) => write(transaction)),
+                ...records.map((record) => record.write(transaction)),
                 ...[...batches].map(([writer, items]) => writer(items, transaction)),
             ]);
         });
