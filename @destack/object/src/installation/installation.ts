@@ -3,7 +3,7 @@ import { Expression, type Select, type Snapshot } from "@destack/db";
 import { ComputeDefinition, DeclarationName, DirectoryGrant, PackageId } from "@destack/package";
 import { type Identifier, schema } from "@destack/schema";
 import { InstallationName } from "./name.ts";
-import { InstallationBindings, InstallationSelection } from "./selection.ts";
+import { InstallationBindings, PackageDirectory } from "./selection.ts";
 import { field } from "../field/field.ts";
 import { defineObject } from "../object/object.ts";
 import type { PackageDescription } from "../declare/description.ts";
@@ -21,8 +21,10 @@ export const installation = defineObject(
         fields: {
             /** The installed package. */
             packageId: field.string(PackageId),
-            /** What it follows: a release, a repository reference or a checkout. */
-            selection: field.json(InstallationSelection),
+            /** The tag, release, reference or checkout it follows, absent for the host's. */
+            follows: field.object().optional(),
+            /** The package directory within a followed repository or checkout. */
+            directory: field.string(PackageDirectory).optional(),
             /** The revision its selection resolves to, absent before the first. */
             revisionId: field.string(schema.identifier("installation-revision")).optional(),
             /** The targets it selects for its package's declarations. */
@@ -117,7 +119,11 @@ export const installation = defineObject(
             fields: [
                 "packageId",
                 "name",
-                "selection",
+                "followsPackageId",
+                "followsType",
+                "followsScope",
+                "followsId",
+                "directory",
                 "bindings",
                 "export",
                 "parameters",
@@ -130,7 +136,11 @@ export const installation = defineObject(
         }),
         update: method.update("update", {
             fields: [
-                "selection",
+                "followsPackageId",
+                "followsType",
+                "followsScope",
+                "followsId",
+                "directory",
                 "bindings",
                 "export",
                 "parameters",

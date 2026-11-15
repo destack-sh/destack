@@ -404,7 +404,6 @@ test("delete the grants of an installation as its uninstall finalizes", async ()
                     ...installation.in(SPACE_ID),
                     packageId: DEPLOY_PACKAGE_ID,
                     name: "deploy",
-                    selection: { kind: "release", version: "2026.9.0" },
                 }),
             ],
         },

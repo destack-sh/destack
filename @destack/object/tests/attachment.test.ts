@@ -367,7 +367,6 @@ test("let the attaching package's installation attach tags to a poster it cannot
         Table.complete(installation.table, {
             ...installed,
             scope: spaceId,
-            selection: { kind: "release", version: "2026.9.0" },
             createdAt: at,
             updatedAt: at,
             ...ObjectReference.columns("createdBy", spacePrincipal(spaceId)),
