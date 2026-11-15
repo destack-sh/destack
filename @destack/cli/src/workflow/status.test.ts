@@ -80,7 +80,6 @@ test("render a stack's readiness with aligned resources and the plan it waits on
         scope: spaceId,
         export: "stack",
         generation: 1,
-        selection: { kind: "release" as const, version: "2026.9.2" },
         revisionId: schema
             .identifier("installation-revision")
             .parse("installation-revision-01996ab0-0000-7000-8000-000000000002"),
@@ -108,6 +107,7 @@ test("render a stack's readiness with aligned resources and the plan it waits on
     expect(
         new InstallationStatus({
             installation: stack,
+            follows: "release 2026.10.0",
             rollout: stack,
             resources,
             waiting: { plan: waiting, digest, approval: APPROVAL },
@@ -115,7 +115,7 @@ test("render a stack's readiness with aligned resources and the plan it waits on
     ).toBe(
         [
             "stack  WaitingForResources",
-            "  follows   release 2026.9.2",
+            "  follows   release 2026.10.0",
             "  revision  none applied",
             "",
             "resources",
@@ -156,7 +156,6 @@ test("render an application waiting to be granted more access, approved by its n
             scope: spaceId,
             export: null,
             generation: 2,
-            selection: { kind: "tag", tag: "latest" },
             conditions: {
                 Ready: {
                     ...condition("false", "AwaitingApproval"),
@@ -166,6 +165,7 @@ test("render an application waiting to be granted more access, approved by its n
                 Synced: { ...condition("true", "ReconcileSuccess"), observedGeneration: 2 },
             },
         },
+        follows: "tag latest",
         rollout: { appliedRevisionId: revisionId, servedRevisionId: null },
         resources: [],
         waiting: { plan: waiting, digest, approval: APPROVAL },

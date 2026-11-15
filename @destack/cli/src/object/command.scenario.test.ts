@@ -6,6 +6,9 @@ import { testHost } from "@destack/test/host";
 import { type TestInstall, WORK_BOARD } from "@destack/machine/computer/test";
 import { jsonLines, TerminalFixture } from "../test/terminal.ts";
 
+/** A rollout identifier for reading its verbs' help. */
+const ROLLOUT = "rollout-01996ab0-0000-7000-8000-000000000001";
+
 /** A printed object's identifier. */
 const Printed = schema.looseObject({ id: schema.string() });
 
@@ -289,33 +292,30 @@ test("pass a flag with an object's identifier or key, refusing an unknown key", 
 });
 
 test("build a structured input from one flag per path, a union's variants each adding theirs", async () => {
-    // read the selection's flags of an installation's create
+    // read the build's flags of a rollout's submit
     const terminal = await open();
-    const help = await line(terminal, ["installation", "create", "--help"]);
+    const help = await line(terminal, ["rollout", ROLLOUT, "submit", "--help"]);
 
-    // offer each variant's fields of the selection
+    // offer each variant's fields of the build
     expect(help).toEqual({
         code: 0,
-        output: `Call installation.create
+        output: `Call rollout.submit
 
-Usage: destack installation create
+Usage: destack rollout ${ROLLOUT} submit
 
-  -h, --help                                                   Show help
-      --json                                                   Print JSON
-      --package-id <id>                                        The package id
-      --name <string>                                          The name
-      --selection-kind <release|tag|host|repository|checkout>  The selection kind: release, tag, host, repository, checkout
-      --selection-version <string>                             The selection version
-      --selection-tag <string>                                 The selection tag
-      --selection-repository <id>                              The selection repository
-      --selection-reference <string>                           The selection reference
-      --selection-directory <string>                           The selection directory
-      --selection-machine <id>                                 The selection machine
-      --selection-checkout <id>                                The selection checkout
-      --export <string>                                        The export
-      --status <enabled|suspended>                             The status: enabled, suspended
-      --isolation <sandbox|host>                               The isolation: sandbox, host
-      --input <json>                                           The method's input as a JSON object, - for stdin, @path for a file
+  -h, --help                            Show help
+      --json                            Print JSON
+      --follows-package-id <id>         The follows package id
+      --follows-type <string>           The follows type
+      --follows-scope <string>          The follows scope
+      --follows-id <string>             The follows id
+      --directory <string>              The directory
+      --build-kind <release|tag|build>  The build kind: release, tag, build
+      --build-version <string>          The build version
+      --build-tag <string>              The build tag
+      --build-build <id>                The build build
+      --stack-export <string>           The stack export
+      --input <json>                    The method's input as a JSON object, - for stdin, @path for a file
 `,
         error: "",
     });

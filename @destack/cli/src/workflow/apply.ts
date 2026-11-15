@@ -1,7 +1,7 @@
 import { type Identifier, present } from "@destack/schema";
 import objectPackage from "@destack/object/package";
 import stackPackage, { STACK_INSTALLATION } from "@destack/stack/package";
-import { RequestId } from "@destack/sync";
+import { ObjectReference, RequestId } from "@destack/sync";
 import { type Verb, OptionValue, type Options } from "../command/command.ts";
 import type { Context } from "../context/context.ts";
 import { CliError } from "../error/index.ts";
@@ -190,7 +190,8 @@ async function submitStack(
                 scope: space,
                 requestId: RequestId.create(environment),
                 packageId,
-                selection: submission.selection,
+                ...ObjectReference.columns("follows", submission.follows),
+                directory: submission.directory ?? null,
                 export: submission.stack.export,
                 parameters: submission.stack.parameters,
                 name: STACK_INSTALLATION,

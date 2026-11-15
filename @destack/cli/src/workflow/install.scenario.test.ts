@@ -15,7 +15,7 @@ const Installed = schema.object({
     name: schema.string(),
     package: schema.string(),
     version: schema.string(),
-    selection: schema.object({ kind: schema.literal("tag"), tag: schema.string() }),
+    tag: schema.string().nullable(),
 });
 
 /** The printed releases a publish made, by version. */
@@ -28,6 +28,7 @@ const Published = schema.looseObject({
 /** The printed statuses of an installation's rollout, as far as the scenario reads them. */
 const Statuses = schema.array(
     schema.looseObject({
+        follows: schema.string(),
         rollout: schema.looseObject({ servedRevisionId: schema.string().nullable() }),
     }),
 );
@@ -75,7 +76,8 @@ test("install a published app, waiting until the space serves it, then write its
         published: [published.code, published.error],
         installing: [installing.code, installing.error],
         followed: [
-            installed.selection,
+            installed.tag,
+            statuses.at(-1)?.follows,
             statuses.at(-1)?.rollout.servedRevisionId === served.revisionId,
         ],
         installed,
@@ -89,10 +91,10 @@ test("install a published app, waiting until the space serves it, then write its
         published: [0, ""],
         installing: [0, ""],
         // follow the latest tag, showing its rollout until the space serves its revision
-        followed: [{ kind: "tag", tag: "latest" }, true],
+        followed: ["latest", "tag latest", true],
         installed: {
             id: installed.id,
-            selection: { kind: "tag", tag: "latest" },
+            tag: "latest",
             name: "notebooks",
             package: "@acme/notebooks",
             version: released.package.version,

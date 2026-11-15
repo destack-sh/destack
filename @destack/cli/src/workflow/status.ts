@@ -4,7 +4,6 @@ import {
     approval,
     type Installation,
     installation,
-    type InstallationSelection,
     Observation,
     type Progress,
     type Resource,
@@ -12,6 +11,11 @@ import {
 import { type Action, Plan, type Risk } from "@destack/resource";
 import type { Identifier } from "@destack/schema";
 import objectPackage from "@destack/object/package";
+import registryPackage from "@destack/registry/package";
+import { FORGE_INSTALLATION } from "@destack/forge/package";
+import { createClient } from "@destack/object/client";
+import { reference, release, tag } from "@destack/registry/object";
+import { schema } from "@destack/schema";
 import { ObjectReference, RequestId } from "@destack/sync";
 import { bucket, database, type Rollout, rollout } from "@destack/stack/object";
 import { vault } from "@destack/vault/object";
@@ -94,6 +98,7 @@ export async function* followInstallation(
         },
         watching.signal,
     );
+    let described: { readonly id: string | null; readonly follows: string } | undefined;
     for await (const { installed, rolled, databases, buckets, vaults } of status) {
         // refuse more resources than the status shows, and an installation gone
         const resources = [...databases, ...buckets, ...vaults];
@@ -118,8 +123,16 @@ export async function* followInstallation(
             planned === undefined || planned.approval === null
                 ? undefined
                 : { ...planned, approval: planned.approval };
+        // describe what it follows once per followed row
+        if (described?.id !== installed.followsId) {
+            described = {
+                id: installed.followsId,
+                follows: await describeFollows(installed, context),
+            };
+        }
         yield new InstallationStatus({
             installation: installed,
+            follows: described.follows,
             rollout: rolled,
             resources,
             ...(waiting === undefined ? {} : { waiting }),
@@ -198,8 +211,10 @@ export class InstallationStatus {
     /** The installation. */
     readonly installation: Pick<
         Installation,
-        "id" | "name" | "scope" | "selection" | "conditions" | "export" | "generation"
+        "id" | "name" | "scope" | "conditions" | "export" | "generation"
     >;
+    /** What the installation follows, in words. */
+    readonly follows: string;
     /** The rollout's applied and served revisions. */
     readonly rollout: Pick<Rollout, "appliedRevisionId" | "servedRevisionId">;
     /** The resources the installation manages or owns. */
@@ -210,12 +225,14 @@ export class InstallationStatus {
     /** Take an installation's rollout, resources and waiting plan. */
     constructor(fields: {
         readonly installation: InstallationStatus["installation"];
+        readonly follows: string;
         readonly rollout: InstallationStatus["rollout"];
         readonly resources: InstallationStatus["resources"];
         readonly waiting?: Waiting;
     }) {
-        // set the installation, the rollout, the resources and the waiting plan
+        // set the installation, what it follows, the rollout, the resources and the waiting plan
         this.installation = fields.installation;
+        this.follows = fields.follows;
         this.rollout = fields.rollout;
         this.resources = fields.resources;
         this.waiting = fields.waiting;
@@ -245,7 +262,7 @@ export class InstallationStatus {
         const colour = progress === "current" ? "green" : progress === "failed" ? "red" : "yellow";
         const lines = [
             `${format("bold", installed.name ?? installed.scope)}  ${format(colour, this.reason)}`,
-            `  follows   ${InstallationStatus.#selection(installed.selection)}`,
+            `  follows   ${this.follows}`,
             `  revision  ${this.rollout.appliedRevisionId ?? format("dim", "none applied")}`,
             ...(progress === "current" || message === "" ? [] : [`  ${format("dim", message)}`]),
         ];
@@ -326,24 +343,68 @@ export class InstallationStatus {
         return json ? JSON.stringify(this) : this.render(context.terminal.style);
     }
 
-    /** Describe what an installation follows in one phrase. */
-    static #selection(selection: InstallationSelection): string {
-        switch (selection.kind) {
-            case "release":
-                return `release ${selection.version}`;
-            case "tag":
-                return `tag ${selection.tag}`;
-            case "repository":
-                return `${selection.reference.replace(/^refs\/(heads|tags)\//u, "")} of ${selection.repository}${selection.directory === "." ? "" : ` at ${selection.directory}`}`;
-            case "checkout":
-                return `checkout ${selection.checkout}${selection.directory === "." ? "" : ` at ${selection.directory}`}`;
-            case "host":
-                return "the host's release";
-        }
-    }
-
     /** Show a field value compactly. */
     static #value(value: unknown): string {
         return value === undefined ? "absent" : JSON.stringify(value);
+    }
+}
+
+/** Describe the row an installation follows at its home, else the host's release. */
+async function describeFollows(
+    installed: Pick<
+        Installation,
+        "followsPackageId" | "followsType" | "followsScope" | "followsId" | "directory"
+    >,
+    context: Context,
+): Promise<string> {
+    // describe the directory within a followed repository or checkout
+    const at =
+        installed.directory === null || installed.directory === "."
+            ? ""
+            : ` at ${installed.directory}`;
+    const forged: readonly string[] = [tag.name, release.name, reference.name];
+    const isForged = installed.followsType !== null && forged.includes(installed.followsType);
+
+    // describe the host's release without a followed row
+    if (installed.followsId === null) {
+        return "the host's release";
+    }
+    // describe a checkout or a build by its identifier
+    else if (!isForged) {
+        return `${installed.followsType} ${installed.followsId}${at}`;
+    }
+
+    // read the tag, release or reference at its home's forge
+    const followed = ObjectReference.at("follows", installed);
+    const home = schema.identifier("space").parse(followed.scope);
+    const launcher = await context.launcher();
+    const endpoint = await launcher.installation(home, FORGE_INSTALLATION, registryPackage.id);
+    const forge = createClient(registryPackage, endpoint, (await context.native()).environment);
+    const read = { spaceId: home };
+
+    // describe a tag, a release or a reference
+    if (followed.type === tag.name) {
+        const row = await forge.tag.get({
+            ...read,
+            id: schema.identifier("tag").parse(followed.id),
+        });
+
+        return `tag ${row.name}`;
+    } else if (followed.type === release.name) {
+        const row = await forge.release.get({
+            ...read,
+            id: schema.identifier("release").parse(followed.id),
+        });
+
+        return `release ${row.version}`;
+    } else {
+        const row = await forge.reference.get({
+            ...read,
+            id: schema.identifier("reference").parse(followed.id),
+        });
+        const repository = await forge.repository.get({ ...read, id: row.parentId });
+        const branch = row.name.replace(/^refs\/(heads|tags)\//u, "");
+
+        return `${branch} of ${repository.name}${at}`;
     }
 }

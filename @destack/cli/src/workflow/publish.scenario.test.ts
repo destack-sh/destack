@@ -18,9 +18,6 @@ const PACKAGE = {
 /** A printed installation's identifier. */
 const Created = schema.looseObject({ id: schema.identifier("installation") });
 
-/** A printed object's revision. */
-const Revisioned = schema.looseObject({ revision: schema.number() });
-
 /** A printed release's version and lock. */
 const Published = schema.looseObject({
     releases: schema.array(
@@ -70,12 +67,12 @@ async function build(terminal: TerminalFixture, target: InstallationRollout) {
     return { source: built.source, lock: built.lock, state: built.state };
 }
 
-/** Read an installation's name, selection and ready condition, apart from when it last changed. */
+/** Read an installation's name, what it follows and its readiness, without its change time. */
 function readiness(target: InstallationRollout) {
-    const { name, selection, conditions } = target.installation;
+    const { name, followsType, conditions } = target.installation;
     const { lastTransitionAt: _changed, ...ready } = present(conditions["Ready"], "a Ready");
 
-    return { name, selection, ready };
+    return { name, followsType, ready };
 }
 
 /** Report whether an installation is current with its latest change. */
@@ -83,31 +80,11 @@ function isReady(target: InstallationRollout): boolean {
     return Observation.progress(target.installation) === "current";
 }
 
-test("follow a tag before publishing, publish and tag the release, converge, and pin the release", async () => {
+test("publish and tag a release, install it following the tag, converge, and pin the release", async () => {
     // create the acme organization as the owner
     const terminal = await TerminalFixture.open({ NO_COLOR: "1" });
     const words = ["organization", "create", "--name", "Acme", "--handle", "acme"];
     const organized = await terminal.printed([...words, "--residency-id", "eu"]);
-
-    // follow the notebooks' stable tag before anything is published, until it reports so
-    const following = Created.parse(
-        await json(terminal, [
-            "installation",
-            "create",
-            "--package-id",
-            PACKAGE.id,
-            "--name",
-            "notebooks",
-            "--selection-kind",
-            "tag",
-            "--selection-tag",
-            "stable",
-        ]),
-    );
-    const unpublished = await terminal.rollout(
-        following.id,
-        (target) => target.installation.conditions["Ready"] !== undefined,
-    );
 
     // publish the checkout under latest, allowing the stack to publish, then tag its version stable
     const published = Published.parse(
@@ -117,17 +94,20 @@ test("follow a tag before publishing, publish and tag the release, converge, and
     const specifier = `${PACKAGE.name}@${released.package.version}`;
     const tagged = await terminal.printed(["tag", specifier, "stable"]);
 
-    // wait until the installation following stable runs the release
+    // install the notebooks following stable
+    const following = Created.parse(
+        await json(terminal, ["install", `${PACKAGE.name}@stable`, "--name", "notebooks"]),
+    );
     const converged = await terminal.rollout(following.id, isReady);
 
     // pin it to the release instead, until it runs it at the new generation
     const { lock } = released;
     const { version } = released.package;
-    const { revision } = Revisioned.parse(await json(terminal, ["installation", following.id]));
-    const update = ["installation", following.id, "update", "--revision", String(revision)];
-    const pin = ["--selection-kind", "release", "--selection-version", version];
-    await json(terminal, [...update, ...pin]);
-    const settled = await terminal.rollout(following.id, isReady);
+    await json(terminal, ["install", specifier, "--name", "notebooks"]);
+    const settled = await terminal.rollout(
+        following.id,
+        (target) => isReady(target) && target.installation.followsType === "release",
+    );
 
     // run the one release, following stable and then pinned, on the build publishing made
     const builds = [await build(terminal, converged), await build(terminal, settled)];
@@ -143,30 +123,19 @@ test("follow a tag before publishing, publish and tag the release, converge, and
     };
     expect({
         organized: [organized.code, organized.error],
-        unpublished: readiness(unpublished),
         tagged: [tagged.code, tagged.output, tagged.error],
         version: Version.release(version),
         installations: [readiness(converged), readiness(settled)],
         builds,
     }).toEqual({
         organized: [0, ""],
-        unpublished: {
-            name: "notebooks",
-            selection: { kind: "tag", tag: "stable" },
-            ready: {
-                status: "false",
-                observedGeneration: 1,
-                reason: "ReleaseNotPublished",
-                message: "notebooks has no published release for its selection",
-            },
-        },
         tagged: [0, `Tagged ${PACKAGE.name}@${version} stable.\n`, ""],
         version: PACKAGE.version,
         installations: [
-            { name: "notebooks", selection: { kind: "tag", tag: "stable" }, ready },
+            { name: "notebooks", followsType: "tag", ready },
             {
                 name: "notebooks",
-                selection: { kind: "release", version },
+                followsType: "release",
                 ready: { ...ready, observedGeneration: 3 },
             },
         ],

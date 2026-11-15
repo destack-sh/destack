@@ -1,10 +1,9 @@
 import { ForgeError } from "@destack/forge/error";
-import { LATEST_TAG } from "@destack/registry/object";
+import { LATEST_TAG, release, tag } from "@destack/registry/object";
 import { type PackageId, PackageName } from "@destack/package";
 import { type Identifier, present, Version } from "@destack/schema";
-import type { InstallationSelection } from "@destack/object";
 import objectPackage from "@destack/object/package";
-import { RequestId } from "@destack/sync";
+import { ObjectReference, RequestId } from "@destack/sync";
 import { type Verb, OptionValue } from "../command/command.ts";
 import type { Context } from "../context/context.ts";
 import { CliError } from "../error/index.ts";
@@ -31,7 +30,7 @@ export function installCommand(context: Context): Verb {
         json: true,
         async run({ arguments: { package: specifier }, options, json }) {
             // read the package's name, the release or tag asked for and the installation's name
-            const { name: packageName, release } = readSpecifier(
+            const { name: packageName, release: asked } = readSpecifier(
                 present(specifier, "the package argument"),
             );
             const name =
@@ -40,32 +39,36 @@ export function installCommand(context: Context): Verb {
             // resolve the release, stay on a version or follow a tag, and follow it until its space serves it
             const { client, home } = await openForge(packageName, context);
             const found = await client.package.resolve({ spaceId: home, name: packageName });
-            const { version } = await client.release
-                .resolve({ spaceId: home, parentId: found.id, release })
+            const resolved = await client.release
+                .resolve({ spaceId: home, parentId: found.id, release: asked })
                 .catch((error: unknown) => {
                     // name the package the person asked for, as the forge names it by its id
                     if (ForgeError.is(error, "RELEASE_NOT_FOUND")) {
                         throw CliError.of(
                             "RELEASE_NOT_FOUND",
-                            `release '${release}' of '${packageName}' not found`,
+                            `release '${asked}' of '${packageName}' not found`,
                             { cause: error },
                         );
                     }
                     throw error;
                 });
-            const selection: InstallationSelection = Version.safeParse(release).success
-                ? { kind: "release", version }
-                : { kind: "tag", tag: release };
-            const id = await upsert(context, found.id, name, selection);
+            const { version } = resolved;
+
+            // follow the release for a version, else the tag
+            const isPinned = Version.safeParse(asked).success;
+            const follows = isPinned
+                ? release.reference(resolved.scope, resolved.id)
+                : await followedTag(client, home, found.id, asked);
+            const id = await upsert(context, found.id, name, follows);
             await driveInstallation(id, options["yes"] === true, json, context);
 
             // report the release it runs and what it follows
-            const follows =
-                selection.kind === "tag" ? `following ${selection.tag}` : "staying on it";
+            const tagged = isPinned ? null : asked;
+            const followed = tagged === null ? "staying on it" : `following ${tagged}`;
             await context.terminal.print(
                 json
-                    ? JSON.stringify({ id, name, package: packageName, version, selection })
-                    : `Installed ${packageName}@${version} as ${name}, ${follows}.`,
+                    ? JSON.stringify({ id, name, package: packageName, version, tag: tagged })
+                    : `Installed ${packageName}@${version} as ${name}, ${followed}.`,
             );
         },
     };
@@ -89,12 +92,33 @@ export function readSpecifier(specifier: string): {
     return { name, release: separator > 0 ? specifier.slice(separator + 1) : LATEST_TAG };
 }
 
+/** Read the tag of a package an installation follows, refusing a tag the package lacks. */
+async function followedTag(
+    client: Awaited<ReturnType<typeof openForge>>["client"],
+    home: string,
+    packageId: PackageId,
+    name: string,
+): Promise<ObjectReference> {
+    // read the tag by its name at the package's forge
+    const { items } = await client.tag.list({
+        spaceId: home,
+        where: { parentId: packageId, name },
+        limit: 1,
+    });
+    const [tagged] = items;
+    if (tagged === undefined) {
+        throw CliError.of("RELEASE_NOT_FOUND", `tag '${name}' of '${packageId}' not found`);
+    }
+
+    return tag.reference(tagged.scope, tagged.id);
+}
+
 /** Create an installation of a package by its name, or change what the installed one follows. */
 async function upsert(
     context: Context,
     packageId: PackageId,
     name: string,
-    selection: InstallationSelection,
+    follows: ObjectReference,
 ): Promise<Identifier<"installation">> {
     // read the installation of that name
     const { environment } = await context.native();
@@ -109,7 +133,7 @@ async function upsert(
             scope: space,
             requestId: RequestId.create(environment),
             packageId,
-            selection,
+            ...ObjectReference.columns("follows", follows),
             name,
         });
 
@@ -129,7 +153,7 @@ async function upsert(
             id: installed.id,
             requestId: RequestId.create(environment),
             revision: installed.revision,
-            selection,
+            ...ObjectReference.columns("follows", follows),
         });
 
         return installed.id;
