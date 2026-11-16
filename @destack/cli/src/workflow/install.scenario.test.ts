@@ -78,7 +78,7 @@ test("install a published app, waiting until the space serves it, then write its
         followed: [
             installed.tag,
             statuses.at(-1)?.follows,
-            statuses.at(-1)?.rollout.servedRevisionId === served.revisionId,
+            statuses.at(-1)?.rollout.servedRevisionId === served.targetRevisionId,
         ],
         installed,
         version: Version.release(installed.version),

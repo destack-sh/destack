@@ -1,4 +1,4 @@
-import { type Identifier, present } from "@destack/schema";
+import { canonicalize, type Identifier, present } from "@destack/schema";
 import objectPackage from "@destack/object/package";
 import stackPackage, { STACK_INSTALLATION } from "@destack/stack/package";
 import { ObjectReference, RequestId } from "@destack/sync";
@@ -183,29 +183,56 @@ async function submitStack(
         where: { name: STACK_INSTALLATION },
         limit: 1,
     });
-    const id =
-        items[0]?.id ??
-        (
-            await objects.installation.create({
-                scope: space,
-                requestId: RequestId.create(environment),
-                packageId,
-                ...ObjectReference.columns("follows", submission.follows),
-                directory: submission.directory ?? null,
-                export: submission.stack.export,
-                parameters: submission.stack.parameters,
-                name: STACK_INSTALLATION,
-            })
-        ).id;
+    const [existing] = items;
+    const followed = {
+        ...ObjectReference.columns("follows", submission.follows),
+        directory: submission.directory ?? null,
+        export: submission.stack.export,
+        parameters: submission.stack.parameters,
+    };
 
-    // submit the revision for the stack to apply
+    // leave an installation that follows the checkout with this export and these arguments already
+    const stored: Readonly<Record<string, unknown>> = existing ?? {};
+    const current = Object.fromEntries(
+        Object.keys(followed).map((key) => [key, stored[key] ?? null]),
+    );
+    const isFollowing =
+        existing?.packageId === packageId && canonicalize(current) === canonicalize(followed);
+
+    // follow the checkout with the export and its arguments on a new installation
+    let installed: { readonly id: Identifier<"installation"> };
+    if (existing === undefined) {
+        installed = await objects.installation.create({
+            scope: space,
+            requestId: RequestId.create(environment),
+            packageId,
+            ...followed,
+            name: STACK_INSTALLATION,
+        });
+    }
+    // leave the space's installation following it already
+    else if (isFollowing) {
+        installed = existing;
+    }
+    // follow it on the space's installation
+    else {
+        installed = await objects.installation.update({
+            scope: space,
+            id: existing.id,
+            requestId: RequestId.create(environment),
+            revision: existing.revision,
+            ...followed,
+        });
+    }
+
+    // deploy the stack at the submitted build
     const stack = await context.package(stackPackage, location);
-    await stack.rollout.submit({
+    await stack.rollout.deploy({
         spaceId: space,
-        id,
+        id: installed.id,
         requestId: RequestId.create(environment),
-        ...submission,
+        build: submission.build,
     });
 
-    return id;
+    return installed.id;
 }

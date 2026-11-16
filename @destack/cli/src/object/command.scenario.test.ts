@@ -6,8 +6,8 @@ import { testHost } from "@destack/test/host";
 import { type TestInstall, WORK_BOARD } from "@destack/machine/computer/test";
 import { jsonLines, TerminalFixture } from "../test/terminal.ts";
 
-/** A rollout identifier for reading its verbs' help. */
-const ROLLOUT = "rollout-01996ab0-0000-7000-8000-000000000001";
+/** A bucket identifier for reading its verbs' help. */
+const BUCKET = "bucket-01996ab0-0000-7000-8000-000000000001";
 
 /** A printed object's identifier. */
 const Printed = schema.looseObject({ id: schema.string() });
@@ -292,30 +292,33 @@ test("pass a flag with an object's identifier or key, refusing an unknown key", 
 });
 
 test("build a structured input from one flag per path, a union's variants each adding theirs", async () => {
-    // read the build's flags of a rollout's submit
+    // read the flags of a bucket's open
     const terminal = await open();
-    const help = await line(terminal, ["rollout", ROLLOUT, "submit", "--help"]);
+    const help = await line(terminal, ["bucket", BUCKET, "open", "--help"]);
 
-    // offer each variant's fields of the build
+    // offer the fields of both modes, the write's metadata one flag per path
     expect(help).toEqual({
         code: 0,
-        output: `Call rollout.submit
+        output: `Call bucket.open
 
-Usage: destack rollout ${ROLLOUT} submit
+Usage: destack bucket ${BUCKET} open
 
-  -h, --help                            Show help
-      --json                            Print JSON
-      --follows-package-id <id>         The follows package id
-      --follows-type <string>           The follows type
-      --follows-scope <string>          The follows scope
-      --follows-id <string>             The follows id
-      --directory <string>              The directory
-      --build-kind <release|tag|build>  The build kind: release, tag, build
-      --build-version <string>          The build version
-      --build-tag <string>              The build tag
-      --build-build <id>                The build build
-      --stack-export <string>           The stack export
-      --input <json>                    The method's input as a JSON object, - for stdin, @path for a file
+  -h, --help                                        Show help
+      --json                                        Print JSON
+      --mode <read|write>                           The mode: read, write
+      --key <string>                                The key
+      --range <string>                              The range
+      --if-match <string>                           The if match
+      --customer-key <string>                       The customer key
+      --size <integer>                              The size
+      --http-metadata-content-type <string>         The http metadata content type
+      --http-metadata-content-language <string>     The http metadata content language
+      --http-metadata-content-disposition <string>  The http metadata content disposition
+      --http-metadata-content-encoding <string>     The http metadata content encoding
+      --http-metadata-cache-control <string>        The http metadata cache control
+      --http-metadata-cache-expiry <integer>        The http metadata cache expiry
+      --if-none-match <*>                           The if none match: *
+      --input <json>                                The method's input as a JSON object, - for stdin, @path for a file
 `,
         error: "",
     });

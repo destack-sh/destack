@@ -60,7 +60,10 @@ async function json(
 /** Read the build an installation's targeted revision runs, through the command line. */
 async function build(terminal: TerminalFixture, target: InstallationRollout) {
     // read the revision, then its build
-    const revisionId = present(target.revisionId, `the revision of ${target.installation.name}`);
+    const revisionId = present(
+        target.targetRevisionId,
+        `the revision of ${target.installation.name}`,
+    );
     const revision = Revised.parse(await json(terminal, ["installation-revision", revisionId]));
     const built = Built.parse(await json(terminal, ["stack:build", revision.buildId]));
 
@@ -117,7 +120,7 @@ test("publish and tag a release, install it following the tag, converge, and pin
     const source = { kind: "checkout", checkout, directory, machine };
     const ready = {
         status: "true",
-        observedGeneration: 2,
+        observedGeneration: 1,
         reason: "Deployed",
         message: "0 workloads deployed",
     };
@@ -136,7 +139,7 @@ test("publish and tag a release, install it following the tag, converge, and pin
             {
                 name: "notebooks",
                 followsType: "release",
-                ready: { ...ready, observedGeneration: 3 },
+                ready: { ...ready, observedGeneration: 2 },
             },
         ],
         builds: [
