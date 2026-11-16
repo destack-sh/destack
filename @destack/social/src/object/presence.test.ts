@@ -1,4 +1,4 @@
-import type { Selection } from "@destack/object";
+import type { TextSelection } from "@destack/object";
 import { article, type TestFollower, TestSocial } from "../test/index.ts";
 import { expect, refusal, test } from "@destack/test";
 import { presence } from "./index.ts";
@@ -155,7 +155,7 @@ async function rows(client: TestFollower) {
 }
 
 /** Select a collapsed point of the body after an offset in alice's first run. */
-function cursor(offset: number): Selection {
+function cursor(offset: number): TextSelection {
     const at = { element: { run: "alice.1", offset }, side: "after" } as const;
 
     return { field: "body", anchor: at, head: at };

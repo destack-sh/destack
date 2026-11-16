@@ -24,7 +24,7 @@ import {
     defineObject,
     field,
     type ObjectOf,
-    Selection,
+    TextSelection,
 } from "@destack/object";
 import { present, schema } from "@destack/schema";
 import { SocialError } from "../error/index.ts";
@@ -85,7 +85,7 @@ export const comment = defineObject(
             /** The text and its mentions. */
             body: field.json(Body),
             /** The text the thread comments on, on its first comment only. */
-            selection: field.json(Selection).optional(),
+            selection: field.json(TextSelection).optional(),
             /** The thread's first comment, absent on the first comment itself. */
             thread: field
                 .reference((): ObjectOf<{ identity: "comment" }> => comment, { delete: "cascade" })
@@ -259,14 +259,16 @@ export class Comment {
     }
 
     /** Require a selection within a text field of the comment's host. */
-    static async requireSelection(context: MethodContext, selection: Selection): Promise<void> {
+    static async requireSelection(context: MethodContext, selection: TextSelection): Promise<void> {
         // find the host's type and the selected elements
         const host = context.requireParent();
         const type = present(
             context.objects.find((object) => object.policy.is(host)),
             `the type of ${host.type} ${host.id}`,
         );
-        const elements = [selection.anchor.element, selection.head.element];
+        const elements = [selection.anchor, selection.head].flatMap((edge) =>
+            "element" in edge ? [edge.element] : [],
+        );
 
         // refuse unknown fields
         if (!type.text.includes(selection.field)) {
@@ -276,7 +278,12 @@ export class Comment {
             );
         }
 
-        // refuse elements the host's text lacks, as the caller reads it
+        // skip a selection of the text's edges only
+        if (elements.length === 0) {
+            return;
+        }
+
+        // refuse elements the host's text lacks
         const asked = type.call("contains", {
             ...type.target(host),
             field: selection.field,

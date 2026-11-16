@@ -1,6 +1,6 @@
 import { space } from "@destack/account/object";
 import { intersection, relation, through } from "@destack/access";
-import { defineObject, field, Selection } from "@destack/object";
+import { defineObject, field, TextSelection } from "@destack/object";
 import { schema } from "@destack/schema";
 import { nested } from "@destack/object";
 import { argument, plural, t } from "@destack/locale";
@@ -24,7 +24,7 @@ export const presence = defineObject({
         /** What the principal does. */
         status: field.enum(PRESENCE_STATES),
         /** The principal's selection in the object's text. */
-        selection: field.json(Selection).optional(),
+        selection: field.json(TextSelection).optional(),
         /** The principal's place outside text, such as a canvas cursor. */
         location: field.json(schema.json()).optional(),
     },

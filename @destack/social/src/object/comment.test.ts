@@ -1,4 +1,4 @@
-import type { Selection } from "@destack/object";
+import type { TextSelection } from "@destack/object";
 import { article, TestSocial } from "../test/index.ts";
 import { expect, refusal, test } from "@destack/test";
 import { Comment, comment } from "./index.ts";
@@ -47,10 +47,10 @@ test("thread comments on an article, which commenters reply to, authors and edit
             ...scope,
             id: draft.id,
             field: "body",
-            edits: [{ insert: "Our launch starts Monday.", run: "alice.1" }],
+            edits: [{ insert: "Our launch starts Monday.", run: "alice.1", start: 0 }],
         }),
     );
-    const selection: Selection = {
+    const selection: TextSelection = {
         field: "body",
         anchor: { element: { run: "alice.1", offset: 0 }, side: "before" },
         head: { element: { run: "alice.1", offset: 9 }, side: "after" },
@@ -136,10 +136,7 @@ test("thread comments on an article, which commenters reply to, authors and edit
                     body: { text: "Nope", mentions: [] },
                     selection: {
                         ...selection,
-                        head: {
-                            side: selection.head.side,
-                            element: { run: "bob.9", offset: 0 },
-                        },
+                        head: { side: "after", element: { run: "bob.9", offset: 0 } },
                     },
                 }),
             ),
