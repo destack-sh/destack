@@ -1,11 +1,11 @@
 import { expect, test } from "@destack/test";
 import { recordShell } from "../test/index.ts";
-import { Shortcut } from "./shortcut.ts";
+import { GlobalShortcut } from "./shortcut.ts";
 
 test("register keys only once they change, and again after the shortcut is released", async () => {
     // register the same keys twice, change them, release them, then register the same keys again
     const { shell, sent } = recordShell();
-    const shortcut = new Shortcut("palette", shell);
+    const shortcut = new GlobalShortcut("palette", shell);
     await shortcut.register("alt+space");
     await shortcut.register("alt+space");
     await shortcut.register("mod+k");

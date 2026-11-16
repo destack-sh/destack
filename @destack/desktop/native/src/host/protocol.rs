@@ -1,7 +1,7 @@
 use crate::app::{Bounds, Window, browse, remove_profile};
 use crate::badge::Badge;
 use crate::banner::Banner;
-use crate::menu::Shortcut;
+use crate::menu::GlobalShortcut;
 use crate::menu::Tray;
 use crate::menu::{Menu, MenuItem, MenuName};
 use serde::{Deserialize, Serialize};
@@ -155,10 +155,12 @@ impl Command {
             Self::TitleMenu { start, quit } => app.state::<Menu>().title(&start, &quit)?,
             Self::SetTray { tooltip } => app.state::<Tray>().set_tooltip(&tooltip)?,
             Self::RegisterShortcut { id, shortcut } => {
-                app.state::<Shortcut>()
+                app.state::<GlobalShortcut>()
                     .register(app, input, id, &shortcut)?;
             }
-            Self::UnregisterShortcut { id } => app.state::<Shortcut>().unregister(app, &id)?,
+            Self::UnregisterShortcut { id } => {
+                app.state::<GlobalShortcut>().unregister(app, &id)?
+            }
             Self::OpenBrowser { url } => browse(app, &input, &url),
 
             // application

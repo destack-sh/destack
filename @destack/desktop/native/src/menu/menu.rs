@@ -13,6 +13,34 @@ pub const START_MENU_ID: &str = "start.open";
 /// The menu item quitting the desktop, which otherwise runs on without windows.
 pub const QUIT_MENU_ID: &str = "application.quit";
 
+/// The Edit menu's items running a standard action of the focused page.
+pub const EDIT_ACTIONS: [EditAction; 2] = [
+    EditAction {
+        id: "edit.undo",
+        action: "undo",
+        title: "Undo",
+        keys: "CmdOrCtrl+Z",
+    },
+    EditAction {
+        id: "edit.redo",
+        action: "redo",
+        title: "Redo",
+        keys: "Shift+CmdOrCtrl+Z",
+    },
+];
+
+/// An Edit menu item running a standard action of the focused page.
+pub struct EditAction {
+    /// The item's identity.
+    pub id: &'static str,
+    /// The standard action it runs, by name.
+    pub action: &'static str,
+    /// The item's title.
+    pub title: &'static str,
+    /// The key combination choosing it, in the native syntax.
+    pub keys: &'static str,
+}
+
 /// A native menu the host fills.
 #[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq, Hash)]
 #[serde(rename_all = "camelCase")]
@@ -103,7 +131,10 @@ impl Menu {
 
     /// Title the shell's own items in the host's language: a new window and quitting.
     pub fn title(&self, start: &str, quit: &str) -> tauri::Result<()> {
-        let titled = self.titled.lock().map_err(|_| tauri::Error::Io(lock_error()))?;
+        let titled = self
+            .titled
+            .lock()
+            .map_err(|_| tauri::Error::Io(lock_error()))?;
         for item in titled.iter() {
             // title each by its identity
             if item.id() == START_MENU_ID {
@@ -135,7 +166,10 @@ impl Menu {
     /// Replace a menu's host items, followed by a separator while there are any.
     pub fn set(&self, app: &AppHandle, menu: MenuName, items: Vec<MenuItem>) -> tauri::Result<()> {
         // find the menu's place, which a platform without it leaves out
-        let mut places = self.places.lock().map_err(|_| tauri::Error::Io(lock_error()))?;
+        let mut places = self
+            .places
+            .lock()
+            .map_err(|_| tauri::Error::Io(lock_error()))?;
         let Some(placement) = places.get_mut(&menu) else {
             return Ok(());
         };
@@ -180,9 +214,13 @@ impl MenuItem {
     fn native(&self, app: &AppHandle) -> tauri::Result<MenuItemKind<Wry>> {
         Ok(match self {
             // a line nobody chooses
-            Self::Label { id, title } => MenuItemKind::MenuItem(
-                tauri::menu::MenuItem::with_id(app, id, title, false, None::<&str>)?,
-            ),
+            Self::Label { id, title } => MenuItemKind::MenuItem(tauri::menu::MenuItem::with_id(
+                app,
+                id,
+                title,
+                false,
+                None::<&str>,
+            )?),
             // an action, with its key combination in the native syntax
             Self::Action {
                 id,
@@ -261,6 +299,38 @@ impl Menu {
             .into_iter()
             .filter_map(|item| item.as_submenu().cloned())
             .find(|submenu| submenu.text().is_ok_and(|text| text == "File"));
+
+        // replace the default Edit menu with one running the page's undo and redo, its clipboard items native
+        let actions = EDIT_ACTIONS
+            .iter()
+            .map(|each| {
+                tauri::menu::MenuItem::with_id(app, each.id, each.title, true, Some(each.keys))
+            })
+            .collect::<tauri::Result<Vec<_>>>()?;
+        let clipboard = [
+            PredefinedMenuItem::separator(app)?,
+            PredefinedMenuItem::cut(app, None)?,
+            PredefinedMenuItem::copy(app, None)?,
+            PredefinedMenuItem::paste(app, None)?,
+            PredefinedMenuItem::select_all(app, None)?,
+        ];
+        let items: Vec<&dyn IsMenuItem<Wry>> = actions
+            .iter()
+            .map(|item| item as &dyn IsMenuItem<Wry>)
+            .chain(clipboard.iter().map(|item| item as &dyn IsMenuItem<Wry>))
+            .collect();
+        let edit = Submenu::with_items(app, "Edit", true, &items)?;
+        let position = menu.items()?.iter().position(|item| {
+            item.as_submenu()
+                .is_some_and(|submenu| submenu.text().is_ok_and(|text| text == "Edit"))
+        });
+        match position {
+            Some(position) => {
+                menu.remove_at(position)?;
+                menu.insert(&edit, position)?;
+            }
+            None => menu.append(&edit)?,
+        }
 
         // lead the File menu with the new window item
         app.state::<Menu>().add_titled(start.clone())?;

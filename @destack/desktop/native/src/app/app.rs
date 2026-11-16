@@ -2,7 +2,7 @@ use super::installation;
 use crate::badge::Badge;
 use crate::host::Host;
 use crate::host::{Command, Event, Input, lock_error};
-use crate::menu::{Menu, QUIT_MENU_ID, START_MENU_ID, Shortcut, Tray};
+use crate::menu::{EDIT_ACTIONS, GlobalShortcut, Menu, QUIT_MENU_ID, START_MENU_ID, Tray};
 use std::error::Error;
 use std::io;
 use std::sync::mpsc::Receiver;
@@ -46,7 +46,7 @@ pub fn main() -> Result<(), Box<dyn Error>> {
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .manage(Badge::default())
         .manage(Menu::default())
-        .manage(Shortcut::default())
+        .manage(GlobalShortcut::default())
         .menu(Menu::application)
         .setup(move |app| {
             #[cfg(target_os = "macos")]
@@ -153,13 +153,20 @@ fn answer(app: &AppHandle, input: &Input, event: RunEvent) {
         }
         // quit, which closing the last window does not
         RunEvent::MenuEvent(event) if event.id() == QUIT_MENU_ID => app.exit(0),
-        // report the host's items the person chooses, and a failed lookup
+        // run the focused page's undo or redo, else report the host's items the person chooses
         RunEvent::MenuEvent(event) => {
             let item = event.id().as_ref().to_owned();
-            match app.state::<Menu>().contains(&item) {
-                Ok(true) => Event::MenuChosen { item }.report(app, input),
-                Ok(false) => {}
-                Err(error) => Event::failed("menu.chosen", error).report(app, input),
+            let edit = EDIT_ACTIONS.iter().find(|each| item == each.id);
+            if let Some(edit) = edit {
+                if let Err(error) = super::perform(app, edit.action) {
+                    Event::failed("menu.chosen", error).report(app, input);
+                }
+            } else {
+                match app.state::<Menu>().contains(&item) {
+                    Ok(true) => Event::MenuChosen { item }.report(app, input),
+                    Ok(false) => {}
+                    Err(error) => Event::failed("menu.chosen", error).report(app, input),
+                }
             }
         }
         // run on after the last window closes

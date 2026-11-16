@@ -8,9 +8,9 @@ use tauri_plugin_global_shortcut::{GlobalShortcutExt, ShortcutState};
 
 /// The global shortcuts the host registered, by identity.
 #[derive(Default)]
-pub struct Shortcut(Mutex<HashMap<String, tauri_plugin_global_shortcut::Shortcut>>);
+pub struct GlobalShortcut(Mutex<HashMap<String, tauri_plugin_global_shortcut::Shortcut>>);
 
-impl Shortcut {
+impl GlobalShortcut {
     /// Register a shortcut under an identity, replacing the one before, and report each press.
     pub fn register(
         &self,

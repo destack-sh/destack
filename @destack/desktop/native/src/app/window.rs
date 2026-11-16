@@ -9,6 +9,9 @@ use tauri::{
 use tauri_plugin_opener::OpenerExt;
 use uuid::Uuid;
 
+/// The page event a standard action the Edit menu chooses arrives as, the action's name its detail.
+const ACTION_EVENT: &str = "destack:action";
+
 /// The host suffix of the views a device host serves, as RFC 6761 reserves it for loopback.
 const LOCAL_SUFFIX: &str = ".localhost";
 
@@ -224,6 +227,23 @@ fn navigate(input: &Input, id: &str, url: &tauri::Url) {
     if let Err(error) = event.send(input) {
         eprintln!("{error}");
     }
+}
+
+/// Run a standard action, such as undo, in the focused window's page, as the Edit menu does.
+pub fn perform(app: &AppHandle, action: &str) -> tauri::Result<()> {
+    // find the focused window, none when the menu is chosen without one
+    for window in app.webview_windows().into_values() {
+        if window.is_focused()? {
+            // dispatch the action to its page
+            let script = format!(
+                "window.dispatchEvent(new CustomEvent({ACTION_EVENT:?}, {{ detail: {action:?} }}))"
+            );
+
+            return window.eval(script);
+        }
+    }
+
+    Ok(())
 }
 
 /// Remove a browser profile's stored data, reporting a failure to the host.

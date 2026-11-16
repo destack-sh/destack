@@ -6,7 +6,7 @@ import { shortcut } from "@destack/view/declare";
 import type { Shell } from "../shell/index.ts";
 
 /** A global shortcut the shell reports by identity, its keys the person's `shortcut` setting. */
-export class Shortcut {
+export class GlobalShortcut {
     /** The identity a press reports. */
     readonly id: string;
     /** The native shell registering it. */

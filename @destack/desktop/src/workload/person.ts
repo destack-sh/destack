@@ -21,7 +21,7 @@ import {
     Badge,
     Banner,
     BannerCapabilities,
-    Shortcut,
+    GlobalShortcut,
     Tray,
     Window,
     type WindowContext,
@@ -83,7 +83,7 @@ export class Person {
     /** The tray's status and the spaces this computer serves. */
     readonly tray: Tray;
     /** The shortcut floating the command palette. */
-    readonly shortcut: Shortcut;
+    readonly shortcut: GlobalShortcut;
     /** The person's inbox replicated from their home, which the banners and the badge follow. */
     readonly inbox: ObjectClient<{
         readonly notification: typeof notification;
@@ -157,7 +157,7 @@ export class Person {
             localization: desktop.localization,
             open: (address) => desktop.openPalette({ space: address }),
         });
-        this.shortcut = new Shortcut(PALETTE_SHORTCUT, shell);
+        this.shortcut = new GlobalShortcut(PALETTE_SHORTCUT, shell);
         this.#context = {
             objects,
             shell,

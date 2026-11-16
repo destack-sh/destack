@@ -16,8 +16,8 @@ People see their apps and notifications:
 
 - `window`: a native window showing a view, an object or the palette.
 - `Banner`: a system banner for an unread notification.
-- `Badge`, `Tray` and `Menu`: the app icon's unread count, the tray's status, and the menus.
-- `Shortcut`: a global shortcut, such as the palette's.
+- `Badge`, `Tray` and `Menu`: the app icon's unread count, the tray's status, and the menus, whose Edit › Undo and Redo run the focused page's actions.
+- `GlobalShortcut`: a global shortcut, such as the palette's.
 
 Apps link to each other:
 
