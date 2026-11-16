@@ -189,6 +189,29 @@ export default defineConfiguration(
 );
 ```
 
+## Conventions
+
+### Titles
+
+A title states one behavior, verb first, in the code's own nouns.
+
+| Write                                                 | Instead of                                                                                                  |
+| ----------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| `key destinations by channel and address`             | `key each destination by its channel and address, matching one address across its other fields`             |
+| `rotate an endpoint's secret and release the old one` | `let the installation consume an endpoint's new secret as the manager who sets it, and release the old one` |
+| `unsubscribe a browser its push service answers gone` | `forget a browser its push service forgot, as the space, once its push fails as gone`                       |
+| `read transport refusals as outcomes`                 | `refuse an email message as its transport refuses it: %#`                                                   |
+
+### Tiers
+
+A test file runs in the tier of what it starts, and a package with both declares two projects.
+
+| Tier       | Starts                            | Slow after | Fails after |
+| ---------- | --------------------------------- | ---------- | ----------- |
+| `unit`     | nothing, or a simulation          | 100 ms     | 5 s         |
+| `scenario` | a prepared image or a server      | 5 s        | 60 s        |
+| `bench`    | a scenario's operations, measured | none       | 600 s       |
+
 ## Comparison
 
 ### Vitest
