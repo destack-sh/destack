@@ -87,11 +87,19 @@ export class TestTelemetry implements Disposable {
                               .map((section) => section.split("\n")[0])
                         : [];
 
+                // read what the capturing package tagged it with, such as its job and key
+                const tagged = Object.fromEntries(
+                    Object.entries(record.attributes).filter(
+                        ([name]) => !name.startsWith("exception."),
+                    ),
+                );
+
                 return {
                     scope: record.instrumentationScope.name,
                     name: record.attributes["exception.type"],
                     message: record.attributes["exception.message"],
                     ...(causes.length === 0 ? {} : { causes }),
+                    ...(Object.keys(tagged).length === 0 ? {} : { tagged }),
                 };
             });
 
