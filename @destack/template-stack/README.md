@@ -1,6 +1,6 @@
 # @destack/template-stack
 
-Start a space's stack from a template: a files bucket, a credentials vault, the baseline installations and an automatic rollback.
+Start a space's stack from a template: a files bucket, a credentials vault, the baseline installations and an alert on fatal issues.
 
 ## Overview
 
@@ -8,7 +8,7 @@ Start a space's stack from a template: a files bucket, a credentials vault, the 
 
 It exports:
 
-- `personal`: the space's stack: a bucket, a vault, the baseline installations, and a rollback on fatal issues.
+- `personal`: the space's stack: a bucket, a vault, the baseline installations, and an alert on fatal issues.
 - `files`: the bucket of documents and media.
 - `credentials`: the vault of application secrets.
 - `account`: the stages the account's spaces share, `dev` and `production`.
@@ -21,22 +21,22 @@ destack apply ./stack --export personal
 
 ## Examples
 
-### Roll back on fatal issues
+### Alert on fatal issues
 
-An alert rule calls `rollBack` on an installation whose new issue is fatal.
+An alert rule notifies the space's managers of a new fatal issue.
 
 ```ts
 import observabilityPackage from "@destack/observability/package";
 import { defineStack } from "@destack/stack";
 
-// notify the managers, then roll back the installation
+// notify the managers of each new fatal issue
 export const guarded = defineStack({
     types: [observabilityPackage],
     alertRules: {
-        rollback: {
-            title: "Roll back installation on new fatal issues",
+        fatal: {
+            title: "Notify on new fatal issues",
             condition: { kind: "issue", on: "open", filter: "level = fatal" },
-            actions: [{ kind: "notify" }, { kind: "call", method: "rollBack" }],
+            actions: [{ kind: "notify" }],
         },
     },
 });
