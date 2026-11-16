@@ -1,5 +1,6 @@
 export * from "./client.ts";
 export * from "./text.ts";
+export { UndoStack } from "./undo.ts";
 export * from "./query.ts";
 export * from "./dynamic.ts";
 export * from "./package.ts";

@@ -275,6 +275,7 @@ export const Nested = {
                 );
             },
             inverse: (step) => Nested.moveBack(step, nesting),
+            merge: (previous, next) => Step.merge(previous, next),
             async execute(context, execution) {
                 // require a valid destination before moving
                 await Nested.requireDestination(context, execution, nesting);

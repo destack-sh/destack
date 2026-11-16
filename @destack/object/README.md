@@ -24,6 +24,7 @@ Clients call them:
 
 - `createClient` and `ClientOf`: a typed client of a package.
 - `TextDocument`: one text field as an editor edits it, opened with `client.text`.
+- `UndoStack`: a client's undo and redo of the changes it made, as `client.undoStack`.
 - `ObjectError`: the reasons a call fails, checked with `ObjectError.is`.
 
 Declare projects and tasks, then create, update and list tasks:
@@ -284,6 +285,27 @@ client.mutate(...)  ─► predicted on the replica at once ─► sent ─► t
 ```
 
 `prepare`, `confirm` and `cancel` run on the server only, so a method with outside work is never predicted.
+
+### Undo
+
+`client.undoStack` undoes and redoes the changes the client made, each against the object as it is now.
+
+| Verb            | What it does                                                        |
+| --------------- | ------------------------------------------------------------------- |
+| `undo`, `redo`  | inverts the newest group as one mutation, resolving whether one was |
+| `close()`       | ends the open group, as a page does on each pointer press and focus |
+| `watch(signal)` | yields `{ canUndo, canRedo }` now and after each change             |
+
+### Undo groups
+
+A change joins the open group when it continues it within 500 ms, so one undo takes back a burst of typing.
+
+| Method                | Joins the previous change when                             |
+| --------------------- | ---------------------------------------------------------- |
+| `update`, `move`      | it changes the same object                                 |
+| text `edit`           | it types or deletes one character next to the previous one |
+| `mutation({ merge })` | `merge(previous, next)` returns one step doing both        |
+| any other method      | never                                                      |
 
 ### Calls in a sandbox
 
@@ -785,7 +807,7 @@ export async function starAndUndo(
 
     // star a note, shown at once, then undo it
     await client.mutate(note).update({ id, starred: true }).predicted;
-    await client.undo().confirmed;
+    await client.undoStack.undo().confirmed;
 }
 ```
 

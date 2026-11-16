@@ -28,7 +28,7 @@ import { user } from "./schema.ts";
 import { openSpace, space, unmoved, spacePrincipal } from "../src/test/space.ts";
 import { testCallKey } from "@destack/object/test";
 import { testEvents, serversOf } from "../src/test/index.ts";
-import { nth, type Identifier } from "@destack/schema";
+import { nth, schema, type Identifier } from "@destack/schema";
 import { Environment } from "@destack/environment";
 import { tablesOf } from "../src/index.ts";
 import objectPackage from "../src/package.ts";
@@ -391,7 +391,7 @@ test("predict edits on two clients, converge after push, undo one exactly and hi
         await expect.poll(() => body(bob.live)).toEqual(["HELLO world!"]);
 
         // undo alice's edit exactly, leaving bob's
-        await alice.client.undo().confirmed;
+        await alice.client.undoStack.undo().confirmed;
         await expect.poll(() => body(bob.live)).toEqual(["hello world!"]);
         expect(await body(alice.live)).toEqual(["hello world!"]);
 
@@ -474,6 +474,67 @@ test("type into a live text by offsets, one change after another, and converge o
     await expect.poll(() => body(bob.live)).toEqual(["Hello world"]);
     const runs = text.rope.read().runs.length;
     expect([local.text(), runs, alice.errors, bob.errors]).toEqual(["Hello world", 1, [], []]);
+});
+
+test("undo typing a burst at a time, apart at pauses, deletions, pastes and closes, each as one edit", async () => {
+    // run in a world of its own
+    const simulation = testSimulation();
+    const world = simulation.environment("test");
+
+    const { endpoint } = await serveDocuments(world);
+    const alice = await openClient(world, users.alice, endpoint(users.alice));
+    const created = alice.client.mutate(document).create({ title: "Plan" });
+    const { id } = await created.predicted;
+    await created.confirmed;
+    const text = alice.client.text(document, id, "body");
+    onTestFinished(() => text.close());
+    await text.ready;
+    const type = async (keys: string) => {
+        for (const key of keys) {
+            const end = text.rope.read().text().length;
+            await text.change({ from: end, to: end, insert: key }).predicted;
+        }
+    };
+    const pause = () => simulation.jump(world.clock.now() + 1000);
+
+    // type, pause, type, delete three characters, paste, type, close and type
+    await type("Hello");
+    await pause();
+    await type(" world");
+    for (let key = 0; key < 3; key += 1) {
+        const end = text.rope.read().text().length;
+        await text.change({ from: end - 1, to: end, insert: "" }).predicted;
+    }
+    await text.change({ from: 8, to: 8, insert: " there" }).predicted;
+    await type("!");
+    await alice.client.undoStack.close();
+    await type("?");
+
+    // undo each burst, reading the text and the edit calls each undo made
+    const undone = [];
+    const Steps = schema.array(
+        schema.looseObject({
+            input: schema.looseObject({ edits: schema.array(schema.unknown()) }),
+        }),
+    );
+    for (let step = 0; step < 6; step += 1) {
+        await alice.client.undoStack.undo().confirmed;
+        const entry = await alice.client.undoStack.latest("undone");
+        const steps = Steps.parse(entry?.steps);
+        undone.push({
+            text: text.rope.read().text(),
+            edits: steps.map((each) => each.input.edits.length),
+        });
+    }
+    expect(undone).toEqual([
+        { text: "Hello wo there!", edits: [1] },
+        { text: "Hello wo there", edits: [1] },
+        { text: "Hello wo", edits: [1] },
+        { text: "Hello world", edits: [1] },
+        { text: "Hello", edits: [1] },
+        { text: "", edits: [1] },
+    ]);
+    expect(alice.errors).toEqual([]);
 });
 
 test("format a body with marks and nodes, order marks on the store, index mentions, undo them, and refuse what a field's schema lacks", async () => {

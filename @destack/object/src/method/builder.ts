@@ -263,6 +263,8 @@ export interface CustomDefinition<
     readonly selected?: (input: JsonObject) => Row;
     /** The inverse method name, or a function deriving inverse calls. */
     readonly inverse?: string | ((step: Step) => readonly sync.Call[] | undefined);
+    /** Merge a step into the previous one as one step undoing both, absent when they stay apart. */
+    readonly merge?: (previous: Step, next: Step) => Step | undefined;
     /** The input fields each release computes from earlier input, by introducing release. */
     readonly convert?: Readonly<Record<Version, Readonly<Record<string, Expression>>>>;
     /** How often the method runs per key, and whose limit a call counts against. */
@@ -629,6 +631,7 @@ export class MethodBuilder<
             }),
             handler: (context) => context.update(Table.decode(context.object.table, context.input)),
             inverse: (step) => ObjectRecord.restoreUpdated(step),
+            merge: (previous, next) => Step.merge(previous, next),
             async execute(context, execution) {
                 // refuse changing managed fields and unwritable fields
                 const changed = Object.keys(context.input).filter((name) =>

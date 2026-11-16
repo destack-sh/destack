@@ -139,6 +139,79 @@ export class TextSequence {
         return deleted.length === 0 ? [] : [{ delete: deleted }];
     }
 
+    /** Join consecutive deletions or restorations, and the touching pieces of each run. */
+    static compact(edits: readonly TextEdit[]): TextEdit[] {
+        const compacted: TextEdit[] = [];
+        for (const edit of edits) {
+            // join a deletion into the deletion before it
+            const last = compacted.at(-1);
+            if (last !== undefined && "delete" in last && "delete" in edit) {
+                compacted.splice(-1, 1, {
+                    delete: TextSequence.#join([...last.delete, ...edit.delete]),
+                });
+            }
+            // join a restoration into the restoration before it
+            else if (last !== undefined && "restore" in last && "restore" in edit) {
+                compacted.splice(-1, 1, {
+                    restore: TextSequence.#join([...last.restore, ...edit.restore]),
+                });
+            }
+            // append any other edit
+            else {
+                compacted.push(edit);
+            }
+        }
+
+        return compacted;
+    }
+
+    /** Join the pieces of a run that touch, in run and offset order. */
+    static #join(pieces: readonly TextRun[]): TextRun[] {
+        // order the pieces within each run
+        const ordered = pieces.toSorted((left, right) =>
+            left.run === right.run ? left.start - right.start : left.run < right.run ? -1 : 1,
+        );
+
+        // join each piece onto the piece of its run it continues
+        const joined: TextRun[] = [];
+        for (const piece of ordered) {
+            const last = joined.at(-1);
+            const text = last === undefined ? undefined : TextSequence.#continued(last, piece);
+            if (last !== undefined && text !== undefined) {
+                joined.splice(-1, 1, { run: last.run, start: last.start, text });
+            }
+            // start a new piece
+            else {
+                joined.push(piece);
+            }
+        }
+
+        return joined;
+    }
+
+    /** Join a piece's characters or length onto the piece it continues, absent when it does not. */
+    static #continued(last: TextRun, piece: TextRun): string | number | undefined {
+        // join only text pieces of one run that touch
+        const isTouching =
+            last.run === piece.run && last.start + TextSequence.length(last) === piece.start;
+        if (!isTouching || !("text" in last) || !("text" in piece)) {
+            return undefined;
+        }
+
+        // join characters
+        if (typeof last.text === "string" && typeof piece.text === "string") {
+            return last.text + piece.text;
+        }
+        // join tombstone lengths
+        else if (typeof last.text === "number" && typeof piece.text === "number") {
+            return last.text + piece.text;
+        }
+        // leave characters and lengths apart
+        else {
+            return undefined;
+        }
+    }
+
     /** Translate a text change at offsets into edits, inserting at a site's next element. */
     change(change: TextChange, next: TextElement): TextEdit[] {
         // delete the visible pieces between the offsets before inserting

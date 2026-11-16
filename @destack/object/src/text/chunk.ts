@@ -6,6 +6,7 @@ import { schema, canonicalize, Identifier, present } from "@destack/schema";
 
 import { FractionalIndex } from "../field/fractional-index.ts";
 import type { MethodContext } from "../method/context.ts";
+import { Step } from "../method/step.ts";
 import { method } from "../method/builder.ts";
 import { type ObjectDefinition, ObjectType } from "../object/object.ts";
 import {
@@ -28,6 +29,9 @@ import { argument, plural, t } from "@destack/locale";
 
 /** The owner permission whose holders read its text. */
 export const TEXT_READ = "text";
+
+/** Segments text into the characters a person reads. */
+const GRAPHEMES = new Intl.Segmenter(undefined, { granularity: "grapheme" });
 
 /** One chunk of a text. */
 type Chunk = typeof chunk.$inferSelect;
@@ -245,7 +249,92 @@ export const Chunk = {
 
         return { inverse };
     },
+
+    /** Merge an edit into the previous one when it types or deletes the next character. */
+    merge(previous: Step, next: Step): Step | undefined {
+        // read both edits and the edits undoing them
+        const earlier = EDIT_INPUT.parse(previous.input);
+        const later = EDIT_INPUT.parse(next.input);
+        if (previous.result === undefined || next.result === undefined) {
+            return undefined;
+        }
+        const undoEarlier = Undo.parse(previous.result).inverse;
+        const undoLater = Undo.parse(next.result).inverse;
+
+        // merge one edit continuing the last one in the same field of the same object
+        const [edit, ...rest] = later.edits;
+        const last = earlier.edits.at(-1);
+        const isContinuing =
+            edit !== undefined &&
+            last !== undefined &&
+            rest.length === 0 &&
+            earlier.field === later.field &&
+            Step.same(Step.target(previous), Step.target(next)) &&
+            continues(last, edit, undoLater);
+        if (!isContinuing) {
+            return undefined;
+        }
+
+        // apply both edits, and undo the later one first
+        const edits = schema.array(schema.json()).parse([...earlier.edits, ...later.edits]);
+        const inverse = TextSequence.compact([...undoLater, ...undoEarlier]);
+
+        return { ...next, input: { ...next.input, edits }, result: { inverse } };
+    },
 };
+
+/** Decide whether an edit types or deletes one character right next to the last edit. */
+function continues(last: TextEdit, edit: TextEdit, undo: readonly TextEdit[]): boolean {
+    // type a character right after the last typed one
+    if ("insert" in last && "insert" in edit) {
+        return (
+            typeof last.insert === "string" &&
+            typeof edit.insert === "string" &&
+            isCharacter(last.insert) &&
+            isCharacter(edit.insert) &&
+            edit.run === last.run &&
+            edit.start === last.start + last.insert.length
+        );
+    }
+    // delete one character touching the last deleted piece
+    else if ("delete" in last && "delete" in edit) {
+        const previous = last.delete.at(-1);
+        const [deleted, ...others] = edit.delete;
+        const [restore] = undo;
+        const [restored] = restore !== undefined && "restore" in restore ? restore.restore : [];
+
+        return (
+            previous !== undefined &&
+            deleted !== undefined &&
+            others.length === 0 &&
+            restored !== undefined &&
+            "text" in restored &&
+            typeof restored.text === "string" &&
+            isCharacter(restored.text) &&
+            isTouching(previous, deleted)
+        );
+    }
+    // merge no other edits
+    else {
+        return false;
+    }
+}
+
+/** Decide whether two pieces of one run touch, either before the other. */
+function isTouching(left: TextRun, right: TextRun): boolean {
+    return (
+        left.run === right.run &&
+        (left.start + TextSequence.length(left) === right.start ||
+            right.start + TextSequence.length(right) === left.start)
+    );
+}
+
+/** Decide whether text is one character as a person reads it. */
+function isCharacter(text: string): boolean {
+    const [first, second] = GRAPHEMES.segment(text);
+
+    return first !== undefined && second === undefined;
+}
 
 /** A piece's run index entry: its chunk, run and first offset. */
 const RUN_ENTRY = schema.looseObject({

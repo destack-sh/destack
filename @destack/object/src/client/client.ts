@@ -270,10 +270,8 @@ export interface ObjectAccess<Objects extends Readonly<Record<string, ObjectType
     readonly mutate: ObjectMutators<Objects>;
     /** Make several calls as one atomic mutation, predicted at once and undone as one step. */
     readonly mutation: ObjectClient["mutation"];
-    /** Undo the person's last mutation, resolving whether there was one. */
-    readonly undo: ObjectClient["undo"];
-    /** Redo the person's last undone mutation, resolving whether there was one. */
-    readonly redo: ObjectClient["redo"];
+    /** The party's undo and redo stacks. */
+    readonly undoStack: UndoStack;
     /** Call an object type's mutating method by name as one mutation. */
     readonly call: ObjectClient["call"];
     /** Check whether the caller has a permission on an object. */
@@ -358,7 +356,7 @@ export class ObjectClient<
     /** The checked-out branch and its rows, followed into the replica. */
     #branchFollows: readonly LiveQuery[] = [];
     /** The party's undo and redo stacks. */
-    readonly #undoStack: UndoStack;
+    readonly undoStack: UndoStack;
     /** The party sharing the database, such as one browser tab. */
     readonly origin: string;
     /** The store procedures of the machine serving the scope now. */
@@ -439,7 +437,7 @@ export class ObjectClient<
         this.environment = options.environment;
         this.origin = options.origin;
         this.writerId = RequestId.create(options.environment);
-        this.#undoStack = new UndoStack(this);
+        this.undoStack = new UndoStack(this);
 
         // replicate the scope's objects for the caller, and the principals storing local objects
         this.relations = new RelationGraph(ObjectType.served(Object.values(options.objects)));
@@ -752,8 +750,7 @@ export class ObjectClient<
             query: ObjectQueryBuilder.of(this.#subscriber, objects),
             mutate: ObjectClient.#mutators(this, objects),
             mutation: (run) => this.mutation(run),
-            undo: () => this.undo(),
-            redo: () => this.redo(),
+            undoStack: this.undoStack,
             call: (object, name, input) => this.call(object, name, input),
             check: (object, id, permission) => this.check(object, id, permission),
         };
@@ -854,7 +851,7 @@ export class ObjectClient<
                 });
 
                 // remember for undo
-                await this.#undoStack.remember(database, id, steps);
+                await this.undoStack.remember(database, id, steps);
 
                 return { calls, result };
             },
@@ -960,16 +957,6 @@ export class ObjectClient<
         const types = this.branch;
 
         return types !== undefined && types.has(object);
-    }
-
-    /** Undo this party's latest mutation, predicting false when none is left. */
-    undo(): Submission<boolean> {
-        return this.#undoStack.toggle("done", "undone");
-    }
-
-    /** Redo this party's latest undo, predicting false when none is left. */
-    redo(): Submission<boolean> {
-        return this.#undoStack.toggle("undone", "done");
     }
 
     /** Close the client and fail unsettled mutations. */
@@ -1601,7 +1588,7 @@ export class ObjectClient<
             if ("value" in outcome) {
                 await this.prediction.acknowledge(this.database, id, watermark);
                 if (!edits.has(id)) {
-                    await this.#undoStack.settle(id, outcome.value);
+                    await this.undoStack.settle(id, outcome.value);
                 }
             }
             // collect a rejected one
@@ -1617,7 +1604,7 @@ export class ObjectClient<
                 for (const { id, error } of rejected) {
                     await this.prediction.reject(transaction, id, error);
                 }
-                await this.#undoStack.forget(
+                await this.undoStack.forget(
                     transaction,
                     rejected.map((entry) => entry.id),
                 );

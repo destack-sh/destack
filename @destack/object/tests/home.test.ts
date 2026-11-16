@@ -692,7 +692,7 @@ test("send the undo of a write of an enclosing scope's row to its home", async (
     const { client, failures } = await openRoom(world, served);
     await replicatedTo(client, id);
     await client.mutate(preference).update({ id, value: "dark" }).confirmed;
-    await client.undo().confirmed;
+    await client.undoStack.undo().confirmed;
     await settled(client);
 
     // run the undo at the person's home as well

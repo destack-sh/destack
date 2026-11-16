@@ -370,7 +370,7 @@ test("leave an order created on a device unnumbered until its store numbers it, 
     await phone.waitFor(confirmed);
 
     // undo the laptop's creation, then create another order, which takes no number again
-    await laptop.client.undo().confirmed;
+    await laptop.client.undoStack.undo().confirmed;
     await laptop.client.mutate(order).create({ total: 20 }).confirmed;
 
     expect({ predicted, recreated: await laptop.numbers() }).toEqual({

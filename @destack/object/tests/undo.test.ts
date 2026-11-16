@@ -9,9 +9,10 @@ import { RequestId, Scope } from "@destack/sync";
 import { testCallKey } from "@destack/object/test";
 import { testEvents } from "../src/test/index.ts";
 import { ObjectClient } from "../src/client/index.ts";
+import { undoEntry } from "../src/client/undo.ts";
 import { defineObject, field, type Step } from "../src/index.ts";
 import { implementPackage } from "../src/server/index.ts";
-import { found } from "@destack/schema";
+import { found, schema } from "@destack/schema";
 import { serveNotes, spaceId } from "./fixture/device.ts";
 import { note, notebook } from "../src/test/note.ts";
 import { openSpace, space, unmoved, spacePrincipal } from "../src/test/space.ts";
@@ -292,7 +293,7 @@ test("undo and redo a party's mutations, restoring only what no one changed sinc
         text: "second",
     });
     await expect.poll(() => read(device.client)).toMatchObject({ text: "second" });
-    await device.client.undo().confirmed;
+    await device.client.undoStack.undo().confirmed;
     expect(await read(device.client)).toEqual({
         title: "Draft",
         text: "second",
@@ -302,9 +303,9 @@ test("undo and redo a party's mutations, restoring only what no one changed sinc
     // undo the creation into the trash and redo it
     const trashed = async () =>
         (await alice.note.list({ spaceId, deleted: "only" })).items.map((item) => item.id);
-    await device.client.undo().confirmed;
+    await device.client.undoStack.undo().confirmed;
     expect([await read(device.client), await trashed()]).toEqual([undefined, [id]]);
-    await device.client.redo().confirmed;
+    await device.client.undoStack.redo().confirmed;
     await expect.poll(() => read(device.client)).toMatchObject({ deletedAt: null });
     expect(await trashed()).toEqual([]);
 
@@ -323,7 +324,7 @@ test("undo and redo a party's mutations, restoring only what no one changed sinc
     });
     const stopping = new AbortController();
     const running = restarted.run(stopping.signal, (error) => device.errors.push(error));
-    await restarted.redo().confirmed;
+    await restarted.undoStack.redo().confirmed;
     expect(await read(restarted)).toEqual({
         title: "Plan",
         text: "second",
@@ -331,15 +332,111 @@ test("undo and redo a party's mutations, restoring only what no one changed sinc
     });
 
     // leave nothing to redo, and undo both done entries by two quick undos, one entry each
-    expect(await restarted.redo().predicted).toBe(false);
-    const quick = [restarted.undo(), restarted.undo()];
+    expect(await restarted.undoStack.redo().predicted).toBe(false);
+    const quick = [restarted.undoStack.undo(), restarted.undoStack.undo()];
     expect(await Promise.all(quick.map((undone) => undone.predicted))).toEqual([true, true]);
     await Promise.all(quick.map((undone) => undone.confirmed));
-    expect(await restarted.undo().predicted).toBe(false);
+    expect(await restarted.undoStack.undo().predicted).toBe(false);
     stopping.abort();
     await running;
     await restarted.close();
     expect(device.errors).toEqual([]);
+});
+
+test("group a party's updates of one note into one undo, apart across notes, closes and pauses", async () => {
+    const simulation = testSimulation();
+    const { openDevice, environment } = await serveNotes({ simulation });
+    const device = await openDevice(users.alice);
+    device.online();
+    const notes = device.client.mutate(note);
+    const titles = async () => {
+        const rows = await device.client.database
+            .select({ id: note.table.id, title: note.table.title })
+            .from(note.table);
+
+        return Object.fromEntries(rows.map((row) => [row.id, row.title]));
+    };
+
+    // create two notes, then pause
+    const first = await notes.create({ title: "a" }).predicted;
+    const second = await notes.create({ title: "b" }).predicted;
+    await simulation.jump(environment.clock.now() + 1000);
+
+    // retitle the first note three times, then the second once, again after a close, and again after a pause
+    for (const title of ["a1", "a2", "a3"]) {
+        await notes.update({ id: first.id, title }).predicted;
+    }
+    await notes.update({ id: second.id, title: "b1" }).predicted;
+    await device.client.undoStack.close();
+    await notes.update({ id: second.id, title: "b2" }).predicted;
+    await simulation.jump(environment.clock.now() + 1000);
+    await notes.update({ id: second.id, title: "b3" }).confirmed;
+
+    // undo the pause's update, the closed one, the second note's first one, then the first note's three at once
+    const undone = [];
+    for (let step = 0; step < 4; step += 1) {
+        await device.client.undoStack.undo().confirmed;
+        undone.push(await titles());
+    }
+    expect(undone).toEqual([
+        { [first.id]: "a3", [second.id]: "b2" },
+        { [first.id]: "a3", [second.id]: "b1" },
+        { [first.id]: "a3", [second.id]: "b" },
+        { [first.id]: "a", [second.id]: "b" },
+    ]);
+    expect(device.errors).toEqual([]);
+});
+
+test("follow whether a party can undo and redo as its stacks change", async () => {
+    const { openDevice } = await serveNotes();
+    const device = await openDevice(users.alice);
+    const stopping = new AbortController();
+    const watched = device.client.undoStack.watch(stopping.signal);
+    const next = async () => {
+        const step = await watched.next();
+        if (step.done === true) {
+            throw new TypeError("the stacks stopped before the next change");
+        }
+
+        return step.value;
+    };
+
+    // read the empty stacks, then after a creation and its undo
+    const empty = await next();
+    await device.client.mutate(note).create({ title: "Draft" }).predicted;
+    const created = await next();
+    await device.client.undoStack.undo().predicted;
+    const undone = await next();
+    stopping.abort();
+    await watched.return(undefined);
+
+    expect([empty, created, undone]).toEqual([
+        { canUndo: false, canRedo: false },
+        { canUndo: true, canRedo: false },
+        { canUndo: false, canRedo: true },
+    ]);
+    await device.client.close();
+});
+
+test("store only a party's latest hundred undo groups, dropping the oldest", async () => {
+    const { openDevice } = await serveNotes();
+    const device = await openDevice(users.alice);
+
+    // create a hundred and one notes offline, each its own group
+    for (let count = 0; count < 101; count += 1) {
+        await device.client.mutate(note).create({ title: `${count}` }).predicted;
+    }
+
+    // read the groups left, all but the first, by the titles they created
+    const kept = await device.client.database.select({ steps: undoEntry.steps }).from(undoEntry);
+    const Created = schema.tuple([
+        schema.looseObject({ input: schema.looseObject({ title: schema.string() }) }),
+    ]);
+    const titles = kept.map((entry) => Created.parse(entry.steps)[0].input.title);
+    expect(titles.toSorted()).toEqual(
+        Array.from({ length: 100 }, (_, count) => `${count + 1}`).toSorted(),
+    );
+    await device.client.close();
 });
 
 test("undo an update of an exact integer, restoring its value on the device and the server", async () => {
@@ -409,7 +506,7 @@ test("undo an update of an exact integer, restoring its value on the device and 
     await client.mutate(tally).update({ id, count: "-7", label: "b" }).confirmed;
 
     // undo the change on the device and through the server
-    await client.undo().confirmed;
+    await client.undoStack.undo().confirmed;
     const read = async (database: DatabaseConnection) =>
         database
             .select({ count: tally.table.count, label: tally.table.label })
@@ -494,7 +591,7 @@ test("undo an update of a bytes field, restoring its bytes on the device and the
         .confirmed;
 
     // undo the change on the device and through the server
-    await client.undo().confirmed;
+    await client.undoStack.undo().confirmed;
     const read = async (database: DatabaseConnection) =>
         database
             .select({ bytes: stamp.table.bytes, label: stamp.table.label })

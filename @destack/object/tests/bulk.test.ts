@@ -300,7 +300,7 @@ test("undo a bulk creation by deleting each created object on the device and the
     const before = [await labelsIn(client.database), await labelsIn(storage.database)];
 
     // undo the creation into the trash on the device and through the server
-    await client.undo().confirmed;
+    await client.undoStack.undo().confirmed;
     stopping.abort();
     await Promise.all(loops);
     expect([

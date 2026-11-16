@@ -21,8 +21,25 @@ export interface Step {
     readonly current?: JsonObject;
 }
 
-/** The operations inverses use on steps. */
+/** The operations inverses and merges use on steps. */
 export const Step = {
+    /** Merge two steps on one object into one, keeping the first row before. */
+    merge(previous: Step, next: Step): Step | undefined {
+        // merge only steps on the same object
+        if (!Step.same(Step.target(previous), Step.target(next))) {
+            return undefined;
+        }
+
+        // take the first row before, and every field either input sets
+        const { before: _replaced, ...merged } = next;
+
+        return {
+            ...merged,
+            input: { ...previous.input, ...next.input },
+            ...(previous.before === undefined ? {} : { before: previous.before }),
+        };
+    },
+
     /** Record a call to the step object's method of a kind. */
     call(step: Step, kind: MethodKind, input: JsonObject): sync.Call | undefined {
         const found = Object.entries(step.object.methods).find(
