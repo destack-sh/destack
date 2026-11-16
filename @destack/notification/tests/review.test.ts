@@ -5,7 +5,7 @@ import { focus } from "../src/setting/index.ts";
 import { document, documentParent, review } from "../src/test/notes.ts";
 import { TestNotification } from "../src/test/notification.ts";
 
-test("answer a review request from its notification, which breaks through a focus that defers a change until a snooze ends", async () => {
+test("push a review request through a focus that defers a change, answer it on its activity, and alert the change once its snooze ends", async () => {
     await using fixture = await TestNotification.open();
 
     // give bob a phone and a focus for the next two hours, and let him subscribe to a document he edits

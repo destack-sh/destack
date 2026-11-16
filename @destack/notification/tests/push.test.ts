@@ -3,7 +3,7 @@ import { expect, test } from "@destack/test";
 import { document } from "../src/test/notes.ts";
 import { TestNotification } from "../src/test/notification.ts";
 
-test("push a mention to each of a recipient's phones, and forget the subscription its push service forgot through the account package", async () => {
+test("push a mention to each of a recipient's phones, and fail the message to a phone its push service forgot", async () => {
     await using fixture = await TestNotification.open();
 
     // give bob two phones, the old one forgotten by its push service

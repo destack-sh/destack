@@ -95,7 +95,7 @@ test("collect a recipient's summarized notifications into one email at the next 
     ]).toEqual([[["erin@example.test", "Scheduled summary", "2 changes"]], [["sent", null]], []]);
 });
 
-test("send a recipient's email and scheduled summary with its lines in their German, with the catalogs of the declaring package and the inbox", async () => {
+test("translate a recipient's email and scheduled summary into their German from the declaring package's and the inbox's catalogs", async () => {
     await using fixture = await TestNotification.open();
 
     // let erin read Austrian German and receive email, her home running, subscribed to a document bob edits

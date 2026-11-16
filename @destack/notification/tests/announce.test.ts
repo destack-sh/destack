@@ -4,7 +4,7 @@ import { Activity, subscription } from "../src/object/index.ts";
 import { document, documentParent } from "../src/test/notes.ts";
 import { type Person, TestNotification } from "../src/test/notification.ts";
 
-test("expand an announcement to every subscriber, or every member, in batches, never to its author", async () => {
+test("expand an announcement to its subscribers, members or editors in batches, never to its author", async () => {
     await using fixture = await TestNotification.open({ batch: 2 });
     const { scope } = fixture;
     const states = async () =>

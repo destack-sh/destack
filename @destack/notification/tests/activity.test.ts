@@ -4,7 +4,7 @@ import { Activity } from "../src/object/index.ts";
 import { document } from "../src/test/notes.ts";
 import { TestNotification } from "../src/test/notification.ts";
 
-test("post a mention as the reader whose remark notifies, with the author's profile name", async () => {
+test("record a remark's mention for each mentioned reader but its author, posted by the author under their profile name", async () => {
     // share a document with bob, who mentions alice and himself in a remark
     await using fixture = await TestNotification.open();
     const { scope } = fixture;

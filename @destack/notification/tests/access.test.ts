@@ -4,7 +4,7 @@ import { focus } from "../src/setting/index.ts";
 import { document } from "../src/test/notes.ts";
 import { TestNotification } from "../src/test/notification.ts";
 
-test("drop an activity from a recipient's home once they lose access to its source, sending nothing, and replicate it back on a regained share", async () => {
+test("drop an activity from a recipient's home once they lose access, sending nothing, and replicate it back on a regained share", async () => {
     await using fixture = await TestNotification.open();
 
     // give carol a phone and quiet hours from 11:00 to 14:00 in Vienna on Mondays, now noon there

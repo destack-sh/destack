@@ -71,7 +71,7 @@ test("replicate a person's activities from a space as the person, and none of th
     ]);
 });
 
-test("seal an emailed notification's content to its home's message key, so no journal entry, notification or message change contains its text", async () => {
+test("encrypt an emailed notification's content to its home's message key, leaving its text out of the journal, notifications and message changes", async () => {
     // give alice an email address, and let bob mention her on a document she views
     await using fixture = await TestNotification.open();
     const plan = await fixture.call(

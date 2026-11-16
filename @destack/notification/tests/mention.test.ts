@@ -5,7 +5,7 @@ import { decrypt } from "@destack/message/test";
 import { document } from "../src/test/notes.ts";
 import { TestNotification } from "../src/test/notification.ts";
 
-test("send mentions to the desktop and the phone, badging the inbox until they are read", async () => {
+test("send mentions to the desktop and the phone, email them after 15 unread minutes, badge the inbox until read, and refuse a future or stale read", async () => {
     await using fixture = await TestNotification.open();
 
     // give bob a laptop, a phone and an email address, and share two documents with him
