@@ -18,7 +18,7 @@ jobs:
         runs-on: ubuntu-24.04
         timeout-minutes: 10
         outputs:
-            packages: ${{ steps.affected.outputs.packages }}
+            runners: ${{ steps.affected.outputs.runners }}
         steps:
             - name: Check out repository
               uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -43,7 +43,14 @@ jobs:
               run: actionlint
             - name: Check repository documents
               run: bun run destack-check check README.md AGENTS.md CONTRIBUTING.md SECURITY.md
-            - name: List affected packages
+            - name: Restore the test durations
+              uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+              with:
+                  # restore the latest record by prefix
+                  path: ~/.cache/destack/durations.json
+                  key: destack-test-durations-${{ runner.os }}-${{ github.sha }}-${{ github.run_attempt }}
+                  restore-keys: destack-test-durations-${{ runner.os }}-
+            - name: List affected packages and divide them across the runners
               id: affected
               env:
                   EVENT: ${{ github.event_name }}
@@ -57,21 +64,28 @@ jobs:
                   elif [ "$EVENT" = push ] && [ -n "$BEFORE" ] && [ "$BEFORE" != 0000000000000000000000000000000000000000 ]; then
                       base="$BEFORE"
                   fi
-                  packages="$(just affected "$base" | jq --raw-input --slurp --compact-output 'split("\n") | map(select(. != ""))')"
-                  echo "packages=$packages" >> "$GITHUB_OUTPUT"
+                  packages="$(just affected "$base")"
                   echo "$packages"
 
+                  # divide the packages across the runners, if any
+                  runners="[]"
+                  if [ -n "$packages" ]; then
+                      # shellcheck disable=SC2086
+                      runners="$(just gate-runners "$HOME/.cache/destack/durations.json" $packages)"
+                  fi
+                  echo "runners=$runners" >> "$GITHUB_OUTPUT"
+                  jq --raw-output '.[] | "runner \(.runner): \(.milliseconds / 1000 | round) s, " + ([.work[].package] | join(" "))' <<< "$runners"
+
     gate:
-        name: Gate ${{ matrix.package }}
+        name: Gate ${{ matrix.runner }} of ${{ strategy.job-total }}
         needs: [repository]
-        if: needs.repository.outputs.packages != '[]'
+        if: needs.repository.outputs.runners != '[]'
         runs-on: ubuntu-24.04
         timeout-minutes: 20
         strategy:
             fail-fast: false
-            max-parallel: 16
             matrix:
-                package: ${{ fromJSON(needs.repository.outputs.packages) }}
+                include: ${{ fromJSON(needs.repository.outputs.runners) }}
         services:
             postgres:
                 image: postgres:18
@@ -110,12 +124,63 @@ jobs:
                   restore-keys: destack-test-records-2-${{ runner.os }}-
             - name: Run the gates
               env:
-                  PACKAGE: ${{ matrix.package }}
+                  WORK: ${{ toJSON(matrix.work) }}
+                  RUNNER: ${{ matrix.runner }}
                   DESTACK_TEST_POSTGRES: postgres://postgres@127.0.0.1:55432/postgres
-              run: just gate "$PACKAGE"
+              run: |
+                  # run each package and go on past failures
+                  failed=()
+                  record='{"files": {}, "checks": {}, "scripts": {}}'
+                  while read -r item; do
+                      package="$(jq --raw-output .package <<< "$item")"
+                      mapfile -t files < <(jq --raw-output '.files[]' <<< "$item")
+                      echo "::group::$package"
+
+                      # check and time the package
+                      if [ "$(jq --raw-output .isChecked <<< "$item")" = true ]; then
+                          started="${EPOCHREALTIME/./}"
+                          just gate-check "$package" || failed+=("$package checks")
+                          milliseconds=$(( (${EPOCHREALTIME/./} - started) / 1000 ))
+                          record="$(jq --arg package "$package" --argjson milliseconds "$milliseconds" '.checks[$package] = $milliseconds' <<< "$record")"
+                      fi
+
+                      # test and time the files or the whole package
+                      started="${EPOCHREALTIME/./}"
+                      just gate-test "$package" "${files[@]}" || failed+=("$package tests")
+                      milliseconds=$(( (${EPOCHREALTIME/./} - started) / 1000 ))
+                      if [ "${#files[@]}" -eq 0 ]; then
+                          record="$(jq --arg package "$package" --argjson milliseconds "$milliseconds" '.scripts[$package] = $milliseconds' <<< "$record")"
+                      fi
+
+                      # record each file's share of the run
+                      durations="$(just gate-durations "$package" "$milliseconds")"
+                      record="$(jq --argjson durations "$durations" '.files += $durations' <<< "$record")"
+                      echo "::endgroup::"
+                  done < <(jq --compact-output '.[]' <<< "$WORK")
+
+                  # keep the record for the durations job
+                  mkdir -p "$RUNNER_TEMP/durations"
+                  echo "$record" > "$RUNNER_TEMP/durations/durations-$RUNNER.json"
+
+                  # name the failures and fail the job
+                  if [ "${#failed[@]}" -gt 0 ]; then
+                      for title in "${failed[@]}"; do
+                          echo "::error::gate failed: $title"
+                          echo "- gate failed: $title" >> "$GITHUB_STEP_SUMMARY"
+                      done
+                      exit 1
+                  fi
+            - name: Upload the test durations
+              if: always()
+              uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+              with:
+                  name: durations-${{ matrix.runner }}
+                  retention-days: 1
+                  path: ${{ runner.temp }}/durations/durations-${{ matrix.runner }}.json
+                  if-no-files-found: ignore
             - name: Save the test builds and templates
-              # save once per commit from the gate writing the most templates, which every gate restores
-              if: matrix.package == '@destack/machine'
+              # save once per commit from the runner with the heaviest part
+              if: matrix.runner == 1
               uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
               with:
                   path: |
@@ -124,6 +189,55 @@ jobs:
                       ~/.cache/destack/test/layered
                       ~/.cache/destack/templates
                   key: destack-test-records-2-${{ runner.os }}-${{ github.sha }}
+
+    durations:
+        name: Record the test durations
+        needs: [repository, gate]
+        if: ${{ !cancelled() && needs.repository.outputs.runners != '[]' }}
+        runs-on: ubuntu-24.04
+        timeout-minutes: 5
+        steps:
+            - name: Check out repository
+              uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+              with:
+                  persist-credentials: false
+            - name: Restore the test durations
+              uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+              with:
+                  path: ~/.cache/destack/durations.json
+                  key: destack-test-durations-${{ runner.os }}-${{ github.sha }}-${{ github.run_attempt }}
+                  restore-keys: destack-test-durations-${{ runner.os }}-
+            - name: Download the runners' durations
+              uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+              with:
+                  pattern: durations-*
+                  path: ${{ runner.temp }}/durations
+                  merge-multiple: true
+            - name: Merge the durations
+              run: |
+                  # merge the records and drop deleted files and packages
+                  shopt -s nullglob
+                  mkdir -p ~/.cache/destack
+                  records=("$RUNNER_TEMP"/durations/*.json)
+                  if [ -f ~/.cache/destack/durations.json ]; then
+                      records=(~/.cache/destack/durations.json "${records[@]}")
+                  fi
+                  git ls-files | jq --raw-input --slurp --compact-output 'split("\n")' > "$RUNNER_TEMP/tracked.json"
+                  jq --slurp --slurpfile tracked "$RUNNER_TEMP/tracked.json" '
+                      ($tracked[0] | map({ key: ., value: true }) | from_entries) as $files
+                      | ($tracked[0] | map(select(endswith("/package.json")) | rtrimstr("/package.json") | { key: ., value: true }) | from_entries) as $packages
+                      | reduce .[] as $record ({ files: {}, checks: {}, scripts: {} }; . * $record)
+                      | .files |= with_entries(select($files[.key]))
+                      | .checks |= with_entries(select($packages[.key]))
+                      | .scripts |= with_entries(select($packages[.key]))
+                  ' "${records[@]}" /dev/null > "$RUNNER_TEMP/durations.json"
+                  mv "$RUNNER_TEMP/durations.json" ~/.cache/destack/durations.json
+                  jq '{ files: (.files | length), checks: (.checks | length), scripts: (.scripts | length) }' ~/.cache/destack/durations.json
+            - name: Save the test durations
+              uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+              with:
+                  path: ~/.cache/destack/durations.json
+                  key: destack-test-durations-${{ runner.os }}-${{ github.sha }}-${{ github.run_attempt }}
 
     macos:
         name: Test updates on macOS
