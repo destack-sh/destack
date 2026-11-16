@@ -669,7 +669,9 @@ class Reconcile {
     #served(rows: readonly Binding[]): WorkloadServed[] {
         return rows.flatMap((row) => {
             // take the versioned bindings of a served kind
-            const kind = this.#options.bindingKinds.find((each) => each.object.identifies(row.target));
+            const kind = this.#options.bindingKinds.find((each) =>
+                each.object.identifies(row.target),
+            );
 
             return kind !== undefined && row.version !== null
                 ? [
