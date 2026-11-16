@@ -1139,7 +1139,7 @@ test("take a cursor's changes once its first untaken one is a batch old, at the 
     expect(taken).toEqual([50, 110]);
 });
 
-test("project every key at each start, as its process may have changed, and the keys a change touches while running", async () => {
+test("project every key at the first start, then only the keys the changes past the loop's position touch, across restarts", async () => {
     // record notes in two spaces before the first start
     await using simulation = testSimulation();
     const { database } = await openJobs(simulation, [note, lock]);
@@ -1157,6 +1157,7 @@ test("project every key at each start, as its process may have changed, and the 
         key: "scope",
         watches: [{ table: note, on: { scope: "scope" } }],
         all: { table: note, column: "scope" },
+        result: "rows",
         project: async (key) => {
             projected.push(key);
         },
@@ -1166,7 +1167,7 @@ test("project every key at each start, as its process may have changed, and the 
         const loop = new ControlLoop(
             database,
             [{ controllers: [], projections: [projection], cursors: [] }],
-            { report: ignore },
+            { report: ignore, position: "control" },
         );
         const run = loop.run(stopping.signal);
         await loop.idle();
@@ -1177,15 +1178,16 @@ test("project every key at each start, as its process may have changed, and the 
         };
     };
 
-    // project both at the first start, then the one a note touches
+    // project both at the first start, which places the position, then the one a note touches
     const stop = await start();
     const initial = projected.splice(0);
+    const isPlaced = (await database.log.checkpoint("control")) !== undefined;
     await append("third", "b");
     await simulation.waitUntil(() => projected.length > 0);
     const changed = projected.splice(0);
     await stop();
 
-    // project every space again at a restart, and at the next one after a note changed while stopped
+    // project nothing at an unchanged restart, and the space a note touched while stopped at the next
     const unchanged = await start();
     const restarted = projected.splice(0);
     await unchanged();
@@ -1193,21 +1195,121 @@ test("project every key at each start, as its process may have changed, and the 
     const caught = await start();
     const resumed = projected.splice(0);
     await caught();
-    expect({
-        initial: initial.toSorted(),
-        changed,
-        restarted: restarted.toSorted(),
-        resumed: resumed.toSorted(),
-    }).toEqual({
+    expect({ initial: initial.toSorted(), isPlaced, changed, restarted, resumed }).toEqual({
         initial: ["a", "b"],
+        isPlaced: true,
         changed: ["b"],
-        restarted: ["a", "b"],
-        resumed: ["a", "b"],
+        restarted: [],
+        resumed: ["a"],
     });
 });
 
-test("list a late set's projection keys once it activates", async () => {
-    // project the spaces with notes
+test("project a key again that was running when the loop stopped", async () => {
+    // record a note, and project its space until the loop stops the first time
+    await using simulation = testSimulation();
+    const { database } = await openJobs(simulation, [note, lock]);
+    const append = (id: string, scope: string) =>
+        database.transaction((transaction) =>
+            transaction.insert(note).values({ id, scope }).execute(),
+        );
+    await append("first", "a");
+    const projected: string[] = [];
+    let isHeld = false;
+    const projection: Projection = {
+        name: "note-spaces",
+        key: "scope",
+        watches: [{ table: note, on: { scope: "scope" } }],
+        all: { table: note, column: "scope" },
+        result: "rows",
+        project: async (key, reconciliation) => {
+            projected.push(key);
+            if (isHeld) {
+                await waitAborted(reconciliation.signal);
+            }
+        },
+    };
+    const start = () => {
+        const stopping = new AbortController();
+        const loop = new ControlLoop(
+            database,
+            [{ controllers: [], projections: [projection], cursors: [] }],
+            { report: ignore, position: "control" },
+        );
+        const run = loop.run(stopping.signal);
+
+        return {
+            loop,
+            stop: async () => {
+                stopping.abort();
+                await run;
+            },
+        };
+    };
+
+    // place the position, then stop while a changed space still projects
+    const first = start();
+    await first.loop.idle();
+    projected.splice(0);
+    isHeld = true;
+    await append("second", "b");
+    await simulation.waitUntil(() => projected.length > 0);
+    const held = projected.splice(0);
+    await first.stop();
+
+    // project the space again at the next start, as its pass never finished
+    isHeld = false;
+    const second = start();
+    await second.loop.idle();
+    const resumed = projected.splice(0);
+    await second.stop();
+    expect({ held, resumed }).toEqual({ held: ["b"], resumed: ["b"] });
+});
+
+test("list a projection kept in the process at each start, beside one continuing from the position", async () => {
+    // record a note, and project its space into rows and into the process
+    await using simulation = testSimulation();
+    const { database } = await openJobs(simulation, [note, lock]);
+    await database.transaction((transaction) =>
+        transaction.insert(note).values({ id: "first", scope: "a" }).execute(),
+    );
+    const projected: string[] = [];
+    const projectionOf = (name: string, result: Projection["result"]): Projection => ({
+        name,
+        key: "scope",
+        watches: [{ table: note, on: { scope: "scope" } }],
+        all: { table: note, column: "scope" },
+        result,
+        project: async (key) => {
+            projected.push(`${name} ${key}`);
+        },
+    });
+    const start = async () => {
+        const stopping = new AbortController();
+        const projections = [projectionOf("rows", "rows"), projectionOf("process", "process")];
+        const loop = new ControlLoop(database, [{ controllers: [], projections, cursors: [] }], {
+            report: ignore,
+            position: "control",
+        });
+        const run = loop.run(stopping.signal);
+        await loop.idle();
+        stopping.abort();
+        await run;
+
+        // read which projections ran, as a key may project again for a change the listing already saw
+        return [...new Set(projected.splice(0))].toSorted();
+    };
+
+    // project both at the first start, and the one kept in the process alone at an unchanged restart
+    const initial = await start();
+    const restarted = await start();
+    expect({ initial, restarted }).toEqual({
+        initial: ["process a", "rows a"],
+        restarted: ["process a"],
+    });
+});
+
+test("replay a late set's projection from the position", async () => {
+    // place the position
     await using simulation = testSimulation();
     const { database } = await openJobs(simulation, [note, lock]);
     const append = (id: string, scope: string) =>
@@ -1221,6 +1323,7 @@ test("list a late set's projection keys once it activates", async () => {
         key: "scope",
         watches: [{ table: note, on: { scope: "scope" } }],
         all: { table: note, column: "scope" },
+        result: "rows",
         project: async (key) => {
             projected.push(key);
         },
@@ -1231,7 +1334,7 @@ test("list a late set's projection keys once it activates", async () => {
         const loop = new ControlLoop(
             database,
             [activation === undefined ? set : { ...set, activation: () => activation }],
-            { report: ignore },
+            { report: ignore, position: "control" },
         );
         const run = loop.run(stopping.signal);
         await loop.idle();
@@ -1247,7 +1350,7 @@ test("list a late set's projection keys once it activates", async () => {
     await (await start()).stop();
     projected.splice(0);
 
-    // note a second space, then start inactive
+    // note a space, then start inactive
     await append("second", "b");
     const activated = Promise.withResolvers<void>();
     const waiting = await start(activated.promise);
@@ -1259,7 +1362,7 @@ test("list a late set's projection keys once it activates", async () => {
     await waiting.loop.idle();
     const after = projected.splice(0);
     await waiting.stop();
-    expect({ before, after: after.toSorted() }).toEqual({ before: [], after: ["a", "b"] });
+    expect({ before, after }).toEqual({ before: [], after: ["b"] });
 });
 
 test("wake a row at its earliest OR branch's time, a branch with a missing time leaving it", async () => {
@@ -1409,6 +1512,59 @@ test("take a cursor once more after a commit to an unlogged table it reads, then
     await waitEqual(simulation, () => takes, before + 1);
     await loop.idle();
     expect(takes).toBe(before + 1);
+});
+
+test("project every key again once the changes past the loop's position were compacted while stopped", async () => {
+    // project the spaces with notes, resuming from the loop's position
+    await using simulation = testSimulation();
+    const { database, world } = await openJobs(simulation, [note, lock]);
+    const append = (id: string, scope: string) =>
+        database.transaction((transaction) =>
+            transaction.insert(note).values({ id, scope }).execute(),
+        );
+    await append("first", "a");
+    const projected: string[] = [];
+    const projection: Projection = {
+        name: "note-spaces",
+        key: "scope",
+        watches: [{ table: note, on: { scope: "scope" } }],
+        all: { table: note, column: "scope" },
+        result: "rows",
+        project: async (key) => {
+            projected.push(key);
+        },
+    };
+    const start = async () => {
+        const stopping = new AbortController();
+        const loop = new ControlLoop(
+            database,
+            [{ controllers: [], projections: [projection], cursors: [] }],
+            { report: ignore, position: "control" },
+        );
+        const run = loop.run(stopping.signal);
+        await loop.idle();
+
+        return async () => {
+            stopping.abort();
+            await run;
+        };
+    };
+    await (
+        await start()
+    )();
+    projected.splice(0);
+
+    // note a second space while stopped
+    await append("second", "b");
+
+    // compact the log past the position's expired hold
+    const expired = world.clock.now() + 8 * 24 * 60 * 60_000;
+    await database.log.compact(expired, expired);
+
+    // project both again
+    const stop = await start();
+    await stop();
+    expect(projected.toSorted()).toEqual(["a", "b"]);
 });
 
 test("select a reloaded table's changes by its name, reading pending rows through a table defined anew", async () => {

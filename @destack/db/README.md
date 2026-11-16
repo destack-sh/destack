@@ -244,17 +244,15 @@ export const countNotes = (write: (account: string) => Promise<void>): Projectio
     name: "note-usage",
     key: "account",
     all: { table: space, column: "account" },
-    watches: [
-        { table: space },
-        { table: note, path: [relations.get(note, "space")] },
-    ],
+    watches: [{ table: space }, { table: note, path: [relations.get(note, "space")] }],
     project: (account) => write(account),
 });
 ```
 
 ### ControlLoop
 
-A `ControlLoop` runs sets of controllers, projections and cursors, starts a set once its `activation` resolves, and lists every job again at each start.
+A `ControlLoop` runs sets of controllers, projections and cursors, and starts a set once its `activation` resolves.
+After a restart it continues a projection whose `result` is `"rows"` from its `position`, and lists every other job again.
 
 ```ts
 import { ControlLoop, type DatabaseConnection, type Projection } from "@destack/db";
@@ -268,7 +266,7 @@ export async function project(
 ) {
     // run the projection after the replicas sync
     const sets = [{ controllers: [], projections: [projection], cursors: [], activation: synced }];
-    const loop = new ControlLoop(database, sets, { report: console.error });
+    const loop = new ControlLoop(database, sets, { report: console.error, position: "control" });
     void loop.run(signal);
 
     // wait until nothing is due among the active sets
@@ -622,8 +620,8 @@ Controllers basically follow Kubernetes: they're level-triggered and converge ro
 | Kubernetes                                       | `@destack/db`                      | Difference                                                                      |
 | ------------------------------------------------ | ---------------------------------- | ------------------------------------------------------------------------------- |
 | A watched resource                               | `table` and `pending`              | The rows with work are a query.                                                 |
-| `Watches(...)` with `EnqueueRequestsFromMapFunc` | `watches` with `on` or a `path`    | The mapping is declared as references.                                          |
-| The informer's list at start                     | the loop's listing at each start   | Every job lists its keys again at each start.                                   |
+| `Watches(...)` with `EnqueueRequestsFromMapFunc` | `watches` with `on` or a `path`    | The mapping is declared as references, so a restart replays it from the log.    |
+| `resourceVersion`                                | the loop's `position`              | One position covers the projections whose result is rows.                       |
 | `Reconcile(request)`                             | `reconcile(rows)`                  | Takes the rows of one key.                                                      |
 | `RequeueAfter`                                   | a `pending` time compared to `now` | The loop wakes at the earliest due row.                                         |
 | The work queue                                   | `ControlLoop`                      | Keys are deduplicated, and commits to an unlogged table wake a controller once. |
