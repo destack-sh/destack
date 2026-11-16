@@ -1,7 +1,7 @@
 import { through } from "@destack/access";
 import { space } from "@destack/account/object";
 import { argument, plural, t } from "@destack/locale";
-import { defineObject, field } from "@destack/object";
+import { archivable, defineObject, field } from "@destack/object";
 import { schema } from "@destack/schema";
 
 /** A time box in a space that tasks are planned into. */
@@ -28,4 +28,5 @@ export const cycle = defineObject({
         counted: { kind: "check", condition: { number: { gte: 1 } } },
         span: { kind: "check", condition: { endsAt: { gt: { field: "startsAt" } } } },
     },
+    traits: [archivable({ by: "write" })],
 });

@@ -1,7 +1,7 @@
 import { through } from "@destack/access";
 import { space } from "@destack/account/object";
 import { argument, plural, t } from "@destack/locale";
-import { defineObject, field } from "@destack/object";
+import { archivable, defineObject, field } from "@destack/object";
 import { schema } from "@destack/schema";
 
 /** A tag in a space that sorts tasks across projects. */
@@ -19,4 +19,5 @@ export const label = defineObject({
         /** The label's color, as a CSS color. */
         color: field.string(schema.string().max(32)).default("gray"),
     },
+    traits: [archivable({ by: "write" })],
 });

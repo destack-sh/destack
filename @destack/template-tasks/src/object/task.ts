@@ -3,6 +3,7 @@ import { space } from "@destack/account/object";
 import { argument, plural, t } from "@destack/locale";
 import {
     activity,
+    archivable,
     defineObject,
     field,
     nested,
@@ -69,6 +70,7 @@ export const task = defineObject({
         nested({ in: "self", optional: true, delete: "trash", add: "write" }),
         tracked({ by: "write", activity }),
         recoverable({ within: { days: 30 }, by: "write" }),
+        archivable({ by: "write" }),
     ],
 });
 

@@ -3,6 +3,7 @@ import { space } from "@destack/account/object";
 import { argument, plural, t } from "@destack/locale";
 import {
     activity,
+    archivable,
     defineObject,
     field,
     presentable,
@@ -41,5 +42,6 @@ export const project = defineObject({
         searchable({ text: ["name", "summary"], sort: ["name"] }),
         tracked({ by: "write", activity }),
         recoverable({ within: { days: 30 }, by: "write" }),
+        archivable({ by: "write" }),
     ],
 });
