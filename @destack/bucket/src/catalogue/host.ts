@@ -125,9 +125,11 @@ export abstract class CatalogueBucketHost<Opened extends CatalogueBucket = Catal
 
     /** Close a bucket opened before. */
     async close(bucket: Pick<BucketReference, "bucketId">): Promise<void> {
-        const opened = this.#buckets.get(bucket.bucketId);
+        // close nothing of an open that failed, which its opener answers
+        const opening = this.#buckets.get(bucket.bucketId);
         this.#buckets.delete(bucket.bucketId);
-        await (await opened)?.[Symbol.asyncDispose]();
+        const opened = await opening?.catch(() => undefined);
+        await opened?.[Symbol.asyncDispose]();
     }
 
     /** Close every opened bucket. */
