@@ -1,83 +1,156 @@
 import { Uuid } from "@destack/schema";
 import type { ObjectOf, ObjectType } from "../object/index.ts";
-import { Sequence, type Run, type TextChange } from "../sequence/index.ts";
-import { Undo } from "../text/chunk.ts";
+import { TextRope, TextSequence, type TextChange, type TextEdit } from "../sequence/index.ts";
 import { chunk } from "../text/table.ts";
-import type { ObjectClient, Submission } from "./client.ts";
+import type { LiveQuery, ObjectClient, Submission } from "./client.ts";
+import { Observable } from "./observable.ts";
 
-/** One text field of an object, followed as its sequence and changed by visible offsets. */
-export interface LiveText {
+/** A chunk row of the replica. */
+type TextRow = Pick<typeof chunk.$inferSelect, "runs" | "marks">;
+
+/** One text field of an object as an editor edits it. */
+export class TextDocument {
     /** Settles once the replica has the text. */
     readonly ready: Promise<void>;
-    /** Read the text's sequence, predictions included. */
-    readonly read: () => Promise<Sequence>;
-    /** Yield the sequence now and again after each change. */
-    readonly watch: (signal: AbortSignal) => AsyncGenerator<Sequence>;
-    /** Replace the text between two offsets, after every earlier change, as one predicted edit. */
-    readonly change: (change: TextChange) => Promise<Submission<Undo>>;
-    /** Stop following the text. */
-    readonly close: () => Promise<void>;
-}
+    /** The client editing the text. */
+    readonly #client: ObjectClient;
+    /** The object type with the text. */
+    readonly #object: ObjectType;
+    /** The object's identifier. */
+    readonly #id: string;
+    /** The text field. */
+    readonly #field: string;
+    /** The run of the elements this document types, renewed after a refusal. */
+    #site: string;
+    /** The offset of the next element this document types. */
+    #clock = 0;
+    /** The live query of the field's chunks. */
+    readonly #query: LiveQuery<readonly TextRow[]>;
+    /** The sequence of each chunk row of the replica, by row. */
+    #rows = new Map<TextRow, TextSequence>();
+    /** The edit calls whose prediction the replica lacks, in order. */
+    #pending: (readonly TextEdit[])[] = [];
+    /** The text with the pending edits. */
+    readonly #rope = new Observable(new TextRope());
+    /** Stops following the replica. */
+    readonly #stop = new AbortController();
+    /** Settles once the document stops following the replica. */
+    readonly #following: Promise<void>;
 
-/** Follow text fields on a client. */
-export const LiveText = {
-    /** Follow one text field of an object as its sequence, changing it by visible offsets. */
-    open(client: ObjectClient, object: ObjectType, id: string, field: string): LiveText {
-        // follow the field's chunks in position order
-        const chunks = client.objects.find((type) => LiveText.isChunkType(type));
+    /** Follow one text field of an object on a client. */
+    constructor(client: ObjectClient, object: ObjectType, id: string, field: string) {
+        // require a text field served with chunks
+        const chunks = client.objects.find((type) => TextDocument.isChunkType(type));
         if (chunks === undefined || !object.text.includes(field)) {
-            throw new TypeError(`object ${object.name} has no text field '${field}'`);
+            throw new TypeError(`object '${object.name}' has no text field '${field}'`);
         }
+        this.#client = client;
+        this.#object = object;
+        this.#id = id;
+        this.#field = field;
+        this.#site = Uuid.v7(client.environment);
+
+        // follow the field's chunks in position order
         const query = client
             .queryType(chunks)
             .findMany({
-                where: { parentType: object.name, parentId: id, field: field },
+                where: { parentType: object.name, parentId: id, field },
                 orderBy: { position: "asc" },
             })
             .subscribe();
+        this.#query = query;
+        this.ready = query.ready.then(async () => this.#rebase(await query.read()));
 
-        // apply changes in order against the text of the previous change
-        let previous: Promise<unknown> = Promise.resolve();
-        const change = (replaced: TextChange) => {
-            const next = previous.then(async () => {
-                // translate the offsets against the current text, edit, and wait for the prediction
-                const edits = LiveText.sequence(await query.read()).change(
-                    replaced,
-                    Uuid.v7(client.environment),
-                );
-                const editing = client.call(object, "edit", { id, field, edits });
-                const predicted = editing.predicted.then((value) => Undo.parse(value));
-                await predicted;
+        // take every change the replica sees until closed
+        this.#following = (async () => {
+            for await (const rows of query.watch(this.#stop.signal)) {
+                this.#rebase(rows);
+            }
+        })();
+    }
 
-                return { predicted, confirmed: editing.confirmed };
-            });
+    /** The text as it stands here, with the pending edits. */
+    get rope(): TextRope {
+        return this.#rope.value;
+    }
 
-            // preserve the order after a failed change, whose failure its caller awaits via next
-            previous = next.catch(() => {});
+    /** Yield the text now and again after each change, local or from the replica. */
+    watch(signal: AbortSignal): AsyncGenerator<TextRope> {
+        return this.#rope.watch(signal);
+    }
 
-            return next;
+    /** Replace visible characters between two offsets. */
+    change(change: TextChange): Submission<void> {
+        const edits = this.rope.change(change, { run: this.#site, offset: this.#clock });
+        this.#clock += change.insert.length;
+
+        return this.edit(edits);
+    }
+
+    /** Apply edits here at once and call the object's edit method with them, none for no edits. */
+    edit(edits: readonly TextEdit[]): Submission<void> {
+        // send nothing for no edits
+        if (edits.length === 0) {
+            return { predicted: Promise.resolve(), confirmed: Promise.resolve() };
+        }
+
+        // apply the edits here
+        this.#pending.push(edits);
+        this.#rope.set(edits.reduce((rope, edit) => rope.apply(edit), this.rope));
+
+        // predict and push them as one call
+        const submission = this.#client.call(this.#object, "edit", {
+            id: this.#id,
+            field: this.#field,
+            edits,
+        });
+
+        // drop them once their prediction lands or fails, and renew the site after a refusal
+        const landed = async () => {
+            this.#pending = this.#pending.filter((pending) => pending !== edits);
+            this.#rebase(await this.#query.read());
         };
+        void submission.predicted.then(landed, landed);
+        submission.confirmed.catch(() => this.#renew());
 
-        return {
-            ready: query.ready,
-            read: async () => LiveText.sequence(await query.read()),
-            watch: async function* (signal) {
-                for await (const rows of query.watch(signal)) {
-                    yield LiveText.sequence(rows);
-                }
-            },
-            change,
-            close: () => query.close(),
-        };
-    },
+        return { predicted: submission.predicted.then(() => {}), confirmed: submission.confirmed };
+    }
+
+    /** Stop following the text. */
+    async close(): Promise<void> {
+        // stop the follow loop, then the query and the rope
+        this.#stop.abort();
+        await this.#following;
+        await this.#query.close();
+        this.#rope.close();
+    }
+
+    /** Type into a new run, after the store refused elements of the current one. */
+    #renew(): void {
+        this.#site = Uuid.v7(this.#client.environment);
+        this.#clock = 0;
+    }
+
+    /** Take the replica's chunks and apply the pending edits over them. */
+    #rebase(rows: readonly TextRow[]): void {
+        // read each new row's sequence once
+        const known = this.#rows;
+        this.#rows = new Map(
+            rows.map((row) => [row, known.get(row) ?? TextDocument.sequence(row)]),
+        );
+
+        // apply the edits the replica lacks
+        const replica = new TextRope([...this.#rows.values()]);
+        this.#rope.set(this.#pending.flat().reduce((rope, edit) => rope.apply(edit), replica));
+    }
+
+    /** Read a chunk row's sequence. */
+    static sequence(row: TextRow): TextSequence {
+        return new TextSequence(row.runs, row.marks);
+    }
 
     /** Report whether an object type stores its rows in the chunk table, without guarded fields. */
-    isChunkType(type: ObjectType): type is ObjectOf<{ table: typeof chunk; fields: {} }> {
+    static isChunkType(type: ObjectType): type is ObjectOf<{ table: typeof chunk; fields: {} }> {
         return type.table === chunk;
-    },
-
-    /** Assemble a text's sequence from its chunks in position order. */
-    sequence(rows: readonly { readonly runs: readonly Run[] }[]): Sequence {
-        return new Sequence(rows.flatMap((row) => row.runs));
-    },
-};
+    }
+}

@@ -81,7 +81,7 @@ import { ObjectPolicy } from "../object/access.ts";
 
 import type { NestedItem } from "../query/item.ts";
 import { RelationGraph } from "../query/query.ts";
-import { TextPresenter } from "../text/chunk.ts";
+import { TextPresenter } from "./presenter.ts";
 import {
     RelationalQuery,
     ObjectQueryBuilder,
@@ -92,6 +92,7 @@ import {
 
 import type {} from "@destack/package/import-meta";
 
+import { TextDocument } from "./text.ts";
 /** The method kinds with predictions that read only their object's and parent's tables. */
 const STANDARD_KINDS: ReadonlySet<string> = new Set([
     "create",
@@ -791,6 +792,11 @@ export class ObjectClient<
             predicted: pending.predicted.then(() => result),
             confirmed: pending.confirmed,
         };
+    }
+
+    /** Open one text field of an object for editing. */
+    text(object: ObjectType, id: string, field: string): TextDocument {
+        return new TextDocument(this, object, id, field);
     }
 
     /** Predict several calls together and queue them as one mutation. */
