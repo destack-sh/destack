@@ -1,7 +1,7 @@
-import { DeclarationName, PackageId } from "@destack/package";
+import { CommandReference } from "@destack/object";
 import { ObjectReference } from "@destack/sync";
 import { schema } from "@destack/schema";
-import { RegisteredCommand } from "./registry.ts";
+import { ActionEntry } from "./entry.ts";
 
 /** A message between a page and the palette framed over it. */
 export const PaletteMessage = schema.discriminatedUnion("action", [
@@ -10,26 +10,22 @@ export const PaletteMessage = schema.discriminatedUnion("action", [
         action: schema.literal("palette.close"),
     }),
     schema.object({
-        /** Ask the page for the commands its view registers, from the frame. */
-        action: schema.literal("commands.list"),
+        /** Ask the page for the actions it handles, from the frame. */
+        action: schema.literal("actions.list"),
     }),
     schema.object({
-        /** Answer the frame with the commands the view registers. */
-        action: schema.literal("commands.listed"),
-        /** The package serving the view. */
-        packageId: PackageId,
-        /** The commands. */
-        commands: schema.array(RegisteredCommand),
+        /** Answer the frame with the actions the page handles. */
+        action: schema.literal("actions.listed"),
+        /** The actions, as the palette offers them. */
+        actions: schema.array(ActionEntry),
         /** The objects the person selected in the page, which commands on their types act on. */
         selection: schema.array(ObjectReference),
     }),
     schema.object({
-        /** Run a command the view registers, from the frame. */
-        action: schema.literal("command.run"),
-        /** The command's name. */
-        name: DeclarationName,
-        /** The input the palette asked for. */
-        input: schema.jsonObject(),
+        /** Run an action the page handles, from the frame. */
+        action: schema.literal("action.run"),
+        /** The action. */
+        command: CommandReference,
     }),
 ]);
 /** A message between a page and the palette framed over it. */

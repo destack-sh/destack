@@ -17,6 +17,7 @@ import { reportToDevtools, startTelemetry } from "@destack/telemetry/browser";
 import { OTLP_ORIGIN_PATH, OtlpExporter } from "@destack/telemetry/otlp";
 import { CLIENT_PATH, CONTEXT_ELEMENT, HOME_PATH, ViewContext } from "../declare/context.ts";
 import type { CommandDeclaration } from "../palette/keybinding.ts";
+import { PageUndo } from "../page/undo.ts";
 import { account, space, user } from "@destack/account/object";
 import { deviceSetting, setting, SettingValue } from "@destack/setting/object";
 import { Theme, type ThemeDescription } from "@destack/theme";
@@ -30,7 +31,7 @@ import { recordVisits } from "./visit.ts";
 import { mountPackages } from "../page/view.ts";
 import { PageAuthorization } from "./authorization.ts";
 import { PaletteOverlay } from "../palette/overlay.ts";
-import { CommandRegistry } from "../palette/registry.ts";
+import { ActionRegistry, palette, redo, undo } from "../page/action.ts";
 import { ViewError } from "../error/error.ts";
 
 /** Mount a view with its package's theme and commands once its scopes' objects are open. */
@@ -94,7 +95,7 @@ export async function mount(
         declared.theme === undefined
             ? destackTheme
             : new Theme(declared.theme.package, declared.theme);
-    const page = { context, packageId: view.package.id, theme, commands: declared.commands };
+    const page = { context, packageId: view.package.id, theme };
     const shown =
         device === undefined
             ? visitor(page, environment.locale)
@@ -111,16 +112,16 @@ export async function mount(
     const first = opened.value;
     restyle(first);
 
-    // render the root component under the view, its clients and its commands, once its package's catalogs arrive
+    // render the root component under the view, its clients and its actions, once its package's catalogs arrive
     const { default: Component } = await view.component();
-    const commands = new CommandRegistry();
+    const actions = new ActionRegistry();
     const rendering = await LocalizedRendering.open(
         (locale, localization) =>
             renderView(Component, document.body, {
                 package: { ...view.package, version: release },
                 environment: { ...environment, telemetry },
                 localization,
-                mount: { context, clients, packages, origin: call, commands },
+                mount: { context, clients, packages, origin: call, actions },
             }),
         {
             owner: view.package.id,
@@ -132,22 +133,40 @@ export async function mount(
         },
     );
 
-    // open the command palette over the view by the person's keybindings
-    let bound = first;
-    new PaletteOverlay({
-        commands,
-        packageId: view.package.id,
+    // run the person's key combinations and open the command palette over the view
+    let presented = first;
+    const overlay = new PaletteOverlay({
+        actions,
+        commands: declared.commands,
         navigation,
         localization: () => rendering.localization,
-        bindings: () => bound,
-    }).listen(stopping.signal);
+        presentation: () => presented,
+    });
+    overlay.listen(stopping.signal);
+
+    // handle the standard actions: undo and redo across the page's scopes, a group per gesture, and the palette
+    const pageUndo = new PageUndo([...clients.values()].map((client) => client.undoStack));
+    pageUndo.listen(stopping.signal);
+    actions.handle(undo, {
+        run: async () => {
+            await pageUndo.undo();
+        },
+        isEnabled: pageUndo.canUndo,
+    });
+    actions.handle(redo, {
+        run: async () => {
+            await pageUndo.redo();
+        },
+        isEnabled: pageUndo.canRedo,
+    });
+    actions.handle(palette, { run: () => overlay.open() });
 
     // restyle on each change, render again in a new language and follow the keybindings
     void (async () => {
         for await (const next of shown) {
             restyle(next);
             rendering.switch(next.locale);
-            bound = next;
+            presented = next;
         }
     })().catch((error: unknown) => {
         if (!stopping.signal.aborted) {

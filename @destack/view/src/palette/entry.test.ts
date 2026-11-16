@@ -1,7 +1,6 @@
 import { PackageId } from "@destack/package";
 import { schema } from "@destack/schema";
 import { expect, test } from "@destack/test";
-import { CommandReference } from "@destack/object";
 import { Palette, type PaletteEntry, PaletteFocus } from "./entry.ts";
 
 /** The package declaring the tasks and their commands. */
@@ -169,19 +168,3 @@ function thrown(read: () => unknown): readonly [string, string] {
     }
     throw new TypeError("the read returned");
 }
-
-test("read a command's keybinding: the person's own, none once unbound, else the declared one", () => {
-    const complete = { packageId: TASKS, name: "complete" };
-    const archive = { packageId: TASKS, name: "archive" };
-    const overrides = {
-        [CommandReference.format(complete)]: "mod+shift+c",
-        [CommandReference.format(archive)]: null,
-    };
-
-    expect([
-        Palette.keybinding(complete, "mod+k", overrides),
-        Palette.keybinding(archive, "mod+a", overrides),
-        Palette.keybinding({ packageId: NOTES, name: "archive" }, "mod+e", overrides),
-        Palette.keybinding({ packageId: NOTES, name: "pin" }, undefined, overrides),
-    ]).toEqual(["mod+shift+c", null, "mod+e", null]);
-});

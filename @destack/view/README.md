@@ -9,6 +9,7 @@ Build a package's views with Solid, reading and changing its space's objects liv
 Packages declare views:
 
 - `defineView`: a page of a package, with the object types it opens and presents.
+- `defineAction`: an operation of an open view, run from its keys, the palette and menus.
 
 Components read and change objects live:
 
@@ -16,6 +17,7 @@ Components read and change objects live:
 - `useQuery`: a relational query, followed live.
 - `useForm` and `useText`: a method's input as a form, and a collaborative text field.
 - `useSetting`: a person's setting, followed live.
+- `handleAction`: run an action while the component is mounted.
 
 Pages render and route:
 
@@ -86,11 +88,75 @@ A static view has an `origin`, `pages` with its paths, an optional `document`, a
 `useSpace({ note })` answers `query.note.findMany(…)`, as in `@destack/db`, and `mutate.note.update(…)`, as in `@destack/object`.
 `useQuery(query)` follows a query, pending until the replica has it, and writes show at once.
 
+### Actions
+
+`defineAction(definition)` declares an operation of an open view, and `handleAction(action, handler)` runs it while a component is mounted.
+Its keys run it outside form fields, unless its `focus` is `"any"`.
+
+| Option          | What it is                                                |
+| --------------- | --------------------------------------------------------- |
+| `name`, `title` | the name, unique among the package's actions and commands |
+| `category`      | the group menus and the palette show it under             |
+| `keybinding`    | the key combination, such as `"mod+shift+g"`              |
+| `focus`         | `"page"` by default, outside form fields, or `"any"`      |
+
+### Handlers
+
+`handleAction` picks a handler as macOS's responder chain does: the innermost one `within` the focus, else the page's, while `isEnabled` reads true.
+
+| Field       | What it is                                                                      |
+| ----------- | ------------------------------------------------------------------------------- |
+| `run`       | runs the action                                                                 |
+| `within`    | the element focus is within for the handler to run                              |
+| `isEnabled` | a Solid accessor: false leaves the keys to the page and hides it in the palette |
+
+### Standard actions
+
+Every page handles the standard actions, which the `keybindings` setting rebinds by `<package>/<name>` as VS Code's `keybindings.json` does.
+
+| Action         | Keys    | What it does                                                     |
+| -------------- | ------- | ---------------------------------------------------------------- |
+| `undo`, `redo` | ⌘Z, ⇧⌘Z | undo or redo the person's newest change across the page's scopes |
+| `palette`      | ⌘K      | open the command palette, from fields too                        |
+
 ### Primitives
 
 Each primitive is `@destack/view/primitives/<name>`, after Solid Primitives: `active-element`, `audio`, `bounds`, `clipboard`, `connectivity`, `cursor`, `devices`, `event-dispatcher`, `event-listener`, `event-props`, `favicon`, `focus`, `fullscreen`, `geolocation`, `idle`, `input-mask`, `intersection-observer`, `keyboard`, `media`, `mediastream`, `mutation-observer`, `notification`, `orientation`, `page-visibility`, `permission`, `pointer`, `raf`, `resize-observer`, `scheduled`, `scroll`, `selection`, `sensors`, `share`, `storage`, `styles`, `timer`, `upload`, `utils`, `vibrate`, `video`.
 
 ## Examples
+
+### Bold the focused editor's selection
+
+`handleAction` runs `bold` for the editor that has focus, while it has a selection.
+
+```tsx
+import { t } from "@destack/locale";
+import { createSignal, handleAction } from "@destack/view";
+import { defineAction } from "@destack/view/declare";
+
+// declare bolding the selected text
+export const bold = defineAction({
+    name: "bold",
+    title: t`Bold`,
+    category: t`Format`,
+    keybinding: "mod+b",
+});
+
+/** Bold this editor's selection on the person's keys or from the palette, while it has focus. */
+export function Editor(properties: {
+    readonly hasSelection: () => boolean;
+    readonly bold: () => void;
+}) {
+    const [element, setElement] = createSignal<HTMLTextAreaElement>();
+    handleAction(bold, {
+        run: () => properties.bold(),
+        within: element,
+        isEnabled: properties.hasSelection,
+    });
+
+    return <textarea ref={setElement} />;
+}
+```
 
 ### Edit an object with a form
 

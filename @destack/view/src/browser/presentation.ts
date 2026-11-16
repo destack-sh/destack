@@ -4,10 +4,9 @@ import { principal } from "@destack/access";
 import { schema } from "@destack/schema";
 import type { DeviceSettingValue, SettingValue } from "@destack/setting/object";
 import { type Theme } from "@destack/theme";
-import { type Shortcut, CommandReference } from "@destack/object";
+import type { Shortcut } from "@destack/object";
 import type { ViewContext } from "../declare/context.ts";
-import type { CommandDeclaration, Keybinding } from "../palette/keybinding.ts";
-import { keybindings, Palette, sources } from "../palette/index.ts";
+import { keybindings, sources } from "../palette/index.ts";
 import { DISPLAY_SETTINGS, resolveDisplay } from "../setting/display.ts";
 
 /** What a page presents for its person: their language, the theme's style and their keybindings. */
@@ -16,16 +15,16 @@ export interface Presentation {
     readonly locale: LocaleTag;
     /** The theme's custom properties and color scheme for the person's display settings. */
     readonly style: Readonly<Record<string, string>>;
-    /** The key combinations running the installation's commands, for the person. */
-    readonly keybindings: readonly Keybinding[];
     /** The person's key combinations by command key, null for one turned off. */
-    readonly overrides: Readonly<Record<string, Shortcut | null>>;
+    readonly keybindings: Readonly<Record<string, Shortcut | null>>;
+    /** Whether the person offers the package's commands. */
+    readonly isOffered: boolean;
 }
 
 /** The settings a presentation reads in the person's own scope. */
 export const PRESENTED_SETTINGS = [...DISPLAY_SETTINGS, keybindings.reference, sources.reference];
 
-/** A page as its person reads it: its context, package, theme and declared commands. */
+/** A page as its person reads it: its context, package and theme. */
 export interface Page {
     /** Where and for whom the view runs. */
     readonly context: ViewContext;
@@ -33,8 +32,6 @@ export interface Page {
     readonly packageId: PackageId;
     /** The theme the page shows in. */
     readonly theme: Theme;
-    /** The commands the package declares, with their key combinations. */
-    readonly commands: readonly CommandDeclaration[];
 }
 
 /** The resolution of a page's presentation from its person's settings and language. */
@@ -55,25 +52,16 @@ export const Presentation = {
             installation: schema.identifier("installation").parse(context.installation),
         };
 
-        // resolve the display, and the keybindings of the commands unless the person turned the package off
+        // resolve the display, the person's key combinations, and whether they offer the package's commands
         const { chain } = person;
         const display = resolveDisplay(selection, values, chain, device);
-        const overrides = keybindings.resolve(selection, values, chain, device).value;
-        const isOffered =
-            sources.resolve(selection, values, chain, device).value[packageId] !== false;
-        const bound = page.commands.flatMap((command) => {
-            const keybinding = Palette.keybinding(command, command.keybinding, overrides);
-
-            return keybinding === null
-                ? []
-                : [{ command: CommandReference.format(command), keybinding }];
-        });
+        const offered = sources.resolve(selection, values, chain, device).value;
 
         return {
             locale: person.locale,
             style: theme.variables(display),
-            keybindings: isOffered ? bound : [],
-            overrides: isOffered ? overrides : {},
+            keybindings: keybindings.resolve(selection, values, chain, device).value,
+            isOffered: offered[packageId] !== false,
         };
     },
 };

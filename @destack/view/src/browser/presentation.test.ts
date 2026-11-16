@@ -23,7 +23,7 @@ const notes = PackageVersion.parse({
     version: "2026.9.0",
 });
 
-/** The notes home view's page, whose package declares two commands. */
+/** The notes home view's page. */
 const page: Page = {
     context: {
         installation: schema
@@ -40,13 +40,9 @@ const page: Page = {
     },
     packageId: notes.id,
     theme: destackTheme,
-    commands: [
-        { packageId: notes.id, name: "complete", keybinding: "mod+enter" },
-        { packageId: notes.id, name: "archive" },
-    ],
 };
 
-test("present a page in its person's language, their display settings' style and their keybindings, offering none once they turn the package's commands off, and its device's own values over theirs", async () => {
+test("present a page in its person's language, their display settings' style and their keybindings, offering no commands once they turn the package off, and its device's own values over theirs", async () => {
     // place the person's dark appearance and their keybinding of the archive command, each under its own id
     await using simulation = testSimulation();
     const environment = simulation.environment("page");
@@ -109,27 +105,24 @@ test("present a page in its person's language, their display settings' style and
     const kept = await storage.database.select().from(deviceSetting.table);
     const onDevice = Presentation.resolve(page, person, await values(), kept);
 
-    // expect the person's presentation with their overrides, none once turned off, and the device's style
+    // expect the person's presentation with their keybindings, commands off once turned off, and the device's style
     expect({
         presented,
-        turnedOff: turnedOff.keybindings,
+        turnedOff: turnedOff.isOffered,
         onDevice: onDevice.style,
     }).toEqual({
         presented: {
             locale: "de-AT",
             style: destackTheme.variables({ ...DEFAULT_DISPLAY, appearance: "dark" }),
-            keybindings: [
-                { command: `${notes.id}/complete`, keybinding: "mod+enter" },
-                { command: archive, keybinding: "mod+a" },
-            ],
-            overrides: { [archive]: "mod+a" },
+            keybindings: { [archive]: "mod+a" },
+            isOffered: true,
         },
-        turnedOff: [],
+        turnedOff: false,
         onDevice: destackTheme.variables({ ...DEFAULT_DISPLAY, appearance: "light" }),
     });
 });
 
-test("present a page to an anonymous visitor in the browser's language, the theme's defaults and the package's own keybindings", () => {
+test("present a page to an anonymous visitor in the browser's language and the theme's defaults, without keybindings of their own", () => {
     // present the notes page to a visitor, who keeps no settings anywhere
     const { home: _home, ...context } = page.context;
     const visited: Page = { ...page, context: { ...context, user: ANONYMOUS } };
@@ -137,7 +130,7 @@ test("present a page to an anonymous visitor in the browser's language, the them
     expect(Presentation.resolve(visited, { locale: "fr-FR", chain: [] }, [], [])).toEqual({
         locale: "fr-FR",
         style: destackTheme.variables(DEFAULT_DISPLAY),
-        keybindings: [{ command: `${notes.id}/complete`, keybinding: "mod+enter" }],
-        overrides: {},
+        keybindings: {},
+        isOffered: true,
     });
 });

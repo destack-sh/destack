@@ -27,6 +27,7 @@ import { pagesPlugin } from "./pages.ts";
 import { VIEW_PACKAGE, viewPlugins } from "./plugin.ts";
 import { ViewError } from "../error/error.ts";
 import { VIEW_KIND } from "../declare/view.ts";
+import { ACTION_KIND } from "../declare/action.ts";
 
 /** The prefix of the generated modules rendering each view. */
 export const PREFIX = "virtual:@destack/view/view/";
@@ -93,6 +94,7 @@ export const viewExtension: BuildExtension = {
         const views: Record<string, ViewDescription> = {};
         const located = locate(compilation);
         requireOneTheme(compilation, located.length);
+        requireDistinctActionNames(compilation);
         for (const view of located) {
             const entrypoint = `./view/${view.name}`;
             const emitted = compiled.exports[entrypoint];
@@ -248,6 +250,28 @@ function requireOneTheme(compilation: Compilation, views: number): void {
         throw ViewError.of(
             "MULTIPLE_THEMES_INVALID",
             `package theme set '${themes.map((theme) => theme.name).join(", ")}' is invalid: a package with views declares at most one theme`,
+        );
+    }
+}
+
+/** Refuse an action named as one of the package's commands, whose key combinations share a name. */
+function requireDistinctActionNames(compilation: Compilation): void {
+    // read the names of the package's actions and commands
+    const packaged = compilation.declarations.filter(
+        (declaration) => declaration.symbol.package.id === compilation.package.id,
+    );
+    const named = (kind: typeof ACTION_KIND | typeof COMMAND_KIND) =>
+        packaged
+            .filter((declaration) => kind.is(declaration.kind, declaration.package.id))
+            .map((declaration) => declaration.name);
+    const commands = new Set(named(COMMAND_KIND));
+
+    // refuse the first action a command names
+    const taken = named(ACTION_KIND).find((name) => commands.has(name));
+    if (taken !== undefined) {
+        throw ViewError.of(
+            "ACTION_INVALID",
+            `action '${taken}' is invalid: a command of the package has its name, and both bind keys by name`,
         );
     }
 }

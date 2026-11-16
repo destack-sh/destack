@@ -35,10 +35,21 @@
                     "symbols": "./inspect#viewSymbols"
                 }
             ]
+        },
+        "defineAction": {
+            "describes": [
+                {
+                    "kind": "action",
+                    "function": "./inspect#describeAction"
+                }
+            ]
         }
     },
     "stamps": {
         "defineView": {
+            "module": 1
+        },
+        "defineAction": {
             "module": 1
         }
     },

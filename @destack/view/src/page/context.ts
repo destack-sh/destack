@@ -3,7 +3,7 @@ import type { BrowserEnvironment } from "@destack/environment/browser";
 import type { TelemetryScope } from "@destack/telemetry";
 import type { ClientOptions, ObjectClient } from "@destack/object/client";
 import type { ViewContext } from "../declare/context.ts";
-import type { CommandRegistry } from "../palette/registry.ts";
+import type { ActionRegistry } from "./action.ts";
 
 /** A mounted view. */
 export interface ViewMount {
@@ -15,8 +15,8 @@ export interface ViewMount {
     readonly packages: ReadonlyMap<string, ClientOptions>;
     /** Address a path below the page's origin with the page's credential. */
     readonly origin: (path: string) => ClientOptions;
-    /** The commands the view registers while it runs. */
-    readonly commands: CommandRegistry;
+    /** The actions the page's components handle while they are mounted. */
+    readonly actions: ActionRegistry;
 }
 
 /** The mounted view. */

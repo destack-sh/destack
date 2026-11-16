@@ -14,7 +14,7 @@ import { Loading } from "../solid/flow.ts";
 import { createMemo, onCleanup } from "../solid/reactive.ts";
 import { useEnvironment, type ViewMount, ViewMountContext } from "../page/context.ts";
 import { ViewError } from "../error/error.ts";
-import { CommandRegistry } from "../palette/registry.ts";
+import { ActionRegistry } from "../page/action.ts";
 
 /** The sample space a sample view opens in. */
 const SAMPLE_SPACE = "space-01996ab0-0000-7000-8000-00000000e001";
@@ -114,7 +114,7 @@ async function openSample(
     return {
         component,
         mount: {
-            commands: new CommandRegistry(),
+            actions: new ActionRegistry(),
             context,
             clients,
             packages,

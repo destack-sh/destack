@@ -5,6 +5,7 @@ import { Workspace, CompilerPool } from "@destack/build";
 import { testStore, testSimulation } from "@destack/build/test";
 import { COMMAND_KIND } from "@destack/object";
 import { VIEW_KIND } from "../declare/view.ts";
+import { ACTION_KIND } from "../declare/action.ts";
 import { PackageVersion, type DeclarationDescription } from "@destack/package";
 import type { Compilation, Plugin, PluginOption } from "@destack/package/build";
 import { destackTheme } from "@destack/theme/declare";
@@ -201,6 +202,54 @@ test("generate the module mounting a view with its package's theme and commands,
                 },
             },
         },
+    ]);
+});
+
+test("refuse an action named as one of its package's commands, whose key combinations share the name", async () => {
+    // declare a command and an action both named archive in the notes package
+    const owner = PackageVersion.parse({
+        id: "package-01996ab0-0000-7000-8000-0000000000c1",
+        name: "@example/notes",
+        version: "2026.9.0",
+    });
+    const declaration = (kind: "command" | "action", kindPackageId: string) => ({
+        name: "archive",
+        kind,
+        package: PackageVersion.parse({
+            id: kindPackageId,
+            name: "@destack/kind",
+            version: "2026.9.0",
+        }),
+        symbol: { package: owner, symbol: { module: "src/action.ts", name: "archive" } },
+        source: { file: "src/action.ts", line: 0, column: 0 },
+        description: {},
+    });
+    const compilation: Compilation = {
+        package: owner,
+        directory: "/package",
+        exports: {},
+        runtime: "browser",
+        sandbox: {},
+        declarations: [
+            declaration("command", COMMAND_KIND.packageId),
+            declaration("action", ACTION_KIND.packageId),
+        ],
+        locate: () => ({ file: "/package/src/action.ts", export: "archive" }),
+        entry: () => {},
+    };
+    if (viewExtension.describe === undefined) {
+        throw new TypeError("expected the view build to describe");
+    }
+    const describe = viewExtension.describe;
+
+    expect(
+        await refusal(() =>
+            describe(compilation, { exports: {}, declarations: () => [], stylesheets: () => [] }),
+        ),
+    ).toEqual([
+        "BAD_REQUEST",
+        "ACTION_INVALID",
+        "action 'archive' is invalid: a command of the package has its name, and both bind keys by name",
     ]);
 });
 

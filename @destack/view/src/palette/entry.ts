@@ -2,7 +2,7 @@ import { InstallationOrigin, OPEN_PATH } from "@destack/account/address";
 import { DeclarationName, PackageId } from "@destack/package";
 import { type Identifier, schema } from "@destack/schema";
 import { ObjectReference } from "@destack/sync";
-import { Shortcut, CommandReference } from "@destack/object";
+import { Shortcut } from "@destack/object";
 import { OBJECT_PARAMETER, TARGET_PARAMETER } from "../declare/context.ts";
 
 /** How strongly a title matching the query from its start ranks. */
@@ -21,6 +21,24 @@ export const PaletteSource = schema.union([
 ]);
 /** A source of the palette's entries. */
 export type PaletteSource = schema.Infer<typeof PaletteSource>;
+
+/** An action the page under the palette handles, as the palette offers it. */
+export const ActionEntry = schema.object({
+    /** An action the page under the palette handles, running in it. */
+    kind: schema.literal("action"),
+    /** The package declaring it. */
+    packageId: PackageId,
+    /** The action's name in its package. */
+    name: DeclarationName,
+    /** The title the palette shows, in the person's language. */
+    title: schema.string().min(1),
+    /** The group the palette shows the title under, in the person's language. */
+    category: schema.string().min(1).nullable(),
+    /** The key combination that runs it. */
+    keybinding: Shortcut.nullable(),
+});
+/** An action the page under the palette handles, as the palette offers it. */
+export type ActionEntry = schema.Infer<typeof ActionEntry>;
 
 /** An entry the command palette offers. */
 export const PaletteEntry = schema.discriminatedUnion("kind", [
@@ -48,20 +66,7 @@ export const PaletteEntry = schema.discriminatedUnion("kind", [
         /** The key combination that runs it. */
         keybinding: Shortcut.nullable(),
     }),
-    schema.object({
-        /** A command the view under the palette registers, running in its page. */
-        kind: schema.literal("registered"),
-        /** The package serving the view. */
-        packageId: PackageId,
-        /** The command's name in the view. */
-        name: DeclarationName,
-        /** The title the palette shows, in the person's language. */
-        title: schema.string().min(1),
-        /** The group the palette shows the title under, in the person's language. */
-        category: schema.string().min(1).nullable(),
-        /** The key combination that runs it. */
-        keybinding: Shortcut.nullable(),
-    }),
+    ActionEntry,
     schema.object({
         /** A view opening in a window. */
         kind: schema.literal("view"),
@@ -159,7 +164,7 @@ export const PaletteFocus = Object.assign(paletteFocus, {
 /** What the window the palette opens over shows. */
 export type PaletteFocus = schema.Infer<typeof paletteFocus>;
 
-/** The palette's ranking of entries, their sources and their keybindings. */
+/** The palette's ranking of entries and their sources. */
 export const Palette = {
     /** Rank the entries that match a query. */
     rank(entries: readonly PaletteEntry[], query: string, focus: PaletteFocus): PaletteEntry[] {
@@ -216,9 +221,9 @@ export const Palette = {
         );
     },
 
-    /** Read the space an entry belongs to, absent for a window or the page's own commands. */
+    /** Read the space an entry belongs to, absent for a window or an action of the page. */
     space(entry: PaletteEntry): Identifier<"space"> | undefined {
-        if (entry.kind === "window" || entry.kind === "registered") {
+        if (entry.kind === "window" || entry.kind === "action") {
             return undefined;
         } else if (entry.kind === "space") {
             return entry.id;
@@ -231,7 +236,7 @@ export const Palette = {
     source(entry: PaletteEntry): PaletteSource {
         const sources = { window: "windows", space: "spaces", object: "recent" } as const;
 
-        return entry.kind === "command" || entry.kind === "view" || entry.kind === "registered"
+        return entry.kind === "command" || entry.kind === "view" || entry.kind === "action"
             ? entry.packageId
             : sources[entry.kind];
     },
@@ -243,24 +248,10 @@ export const Palette = {
     ): boolean {
         return sources[Palette.source(entry)] !== false;
     },
-
-    /** Read the key combination that runs a command. */
-    keybinding(
-        reference: CommandReference,
-        declared: Shortcut | undefined,
-        overrides: Readonly<Record<string, Shortcut | null>>,
-    ): Shortcut | null {
-        const key = CommandReference.format(reference);
-
-        return key in overrides ? (overrides[key] ?? null) : (declared ?? null);
-    },
 };
 
 /** A command the palette offers. */
 export type CommandEntry = Extract<PaletteEntry, { readonly kind: "command" }>;
-
-/** A command of the view under the palette, which the palette offers. */
-export type RegisteredEntry = Extract<PaletteEntry, { readonly kind: "registered" }>;
 
 /** A view the palette offers. */
 export type ViewEntry = Extract<PaletteEntry, { readonly kind: "view" }>;
