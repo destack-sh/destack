@@ -495,12 +495,9 @@ export class Server implements AsyncDisposable {
             disarm.abort();
             deadline.catch(() => undefined);
             this.#starting.abort();
-            await this.#readiness?.catch((error: unknown) => {
-                // end quietly on the stop's own abort, failing the close on any other error
-                if (error !== this.#starting.signal.reason) {
-                    throw error;
-                }
-            });
+
+            // wait for the readiness wait to end, whose failure its start reported already
+            await this.#readiness?.catch(() => undefined);
         }
     }
 
