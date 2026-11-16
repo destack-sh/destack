@@ -39,7 +39,7 @@ test("reconcile a space's routes on its account's hostnames, one per hostname pa
     // serve the space's installation and a redirect on the hostname
     await fixture.apply(first, { home: home(first), old });
 
-    // refuse another space's installation, the same path in another space of the account, and rules that cannot serve
+    // refuse another space's installation and rules that cannot serve, and declare the same path in another space of the account
     const invalid = (rules: RouteInput["rules"]): RouteInput => ({
         ...old,
         path: "/invalid",
@@ -91,6 +91,14 @@ test("reconcile a space's routes on its account's hostnames, one per hostname pa
         ).map(({ rules, ...row }) => [...Object.values(row), rules.length]);
     const routes = [await declared(first), await declared(second), await declared(rival)];
 
+    // read why the second space's route on the taken path is not ready
+    await fixture.simulation.idle();
+    const [taken] = await fixture
+        .database(second)
+        .select({ conditions: route.table.conditions })
+        .from(route.table);
+    const ready = taken?.conditions["Ready"];
+
     // key each hostname path in the universe's index
     const owner = async (on: string) => {
         const { index, key } = Claim.key(route, "path", [on, "/", "prefix"]);
@@ -101,6 +109,7 @@ test("reconcile a space's routes on its account's hostnames, one per hostname pa
         refused,
         foreign,
         routes,
+        taken: [ready?.status, ready?.reason, ready?.message],
         owners: [await owner(hostname.name), await owner(own.name)],
     }).toEqual({
         refused: {
@@ -109,7 +118,8 @@ test("reconcile a space's routes on its account's hostnames, one per hostname pa
                 "DECLARATION_INVALID",
                 `installation '${fixture.installations.get(second)}' is invalid: it is unknown`,
             ],
-            path: ["CONFLICT", "NAME_EXISTS", "'path' already exists"],
+            // declare the same path in another space, whose route waits for the name
+            path: undefined,
             both: [
                 "BAD_REQUEST",
                 "ROUTE_INVALID",
@@ -135,9 +145,10 @@ test("reconcile a space's routes on its account's hostnames, one per hostname pa
                 [first, "home", hostname.name, "/", found(fixture.installations, first), 1],
                 [first, "old", hostname.name, "/blog", null, 1],
             ],
-            [],
+            [[second, "home", hostname.name, "/", found(fixture.installations, second), 1]],
             [[rival, "home", own.name, "/", found(fixture.installations, rival), 1]],
         ],
+        taken: ["false", "NameTaken", `'${hostname.name} / prefix' is already taken`],
         owners: [first, rival],
     });
 });
