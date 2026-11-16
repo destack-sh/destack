@@ -16,6 +16,7 @@ import {
     exceptionAttributes,
     SpanRunner,
 } from "@destack/environment";
+import { Failure } from "@destack/error";
 import type { PackageVersion } from "@destack/package";
 
 import {
@@ -292,16 +293,19 @@ function instrument(
     };
 }
 
-/** Mark a failure captured where it happened, so no capture records it again. */
+/** Mark a failure and its causes captured, so no capture records the failure again. */
 export function markCaptured(error: unknown): void {
-    if (typeof error === "object" && error !== null) {
-        Object.defineProperty(error, CAPTURED, { value: true });
+    const marked = typeof error === "object" && error !== null ? [error] : [];
+    for (const each of [...marked, ...Failure.causes(error)]) {
+        Object.defineProperty(each, CAPTURED, { value: true, configurable: true });
     }
 }
 
-/** Report whether a failure was captured already. */
+/** Report whether a failure or one of its causes was captured already. */
 function isCaptured(error: unknown): boolean {
-    return typeof error === "object" && error !== null && CAPTURED in error;
+    const isMarked = typeof error === "object" && error !== null && CAPTURED in error;
+
+    return isMarked || Failure.causes(error).some((each) => CAPTURED in each);
 }
 
 /** Emit an exception record in the active span's context. */
