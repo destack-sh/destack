@@ -135,26 +135,26 @@ export async function finishTask(
 
 A trait adds fields, methods and rules to a type, each declared with its options.
 
-| Trait         | What it does                                               | Options                                         | Example                                                     |
-| ------------- | ---------------------------------------------------------- | ----------------------------------------------- | ----------------------------------------------------------- |
-| `shareable`   | shares objects through relationships and invitations       | `{ by }` or `{ isPublic }`, and `read`          | `shareable({})`                                             |
-| `nested`      | nests objects under a parent, or in a tree of their type   | `{ in, add, delete, optional, move }`           | `nested({ in: notebook, delete: "cascade", add: "write" })` |
-| `searchable`  | finds objects by text, and indexes filter and sort fields  | `{ text, filter, sort }`, each a list of fields | `searchable({ text: ["title"], sort: ["title"] })`          |
-| `orderable`   | orders objects among their siblings                        | none, or `{ within }`                           | `orderable()`                                               |
-| `presentable` | shows objects with a title, an icon, a cover and an accent | none, or `{ title, subtitle, icon, color }`     | `presentable({ subtitle: "summary" })`                      |
-| `versioned`   | keeps immutable, numbered versions of a parent             | none                                            | `versioned()`                                               |
-| `recoverable` | deletes objects to a restorable trash                      | `{ within, by, purge, retain }`                 | `recoverable({ within: { days: 30 }, by: "delete" })`       |
-| `archivable`  | archives objects out of lists, read-only until unarchived  | `{ by }`                                        | `archivable({ by: "manage" })`                              |
-| `expiring`    | removes objects once a rule's window passes                | a list of `{ after, from }` rules               | `expiring([{ after: { days: 7 }, from: "expiresAt" }])`     |
-| `tracked`     | records objects' history in activities                     | `{ activity, by, session }`                     | `tracked({ activity, by: "update" })`                       |
-| `controlled`  | reconciles records with a controller                       | none, or `{ approval: true }`                   | `controlled()`                                              |
-| `bindable`    | lets installations and machines bind to objects            | `{ by }`                                        | `bindable({ by: "manage" })`                                |
-| `suspendable` | lets scope objects be suspended                            | `{ by }`                                        | `suspendable({ by: "update" })`                             |
-| `fencing`     | fences a scope while it moves between machines             | `{ by }`                                        | `fencing({ by: "cancel" })`                                 |
-| `provisioned` | provisions objects as a kind's resources                   | `{ kind }`                                      | `provisioned({ kind: ConnectionKind })`                     |
-| `propagated`  | replicates objects into the scopes inside theirs           | `{ where }`                                     | `propagated({})`                                            |
-| `audited`     | records reads in the audit, beside writes                  | `{ reads }`                                     | `audited({ reads: true })`                                  |
-| `declarable`  | lets stacks declare the objects                            | the fields a stack declares                     | `declarable(["release"])`                                   |
+| Trait         | What it does                                               | Options                                              | Example                                                     |
+| ------------- | ---------------------------------------------------------- | ---------------------------------------------------- | ----------------------------------------------------------- |
+| `shareable`   | shares objects through relationships and invitations       | `{ by }` or `{ isPublic }`, and `read`               | `shareable({})`                                             |
+| `nested`      | nests objects under a parent, or in a tree of their type   | `{ in, add, delete, optional, move }`                | `nested({ in: notebook, delete: "cascade", add: "write" })` |
+| `searchable`  | finds objects by text, and indexes filter and sort fields  | `{ text, filter, sort }`, each a list of fields      | `searchable({ text: ["title"], sort: ["title"] })`          |
+| `orderable`   | orders objects among their siblings                        | none, or `{ within }`                                | `orderable()`                                               |
+| `presentable` | shows objects with a title, an icon, a cover and an accent | none, or `{ title, subtitle, icon, color }`          | `presentable({ subtitle: "summary" })`                      |
+| `numbered`    | numbers objects, each number issued once by the store      | none, or `{ within, start, at, identifier, prefix }` | `numbered({ within: "teamId", identifier: "live" })`        |
+| `recoverable` | deletes objects to a restorable trash                      | `{ within, by, purge, retain }`                      | `recoverable({ within: { days: 30 }, by: "delete" })`       |
+| `archivable`  | archives objects out of lists, read-only until unarchived  | `{ by }`                                             | `archivable({ by: "manage" })`                              |
+| `expiring`    | removes objects once a rule's window passes                | a list of `{ after, from }` rules                    | `expiring([{ after: { days: 7 }, from: "expiresAt" }])`     |
+| `tracked`     | records objects' history in activities                     | `{ activity, by, session }`                          | `tracked({ activity, by: "update" })`                       |
+| `controlled`  | reconciles records with a controller                       | none, or `{ approval: true }`                        | `controlled()`                                              |
+| `bindable`    | lets installations and machines bind to objects            | `{ by }`                                             | `bindable({ by: "manage" })`                                |
+| `suspendable` | lets scope objects be suspended                            | `{ by }`                                             | `suspendable({ by: "update" })`                             |
+| `fencing`     | fences a scope while it moves between machines             | `{ by }`                                             | `fencing({ by: "cancel" })`                                 |
+| `provisioned` | provisions objects as a kind's resources                   | `{ kind }`                                           | `provisioned({ kind: ConnectionKind })`                     |
+| `propagated`  | replicates objects into the scopes inside theirs           | `{ where }`                                          | `propagated({})`                                            |
+| `audited`     | records reads in the audit, beside writes                  | `{ reads }`                                          | `audited({ reads: true })`                                  |
+| `declarable`  | lets stacks declare the objects                            | the fields a stack declares                          | `declarable(["release"])`                                   |
 
 ### Constraints and indexes
 
@@ -511,6 +511,80 @@ export const card = defineObject({
     },
     access: { permissions: ["read", "manage"] },
 });
+```
+
+### Number issues per team
+
+`numbered` issues each number once in the store, and names objects by identifiers such as `TRK-214`.
+
+```ts
+import { argument, plural, t } from "@destack/locale";
+import { definePackage, defineObject, field, numbered, Numbered } from "@destack/object";
+import type { ClientOf } from "@destack/object/client";
+import type { Snapshot } from "@destack/db";
+
+// address teams by their key, such as TRK
+const team = defineObject({
+    name: "team",
+    plural: "teams",
+    title: t`${plural(argument("count"), { one: "Team", other: "Teams" })}`,
+    container: "scope",
+    key: "key",
+    fields: { key: field.string() },
+});
+
+// number issues within their team, read live as TRK-214 from the team's current key
+const issue = defineObject({
+    name: "issue",
+    plural: "issues",
+    title: t`${plural(argument("count"), { one: "Issue", other: "Issues" })}`,
+    container: "scope",
+    fields: { team: field.reference(team, { delete: "restrict" }), title: field.string() },
+    access: { permissions: ["read", "write"] },
+    traits: [numbered({ within: "teamId", identifier: "live" })],
+});
+
+// number invoices once finalized, their identifier printed as INV-ACME-1 for good
+const invoice = defineObject({
+    name: "invoice",
+    plural: "invoices",
+    title: t`${plural(argument("count"), { one: "Invoice", other: "Invoices" })}`,
+    container: "scope",
+    fields: {
+        team: field.reference(team, { delete: "restrict" }),
+        status: field.state({
+            initial: "draft",
+            transitions: { finalize: { from: ["draft"], to: "open", permission: "write" } },
+        }),
+    },
+    access: { permissions: ["read", "write"] },
+    traits: [numbered({ within: "teamId", at: "finalize", identifier: "frozen", prefix: "INV-" })],
+});
+const tracker = definePackage({
+    title: t`Tracker`,
+    description: t`Track issues and bill for them.`,
+    icon: "kanban",
+    color: "tomato",
+    objects: [team, issue, invoice],
+});
+
+/** File an issue, and read the identifier its store issued. */
+export async function file(
+    client: ClientOf<typeof tracker>,
+    scope: string,
+    teamId: string,
+    requestId: string,
+    reader: Pick<Snapshot, "read">,
+) {
+    const filed = await client.issue.create({ scope, requestId, teamId, title: "Usage" });
+
+    return await Numbered.identifier(issue, filed, reader);
+}
+
+/** Open an issue by its identifier, also one it had before it moved. */
+export async function open(scope: string, named: string, reader: Pick<Snapshot, "read">) {
+    return await Numbered.find(issue, scope, named, reader);
+}
 ```
 
 ### Search, filter and order

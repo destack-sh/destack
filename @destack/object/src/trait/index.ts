@@ -27,5 +27,5 @@ export {
 export { ObjectSearch, searchable, type SearchableDefinition } from "./search.ts";
 export { orderable, Orderable, type OrderableDefinition, type Ordering } from "./orderable.ts";
 export { readGrant, shareable } from "./shareable.ts";
-export { versioned } from "./versioned.ts";
+export { numbered, Numbered, type NumberedDefinition } from "./numbered.ts";
 export { audited, declarable, propagated, type Trait } from "./trait.ts";

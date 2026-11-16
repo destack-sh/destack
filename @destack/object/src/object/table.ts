@@ -19,7 +19,6 @@ import type { DeletionBuilderMap, deletionColumns } from "../trait/recoverable.t
 import type { ArchiveBuilderMap, archiveColumns } from "../trait/archivable.ts";
 import type { ParentBuilderMap } from "../trait/nested.ts";
 import type { TraitObject } from "../trait/trait.ts";
-import type { VersionBuilderMap } from "../trait/versioned.ts";
 import type { approvalColumns, controlledColumns } from "../trait/controlled.ts";
 import type { suspensionColumns } from "../trait/suspendable.ts";
 import { controlled } from "../trait/controlled.ts";
@@ -81,7 +80,7 @@ type TraitBuilderMap = {
     parentType: ColumnBuilder<FieldColumn<string, true, false>>;
     parentId: ColumnBuilder<FieldColumn<string, true, false>>;
     purgedAt: ColumnBuilder<FieldColumn<number, false, false>>;
-    number: ColumnBuilder<FieldColumn<number, true, false>>;
+    number: ColumnBuilder<FieldColumn<number, false, false>>;
 } & ReturnType<typeof deletionColumns> &
     ReturnType<typeof archiveColumns> &
     ReturnType<typeof controlledColumns> &
@@ -124,7 +123,6 @@ export type ObjectBuilderMap<
     ParentBuilderMap<Identity, TraitOf<Traits, "nested">> &
     DeletionBuilderMap<TraitOf<Traits, "recoverable">> &
     ArchiveBuilderMap<TraitOf<Traits, "archivable">> &
-    VersionBuilderMap<TraitOf<Traits, "versioned">> &
     ControlledBuilderMap<TraitOf<Traits, "controlled">> &
     SuspensionBuilderMap<TraitOf<Traits, "suspendable">> &
     FieldBuilderMap<Fields>;

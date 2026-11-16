@@ -64,6 +64,7 @@ import type { Follow, FollowKey } from "../replica/shape.ts";
 import { EventView } from "../query/event.ts";
 import { Execution, type StoreExecution } from "./execution.ts";
 import { BranchWrite } from "../branch/write.ts";
+import { Numbered } from "../trait/numbered.ts";
 import { Replay } from "../audit/replay.ts";
 
 import type {} from "@destack/package/import-meta";
@@ -790,7 +791,17 @@ export class MethodContext<
         this: MethodContext<{ readonly table: Recorded }, unknown>,
         changes: Readonly<Partial<InsertValue<Recorded>>>,
     ): Promise<Select<Recorded>> {
-        return Table.complete(this.object.table, await this.#write(this.revised(changes)));
+        // number a target at the method issuing its number, or anew once moved
+        const numbered =
+            this.object.numbering === undefined
+                ? {}
+                : await Numbered.changed(this.object, this.target, changes, this, this.#location);
+        const row = await this.#write(this.revised({ ...changes, ...numbered }));
+        if (numbered["number"] !== undefined && this.#location.kind === "store") {
+            await Numbered.raise(this.object, row, this, this.#location);
+        }
+
+        return Table.complete(this.object.table, row);
     }
 
     /** Stamp changes with the next revision, time and author, advancing a controlled generation. */

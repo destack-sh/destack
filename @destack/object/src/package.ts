@@ -7,6 +7,7 @@ import { branch, branchChange, branchEntry } from "./branch/object.ts";
 import { approval, changeRequest } from "./approval/index.ts";
 import { ObjectError } from "./error/error.ts";
 import { chunk, chunkRun } from "./text/table.ts";
+import { counter } from "./trait/numbered.ts";
 
 /** The handle a space and a machine serve their call log and access objects through. */
 export default definePackage({
@@ -28,7 +29,7 @@ export default definePackage({
         approval,
         changeRequest,
     ],
-    // keep the text of every package's objects in each space, whose chunk tables object owns
-    tables: [chunk, chunkRun],
+    // keep the text and the number counters of every package's objects in each space
+    tables: [chunk, chunkRun, counter],
     errors: ObjectError,
 });

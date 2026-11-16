@@ -62,7 +62,7 @@ import { list } from "../query/list.ts";
 import { ListFields, QueryFields, ViewFields } from "../replica/replica.ts";
 import type { ObjectType, WrittenField } from "../object/object.ts";
 
-import { versioned } from "../trait/versioned.ts";
+import { Numbered } from "../trait/numbered.ts";
 import { TagMap } from "@destack/resource";
 
 import { Execution, type StoreExecution } from "./execution.ts";
@@ -263,6 +263,7 @@ function bulkUpdate<
         validate: (object) => {
             RecordMethod.requireUnrecorded(object);
             RecordMethod.requireUnguarded(object, options.fields);
+            RecordMethod.requireUnnumbered(object, options.fields);
         },
         handler: (context, execution) =>
             match === undefined
@@ -626,7 +627,7 @@ export const RecordMethod = {
         }
 
         // create independent items in one write in a store and require each to be writable
-        const isSequential = object.ordering !== undefined || object.lifecycle.versioned;
+        const isSequential = object.ordering !== undefined || object.numbering !== undefined;
         if (!isSequential && execution.kind === "store") {
             const ids = await RecordMethod.createTogether(context, execution);
             await RecordMethod.eachItem(context, (item, index) =>
@@ -835,9 +836,9 @@ export const RecordMethod = {
         ];
     },
 
-    /** Refuse tracked and versioned objects, whose change records bulk calls skip. */
+    /** Refuse tracked objects, whose change records bulk calls skip. */
     requireUnrecorded(object: ObjectType): void {
-        if (object.lifecycle.tracked !== undefined || object.lifecycle.versioned) {
+        if (object.lifecycle.tracked !== undefined) {
             throw new TypeError(
                 `object ${object.name} records each change, so it cannot apply many changes at once`,
             );
@@ -850,6 +851,16 @@ export const RecordMethod = {
         if (guarded !== undefined) {
             throw new TypeError(
                 `object ${object.name} guards field '${guarded}', so it cannot apply many updates at once`,
+            );
+        }
+    },
+
+    /** Refuse moving numbered objects to another value they count within, which renumbers each. */
+    requireUnnumbered(object: ObjectType, written: readonly string[]): void {
+        const within = object.numbering?.within;
+        if (within !== undefined && written.includes(within)) {
+            throw new TypeError(
+                `object ${object.name} numbers within '${within}', so it cannot apply many updates to it at once`,
             );
         }
     },
@@ -1049,7 +1060,7 @@ export const RecordMethod = {
         context: MethodContext<MethodConfiguration, unknown, string>,
         execution: Execution,
     ): Promise<Select<Table>> {
-        // write the created row, then record its access
+        // write the created row and record its number, then record its access
         const row = RecordMethod.createdRow(
             context.object.table,
             await RecordMethod.createdValues(context, execution),
@@ -1059,6 +1070,9 @@ export const RecordMethod = {
             before: null,
             after: row,
         });
+        if (context.object.numbering !== undefined && execution.kind === "store") {
+            await Numbered.raise(context.object, row, context, execution);
+        }
         await RecordMethod.recordCreation(context, context.id, execution);
 
         return row;
@@ -1103,11 +1117,6 @@ export const RecordMethod = {
             );
         }
 
-        // number versions within their parent
-        const version = object.lifecycle.versioned
-            ? await versioned.next(object, context.requireParent().id, context)
-            : undefined;
-
         // place an ordered object after its last sibling unless the caller placed it
         const decoded = Table.decode(object.table, context.input);
         const parent = object.parent === undefined ? {} : context.parentColumns();
@@ -1135,13 +1144,24 @@ export const RecordMethod = {
         const manager = execution.kind === "store" ? execution.authorization.manager : null;
         const managed = manager === null || !object.isDeclarable() ? {} : Manager.values(manager);
 
+        // number a numbered object, unless its creator assigned the number or a later method issues it
+        const numbered =
+            object.numbering === undefined
+                ? {}
+                : await Numbered.created(
+                      object,
+                      { ...decoded, ...parent, scope: context.scope },
+                      context,
+                      execution,
+                  );
+
         return {
             ...decoded,
             ...parent,
             ...(position === undefined ? {} : { position }),
             id: context.id,
             scope: context.scope,
-            ...(version === undefined ? {} : { number: version }),
+            ...numbered,
             ...(object.storage === "ephemeral" ? { writerId: context.writerId } : {}),
             ...callers,
             ...(isTimed ? { createdAt: context.now, updatedAt: context.now } : {}),

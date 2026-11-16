@@ -87,7 +87,7 @@ const archivableTrait: TraitBehavior<TraitPermission> & {
                 input: schemas.target.extend(schemas.replay),
                 output: schemas.row,
             }),
-            handler: (context) => Archive.change(context, kind),
+            handler: (context) => Archivable.change(context, kind),
             inverse: (step: Step) => {
                 // archive or unarchive the object again
                 const call = Step.call(step, inverse, Step.target(step));
@@ -102,7 +102,7 @@ const archivableTrait: TraitBehavior<TraitPermission> & {
 export const archivable = callableTrait("archivable", archivableTrait);
 
 /** The changes between an object in use and an archived one. */
-const Archive = {
+const Archivable = {
     /** Archive or unarchive a call's target, refusing one already in that state. */
     async change(
         context: MethodContext<{ readonly table: ArchivableTable }, unknown>,

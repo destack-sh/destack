@@ -12,6 +12,7 @@ import {
     defineObject,
     definePackage,
     field,
+    numbered,
 } from "../src/index.ts";
 import { TestObjectStore, testIdentity } from "../src/test/index.ts";
 import { users } from "./fixture/user.ts";
@@ -32,10 +33,26 @@ const note = defineObject(
     (method) => ({ create: method.create("manage") }),
 );
 
-/** Object's package with the space's notes, as this test module belongs to it. */
+/** A ticket of a space, numbered by its store on the main line and when a branch merges. */
+const ticket = defineObject(
+    {
+        name: "ticket",
+        plural: "tickets",
+        title: t`${plural(argument("count"), { one: "Ticket", other: "Tickets" })}`,
+        scope: [principal.space],
+        fields: { title: field.string(schema.string().min(1)) },
+        access: {
+            permissions: ["manage"],
+        },
+        traits: [numbered()],
+    },
+    (method) => ({ create: method.create("manage") }),
+);
+
+/** Object's package with the space's notes and tickets, as this test module belongs to it. */
 const notesPackage = definePackage({
     ...testIdentity,
-    objects: [...Object.values(objectPackage.objects), note],
+    objects: [...Object.values(objectPackage.objects), note, ticket],
 });
 
 /** Serve alice's space with notes and branches, and read a branch with its changes. */
@@ -170,5 +187,28 @@ test("merge a branch whose role lets bob merge once another approves, through a 
         ],
         "merged",
         "applied",
+    ]);
+});
+
+test("number a ticket a branch creates when the branch merges, after the main line's own", async () => {
+    // create a ticket on the main line, and draft another on a branch
+    const { objects, client, request } = await serveBranches();
+    await using _objects = objects;
+    const create = (title: string) => ticket.call("create", { ...ticket.in(objects.scope), title });
+    await client.ticket.create({ ...request(), title: "Sign-up" });
+    const { id } = await client.branch.create({ ...request(), title: "drafts" });
+    await client.branch.push({ ...request(), id, calls: [create("Usage page")] });
+
+    // create another on the main line meanwhile, then merge the branch
+    await client.ticket.create({ ...request(), title: "Billing" });
+    await client.branch.merge({ ...request(), id });
+    const numbers = (await objects.database.select().from(ticket.table))
+        .map((row) => [row.title, row.number] as const)
+        .toSorted((left, right) => left[0].localeCompare(right[0]));
+
+    expect(numbers).toEqual([
+        ["Billing", 2],
+        ["Sign-up", 1],
+        ["Usage page", 3],
     ]);
 });

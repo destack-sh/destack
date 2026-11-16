@@ -6,7 +6,7 @@ import { schema } from "@destack/schema";
 import { space } from "../src/test/space.ts";
 import { tablesOf } from "../src/index.ts";
 import objectPackage from "../src/package.ts";
-import { nested, recoverable, shareable, versioned } from "../src/index.ts";
+import { nested, numbered, recoverable, shareable } from "../src/index.ts";
 import { argument, plural, t } from "@destack/locale";
 
 /** People, the user principal the example objects reference. */
@@ -151,7 +151,7 @@ export const comment = defineObject({
     traits: [nested({ in: task, delete: "cascade", add: "write" })],
 });
 
-/** Immutable versions of a task's title. */
+/** Versions of a task's title, numbered within it, added but never changed. */
 export const taskVersion = defineObject(
     {
         name: "task-version",
@@ -160,11 +160,14 @@ export const taskVersion = defineObject(
         scope: space,
         fields: { title: field.string(schema.string().min(1)) },
         access: {
-            permissions: { read: through("parent", "read"), write: through("parent", "write") },
+            permissions: { read: through("parent", "read"), add: through("parent", "write") },
         },
-        traits: [nested({ in: task, delete: "cascade", add: "write" }), versioned()],
+        traits: [
+            nested({ in: task, delete: "cascade", add: "write" }),
+            numbered({ within: "parentId" }),
+        ],
     },
-    (method) => ({ create: method.create("write") }),
+    (method) => ({ create: method.create("add") }),
 );
 
 /** Copies of a task's title stored in an external store, which each creation prepares. */

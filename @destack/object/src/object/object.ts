@@ -97,7 +97,6 @@ import {
     type RecoverableMethodMap,
 } from "../trait/recoverable.ts";
 import { expiring, type ExpiryRule } from "../trait/expiring.ts";
-import { versioned, type VersionedDefinition } from "../trait/versioned.ts";
 import {
     type RoleFieldsOf,
     type RolePermission,
@@ -111,6 +110,13 @@ import {
 } from "../trait/shareable.ts";
 import { suspendable, type SuspendableMethodMap } from "../trait/suspendable.ts";
 import { archivable, type ArchivableMethodMap } from "../trait/archivable.ts";
+import {
+    numbered,
+    Numbered,
+    type NumberedDefinition,
+    type NumberedFieldsOf,
+    type Numbering,
+} from "../trait/numbered.ts";
 import { fencing, type FencingMethodMap } from "../trait/fencing.ts";
 import { readable, type ReadableMethodMap } from "../trait/readable.ts";
 import { writable, type WritableMethodMap } from "../trait/writable.ts";
@@ -217,7 +223,7 @@ const FOREIGN_REFUSED = [
     "identity",
     "recoverable",
     "archivable",
-    "versioned",
+    "numbered",
     "controlled",
     "shareable",
     "suspendable",
@@ -388,8 +394,6 @@ export interface ObjectTraits<Permissions extends string = string> {
     readonly key?: string;
     /** The objects the scopes inside each object's scope replicate, matching any condition. */
     readonly propagated?: { readonly where?: Condition };
-    /** The objects are immutable, numbered versions of their parent. */
-    readonly versioned?: VersionedDefinition;
     /** A controller reconciles the objects. */
     readonly controlled?: ControlledDefinition;
     /** Installations bind to the objects, becoming their consumers. */
@@ -412,6 +416,8 @@ export interface ObjectTraits<Permissions extends string = string> {
     readonly presentable?: PresentableDefinition;
     /** How the objects are ordered among their siblings. */
     readonly orderable?: OrderableDefinition;
+    /** How the store numbers the objects: across the scope, or within one column's value. */
+    readonly numbered?: NumberedDefinition;
     /** The fields full-text search ranks, lists filter and lists order the objects by. */
     readonly searchable?: SearchableDefinition;
 }
@@ -523,7 +529,7 @@ export interface EventStorage {
 /** The storage kind of a written storage: its name, or the kind of the settings it gives. */
 export type StorageKind<Written> = Written extends { readonly kind: infer Kind } ? Kind : Written;
 
-/** How a type's objects are declared, deleted, expired, versioned, tracked and converted. */
+/** How a type's objects are declared, deleted, archived, expired, tracked and converted. */
 export interface ObjectLifecycle<Permissions extends string = string> {
     /** The schema of one declaration in a stack, when stacks may declare the objects. */
     readonly declarationSchema: schema.Schema | undefined;
@@ -533,8 +539,6 @@ export interface ObjectLifecycle<Permissions extends string = string> {
     readonly archivable: TraitPermission<Permissions> | undefined;
     /** When their store removes the objects, for expiring objects. */
     readonly expiring: readonly ExpiryRule[] | undefined;
-    /** Whether the objects are numbered versions of their parent. */
-    readonly versioned: VersionedDefinition | undefined;
     /** How tracked objects record their history. */
     readonly tracked: TrackedDefinition<Permissions> | undefined;
     /** The fields each release computes from stored rows and earlier callers' inputs. */
@@ -730,6 +734,8 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
     readonly presentation: Presentation | undefined;
     /** How the objects are ordered among their siblings, absent for a type ordering none. */
     readonly ordering: Ordering | undefined;
+    /** How the store numbers the objects, absent for a type numbering none. */
+    readonly numbering: Numbering | undefined;
     /** The fields search ranks and lists filter and order the objects by, if any. */
     readonly searchable: ObjectSearch | undefined;
     /** The event log's kind of an events type, absent for every other storage. */
@@ -770,12 +776,13 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
         this.projections = [];
         this.cursors = [];
 
-        // compute the scopes, nesting, sharing, presentation, ordering, search and the event kind once
+        // compute the scopes, nesting, sharing, presentation, ordering, numbering, search and the event kind once
         this.scopes = ObjectType.#scopeTypes(this.definition.scope);
         this.parent = ObjectType.#nestedParent(this, definition);
         this.roles = Roles.of(definition);
         this.presentation = Presentable.of(definition);
         this.ordering = Orderable.of(definition);
+        this.numbering = Numbered.of(definition);
         this.searchable =
             definition.searchable === undefined
                 ? undefined
@@ -1046,7 +1053,7 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
         );
     }
 
-    /** How the objects are declared, deleted, archived, expired, versioned and converted. */
+    /** How the objects are declared, deleted, archived, expired, tracked and converted. */
     get lifecycle(): ObjectLifecycle<Configuration["permissions"]> {
         const { definition } = this;
 
@@ -1055,7 +1062,6 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
             recoverable: definition.recoverable,
             archivable: definition.archivable,
             expiring: definition.expiring,
-            versioned: definition.versioned,
             tracked: definition.tracked,
             convert: definition.convert ?? {},
         };
@@ -2766,13 +2772,15 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
                           (entry): entry is [string, Method] => entry[1] !== false,
                       ),
                   );
-        const expanded = Orderable.expand(
-            Presentable.expand(
-                Roles.expand(
-                    Provisioned.expand({
-                        ...written,
-                        ...(built === undefined ? {} : { methods: built }),
-                    }),
+        const expanded = Numbered.expand(
+            Orderable.expand(
+                Presentable.expand(
+                    Roles.expand(
+                        Provisioned.expand({
+                            ...written,
+                            ...(built === undefined ? {} : { methods: built }),
+                        }),
+                    ),
                 ),
             ),
         );
@@ -2872,7 +2880,6 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
             recoverable,
             archivable,
             expiring,
-            versioned,
             controlled,
             shareable,
             suspendable,
@@ -2883,6 +2890,7 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
             text,
             searchable,
             orderable,
+            numbered,
             series,
         ];
     }
@@ -3175,7 +3183,7 @@ type DefinitionTraits<Definition> = TraitOptions<{
     readonly nested: Option<Definition, "nested">;
     readonly recoverable: Option<Definition, "recoverable">;
     readonly archivable: Option<Definition, "archivable">;
-    readonly versioned: Option<Definition, "versioned">;
+    readonly numbered: Option<Definition, "numbered">;
     readonly controlled: Option<Definition, "controlled">;
     readonly suspendable: Option<Definition, "suspendable">;
     readonly fencing: Option<Definition, "fencing">;
@@ -3201,7 +3209,8 @@ type DefinedFields<Definition extends ObjectDefinition> = FieldsByColumn<
         RoleFieldsOf<Option<Definition, "shareable">, Option<Definition, "isScope", false>> &
         ProvisionedFieldsOf<Option<Definition, "provisioned">> &
         PresentationFieldsOf<Option<Definition, "presentable">> &
-        OrderedFieldsOf<Option<Definition, "orderable">>
+        OrderedFieldsOf<Option<Definition, "orderable">> &
+        NumberedFieldsOf<Option<Definition, "numbered">>
 >;
 
 /** The permissions a definition's objects have. */
@@ -3282,7 +3291,6 @@ export type DefinedType<Definition extends ObjectDefinition, Methods> = ObjectTy
             DefinedPermissions<Definition>,
             DefinedTable<Definition>,
             WrittenField<DefinedFields<Definition>>,
-            Option<Definition, "versioned"> extends undefined ? true : false,
             Option<Definition, "recoverable"> extends undefined ? true : false
         > &
         KindMethodsOf<Definition, Methods> &
@@ -3344,6 +3352,7 @@ export type TraitPermissionsOf<Traits> =
     | ([TraitOf<Traits, "controlled">] extends [undefined] ? never : "control")
     | (TraitOf<Traits, "controlled"> extends { readonly approval: true } ? "approve" : never)
     | ([TraitOf<Traits, "expiring">] extends [undefined] ? never : "expire")
+    | ([TraitOf<Traits, "numbered">] extends [undefined] ? never : "assign")
     | ([TraitOf<Traits, "bindable">] extends [undefined] ? never : "bind");
 
 /** The permission a durable type declaring create derives for its records' managers. */
