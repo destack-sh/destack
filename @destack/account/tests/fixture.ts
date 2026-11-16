@@ -1,6 +1,6 @@
 import type { DatabaseConnection } from "@destack/db";
 import type { Environment } from "@destack/environment";
-import { type Claimant, defineObject, field } from "@destack/object";
+import { type Claimant, ClaimRefusal, defineObject, field } from "@destack/object";
 import { RemoteStore, Reservation } from "@destack/object/server";
 import { RequestId, type Page, Scope } from "@destack/sync";
 import { schema } from "@destack/schema";
@@ -65,12 +65,16 @@ export async function claimNames(
     claimant: Claimant,
     environment: Environment,
 ): Promise<void> {
-    const service = {
-        object: claim,
-        home: RemoteStore.of(caller.client(accountPackage).store, Scope.universe.id),
-    };
-    const request = { id: RequestId.create(environment), environment };
-    const reservation = await Reservation.reserve(service, [claimant], [place], request, database);
-    await reservation.commit(database);
-    await reservation.confirm();
+    // reserve the names at the universe, refusing a taken one, then confirm them
+    const home = RemoteStore.of(caller.client(accountPackage).store, Scope.universe.id);
+    const request = RequestId.create(environment);
+    const [reserved] = await home.mutate({
+        id: RequestId.create(environment),
+        calls: [claim.call("reserve", { ...claimant, request })],
+    });
+    Reservation.refuse([place], ClaimRefusal.parse(reserved).refused);
+    await home.mutate({
+        id: RequestId.create(environment),
+        calls: [claim.call("confirm", { ...claimant, request })],
+    });
 }

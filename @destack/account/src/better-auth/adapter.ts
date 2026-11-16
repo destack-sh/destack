@@ -16,13 +16,12 @@ import {
     Transaction,
     Table,
 } from "@destack/db";
-import { type ObjectStore, Reservation } from "@destack/object/server";
-import { Claimant, type ObjectType } from "@destack/object";
-import { present, schema, Uuid } from "@destack/schema";
+import { type ObjectStore } from "@destack/object/server";
+import { type ObjectType } from "@destack/object";
+import { present, schema } from "@destack/schema";
 import { AccountHandle } from "../address/handle.ts";
 import { APIError } from "better-auth/api";
 import { Account, account } from "../object/account.ts";
-import { space } from "../object/space.ts";
 import { ResidencyCode } from "../object/residency.ts";
 import { rateLimit, verification } from "../authentication/table.ts";
 import { userLogin } from "../object/user-login.ts";
@@ -379,9 +378,8 @@ async function createUser(
     const source: Table = user.table;
     const values = complete(source, person, now);
 
-    // write the user, releasing the names a lost attempt reserved
-    let reservation: Reservation | undefined;
-    const written = await Transaction.run(database, async (transaction) => {
+    // write the user with its account and home, whose names the store claims before the commit
+    return await Transaction.run(database, async (transaction) => {
         // write the user's completed row, its home its personal account's
         const userId = schema.identifier("user").parse(values["id"]);
         const personal = Account.personal(userId);
@@ -417,34 +415,8 @@ async function createUser(
             { transaction },
         );
 
-        // reserve the handle and the home's name before the commit
-        await reservation?.release();
-        reservation = undefined;
-        const claims = present(objects.claims, "the account objects' claim type");
-        const claimants = await Claimant.written(transaction, [account, space]);
-        reservation = await Reservation.reserve(
-            claims,
-            claimants,
-            [account, space],
-            { id: Uuid.v4(objects.environment.random), environment: objects.environment },
-            database,
-        ).catch(handleTaken);
-        const reserved = reservation;
-        transaction.record(async (committing) => {
-            await reserved.commit(committing).catch(handleTaken);
-        });
-
         return row;
-    }).catch(async (error: unknown) => {
-        // release the names once the write failed
-        await reservation?.release();
-        throw error;
-    });
-
-    // confirm the names once the write committed
-    await reservation?.confirm();
-
-    return written;
+    }).catch(handleTaken);
 }
 
 /** Report a taken name as Better Auth reports a taken handle. */
