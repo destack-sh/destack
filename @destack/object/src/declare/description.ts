@@ -138,6 +138,8 @@ const packageDescription = schema.object({
     api: RouterDescription,
     /** The object types it serves with its code's phases, by route name. */
     objects: schema.record(schema.string().min(1), ObjectRoute),
+    /** The packages whose protocols it implements, whose tables its installation owns. */
+    protocols: schema.array(PackageId),
     /** The mounts of protocols others define, by name. */
     mounts: schema.record(
         DeclarationName,

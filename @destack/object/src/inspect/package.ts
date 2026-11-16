@@ -30,6 +30,7 @@ export function describePackage(handle: Package & PackageIdentity): PackageDescr
         ...(handle.since === undefined ? {} : { since: handle.since }),
         api: describeRouter(handle.name, handle.router),
         objects: describeObjects(handle.id, handle.objects),
+        protocols: handle.protocols.map((each) => each.id),
         mounts: Object.fromEntries(
             Object.values(handle.mounts).map((mount) => [mount.name, { path: mount.path }]),
         ),

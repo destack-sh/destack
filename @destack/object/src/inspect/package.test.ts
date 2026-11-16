@@ -284,6 +284,7 @@ test("describe a package's routes, mounts, views, requested permissions, capabil
             query: { type: custom.typeReference, hooks: { create: ["authorize"] } },
         },
         mounts: { npm: { path: "/npm" } },
+        protocols: [],
         views: [],
         permissions: {
             space: {
