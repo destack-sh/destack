@@ -598,6 +598,23 @@ test("refuse a logged script outside a transaction, and log one inside a transac
     });
 });
 
+test("move several checkpoints forward in one statement, never backward, and read them by name", async () => {
+    const { database, clock } = await open();
+    const expiresAt = clock.now() + 60_000;
+
+    // move two checkpoints to 3, then one of them back to 2 beside a new one
+    await database.log.forward([reader("set:a"), reader("set:b")], 3, expiresAt);
+    await database.log.forward([reader("set:b"), reader("set:c")], 2, expiresAt);
+
+    // keep the moved ones at 3, place the new one at 2, and leave out a missing name
+    const read = await database.log.checkpointed(["set:a", "set:b", "set:c", "set:d"]);
+    expect([...read].toSorted(([left], [right]) => left.localeCompare(right))).toEqual([
+        ["set:a", 3],
+        ["set:b", 3],
+        ["set:c", 2],
+    ]);
+});
+
 test("place a consumer's checkpoint at the log's start once, and list the checkpoints of a prefix", async () => {
     const { database, clock } = await open();
     const expiresAt = clock.now() + 60_000;

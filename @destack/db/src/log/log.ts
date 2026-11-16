@@ -920,6 +920,50 @@ export class Log {
         return row === undefined ? undefined : LogColumn.integer(row["sequence"]);
     }
 
+    /** Move several cursors' checkpoints forward to a sequence in one statement, never backward. */
+    async forward(
+        cursors: readonly LogCursor[],
+        sequence: number,
+        expiresAt: number,
+    ): Promise<void> {
+        // write no cursors without a statement
+        if (cursors.length === 0) {
+            return;
+        }
+        const table = sql.relation(LOG_CHECKPOINT);
+        const rows = sql.join(
+            cursors.map(
+                (cursor) =>
+                    sql`(${cursor.name}, ${sequence}, ${expiresAt}, ${LogCursor.tables(cursor)})`,
+            ),
+            sql`, `,
+        );
+        await this.database.run(sql`
+            INSERT INTO ${table} (name, sequence, expires_at, tables) VALUES ${rows}
+            ON CONFLICT (name) DO UPDATE SET sequence = excluded.sequence, expires_at = excluded.expires_at, tables = excluded.tables
+            WHERE ${table}.sequence <= excluded.sequence
+        `);
+    }
+
+    /** Read the sequences of several checkpoints by name in one statement. */
+    async checkpointed(names: readonly string[]): Promise<Map<string, number>> {
+        // answer no names without a statement
+        if (names.length === 0) {
+            return new Map();
+        }
+        const named = sql.join(
+            names.map((name) => sql`${name}`),
+            sql`, `,
+        );
+        const rows = await this.database.all(
+            sql`SELECT name, sequence FROM ${sql.relation(LOG_CHECKPOINT)} WHERE name IN (${named})`,
+        );
+
+        return new Map(
+            rows.map((row) => [LogColumn.text(row["name"]), LogColumn.integer(row["sequence"])]),
+        );
+    }
+
     /** Drop a checkpoint and its claim, retaining no more changes for it. */
     async drop(name: string): Promise<void> {
         await this.database.run(
