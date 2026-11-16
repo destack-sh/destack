@@ -1,4 +1,5 @@
 import { waitAborted } from "@destack/environment";
+import { Failure } from "@destack/error";
 import { present, Uuid } from "@destack/schema";
 import { ObjectError } from "../error/error.ts";
 import type { Authentication } from "@destack/access";
@@ -337,7 +338,11 @@ class WorkloadStart {
             await store.run(signal, { sets, ...(alarm === undefined ? {} : { alarm }) });
         } catch (error) {
             options.report(error);
-            const message = error instanceof Error ? error.message : String(error);
+
+            // say why with the failure's causes, which a caller of a down server reads
+            const causes = Failure.causes(error);
+            const message =
+                causes.length === 0 ? String(error) : causes.map((each) => each.message).join(": ");
             for (const { server } of this.#packages.values()) {
                 server.health.set("down", `the controllers failed: ${message}`);
             }
