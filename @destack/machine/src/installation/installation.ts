@@ -439,6 +439,8 @@ function resumeWatches(
             fields: ["targetRevisionId", "appliedRevisionId", "servedRevisionId", "spaceStack"],
             on: { installationId: "installationId" },
         },
+        // the space's rollouts once it serves another revision, as one may wait for its types
+        { table: rollout.table, fields: ["servedRevisionId"], on: { scope: "scope" } },
         // the rollout once its change request is decided
         {
             table: changeRequest.table,
