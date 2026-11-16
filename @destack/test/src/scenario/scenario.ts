@@ -367,6 +367,7 @@ async function measure(
             ...emitted.counters(),
             ...emitted.work(),
             ...emitted.queries(),
+            ...emitted.rows(),
             ...emitted.reads(),
             ...emitted.wakes(),
             ...emitted.listings(),

@@ -9,6 +9,9 @@ const STATEMENTS = "db.client.operation.count";
 /** The histogram every statement records its duration in, by database, operation and table. */
 const STATEMENT_DURATION = "db.client.operation.duration";
 
+/** The counter of the rows statements returned or changed. */
+const ROWS = "destack.db.rows";
+
 /** The counter of keys a committed change woke, by job and changed table. */
 const KEY_WAKES = "destack.controller.wakes";
 
@@ -262,6 +265,22 @@ export class Recording {
         }
 
         return queries;
+    }
+
+    /** Count the rows statements returned or changed on every database, by operation and table. */
+    rows(): Record<string, number> {
+        const rows: Record<string, number> = {};
+        for (const point of this.points.filter((each) => each.name === ROWS)) {
+            // read the statement's operation and its table, absent for a transaction
+            const operation = String(point.attributes["db.operation.name"]);
+            const table = point.attributes["db.collection.name"];
+            const target = typeof table === "string" ? `${operation}:${table}` : operation;
+            for (const key of new Set([`rows{${target}}`, `rows{${operation}}`])) {
+                rows[key] = (rows[key] ?? 0) + point.value;
+            }
+        }
+
+        return rows;
     }
 
     /** Count the log reads, by reader and whether the read found changes. */
