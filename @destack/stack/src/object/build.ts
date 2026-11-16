@@ -138,7 +138,7 @@ export const build = defineObject(
             state: field.enum(BUILD_STATES).default("pending"),
             /** The step of a running build. */
             phase: field.enum(BUILD_PHASES).optional(),
-            /** The commit a clean checkout was at when built. */
+            /** The commit built: a commit build's own, or a clean checkout's when built. */
             commit: field.string(Commit).optional(),
             /** The repository, directory and commit of a commit build, absent for a release. */
             checkout: field.string().optional(),
