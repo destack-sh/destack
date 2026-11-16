@@ -47,7 +47,8 @@ const credited = defineSku(
     { package: storage },
 );
 
-test("price usage at the SKU's list price converted into the billing currency and rounded up, billing it within a billed subscription and nothing outside one", () => {
+test("rate SKU usage at list price in the billing currency", () => {
+    // rate usage at a list price and a credit price, billed and not
     const rated = [
         Rate.usage(listed, 500 * GB, true, "1"),
         Rate.usage(listed, GB / 3, true, "1"),

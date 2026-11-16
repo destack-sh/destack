@@ -53,7 +53,7 @@ function catalog(fee: number, isPro: boolean): StackDocument<readonly [typeof fi
     };
 }
 
-test("declare the platform's seller active and its plans with their prices and grants, store them as declared, price new terms anew, archive the plans the stack stops declaring and keep its seller", async () => {
+test("reconcile the seller and plans a stack declares", async () => {
     // declare Go and Pro twice through the home's stack, which the platform's operator owns
     const finance = await TestFinance.open([[tiers, [seats]]]);
     onTestFinished(() => finance.close());

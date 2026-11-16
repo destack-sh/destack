@@ -8,7 +8,7 @@ const START = Date.UTC(2026, 9, 1);
 /** The end of the first billing period. */
 const END = Date.UTC(2026, 10, 1);
 
-test("let the account's viewers read a subscription and its managers cancel it at period end, and leave the provider's transitions to the system", async () => {
+test("authorize subscription calls by the caller's role on the account", async () => {
     const finance = await Finance.open();
     onTestFinished(() => finance.close());
     await finance.customer();

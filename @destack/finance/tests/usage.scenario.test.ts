@@ -213,12 +213,13 @@ async function entitled(finance: Finance, feature: typeof calls) {
     return resolved(await finance.resolutions(ids.buyer), feature.reference);
 }
 
-test("add up each space's latest bytes across both meters a feature counts, near its limit and blocked at it, announcing each state to the account's readers of billing once a period", async () => {
+test("sum a feature's meters per space and announce its states once", async () => {
     // subscribe the buyer to a free plan storing 1000 bytes, reading two days into the period
     const { finance, offer } = await open({ start: AFTER_STORING });
     const free = await offerFree(finance);
     await subscribe(finance, offer, [free], { start: START, end: END });
     await finance.entitle();
+    const within = await resources(finance);
 
     // store 400 bytes in one space after 300, 200 in another, and archive 300 in the first: near
     const at = START + DAY;
@@ -281,6 +282,12 @@ test("add up each space's latest bytes across both meters a feature counts, near
         { kind: "metered", limit: CAPACITY, usage: 1100, resetAt: null, state: "blocked" },
     ]);
 
+    // allow the bucket resource the capacity feature declares, within and then blocked
+    expect({ within, blocked: await resources(finance) }).toEqual({
+        within: [["bucket", CAPACITY, 0, "within"]],
+        blocked: [["bucket", CAPACITY, 1200, "blocked"]],
+    });
+
     // announce near and blocked once each on the account's customer, to its billing readers
     expect(
         announced.map((row) => [row.name, row.key, row.thread, row.audience, row.payload]),
@@ -302,7 +309,7 @@ test("add up each space's latest bytes across both meters a feature counts, near
     ]);
 });
 
-test("announce a usage state once, though its entitlement write is lost and derived again", async () => {
+test("announce a usage state once when its entitlement is derived again", async () => {
     // store 900 of the free plan's 1000 bytes: near the limit, reading two days into the period
     const { finance, offer } = await open({ start: AFTER_STORING });
     const free = await offerFree(finance);
@@ -334,7 +341,7 @@ test("announce a usage state once, though its entitlement write is lost and deri
     ]);
 });
 
-test("bill an averaged meter by the shares its events carry, 2 GB stored for half the month as 1 GB-month, and cap the level stored now", async () => {
+test("bill an averaged meter by time share and cap its current level", async () => {
     // subscribe the buyer to a free plan storing 2 GB on disk, read at the month's last instant
     const { finance, offer } = await open({
         start: END - 1,
@@ -381,7 +388,7 @@ test("bill an averaged meter by the shares its events carry, 2 GB stored for hal
     });
 });
 
-test("charge a seller's metered usage against the included usage, billing on past it, and block at a spending limit", async () => {
+test("rate metered usage against the included usage and spending limit", async () => {
     // subscribe the buyer to a plan including 9 euro of requests at 10 cents each
     const { finance, offer } = await open();
     const prices = await offerPlan(
@@ -459,7 +466,7 @@ test("charge a seller's metered usage against the included usage, billing on pas
     ]);
 });
 
-test("rate each space's SKU usage at list cost, billing nothing without a subscription to the seller, and refuse usage into a subscription period that ended", async () => {
+test("bill nothing for usage outside a subscription's current period", async () => {
     // store 100 GB-months in one space and 50 in another, at 2 cents a GB-month, without a subscription
     const { finance, offer } = await open();
     const now = finance.fixture.clock.now();
@@ -518,7 +525,7 @@ test("rate each space's SKU usage at list cost, billing nothing without a subscr
     expect({ rated, late }).toEqual({ rated: billed, late: billed });
 });
 
-test("charge each machine's awake hours up to the SKU's 10 hour cap per period, two machines apart, and start the next period fresh", async () => {
+test("cap each machine's priced hours per period at the SKU maximum", async () => {
     // run machine a 8 then 6 hours and machine b 3 hours in October, then machine a 4 hours in November
     const { finance } = await open();
     const machines = await finance.fixture.declareMachines(ids.buyer, 2);
@@ -560,7 +567,7 @@ test("charge each machine's awake hours up to the SKU's 10 hour cap per period, 
     ]);
 });
 
-test("rate an account's usage after its hot rows flush, as a restarted loop takes its cursor", async () => {
+test("rate flushed usage once a restarted loop takes its cursor", async () => {
     // append 100 GB-months measured two hours ago, which the machine flushes at once as past the flush age
     const { finance } = await open();
     const now = finance.fixture.clock.now();
@@ -582,7 +589,7 @@ test("rate an account's usage after its hot rows flush, as a restarted loop take
     expect(await charges(finance)).toEqual([["Usage", spaces.notes, 100, "200", "0", "open"]]);
 });
 
-test("rate an account's usage once when two ratings of it overlap", async () => {
+test("rate usage once when two ratings overlap", async () => {
     // append 100 and 50 GB-months in two spaces, then rate twice at once
     const { finance } = await open();
     const now = finance.fixture.clock.now();
@@ -610,7 +617,7 @@ test("rate an account's usage once when two ratings of it overlap", async () => 
     ]);
 });
 
-test("capture usage of a period its subscription billed already as refused, and rate the usage after it in the same page", async () => {
+test("capture usage before the current billed period as refused", async () => {
     // subscribe the buyer to a plan whose period started yesterday, capturing refused uses
     const { finance, offer } = await open();
     const now = finance.fixture.clock.now();
@@ -659,7 +666,7 @@ test("capture usage of a period its subscription billed already as refused, and 
     });
 });
 
-test("store one credit line per account, seller and period, refusing a second one of the same seller", async () => {
+test("store one credit line per account, seller and period", async () => {
     // credit the buyer for the period from Carol's shop and from another seller
     const { finance, offer } = await open();
     const credit = (sellerId: string) =>
@@ -720,27 +727,6 @@ async function charges(finance: Finance) {
         row.status,
     ]);
 }
-
-test("derive the account's storage entitlement from the capacity its plan grants, blocked once usage passes it, and no resource for a feature declaring none", async () => {
-    // leave the buyer on the free plan, past its capacity, reading two days into the period
-    const { finance, offer } = await open({ start: AFTER_STORING });
-    const free = await offerFree(finance);
-    await subscribe(finance, offer, [free], { start: START, end: END });
-    await finance.entitle();
-    const within = await resources(finance);
-    await append(finance, {
-        name: "1",
-        space: spaces.notes,
-        meter: stored.name,
-        value: 1200,
-        time: START + DAY,
-    });
-
-    expect({ within, blocked: await resources(finance) }).toEqual({
-        within: [["bucket", CAPACITY, 0, "within"]],
-        blocked: [["bucket", CAPACITY, 1200, "blocked"]],
-    });
-});
 
 /** Read the buyer's metered features allowing platform resources, with limit, usage and state. */
 async function resources(finance: Finance) {

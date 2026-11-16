@@ -1,4 +1,4 @@
-import { expect, test } from "@destack/test";
+import { expect, refusal, test } from "@destack/test";
 import { defineFeature } from "../src/declare/index.ts";
 import { compareFeature, describeFeature, featureSymbols } from "../src/inspect/index.ts";
 import { schema } from "@destack/schema";
@@ -18,7 +18,7 @@ import {
 } from "./fixture/storage.ts";
 import { t } from "@destack/locale";
 
-test("read described features and meters back from a build, and relate metered features to their meters", async () => {
+test("read features and meters back from a release", async () => {
     // read the storage package's declarations back from its build
     const build = await TestFinance.release(
         storage,
@@ -27,16 +27,23 @@ test("read described features and meters back from a build, and relate metered f
     );
     const releases = new ReleaseReader(async () => ReleaseReader.read(build));
     const features = [sync, support, seats, calls, storageLimit];
-    expect([
-        await Promise.all(
-            features.map(async (feature) =>
-                describeFeature(await releases.feature(feature.reference)),
-            ),
-        ),
-        (await releases.meter(requests.reference)).definition,
-    ]).toEqual([features.map((feature) => describeFeature(feature)), requests.definition]);
+    const described = await Promise.all(
+        features.map(async (feature) => describeFeature(await releases.feature(feature.reference))),
+    );
 
-    // relate the metered feature to its meter, and the others to nothing
+    // describe each as declared, and refuse an undeclared feature
+    expect([
+        described,
+        (await releases.meter(requests.reference)).definition,
+        await refusal(releases.feature({ packageId: storage.id, name: "backup" })),
+    ]).toEqual([
+        features.map((feature) => describeFeature(feature)),
+        requests.definition,
+        ["NOT_FOUND", "FEATURE_NOT_FOUND", `feature '${storage.id}/backup' not found`],
+    ]);
+});
+
+test("relate a metered feature to its meters", () => {
     expect([featureSymbols(calls), featureSymbols(sync)]).toEqual([
         [
             {
@@ -50,14 +57,6 @@ test("read described features and meters back from a build, and relate metered f
         ],
         [{ relationships: [] }],
     ]);
-
-    // refuse an undeclared feature
-    await expect(releases.feature({ packageId: storage.id, name: "backup" })).rejects.toMatchObject(
-        {
-            code: "NOT_FOUND",
-            message: `feature '${storage.id}/backup' not found`,
-        },
-    );
 });
 
 /** Read a feature's release entry back from JSON. */
@@ -75,31 +74,31 @@ function declare(options: FeatureOptions): Feature {
     return defineFeature(options, { package: storage });
 }
 
-test("plan a feature's change between releases: hold its kind, and accept the values earlier grants set", () => {
-    const outcome = (after: Feature) => {
-        try {
-            return compareFeature(entry(seats, "2026.9.0"), entry(after, "2026.10.0")).steps;
-        } catch (error) {
-            if (!(error instanceof Error)) {
-                throw error;
-            }
-
-            return error.message;
-        }
-    };
-
-    // accept an unchanged feature, widen its values safely, and refuse a narrowing or a change of kind
+test("plan a feature's change between two releases", async () => {
+    // plan from the released seats to a later declaration
+    const plan = (after: Feature) => () =>
+        compareFeature(entry(seats, "2026.9.0"), entry(after, "2026.10.0")).steps;
     const values = (value: schema.Schema) =>
         declare({ ...seats.definition, kind: "static", value });
+
+    // accept an unchanged feature, widen its values safely, and refuse a narrowing or a change of kind
     expect([
-        outcome(seats),
-        outcome(values(schema.number().int().min(0))),
-        outcome(values(schema.number().int().min(2))),
-        outcome(declare({ name: seats.name, description: t`Seats.`, kind: "boolean" })),
+        plan(seats)(),
+        plan(values(schema.number().int().min(0)))(),
+        await refusal(plan(values(schema.number().int().min(2)))),
+        await refusal(plan(declare({ name: seats.name, description: t`Seats.`, kind: "boolean" }))),
     ]).toEqual([
         [],
         [{ action: "update", target: "feature/seats", risk: "safe", detail: "wider values" }],
-        "cannot reach the desired state: feature/seats: declare a conversion for 2026.10.0",
-        "cannot reach the desired state: feature/seats: stay at kind static, or declare a feature of kind boolean",
+        [
+            "PRECONDITION_FAILED",
+            "PLAN_BLOCKED",
+            "cannot reach the desired state: feature/seats: declare a conversion for 2026.10.0",
+        ],
+        [
+            "PRECONDITION_FAILED",
+            "PLAN_BLOCKED",
+            "cannot reach the desired state: feature/seats: stay at kind static, or declare a feature of kind boolean",
+        ],
     ]);
 });

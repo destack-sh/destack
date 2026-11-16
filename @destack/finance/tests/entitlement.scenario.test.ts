@@ -1,5 +1,3 @@
-import type { Environment } from "@destack/environment";
-import { testSimulation } from "@destack/object/test";
 import { eq, Snapshot } from "@destack/db";
 import { nth } from "@destack/schema";
 import { expect, onTestFinished, test } from "@destack/test";
@@ -71,24 +69,20 @@ async function append(
 
 /** Move a subscription through a provider's transition as the system. */
 async function transition(
-    world: Environment,
     finance: Finance,
     name: "activate" | "fail" | "cancel",
     row: Subscription,
 ): Promise<Subscription> {
     return nth(
         await finance.store.mutate(finance.store.as(subscription), {
-            id: RequestId.create(world),
+            id: RequestId.create(finance.fixture.environment),
             calls: [subscription.call(name, subscription.target(row))],
         }),
         0,
     );
 }
 
-test("derive entitlements from an active or past due subscription's grants and remove them once it is canceled", async () => {
-    // run in a world of its own
-    const world = testSimulation().environment("test");
-
+test("grant a subscription's features while active or past due", async () => {
     const { finance, offer } = await open();
 
     // subscribe the buyer to the monthly price, granting nothing while incomplete
@@ -98,10 +92,9 @@ test("derive entitlements from an active or past due subscription's grants and r
 
     // grant each feature of the plan while active, and still while its payment is past due
     const due = await transition(
-        world,
         finance,
         "fail",
-        await transition(world, finance, "activate", incomplete),
+        await transition(finance, "activate", incomplete),
     );
     await finance.entitle();
     expect([due.status, derived(await finance.entitlements(ids.buyer))]).toEqual([
@@ -116,18 +109,14 @@ test("derive entitlements from an active or past due subscription's grants and r
     ]);
 
     // remove them once the subscription is canceled
-    await transition(world, finance, "cancel", due);
+    await transition(finance, "cancel", due);
     await finance.entitle();
     expect(await finance.entitlements(ids.buyer)).toEqual([]);
 });
 
-test("count metered usage within the subscription's period and start again with the next period", async () => {
-    // run in a world of its own
-    const world = testSimulation().environment("test");
-
+test("count metered usage within the subscription's current period", async () => {
     const { finance, offer } = await open();
     const active = await transition(
-        world,
         finance,
         "activate",
         await finance.subscribe(offer, { start: START, end: END }),
@@ -155,7 +144,7 @@ test("count metered usage within the subscription's period and start again with 
 
     // start the requests again once the provider renews the subscription into the next period
     await finance.store.mutate(finance.store.as(subscription), {
-        id: RequestId.create(world),
+        id: RequestId.create(finance.fixture.environment),
         calls: [
             subscription.call("sync", {
                 ...subscription.target(active),
@@ -179,10 +168,7 @@ test("count metered usage within the subscription's period and start again with 
     ]);
 });
 
-test("resolve each feature's effective grant across a subscription's plan and add-on items", async () => {
-    // run in a world of its own
-    const world = testSimulation().environment("test");
-
+test("combine the grants of a subscription's plan and add-on items", async () => {
     const { finance, offer } = await open();
 
     // subscribe to the plan with an add-on item of more calls, unlimited storage, more seats and community support
@@ -194,7 +180,7 @@ test("resolve each feature's effective grant across a subscription's plan and ad
         { packageId: storage.id, feature: support.name, value: "community" },
     ];
     await finance.item(subscribed, offer.monthly, addon);
-    await transition(world, finance, "activate", subscribed);
+    await transition(finance, "activate", subscribed);
 
     // count requests in the period and the one after
     await append(finance, {
@@ -206,11 +192,13 @@ test("resolve each feature's effective grant across a subscription's plan and ad
 
     // grant access, the most seats, the latest support, summed calls in the first period, and unlimited storage
     const rows = await finance.resolutions(ids.buyer);
-    expect(
-        [sync, seats, support, calls, storageLimit].map((feature) =>
+    expect([
+        rows.filter((row) => row.feature === calls.name).length,
+        ...[sync, seats, support, calls, storageLimit].map((feature) =>
             resolved(rows, feature.reference),
         ),
-    ).toEqual([
+    ]).toEqual([
+        1,
         { kind: "boolean" },
         { kind: "static", value: ADDON_SEATS },
         { kind: "static", value: "community" },
@@ -225,47 +213,9 @@ test("resolve each feature's effective grant across a subscription's plan and ad
     ]);
 });
 
-test("add the limits of a subscription's items granting one feature twice into one entitlement", async () => {
-    // run in a world of its own
-    const world = testSimulation().environment("test");
-
-    const { finance, offer } = await open();
-
-    // bill the plan and an add-on of more calls in one subscription
-    const active = await transition(
-        world,
-        finance,
-        "activate",
-        await finance.subscribe(offer, { start: START, end: END }),
-    );
-    const addon = [{ packageId: storage.id, feature: calls.name, value: ADDON_CALLS }];
-    await finance.item(active, offer.monthly, addon);
-    await finance.entitle();
-
-    // store one row for the feature with the summed limit
-    const rows = await finance.resolutions(ids.buyer);
-    expect([
-        rows.filter((row) => row.feature === calls.name).length,
-        resolved(rows, calls.reference),
-    ]).toEqual([
-        1,
-        {
-            kind: "metered",
-            limit: CALL_LIMIT + ADDON_CALLS,
-            usage: 0,
-            resetAt: END,
-            state: "within",
-        },
-    ]);
-});
-
-test("count a meter event into the usage of its meter's entitlements, deriving the account's other features with it", async () => {
-    // run in a world of its own
-    const world = testSimulation().environment("test");
-
+test("resolve an item's current grants with its meters' usage", async () => {
     const { finance, offer } = await open();
     const active = await transition(
-        world,
         finance,
         "activate",
         await finance.subscribe(offer, { start: START, end: END }),
@@ -298,15 +248,11 @@ test("count a meter event into the usage of its meter's entitlements, deriving t
     ]);
 });
 
-test("let a grant lapse once the latest release of its feature's package no longer declares the feature", async () => {
-    // run in a world of its own
-    const world = testSimulation().environment("test");
-
+test("lapse a grant once its package's latest release drops the feature", async () => {
     const { finance, offer } = await open();
 
     // grant the plan's features to an active subscription
     await transition(
-        world,
         finance,
         "activate",
         await finance.subscribe(offer, { start: START, end: END }),

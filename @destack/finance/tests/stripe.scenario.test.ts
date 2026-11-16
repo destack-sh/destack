@@ -231,7 +231,7 @@ async function subscriptions(finance: Finance) {
     }));
 }
 
-test("open a seller's connected account in the country it onboards from, refusing another country", async () => {
+test("open a seller's connected account in its onboarding country", async () => {
     // onboard Carol's shop from Austria at opening, then try again from Switzerland
     const { finance, offer } = await open();
     const [shop] = await finance.database
@@ -265,7 +265,7 @@ test("open a seller's connected account in the country it onboards from, refusin
     ]);
 });
 
-test("subscribe through Checkout, start the subscription from the signed webhook and mirror the invoice", async () => {
+test("subscribe through Checkout and mirror the paid invoice", async () => {
     // open a checkout of the Go plan as Alice
     const { stripe, finance, deliver } = await open();
     const go = await offerGo(finance);
@@ -326,7 +326,7 @@ test("subscribe through Checkout, start the subscription from the signed webhook
     });
 });
 
-test("replace an abandoned checkout by expiring it at Stripe, and refuse another once the buyer paid the open one", async () => {
+test("replace an open checkout session until its buyer pays", async () => {
     // open a checkout of Go twice, as a buyer coming back after closing the page
     const { stripe, finance, deliver } = await open();
     const go = await offerGo(finance);
@@ -368,7 +368,7 @@ test("replace an abandoned checkout by expiring it at Stripe, and refuse another
     });
 });
 
-test("start a plan including usage at no spending past it, and a pay-as-you-go plan without a spending limit", async () => {
+test("set a new subscription's spending limit from its included usage", async () => {
     // subscribe Acme's buyer to Go and Dave's account to a plan billing requests past a fee of nothing, both through Checkout
     const { stripe, finance, deliver } = await open();
     const metered = await offerPlan(finance, t`Metered`, [
@@ -432,7 +432,7 @@ test("start a plan including usage at no spending past it, and a pay-as-you-go p
     ]);
 });
 
-test("rate a seller's metered price into one line a repeated use counts once, near the included usage, and invoice it less the included usage", async () => {
+test("invoice metered usage on the renewal draft less included usage", async () => {
     // subscribe to Go through Checkout
     const { stripe, finance, deliver } = await open();
     const go = await offerGo(finance);
@@ -507,7 +507,7 @@ test("rate a seller's metered price into one line a repeated use counts once, ne
     });
 });
 
-test("apply a delivery signed with the endpoint's secret, refusing a forged one, and leave another home's events", async () => {
+test("apply signed deliveries for the home's own customers alone", async () => {
     // open a checkout of the Go plan
     const { stripe, provider, finance, deliver } = await open();
     const go = await offerGo(finance);
@@ -576,7 +576,7 @@ test("apply a delivery signed with the endpoint's secret, refusing a forged one,
     });
 });
 
-test("move from the default product to Go through Checkout, and back by closing the period onto Stripe's final invoice and canceling", async () => {
+test("move between the default product and Go through Stripe", async () => {
     // reset the default product's calls with the calendar month, then Go's with its Stripe period
     const { stripe, finance, deliver } = await open();
     const free = await offerFree(finance);
@@ -647,7 +647,7 @@ test("move from the default product to Go through Checkout, and back by closing 
     });
 });
 
-test("change Go to Pro at Stripe once the change commits, leaving Stripe as it was when a change rolls back", async () => {
+test("change a plan at Stripe once the change commits", async () => {
     // subscribe to Go through Checkout, with Pro on offer beside it
     const { stripe, finance, deliver } = await open();
     const go = await offerGo(finance);
@@ -722,89 +722,19 @@ test("change Go to Pro at Stripe once the change commits, leaving Stripe as it w
     });
 });
 
-test.each([
-    { limit: "the default spending limit", spendingLimit: 0, billed: 900 },
-    { limit: "no spending limit", spendingLimit: null, billed: 1000 },
-])(
-    "invoice a period's rated usage on the renewal's draft invoice, less the included usage, forgiving usage past $limit",
-    async ({ spendingLimit, billed }) => {
-        // subscribe to Go through Checkout
-        const { stripe, finance, deliver } = await open();
-        const go = await offerGo(finance);
-        const session = await finance.call(
-            "alice",
-            checkoutSession.call("create", {
-                ...PAGES,
-                accountId: ids.buyer,
-                ...ObjectReference.columns("product", product.reference(go.scope, go.id)),
-                currency: "EUR",
-            }),
-        );
-        await deliver(
-            stripe.complete(present(session.providerId, "the session's provider identifier")),
-        );
+test("invoice rated usage on the renewal draft up to the spending limit", async () => {
+    // bill 10 euro of disk once at the default spending limit and once without a limit
+    const outcomes = [];
+    for (const spendingLimit of [0, null]) {
+        outcomes.push(await invoiceDisk(spendingLimit));
+    }
 
-        // leave the subscription's spending limit, or lift it
-        const [started] = await finance.database
-            .select({ id: subscription.table.id, spendingLimit: subscription.table.spendingLimit })
-            .from(subscription.table)
-            .where(eq(subscription.table.accountId, ids.buyer));
-        const held = present(started, "the started subscription");
-        if (spendingLimit !== held.spendingLimit) {
-            await finance.call(
-                "alice",
-                subscription.call("update", {
-                    id: held.id,
-                    spendingLimit,
-                }),
-            );
-        }
-
-        // store 500 GB-months of disk in a space, 10 euro at 2 cents a GB-month
-        const now = stripe.now * 1000;
-        await finance.fixture.use(ids.buyer, [
-            {
-                name: "1",
-                space: spaces.notes,
-                meter: { packageId: storage.id, name: disk.name },
-                quantity: 500 * GB,
-                level: 500 * GB,
-                sku: diskSku.reference,
-                time: now,
-            },
-        ]);
-
-        // renew at Stripe: the draft closing the period takes the lines, then pay it
-        const [subscribed] = stripe.list("sub").map((each) => String(each["id"]));
-        const renewal = stripe.renew(present(subscribed, "the stripe subscription"));
-        await deliver(renewal);
-        const drafted = String(present(renewal[0], "the drafted invoice").object["id"]);
-        await deliver([{ type: "invoice.paid", object: stripe.pay(drafted) }]);
-        const [customerId] = stripe.list("cus").map((each) => each["id"]);
-        const lines = await finance.database
-            .select({
-                category: charge.table.chargeCategory,
-                listCost: charge.table.listCost,
-                billedCost: charge.table.billedCost,
-                status: charge.table.status,
-            })
-            .from(charge.table)
-            .orderBy(asc(charge.table.chargeCategory));
-        const [mirrored] = await finance.database
-            .select({ total: invoice.table.total })
-            .from(invoice.table)
-            .where(eq(invoice.table.providerId, drafted));
-        // bill the usage up to the limit on the draft, drawing the 9 euro prepaid: the next fee and the rest due, all of it earned
-        expect({
-            items: stripe
-                .list("ii")
-                .map((item) => [item["customer"], item["invoice"], item["amount"]]),
-            lines,
-            total: mirrored?.total,
-        }).toEqual({
+    // bill the usage up to the limit on the draft, drawing the 9 euro prepaid: the next fee and the rest due, all of it earned
+    expect(outcomes).toEqual(
+        [900, 1000].map((billed) => ({
             items: [
-                [customerId, drafted, String(billed)],
-                [customerId, drafted, "-900"],
+                ["customer", "draft", String(billed)],
+                ["customer", "draft", "-900"],
             ],
             lines: [
                 { category: "Credit", listCost: "0", billedCost: "-900", status: "invoiced" },
@@ -816,11 +746,88 @@ test.each([
                 },
             ],
             total: FEE + billed - FEE,
-        });
-    },
-);
+        })),
+    );
+});
 
-test("apply an invoice event once however often and however concurrently Stripe delivers it, and mirror Stripe's current invoice whatever order its events arrive in", async () => {
+/** Subscribe to Go at a spending limit, store disk, and pay the renewal's draft. */
+async function invoiceDisk(spendingLimit: number | null) {
+    // subscribe to Go through Checkout
+    const { stripe, finance, deliver } = await open();
+    const go = await offerGo(finance);
+    const session = await finance.call(
+        "alice",
+        checkoutSession.call("create", {
+            ...PAGES,
+            accountId: ids.buyer,
+            ...ObjectReference.columns("product", product.reference(go.scope, go.id)),
+            currency: "EUR",
+        }),
+    );
+    await deliver(
+        stripe.complete(present(session.providerId, "the session's provider identifier")),
+    );
+
+    // leave the subscription's spending limit, or lift it
+    const [started] = await finance.database
+        .select({ id: subscription.table.id, spendingLimit: subscription.table.spendingLimit })
+        .from(subscription.table)
+        .where(eq(subscription.table.accountId, ids.buyer));
+    const held = present(started, "the started subscription");
+    if (spendingLimit !== held.spendingLimit) {
+        await finance.call("alice", subscription.call("update", { id: held.id, spendingLimit }));
+    }
+
+    // store 500 GB-months of disk in a space, 10 euro at 2 cents a GB-month
+    await finance.fixture.use(ids.buyer, [
+        {
+            name: "1",
+            space: spaces.notes,
+            meter: { packageId: storage.id, name: disk.name },
+            quantity: 500 * GB,
+            level: 500 * GB,
+            sku: diskSku.reference,
+            time: stripe.now * 1000,
+        },
+    ]);
+
+    // renew at Stripe: the draft closing the period takes the lines, then pay it
+    const [subscribed] = stripe.list("sub").map((each) => String(each["id"]));
+    const renewal = stripe.renew(present(subscribed, "the stripe subscription"));
+    await deliver(renewal);
+    const drafted = String(present(renewal[0], "the drafted invoice").object["id"]);
+    await deliver([{ type: "invoice.paid", object: stripe.pay(drafted) }]);
+
+    // read the invoice items as of the customer and the draft, the charge lines and the mirrored total
+    const [customerId] = stripe.list("cus").map((each) => each["id"]);
+    const lines = await finance.database
+        .select({
+            category: charge.table.chargeCategory,
+            listCost: charge.table.listCost,
+            billedCost: charge.table.billedCost,
+            status: charge.table.status,
+        })
+        .from(charge.table)
+        .orderBy(asc(charge.table.chargeCategory));
+    const [mirrored] = await finance.database
+        .select({ total: invoice.table.total })
+        .from(invoice.table)
+        .where(eq(invoice.table.providerId, drafted));
+
+    return {
+        items: stripe
+            .list("ii")
+            .map((item) => [
+                item["customer"] === customerId ? "customer" : item["customer"],
+                item["invoice"] === drafted ? "draft" : item["invoice"],
+                item["amount"],
+            ]),
+        lines,
+        total: mirrored?.total,
+    };
+}
+
+test("apply each invoice event once and keep Stripe's latest invoice", async () => {
     // complete a checkout of Go, holding back the paid invoice's event
     const { stripe, finance, deliver } = await open();
     const go = await offerGo(finance);

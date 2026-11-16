@@ -5,7 +5,7 @@ import { price, Price, product, productFeature, seller } from "../src/object/ind
 import { Finance, ids } from "./fixture/finance.ts";
 import { calls, domains, hosting, support, sync } from "./fixture/storage.ts";
 
-test("offer a product at a price granting declared features, read by buyers while active", async () => {
+test("offer a product granting features to buyers while on sale", async () => {
     const finance = await Finance.open();
     onTestFinished(() => finance.close());
 
@@ -74,7 +74,7 @@ test("offer a product at a price granting declared features, read by buyers whil
         ["sync", null],
     ]);
 
-    // let buyers outside the shop read its products on sale alone, not an archived one
+    // let buyers outside the shop read its products on sale alone, its sellers the archived one too
     const team = await finance.call(
         "carol",
         product.call("create", {
@@ -83,7 +83,7 @@ test("offer a product at a price granting declared features, read by buyers whil
             description: t`Not offered yet.`,
         }),
     );
-    const archived = await finance.call("carol", product.call("archive", { id: team.id }));
+    await finance.call("carol", product.call("archive", { id: team.id }));
     const listed = (shopper: "alice" | "carol") =>
         finance.call(
             shopper,
@@ -96,11 +96,10 @@ test("offer a product at a price granting declared features, read by buyers whil
     expect([
         (await listed("alice")).items.map((item) => item.name.source),
         (await listed("carol")).items.map((item) => item.name.source),
-        archived.archivedAt !== null,
-    ]).toEqual([["Pro"], ["Pro", "Team"], true]);
+    ]).toEqual([["Pro"], ["Pro", "Team"]]);
 });
 
-test("let only a shop's sellers offer products in it, granting only features of packages its account publishes", async () => {
+test("authorize offers by the shop's role and the package's publisher", async () => {
     const finance = await Finance.open();
     onTestFinished(() => finance.close());
     const offer = await finance.offer();
@@ -160,7 +159,7 @@ test("let only a shop's sellers offer products in it, granting only features of 
     expect([granted.packageId, granted.feature]).toEqual([hosting.id, domains.name]);
 });
 
-test("refuse offering a price or a product taken off sale", async () => {
+test("refuse offering an archived price or product", async () => {
     const finance = await Finance.open();
     onTestFinished(() => finance.close());
     const offer = await finance.offer();
@@ -179,64 +178,11 @@ test("refuse offering a price or a product taken off sale", async () => {
     ]);
 });
 
-test("refuse a price whose included usage exceeds its fee, as the buyer would owe usage they never paid", async () => {
+test("refuse prices their product or seller cannot bill", async () => {
     const finance = await Finance.open();
     onTestFinished(() => finance.close());
 
-    // onboard Carol's shop, and offer a plan whose fee includes 900 of usage
-    await finance.call(
-        "carol",
-        seller.call("create", {
-            accountId: ids.shop,
-            creditPrices: { EUR: "1" },
-        }),
-    );
-    const plan = await finance.call(
-        "carol",
-        product.call("create", {
-            accountId: ids.shop,
-            name: t`Go`,
-            description: t`9 a month of usage.`,
-        }),
-    );
-    const monthly = {
-        parentId: plan.id,
-        currency: "EUR",
-        recurring: { interval: "month", intervalCount: 1, usage: "licensed" },
-    } as const;
-    await finance.call(
-        "carol",
-        price.call("create", {
-            ...monthly,
-            unitAmount: 900,
-            includedUsage: 900,
-        }),
-    );
-
-    // refuse a fee below the usage it includes
-    expect(
-        await refusal(
-            finance.call(
-                "carol",
-                price.call("create", {
-                    ...monthly,
-                    unitAmount: 500,
-                    includedUsage: 900,
-                }),
-            ),
-        ),
-    ).toEqual([
-        "BAD_REQUEST",
-        "USAGE_INVALID",
-        "included usage '900' is invalid: it exceeds the price's fee of 500 'EUR'",
-    ]);
-});
-
-test("refuse a price in a currency its seller prices no credit in, which usage of credit-listed SKUs could not convert into", async () => {
-    const finance = await Finance.open();
-    onTestFinished(() => finance.close());
-
-    // onboard Carol's shop pricing credits in euros alone, and offer a plan
+    // onboard Carol's shop pricing credits in euros alone, with a plan and a default product
     const shop = await finance.call(
         "carol",
         seller.call("create", {
@@ -252,23 +198,55 @@ test("refuse a price in a currency its seller prices no credit in, which usage o
             description: t`9 a month of usage.`,
         }),
     );
+    const free = await finance.call(
+        "carol",
+        product.call("create", {
+            accountId: ids.shop,
+            name: t`Free`,
+            description: t`Community support.`,
+            isDefault: true,
+        }),
+    );
 
-    // refuse a price in dollars
-    expect(
-        await refusal(
-            finance.call(
-                "carol",
-                price.call("create", {
-                    parentId: plan.id,
-                    currency: "USD",
-                    unitAmount: 900,
-                    recurring: { interval: "month", intervalCount: 1, usage: "licensed" },
-                }),
-            ),
-        ),
-    ).toEqual([
-        "BAD_REQUEST",
-        "CURRENCY_INVALID",
-        `currency 'USD' is invalid: seller '${shop.id}' has no credit price in it`,
+    // offer the plan at a fee including 900 of usage
+    const monthly = {
+        parentId: plan.id,
+        currency: "EUR",
+        recurring: { interval: "month", intervalCount: 1, usage: "licensed" },
+    } as const;
+    await finance.call(
+        "carol",
+        price.call("create", {
+            ...monthly,
+            unitAmount: 900,
+            includedUsage: 900,
+        }),
+    );
+
+    // refuse a fee below its included usage, a currency without a credit price, and a default product's price
+    const refused = [];
+    for (const terms of [
+        { ...monthly, unitAmount: 500, includedUsage: 900 },
+        { ...monthly, currency: "USD", unitAmount: 900 },
+        { ...monthly, parentId: free.id, unitAmount: 0 },
+    ]) {
+        refused.push(await refusal(finance.call("carol", price.call("create", terms))));
+    }
+    expect(refused).toEqual([
+        [
+            "BAD_REQUEST",
+            "USAGE_INVALID",
+            "included usage '900' is invalid: it exceeds the price's fee of 500 'EUR'",
+        ],
+        [
+            "BAD_REQUEST",
+            "CURRENCY_INVALID",
+            `currency 'USD' is invalid: seller '${shop.id}' has no credit price in it`,
+        ],
+        [
+            "BAD_REQUEST",
+            "PRODUCT_INVALID",
+            `product '${free.id}' is invalid: it is every account's default, so it cannot have prices`,
+        ],
     ]);
 });

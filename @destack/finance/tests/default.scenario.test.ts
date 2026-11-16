@@ -1,8 +1,8 @@
 import { t } from "@destack/locale";
 import { asc, eq, Snapshot } from "@destack/db";
-import { expect, onTestFinished, refusal, test } from "@destack/test";
+import { expect, onTestFinished, test } from "@destack/test";
 import { account, entitlement, Residency } from "@destack/account/object";
-import { price, product, productFeature, subscription } from "../src/object/index.ts";
+import { product, productFeature, subscription } from "../src/object/index.ts";
 import { Finance, ids } from "./fixture/finance.ts";
 import { storage, support } from "./fixture/storage.ts";
 import { RequestId } from "@destack/sync";
@@ -10,7 +10,7 @@ import { RequestId } from "@destack/sync";
 /** A month in milliseconds. */
 const MONTH = 30 * 86_400_000;
 
-test("grant every account without a subscription to the shop its default product, refusing prices on it, and stop once the account subscribes", async () => {
+test("grant the default product until an account subscribes", async () => {
     // offer the shop's paid plan and its default product granting community support
     const finance = await Finance.open();
     onTestFinished(() => finance.close());
@@ -32,17 +32,6 @@ test("grant every account without a subscription to the shop its default product
             feature: support.name,
             value: "community",
         }),
-    );
-    const priced = await refusal(
-        finance.call(
-            "carol",
-            price.call("create", {
-                parentId: free.id,
-                currency: "EUR",
-                unitAmount: 0,
-                recurring: { interval: "month", intervalCount: 1, usage: "licensed" },
-            }),
-        ),
     );
 
     // derive every account's entitlements, then again once the buyer subscribes to the paid plan
@@ -75,12 +64,7 @@ test("grant every account without a subscription to the shop its default product
         .where(eq(account.table.residencyId, served.id))
         .orderBy(asc(account.table.id));
     const accounts = residents.map((row) => row.id);
-    expect({ priced, before, after: await read() }).toEqual({
-        priced: [
-            "BAD_REQUEST",
-            "PRODUCT_INVALID",
-            `product '${free.id}' is invalid: it is every account's default, so it cannot have prices`,
-        ],
+    expect({ before, after: await read() }).toEqual({
         before: accounts.map((scope) => [scope, "community"]),
         after: accounts.map((scope) => [scope, scope === ids.buyer ? "priority" : "community"]),
     });
