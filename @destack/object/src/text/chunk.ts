@@ -298,14 +298,12 @@ export class TextPresenter {
     }
 }
 
-/** The chunks an edit changes and creates, with the changed ones whose run ranges moved. */
+/** A chunk an edit writes: as read, null for a new chunk, and as written. */
 interface ChunkChange {
-    /** The existing chunks with changed runs. */
-    readonly changed: Chunk[];
-    /** The changed chunks whose run ranges the server reindexes. */
-    readonly reranged: Chunk[];
-    /** The new chunks. */
-    readonly created: Chunk[];
+    /** The chunk as read, null for a new chunk. */
+    readonly before: Chunk | null;
+    /** The chunk as written. */
+    readonly after: Chunk;
 }
 
 /** The layout of a text in chunks: cutting, filling, recutting and reindexing them. */
@@ -332,28 +330,33 @@ const ChunkLayout = {
         parent: Parent,
         edits: readonly SequenceEdit[],
     ): Promise<Chunk[]> {
-        // find the chunks containing the referenced elements and any run the edits insert
+        // find the runs containing the referenced elements and any run the edits insert
         const { named, inserted, isAtStart } = ChunkLayout.editedElements(edits);
-        const found =
+        const runs =
             named.length === 0 && inserted.size === 0
                 ? []
                 : await ChunkLayout.containing(context, parent, named, inserted);
-        ChunkLayout.requireContained(found, named, inserted, parent.field);
+        ChunkLayout.requireContained(runs, named, inserted, parent.field);
 
-        // add the field's first chunk for an insertion at the start
-        const positions = found.map((entry) => entry.position);
-        if (isAtStart) {
-            positions.push(...(await ChunkLayout.firstPosition(context, parent)));
-        }
+        // read the chunks with those runs, and the field's first chunk for an insertion at the start
+        const ids = [...new Set(runs.map((entry) => entry.chunk))];
+        const rows =
+            ids.length === 0
+                ? []
+                : await context.read(chunk).findMany({ where: { id: { in: ids } } });
+        const first = isAtStart ? await ChunkLayout.first(context, parent) : [];
+        const found = ChunkLayout.ordered([
+            ...rows,
+            ...first.filter((row) => !ids.includes(row.id)),
+        ]);
 
-        // read the range from the first touched chunk to the last
-        const sorted = positions.toSorted();
-        const [from] = sorted;
-        const to = sorted.at(-1);
+        // take one chunk as it is, else read every chunk from the first touched to the last
+        const [from] = found;
+        const to = found.at(-1);
 
-        return from === undefined || to === undefined
-            ? []
-            : ChunkLayout.read(context, parent, { from, to });
+        return found.length <= 1 || from === undefined || to === undefined
+            ? found
+            : ChunkLayout.read(context, parent, { from: from.position, to: to.position });
     },
 
     /** Collect the elements some edits refer to, without inserted runs, and any start insertion. */
@@ -388,8 +391,7 @@ const ChunkLayout = {
         named: readonly Element[],
         inserted: ReadonlySet<string>,
     ) {
-        // read the runs containing the named elements and the inserted runs
-        const runs = await context.read(chunkRun).findMany({
+        return context.read(chunkRun).findMany({
             where: {
                 ...parent,
                 OR: [
@@ -402,19 +404,6 @@ const ChunkLayout = {
                 ],
             },
         });
-
-        // place each run at its chunk's position
-        const chunks = await context
-            .read(chunk)
-            .findMany({ where: { id: { in: runs.map((entry) => entry.chunk) } } });
-        const positions = new Map(chunks.map((row) => [row.id, row.position]));
-
-        return runs.map((entry) => ({
-            run: entry.run,
-            start: entry.start,
-            end: entry.end,
-            position: present(positions.get(entry.chunk), `the chunk of run ${entry.run}`),
-        }));
     },
 
     /** Refuse a run the text already contains and an element no chunk contains. */
@@ -451,13 +440,11 @@ const ChunkLayout = {
         }
     },
 
-    /** Read the position of a text field's first chunk, none for an empty field. */
-    async firstPosition(context: MethodContext, parent: Parent): Promise<string[]> {
-        const [first] = await context
+    /** Read a text field's first chunk, none for an empty field. */
+    async first(context: MethodContext, parent: Parent): Promise<Chunk[]> {
+        return context
             .read(chunk)
             .findMany({ where: { ...parent }, orderBy: { position: "asc" }, limit: 1 });
-
-        return first === undefined ? [] : [first.position];
     },
 
     /** Apply edits to a text's runs, collecting the edits inverting them in reverse order. */
@@ -499,27 +486,20 @@ const ChunkLayout = {
         parent: Parent,
         rows: readonly Chunk[],
         edited: readonly Run[],
-    ): Promise<ChunkChange> {
+    ): Promise<ChunkChange[]> {
         // cut at the starts of the chunks after the first
         const segments = ChunkLayout.cut(
             edited,
             rows.slice(1).map((row) => ChunkLayout.start(row)),
         );
-        const chunks: ChunkChange = { changed: [], reranged: [], created: [] };
+        const changes: ChunkChange[] = [];
         for (const [index, segment] of segments.entries()) {
-            // take a changed chunk's first group, noting one whose ranges the server reindexes
+            // take a changed chunk's first group
             const current = rows[index];
             const [first, ...rest] = ChunkLayout.fill(segment);
             if (current !== undefined && canonicalize(first) !== canonicalize(current.runs)) {
-                const row = { ...current, runs: first, text: new Sequence(first).text() };
-                chunks.changed.push(row);
-                if (
-                    !context.isPredicted &&
-                    canonicalize(ChunkLayout.ranges(first)) !==
-                        canonicalize(ChunkLayout.ranges(current.runs))
-                ) {
-                    chunks.reranged.push(row);
-                }
+                const after = { ...current, runs: first, text: new Sequence(first).text() };
+                changes.push({ before: current, after });
             }
 
             // place new chunks between this one and the next
@@ -534,53 +514,36 @@ const ChunkLayout = {
             }
             for (const runs of groups) {
                 before = FractionalIndex.between(before, after);
-                chunks.created.push({
+                const created = Table.complete(chunk, {
                     ...parent,
                     id: Identifier.create("chunk", context.environment),
                     position: before,
                     runs,
                     text: new Sequence(runs).text(),
                 });
+                changes.push({ before: null, after: created });
             }
         }
 
-        return chunks;
+        return changes;
     },
 
     /** Write the changed and new chunks, and index their runs on the server. */
     async writeChunks(
         context: MethodContext,
         execution: Execution,
-        chunks: ChunkChange,
+        changes: readonly ChunkChange[],
     ): Promise<void> {
-        // read the changed chunks at once
-        const changed = chunks.changed.map((row) => row.id);
-        const before = new Map(
-            (changed.length === 0
-                ? []
-                : await context.read(chunk).findMany({ where: { id: { in: changed } } })
-            ).map((row) => [row.id, row]),
-        );
-
-        // write the changed and new chunks together
+        // write the chunks over the rows the edit read
         await Execution.write(
             execution,
             context,
-            ...chunks.changed.map((row) => {
-                const current = present(before.get(row.id), `the chunk ${row.id}`);
-
-                return { table: chunk, before: current, after: { ...current, ...row } };
-            }),
-            ...chunks.created.map((row) => ({
-                table: chunk,
-                before: null,
-                after: Table.complete(chunk, row),
-            })),
+            ...changes.map(({ before, after }) => ({ table: chunk, before, after })),
         );
 
-        // index the runs of changed and new chunks on the server
+        // index the runs on the server
         if (execution.kind === "store") {
-            await ChunkLayout.reindex(context, execution, [...chunks.reranged, ...chunks.created]);
+            await ChunkLayout.reindex(context, execution, changes);
         }
     },
 
@@ -603,40 +566,53 @@ const ChunkLayout = {
         return after?.position;
     },
 
-    /** Replace the index rows of some chunks with their runs' ranges. */
+    /** Write the index rows a chunk's runs gain and lose, as derived from its runs' ranges. */
     async reindex(
         context: MethodContext,
         execution: Execution,
-        rows: readonly Chunk[],
+        changes: readonly ChunkChange[],
     ): Promise<void> {
-        // read the chunks' old ranges
-        if (rows.length === 0) {
-            return;
-        }
-        const old = await context
-            .read(chunkRun)
-            .findMany({ where: { chunk: { in: rows.map((row) => row.id) } } });
+        // derive each chunk's index rows before and after, by their ranges
+        const writes = changes.flatMap(({ before, after }) => {
+            const old = new Map(
+                (before === null ? [] : ChunkLayout.indexRows(before)).map((row) => [
+                    canonicalize(row),
+                    row,
+                ]),
+            );
+            const current = new Map(
+                ChunkLayout.indexRows(after).map((row) => [canonicalize(row), row]),
+            );
 
-        // replace them with their current ranges together
-        await Execution.write(
-            execution,
-            context,
-            ...old.map((range) => ({ table: chunkRun, before: range, after: null })),
-            ...rows.flatMap((row) =>
-                ChunkLayout.ranges(row.runs).map((range) => ({
-                    table: chunkRun,
-                    before: null,
-                    after: Table.complete(chunkRun, {
-                        chunk: row.id,
-                        scope: row.scope,
-                        parentPackageId: row.parentPackageId,
-                        parentType: row.parentType,
-                        parentId: row.parentId,
-                        field: row.field,
-                        ...range,
-                    }),
-                })),
-            ),
+            // drop the rows the chunk lost and add the ones it gained
+            return [
+                ...[...old]
+                    .filter(([key]) => !current.has(key))
+                    .map(([, row]) => ({ table: chunkRun, before: row, after: null })),
+                ...[...current]
+                    .filter(([key]) => !old.has(key))
+                    .map(([, row]) => ({ table: chunkRun, before: null, after: row })),
+            ];
+        });
+
+        // write them together
+        if (writes.length > 0) {
+            await Execution.write(execution, context, ...writes);
+        }
+    },
+
+    /** Derive a chunk's index rows from its runs' ranges. */
+    indexRows(row: Chunk) {
+        return ChunkLayout.ranges(row.runs).map((range) =>
+            Table.complete(chunkRun, {
+                chunk: row.id,
+                scope: row.scope,
+                parentPackageId: row.parentPackageId,
+                parentType: row.parentType,
+                parentId: row.parentId,
+                field: row.field,
+                ...range,
+            }),
         );
     },
 
