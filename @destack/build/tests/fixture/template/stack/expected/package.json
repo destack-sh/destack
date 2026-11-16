@@ -4,7 +4,7 @@
     "license": "MIT",
     "type": "module",
     "sideEffects": false,
-    "description": "Start a space's stack from a template: a files bucket, a credentials vault, the baseline installations and an automatic rollback.",
+    "description": "Start a space's stack from a template: a files bucket, a credentials vault, the baseline installations and an alert on fatal issues.",
     "exports": {
         ".": "./src/index.ts",
         "./stack": "./src/stack/index.ts",
