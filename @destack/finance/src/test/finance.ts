@@ -19,7 +19,13 @@ import { notification } from "@destack/notification/object";
 import messagePackage from "@destack/message/package";
 import notificationPackage from "@destack/notification/package";
 import { TestNotification } from "@destack/notification/test";
-import { EventView, PACKAGE_KIND, PACKAGE_EXPORT } from "@destack/object";
+import {
+    EventView,
+    OBJECT_KIND,
+    ObjectDescription,
+    PACKAGE_KIND,
+    PACKAGE_EXPORT,
+} from "@destack/object";
 import { describePackage } from "@destack/object/inspect";
 import { implementPackage, type ObjectStore } from "@destack/object/server";
 import type { ServerContext } from "@destack/object/workload";
@@ -126,6 +132,11 @@ const FINANCE: TestPackage = {
                 name: PACKAGE_EXPORT,
                 description: describePackage(financePackage),
             },
+            ...Object.values(financePackage.objects).map((type) => ({
+                ...OBJECT_KIND.identity,
+                name: type.name,
+                description: ObjectDescription.of(type),
+            })),
             {
                 kind: "notification",
                 kindPackageId: notification.package.id,
