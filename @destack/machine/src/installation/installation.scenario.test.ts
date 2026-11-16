@@ -2,15 +2,24 @@ import { Plan } from "@destack/resource";
 import type { Installation } from "@destack/object";
 import { ObjectReference } from "@destack/sync";
 import { TestRegistry } from "../test/build.ts";
-import { testIdentity } from "@destack/object/test";
+import { testBuild, testIdentity } from "@destack/object/test";
 import { expect, refusal, test } from "@destack/test";
 import { eq, Snapshot } from "@destack/db";
-import { Identifier, present, Digest, nth } from "@destack/schema";
+import { argument, plural, t } from "@destack/locale";
+import { Identifier, present, Digest, nth, schema } from "@destack/schema";
 import { RequestId, Scope, type Subject } from "@destack/sync";
 import { accessRelationship, InstallationId, principal, Relationship } from "@destack/access";
-import { account, residency } from "@destack/account/object";
+import { account, residency, space } from "@destack/account/object";
 import { UNIVERSE_NODE } from "@destack/control/test";
-import { installation, PACKAGE_KIND, PACKAGE_EXPORT, Package } from "@destack/object";
+import {
+    defineObject,
+    definePackage,
+    field,
+    installation,
+    PACKAGE_KIND,
+    PACKAGE_EXPORT,
+    Package,
+} from "@destack/object";
 import { describePackage } from "@destack/object/inspect";
 import objectPackage from "@destack/object/package";
 import { implementPackage } from "@destack/object/server";
@@ -35,6 +44,101 @@ import stackPackage from "@destack/stack/package";
 
 /** How long a failed pass gets to retry: 30 s, inside the minute before its failures report. */
 const RETRY_MILLISECONDS = 30_000;
+
+/** The board package, linked into the machine, whose cards other linked packages refer to. */
+const BOARD = PackageVersion.parse({
+    id: "package-01996ab0-0000-7000-8000-0000000000e3",
+    name: "@example/board",
+    version: "2026.9.0",
+});
+
+/** The pins package, linked into the machine, whose pins refer to the board's cards. */
+const PINS = PackageVersion.parse({
+    id: "package-01996ab0-0000-7000-8000-0000000000e4",
+    name: "@example/pins",
+    version: "2026.9.0",
+});
+
+/** A card on the board. */
+const card = defineObject(
+    {
+        name: "card",
+        plural: "cards",
+        title: t`${plural(argument("count"), { one: "Card", other: "Cards" })}`,
+        scope: space,
+        fields: { title: field.string(schema.string().min(1)) },
+        access: { permissions: ["read"] },
+    },
+    (method) => ({ get: method.get("read") }),
+    { package: BOARD },
+);
+
+/** A pin on one of the board's cards. */
+const pin = defineObject(
+    {
+        name: "pin",
+        plural: "pins",
+        title: t`${plural(argument("count"), { one: "Pin", other: "Pins" })}`,
+        scope: space,
+        fields: { card: field.reference(card) },
+        access: { permissions: ["read"] },
+    },
+    (method) => ({ get: method.get("read") }),
+    { package: PINS },
+);
+
+/** The board's handle, serving its cards. */
+const boardPackage = definePackage({ ...testIdentity, objects: [card] }, { package: BOARD });
+
+/** The pins' handle, granted nothing of the board. */
+const pinsPackage = definePackage({ ...testIdentity, objects: [pin] }, { package: PINS });
+
+/** The pins' handle granted to read the space's cards, waiting for a space serving the board. */
+const grantedPinsPackage = definePackage(
+    {
+        ...testIdentity,
+        objects: [pin],
+        access: { permissions: { space: { space: [card.permission("read")] } } },
+    },
+    { package: PINS },
+);
+
+/** Open a space whose machine links the board and a pins handle, serving neither yet. */
+async function openLinked(pins: typeof pinsPackage | typeof grantedPinsPackage) {
+    // build both packages and run their servers in process
+    const builds = {
+        board: await testBuild(boardPackage, testHost().crypto),
+        pins: await testBuild(pins, testHost().crypto),
+    };
+    const fixture = await TestSpace.open({
+        servers: [
+            implementPackage(boardPackage, { objects: [card] }),
+            implementPackage(pins, { objects: [pin] }),
+        ],
+        linked: [builds.board, builds.pins],
+    });
+    await fixture.serve();
+
+    return { fixture, builds };
+}
+
+/** Read an installation's conditions and the revisions its rollout targets, applied and serves. */
+async function readRolled(fixture: TestSpace, id: Identifier<"installation">) {
+    // read the installation with its rollout
+    const rolled = await readInstalled(fixture.database, id);
+    const conditions = Object.fromEntries(
+        Object.entries(rolled.installation.conditions).map(
+            ([name, { status, reason, message }]) => [name, [status, reason, message]],
+        ),
+    );
+
+    return {
+        conditions,
+        target: present(rolled.targetRevisionId, "the targeted revision"),
+        applied: rolled.appliedRevisionId,
+        served: rolled.servedRevisionId,
+    };
+}
 
 test("install an application into a space as its owner, and refuse a stranger whether its name is taken or free", async () => {
     const fixture = await TestSpace.open();
@@ -414,5 +518,76 @@ test("relate a shipped server as consumer of the bucket it binds while its revis
         bound: { target: present(bound, "the box binding").target, runtime: PROCESS_RUNTIME },
         serving: [{ object: present(bound, "the box binding").target, subject: installed }],
         uninstalled: [],
+    });
+});
+
+test("deploy a linked package referring to an unserved linked package's type", async () => {
+    // install the pins alone, while the space serves no board
+    const { fixture, builds } = await openLinked(pinsPackage);
+    const installed = await fixture.install(builds.pins);
+
+    // apply and serve the pins' revision, reading the board's card from its linked release
+    const { target, ...rolled } = await readRolled(fixture, installed);
+    expect(rolled).toEqual({
+        conditions: {
+            Bound: ["true", "Bound", "every bound target is ready"],
+            Ready: ["true", "Deployed", "1 workloads deployed"],
+            Synced: ["true", "ReconcileSuccess", ""],
+            Serving: ["true", "Served", `serving revision ${target}`],
+        },
+        applied: target,
+        served: target,
+    });
+});
+
+test("deploy an installation waiting for a granted type once the space serves it", async () => {
+    // install the pins granted the board's cards, which waits for a space serving the board
+    const { fixture, builds } = await openLinked(grantedPinsPackage);
+    const installed = await fixture.install(builds.pins);
+    const waiting = await readRolled(fixture, installed);
+
+    // install the board beside them as an application, touching nothing of the pins
+    await fixture
+        .as(fixture.owner.subject)
+        .client(objectPackage)
+        .installation.create({
+            scope: ids.space,
+            requestId: RequestId.create(fixture.machine.environment),
+            packageId: BOARD.id,
+            ...ObjectReference.columns("follows", TestRegistry.row("release", BOARD.version)),
+            name: "board",
+        });
+    await fixture.simulation.idle();
+
+    // wake the waiting pins once the space serves the board, and deploy them
+    const deployed = await readRolled(fixture, installed);
+    const { target } = waiting;
+    expect({ waiting, deployed }).toEqual({
+        waiting: {
+            conditions: {
+                Bound: ["true", "Bound", "every bound target is ready"],
+                Ready: [
+                    "false",
+                    "WaitingForSpace",
+                    `waiting for the space to serve ${BOARD.id}/card`,
+                ],
+                Synced: ["true", "ReconcileSuccess", ""],
+                Serving: ["true", "Served", `serving revision ${target}`],
+            },
+            target,
+            applied: null,
+            served: target,
+        },
+        deployed: {
+            conditions: {
+                Bound: ["true", "Bound", "every bound target is ready"],
+                Ready: ["true", "Deployed", "1 workloads deployed"],
+                Synced: ["true", "ReconcileSuccess", ""],
+                Serving: ["true", "Served", `serving revision ${target}`],
+            },
+            target,
+            applied: target,
+            served: target,
+        },
     });
 });
