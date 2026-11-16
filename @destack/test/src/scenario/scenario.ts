@@ -369,6 +369,7 @@ async function measure(
             ...emitted.queries(),
             ...emitted.reads(),
             ...emitted.wakes(),
+            ...emitted.listings(),
         },
         failures: emitted.failures(labelOf(operation), times, checks),
     };

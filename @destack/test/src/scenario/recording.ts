@@ -15,6 +15,9 @@ const KEY_WAKES = "destack.controller.wakes";
 /** The histogram of log reads, by reader and whether the read found changes. */
 const LOG_READS = "destack.log.read.duration";
 
+/** The metric counting each listing of a job's keys. */
+const LISTINGS = "destack.controller.listings";
+
 /** The spans whose statements a recording totals: a job's pass and an object call. */
 const MEASURED_SPANS: ReadonlySet<string> = new Set([
     "destack.controller.pass",
@@ -287,6 +290,17 @@ export class Recording {
         }
 
         return wakes;
+    }
+
+    /** Count the listings of jobs' keys, by what listed them. */
+    listings(): Record<string, number> {
+        const listings: Record<string, number> = {};
+        for (const point of this.points.filter((each) => each.name === LISTINGS)) {
+            const key = `listings{${String(point.attributes["destack.wake.kind"])}}`;
+            listings[key] = (listings[key] ?? 0) + point.value;
+        }
+
+        return listings;
     }
 
     /** Count each controller pass and object call and total its statements, by the span's label. */
