@@ -365,17 +365,12 @@ test("share an object, accept invitations and narrow agents to their grants", as
         "permission 'write' is forbidden: the caller lacks it",
     ]);
     act(users.frank);
-    expect(await invite("list", { object })).toEqual({
+    expect(await invite("list", { where: { objectId: created.id } })).toEqual({
         items: [
-            {
+            Invitation.encode({
                 id: asked.id,
                 relationship: {
-                    object: {
-                        packageId: task.policy.definition.packageId,
-                        type: "task",
-                        scope: spaceId,
-                        id: created.id,
-                    },
+                    object: task.reference(spaceId, created.id),
                     relation: "viewer",
                     expiresAt: null,
                     subject: { ...viewer, id: users.heidi },
@@ -385,7 +380,7 @@ test("share an object, accept invitations and narrow agents to their grants", as
                 status: "pending",
                 createdAt: clock.now(),
                 expiresAt: clock.now() + INVITATION_LIFETIME_MILLISECONDS,
-            },
+            }),
         ],
         cursor: null,
     });
@@ -721,27 +716,22 @@ test("page an object's invitations a full hundred at a time", async () => {
 
     // read a page of 100 with a cursor, then the last one
     const Listed = schema.object({
-        items: schema.array(
-            schema.looseObject({
-                relationship: schema.looseObject({
-                    subject: schema.looseObject({ id: schema.string() }),
-                }),
-            }),
-        ),
+        items: schema.array(schema.looseObject({ subjectId: schema.string() })),
         cursor: schema.string().nullable(),
     });
-    const first = Listed.parse(await invite("list", { object, limit: 100 }));
+    const where = { objectId: created.id };
+    const first = Listed.parse(await invite("list", { where, limit: 100 }));
     const last = Listed.parse(
         await invite("list", {
-            object,
+            where,
             limit: 100,
             cursor: present(first.cursor, "the next page's cursor"),
         }),
     );
 
     expect({
-        first: first.items.map((item) => item.relationship.subject.id),
-        last: last.items.map((item) => item.relationship.subject.id),
+        first: first.items.map((item) => item.subjectId),
+        last: last.items.map((item) => item.subjectId),
         cursor: last.cursor,
     }).toEqual({
         first: invited.slice(0, 100),

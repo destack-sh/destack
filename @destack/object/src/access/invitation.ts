@@ -1,8 +1,7 @@
 import * as access from "@destack/access";
-import { accessInvitation, Invitation, INVITATION_PAGE } from "@destack/access";
+import { accessInvitation, Invitation } from "@destack/access";
 import { InviteInput, InviteFields } from "../trait/shareable.ts";
-import { Page } from "../method/page.ts";
-import { Empty, ListPage, PageFields } from "../method/procedure.ts";
+import { Empty } from "../method/procedure.ts";
 import { ObjectReference } from "@destack/sync";
 import { schema } from "@destack/schema";
 import { defineMethod } from "../method/method.ts";
@@ -14,13 +13,6 @@ import { argument, plural, t } from "@destack/locale";
 
 /** An invitation to create: its object, the relationship it offers, and why. */
 const InvitationInput = schema.object({ object: ObjectReference, ...InviteFields });
-
-/** A page of an object's pending invitations, at most access's page. */
-const InvitationListing = schema.object({
-    object: ObjectReference,
-    ...PageFields,
-    limit: schema.number().int().min(1).max(INVITATION_PAGE).exactOptional(),
-});
 
 /** The invitations to a scope's objects: created, listed, accepted and withdrawn by identifier. */
 export const invitation = defineObject(
@@ -34,7 +26,7 @@ export const invitation = defineObject(
             permissions: access.invitation.definition.permissions,
         },
     },
-    (_method: MethodBuilder<typeof accessInvitation>) => ({
+    (method: MethodBuilder<typeof accessInvitation>) => ({
         create: defineMethod<{
             kind: "custom";
             permission: "grant";
@@ -148,49 +140,6 @@ export const invitation = defineObject(
                 return Invitation.withdraw(context.target.id, store.authorization);
             },
         }),
-        list: defineMethod<{
-            kind: "custom";
-            permission: "grant";
-            input: typeof InvitationListing;
-            output: ReturnType<typeof ListPage.schema<typeof access.Invitation.schema>>;
-            mutates: false;
-            target: "scope";
-            table: typeof accessInvitation;
-        }>({
-            title: t`List`,
-            kind: "custom",
-            permission: "grant",
-            input: InvitationListing,
-            output: ListPage.schema(access.Invitation.schema),
-            mutates: false,
-            target: "scope",
-            result: "value",
-            isPredicted: false,
-            procedure: (_name, schemas) => ({
-                route: { method: "GET", path: "" },
-                input: schemas.scope.extend(InvitationListing.shape),
-                output: ListPage.schema(access.Invitation.schema),
-            }),
-            handler: async (context, execution) => {
-                // page the object's pending invitations by identifier
-                const { object, ...paging } = InvitationListing.parse(context.input);
-                const listing = new Page(
-                    paging,
-                    [context.object.name, context.scope, object.type, object.id],
-                    schema.string(),
-                );
-                const { authorization } = Execution.store(execution, context);
-                const invitations = await Invitation.list(
-                    { object },
-                    {
-                        ...(listing.after === undefined ? {} : { after: listing.after }),
-                        limit: listing.limit,
-                    },
-                    authorization,
-                );
-
-                return listing.result(invitations, (each) => each.id);
-            },
-        }),
+        list: method.list("read"),
     }),
 );

@@ -109,7 +109,7 @@ test("plan a project with its members, assignees, guarded budgets and comments",
         purpose: "help with the launch",
     });
     expect(
-        (await alice.invitation.list({ scope: spaceId, object: launched })).items.map(
+        (await alice.invitation.list({ scope: spaceId, where: { objectId: launch.id } })).items.map(
             (invitation) => invitation.purpose,
         ),
     ).toEqual(["help with the launch"]);
