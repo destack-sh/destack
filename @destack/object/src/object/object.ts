@@ -153,7 +153,7 @@ import {
     type SearchableDefinition,
 } from "../trait/searchable.ts";
 import { Chunk } from "../text/chunk.ts";
-import { chunk, chunkRun } from "../text/table.ts";
+import { chunk } from "../text/table.ts";
 import type {
     TraitPermissionOf,
     TraitPermission,
@@ -178,6 +178,7 @@ import type { ObjectConstraint } from "./constraint.ts";
 
 import type {} from "@destack/package/import-meta";
 
+import type { TextSpan } from "../sequence/index.ts";
 /** The schemas and procedures an object type derives from its definition, built lazily. */
 interface Derived {
     /** The schemas of the objects' rows and method inputs. */
@@ -650,7 +651,7 @@ export type InstanceOf<Type extends ObjectType> =
                           keyof RowImage<Configuration["table"]>
                   >
               > & {
-                  readonly [Name in TextFieldName<Configuration["fields"]>]: string;
+                  readonly [Name in TextFieldName<Configuration["fields"]>]: readonly TextSpan[];
               }
         : never;
 
@@ -2349,7 +2350,7 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
             return [this.table];
         }
 
-        return [this.table, ...SYSTEM_TABLES, ...(this.text.length === 0 ? [] : [chunk, chunkRun])];
+        return [this.table, ...SYSTEM_TABLES, ...(this.text.length === 0 ? [] : [chunk])];
     }
 
     /** Require valid methods, fields, aggregates, scopes, indexes and traits. */

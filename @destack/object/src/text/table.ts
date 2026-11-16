@@ -1,6 +1,6 @@
-import { defineTable, identifier, index, integer, json, text } from "@destack/db";
+import { defineTable, identifier, index, json, TABLE, text } from "@destack/db";
 import { schema } from "@destack/schema";
-import { Run } from "../sequence/index.ts";
+import { TextRun, TextMark } from "../sequence/index.ts";
 
 /** The include with each owner's chunks. */
 export const CHUNKS = "chunks";
@@ -24,7 +24,9 @@ export const chunk = defineTable(
         /** The chunk's place among the field's chunks. */
         position: text("position").notNull(),
         /** The chunk's runs in sequence order. */
-        runs: json("runs", schema.array(Run)).notNull(),
+        runs: json("runs", schema.array(TextRun)).notNull(),
+        /** The marks starting at an element of the chunk. */
+        marks: json("marks", schema.array(TextMark)).notNull().default([]),
         /** The chunk's visible characters, which searches read. */
         text: text("text").notNull(),
     },
@@ -32,6 +34,21 @@ export const chunk = defineTable(
         log: {},
         fullText: ["text"],
         constraints: (columns) => [
+            // index pieces by text and run, and nodes by type and value
+            index("chunk_run").on(
+                columns.parentId,
+                columns.field,
+                columns.runs.element("run", "text"),
+                columns.runs.element("start", "integer"),
+            ),
+            index("chunk_node")
+                .on(
+                    columns.runs.element("node.type", "text"),
+                    columns.runs.element("node.value", "json"),
+                )
+                .sparse(),
+
+            // order each text's chunks
             index("chunk_parent").on(
                 columns.parentPackageId,
                 columns.parentType,
@@ -43,40 +60,8 @@ export const chunk = defineTable(
     },
 );
 
-/** The server's index of which chunk contains each run's elements, unsynced. */
-export const chunkRun = defineTable(
-    "chunk_run",
-    {
-        /** The chunk with the elements. */
-        chunk: identifier("chunk", "chunk")
-            .primaryKey()
-            .references(() => chunk.id, { onDelete: "cascade" }),
-        /** The scope with the owner. */
-        scope: text("scope").notNull(),
-        /** The package declaring the owner's type. */
-        parentPackageId: identifier("parent_package_id", "package").notNull(),
-        /** The owner's type. */
-        parentType: text("parent_type").notNull(),
-        /** The owner's identifier. */
-        parentId: text("parent_id").notNull(),
-        /** The owner's text field. */
-        field: text("field").notNull(),
-        /** The run the elements belong to. */
-        run: text("run").primaryKey(),
-        /** The first element's offset. */
-        start: integer("start").primaryKey(),
-        /** The offset after the last element. */
-        end: integer("end").notNull(),
-    },
-    {
-        constraints: (columns) => [
-            index("chunk_run_parent").on(
-                columns.parentPackageId,
-                columns.parentType,
-                columns.parentId,
-                columns.field,
-                columns.run,
-            ),
-        ],
-    },
-);
+/** The pieces of every chunk by text, run and first offset: where a run's elements are. */
+export const runEntry = chunk[TABLE].entryTable("chunk_run");
+
+/** The nodes of every chunk by type and value, such as the mentions of a subject. */
+export const nodeEntry = chunk[TABLE].entryTable("chunk_node");

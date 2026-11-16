@@ -8,7 +8,7 @@ import { RequestId, Scope } from "@destack/sync";
 import { testCallKey } from "@destack/object/test";
 import { testEvents, serversOf } from "../src/test/index.ts";
 import { expect, onTestFinished, test } from "@destack/test";
-import { chunk, CHUNK_CHARACTERS, defineObject, field, Sequence } from "../src/index.ts";
+import { chunk, CHUNK_CHARACTERS, defineObject, field, TextSequence } from "../src/index.ts";
 import { openSpace, space, spacePrincipal } from "../src/test/space.ts";
 import { userContext, users } from "./fixture/user.ts";
 import { tablesOf } from "../src/index.ts";
@@ -95,13 +95,19 @@ test("list the objects with every word of a search in their searchable fields an
                 spaceId,
                 id: physics.id,
                 field: "body",
-                edits: new Sequence().change({ from: 0, to: 0, insert: long }, "user.1"),
+                edits: new TextSequence().change(
+                    { from: 0, to: 0, insert: long },
+                    { run: "user.1", offset: 0 },
+                ),
             }),
             document.call("edit", {
                 spaceId,
                 id: notes.id,
                 field: "body",
-                edits: new Sequence().change({ from: 0, to: 0, insert: "nothing new" }, "user.2"),
+                edits: new TextSequence().change(
+                    { from: 0, to: 0, insert: "nothing new" },
+                    { run: "user.2", offset: 0 },
+                ),
             }),
         ],
     });

@@ -30,6 +30,7 @@ import type { TrackedProcedures } from "../trait/tracked.ts";
 import type { TextProcedures } from "../trait/text.ts";
 import type { TransitionProcedures } from "../trait/transition.ts";
 
+import { TextSpan } from "../sequence/index.ts";
 /** The schemas an object's procedures compose. */
 export interface ObjectSchema {
     /** The object as callers see it. */
@@ -572,7 +573,7 @@ export type RowSchema<Object extends ObjectType> = schema.Object<
     RowFields<
         JsonFields<Omit<Select<Object["table"]>, SensitiveField<Object["fields"]>>>,
         GuardedField<Object["fields"]> | GuardedColumn<Object>
-    > & { [Name in TextFieldName<Object["fields"]>]: schema.Schema<string> }
+    > & { [Name in TextFieldName<Object["fields"]>]: schema.Schema<readonly TextSpan[]> }
 >;
 
 /** Fields, each in its JSON form. */
@@ -587,7 +588,7 @@ type RowFields<Row, Guarded> = {
 
 /** The procedures of an object's methods: their routes and input and output schemas. */
 const ObjectProcedure = {
-    /** Build an object's row as callers see it: guarded fields optional, texts as strings. */
+    /** Build an object's row as callers see it. */
     rowSchema(object: ObjectType): ObjectSchema["row"] {
         // leave out the sensitive columns
         const columns = schema.object(jsonShape(object.table[TABLE], "select"));
@@ -595,7 +596,7 @@ const ObjectProcedure = {
             ([name]) => !object.sensitive.includes(name),
         );
 
-        // make guarded fields optional and read text fields as strings
+        // make guarded fields optional and read text fields as spans
         return schema.object({
             ...Object.fromEntries(
                 readable.map(([name, column]) => [
@@ -603,7 +604,7 @@ const ObjectProcedure = {
                     object.guarded.includes(name) ? column.exactOptional() : column,
                 ]),
             ),
-            ...Object.fromEntries(object.text.map((name) => [name, schema.string()])),
+            ...Object.fromEntries(object.text.map((name) => [name, schema.array(TextSpan)])),
         });
     },
 

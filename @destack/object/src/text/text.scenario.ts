@@ -19,7 +19,7 @@ const typed = {
     input: {
         id: "$pages.{n}",
         field: "body",
-        edits: [{ insert: "the quick brown fox", run: "a.{n}" }],
+        edits: [{ insert: "the quick brown fox", run: "a.{n}", start: 0 }],
     },
 } as const;
 
@@ -30,7 +30,7 @@ const inside = {
     input: {
         id: "$pages.{n}",
         field: "body",
-        edits: [{ insert: "very ", run: "b.{n}", after: { run: "a.{n}", offset: 4 } }],
+        edits: [{ insert: "very ", run: "b.{n}", start: 0, after: { run: "a.{n}", offset: 4 } }],
     },
 } as const;
 

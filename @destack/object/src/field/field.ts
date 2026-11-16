@@ -34,6 +34,12 @@ import { FractionalIndex } from "./fractional-index.ts";
 import { type FileBucket, ObjectFile } from "./file.ts";
 import type { MethodVisibility } from "../method/method.ts";
 
+import {
+    type TextMarkType,
+    type TextNodeType,
+    TextSchema,
+    type TextSpan,
+} from "../sequence/index.ts";
 /** The meanings of fields beyond their stored values. */
 export const FIELD_TYPES = [
     "string",
@@ -133,7 +139,6 @@ export type FieldSource =
               | "boolean"
               | "time"
               | "fractionalIndex"
-              | "text"
               | "message"
               | "count"
               | "sum"
@@ -144,6 +149,10 @@ export type FieldSource =
     | { readonly builder: "enum"; readonly arguments: readonly [readonly [string, ...string[]]] }
     | { readonly builder: "json"; readonly arguments: readonly [schema.Schema] }
     | { readonly builder: "file"; readonly arguments: readonly [FileBucket] }
+    | {
+          readonly builder: "text";
+          readonly arguments: readonly [] | readonly [readonly (TextMarkType | TextNodeType)[]];
+      }
     | {
           readonly builder: "blob" | "blobs" | "blobMap";
           readonly arguments: readonly [BlobOptions];
@@ -1087,13 +1096,16 @@ export class StateField<Machine extends StateMachine = StateMachine> extends Fie
 
 /** A text field, stored in chunks and changed only by edits, empty at first. */
 export class TextField extends Field<
-    FieldConfigurationOf<{ value: string; default: true; written: false }>
+    FieldConfigurationOf<{ value: readonly TextSpan[]; default: true; written: false }>
 > {
-    /** Declare the field, whose characters live in chunks. */
-    constructor() {
+    /** The marks and nodes the field allows beside characters. */
+    readonly schema: TextSchema;
+
+    /** Declare a text field with the mark and node types it allows. */
+    constructor(types: readonly (TextMarkType | TextNodeType)[]) {
         super({
-            source: { builder: "text", arguments: [] },
-            initial: { value: "" },
+            source: { builder: "text", arguments: types.length === 0 ? [] : [types] },
+            initial: { value: [] },
             build: () => {
                 throw new TypeError(
                     "a text field stores its characters in chunks and has no column",
@@ -1103,6 +1115,7 @@ export class TextField extends Field<
             isDefault: true,
             written: false,
         });
+        this.schema = TextSchema.of(...types);
     }
 
     /** The field's meaning: a text stored in chunks. */
@@ -1257,8 +1270,8 @@ export const field = {
         );
     },
 
-    /** A text stored in chunks and changed by edits, empty at first. */
-    text(): TextField {
-        return new TextField();
+    /** A text stored in chunks and changed by edits, allowing some marks and nodes. */
+    text(types: readonly (TextMarkType | TextNodeType)[] = []): TextField {
+        return new TextField(types);
     },
 };

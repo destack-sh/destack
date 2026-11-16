@@ -6,7 +6,7 @@ import type { TextField } from "../field/field.ts";
 import { defineMethod, Method } from "../method/method.ts";
 import type { Procedure, ReplayFields, TargetFields } from "../method/procedure.ts";
 import type { ObjectType, TextFieldName } from "../object/object.ts";
-import { Element, SequenceEdit } from "../sequence/index.ts";
+import { TextElement, TextEdit } from "../sequence/index.ts";
 import { permission } from "@destack/access";
 import { Chunk, Containment, Undo, TEXT_READ } from "../text/chunk.ts";
 import { chunk } from "../text/table.ts";
@@ -53,7 +53,7 @@ export type TextProcedures<Object extends ObjectType> = {
             TargetFields<Object> &
                 ReplayFields<Object> & {
                     field: schema.Schema<TextFieldName<Object["fields"]>>;
-                    edits: schema.Schema<SequenceEdit[]>;
+                    edits: schema.Schema<TextEdit[]>;
                 }
         >,
         typeof Undo
@@ -62,7 +62,7 @@ export type TextProcedures<Object extends ObjectType> = {
         schema.Object<
             TargetFields<Object> & {
                 field: schema.Schema<TextFieldName<Object["fields"]>>;
-                elements: schema.Schema<Element[]>;
+                elements: schema.Schema<TextElement[]>;
             }
         >,
         typeof Containment
@@ -168,7 +168,7 @@ export const Text = {
                 input: schemas.target.extend({
                     ...schemas.replay,
                     field: schema.enum(fields),
-                    edits: schema.array(SequenceEdit).min(1),
+                    edits: schema.array(TextEdit).min(1),
                 }),
                 output: Undo,
             }),
@@ -238,14 +238,14 @@ export const Text = {
                 route: { method: "POST", path: "/{id}/contains" },
                 input: schemas.target.extend({
                     field: schema.enum(fields),
-                    elements: schema.array(Element).min(1),
+                    elements: schema.array(TextElement).min(1),
                 }),
                 output: Containment,
             }),
             handler: async (context, execution) => {
                 // look the elements up among the field's runs in the call's view
                 const field = schema.string().parse(context.input["field"]);
-                const elements = schema.array(Element).parse(context.input["elements"]);
+                const elements = schema.array(TextElement).parse(context.input["elements"]);
                 const isContained = await Chunk.contains(
                     Execution.snapshot(execution),
                     context.reference(),

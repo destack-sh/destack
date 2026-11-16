@@ -10,6 +10,7 @@ Packages declare object types:
 
 - `defineObject`: an object type with fields, access, traits and methods.
 - `field`: a field's type and modifiers, such as `field.string().optional()`.
+- `field.text`: a collaborative text with marks and nodes, read as `TextSpan[]`.
 - Traits, such as `shareable` and `nested`: columns, permissions and methods a type adopts.
 - `method`: a type's methods, standard or its own.
 - `definePackage`: a package's object types, views, mounts and resources.
@@ -22,6 +23,7 @@ Servers implement them:
 Clients call them:
 
 - `createClient` and `ClientOf`: a typed client of a package.
+- `TextDocument`: one text field as an editor edits it, opened with `client.text`.
 - `ObjectError`: the reasons a call fails, checked with `ObjectError.is`.
 
 Declare projects and tasks, then create, update and list tasks:
@@ -130,6 +132,45 @@ export async function finishTask(
 | `immutable()`, `caller()`                 | writes it only at creation, or fills it with the creator |
 | `guard(read, write)`, `guardWrite(write)` | requires permissions to read or write it                 |
 | `open()`                                  | accepts subjects other types contribute                  |
+
+### Text
+
+`field.text(types)` declares a collaborative text with the marks and nodes of `types`, read as `TextSpan[]`.
+`client.text` opens it as a `TextDocument`, which applies each change at once and sends it through the object's `edit` method.
+
+```ts
+import { argument, plural, t } from "@destack/locale";
+import { defineObject, field, RICH_TEXT, TextTypes } from "@destack/object";
+import type { ObjectClient } from "@destack/object/client";
+
+// declare pages with a rich body
+const page = defineObject(
+    {
+        name: "page",
+        plural: "pages",
+        title: t`${plural(argument("count"), { one: "Page", other: "Pages" })}`,
+        container: "scope",
+        fields: { title: field.string(), body: field.text(RICH_TEXT) },
+        access: { permissions: ["read", "write"] },
+    },
+    (method) => ({ get: method.get("read"), update: method.update("write") }),
+);
+
+/** Type a line into a page's body and bold its first word. */
+export async function write(client: ObjectClient<{ readonly page: typeof page }>, id: string) {
+    // type the line, shown at once
+    const body = client.text(page, id, "body");
+    await body.ready;
+    body.change({ from: 0, to: 0, insert: "Ship the release" });
+
+    // bold "Ship", then wait for the store
+    const range = body.rope.range(0, 4, TextTypes.bold);
+    const bold = { id: "mark-1", type: "bold", value: true, ...range, order: null };
+    await body.edit([{ mark: bold }]).confirmed;
+    await body.close();
+}
+// body: [{ text: "Ship", marks: { bold: true } }, { text: " the release" }]
+```
 
 ### Traits
 
