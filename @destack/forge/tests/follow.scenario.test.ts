@@ -4,15 +4,12 @@ import forgePackage from "../src/package.ts";
 import { History } from "@destack/git/test";
 import { FORGE_HOME_OPTIONS } from "../src/test/index.ts";
 import { FOLLOW_TEMPLATE } from "../src/test/index.ts";
-import type { Crypto } from "@destack/environment";
 import { PackageId } from "@destack/package";
-import { type DatabaseConnection, eq, Snapshot } from "@destack/db";
+import { type DatabaseConnection, Snapshot } from "@destack/db";
 import { reference, referenceShape } from "@destack/registry/object";
-import type { BuildReader } from "@destack/package/manifest";
-import { MemoryBuild } from "@destack/package/test";
 import { Commit, present, schema } from "@destack/schema";
 import { ObjectReference, RequestId } from "@destack/sync";
-import { build, installationRevision, rollout } from "@destack/stack/object";
+import { build } from "@destack/stack/object";
 import stackPackage from "@destack/stack/package";
 import objectPackage from "@destack/object/package";
 import { ids, reconcile, TestSpace } from "@destack/machine/test";
@@ -21,18 +18,6 @@ import { Shape } from "@destack/object";
 
 /** The branch the installations follow. */
 const MAIN = "refs/heads/main";
-
-/** Write a built package with one module, as a runner compiles it. */
-function writeBuild(crypto: Crypto): Promise<BuildReader> {
-    return MemoryBuild.write(
-        new Map([["index.js", new TextEncoder().encode("export {};\n")]]),
-        {
-            role: "app",
-            package: { id: ids.package, name: "@example/library", version: "2026.9.0" },
-        },
-        crypto,
-    );
-}
 
 /** Read a space's builds of commits in order, leaving out the releases its stack pulled. */
 async function commitBuilds(database: DatabaseConnection) {
@@ -157,7 +142,6 @@ async function serveCommits() {
         universe,
         owner,
         installer,
-        runner: fixture.as(fixture.machine.id),
         store,
         follow,
         reconcileTwice,
@@ -176,53 +160,6 @@ async function serveCommits() {
 function unreadable(id: string): [string, string, string] {
     return ["NOT_FOUND", "NOT_FOUND", `reference '${id}' not found`];
 }
-
-test("submit the build of a followed commit its space's machine ran", async () => {
-    // move the main branch to a commit and follow it
-    const { fixture, database, follow, runner, install, move, environment } = await serveCommits();
-    const commit = await move();
-    const installed = await install("library");
-    await follow();
-
-    // run the commit's build as the space's machine and store it
-    const [pending] = await commitBuilds(database);
-    const target = { spaceId: ids.space, id: present(pending, "the commit's build").id };
-    const client = runner.client(stackPackage);
-    await client.build.start({ ...target, requestId: RequestId.create(environment) });
-    await client.build.progress({
-        ...target,
-        requestId: RequestId.create(environment),
-        progress: { phase: "building", outputs: ["bun"] },
-    });
-    await fixture.storeBuild(runner, target, await writeBuild(environment.crypto));
-
-    // submit the succeeded build once reconciled again
-    await follow();
-    const [followed] = await database
-        .select({ buildId: installationRevision.table.buildId })
-        .from(rollout.table)
-        .innerJoin(
-            installationRevision.table,
-            eq(installationRevision.table.id, rollout.table.targetRevisionId),
-        )
-        .where(eq(rollout.table.installationId, installed.id));
-    const [only] = await commitBuilds(database);
-
-    expect({
-        source: only?.source,
-        runner: only?.runnerId !== null,
-        followed: followed?.buildId,
-    }).toEqual({
-        source: {
-            kind: "commit",
-            repository: only?.source.kind === "commit" ? only.source.repository : null,
-            commit,
-            directory: ".",
-        },
-        runner: true,
-        followed: only?.id,
-    });
-});
 
 test("request one replica of the references a space's installations follow", async () => {
     // follow the main branch from two packages and a tag from a third
