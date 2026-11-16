@@ -70,7 +70,11 @@ async function initializeWorkspace(
 }
 
 /** Make a library declare left-pad, installed in its checkout and locked in the workspace. */
-async function installLeftPad(workspace: string, library: string, files: FileSystem): Promise<void> {
+async function installLeftPad(
+    workspace: string,
+    library: string,
+    files: FileSystem,
+): Promise<void> {
     // lock the release beside the members
     const lockfile = join(workspace, "bun.lock");
     const locked = schema.looseObject({}).parse(JSON.parse(await files.readTextFile(lockfile)));
