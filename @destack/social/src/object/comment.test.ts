@@ -3,7 +3,7 @@ import { article, TestSocial } from "../test/index.ts";
 import { expect, refusal, test } from "@destack/test";
 import { Comment, comment } from "./index.ts";
 
-test("thread comments on an article, which commenters reply to, authors and editors resolve, and owners moderate", async () => {
+test("let commenters start and reply to threads on an article, authors edit, editors resolve, and owners delete threads with their replies", async () => {
     await using fixture = await TestSocial.open();
     const { scope, actors } = fixture;
 

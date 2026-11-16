@@ -205,7 +205,7 @@ test("notify a principal mentioned twice in one comment once, and answer a reply
     expect([replied.threadId, Body.parse(replied.body).text]).toEqual([first.id, "Done"]);
 });
 
-test("subscribe thread authors, repliers and mentioned principals to the thread, each principal's subscription private to it", async () => {
+test("subscribe a thread's author, repliers and newly mentioned principals, each privately, refuse a stranger's mention, and resubscribe on a new mention", async () => {
     await using fixture = await TestSocial.open();
     const { scope, actors } = fixture;
     const subscriptions = async (actor: Actor) =>
