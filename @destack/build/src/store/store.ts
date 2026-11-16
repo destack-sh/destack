@@ -171,6 +171,9 @@ export const BuildObject = {
     },
 };
 
+/** The package a build is of and the releases it requires. */
+export type BuildRequirements = Pick<PackageManifest, "package" | "requires">;
+
 /** A cache key's build, and how the cache answered: stored, built now, or joined. */
 export interface CacheOutcome {
     /** The build's manifest digest. */
@@ -235,6 +238,8 @@ export class BuildStore<
     readonly #located = new Map<Digest, BuildStore>();
     /** The locks read so far, by digest, as locks never change. */
     readonly #locks = new Map<Digest, Promise<Lock>>();
+    /** What the builds of the locks read so far require, by lock, as locks never change. */
+    readonly #requirements = new Map<Digest, Promise<readonly BuildRequirements[]>>();
     /** The builds of cache keys in flight, so callers asking at once build each key once. */
     readonly #building = new Map<Digest, Promise<CacheOutcome>>();
     /** The builds in flight to the store, by manifest digest, each stored once. */
@@ -856,6 +861,28 @@ export class BuildStore<
         }
 
         return row;
+    }
+
+    /** Read what each build of a stored lock requires once, as locks never change. */
+    requirements(lock: Digest): Promise<readonly BuildRequirements[]> {
+        // read each lock's manifests once, forgetting a failed read
+        const known = this.#requirements.get(lock);
+        if (known !== undefined) {
+            return known;
+        }
+        const reading = (async () => {
+            const requirements: BuildRequirements[] = [];
+            for (const build of Lock.builds(await this.lock(lock))) {
+                const { package: built, requires } = await this.get(build);
+                requirements.push({ package: built, requires });
+            }
+
+            return requirements;
+        })();
+        this.#requirements.set(lock, reading);
+        reading.catch(() => this.#requirements.delete(lock));
+
+        return reading;
     }
 
     /** Read a build's manifest, verified and parsed once with its reader. */
