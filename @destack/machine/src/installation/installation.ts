@@ -411,12 +411,29 @@ const ENTITLED_SPACES: Relation = {
     on: { kind: "key", column: "scope", parent: "scope" },
 };
 
-/** Wake the installations following a moved tag or reference, and their managers. */
+/** The rollouts of a tag's scope that have not applied the revision they target. */
+const WAITING: Relation = {
+    table: rollout.table,
+    cardinality: "many",
+    on: { kind: "key", column: "scope", parent: "scope" },
+    where: {
+        OR: [
+            { appliedRevisionId: { isNull: true } },
+            { appliedRevisionId: { ne: { field: "targetRevisionId" } } },
+        ],
+    },
+};
+
+/** Wake a moved tag's or reference's followers and their managers, and a tag's waiting rollouts. */
 function forgeWatches(forge: Forge): ObjectWatch[] {
-    return [forge.tags, forge.references].flatMap((table) => [
-        { table, path: [FOLLOWERS], on: { installationId: "id" } },
-        { table, path: [FOLLOWERS], on: { installationId: "managerInstallationId" } },
-    ]);
+    return [
+        ...[forge.tags, forge.references].flatMap((table): ObjectWatch[] => [
+            { table, path: [FOLLOWERS], on: { installationId: "id" } },
+            { table, path: [FOLLOWERS], on: { installationId: "managerInstallationId" } },
+        ]),
+        // a rollout whose plan waits for a release once a tag of its space moves
+        { table: forge.tags, path: [WAITING], on: { installationId: "installationId" } },
+    ];
 }
 
 /** Wake a rollout once what it waits on arrives. */
