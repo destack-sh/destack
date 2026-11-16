@@ -154,7 +154,7 @@ test("find a published release by version, tag, digest and id", async () => {
         await Claim.lookup(packageObject, claims, "id", [
             PackageId.parse(Identifier.create("package", forge.environment)),
         ]),
-    ]).toEqual([{ scope: ACCOUNT_ID, id: packageId }, undefined]);
+    ]).toEqual([{ scope: ACCOUNT_ID, id: packageId, state: "active" }, undefined]);
 
     // refuse the package's name under another identity
     const taken = await refusal(

@@ -166,7 +166,7 @@ test("create, rename and refresh a platform repository as its owner", async () =
         ["refs/tags/v1", tag, commit, null],
     ]);
 
-    // rename the repository, moving its name in the directory
+    // rename the repository, moving its name in the directory and keeping the old one finding it
     const renamed = await owner.repository.update({
         spaceId: forge.space,
         id: created.id,
@@ -175,7 +175,7 @@ test("create, rename and refresh a platform repository as its owner", async () =
         name: "web",
     });
     expect([renamed.name, renamed.revision]).toEqual(["web", 3]);
-    expect(await named()).toEqual({ web: created.id });
+    expect(await named()).toEqual({ site: created.id, web: created.id });
     expect(
         await refusal(
             owner.repository.update({
