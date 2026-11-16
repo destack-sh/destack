@@ -363,18 +363,18 @@ export class Distribution {
         return executable;
     }
 
-    /** Link an activated archive's command into bin, keeping a launcher already there. */
+    /** Link an activated archive's command into bin, replacing another link atomically. */
     async #linkArchive(application: string, bin: string, stage: Stage) {
-        // hard link the release's command, keeping an existing launcher
-        const { files, host } = this.options.environment;
+        // link the release's command by its path, as it is a relative link to its launcher
+        const { files, host, random } = this.options.environment;
         const release = dirname(application);
-        await files
-            .link(join(release, "bin", "destack"), join(bin, stage.command))
-            .catch((error: unknown) => {
-                if (!FileSystemError.is(error, "FILE_EXISTS")) {
-                    throw error;
-                }
-            });
+        const path = join(bin, stage.command);
+        const target = join(release, "bin", "destack");
+        if ((await files.readLink(path).catch(FileSystemError.absent)) !== target) {
+            const pending = join(bin, `.destack-${Uuid.v4(random)}`);
+            await files.symlink(target, pending);
+            await files.rename(pending, path);
+        }
 
         return join(release, "bin", Release.executable("destack-machine", host.os));
     }

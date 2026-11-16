@@ -38,7 +38,9 @@ test("link and unlink independent Linux desktop entries and link handlers for pr
     const release = join(directory, "release");
     await files.mkdir(join(release, "Destack"), { recursive: true });
     await files.mkdir(join(release, "bin"), { recursive: true });
-    await files.writeTextFile(join(release, "bin", "destack"), "#!/bin/sh\n");
+    await files.mkdir(join(release, "Destack", "helpers"));
+    await files.writeTextFile(join(release, "Destack", "helpers", "destack"), "launcher");
+    await files.symlink("../Destack/helpers/destack", join(release, "bin", "destack"));
     await files.writeTextFile(
         join(release, "Destack", "icon.svg"),
         '<svg xmlns="http://www.w3.org/2000/svg"/>',
@@ -52,19 +54,26 @@ test("link and unlink independent Linux desktop entries and link handlers for pr
     await local.link(record, { isShell: true });
     await production.link(record, { isShell: true });
     const entry = await files.readTextFile(join(data, "applications/app.destack.desktop.desktop"));
+    const command = join(directory, ".destack", "bin", "destack");
+    const linked = {
+        target: await files.readLink(command),
+        launcher: await files.readTextFile(command),
+    };
     await production.unlink({ isShell: true });
     await production.unlink({ isShell: true });
 
-    // keep local's entry and icon, and answer the archive's machine
+    // keep local's entry and icon, answer the archive's machine, and reach the launcher through the command
     const names = async (path: string) =>
         (await files.readDirectory(join(data, path))).map((found) => found.name);
     expect({
         machine,
+        linked,
         entry,
         applications: await names("applications"),
         icons: await names("icons/hicolor/scalable/apps"),
     }).toEqual({
         machine: join(release, "bin", "destack-machine"),
+        linked: { target: join(release, "bin", "destack"), launcher: "launcher" },
         entry: `[Desktop Entry]\nType=Application\nName=Destack\nExec="${directory}/.destack/bin/destack" desktop %u\nIcon=app.destack.desktop\nTerminal=false\nCategories=Utility;Development;\nMimeType=x-scheme-handler/destack;\n`,
         applications: ["app.destack.desktop.local.desktop"],
         icons: ["app.destack.desktop.local.svg"],
