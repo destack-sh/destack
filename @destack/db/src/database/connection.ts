@@ -373,12 +373,28 @@ export class DatabaseConnection<
         // declare the tables, its replicated tables as replicas
         const { manager = DATABASE_MANAGER, states = [], ...declaring } = options;
         const declared = declareState(tables, this.dialect, {
-            replicated: this.state.replicated,
+            replicated: this.state.declaredReplicas,
             ...declaring,
         });
 
-        // skip a declaration the manager applied last
-        const stamp = await Digest.json({ declared, states }, this.state.environment.crypto);
+        // list the replicated tables another manager applied, which the plan leaves to it
+        const { namespace } = this.state;
+        const replicas = new Set(
+            declared
+                .filter((entry) => entry.isReplicated === true)
+                .map((entry) => entry.table.name),
+        );
+        const applied = replicas.size === 0 ? [] : await readState(this);
+        const left = applied
+            .filter((entry) => entry.manager !== manager)
+            .map((entry) => localState(entry.state, namespace).table.name)
+            .filter((name) => replicas.has(name));
+
+        // skip a declaration the manager applied last with the same tables left to others
+        const stamp = await Digest.json(
+            { declared, states, ...(left.length === 0 ? {} : { left }) },
+            this.state.environment.crypto,
+        );
         const stamped = await readStamp(this, manager);
         if (stamped.kind === "stamped" && stamped.digest === stamp) {
             this.state.declare(tables);
@@ -415,7 +431,7 @@ export class DatabaseConnection<
     async unapplied(tables: readonly Table[], options: DeclareOptions = {}): Promise<string[]> {
         const { namespace } = this.state;
         const declared = declareState(tables, this.dialect, {
-            replicated: this.state.replicated,
+            replicated: this.state.declaredReplicas,
             ...options,
         });
 
@@ -433,6 +449,14 @@ export class DatabaseConnection<
         this.state.declare(
             tables.filter((table) => existing.has(relation(table[TABLE].sqlName, namespace))),
         );
+        await this.#readApplied();
+    }
+
+    /** Read from the applied states which tables the database replicates. */
+    async #readApplied(): Promise<void> {
+        const { namespace } = this.state;
+        const applied = (await readState(this)).map((entry) => localState(entry.state, namespace));
+        this.state.readApplied(applied);
     }
 
     /** Plan a manager's migration from its applied tables to the declared ones. */
@@ -440,11 +464,25 @@ export class DatabaseConnection<
         state: Pick<Merge, "declared"> & Partial<Merge>,
         manager: string,
     ): Promise<TablePlan> {
-        // name the declared tables and their previous names
+        // leave a table the declaration only replicates to the other manager that applied it
         const { namespace } = this.state;
-        const declared = state.declared.map((entry) => namespaceState(entry, namespace));
+        const read = (await readState(this)).map((entry) => ({
+            ...entry,
+            local: localState(entry.state, namespace),
+        }));
+        const foreign = new Set(
+            read
+                .filter((entry) => entry.manager !== manager)
+                .map((entry) => entry.local.table.name),
+        );
+        const planned = state.declared.filter(
+            (entry) => !(entry.isReplicated === true && foreign.has(entry.table.name)),
+        );
+
+        // name the declared tables and their previous names
+        const declared = planned.map((entry) => namespaceState(entry, namespace));
         const names = new Set(
-            state.declared.flatMap((entry) =>
+            planned.flatMap((entry) =>
                 entry.moved?.table === undefined
                     ? [entry.table.name]
                     : [entry.table.name, entry.moved.table],
@@ -452,13 +490,18 @@ export class DatabaseConnection<
         );
 
         // plan against the manager's applied tables and the declared ones
-        const applied = (await readState(this))
-            .map((entry) => ({ ...entry, local: localState(entry.state, namespace) }))
-            .filter((entry) => entry.manager === manager || names.has(entry.local.table.name));
+        const applied = read.filter(
+            (entry) => entry.manager === manager || names.has(entry.local.table.name),
+        );
 
-        // refuse declared tables another manager applied
+        // refuse declared tables another manager owns, taking over the ones it only replicates
         const taken = applied
-            .filter((entry) => entry.manager !== manager && names.has(entry.local.table.name))
+            .filter(
+                (entry) =>
+                    entry.manager !== manager &&
+                    names.has(entry.local.table.name) &&
+                    entry.local.isReplicated !== true,
+            )
             .map((entry) => ({
                 table: entry.local.table.name,
                 reason: `manager '${entry.manager}' applied it, and '${manager}' plans it`,
@@ -486,6 +529,7 @@ export class DatabaseConnection<
     /** Apply a manager's plan in one transaction. */
     async apply(plan: TablePlan, manager: string): Promise<void> {
         await applyPlan(this, plan, manager);
+        await this.#readApplied();
     }
 
     /** Commit a callback, or roll back on failure or on its rollback, then resolve undefined. */
@@ -681,8 +725,10 @@ export class ConnectionState {
     readonly statementRecords = new StatementRecords();
     /** The spans this process's latest logging transactions ran in. */
     readonly transactionSpans: TransactionSpans;
-    /** The SQL names of the tables the database replicates, empty over bare tables. */
-    readonly replicated: ReadonlySet<string>;
+    /** The SQL names of the tables the declaration replicates, empty over bare tables. */
+    readonly declaredReplicas: ReadonlySet<string>;
+    /** The SQL names of the tables the database replicates, as declared and as applied. */
+    #replicated: ReadonlySet<string>;
     /** The tables each operation on each declared table changes, itself first, through cascades. */
     #cascades: ReadonlyMap<WriteOperation, ReadonlyMap<string, readonly string[]>> = new Map();
     /** The SQL names of the declared tables whose writes fire aggregate triggers. */
@@ -761,7 +807,8 @@ export class ConnectionState {
             "record",
             this.scope,
         );
-        this.replicated = options.replicated;
+        this.declaredReplicas = new Set(options.replicated);
+        this.#replicated = this.declaredReplicas;
         this.openChannel = openChannel;
         this.namespace = options.namespace;
         this.#dialect = options.dialect;
@@ -806,6 +853,25 @@ export class ConnectionState {
     /** The declared names of the tables and their columns, by SQL name. */
     get declared(): DeclaredNames {
         return this.#declared;
+    }
+
+    /** The SQL names of the tables the database replicates, as declared and as applied. */
+    get replicated(): ReadonlySet<string> {
+        return this.#replicated;
+    }
+
+    /** Read which tables the applied states replicate. */
+    readApplied(states: readonly Pick<TableState, "table" | "isReplicated">[]): void {
+        // take the declared and applied replicas but the tables applied as their package declares them
+        const replicas = states.filter((state) => state.isReplicated === true);
+        const replicated = new Set([
+            ...this.declaredReplicas,
+            ...replicas.map((state) => state.table.name),
+        ]);
+        for (const state of states.filter((each) => each.isReplicated !== true)) {
+            replicated.delete(state.table.name);
+        }
+        this.#replicated = replicated;
     }
 
     /** Declare more tables the database stores, such as those an installation migrated. */
