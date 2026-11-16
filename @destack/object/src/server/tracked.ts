@@ -11,24 +11,38 @@ import { Execution, type StoreExecution } from "../method/execution.ts";
 
 /** The history of tracked objects: its required reads and the activities changes record. */
 export const TrackedHistory = {
-    /** List each tracked object whose read permission reads through objects without history. */
+    /** List each tracked object whose activities nothing serves or whose reads lack history. */
     refusals(
         objects: readonly ObjectType[],
         authorizer: Authorizer,
     ): { readonly object: ObjectType; readonly error: TypeError }[] {
-        // follow each tracked object's read permission on its own walk
-        return objects
-            .filter((served) => served.lifecycle.tracked !== undefined)
-            .flatMap((object) => {
-                const reading = present(object.reading, `the read permission of ${object.name}`);
-                const error = TrackedHistory.refusal(object, object, reading.name, {
-                    objects,
-                    authorizer,
-                    followed: new Set(),
-                });
+        return objects.flatMap((recorder) => {
+            // skip an object recording no history
+            const { tracked } = recorder.lifecycle;
+            if (tracked === undefined) {
+                return [];
+            }
 
-                return error === undefined ? [] : [{ object, error }];
+            // refuse an object whose activity type nothing here serves
+            const { activity } = tracked;
+            if (!objects.some((served) => served.same(activity))) {
+                const error = new TypeError(
+                    `object '${recorder.name}' records history in '${activity.name}', which nothing here serves`,
+                );
+
+                return [{ object: recorder, error }];
+            }
+
+            // follow the object's read permission on its own walk
+            const reading = present(recorder.reading, `the read permission of ${recorder.name}`);
+            const error = TrackedHistory.refusal(recorder, recorder, reading.name, {
+                objects,
+                authorizer,
+                followed: new Set(),
             });
+
+            return error === undefined ? [] : [{ object: recorder, error }];
+        });
     },
 
     /** Record a served change in the caller's current or a new activity. */

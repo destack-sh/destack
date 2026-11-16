@@ -266,6 +266,57 @@ test("refuse serving history that reads through an object recording none, and le
     });
 });
 
+test("refuse serving an object recording history in an activity type nothing serves", async () => {
+    // record a memo's history in the activity type
+    const world = testSimulation().environment("test");
+    const memo = defineObject({
+        name: "memo",
+        plural: "memos",
+        title: t`${plural(argument("count"), { one: "Memo", other: "Memos" })}`,
+        scope: space,
+        fields: { owner: field.reference(principal.user).caller() },
+        access: {
+            permissions: { read: relation("owner") },
+        },
+        traits: [tracked({ by: "read", activity })],
+    });
+
+    // serve the memos as an installation beside nothing serving the activity type
+    const storage = await TestDatabase.create(
+        defineDatabase({
+            name: "main",
+            ...tablesOf({ packages: [objectPackage], follows: [], tables: [] }),
+        }),
+        { environment: world, isMigrated: true },
+    );
+    onTestFinished(() => storage.close());
+    const installation = await testServerContext(memo.package, spaceId, world);
+    const store = TestObjectStore.of({
+        chain: async () => undefined,
+        environment: world,
+        principal: spacePrincipal(spaceId),
+        servers: serversOf([memo]).map((server) => server.at(installation)),
+        database: storage.database,
+        origin: { package: memo.package },
+    });
+
+    // leave the installation out with why
+    expect({
+        isServed: store.objects.some((each) => each.same(memo)),
+        refused: store.refused,
+    }).toEqual({
+        isServed: false,
+        refused: [
+            {
+                installation: installation.installation,
+                error: new TypeError(
+                    "object 'memo' records history in 'activity', which nothing here serves",
+                ),
+            },
+        ],
+    });
+});
+
 test("serve history that reads through an object its relationships alone decide, which records none", async () => {
     // read pages through an untracked shelf whose readers are relationships, never its row
     const world = testSimulation().environment("test");
