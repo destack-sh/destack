@@ -1,6 +1,6 @@
 import { space } from "@destack/account/object";
 import type { Controller, DatabaseHandle, Row, Table } from "@destack/db";
-import type { Bindable, MethodContext, ObjectType, ResourceType } from "@destack/object";
+import type { BindingKind, MethodContext, ObjectType, ResourceType } from "@destack/object";
 import type { AccessContext } from "@destack/access";
 import type { ObjectStore, PackageImplementation } from "@destack/object/server";
 import type { Kind, Provisioning } from "@destack/package";
@@ -43,10 +43,10 @@ export const StoreProvider = {
 };
 
 /** A kind of object a package serves to workloads, such as secrets. */
-export interface ObjectBindable<
+export interface ObjectBindingKind<
     Object extends ObjectType = ObjectType,
     Client = unknown,
-> extends Bindable<Object> {
+> extends BindingKind<Object> {
     /** The provider workloads read the bound objects through, such as vault. */
     readonly provider: string;
     /** The address workloads call the package serving the bound objects at. */
@@ -75,14 +75,14 @@ export interface ObjectBindable<
 }
 
 /** The kinds of objects the servers a machine runs serve to workloads. */
-export const ObjectBindable = {
+export const ObjectBindingKind = {
     /** Read the object kinds some servers declare, refusing one without a connection. */
-    of(servers: readonly PackageImplementation[]): ObjectBindable[] {
+    of(servers: readonly PackageImplementation[]): ObjectBindingKind[] {
         return servers
-            .flatMap((server) => server.bindables)
+            .flatMap((server) => server.bindingKinds)
             .map((bindable) => {
                 // refuse a kind without a connection
-                if (!ObjectBindable.is(bindable)) {
+                if (!ObjectBindingKind.is(bindable)) {
                     throw StackError.of(
                         "BINDABLE_UNSUPPORTED",
                         `bindable ${bindable.object.name} without a connection is not supported`,
@@ -94,7 +94,7 @@ export const ObjectBindable = {
     },
 
     /** Report whether a bindable kind connects and provisions through the store. */
-    is(bindable: Bindable): bindable is ObjectBindable {
+    is(bindable: BindingKind): bindable is ObjectBindingKind {
         return "connect" in bindable && "declare" in bindable;
     },
 };
