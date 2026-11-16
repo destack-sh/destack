@@ -506,8 +506,22 @@ export class Device<
             requestId: RequestId.create(this.environment),
         });
 
+        // forget the person here
+        await this.forget(login.row);
+    }
+
+    /** Forget a person here: the login setting picking them, their session and their login. */
+    async forget(row: Login["row"]): Promise<void> {
+        // reset the login setting where it picked the person
+        const values = await this.settings.query.deviceSetting.findMany({
+            where: currentLogin.reference,
+        });
+        for (const picked of values.filter((each) => each.value === row.id)) {
+            await this.settings.mutate(deviceSetting).delete({ id: picked.id }).confirmed;
+        }
+
         // forget the session and the login
-        await this.credential.forget(login.row);
+        await this.credential.forget(row);
     }
 
     /** List the residencies a new person's account may store data in. */

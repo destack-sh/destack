@@ -296,7 +296,7 @@ export class ComputerServer {
         }
         // forget the person signed out by a program of this computer
         else if (kind === "forget" && request.method === "POST") {
-            await this.device.credential.forget(login.row);
+            await this.device.forget(login.row);
 
             return Response.json({});
         }
