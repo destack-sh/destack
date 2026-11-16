@@ -17,9 +17,6 @@ import { CliError } from "../error/index.ts";
 /** The method kinds the singular noun's commands run: getting one object and listing them. */
 const NOUN_KINDS = new Set(["get", "list"]);
 
-/** The method kinds called without an object. */
-const COLLECTION_KINDS = new Set(["create"]);
-
 /** The language the command line writes titles in, the one messages are written in. */
 const SOURCE = Localization.of(SOURCE_LOCALE, []);
 
@@ -115,12 +112,12 @@ export function listCommand(context: Context, noun: Noun): Verb {
 
 /** Build the commands of one noun's objects: create, and per object its get and its methods. */
 function objectCommand(context: Context, noun: Noun): Group {
-    // create without an object, as the noun's create method takes
-    const methods = Object.entries(noun.type.describeMethods());
-    const creates = methods.filter(([, method]) => COLLECTION_KINDS.has(method.kind));
-    const called = methods.filter(
-        ([, method]) => !NOUN_KINDS.has(method.kind) && !COLLECTION_KINDS.has(method.kind),
+    // call the methods of the scope without an object, such as the noun's create
+    const methods = Object.entries(noun.type.describeMethods()).filter(
+        ([, method]) => !NOUN_KINDS.has(method.kind),
     );
+    const creates = methods.filter(([, method]) => method.target === "scope");
+    const called = methods.filter(([, method]) => method.target === "object");
 
     return {
         description: `Get, create and change ${noun.plural} (${noun.qualifier})`,
