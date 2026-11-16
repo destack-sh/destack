@@ -3,7 +3,7 @@ import { defineConfiguration } from "@destack/test/config";
 
 export default defineConfiguration(
     {
-        tier: "unit",
+        tier: "scenario",
         // run every test against the database accounts mostly run on, the universe's
         targets: { database: ["postgresql"] },
         test: {
