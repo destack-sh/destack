@@ -278,9 +278,12 @@ postgres action:
     options="-p 55432 -k /tmp -c fsync=off -c synchronous_commit=off -c full_page_writes=off -c max_connections=300"
     "$bin/pg_ctl" --pgdata "$data" --log "$data/server.log" --options "$options" --wait "{{action}}"
 
-# serve the local universe, a cloud machine per residency and the local stage's machine (local reset drops their state)
-local *arguments: (postgres "up")
-    just @platform/release/local {{arguments}}
+# serve the local universe (local reset drops its state), and run the desktop app or the cli on it with local desktop and local cli
+[no-exit-message]
+[positional-arguments]
+local *arguments:
+    @case "${1:-serve}" in serve | reset) just postgres up ;; esac
+    @just @platform/release/local "$@"
 
 # version
 version:
