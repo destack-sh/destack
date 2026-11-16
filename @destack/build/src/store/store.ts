@@ -871,6 +871,14 @@ export class BuildStore<
             return known;
         }
         const reading = (async () => {
+            // answer a lock a source keeps from the source, which reads it once for every store reading through
+            const isHere = (await this.locate([lock])).has(lock);
+            const source = isHere ? undefined : await this.#sourceOf(lock);
+            if (source !== undefined) {
+                return await source.requirements(lock);
+            }
+
+            // read the manifest of each build the lock holds
             const requirements: BuildRequirements[] = [];
             for (const build of Lock.builds(await this.lock(lock))) {
                 const { package: built, requires } = await this.get(build);
@@ -929,7 +937,7 @@ export class BuildStore<
         if (known !== undefined) {
             return await known;
         }
-        const opening = this.#open(head);
+        const opening = this.#open(head, placed === undefined ? source : keeper);
         this.#readers.set(digest, opening);
         opening.catch(() => this.#readers.delete(digest));
 
@@ -937,10 +945,12 @@ export class BuildStore<
     }
 
     /** Open a stored build's reader over its manifest's listed files. */
-    async #open(head: PackageFile): Promise<BuildReader> {
-        // read and verify the manifest, streaming each file the reader finds by its path
-        const bytes = await this.file(head);
-        const manifest = PackageManifest.deserialize(bytes);
+    async #open(head: PackageFile, source?: BuildStore): Promise<BuildReader> {
+        // take the manifest its source parsed, else read and verify it here, as a build is opened once
+        const manifest =
+            source === undefined
+                ? PackageManifest.deserialize(await this.file(head))
+                : await source.get(head.digest);
         const reader: BuildReader = new BuildReader(
             manifest,
             async (path, signal) => {
