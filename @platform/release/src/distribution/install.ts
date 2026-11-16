@@ -2,11 +2,18 @@ import { Bookmark } from "@destack/object/client";
 import { Loopback } from "@destack/machine/computer";
 import { Stage } from "@destack/update/release";
 import type { Environment, HostCapability } from "@destack/environment";
-import { present } from "@destack/schema";
+import { present, schema } from "@destack/schema";
 import { join } from "node:path";
-import { isDeepStrictEqual } from "node:util";
 import { RepositoryConfiguration } from "../repository/index.ts";
 import { print } from "./output.ts";
+
+/** The releases the device's distribution has, as `self update --stage --json` prints its row. */
+const Selection = schema.looseObject({
+    /** The installed release's version. */
+    installed: schema.string(),
+    /** The staged release's version, null without one. */
+    staged: schema.string().nullable(),
+});
 
 /** How long one shipped command may run, in milliseconds. */
 const COMMAND_TIMEOUT_MILLISECONDS = 120_000;
@@ -99,12 +106,19 @@ async function verifyInstall(
     await verifyMachineRestart(installation, variables, environment);
 
     // require the installed release to be the feed's latest
-    const selection: unknown = JSON.parse(
-        await command(executable, ["self", "update", "--stage", "--json"], variables, environment),
+    const { installed, staged } = Selection.parse(
+        JSON.parse(
+            await command(
+                executable,
+                ["self", "update", "--stage", "--json"],
+                variables,
+                environment,
+            ),
+        ),
     );
-    if (!isDeepStrictEqual(selection, { installed: version, staged: null })) {
+    if (installed !== version || staged !== null) {
         throw new Error(
-            `installed release differs from '${version}': it is ${JSON.stringify(selection)}`,
+            `installed release differs from '${version}': it is '${installed}', staging '${staged}'`,
         );
     }
     print(`verified installation and restart of ${version} from ${configuration.url}`, environment);
