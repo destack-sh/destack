@@ -2106,12 +2106,20 @@ export class ObjectStore {
         // originate the propagated rows of a scope the store serves, such as a home's account's
         const isOriginated =
             object.propagated !== undefined && this.partitions.slice(1).includes(scope);
+        if (isOriginated || object.storage !== "durable") {
+            return false;
+        }
+
+        // replicate the propagated rows of a scope enclosing the store's, whether their replica arrived yet
+        const isEnclosing =
+            object.propagated !== undefined &&
+            scope !== this.scope &&
+            (await Scope.chain(snapshot, this.scope)).some((link) => link.object.id === scope);
 
         return (
-            !isOriginated &&
-            object.storage === "durable" &&
-            (this.replicates(object) ||
-                (await sync.Replica.isReplicated(snapshot, scope, object.table)))
+            isEnclosing ||
+            this.replicates(object) ||
+            (await sync.Replica.isReplicated(snapshot, scope, object.table))
         );
     }
 
