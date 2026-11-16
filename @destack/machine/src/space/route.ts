@@ -1,6 +1,12 @@
-import { Directory, InstallationOrigin, S3Origin, SpaceAddress } from "@destack/account/address";
+import {
+    Directory,
+    InstallationOrigin,
+    S3Origin,
+    SpaceAddress,
+    type SpaceOrigin,
+} from "@destack/account/address";
 import * as accountObject from "@destack/account/object";
-import { type Identifier, schema } from "@destack/schema";
+import { type Identifier, present, schema } from "@destack/schema";
 import { InstallationMount, RequestBody, SpaceMount } from "@destack/object";
 import { copyRequest } from "@destack/environment";
 import { CALLER_HEADER } from "@destack/access";
@@ -35,12 +41,17 @@ const PARTITION = /^(?:space|device|machine)-[0-9a-f-]+$/u;
 /** The identifier schema of spaces. */
 const SPACE_IDENTIFIER = schema.identifier("space");
 
+/** The status moving a request to another URL for good with its method and body kept, RFC 9110. */
+const MOVED_STATUS = 308;
+
 /** A request to a space a machine serves, with the request below an explicit space prefix. */
 export interface SpaceRequest {
     /** The space the request is for. */
     readonly space: Identifier<"space">;
     /** The request the space's machine serves. */
     readonly request: Request;
+    /** The URL at the space's current origin, for a request to a former one. */
+    readonly moved?: string;
 }
 
 /** The partition a request addresses: the innermost scoped route's, else its scoped body's. */
@@ -93,12 +104,34 @@ export const SpaceRequest = {
             serves,
             find: async (address) => {
                 // resolve the address's space, then require its placement
-                const named = await directory.find(accountObject.space, address);
-                const space = named === undefined ? undefined : SPACE_IDENTIFIER.parse(named.id);
+                const found = await SpaceRequest.resolve(directory, address);
 
-                return space !== undefined && (await serves(space)) ? space : undefined;
+                return found !== undefined && (await serves(found.space)) ? found : undefined;
             },
         };
+    },
+
+    /** Redirect a request at a former name to its URL at the current one for good. */
+    move(url: string): Response {
+        return Response.redirect(url, MOVED_STATUS);
+    },
+
+    /** Find the space at an address, with its current origin when the address is a former one. */
+    async resolve(directory: Directory, address: SpaceAddress): Promise<SpaceMatch | undefined> {
+        // resolve the address's space
+        const named = await directory.find(accountObject.space, address);
+        if (named === undefined) {
+            return undefined;
+        }
+        const space = SPACE_IDENTIFIER.parse(named.id);
+
+        // read where it answers now when the address names it by a former handle or name
+        const current =
+            named.state === "former"
+                ? present(await directory.origin(space), `the current address of ${space}`)
+                : undefined;
+
+        return current === undefined ? { space } : { space, current };
     },
 
     /** Copy a request a client sent without the headers only a machine and a host write. */
@@ -138,9 +171,11 @@ export const SpaceRequest = {
 
         // take the space of an installation origin
         if (origin !== undefined) {
-            const space = await origins.find(SpaceAddress.of(origin));
+            const found = await origins.find(SpaceAddress.of(origin));
 
-            return space === undefined ? undefined : addressed(request, space);
+            return found === undefined
+                ? undefined
+                : located(request, found, origin, origins.domain);
         }
         // take the space of an S3 request at its host name
         else if (s3 !== undefined) {
@@ -192,14 +227,11 @@ export const SpaceRequest = {
         const request = SpaceRequest.received(given);
         const origin = InstallationOrigin.of(request, names.domain);
         const s3 = S3Origin.of(request, names.domain);
-        const space =
-            origin !== undefined
-                ? await names.find(SpaceAddress.of(origin))
-                : s3 !== undefined && (await names.serves(s3))
-                  ? s3
-                  : undefined;
-        if (space !== undefined) {
-            return addressed(request, space);
+        const found = origin === undefined ? undefined : await names.find(SpaceAddress.of(origin));
+        if (origin !== undefined && found !== undefined) {
+            return located(request, found, origin, names.domain);
+        } else if (s3 !== undefined && (await names.serves(s3))) {
+            return addressed(request, s3);
         }
 
         // take the route the host and path take, with the route and the client's head
@@ -216,10 +248,18 @@ export const SpaceRequest = {
     },
 };
 
+/** The space an address names, with its current origin for a former address. */
+export interface SpaceMatch {
+    /** The space. */
+    readonly space: Identifier<"space">;
+    /** The space's current name and handle, given for an address with a former one. */
+    readonly current?: SpaceOrigin;
+}
+
 /** The spaces a machine serves, by their installation origins' addresses and their identifiers. */
 export interface SpaceNames {
     /** Find the space of an origin's address, absent for none served here. */
-    readonly find: (address: SpaceAddress) => Promise<Identifier<"space"> | undefined>;
+    readonly find: (address: SpaceAddress) => Promise<SpaceMatch | undefined>;
     /** Report whether the machine serves a space. */
     readonly serves: (space: Identifier<"space">) => Promise<boolean>;
 }
@@ -256,6 +296,30 @@ function addressed(request: Request, space: Identifier<"space">): SpaceRequest {
     headers.set(SPACE_HEADER, space);
 
     return { space, request: copyRequest(request, { headers }) };
+}
+
+/** Address a request at an installation origin, moving one at a former name to the current. */
+function located(
+    request: Request,
+    found: SpaceMatch,
+    origin: InstallationOrigin,
+    domain: string,
+): SpaceRequest {
+    // address a request at the current origin as it is
+    const addressedHere = addressed(request, found.space);
+    const { current } = found;
+    if (current === undefined) {
+        return addressedHere;
+    }
+
+    // point a request at a former name to the same path at the current origin
+    const url = new URL(request.url);
+    url.hostname = InstallationOrigin.format(
+        { ...origin, space: current.space, handle: current.handle },
+        domain,
+    );
+
+    return { ...addressedHere, moved: url.href };
 }
 
 /** Decide whether a value is a space's identifier. */

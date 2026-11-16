@@ -22,7 +22,13 @@ const MOUNT = `https://eu.destack.cloud${SERVICE}`;
 /** The spaces served here below the space domain: work--ada alone. */
 const ORIGINS = {
     domain: "destack.space",
-    find: async (address: string) => (address === "work--ada" ? SPACE : undefined),
+    find: async (address: string) =>
+        address === "work--ada"
+            ? { space: SPACE }
+            : // the space's former name, and its account's former handle
+              address === "jobs--ada" || address === "work--lovelace"
+              ? { space: SPACE, current: { space: "work", handle: "ada" } }
+              : undefined,
     serves: async (space: string) => space === SPACE,
 };
 
@@ -191,6 +197,8 @@ test("route a request to a name to the space of its installation origin or S3 or
             "https://notes--other--ada.destack.space/",
             `https://s3--${ROUTED}.destack.space/bucket-1/notes.txt`,
             "https://notes.acme.com/shop",
+            "https://notes--jobs--ada.destack.space/board?view=week",
+            "https://notes--work--lovelace.destack.space/",
         ].map(async (url) => {
             const found = await SpaceRequest.named(new Request(url), names);
 
@@ -200,17 +208,28 @@ test("route a request to a name to the space of its installation origin or S3 or
                       found.space,
                       found.request.headers.get(ROUTE_HEADER),
                       ClientHead.restore(found.request)?.url ?? null,
+                      found.moved ?? null,
                   ];
         }),
     );
 
+    // move the former name and handle to the current origin, keeping the path and query
     expect(named).toEqual([
-        [SPACE, null, null],
-        [SPACE, null, null],
-        [ROUTED, ROUTE, "https://notes.acme.com/blog/2026?page=2"],
+        [SPACE, null, null, null],
+        [SPACE, null, null, null],
+        [ROUTED, ROUTE, "https://notes.acme.com/blog/2026?page=2", null],
         undefined,
         undefined,
         undefined,
+        [SPACE, null, null, "https://notes--work--ada.destack.space/board?view=week"],
+        [SPACE, null, null, "https://notes--work--ada.destack.space/"],
+    ]);
+
+    // answer a moved request with a permanent redirect that keeps its method and body
+    const moved = SpaceRequest.move("https://notes--work--ada.destack.space/board?view=week");
+    expect([moved.status, moved.headers.get("location")]).toEqual([
+        308,
+        "https://notes--work--ada.destack.space/board?view=week",
     ]);
 });
 

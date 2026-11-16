@@ -480,6 +480,11 @@ export class MachineWorker {
             return new Response(null, { status: 404 });
         }
 
+        // move a request at a former name to the space's current origin
+        if (routed.moved !== undefined) {
+            return SpaceRequest.move(routed.moved);
+        }
+
         // attribute the invocation to the space, and forward the request to its partition's object
         Attribution.publish({ scope: routed.space });
         const namespace = Jurisdiction.narrow(bindings.PARTITION, bindings.DESTACK_JURISDICTION);

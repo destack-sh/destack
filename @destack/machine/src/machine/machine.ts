@@ -985,7 +985,7 @@ export class Machine {
     async #route(request: Request): Promise<SpaceRequest | undefined> {
         return SpaceRequest.of(request, {
             domain: this.domain,
-            find: async (address) => (await this.directory.find(accountObject.space, address))?.id,
+            find: (address) => SpaceRequest.resolve(this.directory, address),
         });
     }
 
@@ -1001,9 +1001,11 @@ export class Machine {
         routed: SpaceRequest | undefined,
         authentication?: Authentication,
     ): Promise<Response> {
-        // answer 404 to a request naming no space
+        // answer 404 to a request naming no space, and move one at a former name to the current one
         if (routed === undefined) {
             return new Response(null, { status: 404 });
+        } else if (routed.moved !== undefined) {
+            return SpaceRequest.move(routed.moved);
         }
 
         // start the space and hand it the request, refusing a space that fails to start
