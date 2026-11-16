@@ -39,6 +39,9 @@ import { testWorldOptions } from "@destack/test/world";
 /** The host the harness keeps files and schemas on, shared by the test processes of a run. */
 const HOST = testHost();
 
+/** The suffixes of the files SQLite keeps beside a database in WAL mode: its log and its index. */
+const SQLITE_WAL_SUFFIXES = ["-wal", "-shm"] as const;
+
 /** The node a template's databases run as in its world. */
 const TEMPLATE_NODE = "template";
 
@@ -453,7 +456,13 @@ export class TestDatabase<
                 : await environment.scheduler.waitUntil(
                       sqliteTemplate(declared, false, replicatedOf(tables), environment),
                   );
-        await environment.scheduler.run(() => HOST.files.copyFile(template, file));
+        await environment.scheduler.run(async () => {
+            // remove the log an interrupted build left beside the file, which SQLite would replay into it
+            for (const suffix of SQLITE_WAL_SUFFIXES) {
+                await HOST.files.remove(`${file}${suffix}`, { force: true });
+            }
+            await HOST.files.copyFile(template, file);
+        });
         const source = async (): Promise<ImageSource> => {
             // checkpoint the WAL into the file
             const database = await sqlite.connectBunSqlite(file, tables, { environment });
