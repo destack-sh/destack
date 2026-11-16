@@ -83,7 +83,7 @@ function isReady(target: InstallationRollout): boolean {
     return Observation.progress(target.installation) === "current";
 }
 
-test("publish and tag a release, install it following the tag, converge, and pin the release", async () => {
+test("follow a published release's tag, then pin the installation to the release", async () => {
     // create the acme organization as the owner
     const terminal = await TerminalFixture.open({ NO_COLOR: "1" });
     const words = ["organization", "create", "--name", "Acme", "--handle", "acme"];

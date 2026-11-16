@@ -50,8 +50,9 @@ function noun(installation: string, name: string, identity = name): Noun {
     );
 }
 
-test("find nouns by their words, qualifying the words several installations serve", async () => {
-    const catalog = new Catalog(
+/** Build a catalog where two installations serve tasks and two serve machines. */
+function ambiguousCatalog(): Catalog {
+    return new Catalog(
         [
             noun("space", "installation"),
             noun("account", "machine"),
@@ -62,20 +63,26 @@ test("find nouns by their words, qualifying the words several installations serv
         ],
         [],
     );
-    const nameOf = (word: string) => {
+}
+
+test("find nouns by singular, plural and qualified words", () => {
+    // resolve nouns one installation serves, and qualified nouns
+    const catalog = ambiguousCatalog();
+    const resolved = [
+        "installations",
+        "account:machine",
+        "notes:machines",
+        "work:tasks",
+        "notes",
+        "page",
+    ].map((word) => {
         const found = catalog.find(word);
 
         return found === undefined
             ? undefined
             : `${found.qualifier}:${found.name}${found.lists(word) ? " (plural)" : ""}`;
-    };
-
-    // resolve nouns one installation serves, and qualified nouns
-    expect(
-        ["installations", "account:machine", "notes:machines", "work:tasks", "notes", "page"].map(
-            nameOf,
-        ),
-    ).toEqual([
+    });
+    expect(resolved).toEqual([
         "space:installation (plural)",
         "account:machine",
         "notes:machine (plural)",
@@ -83,8 +90,11 @@ test("find nouns by their words, qualifying the words several installations serv
         "notes:note (plural)",
         undefined,
     ]);
+});
 
+test("qualify plurals that collide with another noun or a verb", () => {
     // list each noun by its plural, qualified where another noun or a root verb takes a word of it
+    const catalog = ambiguousCatalog();
     expect([catalog.plurals([]), catalog.plurals(["note"])]).toEqual([
         [
             "installations",
@@ -103,17 +113,25 @@ test("find nouns by their words, qualifying the words several installations serv
             "notes:machines",
         ],
     ]);
+});
 
-    // refuse a noun two installations serve, built-in or installed, listing the qualified nouns
-    expect(await refusal(() => catalog.find("task"))).toEqual([
-        "BAD_REQUEST",
-        "USAGE_INVALID",
-        "noun 'task' is invalid: it is ambiguous, so use one of 'home:task, work:task'",
-    ]);
-    expect(await refusal(() => catalog.find("machines"))).toEqual([
-        "BAD_REQUEST",
-        "USAGE_INVALID",
-        "noun 'machines' is invalid: it is ambiguous, so use one of 'account:machines, notes:machines'",
+test("refuse a noun two installations serve, listing qualified nouns", async () => {
+    // refuse a singular and a plural, each listing the qualified nouns
+    const catalog = ambiguousCatalog();
+    expect([
+        await refusal(() => catalog.find("task")),
+        await refusal(() => catalog.find("machines")),
+    ]).toEqual([
+        [
+            "BAD_REQUEST",
+            "USAGE_INVALID",
+            "noun 'task' is invalid: it is ambiguous, so use one of 'home:task, work:task'",
+        ],
+        [
+            "BAD_REQUEST",
+            "USAGE_INVALID",
+            "noun 'machines' is invalid: it is ambiguous, so use one of 'account:machines, notes:machines'",
+        ],
     ]);
 });
 

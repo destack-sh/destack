@@ -11,7 +11,7 @@ function lines(text: string): string[] {
     return text.split("\n").filter((line) => line !== "");
 }
 
-test("dispatch fixed verbs, and refuse unknown options, missing arguments and help as JSON", async () => {
+test("print the version, and refuse invalid usage as text or JSON", async () => {
     const cases = [
         {
             arguments: ["--version", "--json"],
@@ -113,7 +113,7 @@ test("dispatch fixed verbs, and refuse unknown options, missing arguments and he
     expect(outcomes).toEqual(cases);
 });
 
-test("leave hidden commands and options out of help, and run them when named", async () => {
+test("leave hidden commands and options out of help, showing their own help", async () => {
     const help = async (words: string[]) => lines((await TerminalFixture.printed(words)).output);
 
     // list the distribution's commands and the uninstall's options

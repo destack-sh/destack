@@ -80,7 +80,7 @@ test("open an object by its identifier as a window of the running desktop", asyn
     });
 });
 
-test("open a view's page on its origin in the browser through the person's opener, which the universe signs in", async () => {
+test("open a view's page in the browser on its installation's origin", async () => {
     // install the start page in a work space of the owner's, reaching their home's settings
     const terminal = await TerminalFixture.open({ DESTACK_STAGE: "local" });
     const work = await terminal.space("work");
