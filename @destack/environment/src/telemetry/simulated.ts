@@ -21,6 +21,7 @@ import {
     TracerProvider,
 } from "@opentelemetry/sdk-trace";
 import type { ContextManager, TextMapPropagator } from "@opentelemetry/api";
+import { SpanStatusCode } from "@opentelemetry/api";
 import { AsyncLocalStorageContextManager } from "@opentelemetry/context-async-hooks";
 import { type Resource, resourceFromAttributes } from "@opentelemetry/resources";
 import { Clock } from "../clock/clock.ts";
@@ -28,6 +29,7 @@ import type { Random } from "../random/random.ts";
 import { TraceIdGenerator } from "./generator.ts";
 import { type Telemetry, W3C_PROPAGATOR } from "./telemetry.ts";
 import { SpanPath } from "./span.ts";
+import { EXCEPTION_EVENT, exceptionCauses } from "./exception.ts";
 import { recordSpanDuration } from "./runner.ts";
 
 /** The span attribute counting the statements run inside a span, as the database totals them. */
@@ -253,6 +255,40 @@ export class SimulatedTelemetry implements Telemetry {
         // write the paths, the costliest first, then each histogram's count and summed milliseconds
         const lines = ["spans: count, world ms, host ms, statements"];
         SimulatedTelemetry.#write(root, 0, lines);
+
+        // write each captured exception once with how often it was captured
+        const exceptions = new Map<string, number>();
+        for (const record of this.logs.filter((each) => each.eventName === EXCEPTION_EVENT)) {
+            const type = String(record.attributes["exception.type"]);
+            const message = String(record.attributes["exception.message"]);
+            const tags = Object.entries(record.attributes)
+                .filter(([name]) => name.startsWith("tag.") || name === "destack.key")
+                .map(([name, value]) => `${name.replace("tag.", "")}=${String(value)}`);
+            const scope = [record.instrumentationScope.name, ...tags].join(" ");
+            const key = `${type}: ${message} (${scope})`;
+            exceptions.set(key, (exceptions.get(key) ?? 0) + 1);
+        }
+        // write each failed span's name and status once with how often it failed
+        const failed = new Map<string, number>();
+        for (const span of this.spans.filter((each) => each.status.code === SpanStatusCode.ERROR)) {
+            const label = SpanPath.label(span.name, span.attributes);
+            const raised = span.events.find((event) => event.name === EXCEPTION_EVENT);
+            const raisedMessage = raised?.attributes?.["exception.message"];
+            const message = typeof raisedMessage === "string" ? raisedMessage : span.status.message;
+            const stack = raised?.attributes?.["exception.stacktrace"];
+            const causes = typeof stack === "string" ? exceptionCauses(stack) : [];
+            const failure = message === undefined ? label : `${label}: ${message}`;
+            const key = [failure, ...causes].join(" <- ");
+            failed.set(key, (failed.get(key) ?? 0) + 1);
+        }
+        lines.push("failed spans: count, span and status");
+        for (const [span, count] of failed) {
+            lines.push(`  ×${count}  ${span}`);
+        }
+        lines.push("exceptions: count, type, message, capturing scope and tags");
+        for (const [exception, count] of exceptions) {
+            lines.push(`  ×${count}  ${exception}`);
+        }
         lines.push("histograms: count, total, p50, p95, in ms for durations, by target");
         for (const { metrics } of (await this.metrics()).flatMap((each) => each.scopeMetrics)) {
             for (const metric of metrics) {

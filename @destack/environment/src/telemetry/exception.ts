@@ -4,6 +4,9 @@ import { DomainError } from "@destack/error";
 /** The event name of an exception on a log record or a span, as OpenTelemetry names it. */
 export const EXCEPTION_EVENT = "exception";
 
+/** The start of the section a stack trace lists each cause in. */
+const CAUSE_PREFIX = "Caused by: ";
+
 /** The causes a captured failure's stack trace lists at most, below its own stack. */
 const MAX_CAUSES = 8;
 
@@ -19,7 +22,7 @@ export function exceptionAttributes(error: unknown, isEscaped: boolean): Attribu
             cause instanceof Error
                 ? (cause.stack ?? `${cause.name}: ${cause.message}`)
                 : JSON.stringify(cause);
-        sections.push(`Caused by: ${section}`);
+        sections.push(`${CAUSE_PREFIX}${section}`);
         cause = cause instanceof Error ? cause.cause : undefined;
     }
 
@@ -30,6 +33,14 @@ export function exceptionAttributes(error: unknown, isEscaped: boolean): Attribu
         "exception.stacktrace": sections.join("\n"),
         "exception.escaped": isEscaped,
     };
+}
+
+/** List the first line of each cause in a stack trace `exceptionAttributes` wrote. */
+export function exceptionCauses(stacktrace: string): string[] {
+    return stacktrace
+        .split("\n")
+        .filter((line) => line.startsWith(CAUSE_PREFIX))
+        .map((line) => line.slice(CAUSE_PREFIX.length));
 }
 
 /** Annotate a span with an escaping failure, as the exception event its captured log carries. */
