@@ -35,7 +35,7 @@ import {
     testPlatform,
     validatePlatform,
 } from "./deployment/command.ts";
-import { resetLocal, serveLocal } from "./local/command.ts";
+import { cliLocal, desktopLocal, resetLocal, serveLocal } from "./local/command.ts";
 import { deploySite } from "./site/site.ts";
 
 /** A release command: it runs on the host with the words after its noun and verb. */
@@ -49,7 +49,7 @@ const COMMANDS: Readonly<Record<string, Command>> = {
     "distribution build": buildDistribution,
     "distribution pack": packDistribution,
     "distribution icon": buildIcons,
-    "distribution develop": developDistribution,
+    "distribution develop": (environment) => developDistribution(environment),
     "distribution open": openDistribution,
     "distribution install-check": verifyInstallation,
 
@@ -92,6 +92,8 @@ const COMMANDS: Readonly<Record<string, Command>> = {
 
     "local serve": serveLocal,
     "local reset": resetLocal,
+    "local desktop": desktopLocal,
+    "local cli": cliLocal,
 };
 
 /** The host every command runs on. */

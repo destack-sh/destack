@@ -82,9 +82,11 @@ custody verb stage:
 e2e:
     {{bun}} run src/main.ts platform e2e
 
-# serve the local universe, its cloud machines and the local stage's machine, or drop their state with local reset
+# serve the local universe or drop its state with local reset, and run the desktop app or the cli on it with local desktop and local cli
+[no-exit-message]
+[positional-arguments]
 local verb="serve" *arguments:
-    {{bun}} run src/main.ts local {{verb}} {{arguments}}
+    @{{bun}} run src/main.ts local "$@"
 
 # release main now, as the daily run does
 release:

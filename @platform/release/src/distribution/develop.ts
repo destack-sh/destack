@@ -4,8 +4,11 @@ import type { Environment, HostCapability } from "@destack/environment";
 import { configureApplication } from "./application.ts";
 import { CHECKOUT, releaseVersion } from "./distribution.ts";
 
-/** Run the native shell with the development identity and generated icons. */
-export async function developDistribution(environment: Environment<HostCapability>): Promise<void> {
+/** Run the native shell with the development identity and icons, on a device's variables. */
+export async function developDistribution(
+    environment: Environment<HostCapability>,
+    device: Readonly<Record<string, string>> = {},
+): Promise<void> {
     // isolate generated native configuration
     const { files, process } = environment;
     const staging = join(CHECKOUT, "dist/.build");
@@ -27,6 +30,7 @@ export async function developDistribution(environment: Environment<HostCapabilit
             workingDirectory: join(CHECKOUT, "@destack/desktop"),
             variables: {
                 ...process.variables,
+                ...device,
                 TAURI_CONFIG: configuration,
                 DESTACK_STAGE: identity.name,
                 DESTACK_UNIVERSE: process.variables["DESTACK_UNIVERSE"] ?? identity.universe,
