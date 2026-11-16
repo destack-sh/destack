@@ -109,7 +109,7 @@ export class CommitWatch {
         return this.#caughtUp;
     }
 
-    /** The latest committed position while the watch has every commit, its own echoed, else absent. */
+    /** The latest committed position once the watch has every commit, its own echoed. */
     get position(): LogPosition | undefined {
         return this.isComplete && this.#own.size === 0 && this.#head !== undefined
             ? { ...this.#head, sequence: this.#sequence }
@@ -118,6 +118,7 @@ export class CommitWatch {
 
     /** Take a committed head read, restarting the sequence at a new log or epoch. */
     observe(position: LogPosition): void {
+        // keep the log and epoch, raising the sequence within them and restarting it at new ones
         const head = this.#head;
         const isSame = head?.log === position.log && head.epoch === position.epoch;
         this.#head = { log: position.log, epoch: position.epoch };
@@ -339,7 +340,7 @@ export class CommitWatch {
         this.#advance(woken, isLogged ? [...woken, ...LOG_TABLES] : woken);
     }
 
-    /** Expire every cached read and the known head here, waking no reader, such as after a lost race. */
+    /** Expire every cached read and the known head, waking no reader, such as after a lost race. */
     expire(): void {
         this.#expire([...this.#tables, ...LOG_TABLES]);
         this.#head = undefined;
