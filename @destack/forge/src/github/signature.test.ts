@@ -31,7 +31,7 @@ function readDigest(headers: Headers): string {
     return signature.slice("sha256=".length);
 }
 
-test("sign the GitHub reference example exactly", async () => {
+test("sign GitHub's reference example", async () => {
     const github = await new GitHubSignature().sign(
         { id: "delivery-1", event: "push", body: GITHUB_EXAMPLE.body, sentAt: NOW },
         GITHUB_EXAMPLE.secret,
@@ -44,7 +44,7 @@ test("sign the GitHub reference example exactly", async () => {
     ]);
 });
 
-test("verify a GitHub delivery and refuse a signature made with another secret", async () => {
+test("verify a GitHub delivery by its secret", async () => {
     // accept the signed push
     const signature = new GitHubSignature();
     const body = '{"ref":"refs/heads/main","after":"aa218f56b14c9653891f9e74264a383fa43fefbd"}';

@@ -1,20 +1,12 @@
-import { testSimulation } from "@destack/object/test";
-import { Secret } from "@destack/resource";
 import { AuditCaller } from "@destack/object";
 import { eq } from "@destack/db";
 import { found, type Identifier } from "@destack/schema";
-import { expect, refusal, test } from "@destack/test";
+import { expect, test } from "@destack/test";
 import { RequestId } from "@destack/sync";
-import { GitHubSignature, GitHubApp, GITHUB_API } from "../src/github/index.ts";
+import { GitHubSignature } from "../src/github/index.ts";
 import { repository } from "@destack/registry/object";
 import forgePackage from "../src/package.ts";
-import {
-    APP_ID,
-    GitHubStandIn,
-    githubPrivateKey,
-    TestForge,
-    WEBHOOK_SECRET,
-} from "../src/test/index.ts";
+import { type GitHubStandIn, TestForge, WEBHOOK_SECRET } from "../src/test/index.ts";
 import { auditedCalls } from "@destack/object/test";
 
 /** The fixture GitHub App's installation on the tenant's GitHub organization. */
@@ -25,9 +17,6 @@ const OTHER_INSTALLATION = 5151;
 
 /** How long GitHub's installation tokens last: an hour. */
 const TOKEN_MILLISECONDS = 3_600_000;
-
-/** The world the App signs and delivers in. */
-const world = testSimulation().environment("github");
 
 /** Commits and tag objects of the fixture GitHub repository. */
 const objects = {
@@ -40,9 +29,6 @@ const objects = {
 
 /** GitHub's identifier of the fixture repository. */
 const REPOSITORY_ID = 1296269;
-
-/** The time the app signs its JWTs at, the world's start. */
-const NOW = world.clock.now();
 
 /** Host acme/site at GitHub: main and next, an annotated v1 and a lightweight v0. */
 function site(github: GitHubStandIn) {
@@ -97,83 +83,6 @@ async function deliver(
     return forge.fetch("/webhooks/github", { method: "POST", headers, body });
 }
 
-test("identify a repository and issue installation tokens limited to it and to the permissions each use needs", async () => {
-    const github = new GitHubStandIn(world);
-    site(github);
-    const app = new GitHubApp({
-        id: APP_ID,
-        environment: world,
-        key: Secret.of(githubPrivateKey()),
-        api: GITHUB_API,
-        fetch: github.fetch,
-    });
-
-    // identify the repository by name and lease writing to it by identifier
-    const fullName = GitHubApp.fullName("https://github.com/acme/site.git");
-    expect([
-        await app.repository(String(INSTALLATION), fullName, NOW),
-        await app.open(
-            String(INSTALLATION),
-            String(REPOSITORY_ID),
-            "https://github.com/acme/site.git",
-            "write",
-            NOW,
-        ),
-    ]).toEqual([
-        { id: String(REPOSITORY_ID), fullName: "acme/site" },
-        {
-            url: "https://github.com/acme/site.git",
-            mode: "write",
-            headers: {
-                authorization: `Basic ${new TextEncoder().encode("x-access-token:ghs_4242_contents_write").toBase64()}`,
-            },
-            expiresAt: NOW + TOKEN_MILLISECONDS,
-        },
-    ]);
-
-    // call the app endpoint with the app JWT and the repository with a metadata token
-    expect(github.requests).toEqual([
-        "POST api.github.com/app/installations/4242/access_tokens app",
-        '  body {"repositories":["site"],"permissions":{"metadata":"read"}}',
-        "GET api.github.com/repos/acme/site installation 4242",
-        "POST api.github.com/app/installations/4242/access_tokens app",
-        '  body {"repository_ids":[1296269],"permissions":{"contents":"write"}}',
-    ]);
-
-    // refuse remotes outside github.com
-    expect(await refusal(() => GitHubApp.fullName("https://gitlab.com/acme/site.git"))).toEqual([
-        "BAD_REQUEST",
-        "GITHUB_REPOSITORY_REQUIRED",
-        "github.com repository is required: remote 'https://gitlab.com/acme/site.git' is not one",
-    ]);
-});
-
-test("read an installation from GitHub's setup redirect, refuse a redirect without one, and uninstall the app as itself", async () => {
-    // point the app at the stand-in
-    const github = new GitHubStandIn(world);
-    const app = new GitHubApp({
-        id: APP_ID,
-        environment: world,
-        key: Secret.of(githubPrivateKey()),
-        api: GITHUB_API,
-        fetch: github.fetch,
-    });
-
-    // read the installation, then uninstall it with the app's JWT
-    const installation = app.installation({ installation_id: "4242", setup_action: "install" });
-    await app.uninstall(installation, NOW);
-    expect({ installation, requests: github.requests }).toEqual({
-        installation: "4242",
-        requests: ["DELETE api.github.com/app/installations/4242 app"],
-    });
-
-    // refuse a redirect naming no installation
-    expect(await refusal(() => app.installation({ setup_action: "install" }))).toEqual([
-        "BAD_REQUEST",
-        "AUTHORIZATION_INVALID",
-        "installation redirect is invalid: it has no installation",
-    ]);
-});
 /** Connect the tenant's installation, and host acme/site in it at GitHub. */
 async function connected(forge: TestForge) {
     site(forge.github);
@@ -193,7 +102,7 @@ async function identifier(forge: TestForge, id: Identifier<"repository">) {
     return row?.providerRepositoryId;
 }
 
-test("connect a GitHub repository, refresh it, and refresh it again as the system on push, create and delete deliveries", async () => {
+test("serve a GitHub repository through its connected installation", async () => {
     const forge = await TestForge.open();
     const { tenant, connectionId, owner } = await connected(forge);
 
@@ -389,37 +298,6 @@ test("connect a GitHub repository, refresh it, and refresh it again as the syste
         [405, ""],
     ]);
 
-    // open the repository as an anonymous Git remote without GitHub's identity or the installation
-    const anonymous = await owner.repository.update({
-        spaceId: forge.space,
-        id: created.id,
-        requestId: RequestId.create(forge.environment),
-        hosting: "git",
-        authentication: "anonymous",
-        connectionId: null,
-    });
-    expect([
-        anonymous.hosting,
-        anonymous.providerRepositoryId,
-        anonymous.authentication,
-        anonymous.connectionId,
-    ]).toEqual(["git", null, "anonymous", null]);
-});
-
-test("issue checkout access to a GitHub repository as installation tokens limited to it and to pulling or pushing", async () => {
-    const forge = await TestForge.open();
-    const { tenant, connectionId, owner } = await connected(forge);
-    const created = await owner.repository.create({
-        spaceId: forge.space,
-        accountId: tenant.accountId,
-        requestId: RequestId.create(forge.environment),
-        name: "app",
-        hosting: "github",
-        remote: "https://github.com/acme/site.git",
-        connectionId,
-    });
-    await forge.simulation.idle();
-
     // lease each token as Git's basic credential for the recorded remote, expiring an hour after its issue
     forge.github.requests.length = 0;
     const expiresAt = forge.environment.clock.now() + TOKEN_MILLISECONDS;
@@ -441,7 +319,6 @@ test("issue checkout access to a GitHub repository as installation tokens limite
 
     // audit each lease as the owner's call and its success, without the credential
     const actor = { subject: tenant.owner.subject };
-    const target = { type: "repository", id: created.id };
     expect(
         (await auditedCalls(forge.home.database))
             .filter(
@@ -458,6 +335,22 @@ test("issue checkout access to a GitHub repository as installation tokens limite
         [actor, target, {}, { kind: "success" }],
         [actor, target, {}, { kind: "success" }],
     ]);
+
+    // open the repository as an anonymous Git remote without GitHub's identity or the installation
+    const anonymous = await owner.repository.update({
+        spaceId: forge.space,
+        id: created.id,
+        requestId: RequestId.create(forge.environment),
+        hosting: "git",
+        authentication: "anonymous",
+        connectionId: null,
+    });
+    expect([
+        anonymous.hosting,
+        anonymous.providerRepositoryId,
+        anonymous.authentication,
+        anonymous.connectionId,
+    ]).toEqual(["git", null, "anonymous", null]);
 });
 
 /** Build the lease of a GitHub installation token for the recorded remote. */

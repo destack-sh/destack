@@ -5,7 +5,7 @@ import { Identifier } from "@destack/schema";
 import { expect, onTestFinished, test } from "@destack/test";
 import { repository } from "@destack/registry/object";
 
-test("refuse repository rows that mix the columns of their origins", async () => {
+test("refuse repository rows mixing the columns of their origins", async () => {
     // store the repositories' table
     const simulation = testSimulation(0);
     const { clock } = simulation;

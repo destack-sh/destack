@@ -38,25 +38,7 @@ async function storageGains(forge: TestForge): Promise<() => Promise<string[]>> 
     return async () => (await list()).filter((name) => !before.has(name));
 }
 
-test("create a repository in an account its owner created after the forge was installed", async () => {
-    const forge = await TestForge.open();
-    // create the account and its repository once the forge replicates the account
-    const tenant = await forge.tenant();
-    const created = await forge.client(tenant.owner).repository.create({
-        spaceId: forge.space,
-        accountId: tenant.accountId,
-        requestId: RequestId.create(forge.environment),
-        name: "site",
-        hosting: "platform",
-    });
-    expect([created.accountId, created.name, created.hosting]).toEqual([
-        tenant.accountId,
-        "site",
-        "platform",
-    ]);
-});
-
-test("create, rename and refresh a platform repository as its account's owner, and refuse readers and strangers", async () => {
+test("create, rename and refresh a platform repository as its owner", async () => {
     const forge = await TestForge.open();
     const tenant = await forge.tenant();
     const owner = forge.client(tenant.owner);
@@ -74,6 +56,7 @@ test("create, rename and refresh a platform repository as its account's owner, a
     });
     expect([
         created.scope,
+        created.accountId,
         created.name,
         created.hosting,
         created.machineId,
@@ -86,6 +69,7 @@ test("create, rename and refresh a platform repository as its account's owner, a
         created.revision,
     ]).toEqual([
         forge.space,
+        accountId,
         "site",
         "platform",
         null,
@@ -232,57 +216,7 @@ test("create, rename and refresh a platform repository as its account's owner, a
     ]);
 });
 
-test("sync a repository's references to its readers and none to strangers", async () => {
-    const forge = await TestForge.open();
-    const tenant = await forge.tenant();
-    const owner = forge.client(tenant.owner);
-    const accountId = tenant.accountId;
-
-    // observe one branch
-    const created = await owner.repository.create({
-        spaceId: forge.space,
-        accountId,
-        requestId: RequestId.create(forge.environment),
-        name: "notes",
-        hosting: "platform",
-    });
-    const history = new History();
-    history.commit("main", "notes.md", "first\n");
-    const [commit] = await history.write(remotePath(created.remote));
-    await owner.repository.refresh({
-        spaceId: forge.space,
-        id: created.id,
-        requestId: RequestId.create(forge.environment),
-    });
-
-    // follow the account's references as the reader and as a stranger
-    const follow = async (user: TestPerson) => {
-        const controller = new AbortController();
-        const pages = await forge.client(user).store.stream(
-            {
-                name: "objects",
-                publication: QUERIES_PUBLICATION,
-                scope: forge.space,
-                target: forge.space,
-                parameters: { queries: { references: reference.query() } },
-                revision: FOLLOWER_REVISION,
-            },
-            { signal: controller.signal },
-        );
-        const page = await pages[Symbol.asyncIterator]().next();
-        controller.abort();
-        if (page.done === true) {
-            throw new Error("the sync ended before its first page");
-        }
-
-        return page.value.changes.map((change) => [change.row["name"], change.row["commit"]]);
-    };
-    expect(await follow(tenant.reader)).toEqual([["refs/heads/main", commit]]);
-    // follow the public home as a stranger, seeing none of the account's references
-    expect(await follow(tenant.stranger)).toEqual([]);
-});
-
-test("stream the references a space inside the account selects to the space, and none to another account's space however it follows", async () => {
+test("sync an account's references and packages to its readers and spaces", async () => {
     const forge = await TestForge.open();
     const tenant = await forge.tenant();
     const other = await forge.tenant();
@@ -314,10 +248,49 @@ test("stream the references a space inside the account selects to the space, and
     });
     const main = nth(items, 0);
 
+    // create a private package as the owner
+    const id = PackageId.parse(
+        `package-${Identifier.create("space", forge.environment).slice("space-".length)}`,
+    );
+    await owner.package.create({
+        spaceId: forge.space,
+        accountId,
+        id,
+        requestId: RequestId.create(forge.environment),
+        name: "notes",
+        visibility: "private",
+    });
+
     // create a space of the account and one of another account, as their owner does
     const inside = await forge.createSpace(accountId, tenant.owner);
     const outside = await forge.createSpace(other.accountId, other.owner);
     await forge.simulation.idle();
+
+    // follow the account's references as the reader and as a stranger
+    const query = async (user: TestPerson) => {
+        const controller = new AbortController();
+        const pages = await forge.client(user).store.stream(
+            {
+                name: "objects",
+                publication: QUERIES_PUBLICATION,
+                scope: forge.space,
+                target: forge.space,
+                parameters: { queries: { references: reference.query() } },
+                revision: FOLLOWER_REVISION,
+            },
+            { signal: controller.signal },
+        );
+        const page = await pages[Symbol.asyncIterator]().next();
+        controller.abort();
+        if (page.done === true) {
+            throw new Error("the sync ended before its first page");
+        }
+
+        return page.value.changes.map((change) => [change.row["name"], change.row["commit"]]);
+    };
+    expect(await query(tenant.reader)).toEqual([["refs/heads/main", commit]]);
+    // follow the public home as a stranger, seeing none of the account's references
+    expect(await query(tenant.stranger)).toEqual([]);
 
     // follow the selected branch as a space for a target space
     const follow = async (space: Identifier<"space">, target: string) => {
@@ -362,33 +335,8 @@ test("stream the references a space inside the account selects to the space, and
         [],
         [],
     ]);
-});
 
-test("let a space inside the account read its private packages, and no other account's space", async () => {
-    const forge = await TestForge.open();
-    const tenant = await forge.tenant();
-    const other = await forge.tenant();
-    const accountId = tenant.accountId;
-
-    // create a private package as the owner
-    const id = PackageId.parse(
-        `package-${Identifier.create("space", forge.environment).slice("space-".length)}`,
-    );
-    await forge.client(tenant.owner).package.create({
-        spaceId: forge.space,
-        accountId,
-        id,
-        requestId: RequestId.create(forge.environment),
-        name: "notes",
-        visibility: "private",
-    });
-
-    // create a space of the account and one of another account, as their owner does
-    const inside = await forge.createSpace(accountId, tenant.owner);
-    const outside = await forge.createSpace(other.accountId, other.owner);
-    await forge.simulation.idle();
-
-    // read the package as each space
+    // read the private package as each space
     const read = async (space: Identifier<"space">) => {
         const found = await forge
             .asRegistry(principal.space.reference(Scope.universe.id, space))
@@ -402,7 +350,7 @@ test("let a space inside the account read its private packages, and no other acc
     ]);
 });
 
-test("delete and restore a repository through the trash, and purge its storage and name with it", async () => {
+test("delete, restore and purge a repository through the trash", async () => {
     const forge = await TestForge.open();
     const tenant = await forge.tenant();
     const owner = forge.client(tenant.owner);
@@ -507,15 +455,14 @@ test("delete and restore a repository through the trash, and purge its storage a
     expect(await state()).toEqual([[], [], [], []]);
 });
 
-test("issue checkout access to pull and push, requiring the push permission and refusing origins the platform has no credential for", async () => {
+test("lease checkouts of platform and anonymous repositories by permission", async () => {
     const forge = await TestForge.open();
     const tenant = await forge.tenant();
     const owner = forge.client(tenant.owner);
     const reader = forge.client(tenant.reader);
     const stranger = forge.client(tenant.stranger);
     const accountId = tenant.accountId;
-    const machineId = await forge.machine(accountId, tenant.owner);
-    const [site, mirror, laptop] = [
+    const [site, mirror] = [
         await owner.repository.create({
             spaceId: forge.space,
             accountId,
@@ -531,14 +478,6 @@ test("issue checkout access to pull and push, requiring the push permission and 
             hosting: "git",
             remote: "https://git.example.test/mirror.git",
             authentication: "anonymous",
-        }),
-        await owner.repository.create({
-            spaceId: forge.space,
-            accountId,
-            requestId: RequestId.create(forge.environment),
-            name: "laptop",
-            hosting: "machine",
-            machineId,
         }),
     ];
 
@@ -567,32 +506,9 @@ test("issue checkout access to pull and push, requiring the push permission and 
             "push is invalid: anonymous remotes do not take push credentials",
         ],
     ]);
-
-    // leave a machine repository's references and checkouts to its machine
-    expect([
-        await refusal(
-            owner.repository.refresh({
-                spaceId: forge.space,
-                id: laptop.id,
-                requestId: RequestId.create(forge.environment),
-            }),
-        ),
-        await refusal(owner.repository.open({ spaceId: forge.space, id: laptop.id, mode: "read" })),
-    ]).toEqual([
-        [
-            "BAD_REQUEST",
-            "MACHINE_REPOSITORY_INVALID",
-            "repository is invalid: machine repositories are refreshed and opened through their machine",
-        ],
-        [
-            "BAD_REQUEST",
-            "MACHINE_REPOSITORY_INVALID",
-            "repository is invalid: machine repositories are refreshed and opened through their machine",
-        ],
-    ]);
 });
 
-test("refuse a platform repository its storage fails to create, leaving no record, storage or settlement", async () => {
+test("leave no storage of a platform repository its creation fails", async () => {
     const forge = await TestForge.open();
     const tenant = await forge.tenant();
     const gained = await storageGains(forge);
@@ -616,36 +532,18 @@ test("refuse a platform repository its storage fails to create, leaving no recor
     await environment.files.remove(directory);
     await environment.files.mkdir(directory, { recursive: true });
 
-    // create the name again
+    // create the name again, then once more: the last creation makes storage, then its record conflicts
     const site = await create();
-    expect([refused, await gained(), await settlements(forge, site.id)]).toEqual([
+    const conflict = await outcome(create());
+    expect([refused, conflict, await gained(), await settlements(forge, site.id)]).toEqual([
         ["SERVICE_UNAVAILABLE", "STORAGE_UNAVAILABLE", "repository storage is unavailable"],
+        "CONFLICT",
         [`${site.id}.git`],
         [],
     ]);
 });
 
-test("delete the storage a creation made when its record rolls back on a taken name", async () => {
-    const forge = await TestForge.open();
-    const tenant = await forge.tenant();
-    const owner = forge.client(tenant.owner);
-    const create = () =>
-        owner.repository.create({
-            spaceId: forge.space,
-            accountId: tenant.accountId,
-            requestId: RequestId.create(forge.environment),
-            name: "site",
-            hosting: "platform",
-        });
-
-    // create the name twice: the second creation makes storage, then its record conflicts
-    const gained = await storageGains(forge);
-    const site = await create();
-    const refused = await outcome(create());
-    expect([refused, await gained()]).toEqual(["CONFLICT", [`${site.id}.git`]]);
-});
-
-test("record the references a machine reports of the repository it hosts, and refuse other machines and its owner", async () => {
+test("leave a machine repository's references and checkouts to its machine", async () => {
     const forge = await TestForge.open();
     const tenant = await forge.tenant();
     const owner = forge.client(tenant.owner);
@@ -699,6 +597,29 @@ test("record the references a machine reports of the repository it hosts, and re
             ["refs/tags/v1", tag, commit, null],
         ],
         ["laptop"],
+    ]);
+
+    // refuse the owner refreshing or opening it
+    expect([
+        await refusal(
+            owner.repository.refresh({
+                spaceId: forge.space,
+                id: laptop.id,
+                requestId: RequestId.create(forge.environment),
+            }),
+        ),
+        await refusal(owner.repository.open({ spaceId: forge.space, id: laptop.id, mode: "read" })),
+    ]).toEqual([
+        [
+            "BAD_REQUEST",
+            "MACHINE_REPOSITORY_INVALID",
+            "repository is invalid: machine repositories are refreshed and opened through their machine",
+        ],
+        [
+            "BAD_REQUEST",
+            "MACHINE_REPOSITORY_INVALID",
+            "repository is invalid: machine repositories are refreshed and opened through their machine",
+        ],
     ]);
 
     // hide the repository from another machine, and forbid its owner reporting for the machine
@@ -789,7 +710,7 @@ function basic(password: string): string {
     return `Basic ${new TextEncoder().encode(`ada:${password}`).toBase64()}`;
 }
 
-test("store a Git remote's credential in the forge's vault, lease it to pushers alone, rotate it, refuse a missing or stray credential, and remove it once the remote goes anonymous", async () => {
+test("keep a Git remote's credential in the forge's vault", async () => {
     const forge = await TestForge.open();
     const tenant = await forge.tenant();
     const owner = forge.client(tenant.owner);

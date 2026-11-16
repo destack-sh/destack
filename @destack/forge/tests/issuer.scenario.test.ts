@@ -15,7 +15,7 @@ const INSTALLATION = "4242";
 /** The fixture GitHub App's installation on the second account's GitHub organization. */
 const OTHER_INSTALLATION = "5151";
 
-test("declare the residency home's GitHub issuer at the id its home and declaration name derive, related to the residency", async () => {
+test("issue a claimed installation's tokens through the residency's GitHub issuer", async () => {
     // read the issuer the home's stack declares, and its relationship to the residency
     const forge = await TestForge.open();
     const issuers = await forge.home.database.select({ id: issuer.table.id }).from(issuer.table);
@@ -28,24 +28,23 @@ test("declare the residency home's GitHub issuer at the id its home and declarat
         })
         .from(accessRelationship)
         .where(eq(accessRelationship.objectType, issuer.name));
-    const declared = await Issuer.declared({ id: forge.space }, "github", forge.environment.crypto);
+    const id = await Issuer.declared({ id: forge.space }, "github", forge.environment.crypto);
     const eu = await Residency.require(Snapshot.live(forge.home.universe.storage.database), "eu");
+
+    // declare the issuer at the id its home and declaration name derive, related to the residency
     expect({ issuers, related }).toEqual({
-        issuers: [{ id: declared }],
+        issuers: [{ id }],
         related: [
             {
-                objectId: declared,
+                objectId: id,
                 relation: "residency",
                 subjectType: "residency",
                 subjectId: eu.id,
             },
         ],
     });
-});
 
-test("issue a GitHub installation's tokens to the resident account's installation that claimed it, refusing another installation, an unclaimed installation, a second claim and another residency's installation", async () => {
     // run the GitHub App against the stand-in, with two resident accounts and another residency's, a space each
-    const forge = await TestForge.open();
     const accounts = forge.owner.client(accountPackage);
     const place = async (handle: string, residencyId: ResidencyCode) => {
         const created = await accounts.account.create({
@@ -82,7 +81,6 @@ test("issue a GitHub installation's tokens to the resident account's installatio
     const sibling = installed(firstSpace);
     const outsider = installed(secondSpace);
     const foreigner = installed(foreignSpace);
-    const id = await Issuer.declared({ id: forge.space }, "github", forge.environment.crypto);
     const target = { spaceId: forge.space, id };
 
     // claim the first account's installation through its setup redirect, as its connection completes it

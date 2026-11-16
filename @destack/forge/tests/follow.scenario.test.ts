@@ -177,7 +177,7 @@ function unreadable(id: string): [string, string, string] {
     return ["NOT_FOUND", "NOT_FOUND", `reference '${id}' not found`];
 }
 
-test("build the commit a followed reference resolves to once for the installation selecting it, run by the space's machine, and submit the succeeded build to it", async () => {
+test("submit the build of a followed commit its space's machine ran", async () => {
     // move the main branch to a commit and follow it
     const { fixture, database, follow, runner, install, move, environment } = await serveCommits();
     const commit = await move();
@@ -224,7 +224,7 @@ test("build the commit a followed reference resolves to once for the installatio
     });
 });
 
-test("request one replica of the references a space's installations follow, from the forge in its residency home", async () => {
+test("request one replica of the references a space's installations follow", async () => {
     // follow the main branch from two packages and a tag from a third
     const { store, follows, install, move, point, home } = await serveCommits();
     const commit = await move();
@@ -249,7 +249,7 @@ test("request one replica of the references a space's installations follow, from
     ).toEqual([Shape.subscription(home, [{ shape: referenceShape, keys }], ids.space)]);
 });
 
-test("refuse an installation following a reference of another account's repository, when created or updated", async () => {
+test("refuse an installation following another account's reference", async () => {
     // push the main branch of another account's repository
     const { fixture, home, forge, installer, follows, install, move, environment } =
         await serveCommits();
@@ -299,12 +299,16 @@ test("refuse an installation following a reference of another account's reposito
     expect(await refusal(update)).toEqual(unreadable(foreign.id));
 });
 
-test("cancel the unfinished build of a commit a newer commit of the selected branch supersedes, and build a commit followed again anew", async () => {
-    // build the first commit of the followed branch
-    const { follow, install, move, moveTo, built } = await serveCommits();
+test("build each commit a followed branch moves to once", async () => {
+    // follow the branch's first commit, reconciling its installation twice at once
+    const { reconcileTwice, follow, install, move, moveTo, built } = await serveCommits();
     const first = await move();
-    await install("site");
+    const site = await install("site");
     await follow();
+    await reconcileTwice(site.id);
+
+    // read the one build both reconciliations create
+    expect(await built()).toEqual([[first, "pending"]]);
 
     // move the branch on and back to the first commit
     const second = await move();
@@ -318,16 +322,4 @@ test("cancel the unfinished build of a commit a newer commit of the selected bra
         [second, "cancelled"],
         [first, "pending"],
     ]);
-});
-
-test("keep one build of a commit when two reconciliations of its installation run at once", async () => {
-    // follow one branch, then reconcile its installation twice at once
-    const { reconcileTwice, follow, install, move, built } = await serveCommits();
-    const commit = await move();
-    const site = await install("site");
-    await follow();
-    await reconcileTwice(site.id);
-
-    // read the one build both create
-    expect(await built()).toEqual([[commit, "pending"]]);
 });

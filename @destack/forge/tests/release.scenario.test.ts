@@ -24,7 +24,7 @@ async function code(attempt: Promise<unknown>): Promise<string> {
     return refused === "done" ? "accepted" : refused[0];
 }
 
-test("publish pushed locks as releases, answering retried and repeated releases, refusing stable releases without a commit", async () => {
+test("publish pushed locks as releases", async () => {
     // publish a package, tagging it latest
     const forge = await TestForge.open();
     const answer = await forge.publish((await fixtureBuild("answer")).reader);
@@ -115,7 +115,7 @@ test("publish pushed locks as releases, answering retried and repeated releases,
     expect([prerelease.version, prerelease.commit]).toEqual([PRERELEASE_VERSION, null]);
 });
 
-test("resolve a published release by version and by the tag pointing at it, and open its build through the releases", async () => {
+test("find a published release by version, tag, digest and id", async () => {
     // publish a release, which latest points at, and read releases as its owner
     const forge = await TestForge.open();
     const answer = await forge.publish((await fixtureBuild("answer")).reader);
@@ -137,9 +137,40 @@ test("resolve a published release by version and by the tag pointing at it, and 
         await answer.reader.distributed(),
         ["NOT_FOUND", "RELEASE_NOT_FOUND", `release 'next' of '${packageId}' not found`],
     ]);
+
+    // store the lock of the build alone, and the build by its digest
+    const store = await forge.store();
+    const pushed = await store.contents(answer.manifest);
+    expect([await store.lock(answer.lock), pushed.manifest, await pushed.distributed()]).toEqual([
+        Lock.of(answer.manifest),
+        answer.reader.manifest,
+        await answer.reader.distributed(),
+    ]);
+
+    // find the package's account through the directory by the package id alone
+    const claims = forge.claims;
+    expect([
+        await Claim.lookup(packageObject, claims, "id", [packageId]),
+        await Claim.lookup(packageObject, claims, "id", [
+            PackageId.parse(Identifier.create("package", forge.environment)),
+        ]),
+    ]).toEqual([{ scope: ACCOUNT_ID, id: packageId }, undefined]);
+
+    // refuse the package's name under another identity
+    const taken = await refusal(
+        owner.package.create({
+            spaceId,
+            accountId: ACCOUNT_ID,
+            id: Identifier.create("package", forge.environment),
+            requestId: RequestId.create(forge.environment),
+            name: "answer",
+            visibility: "public",
+        }),
+    );
+    expect(taken).toEqual(["CONFLICT", "NAME_EXISTS", "'name' already exists"]);
 });
 
-test("release a stored lock under a tag, answer the same release under another tag, and refuse another lock at its version", async () => {
+test("answer one release of a version under each tag", async () => {
     // store two prerelease builds of answer at one version with other files
     const forge = await TestForge.open();
     const releases = new Registry(async () => forge.registry(), forge.environment);
@@ -182,7 +213,7 @@ test("release a stored lock under a tag, answer the same release under another t
     ]);
 });
 
-test("answer the release of a version again for another lock of the same build", async () => {
+test("answer a version's release for another lock of its build", async () => {
     // lock one build of answer with two builds of a library it depends on
     const forge = await TestForge.open();
     const releases = new Registry(async () => forge.registry(), forge.environment);
@@ -213,7 +244,7 @@ test("answer the release of a version again for another lock of the same build",
     expect(await releases.find(id, PRERELEASE_VERSION)).toBe(first);
 });
 
-test("publish a lock's builds of its account in dependency order, answering the same releases again", async () => {
+test("publish a lock's builds in dependency order", async () => {
     // lock greeting with the answer build it requires in one store
     const forge = await TestForge.open();
     const releases = new Registry(async () => forge.registry(), forge.environment);
@@ -237,7 +268,7 @@ test("publish a lock's builds of its account in dependency order, answering the 
     ]);
 });
 
-test("refuse releasing a lock pinning a package the forge hosts at a version it has not released", async () => {
+test("refuse a lock pinning an unreleased version of a hosted package", async () => {
     // host answer's package without releasing it
     const forge = await TestForge.open();
     const answer = (await fixtureBuild("answer")).reader;
@@ -256,21 +287,6 @@ test("refuse releasing a lock pinning a package the forge hosts at a version it 
         "PRECONDITION_FAILED",
         "DEPENDENCY_BLOCKED",
         "cannot release with dependency '@example/answer@2026.9.0': it is not published",
-    ]);
-});
-
-test("store a pushed lock and its root build in the forge's store by digest", async () => {
-    // push and release the build
-    const forge = await TestForge.open();
-    const answer = await forge.publish((await fixtureBuild("answer")).reader);
-    const store = await forge.store();
-    const pushed = await store.contents(answer.manifest);
-
-    // store the lock of the build alone
-    expect([await store.lock(answer.lock), pushed.manifest, await pushed.distributed()]).toEqual([
-        Lock.of(answer.manifest),
-        answer.reader.manifest,
-        await answer.reader.distributed(),
     ]);
 });
 
@@ -293,7 +309,7 @@ test("publish releases in version order", async () => {
     ]);
 });
 
-test("administer releases and distribution tags of a published package as its account's owner", async () => {
+test("administer a package's releases and tags as its owner", async () => {
     // publish a package into the owner's account
     const forge = await TestForge.open();
     const answer = await forge.publish((await fixtureBuild("answer")).reader);
@@ -400,61 +416,7 @@ test("administer releases and distribution tags of a published package as its ac
     ]);
 });
 
-test("refuse a package name its account took before", async () => {
-    // publish a package and claim its name again under another identity
-    const forge = await TestForge.open();
-    await forge.publish((await fixtureBuild("answer")).reader);
-    const taken = await refusal(
-        forge.client(forge.owner).package.create({
-            spaceId: forge.space,
-            accountId: ACCOUNT_ID,
-            id: Identifier.create("package", forge.environment),
-            requestId: RequestId.create(forge.environment),
-            name: "answer",
-            visibility: "public",
-        }),
-    );
-    expect(taken).toEqual(["CONFLICT", "NAME_EXISTS", "'name' already exists"]);
-});
-
-test("resolve a package by its global name and its release by version or tag, hiding private packages from strangers", async () => {
-    // publish a public release, which latest points at, and a private package
-    const forge = await TestForge.open();
-    const answer = await forge.publish((await fixtureBuild("answer")).reader, "public");
-    await forge.publish((await fixtureBuild("greeting")).reader);
-    const spaceId = forge.space;
-    const resolve = (user: TestPerson, name: string) =>
-        forge.client(user).package.resolve({ spaceId, name });
-    const stranger = forge.stranger();
-    const resolveRelease = (named: string) =>
-        forge.client(stranger).release.resolve({
-            spaceId,
-            parentId: answer.packageId,
-            release: named,
-        });
-
-    // resolve the name, the release by tag and by version, and refuse missing names and releases
-    const resolved = await resolve(forge.stranger(), "@example/answer");
-    expect([
-        [resolved.id, resolved.name],
-        (await resolveRelease(LATEST_TAG)).version,
-        (await resolveRelease("2026.9.0")).lock,
-        await refusal(resolveRelease("next")),
-        await refusal(resolve(forge.stranger(), "@other/answer")),
-        (await resolve(forge.owner, "@example/greeting")).name,
-        await refusal(resolve(forge.stranger(), "@example/greeting")),
-    ]).toEqual([
-        [answer.packageId, "answer"],
-        "2026.9.0",
-        answer.lock,
-        ["NOT_FOUND", "RELEASE_NOT_FOUND", `release 'next' of '${answer.packageId}' not found`],
-        ["NOT_FOUND", "PACKAGE_NOT_FOUND", "package not found"],
-        "greeting",
-        ["NOT_FOUND", "PACKAGE_NOT_FOUND", "package not found"],
-    ]);
-});
-
-test("deprecate releases, and yank them from new installs while exact versions still resolve them", async () => {
+test("deprecate and yank releases", async () => {
     // publish two versions of a package, and a package depending on the first
     const forge = await TestForge.open();
     const answer = await forge.publish((await fixtureBuild("answer")).reader);
@@ -547,10 +509,10 @@ test("deprecate releases, and yank them from new installs while exact versions s
     ]);
 });
 
-test("let anyone read public and unlisted packages, list only public ones, and show private ones to the account alone", async () => {
+test("show packages to readers by their visibility", async () => {
     // publish a public package and an unlisted one
     const forge = await TestForge.open();
-    await forge.publish((await fixtureBuild("answer")).reader, "public");
+    const answer = await forge.publish((await fixtureBuild("answer")).reader, "public");
     const greeting = await forge.publish((await fixtureBuild("greeting")).reader, "unlisted");
     const owner = forge.client(forge.owner);
     const reads = async (user?: TestPerson) => {
@@ -611,22 +573,41 @@ test("let anyone read public and unlisted packages, list only public ones, and s
         [["answer", "greeting"], "accepted", 2],
         [["answer"], "NOT_FOUND", 1],
     ]);
-});
 
-test("find a published package's account by its package id across the universe", async () => {
-    // publish a package, and find its account through the directory as the forge, by the package id alone
-    const forge = await TestForge.open();
-    const answer = await forge.publish((await fixtureBuild("answer")).reader);
-    const claims = forge.claims;
+    // resolve names and releases as the stranger, hiding the private package
+    const spaceId = forge.space;
+    const resolve = (user: TestPerson, name: string) =>
+        forge.client(user).package.resolve({ spaceId, name });
+    const stranger = forge.stranger();
+    const resolveRelease = (named: string) =>
+        forge.client(stranger).release.resolve({
+            spaceId,
+            parentId: answer.packageId,
+            release: named,
+        });
+
+    // resolve the name, the release by tag and by version, and refuse missing names and releases
+    const resolved = await resolve(stranger, "@example/answer");
     expect([
-        await Claim.lookup(packageObject, claims, "id", [answer.packageId]),
-        await Claim.lookup(packageObject, claims, "id", [
-            PackageId.parse(Identifier.create("package", forge.environment)),
-        ]),
-    ]).toEqual([{ scope: ACCOUNT_ID, id: answer.packageId }, undefined]);
+        [resolved.id, resolved.name],
+        (await resolveRelease(LATEST_TAG)).version,
+        (await resolveRelease("2026.9.0")).lock,
+        await refusal(resolveRelease("next")),
+        await refusal(resolve(stranger, "@other/answer")),
+        (await resolve(forge.owner, "@example/greeting")).name,
+        await refusal(resolve(stranger, "@example/greeting")),
+    ]).toEqual([
+        [answer.packageId, "answer"],
+        "2026.9.0",
+        answer.lock,
+        ["NOT_FOUND", "RELEASE_NOT_FOUND", `release 'next' of '${answer.packageId}' not found`],
+        ["NOT_FOUND", "PACKAGE_NOT_FOUND", "package not found"],
+        "greeting",
+        ["NOT_FOUND", "PACKAGE_NOT_FOUND", "package not found"],
+    ]);
 });
 
-test("publish a builtin under the platform's organization, which owns the forge's home, and refuse one under another account", async () => {
+test("publish builtins under the platform's account alone", async () => {
     // find the account whose home the forge is in, which the operator manages, and a tenant's
     const forge = await TestForge.open();
     const { crypto } = forge.environment;

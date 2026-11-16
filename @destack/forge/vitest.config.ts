@@ -6,17 +6,16 @@ export default defineConfiguration(
     {
         root: fileURLToPath(new URL(".", import.meta.url)),
         test: {
-            globalSetup: ["tests/setup.ts"],
             projects: [
-                // run the package's own nouns against each database the package stores in
+                // run the tests that fork no image against each database the package stores in
                 {
                     extends: true,
                     tier: "unit",
                     targets: { database: ["sqlite"] },
                     test: {
                         name: "unit",
-                        include: ["src/**/*.test.ts", "tests/*.test.ts"],
-                        exclude: ["tests/*.scenario.test.ts"],
+                        include: ["src/**/*.test.ts", "tests/**/*.test.ts"],
+                        exclude: ["src/**/*.scenario.test.ts", "tests/**/*.scenario.test.ts"],
                     },
                 },
                 // open a forge on a machine and publish, follow and serve through it
@@ -24,7 +23,11 @@ export default defineConfiguration(
                     extends: true,
                     tier: "scenario",
                     targets: { database: ["sqlite"] },
-                    test: { name: "scenario", include: ["tests/*.scenario.test.ts"] },
+                    test: {
+                        name: "scenario",
+                        include: ["src/**/*.scenario.test.ts", "tests/**/*.scenario.test.ts"],
+                        globalSetup: ["tests/setup.ts"],
+                    },
                 },
             ],
         },
