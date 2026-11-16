@@ -1470,13 +1470,18 @@ const ServedCatalog = schema.looseObject({
     messages: schema.record(schema.string(), schema.string()),
 });
 
-test("serve a view's catalogs with its dependencies' catalogs", async () => {
-    // publish a widget library with its German catalog
+test("serve a library's catalogs and assets at its dependent's origin", async () => {
+    // publish a widget library with its German catalog and a font
     const { crypto } = testHost();
     const widgets = await TestViewBuild.of(
         WIDGETS,
         {},
-        { files: new Map([["locale/de.json", catalog(WIDGETS.id, "Schließen")]]) },
+        {
+            files: new Map([
+                ["locale/de.json", catalog(WIDGETS.id, "Schließen")],
+                ["browser/asset/type.woff2", new TextEncoder().encode("type")],
+            ]),
+        },
         crypto,
     );
     const greeting = await TestViewBuild.of(
@@ -1529,12 +1534,20 @@ test("serve a view's catalogs with its dependencies' catalogs", async () => {
             return response.status;
         }),
     );
-    expect({ served, missing }).toEqual({
+
+    // read the library's font below the asset path, cached for good under its name
+    const font = await page.fetch(new Request(new URL("/.destack/asset/type.woff2", address).href));
+    expect({
+        served,
+        missing,
+        font: [font.status, font.headers.get("cache-control"), await font.text()],
+    }).toEqual({
         served: [
             [GREETING.id, "Willkommen zurück"],
             [WIDGETS.id, "Schließen"],
         ],
         missing: [404, 404],
+        font: [200, "public, max-age=31536000, immutable", "type"],
     });
 });
 
