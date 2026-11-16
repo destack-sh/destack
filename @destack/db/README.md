@@ -245,6 +245,7 @@ export const countNotes = (write: (account: string) => Promise<void>): Projectio
     key: "account",
     all: { table: space, column: "account" },
     watches: [{ table: space }, { table: note, path: [relations.get(note, "space")] }],
+    result: "rows",
     project: (account) => write(account),
 });
 ```
