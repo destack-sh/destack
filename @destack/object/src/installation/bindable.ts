@@ -4,7 +4,7 @@ import type { ObjectReference } from "@destack/sync";
 import type { ObjectType } from "../object/object.ts";
 
 /** A kind of object a binding targets, and the version a deployment captures of it. */
-export interface Bindable<Object extends ObjectType = ObjectType> {
+export interface BindingKind<Object extends ObjectType = ObjectType> {
     /** The bindable object type. */
     readonly object: Object;
     /** The object types captures of this kind let installations use. */

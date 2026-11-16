@@ -8,7 +8,7 @@ import type { Follow } from "../replica/shape.ts";
 import type { ExternalStorage } from "./external.ts";
 import type { ResourceControllerOptions } from "./provisioned.ts";
 import type { ObjectStore } from "./store.ts";
-import type { Bindable } from "../installation/bindable.ts";
+import type { BindingKind } from "../installation/bindable.ts";
 
 /** Answer a request below a mount's path over the package's store, as the authorized caller. */
 export type MountFetch = (
@@ -31,7 +31,7 @@ export type ImplementationInput<Handle extends ObjectPackage = ObjectPackage> = 
     /** The providers of the resource kinds the package provides to every space serving it. */
     readonly providers?: ResourceControllerOptions["providers"];
     /** The kinds of objects the package lets installations bind, such as secrets. */
-    readonly bindables?: readonly Bindable[];
+    readonly bindingKinds?: readonly BindingKind[];
     /** The shapes the package's code reads replicated, with the keys it follows them at. */
     readonly follows?: readonly Follow[];
     /** The on-demand follows of the rows standing for callers, acquired where they are missing. */
@@ -67,7 +67,7 @@ export interface PackageImplementation {
     /** The providers of the resource kinds the package provides to every installation. */
     readonly providers: NonNullable<ImplementationInput["providers"]>;
     /** The kinds of objects the package lets every installation bind. */
-    readonly bindables: readonly Bindable[];
+    readonly bindingKinds: readonly BindingKind[];
 }
 
 /** Package implementations, as a module exports one by default. */
@@ -102,11 +102,11 @@ export function implementPackage<const Handle extends ObjectPackage>(
             throw new TypeError(`package '${handle.name}' can only serve an installation`);
         }
 
-        // refuse providers or bindables that differ by installation
+        // refuse providers or bindingKinds that differ by installation
         const installed = definition(context);
-        if (installed.providers !== undefined || installed.bindables !== undefined) {
+        if (installed.providers !== undefined || installed.bindingKinds !== undefined) {
             throw new TypeError(
-                `package '${handle.name}' must declare its providers and bindables for every installation`,
+                `package '${handle.name}' must declare its providers and bindingKinds for every installation`,
             );
         }
 
@@ -118,7 +118,7 @@ export function implementPackage<const Handle extends ObjectPackage>(
         definition: read,
         at: (bound) => serve(bound),
         providers: typeof definition === "function" ? [] : (definition.providers ?? []),
-        bindables: typeof definition === "function" ? [] : (definition.bindables ?? []),
+        bindingKinds: typeof definition === "function" ? [] : (definition.bindingKinds ?? []),
     });
 
     return serve(undefined);
