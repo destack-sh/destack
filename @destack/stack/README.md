@@ -77,49 +77,45 @@ Each collection maps names to declarations, such as `files.provision(options)` o
 destack apply ./stack --export personal
 ```
 
-### Follow a tag
+### Deploy a build
 
-A rollout follows a tag's row and resolves it to a release version, as npm's dist-tags do.
+`deploy` targets a build of the space, or the build of what the installation follows, and applies what its plan allows.
 
 ```ts
 import type { ClientOf } from "@destack/object/client";
 import type { Identifier } from "@destack/schema";
-import type { ObjectReference } from "@destack/sync";
 import type stackPackage from "@destack/stack/package";
 
-/** Follow the latest release tag by its row. */
-export async function followLatest(
+/** Deploy an installation at a build of its space. */
+export async function deployBuild(
     client: ClientOf<typeof stackPackage>,
     spaceId: Identifier<"space">,
     id: Identifier<"rollout">,
+    build: Identifier<"build">,
     requestId: string,
-    latest: ObjectReference,
 ): Promise<void> {
-    const build = { kind: "tag", tag: "latest" } as const;
-    await client.rollout.submit({ spaceId, id, requestId, follows: latest, build });
+    await client.rollout.deploy({ spaceId, id, requestId, build });
 }
 ```
 
-### Approve or roll back a plan
+### Approve a plan
 
-An approval names the plan's digest, and `rollBack` returns to the release applied before.
+An approval names the plan's digest, and deploys the plan it accepts.
 
 ```ts
 import type { ClientOf } from "@destack/object/client";
 import type { Digest, Identifier } from "@destack/schema";
 import type stackPackage from "@destack/stack/package";
 
-/** Approve a rollout's plan, then roll it back. */
-export async function approveThenRollBack(
+/** Approve a rollout's waiting plan. */
+export async function approvePlan(
     client: ClientOf<typeof stackPackage>,
     spaceId: Identifier<"space">,
     id: Identifier<"rollout">,
     plan: Digest,
     requestId: string,
 ): Promise<void> {
-    // approve the plan by its digest, then return to the release before
     await client.rollout.approve({ spaceId, id, requestId, plan });
-    await client.rollout.rollBack({ spaceId, id, requestId });
 }
 ```
 

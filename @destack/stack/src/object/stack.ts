@@ -1,7 +1,7 @@
 import { schema } from "@destack/schema";
 import { AWAITING_APPROVAL, PackageDirectory } from "@destack/object";
 import { ObjectReference } from "@destack/sync";
-import { BuildReference, StackDefinition } from "../declare/index.ts";
+import { StackDefinition } from "../declare/index.ts";
 
 /** A stack's evaluation: its export, arguments, settings, and the definition they give. */
 export const StackEvaluation = schema.object({
@@ -17,14 +17,14 @@ export const StackEvaluation = schema.object({
 /** A stack's evaluation. */
 export type StackEvaluation = schema.Infer<typeof StackEvaluation>;
 
-/** A build submitted to the installation following it, with a stack's export and arguments. */
+/** A build for the installation following it to deploy, with a stack's export and arguments. */
 export const Submission = schema.object({
     /** The tag, release, reference or checkout the installation follows, absent for the host's. */
     follows: ObjectReference.exactOptional(),
     /** The package directory within a followed repository or checkout. */
     directory: PackageDirectory.exactOptional(),
-    /** The build to evaluate: a release, or a succeeded build of the space. */
-    build: BuildReference,
+    /** The succeeded build of the space to deploy. */
+    build: schema.identifier("build"),
     /** The export the space evaluates and its arguments, absent for an application. */
     stack: StackEvaluation.pick({ export: true, parameters: true }).exactOptional(),
 });
@@ -32,6 +32,11 @@ export const Submission = schema.object({
 export type Submission = schema.Infer<typeof Submission>;
 
 /** Why a stack applied its revision or waits, its failures recorded as Synced. */
-export const StackReadiness = schema.enum(["Applied", "WaitingForResources", AWAITING_APPROVAL]);
+export const StackReadiness = schema.enum([
+    "Applied",
+    "Applying",
+    "WaitingForResources",
+    AWAITING_APPROVAL,
+]);
 /** Why a stack applied its revision or waits, its failures recorded as Synced. */
 export type StackReadiness = schema.Infer<typeof StackReadiness>;

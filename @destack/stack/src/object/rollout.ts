@@ -56,8 +56,9 @@ import {
 } from "@destack/sync";
 import { build, Build } from "./build.ts";
 import { space, Space } from "@destack/account/object";
-import { StackEvaluation, Submission } from "./stack.ts";
+import { StackEvaluation } from "./stack.ts";
 import { StackError } from "../error/index.ts";
+import { Failure } from "@destack/error";
 import { Binding } from "./binding.ts";
 import { argument, plural, t } from "@destack/locale";
 
@@ -69,18 +70,6 @@ const NOT_SERVED_RETRY_MILLISECONDS = 1000;
 
 /** The revision namespace: the DNS namespace's UUIDv8 of installation-revision.destack.app. */
 const REVISION_NAMESPACE: Uuid = "472ed1a0-20d1-8e8e-b9d9-c6879123e146";
-
-/** What a submission prepares: the pulled release, and the revision's dependencies and states. */
-export const SubmissionPreparation = schema.object({
-    /** The pulled release a tag or version selects, null for a space build. */
-    release: schema.object({ lock: Digest, version: schema.string() }).nullable(),
-    /** The builds of the installable packages the selected build's lock has. */
-    dependencies: schema.array(PackageBuild),
-    /** The state each declaration of the selected build requires of its target, as a blob. */
-    states: schema.record(schema.string(), Digest),
-});
-/** What a submission reads before its transaction. */
-export type SubmissionPreparation = schema.Infer<typeof SubmissionPreparation>;
 
 /** A resource declaration of an installation's package. */
 export const ResourceNeed = ResourceDescription.extend({
@@ -133,12 +122,12 @@ export const rollout = defineObject(
             submittedBy: field.subject().optional(),
             /** The digest of the space's stack the installation last followed, absent for none. */
             spaceStack: field.string(Digest).optional(),
+            /** The revision apply decided it runs, absent before the first. */
+            targetRevision: field.reference(() => installationRevision).optional(),
             /** The revision fully applied, absent before the first application. */
             appliedRevision: field.reference(() => installationRevision).optional(),
             /** The revision the space serves, absent before it serves one. */
             servedRevision: field.reference(() => installationRevision).optional(),
-            /** The revision applied before the applied one, which a rollback targets again. */
-            previousRevision: field.reference(() => installationRevision).optional(),
             /** The digest of the objects the installation last related as their consumer. */
             consumption: field.string(Digest).optional(),
         },
@@ -152,6 +141,12 @@ export const rollout = defineObject(
                 onDelete: "no action",
             },
             scopeId: { kind: "unique", on: ["scope", "id"] },
+            targetRevisionInstallation: {
+                kind: "foreignKey",
+                on: ["installationId", "targetRevisionId"],
+                references: { object: () => installationRevision, on: ["installationId", "id"] },
+                onDelete: "no action",
+            },
             appliedRevisionInstallation: {
                 kind: "foreignKey",
                 on: ["installationId", "appliedRevisionId"],
@@ -164,12 +159,6 @@ export const rollout = defineObject(
                 references: { object: () => installationRevision, on: ["installationId", "id"] },
                 onDelete: "no action",
             },
-            previousRevisionInstallation: {
-                kind: "foreignKey",
-                on: ["installationId", "previousRevisionId"],
-                references: { object: () => installationRevision, on: ["installationId", "id"] },
-                onDelete: "no action",
-            },
         },
         access: {
             permissions: {
@@ -179,18 +168,16 @@ export const rollout = defineObject(
                 update: none(),
                 apply: none(),
                 open: none(),
-                target: none(),
-                deploy: none(),
             },
         },
     },
     (method) => ({
         list: method.list("list"),
         create: method.create("create", { visibility: "installation" }),
-        /** Record the revisions the installation applied and serves, and what it consumes. */
+        /** Record the revisions the installation targets, applied and serves. */
         update: method.update("update", {
             visibility: "installation",
-            fields: ["appliedRevisionId", "previousRevisionId", "servedRevisionId", "consumption"],
+            fields: ["targetRevisionId", "appliedRevisionId", "servedRevisionId", "consumption"],
         }),
 
         /** Read the plan waiting for approval with the digest approving it names. */
@@ -207,18 +194,20 @@ export const rollout = defineObject(
             }),
         }),
 
-        /** Target a submitted build's revision. */
-        submit: method.mutation({
-            title: t`Submit`,
+        /** Target the revision of what the installation follows and apply what its plan allows. */
+        deploy: method.mutation({
+            title: t`Deploy`,
             permission: "apply",
-            input: Submission,
-            prepared: SubmissionPreparation,
+            input: schema.object({
+                /** The space's build to target, absent to take the build of what it follows. */
+                build: schema.identifier("build").exactOptional(),
+            }),
         }),
 
         /** Follow the space's stack: record its digest, dropping an owner's earlier apply. */
         follow: method.mutation({
             title: t`Follow`,
-            permission: "target",
+            permission: "update",
             visibility: "package",
             input: schema.object({
                 /** The digest of the space's stack. */
@@ -226,7 +215,7 @@ export const rollout = defineObject(
             }),
         }),
 
-        /** Approve the plan waiting for approval by its digest. */
+        /** Approve the plan waiting for approval by its digest, then apply it. */
         approve: method.mutation({
             title: t`Approve`,
             permission: "apply",
@@ -234,7 +223,6 @@ export const rollout = defineObject(
                 /** The digest of the reviewed plan. */
                 plan: Digest,
             }),
-            output: Plan,
         }),
 
         /** Read the build and view a client opens at a location, in the opening person's home. */
@@ -261,97 +249,8 @@ export const rollout = defineObject(
             }),
             output: schema.array(RequestedPermission),
         }),
-
-        /** Target the revision applied before the current one again. */
-        rollBack: method.mutation({
-            title: t`Roll back`,
-            permission: "apply",
-            output: schema.object({
-                /** The revision the installation targets again. */
-                revisionId: schema.identifier("installation-revision"),
-            }),
-        }),
-
-        /** Deploy the revision an application targets, and drain a suspended one. */
-        deploy: method.mutation({
-            title: t`Deploy`,
-            permission: "deploy",
-            visibility: "package",
-            output: schema.object({}),
-        }),
-
-        /** Revise an installation: its build at its bindings, targeted, as its controller does. */
-        revise: method.mutation({
-            title: t`Revise`,
-            permission: "target",
-            visibility: "package",
-            input: schema.object({
-                /** The build to run. */
-                build: schema.identifier("build"),
-                /** The installable packages the build depends on, at the builds its lock has. */
-                dependencies: schema.array(PackageBuild),
-                /** The state each declaration of the build requires of its target, as a blob. */
-                states: schema.record(schema.string(), Digest),
-                /** The stack's evaluation of the build, for a stack. */
-                evaluation: StackEvaluation.exactOptional(),
-            }),
-            output: schema.object({
-                /** The targeted revision. */
-                revisionId: schema.identifier("installation-revision"),
-            }),
-        }),
     }),
-).implement({
-    methods: {
-        rollBack: async (call) => {
-            // read the revision applied before the applied one, and the installation's name
-            const { previousRevisionId } = call.target;
-            const { name } = (await Rollout.of(call)).installation;
-            const previous =
-                previousRevisionId === null
-                    ? undefined
-                    : await call
-                          .read(installationRevision)
-                          .findFirst({ where: { id: previousRevisionId } });
-
-            // refuse an installation without one
-            if (previous === undefined) {
-                throw StackError.of(
-                    "REVISION_NOT_FOUND",
-                    `previous revision of installation '${name}' not found`,
-                );
-            }
-
-            // refuse a revision of a compiled build, whose repository or checkout the installation follows on
-            const built = present(
-                await call.read(build).findFirst({ where: { id: previous.buildId } }),
-                `the build of revision ${previous.id}`,
-            );
-            if (built.source.kind !== "release") {
-                throw StackError.of(
-                    "ROLLBACK_BLOCKED",
-                    `cannot roll back installation '${name}': its previous revision is a build, and it can only roll back to a release`,
-                );
-            }
-
-            // pin the installation to the release's build and target it
-            const target = installation.target({
-                scope: call.target.scope,
-                id: call.target.installationId,
-            });
-            await call.mutate(call.self, [
-                installation.call("update", {
-                    ...target,
-                    ...ObjectReference.columns("follows", build.reference(built.scope, built.id)),
-                    directory: null,
-                }),
-                installation.call("target", { ...target, revisionId: previous.id }),
-            ]);
-
-            return { revisionId: previous.id };
-        },
-    },
-});
+);
 
 /** An immutable evaluation of an installation's selected build. */
 export const installationRevision = defineObject(
@@ -423,8 +322,6 @@ export type Rollout = Select<typeof rollout.table>;
 
 /** An installation's rollout joined with the installation, never a base one, so with its name. */
 export type InstallationRollout = Omit<Rollout, "id"> & {
-    /** The revision its installation targets, absent before the first. */
-    readonly revisionId: Identifier<"installation-revision"> | null;
     /** The installation the rollout rolls out. */
     readonly installation: Installation;
 };
@@ -500,7 +397,7 @@ export const Rollout = {
 
     /** Join a rollout with its installation. */
     join(row: Rollout, installed: Installation): InstallationRollout {
-        return { ...row, revisionId: installed.revisionId, installation: installed };
+        return { ...row, installation: installed };
     },
 
     /** Read rollouts' installations and join them, refusing a rollout without its installation. */
@@ -726,12 +623,50 @@ export const Rollout = {
 
             return [...revised, ...observed];
         });
+        const context = AccessContext.of(Caller.of(store.principal), store.clock.now());
         if (calls.length > 0) {
-            const now = store.clock.now();
-            await store.mutate(AccessContext.of(Caller.of(store.principal), now), {
-                id: RequestId.create(store.environment),
-                calls,
-            });
+            await store.mutate(context, { id: RequestId.create(store.environment), calls });
+        }
+
+        // decide whether any served revision moved, which roles, grants, deployments and declared records follow
+        const isMoved = rows.some((row) => {
+            const outcome = serving.get(row.installationId);
+            const served =
+                outcome !== undefined && "revisionId" in outcome ? outcome.revisionId : null;
+
+            return served !== row.servedRevisionId;
+        });
+
+        // list the live ones the space serves that moved or still wait
+        const moved = rows.filter((row) => {
+            // read the revision the space serves of it
+            const outcome = serving.get(row.installationId);
+            const served =
+                outcome !== undefined && "revisionId" in outcome ? outcome.revisionId : null;
+            const isLive = row.installation.deletedAt === null;
+            const isUnsettled = row.appliedRevisionId !== row.targetRevisionId;
+
+            return (
+                isLive &&
+                isMoved &&
+                served !== null &&
+                (isUnsettled || served !== row.servedRevisionId)
+            );
+        });
+
+        // deploy each one in its own mutation, its refusal recorded by its rollout's pass
+        for (const row of moved) {
+            const deploying = rollout.call(
+                "deploy",
+                rollout.target({ scope: row.scope, id: row.installationId }),
+            );
+            await store
+                .mutate(context, { id: RequestId.create(store.environment), calls: [deploying] })
+                .catch((error: unknown) => {
+                    if (!Failure.isDeclared(error)) {
+                        throw error;
+                    }
+                });
         }
     },
 
@@ -766,19 +701,6 @@ export const Rollout = {
         return target.submittedById === null
             ? ObjectReference.at("createdBy", target)
             : ObjectReference.at("submittedBy", target);
-    },
-
-    /** Read the fields recording a revision applied, with the one applied before as previous. */
-    applied(
-        target: Pick<Rollout, "appliedRevisionId" | "previousRevisionId">,
-        revisionId: Identifier<"installation-revision">,
-    ): Pick<Rollout, "appliedRevisionId" | "previousRevisionId"> {
-        const isSame = target.appliedRevisionId === revisionId;
-
-        return {
-            appliedRevisionId: revisionId,
-            previousRevisionId: isSame ? target.previousRevisionId : target.appliedRevisionId,
-        };
     },
 
     /** Read an installation a machine serves now, at a revision its space records as served. */
@@ -910,7 +832,7 @@ export const Rollout = {
             .innerJoin(installation.table, joinedInstallation())
             .innerJoin(
                 installationRevision.table,
-                eq(installationRevision.table.id, installation.table.revisionId),
+                eq(installationRevision.table.id, rollout.table.targetRevisionId),
             )
             .where(and(rollout.inScope(spaceId), launchable()))
             .orderBy(installation.table.createdAt, installation.table.id);
@@ -958,15 +880,15 @@ export const InstallationRevision = {
     /** Read the revision an installation follows, absent before its first. */
     async followed(
         database: DatabaseConnection,
-        target: Pick<InstallationRollout, "revisionId">,
+        target: Pick<InstallationRollout, "targetRevisionId">,
     ): Promise<InstallationRevision | undefined> {
-        if (target.revisionId === null) {
+        if (target.targetRevisionId === null) {
             return undefined;
         }
         const [revision] = await database
             .select()
             .from(installationRevision.table)
-            .where(eq(installationRevision.table.id, target.revisionId));
+            .where(eq(installationRevision.table.id, target.targetRevisionId));
 
         return revision;
     },
