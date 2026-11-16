@@ -206,11 +206,11 @@ A title states one behavior, verb first, in the code's own nouns.
 
 A test file runs in the tier of what it starts, and a package with both declares two projects.
 
-| Tier       | Starts                            | Slow after | Fails after |
-| ---------- | --------------------------------- | ---------- | ----------- |
-| `unit`     | nothing, or a simulation          | 100 ms     | 5 s         |
-| `scenario` | a prepared image or a server      | 5 s        | 60 s        |
-| `bench`    | a scenario's operations, measured | none       | 600 s       |
+| Tier       | File                    | Starts                            | Slow after | Fails after |
+| ---------- | ----------------------- | --------------------------------- | ---------- | ----------- |
+| `unit`     | `page.test.ts`          | nothing, or a simulation          | 100 ms     | 5 s         |
+| `scenario` | `page.scenario.test.ts` | a prepared image or a server      | 5 s        | 60 s        |
+| `bench`    | `page.scenario.ts`      | a scenario's operations, measured | none       | 600 s       |
 
 ## Comparison
 
