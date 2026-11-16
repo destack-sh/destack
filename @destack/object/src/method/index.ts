@@ -1,4 +1,4 @@
-export { BATCH_LIMIT, method, MethodBuilder, type MethodTarget } from "./record.ts";
+export { BATCH_LIMIT, method, MethodBuilder, type MethodTarget } from "./builder.ts";
 export {
     defineMethod,
     Method,

@@ -22,7 +22,7 @@ import type {
     RemoveOptions,
     UpdateManyOptions,
     UpdateOptions,
-} from "./record.ts";
+} from "./builder.ts";
 import type { MethodKind } from "./kind.ts";
 import type { Step } from "./step.ts";
 import type { BranchEntry } from "../branch/entry.ts";

@@ -3,7 +3,7 @@ import { accessRole, Role, RoleDeclaration, RoleRequest } from "@destack/access"
 import { Empty } from "../method/procedure.ts";
 import { present, schema } from "@destack/schema";
 import { defineMethod } from "../method/method.ts";
-import { type MethodBuilder } from "../method/record.ts";
+import { type MethodBuilder } from "../method/builder.ts";
 import { defineObject } from "../object/object.ts";
 import { Execution, type StoreExecution } from "../method/execution.ts";
 import { ObjectPolicy } from "../object/access.ts";

@@ -1,6 +1,6 @@
 import * as access from "@destack/access";
 import { accessGrant, Grant } from "@destack/access";
-import { type MethodBuilder } from "../method/record.ts";
+import { type MethodBuilder } from "../method/builder.ts";
 import { defineObject } from "../object/object.ts";
 import { Execution } from "../method/execution.ts";
 import { ObjectPolicy } from "../object/access.ts";

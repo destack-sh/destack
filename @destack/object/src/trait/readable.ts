@@ -1,6 +1,6 @@
 import type { Table } from "@destack/db";
 import type { Method } from "../method/method.ts";
-import { method } from "../method/record.ts";
+import { method } from "../method/builder.ts";
 import { derivePermissions, type TraitBehavior } from "./trait.ts";
 
 /** The get and list methods a type derives, those it declares itself left out. */

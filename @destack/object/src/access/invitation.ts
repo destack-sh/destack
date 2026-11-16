@@ -6,7 +6,7 @@ import { Empty, ListPage, PageFields } from "../method/procedure.ts";
 import { ObjectReference } from "@destack/sync";
 import { schema } from "@destack/schema";
 import { defineMethod } from "../method/method.ts";
-import { type MethodBuilder } from "../method/record.ts";
+import { type MethodBuilder } from "../method/builder.ts";
 import { defineObject } from "../object/object.ts";
 import { Execution } from "../method/execution.ts";
 import { ObjectPolicy } from "../object/access.ts";

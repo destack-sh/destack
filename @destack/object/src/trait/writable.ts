@@ -1,7 +1,7 @@
 import type { Table } from "@destack/db";
 import type { Method } from "../method/method.ts";
 import type { Empty } from "../method/procedure.ts";
-import { method } from "../method/record.ts";
+import { method } from "../method/builder.ts";
 import { ObjectPermissions, ObjectType } from "../object/object.ts";
 import type { TraitBehavior } from "./trait.ts";
 

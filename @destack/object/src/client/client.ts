@@ -63,7 +63,7 @@ import { Branch, type BranchChange, BranchType } from "../branch/index.ts";
 import { type StoredStep, UndoStack, undoEntry } from "./undo.ts";
 import { MethodContext } from "../method/context.ts";
 import { Method } from "../method/method.ts";
-import { BatchItem } from "../method/record.ts";
+import { BatchItem } from "../method/builder.ts";
 
 import type { CallableName, MethodInput, MethodOutput, MutationName } from "../method/procedure.ts";
 import {

@@ -2,7 +2,7 @@ import { none } from "@destack/access";
 import type { Table } from "@destack/db";
 import { Digest } from "@destack/schema";
 import { field } from "../field/field.ts";
-import type { MethodBuilder } from "../method/record.ts";
+import type { MethodBuilder } from "../method/builder.ts";
 import { defineObject } from "../object/object.ts";
 import { expiring } from "../trait/index.ts";
 import { argument, plural, t } from "@destack/locale";

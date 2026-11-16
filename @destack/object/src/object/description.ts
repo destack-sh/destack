@@ -16,7 +16,7 @@ import {
 import { ObjectTypeReference } from "@destack/sync";
 import { field, Field, FIELD_MODIFIERS } from "../field/field.ts";
 import { Method } from "../method/method.ts";
-import { method } from "../method/record.ts";
+import { method } from "../method/builder.ts";
 import { ObjectType, type ObjectDefinition } from "./object.ts";
 import * as objectIndexExports from "./index.ts";
 import * as fieldExports from "../field/index.ts";

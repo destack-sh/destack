@@ -6,7 +6,7 @@ import { schema, canonicalize, Identifier, present } from "@destack/schema";
 
 import { FractionalIndex } from "../field/fractional-index.ts";
 import type { MethodContext } from "../method/context.ts";
-import { method } from "../method/record.ts";
+import { method } from "../method/builder.ts";
 import { type ObjectDefinition, ObjectType } from "../object/object.ts";
 import { Run, Sequence, SequenceEdit, type Element } from "../sequence/index.ts";
 import { chunk, chunkRun, CHUNKS } from "./table.ts";

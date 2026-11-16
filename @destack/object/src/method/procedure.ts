@@ -20,7 +20,7 @@ import { Casing } from "../object/name.ts";
 import { WriterId } from "../replica/replica.ts";
 import { Method } from "./method.ts";
 import type { InputObject, InputSchema } from "./input.ts";
-import type { RecordProcedures } from "./record.ts";
+import type { RecordProcedures } from "./builder.ts";
 import type { RecoverableProcedures } from "../trait/recoverable.ts";
 import type { ArchivableProcedures } from "../trait/archivable.ts";
 import type { NestedProcedures } from "../trait/nested.ts";

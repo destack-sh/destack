@@ -2,7 +2,7 @@ import { through } from "@destack/access";
 import { LogPosition } from "@destack/db";
 import { schema } from "@destack/schema";
 import { field } from "../field/field.ts";
-import type { MethodBuilder } from "../method/record.ts";
+import type { MethodBuilder } from "../method/builder.ts";
 import { defineObject } from "../object/object.ts";
 import type { ObjectTable } from "../object/table.ts";
 import { nested } from "../trait/index.ts";

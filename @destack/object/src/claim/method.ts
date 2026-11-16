@@ -1,6 +1,6 @@
 import { schema } from "@destack/schema";
 
-import { MethodBuilder } from "../method/record.ts";
+import { MethodBuilder } from "../method/builder.ts";
 import type { ObjectOf } from "../object/object.ts";
 import { Execution } from "../method/execution.ts";
 import { Claim, Claimant, ClaimOwner, ClaimRefusal, claimTable } from "./claim.ts";

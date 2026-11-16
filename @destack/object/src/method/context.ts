@@ -56,7 +56,8 @@ import { CallSite } from "./site.ts";
 import type { MethodKind } from "./kind.ts";
 import type { ServerContext } from "../workload/workload.ts";
 import type { SettlementContext } from "./settlement.ts";
-import { type IsSum, RecordMethod } from "./record.ts";
+import { type IsSum } from "./builder.ts";
+import { ObjectRecord } from "../trait/record.ts";
 import type { list } from "../query/list.ts";
 import { ParentReference } from "../trait/nested.ts";
 import type { Session } from "./reader.ts";
@@ -778,9 +779,9 @@ export class MethodContext<
         });
 
         // require the receiving parent and the creation, then write the row and record its access
-        await RecordMethod.authorizeCreate(creating, location);
-        const { row } = await RecordMethod.insertAuthorized(creating, location, (created) =>
-            RecordMethod.createObject(created, location),
+        await ObjectRecord.authorizeCreate(creating, location);
+        const { row } = await ObjectRecord.insertAuthorized(creating, location, (created) =>
+            ObjectRecord.createObject(created, location),
         );
 
         return Table.complete(type.table, Row.parse(row));
