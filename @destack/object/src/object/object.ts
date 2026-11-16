@@ -168,6 +168,7 @@ import { Casing } from "./name.ts";
 import { ObjectPolicy } from "./access.ts";
 import type { KnownDeclaration } from "./description.ts";
 import { type ConstraintColumn, ObjectTable, type TraitOf, type TraitTable } from "./table.ts";
+import { FormerKey } from "./former.ts";
 import type { ObjectConstraint } from "./constraint.ts";
 
 import type {} from "@destack/package/import-meta";
@@ -391,7 +392,7 @@ export interface ObjectTraits<Permissions extends string = string> {
     /** The rules after which their store removes the objects. */
     readonly expiring?: readonly ExpiryRule[];
     /** The column callers and sources also address the objects by, unique within a scope. */
-    readonly key?: string;
+    readonly key?: string | ObjectKeyDefinition;
     /** The objects the scopes inside each object's scope replicate, matching any condition. */
     readonly propagated?: { readonly where?: Condition };
     /** A controller reconciles the objects. */
@@ -592,6 +593,14 @@ export interface ObjectImplementation<Self extends ObjectType = ObjectType> {
     readonly declaration?: DeclarationHandler<Self>;
 }
 
+/** The key the objects are also addressed by within a scope, and what a rename does to it. */
+export interface ObjectKeyDefinition {
+    /** The key column. */
+    readonly on: string;
+    /** What a rename does to the old key: keep it resolving as former, or release it. */
+    readonly renamed?: "former" | "released";
+}
+
 /** A unique index the key index has across databases. */
 export interface ObjectIndex {
     /** The indexed fields, in key order. */
@@ -602,6 +611,8 @@ export interface ObjectIndex {
     readonly namespace?: string;
     /** The characters keys leave out, so values differing only in them claim one name. */
     readonly fold?: "hyphens";
+    /** What a rename does to the old name: keep it resolving as former, or release it. */
+    readonly renamed?: "former" | "released";
 }
 
 /** A method as callers call it: kind, permission, route, and input and output as JSON Schema. */
@@ -975,7 +986,14 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
 
     /** The column the objects are also addressed by within a scope, absent for none. */
     get keyed(): string | undefined {
-        return this.definition.key;
+        return ObjectTable.keyColumn(this.definition.key);
+    }
+
+    /** What a rename does to an object's old key: keep it resolving as former, or release it. */
+    get keyRenamed(): "former" | "released" {
+        const { key } = this.definition;
+
+        return typeof key === "object" ? (key.renamed ?? "released") : "released";
     }
 
     /** The schema of the objects' key: a string field's, or a referenced type's identifier. */
@@ -1013,6 +1031,26 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
     /** Read the column selecting an object by a value: its identifier, else its key. */
     identify(value: string): string {
         return this.keyed === undefined || this.identifies(value) ? "id" : this.keyed;
+    }
+
+    /** Find the object a value names in a scope: by identifier, live key, or former key. */
+    async holder(
+        view: Pick<Snapshot, "read">,
+        scope: string,
+        value: string,
+    ): Promise<string | undefined> {
+        // take an identifier as it is
+        if (this.identify(value) === "id") {
+            return value;
+        }
+
+        // read the live holder of the key, else the object that held it before a rename
+        const table: Table = this.table;
+        const row = await view.read(table).findFirst({ where: this.address(scope, value) });
+
+        return row === undefined
+            ? await FormerKey.holder(view, this, scope, value)
+            : schema.string().parse(row["id"]);
     }
 
     /** Match the object a value addresses in a scope: by identifier, else the live key holder. */
@@ -1559,19 +1597,17 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
             const searched = target.isInUniverse
                 ? [...new Set([...scopes, Scope.universe.id])]
                 : scopes;
-            let row: Record<string, unknown> | undefined;
+            let id: string | undefined;
             for (const at of searched) {
-                row ??= await view
-                    .read(target.table)
-                    .findFirst({ where: target.address(at, value) });
+                id ??= await target.holder(view, at, value);
             }
-            if (row === undefined) {
+            if (id === undefined) {
                 throw ObjectError.of(
                     "REFERENCE_NOT_FOUND",
                     `'${target.name}' with key '${value}' not found`,
                 );
             }
-            resolved[column] = schema.string().parse(row["id"]);
+            resolved[column] = id;
         }
 
         return { ...input, ...resolved };

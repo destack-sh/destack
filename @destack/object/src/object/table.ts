@@ -152,6 +152,11 @@ export type ObjectTable<
 
 /** An object type's table: derived from its traits, scope and fields. */
 export const ObjectTable = {
+    /** Read the column of a definition's key, absent without a key. */
+    keyColumn(key: ObjectDefinition["key"]): string | undefined {
+        return typeof key === "object" ? key.on : key;
+    },
+
     /** Decide whether deleting a type's objects first records it, for a trash or controller. */
     defersDeletion(
         definition: { readonly recoverable?: unknown },
@@ -172,6 +177,7 @@ export const ObjectTable = {
     ): Table {
         // describe the object to its traits, whose table exists once derived
         const name = definition.name;
+        const keyColumn = ObjectTable.keyColumn(definition.key);
         let derived: Table | undefined;
         const table = () => present(derived, `the table of ${name}`);
         const object: TraitObject = {
@@ -206,14 +212,14 @@ export const ObjectTable = {
                         ObjectConstraint.build(constraint, declared, table()),
                     ),
                     // make each key unique among the live objects of its scope
-                    ...(definition.key === undefined
+                    ...(keyColumn === undefined
                         ? []
                         : [
                               ObjectConstraint.build(
                                   "unique_key",
                                   {
                                       kind: "index",
-                                      on: ["scope", definition.key],
+                                      on: ["scope", keyColumn],
                                       unique: true,
                                       ...(ObjectTable.defersDeletion(definition, applied)
                                           ? { where: { deletedAt: { isNull: true } } }

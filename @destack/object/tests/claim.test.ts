@@ -252,7 +252,14 @@ test("claim the names of writes outside the object store and finish expired rese
         const index = Claim.index(profile, "handle");
         const { packageId } = profile.policy.definition;
         const claimed = { index, key, packageId, objectId, owner };
-        const claimant = { indexes: [index], objectId, owner, claims: [claimed] };
+        const claimant = {
+            indexes: [index],
+            objectId,
+            owner,
+            claims: [claimed],
+            formerIndexes: [],
+            isRemoved: false,
+        };
         await storage.database.transaction((transaction) =>
             Claim.reserve(
                 transaction,
@@ -310,6 +317,8 @@ test("resolve a confirmed name to its object alone, and refuse it to others whil
         owner,
         claims: [entry(key, objectId)],
         state,
+        formerIndexes: [],
+        isRemoved: false,
     });
     const now = world.clock.now();
 
@@ -343,7 +352,7 @@ test("resolve a confirmed name to its object alone, and refuse it to others whil
         Claim.replace(transaction, claimant("notes", "active", second), world),
     );
 
-    // restore and rename the object
+    // restore and rename the object, releasing its old name in an index keeping no former names
     await database.transaction((transaction) =>
         Claim.replace(transaction, claimant("notes", "active"), world),
     );
@@ -361,12 +370,12 @@ test("resolve a confirmed name to its object alone, and refuse it to others whil
         await Claim.owner(readClaims(database), { index, key: "archive" }),
     ]).toEqual([
         undefined,
-        { objectId: first, owner },
+        { objectId: first, owner, state: "active" },
         undefined,
         [entry("notes", second)],
-        { objectId: first, owner },
+        { objectId: first, owner, state: "active" },
         undefined,
-        { objectId: first, owner },
+        { objectId: first, owner, state: "active" },
     ]);
 });
 
@@ -387,6 +396,8 @@ test("refuse a name a postgresql write took after a commit's owners read as a lo
         owner: "account-1",
         claims: [{ index, key: "notes", packageId: "package-1", objectId, owner: "account-1" }],
         state: "active" as const,
+        formerIndexes: [],
+        isRemoved: false,
     });
     const replace = (objectId: string) =>
         database.transaction(
@@ -708,6 +719,85 @@ test("retain a trashed object's names, activate them on restore, and release the
         [[], undefined],
         [[], second],
     ]);
+});
+
+test("keep a renamed object's old name resolving to it until another object takes it, and release it on purge", async () => {
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
+    // declare tags whose names are unique everywhere and whose purge retains the record
+    const tag = defineObject({
+        name: "tag",
+        plural: "tags",
+        title: t`${plural(argument("count"), { one: "Tag", other: "Tags" })}`,
+        scope: space,
+        fields: { name: field.string() },
+        indexes: { name: { on: ["name"], across: () => universe, renamed: "former" } },
+        access: {
+            permissions: { read: none(), manage: none() },
+        },
+        traits: [recoverable({ within: { days: 30 }, by: "manage", retain: "record" })],
+    });
+    const storage = await TestDatabase.create(
+        tablesOf({ packages: [], follows: [], tables: [claimTable] }).tables,
+        { environment: world, isMigrated: true },
+    );
+    onTestFinished(() => storage.close());
+    const { database } = storage;
+    const snapshot = Snapshot.live(database);
+    const write = async (row: Row & { readonly id: string }) => {
+        const object = { objectId: row.id, owner: "space-1" };
+        const claimant = await Claimant.of(tag, object, row, snapshot);
+
+        return database.transaction((transaction) => Claim.replace(transaction, claimant, world));
+    };
+    const holder = async (name: string) => {
+        const found = await Claim.lookup(tag, names(database), "name", [name]);
+
+        return found === undefined ? undefined : [found.id, found.state];
+    };
+    const isTaken = async (name: string) => {
+        const { index, key } = Claim.key(tag, "name", [name]);
+
+        return (await Claim.claimed(readClaims(database), { index, keys: [key] })).has(key);
+    };
+
+    // rename the first tag from urgent to pressing, then to later
+    const [first, second] = [Identifier.create("tag", world), Identifier.create("tag", world)];
+    const standing = { id: first, scope: "space-1", deletedAt: null };
+    await write({ ...standing, name: "urgent" });
+    await write({ ...standing, name: "pressing" });
+    await write({ ...standing, name: "later" });
+    const renamed = [await holder("urgent"), await holder("pressing"), await holder("later")];
+    const available = await isTaken("urgent");
+
+    // let the second tag take urgent, then refuse the first renaming back to it
+    const taken = await write({ id: second, scope: "space-1", deletedAt: null, name: "urgent" });
+    const takenBy = await holder("urgent");
+    const back = await write({ ...standing, name: "urgent" });
+
+    // purge the first, releasing its name and its former names
+    await write({ ...standing, name: "later", deletedAt: 1, purgedAt: 2 });
+
+    expect({
+        renamed,
+        available,
+        taken,
+        takenBy,
+        back: back.map((entry) => Claim.values(entry)),
+        purged: [await holder("pressing"), await holder("later"), await holder("urgent")],
+    }).toEqual({
+        renamed: [
+            [first, "former"],
+            [first, "former"],
+            [first, "active"],
+        ],
+        available: false,
+        taken: [],
+        takenBy: [second, "active"],
+        back: [["urgent"]],
+        purged: [undefined, undefined, [second, "active"]],
+    });
 });
 
 /** Open the universe's database with its claims and the journal of their calls. */

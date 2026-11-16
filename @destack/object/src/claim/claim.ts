@@ -40,8 +40,8 @@ export const ClaimState = schema.enum(["active", "trashed"]);
 /** The state an object's committed names take. */
 export type ClaimState = schema.Infer<typeof ClaimState>;
 
-/** The states of a claim: pending while its write may fail, else its object's state. */
-const CLAIM_STATES = ["pending", ...ClaimState.options] as const;
+/** The states of a claim: pending until its write commits, its object's, or former. */
+const CLAIM_STATES = ["pending", ...ClaimState.options, "former"] as const;
 
 /** A name an object claims in a unique index across databases. */
 const claim = schema.object({
@@ -57,8 +57,11 @@ const claim = schema.object({
     owner: schema.string().min(1),
 });
 
-/** The object an active name resolves to, with the owner scope of the name. */
-export const ClaimOwner = claim.pick({ objectId: true, owner: true });
+/** The object a name resolves to, the name's owner scope, and whether the name is former. */
+export const ClaimOwner = claim.pick({ objectId: true, owner: true }).extend({
+    /** Whether the object holds the name now, or held it before a rename. */
+    state: schema.enum(["active", "former"]),
+});
 /** The object an active name resolves to, with the owner scope of the name. */
 export type ClaimOwner = schema.Infer<typeof ClaimOwner>;
 
@@ -166,7 +169,7 @@ export const Claim = Object.assign(claim, {
         name: string,
         values: readonly unknown[],
         scope?: string,
-    ): Promise<{ readonly scope: string; readonly id: string } | undefined> {
+    ): Promise<ClaimHolder | undefined> {
         return await Claim.first(type, claims, name, [values], scope);
     },
 
@@ -177,7 +180,7 @@ export const Claim = Object.assign(claim, {
         name: string,
         candidates: readonly (readonly unknown[])[],
         scope?: string,
-    ): Promise<{ readonly scope: string; readonly id: string } | undefined> {
+    ): Promise<ClaimHolder | undefined> {
         // key every candidate, then find their owners at once
         const keyed = candidates.map((values) => Claim.key(type, name, values, scope));
         const named = Claim.index(type, name);
@@ -188,7 +191,9 @@ export const Claim = Object.assign(claim, {
             .map((each) => owners.get(each.key))
             .find((owner) => owner !== undefined);
 
-        return found === undefined ? undefined : { scope: found.owner, id: found.objectId };
+        return found === undefined
+            ? undefined
+            : { scope: found.owner, id: found.objectId, state: found.state };
     },
 
     /** Reserve an object's names until its write commits, returning the names others claim. */
@@ -199,8 +204,18 @@ export const Claim = Object.assign(claim, {
         now: number,
         environment: UuidEnvironment,
     ): Promise<Claim[]> {
-        // insert the free names pending for a minute
+        // refuse the names other objects claim before writing any
         Claimant.require(claimant);
+        const claimed = ClaimKey.refused(
+            claimant.claims,
+            await Claim.owners(database, claimant.claims),
+        );
+        if (claimed.length > 0) {
+            return claimed;
+        }
+
+        // free the names other objects held before a rename, then insert the names pending for a minute
+        await Claim.free(database, claimant);
         const expiresAt = now + RESERVATION_MILLISECONDS;
         const inserted =
             claimant.claims.length === 0
@@ -221,7 +236,7 @@ export const Claim = Object.assign(claim, {
                       .returning({ index: claimTable.index, key: claimTable.key });
         const existing = ClaimKey.missing(claimant.claims, inserted);
 
-        // refuse the existing names other objects claim
+        // refuse the names a concurrent write took meanwhile
         return existing.length === 0
             ? []
             : ClaimKey.refused(existing, await Claim.owners(database, existing));
@@ -274,6 +289,9 @@ export const Claim = Object.assign(claim, {
             return refused;
         }
 
+        // free the names other objects held before a rename
+        await Claim.free(database, claimant);
+
         // insert the new names, settle the object's names and release those it dropped, in one round trip
         const fresh = claimant.claims.filter((entry) => !found.has(ClaimKey.of(entry)));
         const inserting =
@@ -310,37 +328,46 @@ export const Claim = Object.assign(claim, {
         return [];
     },
 
-    /** Find the object an active name resolves to, none for a free or reserved name. */
+    /** Find the object a name resolves to, now or before a rename, none for a free name. */
     async owner(
         claims: RelationalQueryBuilder<typeof claimTable>,
         name: Pick<Claim, "index" | "key">,
     ): Promise<ClaimOwner | undefined> {
         const found = await claims.findFirst({
-            where: { index: name.index, key: name.key, state: "active" },
+            where: { index: name.index, key: name.key, state: { in: [...RESOLVED] } },
         });
 
-        return found === undefined ? undefined : { objectId: found.objectId, owner: found.owner };
+        return found === undefined ? undefined : Claim.holder(found);
     },
 
-    /** Find the objects active keys of one index resolve to, by key, in one read. */
+    /** Find the objects keys of one index resolve to, now or before a rename, in one read. */
     async resolve(
         claims: RelationalQueryBuilder<typeof claimTable>,
         names: { readonly index: string; readonly keys: readonly string[] },
     ): Promise<ReadonlyMap<string, ClaimOwner>> {
         const rows = await claims.findMany({
-            where: { index: names.index, key: { in: [...names.keys] }, state: "active" },
+            where: {
+                index: names.index,
+                key: { in: [...names.keys] },
+                state: { in: [...RESOLVED] },
+            },
         });
 
-        return new Map(rows.map((row) => [row.key, { objectId: row.objectId, owner: row.owner }]));
+        return new Map(rows.map((row) => [row.key, Claim.holder(row)]));
     },
 
-    /** List the keys of one index some object claims, active or reserved, in one read. */
+    /** Read the object a resolved claim row names, and whether the name is former. */
+    holder(row: Pick<RowImage<typeof claimTable>, "objectId" | "owner" | "state">): ClaimOwner {
+        return { objectId: row.objectId, owner: row.owner, state: RESOLVED_STATE.parse(row.state) };
+    },
+
+    /** List the keys of one index some object claims, active, trashed or reserved, in one read. */
     async claimed(
         claims: RelationalQueryBuilder<typeof claimTable>,
         names: { readonly index: string; readonly keys: readonly string[] },
     ): Promise<ReadonlySet<string>> {
         const rows = await claims.findMany({
-            where: { index: names.index, key: { in: [...names.keys] } },
+            where: { index: names.index, key: { in: [...names.keys] }, state: { ne: "former" } },
         });
 
         return new Set(rows.map((row) => row.key));
@@ -356,14 +383,21 @@ export const Claim = Object.assign(claim, {
             return new Map();
         }
 
-        // read the owners of the names in one read
+        // read the owners of the names in one read, leaving out others' former names, which are free
         const rows = await database
             .select({ index: claimTable.index, key: claimTable.key, objectId: claimTable.objectId })
             .from(claimTable)
             .where(
                 combine(
                     claims.map((entry) =>
-                        and(eq(claimTable.index, entry.index), eq(claimTable.key, entry.key)),
+                        and(
+                            eq(claimTable.index, entry.index),
+                            eq(claimTable.key, entry.key),
+                            or(
+                                ne(claimTable.state, "former"),
+                                eq(claimTable.objectId, entry.objectId),
+                            ),
+                        ),
                     ),
                     "OR",
                 ),
@@ -372,45 +406,109 @@ export const Claim = Object.assign(claim, {
         return new Map(rows.map((row) => [ClaimKey.of(row), row.objectId]));
     },
 
-    /** Settle an object's names in its state, only those a condition selects when given. */
+    /** Settle the names an object claims in its state, those a condition selects when given. */
     async settle(
         database: DatabaseConnection,
         object: Claimant,
         settling: SQL | undefined,
     ): Promise<void> {
+        // settle nothing for an object claiming no names
+        if (object.claims.length === 0) {
+            return;
+        }
+
+        // settle the names it claims, a former one it claims again among them
         await database
             .update(claimTable)
             .set({ state: object.state, requestId: null, expiresAt: null })
             .where(
                 and(
-                    inArray(claimTable.index, [...object.indexes]),
                     eq(claimTable.objectId, object.objectId),
                     settling,
                     eq(claimTable.owner, object.owner),
+                    combine(
+                        object.claims.map((entry) =>
+                            and(eq(claimTable.index, entry.index), eq(claimTable.key, entry.key)),
+                        ),
+                        "OR",
+                    ),
                 ),
             );
     },
 
-    /** Release the names an object no longer claims. */
+    /** Keep a renamed object's replaced names as former, releasing its other dropped names. */
     async drop(database: DatabaseConnection, object: Claimant): Promise<void> {
         // skip a type without indexes
         if (object.indexes.length === 0) {
             return;
         }
 
-        // delete the object's names other than those it claims
-        await database
-            .delete(claimTable)
-            .where(
-                and(
-                    inArray(claimTable.index, [...object.indexes]),
-                    eq(claimTable.objectId, object.objectId),
-                    eq(claimTable.owner, object.owner),
-                    ...object.claims.map((entry) =>
-                        or(ne(claimTable.index, entry.index), ne(claimTable.key, entry.key)),
+        // select the object's names other than those it claims
+        const dropped = and(
+            inArray(claimTable.index, [...object.indexes]),
+            eq(claimTable.objectId, object.objectId),
+            eq(claimTable.owner, object.owner),
+            ...object.claims.map((entry) =>
+                or(ne(claimTable.index, entry.index), ne(claimTable.key, entry.key)),
+            ),
+        );
+
+        // keep the names another name of the same index replaced as former where the index keeps them
+        const renamed = [...new Set(object.claims.map((entry) => entry.index))].filter((each) =>
+            object.formerIndexes.includes(each),
+        );
+        const unrenamed = object.indexes.filter((each) => !renamed.includes(each));
+        if (object.isRemoved || renamed.length === 0) {
+            await database.delete(claimTable).where(dropped);
+        } else {
+            await Promise.all([
+                database
+                    .delete(claimTable)
+                    .where(
+                        and(
+                            dropped,
+                            or(
+                                eq(claimTable.state, "pending"),
+                                unrenamed.length === 0
+                                    ? undefined
+                                    : inArray(claimTable.index, unrenamed),
+                            ),
+                        ),
                     ),
+                database
+                    .update(claimTable)
+                    .set({ state: "former" })
+                    .where(
+                        and(
+                            dropped,
+                            ne(claimTable.state, "pending"),
+                            inArray(claimTable.index, renamed),
+                        ),
+                    ),
+            ]);
+        }
+    },
+
+    /** Release the former names of other objects that an object now claims. */
+    async free(database: DatabaseConnection, object: Claimant): Promise<void> {
+        // free nothing for an object claiming no names
+        if (object.claims.length === 0) {
+            return;
+        }
+
+        // delete the claimed names others hold as former
+        await database.delete(claimTable).where(
+            and(
+                eq(claimTable.state, "former"),
+                ne(claimTable.objectId, object.objectId),
+                combine(
+                    object.claims.map((entry) =>
+                        and(eq(claimTable.index, entry.index), eq(claimTable.key, entry.key)),
+                    ),
+                    "OR",
                 ),
-            );
+            ),
+        );
     },
 
     /** Find the scope an index is unique across, from the scope an object lives in. */
@@ -450,6 +548,22 @@ export const Claim = Object.assign(claim, {
     },
 });
 
+/** The claim states a name resolves in: held now, or before a rename. */
+const RESOLVED = ["active", "former"] as const;
+
+/** The claim state a name resolves in. */
+const RESOLVED_STATE = schema.enum(RESOLVED);
+
+/** The object a name resolves to: owner scope, identifier, and whether the name is former. */
+export interface ClaimHolder {
+    /** The owner scope of the name. */
+    readonly scope: string;
+    /** The object's identifier. */
+    readonly id: string;
+    /** Whether the object holds the name now, or held it before a rename. */
+    readonly state: "active" | "former";
+}
+
 /** A condition over the claims a database has. */
 export type ClaimCondition = Condition<RowImage<typeof claimTable>>;
 
@@ -468,6 +582,10 @@ const claimant = schema.object({
     claims: schema.array(claim),
     /** The state its names take. */
     state: ClaimState,
+    /** The indexes whose renamed names stay resolving to the object as former. */
+    formerIndexes: schema.array(schema.string().min(1)),
+    /** Whether the object is gone, releasing every name it held, former ones too. */
+    isRemoved: schema.boolean(),
 });
 /** An object and its claimed names after a write, with the verbs reading them. */
 export const Claimant = Object.assign(claimant, {
@@ -482,9 +600,13 @@ export const Claimant = Object.assign(claimant, {
 
         return {
             indexes: Object.keys(type.indexes).map((name) => Claim.index(type, name)),
+            formerIndexes: Object.entries(type.indexes)
+                .filter(([, declared]) => declared.renamed === "former")
+                .map(([name]) => Claim.index(type, name)),
             ...object,
             claims: isGone ? [] : await Claim.list(type, row, snapshot),
             state: row !== undefined && Claim.isSet(row, "deletedAt") ? "trashed" : "active",
+            isRemoved: isGone,
         };
     },
 

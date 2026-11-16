@@ -344,6 +344,8 @@ export const Reservation = {
                                 owner: reservation.owner,
                                 claims: [],
                                 state: "active" as const,
+                                formerIndexes: [],
+                                isRemoved: true,
                             };
                         }
 

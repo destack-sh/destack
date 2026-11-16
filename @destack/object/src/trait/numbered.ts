@@ -358,14 +358,10 @@ export const Numbered = {
         }
 
         // find the value the key addresses, then the object with the number now or before
-        const key = rest.slice(0, separator);
-        const found = await reader
-            .read(withinType.table)
-            .findFirst({ where: withinType.address(scope, key) });
-        if (found === undefined) {
+        const within = await withinType.holder(reader, scope, rest.slice(0, separator));
+        if (within === undefined) {
             return undefined;
         }
-        const within = schema.string().parse(found["id"]);
         const current = await reader
             .read(object.table)
             .findFirst({ where: { scope, [numbering.within]: within, number } });

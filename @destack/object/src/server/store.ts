@@ -1,3 +1,4 @@
+import { FormerKey } from "../object/former.ts";
 import type { Health } from "./health.ts";
 import { Casing } from "../object/name.ts";
 import { RelationGraph } from "../query/query.ts";
@@ -1919,6 +1920,9 @@ export class ObjectStore {
         await progress.reservation?.release();
         progress.reservation = undefined;
 
+        // keep the keys written objects held before a rename
+        await FormerKey.written(transaction, this.objects);
+
         // reserve the claimed names before the commit
         const claimants = await Claimant.written(transaction, this.objects);
         const reservation =
@@ -3118,21 +3122,13 @@ export class ObjectStore {
         scope: string,
         view: Pick<Snapshot, "read">,
     ): Promise<string> {
-        // take an identifier as it is
-        const column = object.identify(value);
-        if (column === "id") {
-            return value;
-        }
-
-        // read the identifier of the object holding the key in the scope, refusing a key nobody holds
-        const row = await view
-            .read(object.table)
-            .findFirst({ where: object.address(scope, value) });
-        if (row === undefined) {
+        // read the identifier, the key's holder or its former holder, refusing a key nobody held
+        const id = await object.holder(view, scope, value);
+        if (id === undefined) {
             throw CallError.http("NOT_FOUND", { message: `${object.name} '${value}' not found` });
         }
 
-        return schema.string().parse(row["id"]);
+        return id;
     }
 
     /** Load a call's permitted target through its requested view, absent without a target. */

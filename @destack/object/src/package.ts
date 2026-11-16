@@ -8,6 +8,7 @@ import { approval, changeRequest } from "./approval/index.ts";
 import { ObjectError } from "./error/error.ts";
 import { chunk, chunkRun } from "./text/table.ts";
 import { counter } from "./trait/numbered.ts";
+import { formerKey } from "./object/former.ts";
 
 /** The handle a space and a machine serve their call log and access objects through. */
 export default definePackage({
@@ -29,7 +30,7 @@ export default definePackage({
         approval,
         changeRequest,
     ],
-    // keep the text and the number counters of every package's objects in each space
-    tables: [chunk, chunkRun, counter],
+    // keep the text, number counters and former keys of every package's objects in each space
+    tables: [chunk, chunkRun, counter, formerKey],
     errors: ObjectError,
 });

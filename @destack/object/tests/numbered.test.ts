@@ -18,14 +18,14 @@ import { users } from "./fixture/user.ts";
 import { argument, plural, t } from "@destack/locale";
 import objectPackage from "../src/package.ts";
 
-/** A team addressed by its key, such as TRK, whose issues count from 1. */
+/** A team addressed by its key, such as TRK, its old keys resolving after a rename. */
 const team = defineObject(
     {
         name: "team",
         plural: "teams",
         title: t`${plural(argument("count"), { one: "Team", other: "Teams" })}`,
         scope: space,
-        key: "key",
+        key: { on: "key", renamed: "former" },
         fields: { key: field.string(schema.string().min(1)) },
         traits: [shareable({})],
     },
@@ -153,9 +153,18 @@ test("number issues within their team, never reusing a purged one's, and number 
         (await Numbered.find(issue, spaceId, named, reader))?.["title"];
     const found = await Promise.all(["TRK-4", "ENG-2", "TRK-3", "TRK-2", "TRK"].map(titleOf));
 
-    // rename the engine's key, which renames its issues' identifiers
+    // rename the engine's key, which renames its issues' identifiers and keeps the old ones finding them
     await client.team.update({ ...request(), id: engine.id, key: "EN" });
-    const renamed = [await Numbered.identifier(issue, moved, reader), await titleOf("EN-2")];
+    const renamed = [
+        await Numbered.identifier(issue, moved, reader),
+        await titleOf("EN-2"),
+        await titleOf("ENG-2"),
+        (await client.team.get({ spaceId, id: "ENG" })).key,
+    ];
+
+    // let a new team take the old key, which then names it alone
+    await client.team.create({ ...request(), key: "ENG" });
+    const retaken = [await titleOf("ENG-2"), (await client.team.get({ spaceId, id: "ENG" })).key];
 
     expect({
         billing: billing.number,
@@ -166,12 +175,14 @@ test("number issues within their team, never reusing a purged one's, and number 
             .map((each) => present(each, "an issued identifier"))
             .toSorted((left, right) => left.localeCompare(right)),
         renamed,
+        retaken,
     }).toEqual({
         billing: 3,
         moved: 2,
         after: 6,
         found: ["Export", "Billing", "Billing", undefined, undefined],
-        renamed: ["EN-2", "Billing"],
+        renamed: ["EN-2", "Billing", "Billing", "EN"],
+        retaken: [undefined, "ENG"],
         identifiers: ["ENG-1", "ENG-2", "TRK-1", "TRK-4", "TRK-5", "TRK-6"],
     });
 });

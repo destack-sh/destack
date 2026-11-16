@@ -1,3 +1,4 @@
+import { FormerKey } from "../object/former.ts";
 import { Address, type Plan, type Step } from "@destack/resource";
 import { ObjectReference, Scope, type Subject, type Call, RequestId } from "@destack/sync";
 import { AccessContext, anyone, Authorizer, Manager, type Policy, Caller } from "@destack/access";
@@ -1373,6 +1374,9 @@ export class StackPlan {
 
     /** Apply the planned steps unchanged, refusing a plan another commit made stale. */
     async apply(): Promise<void> {
+        // keep the keys written objects held before a rename
+        await FormerKey.written(this.transaction, this.stack.options.objects);
+
         // reserve the names the written objects claim before the commit
         const reservation = await this.#reserve();
 
