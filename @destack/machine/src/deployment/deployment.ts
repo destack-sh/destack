@@ -61,7 +61,7 @@ import {
 import { MAIN_DATABASE } from "@destack/stack/declare";
 import { StackError } from "@destack/stack/error";
 import type { ProviderIndex } from "../resource/resource.ts";
-import type { ObjectBindable } from "@destack/stack/object";
+import type { ObjectBindingKind } from "@destack/stack/object";
 import { RolloutTarget } from "../installation/target.ts";
 import type { Kind, Provisioning } from "@destack/package";
 
@@ -89,7 +89,7 @@ export interface DeploymentOptions {
     /** The providers of the machine's resource kinds, with the object each kind's resources are. */
     readonly providers: ProviderIndex;
     /** The kinds of package objects that bindings target other than resources, such as secrets. */
-    readonly bindables: readonly ObjectBindable[];
+    readonly bindingKinds: readonly ObjectBindingKind[];
     /** The locks this machine runs host installations from. */
     readonly trusted: ReadonlySet<Digest>;
 }
@@ -669,7 +669,7 @@ class Reconcile {
     #served(rows: readonly Binding[]): WorkloadServed[] {
         return rows.flatMap((row) => {
             // take the versioned bindings of a served kind
-            const kind = this.#options.bindables.find((each) => each.object.identifies(row.target));
+            const kind = this.#options.bindingKinds.find((each) => each.object.identifies(row.target));
 
             return kind !== undefined && row.version !== null
                 ? [

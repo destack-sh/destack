@@ -42,7 +42,7 @@ import { CommitBuild, type Forge } from "./follow.ts";
 import { StackInstallation } from "./stack.ts";
 import type { TokenIssuer } from "@destack/access/token";
 import { StackError } from "@destack/stack/error";
-import type { ObjectBindable } from "@destack/stack/object";
+import type { ObjectBindingKind } from "@destack/stack/object";
 import { RolloutTarget, type RevisionOptions } from "./target.ts";
 
 /** The options a machine serves installations with. */
@@ -422,7 +422,7 @@ function forgeWatches(forge: Forge): ObjectWatch[] {
 /** Wake a rollout once what it waits on arrives. */
 function resumeWatches(
     resources: readonly ResourceType<typeof space>[],
-    objects: readonly ObjectBindable[],
+    objects: readonly ObjectBindingKind[],
 ): ObjectWatch[] {
     return [
         // the rollout once its installation changes or reports, as it reads its conditions

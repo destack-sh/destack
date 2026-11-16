@@ -1,8 +1,8 @@
-import { ObjectBindable, SPACE_PROVIDER } from "@destack/stack/object";
+import { ObjectBindingKind, SPACE_PROVIDER } from "@destack/stack/object";
 import { placement, Space, space } from "@destack/account/object";
 import { MAIN_DATABASE } from "@destack/stack/declare";
 import {
-    type Bindable,
+    type BindingKind,
     type BindingSelection,
     type BindingTarget,
     type InstallationBindings,
@@ -46,7 +46,7 @@ import {
 import { Kind, type Provisioning } from "@destack/package";
 
 /** A resource kind bindings target, whose providers provision its objects. */
-export interface ResourceBindable extends Bindable<ResourceType<typeof space>> {
+export interface ResourceBindingKind extends BindingKind<ResourceType<typeof space>> {
     /** The resource kind the objects are. */
     readonly kind: Kind<schema.Schema, Provisioning>;
     /** Read the record an installation's own need declares, as its type's stack declaration. */
@@ -54,12 +54,12 @@ export interface ResourceBindable extends Bindable<ResourceType<typeof space>> {
 }
 
 /** Resource kinds as bindings target them. */
-export const ResourceBindable = {
+export const ResourceBindingKind = {
     /** Bind resources of one kind, at their generation or a binding's pinned version. */
     of(
         kind: Kind<schema.Schema, Provisioning>,
         object: ResourceType<typeof space>,
-    ): ResourceBindable {
+    ): ResourceBindingKind {
         return {
             object,
             kind,
@@ -80,11 +80,11 @@ export const ResourceBindable = {
 /** Bind declarations to objects of each bindable kind, and capture what deployments run with. */
 export class Binder {
     /** The bindable kinds. */
-    readonly #kinds: readonly Bindable[];
+    readonly #kinds: readonly BindingKind[];
     /** The bindable resource kinds, by their kind's name. */
-    readonly #resources: ReadonlyMap<string, ResourceBindable>;
+    readonly #resources: ReadonlyMap<string, ResourceBindingKind>;
     /** The kinds packages serve, by their declaration kind. */
-    readonly #objects: ReadonlyMap<string, ObjectBindable>;
+    readonly #objects: ReadonlyMap<string, ObjectBindingKind>;
     /** The state of the tables every space's main database replicates. */
     readonly #replicated: DatabaseState | undefined;
     /** The tables every space's main database replicates. */
@@ -92,8 +92,8 @@ export class Binder {
 
     /** Index the kinds a machine serves, and describe the tables every main database replicates. */
     constructor(
-        resources: readonly ResourceBindable[],
-        objects: readonly ObjectBindable[],
+        resources: readonly ResourceBindingKind[],
+        objects: readonly ObjectBindingKind[],
         replicated: readonly Table[],
     ) {
         // describe the replicated tables as one state of the main database, none without any
@@ -115,7 +115,7 @@ export class Binder {
     }
 
     /** List the kinds packages serve to workloads, such as secrets. */
-    objects(): readonly ObjectBindable[] {
+    objects(): readonly ObjectBindingKind[] {
         return [...this.#objects.values()];
     }
 
@@ -431,13 +431,13 @@ export class Binder {
         const others = kept.filter(
             (need) =>
                 this.#isOwned(target, need) &&
-                this.#bindable(need).object.package.id !== target.installation.packageId,
+                this.#bindingKind(need).object.package.id !== target.installation.packageId,
         );
         await this.#declare(context, target, others, bindings);
     }
 
     /** Read the bindable kind of a need's kind. */
-    #bindable(need: ResourceNeed): Bindable {
+    #bindingKind(need: ResourceNeed): BindingKind {
         return present(
             this.#resources.get(Binder.#key(need)) ?? this.#objects.get(Binder.#key(need)),
             `the bindable kind ${need.kind}`,
@@ -588,7 +588,7 @@ export class Binder {
         target: InstallationRollout,
         need: ResourceNeed,
     ): Promise<{ readonly id: string } | undefined> {
-        const kind = this.#bindable(need);
+        const kind = this.#bindingKind(need);
         const [row] = await context.read(Binder.#declarable(kind.object).table).findMany({
             where: { ...Binder.#managedBy(target, need.package.id), managerName: need.name },
         });
@@ -705,7 +705,7 @@ export class Binder {
     /** Report whether an object target is ready, preparing one whose provisioned parent is. */
     static async #readyObject(
         context: MethodContext,
-        bindable: ObjectBindable,
+        bindable: ObjectBindingKind,
         declarer: AccessContext,
         bound: Binding,
         need: ResourceNeed,
@@ -830,7 +830,7 @@ export class Binder {
     }
 
     /** Find the kind whose objects have a target's identifier, refusing a target of no kind. */
-    static #kind<Kind extends Bindable>(target: string, kinds: Iterable<Kind>): Kind {
+    static #kind<Kind extends BindingKind>(target: string, kinds: Iterable<Kind>): Kind {
         const kind = [...kinds].find((each) => each.object.identifies(target));
         if (kind === undefined) {
             throw StackError.of(

@@ -33,8 +33,8 @@ import { rollout } from "@destack/stack/object";
 import objectPackage from "@destack/object/package";
 import stackPackage from "@destack/stack/package";
 import { implementRestore, implementSnapshot } from "../resource/snapshot.ts";
-import { Binder, ResourceBindable } from "../resource/binding.ts";
-import { ObjectBindable } from "@destack/stack/object";
+import { Binder, ResourceBindingKind } from "../resource/binding.ts";
+import { ObjectBindingKind } from "@destack/stack/object";
 import { implementDeployment, implementInstance } from "../deployment/deployment.ts";
 import {
     type InstallationOptions,
@@ -185,11 +185,11 @@ export function ownServers(
     readonly control: (store: ObjectStore) => readonly ControllerSet[];
 } {
     // index the machine's providers and bindable kinds, which the stack and the installations bind with
-    const bindables = ObjectBindable.of(installed);
+    const bindingKinds = ObjectBindingKind.of(installed);
     const providers = new ProviderIndex(space.machine.id, spaceProviders(space, start), served);
     const binder = new Binder(
-        providers.objects().map((type) => ResourceBindable.of(providers.kind(type), type)),
-        bindables,
+        providers.objects().map((type) => ResourceBindingKind.of(providers.kind(type), type)),
+        bindingKinds,
         space.machine.volumes.replicated,
     );
     const transfers = configureTransfers(space, start, providers);
@@ -274,7 +274,7 @@ function ownObjects(
         implementInstallationRevision(),
         implementDeployment({
             providers,
-            bindables: binder.objects(),
+            bindingKinds: binder.objects(),
             machine: space.machine.id,
             runtimes: new Map(space.machine.runtimes.map((runtime) => [runtime.name, runtime])),
             space,

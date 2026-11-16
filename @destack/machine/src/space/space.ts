@@ -119,7 +119,7 @@ import {
     installationRevision,
     PROCESS_RUNTIME,
     type InstallationRollout,
-    ObjectBindable,
+    ObjectBindingKind,
     Rollout,
     rollout,
     type Serving,
@@ -635,7 +635,7 @@ export class Space {
             server: server.installation === undefined ? resolved : resolved.at(server.installation),
             isProviding:
                 server.providers.length > 0 ||
-                server.bindables.length > 0 ||
+                server.bindingKinds.length > 0 ||
                 objects.some((type) => Provisioned.is(type)),
         };
     }
@@ -1432,7 +1432,7 @@ export class Space {
             `the binding of ${declaration.name} by ${row.installationId}`,
         );
         const { target } = found;
-        const bindable = ObjectBindable.of(trusted).find((each) =>
+        const bindable = ObjectBindingKind.of(trusted).find((each) =>
             each.kind.is(declaration.kind.name, declaration.kind.packageId),
         );
         const provider = [...this.volume.providers, ...StoreProvider.of(trusted)].find((each) =>
