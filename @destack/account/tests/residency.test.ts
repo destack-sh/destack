@@ -284,7 +284,7 @@ test("read the residency home, its relay and the owners of names for another acc
         await strangers.residency.relay({ account: namedId }),
     ]).toEqual([
         await fixture.residencySpace("eu"),
-        { objectId: row.id, owner: namedId },
+        { objectId: row.id, owner: namedId, state: "active" },
         "https://relay-eu.machine.test",
     ]);
 });

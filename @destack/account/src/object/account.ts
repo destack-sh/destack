@@ -55,7 +55,7 @@ export const account = defineObject(
             kind: field.enum(["personal", "shared"]).default("shared"),
         },
         indexes: {
-            handle: { on: ["handle"], across: () => universe },
+            handle: { on: ["handle"], across: () => universe, renamed: "former" },
             lookalike: { on: ["handle"], across: () => universe, fold: "hyphens" },
         },
         // keep each change, as the tracked objects read through its spaces decide their past reads by it

@@ -102,7 +102,7 @@ test("find and resolve a place's address over the directory's rows, to the URL i
         await resolver.resolve(place, `notes--${handle}`, fixture.clock.now()),
         await refusal(resolver.resolve(place, `other--${handle}`, fixture.clock.now())),
     ]).toEqual([
-        place.reference(accountId, spaceId),
+        { ...place.reference(accountId, spaceId), state: "active" },
         undefined,
         {
             id: spaceId,

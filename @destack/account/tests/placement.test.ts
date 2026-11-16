@@ -350,7 +350,7 @@ test("reserve and confirm a space's names only as the machine serving it", async
     ]).toEqual([
         ["FORBIDDEN", "PERMISSION_DENIED", "permission 'claim' is forbidden: the caller lacks it"],
         "done",
-        { scope: accountId, id: laptop },
+        { scope: accountId, id: laptop, state: "active" },
     ]);
 });
 

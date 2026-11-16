@@ -80,7 +80,7 @@ test("place a new space on its account's residency cloud machine, on a machine o
             { space: local.id, scope: person.account, machine: laptop.machineId, epoch: 1 },
             { space: shared.id, scope: person.account, machine: ids.machine, epoch: 1 },
         ],
-        claimed: { scope: person.account, id: cloud.id },
+        claimed: { scope: person.account, id: cloud.id, state: "active" },
     });
 });
 

@@ -425,6 +425,9 @@ export class Platform {
             owner,
             claims,
             state: "active" as const,
+            // hand transferred handles on rather than keeping them as former names
+            formerIndexes: [],
+            isRemoved: false,
         };
 
         // read the accounts the handles transfer to, refusing a missing one

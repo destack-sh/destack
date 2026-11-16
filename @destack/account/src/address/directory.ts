@@ -13,12 +13,21 @@ import { type ClientOf, createClient } from "@destack/object/client";
 import objectPackage from "@destack/object/package";
 import type { ObjectReference, Publisher } from "@destack/sync";
 import { account } from "../object/account.ts";
+import { space } from "../object/space.ts";
 import { Endpoint, endpoint } from "../object/endpoint.ts";
 import { machine } from "../object/machine.ts";
 import { placement, type PlacementEndpoint } from "../object/placement.ts";
-import { SpaceAddress } from "./address.ts";
+import { SpaceAddress, type SpaceOrigin } from "./address.ts";
 import type {} from "@destack/package/import-meta";
 import { AccountError } from "../error/error.ts";
+
+/** An object a name resolves to, and whether the name is its current or a former one. */
+export interface DirectoryHolder<Identity extends string> {
+    /** The object. */
+    readonly id: Identifier<Identity>;
+    /** Whether the object holds the name now, or held it before a rename. */
+    readonly state: "active" | "former";
+}
 
 /** The directory: handles, space addresses `<name>--<handle>`, placements and machines. */
 export class Directory<View extends Pick<Snapshot, "read"> = Snapshot> {
@@ -32,20 +41,29 @@ export class Directory<View extends Pick<Snapshot, "read"> = Snapshot> {
 
     /** Find the account claiming a handle, none for a handle the platform organization reserves. */
     async account(handle: string): Promise<Identifier<"account"> | undefined> {
+        return (await this.holder(handle))?.id;
+    }
+
+    /** Find the account claiming a handle now or before a rename, with which it is. */
+    async holder(handle: string): Promise<DirectoryHolder<"account"> | undefined> {
         const owner = await Claim.owner(
             this.snapshot.read(claimTable),
             Claim.key(account, "handle", [handle]),
         );
 
         return owner !== undefined && account.identifies(owner.objectId)
-            ? account.identifier(owner.objectId)
+            ? { id: account.identifier(owner.objectId), state: owner.state }
             : undefined;
     }
 
-    /** Find the handle an account claims, none for an account claiming none. */
+    /** Find the handle an account claims now, none for an account claiming none. */
     async handle(accountId: string): Promise<string | undefined> {
         const [claimed] = await this.snapshot.read(claimTable).findMany({
-            where: { index: Claim.index(account, "handle"), objectId: accountId },
+            where: {
+                index: Claim.index(account, "handle"),
+                objectId: accountId,
+                state: { ne: "former" },
+            },
         });
 
         return claimed === undefined
@@ -53,29 +71,59 @@ export class Directory<View extends Pick<Snapshot, "read"> = Snapshot> {
             : schema.string().parse(nth(Claim.values(claimed), 0));
     }
 
-    /** Find the object at an address among an account's objects of a type, absent for none. */
+    /** Find an account's object of a type at an address, and whether the address is former. */
     async find<Object extends ObjectType>(
         type: Object,
         address: string,
-    ): Promise<(ObjectReference & { readonly id: Identifier<Object["identity"]> }) | undefined> {
-        // find the account with the handle
+    ): Promise<
+        | (ObjectReference & {
+              readonly id: Identifier<Object["identity"]>;
+              readonly state: "active" | "former";
+          })
+        | undefined
+    > {
+        // find the account with the handle, now or before a rename
         const parsed = SpaceAddress.safeParse(address);
         const origin = parsed.success ? SpaceAddress.origin(parsed.data) : undefined;
-        const accountId = origin === undefined ? undefined : await this.account(origin.handle);
-        if (origin === undefined || accountId === undefined) {
+        const holder = origin === undefined ? undefined : await this.holder(origin.handle);
+        if (origin === undefined || holder === undefined) {
             return undefined;
         }
 
-        // find the object claiming the name within the account
+        // find the object claiming the name within the account, former when either name is
         const claims = ClaimLookup.of(this.snapshot.read(claimTable));
-        const found = await Claim.lookup(type, claims, "name", [origin.space], accountId);
+        const found = await Claim.lookup(type, claims, "name", [origin.space], holder.id);
+        const isFormer = holder.state === "former" || found?.state === "former";
 
         return found === undefined
             ? undefined
             : {
                   ...type.reference(found.scope, found.id),
                   id: schema.identifier<Object["identity"]>(type.identity).parse(found.id),
+                  state: isFormer ? "former" : "active",
               };
+    }
+
+    /** Read the current address of a space: its name and its account's handle now. */
+    async origin(spaceId: Identifier<"space">): Promise<SpaceOrigin | undefined> {
+        // read the space's current name and the account it belongs to
+        const [named] = await this.snapshot.read(claimTable).findMany({
+            where: {
+                index: Claim.index(space, "name"),
+                objectId: spaceId,
+                state: { ne: "former" },
+            },
+        });
+        if (named === undefined) {
+            return undefined;
+        }
+
+        // read the account's current handle
+        const handle = await this.handle(named.owner);
+
+        return handle === undefined
+            ? undefined
+            : { space: schema.string().parse(nth(Claim.values(named), 0)), handle };
     }
 
     /** Resolve an address of an object type to its placement and the URL its machine answers at. */
@@ -155,15 +203,15 @@ export class Directory<View extends Pick<Snapshot, "read"> = Snapshot> {
     /** Stream follows of a space's rows from its object package, where its machine answers. */
     publisher(this: Directory, scope: string, fetch: Fetch, environment: Environment): Publisher {
         // connect to the space's object package where the directory places it
-        const space = schema.identifier("space").parse(scope);
+        const spaceId = schema.identifier("space").parse(scope);
         const connect = async (located: PlacementEndpoint) => {
-            const url = `${SpaceMount.url(located.url, space)}${PackageMount.path(objectPackage.id)}`;
+            const url = `${SpaceMount.url(located.url, spaceId)}${PackageMount.path(objectPackage.id)}`;
 
             return createClient(objectPackage, { url, fetch }, environment);
         };
         const whenPlaced = (signal: AbortSignal) =>
-            this.waitPlaced(space, environment.clock, signal);
-        const located = () => this.locate(space, environment.clock.now());
+            this.waitPlaced(spaceId, environment.clock, signal);
+        const located = () => this.locate(spaceId, environment.clock.now());
 
         return {
             stream: async function* (followed, signal) {

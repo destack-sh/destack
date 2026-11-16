@@ -63,7 +63,7 @@ export const space = defineObject(
             /** Where a person chose the space's work runs, absent to keep it on its machine. */
             tenancy: field.enum(TENANCIES).optional(),
         },
-        indexes: { name: { on: ["name"], across: () => account } },
+        indexes: { name: { on: ["name"], across: () => account, renamed: "former" } },
         // keep each change, as the tracked objects read through a space decide their past reads by it
         retention: "history",
         constraints: {
