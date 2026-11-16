@@ -1,12 +1,12 @@
 import * as access from "@destack/access";
 import { accessRelationship, Relationship } from "@destack/access";
-import { GrantFields, readGrant } from "../trait/shareable.ts";
+import { GrantFields, Shareable } from "../trait/shareable.ts";
 import { ObjectReference, Subject } from "@destack/sync";
 import { StackTarget } from "../stack/reference.ts";
 import { schema } from "@destack/schema";
 import { defineMethod } from "../method/method.ts";
 import { Empty } from "../method/procedure.ts";
-import { type MethodBuilder } from "../method/record.ts";
+import { type MethodBuilder } from "../method/builder.ts";
 import { role } from "./role.ts";
 import { defineObject } from "../object/object.ts";
 import { defineShape } from "../replica/shape.ts";
@@ -148,7 +148,7 @@ export const relationship = defineObject(
             handler: async (context, execution) => {
                 // grant in the scope the relationship lives in, under the relation's grant rules
                 const { object, ...granted } = RelationshipInput.parse(context.input);
-                const request = { ...readGrant(granted), object };
+                const request = { ...Shareable.readGrant(granted), object };
                 const store = Execution.store(execution, context);
                 await ObjectPolicy.requireScope(context, request, store);
 
@@ -181,7 +181,7 @@ export const relationship = defineObject(
             handler: async (context, execution) => {
                 // create the relationship or keep the same one, as SpiceDB's touch writes it
                 const { object, ...granted } = RelationshipInput.parse(context.input);
-                const request = { ...readGrant(granted), object };
+                const request = { ...Shareable.readGrant(granted), object };
                 const store = Execution.store(execution, context);
                 await ObjectPolicy.requireScope(context, request, store);
 

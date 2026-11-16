@@ -1,5 +1,5 @@
 import { type Method } from "../method/method.ts";
-import { method } from "../method/record.ts";
+import { method } from "../method/builder.ts";
 import type { TraitPermission, TraitBehavior } from "./trait.ts";
 import { callableTrait } from "./trait.ts";
 import { Execution } from "../method/execution.ts";
@@ -49,24 +49,15 @@ export type FencingMethodMap<Fence> = [Fence] extends [string]
     : {};
 
 /** Objects fencing the scope they live in while it moves between machines, such as a transfer. */
-const fencingTrait: TraitBehavior<TraitPermission> & {
-    /** Declare the method fencing an object's scope for its move to a machine. */
-    readonly fenceScope: <const Permission extends string>(
-        permission: Permission,
-    ) => FenceScopeMethod<Permission>;
-    /** Declare the method lifting the fence of an object's scope. */
-    readonly unfenceScope: <const Permission extends string>(
-        permission: Permission,
-    ) => UnfenceScopeMethod<Permission>;
-} = {
+const fencingTrait: TraitBehavior<TraitPermission> = {
     key: "fencing",
     storages: ["durable"],
     options: (definition) => definition.fencing,
     columns: () => ({}),
     constraints: () => [],
     methods: (options) => ({
-        fenceScope: fencing.fenceScope(options.by),
-        unfenceScope: fencing.unfenceScope(options.by),
+        fenceScope: Fencing.fenceScope(options.by),
+        unfenceScope: Fencing.unfenceScope(options.by),
     }),
     validate: (_options, object, definition) => {
         // require a type living in a scope it can fence
@@ -74,7 +65,17 @@ const fencingTrait: TraitBehavior<TraitPermission> & {
             throw new TypeError(`object ${object.name} has no enclosing scope to fence`);
         }
     },
-    fenceScope: (permission) =>
+};
+
+/** Fence the scope objects live in while it moves between machines. */
+export const fencing = callableTrait("fencing", fencingTrait);
+
+/** The fencing of an object's scope while it moves between machines. */
+export const Fencing = {
+    /** Declare the method fencing an object's scope for its move to a machine. */
+    fenceScope: <const Permission extends string>(
+        permission: Permission,
+    ): FenceScopeMethod<Permission> =>
         Execution.handle(
             method.mutation({
                 title: t`Fence scope`,
@@ -92,7 +93,11 @@ const fencingTrait: TraitBehavior<TraitPermission> & {
                 return call.target;
             },
         ),
-    unfenceScope: (permission) =>
+
+    /** Declare the method lifting the fence of an object's scope. */
+    unfenceScope: <const Permission extends string>(
+        permission: Permission,
+    ): UnfenceScopeMethod<Permission> =>
         Execution.handle(
             method.mutation({
                 title: t`Unfence scope`,
@@ -110,6 +115,3 @@ const fencingTrait: TraitBehavior<TraitPermission> & {
             },
         ),
 };
-
-/** Fence the scope objects live in while it moves between machines. */
-export const fencing = callableTrait("fencing", fencingTrait);

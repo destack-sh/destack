@@ -175,9 +175,6 @@ export const propagated = callableTrait("propagated", {});
 /** Record the objects' reads in the audit as well as their writes. */
 export const audited = callableTrait("audited", {});
 
-/** Let stacks declare the objects, filling the listed create input fields. */
-export const declarable = callableTrait("declarable", {});
-
 /** The type of the options a trait declares. */
 export type TraitOptionsOf<Use> =
     Use extends Trait<keyof ObjectTraits, infer Options> ? Options : never;

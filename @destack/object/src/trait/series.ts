@@ -3,7 +3,7 @@ import { SERIES_FOLDS } from "@destack/event";
 import { schema } from "@destack/schema";
 import type { MethodContext } from "../method/context.ts";
 import { ObjectType } from "../object/object.ts";
-import { method } from "../method/record.ts";
+import { method } from "../method/builder.ts";
 import { EventLog } from "../query/event.ts";
 import { derivePermissions, type TraitBehavior } from "./trait.ts";
 import { Execution, type StoreExecution } from "../method/execution.ts";
@@ -58,40 +58,38 @@ export const SeriesResult = schema.object({
     ),
 });
 
-/** Fold the events a condition selects by keys the caller may read, per step and group. */
-const seriesMethod = Execution.handle(
-    method.query({
-        title: t`Read series`,
-        permission: "read",
-        target: "scope",
-        selected: (input) => series.selectedKeys(SeriesQuery.parse(input).where),
-        input: SeriesQuery,
-        output: SeriesResult,
-    }),
-    (call, execution) => series.fold(call, Execution.store(execution, call)),
-);
-
 /** The series method an events type derives, none for another storage. */
 export type SeriesMethodMap<Storage> = Storage extends "events"
-    ? { readonly series: typeof seriesMethod }
+    ? { readonly series: typeof Series.method }
     : {};
 
 /** Events types, folded into series over time by the readers of the keys a fold selects. */
-export const series: TraitBehavior<{}> & {
-    /** Fold the scope's events in the range per step and group, which reveals no single event. */
-    readonly fold: (
-        context: MethodContext,
-        execution: StoreExecution,
-    ) => Promise<schema.Infer<typeof SeriesResult>>;
-    /** Read the key values a series condition requires at its top level. */
-    readonly selectedKeys: (where: JsonCondition | undefined) => Row;
-} = {
+export const series: TraitBehavior<{}> = {
     options: (definition) =>
         ObjectType.storageKind(definition.storage) === "events" ? {} : undefined,
     columns: () => ({}),
     constraints: () => [],
     policy: (_options, _object, permissions) => derivePermissions(permissions, ["read"]),
-    methods: () => ({ series: seriesMethod }),
+    methods: () => ({ series: Series.method }),
+};
+
+/** The folding of events types into series over time. */
+export const Series = {
+    /** Fold the events a condition selects by keys the caller may read, per step and group. */
+    method: Execution.handle(
+        method.query({
+            title: t`Read series`,
+            permission: "read",
+            target: "scope",
+            selected: (input): Row => Series.selectedKeys(SeriesQuery.parse(input).where),
+            input: SeriesQuery,
+            output: SeriesResult,
+        }),
+        (call, execution): Promise<schema.Infer<typeof SeriesResult>> =>
+            Series.fold(call, Execution.store(execution, call)),
+    ),
+
+    /** Fold the scope's events in the range per step and group, which reveals no single event. */
     async fold(
         context: MethodContext,
         execution: StoreExecution,
@@ -125,6 +123,8 @@ export const series: TraitBehavior<{}> & {
             series: folded.map((each) => ({ group: { ...each.group }, steps: [...each.steps] })),
         };
     },
+
+    /** Read the key values a series condition requires at its top level. */
     selectedKeys(where: JsonCondition | undefined): Row {
         return Object.fromEntries(
             Condition.conjuncts(where).flatMap((condition) =>

@@ -70,20 +70,7 @@ export type TextProcedures<Object extends ObjectType> = {
 };
 
 /** Text fields stored in chunks and changed only by edits. */
-export const text: TraitBehavior<TextDefinition> & {
-    /** Edit one text field of an object. */
-    readonly edit: (
-        required: string,
-        fields: readonly [string, ...string[]],
-    ) => Method<{ kind: "edit"; permission: string; output: typeof Undo; mutates: true }>;
-    /** Decide whether one text field of an object has some elements, as its text readers may. */
-    readonly contains: (fields: readonly [string, ...string[]]) => Method<{
-        kind: "contains";
-        permission: string;
-        output: typeof Containment;
-        mutates: false;
-    }>;
-} = {
+export const text: TraitBehavior<TextDefinition> = {
     options: (definition) => {
         // collect the text fields and the update and reading permissions
         const [first, ...others] = Object.entries(definition.fields ?? {})
@@ -130,8 +117,8 @@ export const text: TraitBehavior<TextDefinition> & {
         options.permission === undefined
             ? {}
             : {
-                  edit: text.edit(options.permission, options.fields),
-                  contains: text.contains(options.fields),
+                  edit: Text.edit(options.permission, options.fields),
+                  contains: Text.contains(options.fields),
               },
     validate: (options, object) => {
         // require durable objects with an update permission
@@ -155,6 +142,11 @@ export const text: TraitBehavior<TextDefinition> & {
             }
         }
     },
+};
+
+/** The methods of text fields: editing them and checking what they contain. */
+export const Text = {
+    /** Edit one text field of an object. */
     edit(
         required: string,
         fields: readonly [string, ...string[]],
@@ -222,6 +214,8 @@ export const text: TraitBehavior<TextDefinition> & {
             },
         });
     },
+
+    /** Decide whether one text field of an object has some elements, as its text readers may. */
     contains(fields: readonly [string, ...string[]]): Method<{
         kind: "contains";
         permission: string;

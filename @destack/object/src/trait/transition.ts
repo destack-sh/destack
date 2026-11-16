@@ -63,14 +63,7 @@ export type TransitionMethodMap<Fields> = {
 };
 
 /** Transitions of state fields. */
-export const transitions: TraitBehavior<StateFields> & {
-    /** Change one state field through one transition. */
-    readonly method: (
-        field: string,
-        name: string,
-        transition: StateMachine["transitions"][string],
-    ) => Method;
-} = {
+export const transitions: TraitBehavior<StateFields> = {
     options: (definition) => {
         // collect the fields following a machine
         const fields = Object.entries(definition.fields ?? {}).flatMap(([name, declared]) =>
@@ -91,12 +84,29 @@ export const transitions: TraitBehavior<StateFields> & {
                         `transition '${name}' is declared by more than one state field`,
                     );
                 }
-                methods[name] = transitions.method(field, name, transition);
+                methods[name] = Transitions.method(field, name, transition);
             }
         }
 
         return methods;
     },
+};
+
+/** The procedures transitions derive, taking the fields a transition records. */
+export type TransitionProcedures<Object extends ObjectType, Declaration extends Method = Method> = {
+    transition: Procedure<
+        schema.Object<
+            TargetFields<Object> &
+                ReplayFields<Object> &
+                ValueFields<Object, NonNullable<Declaration["fields"]>[number] & string>
+        >,
+        RowSchema<Object>
+    >;
+};
+
+/** The methods changing state fields through their transitions. */
+export const Transitions = {
+    /** Change one state field through one transition. */
     method(field: string, name: string, transition: StateMachine["transitions"][string]): Method {
         return defineMethod<{ kind: "transition" }>({
             kind: "transition",
@@ -160,16 +170,4 @@ export const transitions: TraitBehavior<StateFields> & {
             },
         });
     },
-};
-
-/** The procedures transitions derive, taking the fields a transition records. */
-export type TransitionProcedures<Object extends ObjectType, Declaration extends Method = Method> = {
-    transition: Procedure<
-        schema.Object<
-            TargetFields<Object> &
-                ReplayFields<Object> &
-                ValueFields<Object, NonNullable<Declaration["fields"]>[number] & string>
-        >,
-        RowSchema<Object>
-    >;
 };

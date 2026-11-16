@@ -11,7 +11,15 @@ import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { CallError } from "@destack/object";
 import { eq } from "@destack/db";
 import { Identifier, present, schema, toJsonSchema, Uuid } from "@destack/schema";
-import { AuditTarget, defineObject, field, method, settlement, suspendable } from "../src/index.ts";
+import {
+    AuditTarget,
+    defineObject,
+    field,
+    method,
+    settlement,
+    suspendable,
+    Suspendable,
+} from "../src/index.ts";
 
 import { Settlement } from "../src/server/index.ts";
 import { describeAuditAction } from "../src/inspect/index.ts";
@@ -1366,8 +1374,8 @@ test("predict custom methods only where their handler is, and never a scope's su
     expect([
         unhandled.isPredicted,
         handled.isPredicted,
-        suspendable.suspend("update").isPredicted,
-        suspendable.resume("update").isPredicted,
+        Suspendable.method("suspend", "update").isPredicted,
+        Suspendable.method("resume", "update").isPredicted,
     ]).toEqual([false, true, false, false]);
 });
 

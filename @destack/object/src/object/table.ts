@@ -14,14 +14,13 @@ import {
 import type { ModuleMetadata, PackageId } from "@destack/package";
 import type { Field, FieldColumn, TextField } from "../field/field.ts";
 import type { RecordBuilderMap, WriterBuilderMap } from "../trait/record.ts";
-import type { managedColumns } from "../trait/record.ts";
-import type { DeletionBuilderMap, deletionColumns } from "../trait/recoverable.ts";
-import type { ArchiveBuilderMap, archiveColumns } from "../trait/archivable.ts";
+import type { ManagerColumns } from "../trait/record.ts";
+import type { DeletionBuilderMap, DeletionColumns } from "../trait/recoverable.ts";
+import type { ArchiveBuilderMap, ArchiveColumns } from "../trait/archivable.ts";
 import type { ParentBuilderMap } from "../trait/nested.ts";
 import type { TraitObject } from "../trait/trait.ts";
-import type { approvalColumns, controlledColumns } from "../trait/controlled.ts";
-import type { suspensionColumns } from "../trait/suspendable.ts";
-import { controlled } from "../trait/controlled.ts";
+import type { SuspensionColumns } from "../trait/suspendable.ts";
+import { controlled, type ApprovalColumns, type ControlledColumns } from "../trait/controlled.ts";
 import { ObjectConstraint } from "./constraint.ts";
 import { claimReservation } from "../claim/reservation.ts";
 import { type SnakeCase, Casing } from "./name.ts";
@@ -62,17 +61,13 @@ type ScopeBuilderMap<Scope> = Scope extends "universe"
 
 /** The columns of a controlled object. */
 type ControlledBuilderMap<Reconciled> = Reconciled extends { readonly approval: true }
-    ? ReturnType<typeof controlledColumns> &
-          ReturnType<typeof deletionColumns> &
-          ReturnType<typeof approvalColumns>
+    ? ControlledColumns & DeletionColumns & ApprovalColumns
     : Reconciled extends true
-      ? ReturnType<typeof controlledColumns> & ReturnType<typeof deletionColumns>
+      ? ControlledColumns & DeletionColumns
       : {};
 
 /** The column of a suspendable object. */
-type SuspensionBuilderMap<Suspendable> = Suspendable extends undefined
-    ? {}
-    : ReturnType<typeof suspensionColumns>;
+type SuspensionBuilderMap<Suspendable> = Suspendable extends undefined ? {} : SuspensionColumns;
 
 /** Every column a trait may add. */
 type TraitBuilderMap = {
@@ -81,11 +76,11 @@ type TraitBuilderMap = {
     parentId: ColumnBuilder<FieldColumn<string, true, false>>;
     purgedAt: ColumnBuilder<FieldColumn<number, false, false>>;
     number: ColumnBuilder<FieldColumn<number, false, false>>;
-} & ReturnType<typeof deletionColumns> &
-    ReturnType<typeof archiveColumns> &
-    ReturnType<typeof controlledColumns> &
-    ReturnType<typeof suspensionColumns> &
-    ReturnType<typeof managedColumns>;
+} & DeletionColumns &
+    ArchiveColumns &
+    ControlledColumns &
+    SuspensionColumns &
+    ManagerColumns;
 
 /** The properties of the columns a definition's constraints name. */
 export type ConstraintColumn<

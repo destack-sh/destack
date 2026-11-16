@@ -1,8 +1,10 @@
 import { none } from "@destack/access";
 import { Duration } from "@destack/schema";
 import { TABLE, Condition, Now } from "@destack/db";
+import { t } from "@destack/locale";
+import { defineMethod } from "../method/method.ts";
+import { Empty } from "../method/procedure.ts";
 import { ObjectKey, type ObjectType } from "../object/object.ts";
-import { expiry } from "../method/expiring.ts";
 import { type TraitBehavior, callableTrait } from "./trait.ts";
 
 /** The most objects one expiry mutation removes: about a millisecond of deletes. */
@@ -19,12 +21,7 @@ export interface ExpiryRule {
 }
 
 /** Objects the code serving them removes once a rule's window passes. */
-const expiringTrait: TraitBehavior<readonly ExpiryRule[]> & {
-    /** Replicate an expiring object type with the rules its host sets. */
-    readonly after: <Self extends ObjectType>(object: Self, rules: readonly ExpiryRule[]) => Self;
-    /** Require at least one valid rule. */
-    readonly requireRules: (object: ObjectType, rules: readonly ExpiryRule[]) => void;
-} = {
+const expiringTrait: TraitBehavior<readonly ExpiryRule[]> = {
     key: "expiring",
     storages: ["durable"],
     options: (definition) => definition.expiring,
@@ -33,8 +30,8 @@ const expiringTrait: TraitBehavior<readonly ExpiryRule[]> & {
     // let the code serving the type expire its objects, through its role
     policy: (_options, _object, permissions) =>
         permissions.includes("expire") ? {} : { permissions: { expire: none() } },
-    methods: () => ({ expire: expiry }),
-    validate: (rules, object) => expiring.requireRules(object, rules),
+    methods: () => ({ expire: Expiring.expire }),
+    validate: (rules, object) => Expiring.requireRules(object, rules),
     // expire each scope's objects once a rule's window passed
     controllers: (rules, object) =>
         rules.map((rule, index) => ({
@@ -54,23 +51,35 @@ const expiringTrait: TraitBehavior<readonly ExpiryRule[]> & {
                 }
             },
         })),
-    after(object, rules) {
-        // require an expiring type
-        if (object.lifecycle.expiring === undefined) {
-            throw new TypeError(`object ${object.name} does not expire`);
-        }
+};
 
-        // replicate the type with the rules
-        expiring.requireRules(object, rules);
+/** Remove objects once a rule's window passes. */
+export const expiring = callableTrait("expiring", expiringTrait);
 
-        return object.with({
-            definition: {
-                ...object.definition,
-                expiring: rules,
-                source: { ...object.source, expiring: rules },
-            },
-        });
-    },
+/** The expiry of objects: removing them, and checking the rules that time it. */
+export const Expiring = {
+    /** Remove an expired object at any revision, past the trash. */
+    expire: defineMethod<{ kind: "delete"; permission: "expire"; mutates: true }>({
+        title: t`Expire`,
+        kind: "delete",
+        permission: "expire",
+        visibility: "package",
+        mutates: true,
+        target: "object",
+        result: "value",
+        procedure: (_name, schemas) => ({
+            route: { method: "DELETE", path: "/{id}" },
+            input: schemas.target.extend(schemas.replay),
+            output: Empty,
+        }),
+        handler: async (context) => {
+            await context.remove();
+
+            return {};
+        },
+    }),
+
+    /** Require at least one valid rule. */
     requireRules(object: ObjectType, rules: readonly ExpiryRule[]): void {
         // refuse an object expiring by no rule
         if (rules.length === 0) {
@@ -93,6 +102,3 @@ const expiringTrait: TraitBehavior<readonly ExpiryRule[]> & {
         }
     },
 };
-
-/** Remove objects once a rule's window passes. */
-export const expiring = callableTrait("expiring", expiringTrait);

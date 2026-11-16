@@ -57,7 +57,7 @@ import { Field, type FieldsByColumn, type ReferenceOf, type TextField } from "..
 import { type Handler, type TypesOf } from "../method/context.ts";
 import { CallSite } from "../method/site.ts";
 import { Method, type MethodKind, type Phase } from "../method/method.ts";
-import { MethodBuilder } from "../method/record.ts";
+import { MethodBuilder } from "../method/builder.ts";
 import { InputSchema } from "../method/input.ts";
 import {
     callableProcedures,
@@ -88,7 +88,7 @@ import {
     type ControlledDefinition,
     type ControlledMethodMap,
 } from "../trait/controlled.ts";
-import { attach, detach } from "../method/manager.ts";
+import { Declarable } from "../trait/declarable.ts";
 import { nested, type NestedMethodMap, type NestedDefinition } from "../trait/nested.ts";
 import { transitions, type TransitionMethodMap } from "../trait/transition.ts";
 import {
@@ -146,7 +146,12 @@ import {
     type OrderedFieldsOf,
     type Ordering,
 } from "../trait/orderable.ts";
-import { ObjectSearch, searchable, type SearchableDefinition } from "../trait/search.ts";
+import {
+    type Search,
+    searchable,
+    Searchable,
+    type SearchableDefinition,
+} from "../trait/searchable.ts";
 import { Chunk } from "../text/chunk.ts";
 import { chunk, chunkRun } from "../text/table.ts";
 import type {
@@ -748,7 +753,7 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
     /** How the store numbers the objects, absent for a type numbering none. */
     readonly numbering: Numbering | undefined;
     /** The fields search ranks and lists filter and order the objects by, if any. */
-    readonly searchable: ObjectSearch | undefined;
+    readonly search: Search | undefined;
     /** The event log's kind of an events type, absent for every other storage. */
     /** The schema of the objects' identifiers: natural key, or generated typed identifiers. */
     readonly idSchema: schema.Schema<string>;
@@ -794,10 +799,7 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
         this.presentation = Presentable.of(definition);
         this.ordering = Orderable.of(definition);
         this.numbering = Numbered.of(definition);
-        this.searchable =
-            definition.searchable === undefined
-                ? undefined
-                : ObjectSearch.of(definition.searchable);
+        this.search = Searchable.of(definition);
 
         // resolve the relations, add trait policies and register the policy
         const assembly = ObjectPolicy.policy(this, definition, owner);
@@ -2880,7 +2882,10 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
             methods: { ...declared, ...traitMethods },
         });
         const managing = isDeclarable
-            ? { detach: Method.declared(detach), attach: Method.declared(attach) }
+            ? {
+                  detach: Method.declared(Declarable.detach),
+                  attach: Method.declared(Declarable.attach),
+              }
             : {};
         const clash = [...Object.keys(traitMethods), ...Object.keys(managing)].find((name) =>
             Object.hasOwn(listed ?? {}, name),
@@ -3408,7 +3413,7 @@ type IsDeclarable<Definition, Methods> =
 /** The methods a durable type declaring create gives its records' managers. */
 export type ManagerMethodMap<Definition, Methods> =
     IsDeclarable<Definition, Methods> extends true
-        ? { readonly detach: typeof detach; readonly attach: typeof attach }
+        ? { readonly detach: typeof Declarable.detach; readonly attach: typeof Declarable.attach }
         : {};
 
 /** The methods an object's traits derive beside its declared ones. */

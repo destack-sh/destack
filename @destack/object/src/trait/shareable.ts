@@ -1,6 +1,8 @@
 import {
+    AccessContext,
     type AccessExpression,
     anyone,
+    Caller,
     Explanation,
     permission,
     principal,
@@ -10,17 +12,30 @@ import {
     union,
 } from "@destack/access";
 import { AccessName, Subject } from "@destack/sync";
+import type * as sync from "@destack/sync";
 import { Digest, Instant, schema } from "@destack/schema";
-import { type Method } from "../method/method.ts";
+import { t } from "@destack/locale";
+import { CallError } from "../error/call.ts";
+import { ObjectError } from "../error/error.ts";
+import { field } from "../field/field.ts";
+import { MethodContext } from "../method/context.ts";
+import { Execution, type StoreExecution } from "../method/execution.ts";
+import type { InputObject } from "../method/input.ts";
+import { defineMethod, Method, type MethodKind } from "../method/method.ts";
+import { Page } from "../method/page.ts";
 import {
+    Empty,
+    ListPage,
+    type MethodProcedure,
+    type ObjectSchema,
     PageFields,
     type Procedure,
     type ReplayFields,
+    type Route,
     type TargetFields,
-    ListPage,
 } from "../method/procedure.ts";
-import { field } from "../field/field.ts";
-import { ObjectError } from "../error/error.ts";
+import { Step } from "../method/step.ts";
+import { ObjectPolicy } from "../object/access.ts";
 import {
     ObjectPermissions,
     type ObjectDefinition,
@@ -29,8 +44,6 @@ import {
 } from "../object/object.ts";
 import type { TraitPermission, Erasure, TraitBehavior } from "./trait.ts";
 import { callableTrait } from "./trait.ts";
-
-import { ShareableMethod } from "../method/shareable.ts";
 /** The roles, lowest first: viewer, commenter, editor and owner. */
 const ROLES = ["viewer", "commenter", "editor", "owner"] as const;
 
@@ -70,19 +83,6 @@ export const GrantInput = schema.union([
     schema.object({ ...SubjectFields, relation: AccessName }),
     schema.object({ ...SubjectFields, role: schema.identifier("role") }),
 ]);
-
-/** Read a grant through exactly one declared relation or role, refusing both or neither. */
-export function readGrant(input: unknown): schema.Infer<typeof GrantInput> {
-    const grant = GrantInput.safeParse(input);
-    if (!grant.success) {
-        throw ObjectError.of(
-            "CALL_INVALID",
-            "grant is invalid: it must have exactly one relation or role",
-        );
-    }
-
-    return grant.data;
-}
 
 /** The fields inviting a subject to a relationship: the caller, a principal, or a contact. */
 export const InviteFields = {
@@ -329,7 +329,7 @@ const shareableTrait: TraitBehavior<SharingGate> = {
     },
     columns: () => ({}),
     constraints: () => [],
-    methods: (options) => ShareableMethod.methods(options),
+    methods: (options) => Shareable.methods(options),
 };
 
 /** Share objects through relationships and invitations. */
@@ -353,4 +353,230 @@ export type ShareableProcedures<Object extends ObjectType> = {
         schema.Object<TargetFields<Object> & ReplayFields<Object> & typeof RelationshipFields>,
         schema.Object<{}>
     >;
+};
+
+/** The signature of a sharing method, acting on one object by its identifier. */
+type SharingConfiguration = {
+    kind: MethodKind;
+    permission: string;
+    mutates: boolean;
+    target: "object" | "id";
+};
+
+/** The context of a sharing method. */
+type SharingContext = MethodContext<SharingConfiguration>;
+/** The shareable methods' handlers: sharing an object and paging its relationships. */
+export const Shareable = {
+    /** Read a grant through exactly one declared relation or role, refusing both or neither. */
+    readGrant(input: unknown): schema.Infer<typeof GrantInput> {
+        const grant = GrantInput.safeParse(input);
+        if (!grant.success) {
+            throw ObjectError.of(
+                "CALL_INVALID",
+                "grant is invalid: it must have exactly one relation or role",
+            );
+        }
+
+        return grant.data;
+    },
+
+    /** Declare an object's sharing methods: relationships, grants, invitations and explanations. */
+    methods({ grant, read }: SharingGate) {
+        return {
+            relationships: Shareable.sharingMethod(
+                "relationships",
+                { permission: read, mutates: false },
+                { method: "GET", path: "/{id}/relationships" },
+                (schemas) => schemas.target.extend(PageFields),
+                ListPage.schema(Relationship.schema),
+                async (call, { authorization }) => {
+                    // page the object's relationships by identifier
+                    const listing = Shareable.sharingPage(call, "relationships");
+                    const relationships = await authorization.authorizer.relationships(
+                        authorization.snapshot,
+                        call.reference(),
+                        authorization.access,
+                        {
+                            ...(listing.after === undefined ? {} : { after: listing.after }),
+                            limit: listing.limit + 1,
+                        },
+                    );
+
+                    return listing.result(relationships, (relationship) => relationship.id);
+                },
+            ),
+            grant: Shareable.sharingMethod(
+                "grant",
+                { permission: grant, mutates: true },
+                { method: "POST", path: "/{id}/relationships" },
+                (schemas) => schemas.target.extend({ ...schemas.replay, ...GrantFields }),
+                Relationship.schema,
+                async (call, execution) => {
+                    // grant only on an object outside the trash
+                    await ObjectPolicy.requireObject(
+                        call.reference(),
+                        { deleted: "exclude" },
+                        execution,
+                    );
+
+                    return Relationship.grant(
+                        {
+                            ...Shareable.readGrant(call.input),
+                            object: call.reference(),
+                        },
+                        execution.authorization,
+                    );
+                },
+                (step) => {
+                    // revoke the granted relationship
+                    const granted = Method.resultId(step.result);
+                    const call =
+                        granted === undefined
+                            ? undefined
+                            : Step.call(step, "revoke", {
+                                  ...Step.target(step),
+                                  relationshipId: granted,
+                              });
+
+                    return call === undefined ? undefined : [call];
+                },
+            ),
+            revoke: Shareable.sharingMethod(
+                "revoke",
+                { permission: grant, mutates: true },
+                { method: "DELETE", path: "/{id}/relationships/{relationshipId}" },
+                (schemas) => schemas.target.extend({ ...schemas.replay, ...RelationshipFields }),
+                Empty,
+                async (call, execution) => {
+                    // revoke on any object that exists, in the trash too
+                    await ObjectPolicy.requireObject(
+                        call.reference(),
+                        { deleted: "include" },
+                        execution,
+                    );
+                    await Relationship.revoke(
+                        call.reference(),
+                        schema.object(RelationshipFields).parse(call.input).relationshipId,
+                        execution.authorization,
+                    );
+
+                    return {};
+                },
+            ),
+            explain: defineMethod<SharingConfiguration>({
+                title: t`Explain`,
+                kind: "explain",
+                permission: read,
+                mutates: false,
+                target: "id",
+                result: "value",
+                isPredicted: false,
+                procedure: (_name, schemas) => ({
+                    route: { method: "GET", path: "/{id}/access" },
+                    input: schemas.target.extend(ExplainFields),
+                    output: Explanation,
+                }),
+                handler: (context, execution) =>
+                    Shareable.explain(context, Execution.store(execution, context)),
+            }),
+        };
+    },
+
+    /** Declare a sharing method: a listing loads its target, a change defers to its relation. */
+    sharingMethod(
+        kind: MethodKind,
+        access: { readonly permission: string; readonly mutates: boolean },
+        route: Route,
+        input: (schema: ObjectSchema) => InputObject,
+        output: MethodProcedure["output"],
+        handler: (context: SharingContext, execution: StoreExecution) => Promise<unknown>,
+        inverse?: (step: Step) => readonly sync.Call[] | undefined,
+    ): Method {
+        return defineMethod<SharingConfiguration>({
+            kind,
+            permission: access.permission,
+            mutates: access.mutates,
+            target: access.mutates ? "id" : "object",
+            result: "value",
+            isPredicted: false,
+            procedure: (_name, schemas) => ({ route, input: input(schemas), output }),
+            handler: (context, execution) => handler(context, Execution.store(execution, context)),
+            ...(inverse === undefined ? {} : { inverse }),
+        });
+    },
+
+    /** Explain a subject's permission on an object. */
+    async explain(
+        context: SharingContext,
+        { authorization }: StoreExecution,
+    ): Promise<Explanation> {
+        // resolve access in the governing scope
+        const { authorizer, snapshot } = authorization;
+        const { permission: asked, subject } = schema.object(ExplainFields).parse(context.input);
+        const object = context.object;
+        const target = context.reference();
+        const scope = authorizer.governingScope(target);
+        const access = await authorization.in(scope);
+        const explained = () =>
+            asked === undefined ? Shareable.requireReading(object) : object.permission(asked);
+
+        // explain another subject's access only to grantors
+        if (subject !== undefined) {
+            const grant = object.policy.definition.grantedBy;
+            const granting =
+                grant === undefined
+                    ? undefined
+                    : await authorizer.check(snapshot, object.permission(grant), target, access);
+            if (granting?.isAllowed !== true) {
+                throw ObjectError.of(
+                    "EXPLAIN_DENIED",
+                    `access explanation of ${object.name} is forbidden: it needs '${grant}'`,
+                );
+            }
+            const resolved = await authorizer.resolve(
+                snapshot,
+                scope,
+                AccessContext.of(Caller.of(subject), context.now),
+            );
+
+            return authorizer.explain(snapshot, explained(), target, resolved);
+        }
+        // explain the caller's access to an object it may read
+        else {
+            const reading = await authorizer.check(
+                snapshot,
+                Shareable.requireReading(object),
+                target,
+                access,
+            );
+            if (!reading.isAllowed) {
+                throw CallError.http("NOT_FOUND", {
+                    message: `${object.name} '${target.id}' not found`,
+                });
+            }
+
+            return authorizer.explain(snapshot, explained(), target, access);
+        }
+    },
+
+    /** Read the permission reading an object of a type needs. */
+    requireReading(object: ObjectType) {
+        if (object.reading === undefined) {
+            throw ObjectError.of(
+                "READING_REQUIRED",
+                `object of ${object.name} to read is required`,
+            );
+        }
+
+        return object.reading;
+    },
+
+    /** Read the page a sharing listing asks for, bound to its object. */
+    sharingPage(context: SharingContext, list: string) {
+        return new Page(
+            context.input,
+            [context.object.name, context.scope, context.id, list],
+            schema.string(),
+        );
+    },
 };

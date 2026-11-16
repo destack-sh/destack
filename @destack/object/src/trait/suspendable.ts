@@ -1,6 +1,6 @@
 import { integer } from "@destack/db";
 import { type Method } from "../method/method.ts";
-import { method } from "../method/record.ts";
+import { method } from "../method/builder.ts";
 import type { TraitPermission, TraitBehavior } from "./trait.ts";
 import { callableTrait } from "./trait.ts";
 import { Execution } from "../method/execution.ts";
@@ -15,30 +15,15 @@ export type SuspendableMethodMap<Suspend> = [Suspend] extends [string]
     : {};
 
 /** Scope objects that can be suspended. */
-const suspendableTrait: TraitBehavior<TraitPermission> & {
-    /** Declare the method suspending a scope object. */
-    readonly suspend: <const Permission extends string>(
-        permission: Permission,
-    ) => Method<{ kind: "custom"; permission: Permission; mutates: true }>;
-    /** Declare the method resuming a suspended scope object. */
-    readonly resume: <const Permission extends string>(
-        permission: Permission,
-    ) => Method<{ kind: "custom"; permission: Permission; mutates: true }>;
-    /** Declare the method suspending or resuming a scope object on the server. */
-    readonly change: <const Permission extends string>(
-        permission: Permission,
-        action: "suspend" | "resume",
-        inverse: "suspend" | "resume",
-    ) => Method<{ kind: "custom"; permission: Permission; mutates: true }>;
-} = {
+const suspendableTrait: TraitBehavior<TraitPermission> = {
     key: "suspendable",
     storages: ["durable"],
     options: (definition) => definition.suspendable,
-    columns: () => suspensionColumns(),
+    columns: () => Suspendable.columns(),
     constraints: () => [],
     methods: (options) => ({
-        suspend: suspendable.suspend(options.by),
-        resume: suspendable.resume(options.by),
+        suspend: Suspendable.method("suspend", options.by),
+        resume: Suspendable.method("resume", options.by),
     }),
     validate: (_options, object, definition) => {
         // require a scope type
@@ -46,20 +31,34 @@ const suspendableTrait: TraitBehavior<TraitPermission> & {
             throw new TypeError(`object ${object.name} is suspendable but not a scope`);
         }
     },
-    suspend: (permission) => suspendable.change(permission, "suspend", "resume"),
-    resume: (permission) => suspendable.change(permission, "resume", "suspend"),
-    change(permission, action, inverse) {
+};
+
+/** Let scope objects be suspended. */
+export const suspendable = callableTrait("suspendable", suspendableTrait);
+
+/** The column, methods and changes between a running scope object and a suspended one. */
+export const Suspendable = {
+    /** Build the column recording when a scope object was suspended. */
+    columns: suspensionColumns,
+
+    /** Declare the method suspending or resuming a scope object, undone by the other. */
+    method<const Permission extends string>(
+        kind: "suspend" | "resume",
+        permission: Permission,
+    ): Method<{ kind: "custom"; permission: Permission; mutates: true }> {
+        const inverse = kind === "suspend" ? "resume" : "suspend";
+
         return Execution.handle(
             method.mutation({ title: t`Change`, permission, inverse, isPredicted: false }),
             async (call, execution) => {
                 // record it on the row, which the scope's home follows, and on the scope where it is home here
                 const store = Execution.store(execution, call);
                 const target = await call.update({
-                    suspendedAt: action === "suspend" ? call.now : null,
+                    suspendedAt: kind === "suspend" ? call.now : null,
                 });
                 const reference = call.reference();
                 if (await store.store.authorizer.isHome(store.transaction.view(), reference.id)) {
-                    await store.authorization[action](reference);
+                    await store.authorization[kind](reference);
                 }
 
                 return target;
@@ -68,13 +67,13 @@ const suspendableTrait: TraitBehavior<TraitPermission> & {
     },
 };
 
-/** Let scope objects be suspended. */
-export const suspendable = callableTrait("suspendable", suspendableTrait);
-
 /** Build the column recording when a scope object was suspended. */
-export function suspensionColumns() {
+function suspensionColumns() {
     return {
         /** The time the scope was suspended, null while it runs. */
         suspendedAt: integer("suspended_at"),
     };
 }
+
+/** The column of a suspendable scope object. */
+export type SuspensionColumns = ReturnType<typeof suspensionColumns>;

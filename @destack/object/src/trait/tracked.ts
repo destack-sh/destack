@@ -41,28 +41,27 @@ export type TrackedProcedures<Object extends ObjectType> = {
 type PositionField = { readonly at: typeof LogPosition };
 
 /** Objects recording their history, grouped into activities. */
-const trackedTrait: TraitBehavior<TrackedDefinition> & {
-    /** Revert an object's written fields to a position. */
-    readonly revert: (permission: string) => Method;
-    /** Read the call's object at the input's position, readable by the caller then and now. */
-    readonly earlier: (
-        context: MethodContext<{ readonly table: Table }, unknown>,
-        execution: StoreExecution,
-        permission: Permission,
-    ) => Promise<Row>;
-} = {
+const trackedTrait: TraitBehavior<TrackedDefinition> = {
     key: "tracked",
     storages: ["durable"],
     options: (definition) => definition.tracked,
     columns: () => ({}),
     constraints: () => [],
-    methods: (options) => ({ revert: tracked.revert(options.by) }),
+    methods: (options) => ({ revert: Tracked.revert(options.by) }),
     validate: (options, object) => {
         // require a valid session
         if (options.session !== undefined) {
             Duration.require(options.session, `history session of ${object.name}`);
         }
     },
+};
+
+/** Record objects' history, grouped into activities. */
+export const tracked = callableTrait("tracked", trackedTrait);
+
+/** The history of tracked objects: reverting them and reading them as of a position. */
+export const Tracked = {
+    /** Revert an object's written fields to a position. */
     revert(permission: string): Method {
         return defineMethod<{ kind: "revert" }>({
             title: t`Revert`,
@@ -79,7 +78,7 @@ const trackedTrait: TraitBehavior<TrackedDefinition> & {
             }),
             handler: async (context, execution) => {
                 // write back the changed fields the history records, sensitive ones being unlogged
-                const row = await tracked.earlier(
+                const row = await Tracked.earlier(
                     context,
                     Execution.store(execution, context),
                     present(
@@ -127,6 +126,8 @@ const trackedTrait: TraitBehavior<TrackedDefinition> & {
             },
         });
     },
+
+    /** Read the call's object at the input's position, readable by the caller then and now. */
     earlier(
         context: MethodContext<{ readonly table: Table }, unknown>,
         execution: StoreExecution,
@@ -138,6 +139,3 @@ const trackedTrait: TraitBehavior<TrackedDefinition> & {
         return execution.authorization.readIn(context, context.id, snapshot, permission);
     },
 };
-
-/** Record objects' history, grouped into activities. */
-export const tracked = callableTrait("tracked", trackedTrait);

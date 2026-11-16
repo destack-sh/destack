@@ -13,7 +13,6 @@ import { testServerContext } from "@destack/object/test";
 import { testEvents, serversOf } from "../src/test/index.ts";
 import { Scope, type Uplink } from "@destack/sync";
 import { testCallKey } from "@destack/object/test";
-import { ShareableMethod } from "../src/method/shareable.ts";
 import { QUERIES_PUBLICATION } from "../src/replica/replica.ts";
 import { ObjectStore, implementPackage } from "../src/server/index.ts";
 import { openSpace, space, spacePrincipal } from "../src/test/space.ts";
@@ -23,7 +22,7 @@ import { tablesOf } from "../src/index.ts";
 import objectPackage from "../src/package.ts";
 import { installedPackage } from "@destack/access";
 import { TestObjectStore } from "../src/test/index.ts";
-import { shareable } from "../src/index.ts";
+import { shareable, Shareable } from "../src/index.ts";
 import { argument, plural, t } from "@destack/locale";
 
 /** The space whose partition the cards live in. */
@@ -337,7 +336,7 @@ test("derive the roles of a shared partition without sharing methods on its row,
                     },
                 },
                 () => ({
-                    explain: ShareableMethod.methods({ grant: "manage", read: "read" }).explain,
+                    explain: Shareable.methods({ grant: "manage", read: "read" }).explain,
                 }),
             ),
         ),

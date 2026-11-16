@@ -1,10 +1,10 @@
-export { archivable } from "./archivable.ts";
-export { recoverable } from "./recoverable.ts";
+export { archivable, Archivable } from "./archivable.ts";
+export { recoverable, Recoverable } from "./recoverable.ts";
 export type { ManagedTable } from "./record.ts";
-export { controlled, type ControlledDefinition } from "./controlled.ts";
-export { suspendable } from "./suspendable.ts";
-export { fencing } from "./fencing.ts";
-export { bindable, CONSUMER } from "./bindable.ts";
+export { controlled, Controlled, type ControlledDefinition } from "./controlled.ts";
+export { suspendable, Suspendable } from "./suspendable.ts";
+export { fencing, Fencing } from "./fencing.ts";
+export { bindable, Bindable, CONSUMER } from "./bindable.ts";
 export {
     provisioned,
     Provisioned,
@@ -12,9 +12,9 @@ export {
     type ResourceType,
     type Resource,
 } from "./provisioned.ts";
-export { tracked, type TrackedDefinition } from "./tracked.ts";
-export { nested, ParentReference } from "./nested.ts";
-export { expiring, type ExpiryRule } from "./expiring.ts";
+export { tracked, Tracked, type TrackedDefinition } from "./tracked.ts";
+export { nested, Nested, ParentReference } from "./nested.ts";
+export { expiring, Expiring, type ExpiryRule } from "./expiring.ts";
 export {
     presentable,
     Presentable,
@@ -24,8 +24,9 @@ export {
     Icon,
     Presentation,
 } from "./presentable.ts";
-export { ObjectSearch, searchable, type SearchableDefinition } from "./search.ts";
+export { type Search, searchable, Searchable, type SearchableDefinition } from "./searchable.ts";
 export { orderable, Orderable, type OrderableDefinition, type Ordering } from "./orderable.ts";
-export { readGrant, shareable } from "./shareable.ts";
+export { shareable, Shareable } from "./shareable.ts";
 export { numbered, Numbered, type NumberedDefinition } from "./numbered.ts";
-export { audited, declarable, propagated, type Trait } from "./trait.ts";
+export { audited, propagated, type Trait } from "./trait.ts";
+export { declarable, Declarable } from "./declarable.ts";

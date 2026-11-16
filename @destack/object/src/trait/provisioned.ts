@@ -2,11 +2,14 @@ import { callableTrait } from "./trait.ts";
 import { principal, relation, none } from "@destack/access";
 import type { Select, Table } from "@destack/db";
 import { PackageId } from "@destack/package";
-import { ResourcePlacement, ResourceRetention } from "@destack/resource";
-import { schema } from "@destack/schema";
+import { ResourcePlacement, ResourceRetention, Risk } from "@destack/resource";
+import { Digest, schema } from "@destack/schema";
+import { t } from "@destack/locale";
+import { ObjectError } from "../error/error.ts";
+import { Execution } from "../method/execution.ts";
 import { Scope } from "@destack/sync";
 import { field, type FieldsByColumn } from "../field/field.ts";
-import { method } from "../method/record.ts";
+import { method, MethodBuilder } from "../method/builder.ts";
 import {
     ObjectPermissions,
     type ObjectDefinition,
@@ -21,7 +24,6 @@ import { CONSUMER } from "./bindable.ts";
 import type { RolePermission } from "./shareable.ts";
 import type { Erasure } from "./trait.ts";
 
-import { restore, specify } from "../method/provisioned.ts";
 import type { Kind, Provisioning } from "@destack/package";
 
 /** The constraints every resource takes. */
@@ -231,6 +233,45 @@ export const Provisioned = {
         return row.reference !== null;
     },
 };
+
+/** The method declarations of provisioned resources. */
+const provisionedMethod = new MethodBuilder<ResourceTable<unknown>>();
+
+/** Cancel a retiring resource's deletion, as its declaration declares it again. */
+const restore = provisionedMethod
+    .mutation({ title: t`Restore`, permission: "declare", visibility: "installation" })
+    .handle((context) => context.update({ deletedAt: null }));
+
+/** Write the desired states' digests and the approval threshold. */
+const specify = Execution.handle(
+    provisionedMethod.mutation({
+        title: t`Specify`,
+        permission: "declare",
+        visibility: "installation",
+        input: schema.object({
+            /** The digests of the states the active consumers need. */
+            states: schema.array(Digest),
+            /** The digests of the states only draining consumers still need. */
+            drainingStates: schema.array(Digest),
+            /** The least risk of a plan that waits for approval. */
+            approval: Risk,
+        }),
+    }),
+    async (call, execution) => {
+        // refuse a state without a blob, then write the digests
+        const { states, drainingStates } = call.input;
+        const { blobs } = Execution.store(execution, call).store;
+        const missing = await blobs.missing([...new Set([...states, ...drainingStates])]);
+        if (missing.length > 0) {
+            throw ObjectError.of(
+                "STATE_REQUIRED",
+                `desired state set '${missing.join(", ")}' of '${call.scope}' is required`,
+            );
+        }
+
+        return await call.update(call.input);
+    },
+);
 
 /** Declare the methods every resource takes beside those of its kind. */
 function resourceMethods() {

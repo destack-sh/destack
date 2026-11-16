@@ -29,9 +29,7 @@ type ArchiveConfiguration<Permission extends string> = {
 };
 
 /** The columns of an archivable object. */
-export type ArchiveBuilderMap<Archivable> = Archivable extends undefined
-    ? {}
-    : ReturnType<typeof archiveColumns>;
+export type ArchiveBuilderMap<Options> = Options extends undefined ? {} : ArchiveColumns;
 
 /** The methods archivable objects take. */
 export type ArchivableMethodMap<Archive> = [Archive] extends [string]
@@ -54,27 +52,35 @@ export type ArchivableProcedures<Object extends ObjectType> = {
 };
 
 /** Objects archived out of everyday lists, kept read-only until unarchived. */
-const archivableTrait: TraitBehavior<TraitPermission> & {
-    /** Declare the method archiving or unarchiving an object, undone by the other. */
-    readonly change: <const Permission extends string>(
-        kind: "archive" | "unarchive",
-        permission: Permission,
-    ) => Method<ArchiveConfiguration<Permission>>;
-} = {
+const archivableTrait: TraitBehavior<TraitPermission> = {
     key: "archivable",
     storages: ["durable"],
     options: (definition) => definition.archivable,
-    columns: () => archiveColumns(),
+    columns: () => Archivable.columns(),
     constraints: () => [],
     policy: () => ({ attributes: { "archived-at": "number" } }),
     methods: (options) => ({
-        archive: archivableTrait.change("archive", options.by),
-        unarchive: archivableTrait.change("unarchive", options.by),
+        archive: Archivable.method("archive", options.by),
+        unarchive: Archivable.method("unarchive", options.by),
     }),
-    change(kind, permission) {
+};
+
+/** Archive objects out of everyday lists, read-only until unarchived. */
+export const archivable = callableTrait("archivable", archivableTrait);
+
+/** The columns, methods and changes between an object in use and an archived one. */
+export const Archivable = {
+    /** Build the column recording when an object was archived. */
+    columns: archiveColumns,
+
+    /** Declare the method archiving or unarchiving an object, undone by the other. */
+    method<const Permission extends string>(
+        kind: "archive" | "unarchive",
+        permission: Permission,
+    ): Method<ArchiveConfiguration<Permission>> {
         const inverse = kind === "archive" ? "unarchive" : "archive";
 
-        return defineMethod<ArchiveConfiguration<typeof permission> & { table: ArchivableTable }>({
+        return defineMethod<ArchiveConfiguration<Permission> & { table: ArchivableTable }>({
             title: kind === "archive" ? t`Archive` : t`Unarchive`,
             kind,
             permission,
@@ -96,13 +102,7 @@ const archivableTrait: TraitBehavior<TraitPermission> & {
             },
         });
     },
-};
 
-/** Archive objects out of everyday lists, read-only until unarchived. */
-export const archivable = callableTrait("archivable", archivableTrait);
-
-/** The changes between an object in use and an archived one. */
-const Archivable = {
     /** Archive or unarchive a call's target, refusing one already in that state. */
     async change(
         context: MethodContext<{ readonly table: ArchivableTable }, unknown>,
@@ -129,9 +129,12 @@ const Archivable = {
 };
 
 /** Build the column recording when an object was archived. */
-export function archiveColumns() {
+function archiveColumns() {
     return {
         /** The time the object was archived, null while in use. */
         archivedAt: integer("archived_at"),
     };
 }
+
+/** The column of an archivable object. */
+export type ArchiveColumns = ReturnType<typeof archiveColumns>;
