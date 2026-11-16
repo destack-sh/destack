@@ -7,7 +7,7 @@ import { ObjectReference, RequestId, Scope } from "@destack/sync";
 import { principal } from "@destack/access";
 import { expect, refusal, single, test } from "@destack/test";
 import { defineSecret, defineVault } from "../declare/index.ts";
-import { SECRET_RECOVERY, secret, secretVersion } from "../object/index.ts";
+import { ROTATION_OVERLAP, SECRET_RECOVERY, secret, secretVersion } from "../object/index.ts";
 import { SecretVersion } from "./version.ts";
 import vaultPackage from "../package.ts";
 import {
@@ -94,7 +94,7 @@ test("roundtrip bounded text and binary values without committing rejected write
     });
 });
 
-test("add a version, point the current alias at it, destroy and restore, recording each read's version alone", async () => {
+test("point the current alias at a version across destroy and restore", async () => {
     const fixture = await TestVault.open();
     const caller = await fixture.elevated();
     const client = caller.client(vaultPackage);
@@ -245,7 +245,7 @@ test("refuse writing a version with a past expiry and reading an expired version
     ]);
 });
 
-test("rotate to a given value, keeping the rotated-out version live through its overlap and earlier history out of the live versions", async () => {
+test("keep the rotated-out version live through its overlap", async () => {
     const fixture = await TestVault.open();
     const caller = await fixture.elevated();
     const client = caller.client(vaultPackage);
@@ -290,7 +290,7 @@ test("rotate to a given value, keeping the rotated-out version live through its 
     });
 });
 
-test("rotate a generated secret to a new value of its algorithm, a capture of it using the version retiring beside it", async () => {
+test("rotate a generated secret to a new key of its algorithm", async () => {
     // install the application with a key the space generates, then rotate it as the owner
     const fixture = await TestVault.open({ secrets: [KEY] });
     const { database } = fixture.space;
@@ -298,6 +298,7 @@ test("rotate a generated secret to a new value of its algorithm, a capture of it
     const key = { scope: ids.space, id: row.id };
     const client = (await fixture.elevated()).client(vaultPackage);
     const [first] = await client.secret.versions(key);
+    const rotatedAt = fixture.clock.now();
     await client.secret.rotate({ ...key, requestId: RequestId.create(fixture.environment) });
     const rotated = await client.secret.versions(key);
 
@@ -318,15 +319,17 @@ test("rotate a generated secret to a new value of its algorithm, a capture of it
         algorithm: single(await database.select().from(secret.table)).algorithm,
         versions: rotated.map((reading) => reading.version),
         algorithms: texts.map((text) => Jwk.parse(JSON.parse(text)).alg),
-        kept: rotated[1]?.value.value === first?.value.value,
+        retiring: rotated[1],
         isNew: texts[0] !== texts[1],
+        expiries: versions.map((version) => version.expiresAt),
         uses,
     }).toEqual({
         algorithm: "ES256",
         versions: [2, 1],
         algorithms: ["ES256", "ES256"],
-        kept: true,
+        retiring: first,
         isNew: true,
+        expiries: [rotatedAt + Duration.milliseconds(ROTATION_OVERLAP), null],
         uses: [
             secret.reference(ids.space, row.id),
             ...[versions[1], versions[0]].map((version) =>
@@ -336,7 +339,7 @@ test("rotate a generated secret to a new value of its algorithm, a capture of it
     });
 });
 
-test("keep a secret's name in its vault until its deletion, then refuse restoring it while another secret has the name", async () => {
+test("refuse restoring a secret whose name another took", async () => {
     const fixture = await TestVault.open();
     const client = fixture.owner.client(vaultPackage);
     const vaultId = await fixture.vault();
@@ -373,7 +376,7 @@ test("keep a secret's name in its vault until its deletion, then refuse restorin
     expect([taken, second.name, restored]).toEqual([conflict, "token", conflict]);
 });
 
-test("purge a deleted secret at once or when its window ends, destroying its values and keeping its records", async () => {
+test("purge a deleted secret at once or after its recovery window", async () => {
     const fixture = await TestVault.open();
     const client = fixture.owner.client(vaultPackage);
     const { database } = fixture.space;
@@ -531,7 +534,7 @@ test("refuse reading a version whose stored value was copied from another versio
     ]);
 });
 
-test("deny plaintext while the space is suspended, keeping its metadata readable", async () => {
+test("refuse revealing a secret while its space is suspended", async () => {
     const fixture = await TestVault.open();
     const caller = await fixture.elevated();
     const client = caller.client(vaultPackage);
@@ -555,7 +558,7 @@ test("deny plaintext while the space is suspended, keeping its metadata readable
     ]);
 });
 
-test("deny plaintext to a member who may not reveal, keeping metadata readable", async () => {
+test("refuse revealing a secret to a member without reveal", async () => {
     const fixture = await TestVault.open();
     const { key } = await fixture.createSecret(fixture.owner);
     const member = await fixture.elevated(await fixture.member(CONCEALING));
@@ -568,7 +571,7 @@ test("deny plaintext to a member who may not reveal, keeping metadata readable",
     ]);
 });
 
-test("reveal a missing version only to readers of the secret", async () => {
+test("conceal a missing version from a stranger", async () => {
     const fixture = await TestVault.open();
     const { key } = await fixture.createSecret(fixture.owner);
     const missing = { ...key, version: 2 };
@@ -602,7 +605,7 @@ test("challenge a person's reveal for a step-up, and reveal once they authentica
     ]);
 });
 
-test("generate a declared key in the vault its installation binds, and read what a capture of each version uses", async () => {
+test("generate a declared key in the vault its installation binds", async () => {
     // install the application declaring its credentials vault and a key generated in it
     const fixture = await TestVault.open({ secrets: [KEY] });
     const { database } = fixture.space;
@@ -700,7 +703,7 @@ test("fail installing a key generated in a vault the installation declares nowhe
     ]);
 });
 
-test("bind a secret the stack declares at a fixed version, and trash it once the stack drops it", async () => {
+test("bind a declared secret at a fixed version until the stack drops it", async () => {
     // declare a vault and a secret in it through the space's stack, with two versions
     const fixture = await TestVault.open({ vaults: [] });
     await fixture.space.apply([vaultPackage], {
@@ -762,7 +765,7 @@ test("bind a secret the stack declares at a fixed version, and trash it once the
     });
 });
 
-test("point a secret the stack declares at a version as the space's owner, keeping it across the stack's next apply", async () => {
+test("keep a declared secret's current version across a stack apply", async () => {
     // declare a vault and a secret in it through the space's stack, and write a version
     const fixture = await TestVault.open({ vaults: [] });
     const stack = {

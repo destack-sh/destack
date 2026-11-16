@@ -102,7 +102,7 @@ test("read a vault's secret by name, never a secret of the same name in another 
     });
 });
 
-test("let an installation bound to a vault read its secrets by name without a step-up, and conceal the vault from another", async () => {
+test("read a bound vault's secret by name, concealing it from a stranger", async () => {
     // bind the consumer to the application's vault, and install a stranger binding nothing
     const fixture = await TestVault.open();
     await fixture.createSecret(fixture.owner);
@@ -124,29 +124,15 @@ test("let an installation bound to a vault read its secrets by name without a st
     ]);
 });
 
-test("put a consumer's secret as one live version through its vault, refuse another name, read it as the consumer, conceal it from a stranger, and remove it", async () => {
-    // put twice through the vault as the application binding it, at a paused time
+test("put a consumer's secret as its one live version", async () => {
+    // put twice through the vault as the application binding it, and install a stranger
     const fixture = await TestVault.open();
     const stranger = await fixture.space.install(
         await TestVault.build(STRANGER, [], [], fixture.environment.crypto),
     );
     const target = { vault: await fixture.vault(), secret: secret.generateId(fixture.environment) };
-    const time = fixture.clock.now();
     await put(fixture, fixture.installation, target, "first");
     await put(fixture, fixture.installation, target, "second");
-
-    // refuse putting the secret again under another name
-    const renamed = await refusal(
-        fixture.mutate(
-            fixture.installation,
-            vault.call("put", {
-                ...vault.target({ scope: ids.space, id: target.vault }),
-                secret: target.secret,
-                name: "other",
-                value: { encoding: "text", value: "third" },
-            }),
-        ),
-    );
 
     // read the live value as the application, refusing the stranger
     const read = (installation: Identifier<"installation">) =>
@@ -163,6 +149,47 @@ test("put a consumer's secret as one live version through its vault, refuse anot
         })
         .from(secretVersion.table)
         .orderBy(secretVersion.table.number);
+    expect({ live, concealed, versions }).toEqual({
+        live: { version: 2, value: { encoding: "text", value: "second" } },
+        concealed: ["NOT_FOUND", "NOT_FOUND", `secret '${target.secret}' not found`],
+        versions: [
+            { number: 1, state: "destroyed" },
+            { number: 2, state: "enabled" },
+        ],
+    });
+});
+
+test("refuse a put under another consumer's name", async () => {
+    // put through the vault as the application binding it
+    const fixture = await TestVault.open();
+    const target = { vault: await fixture.vault(), secret: secret.generateId(fixture.environment) };
+    await put(fixture, fixture.installation, target, "first");
+
+    // refuse putting the secret again under another name
+    const renamed = await refusal(
+        fixture.mutate(
+            fixture.installation,
+            vault.call("put", {
+                ...vault.target({ scope: ids.space, id: target.vault }),
+                secret: target.secret,
+                name: "other",
+                value: { encoding: "text", value: "second" },
+            }),
+        ),
+    );
+    expect(renamed).toEqual([
+        "PRECONDITION_FAILED",
+        "SECRET_BLOCKED",
+        `cannot update secret '${target.secret}' as 'other': it is 'token' in this vault`,
+    ]);
+});
+
+test("remove a put secret at once", async () => {
+    // put through the vault as the application binding it, at a paused time
+    const fixture = await TestVault.open();
+    const target = { vault: await fixture.vault(), secret: secret.generateId(fixture.environment) };
+    const time = fixture.clock.now();
+    await put(fixture, fixture.installation, target, "first");
 
     // remove it with its values
     await fixture.mutate(
@@ -179,28 +206,51 @@ test("put a consumer's secret as one live version through its vault, refuse anot
             purgedAt: secret.table.purgedAt,
         })
         .from(secret.table);
-    expect({ renamed, live, concealed, versions, removed }).toEqual({
-        renamed: [
-            "PRECONDITION_FAILED",
-            "SECRET_BLOCKED",
-            `cannot update secret '${target.secret}' as 'other': it is 'token' in this vault`,
+    expect(removed).toEqual([{ name: "token", deletedAt: time, purgedAt: time }]);
+});
+
+test("refuse another consumer replacing a put secret", async () => {
+    // bind the consumer to the application's vault, and put twice as the application
+    const fixture = await TestVault.open();
+    const credentials = await fixture.vault();
+    const other = await installConsumer(fixture, { type: "vault", id: credentials });
+    const target = { vault: credentials, secret: secret.generateId(fixture.environment) };
+    await put(fixture, fixture.installation, target, "first");
+    await put(fixture, fixture.installation, target, "second");
+
+    // refuse the consumer replacing or removing the application's secret
+    const replaced = await refusal(put(fixture, other, target, "stolen"));
+    const removed = await refusal(
+        fixture.mutate(
+            other,
+            vault.call("remove", {
+                ...vault.target({ scope: ids.space, id: credentials }),
+                secret: target.secret,
+            }),
+        ),
+    );
+
+    // read the secret as the application, unchanged
+    const after = await fixture
+        .installed(fixture.installation)
+        .client(vaultPackage)
+        .secret.read({ scope: ids.space, id: target.secret });
+    expect({ replaced, removed, after }).toEqual({
+        replaced: [
+            "FORBIDDEN",
+            "PERMISSION_DENIED",
+            "permission 'update' is forbidden: the caller lacks it",
         ],
-        live: { version: 2, value: { encoding: "text", value: "second" } },
-        concealed: ["NOT_FOUND", "NOT_FOUND", `secret '${target.secret}' not found`],
-        versions: [
-            { number: 1, state: "destroyed" },
-            { number: 2, state: "enabled" },
-        ],
-        removed: [{ name: "token", deletedAt: time, purgedAt: time }],
+        removed: ["NOT_FOUND", "NOT_FOUND", `secret '${target.secret}' not found`],
+        after: { version: 2, value: { encoding: "text", value: "second" } },
     });
 });
 
-test("let installations bound to a vault put and rotate their own secrets there, refusing another consumer their replacement and an installation bound to one secret the whole vault", async () => {
-    // bind the consumer to the application's vault, and a stranger's installation to one of its secrets
+test("refuse a put from an installation bound to one secret", async () => {
+    // bind a stranger's installation to one secret of the application's vault
     const fixture = await TestVault.open();
     const credentials = await fixture.vault();
     const declared = await fixture.createSecret(fixture.owner);
-    const other = await installConsumer(fixture, { type: "vault", id: credentials });
     const reader = await fixture.space.install(
         await TestVault.build(
             STRANGER,
@@ -217,26 +267,7 @@ test("let installations bound to a vault put and rotate their own secrets there,
         },
     );
 
-    // put and rotate the application's own secret, and refuse the others replacing, removing or planting one
-    const target = { vault: credentials, secret: secret.generateId(fixture.environment) };
-    const read = () =>
-        fixture
-            .installed(fixture.installation)
-            .client(vaultPackage)
-            .secret.read({ scope: ids.space, id: target.secret });
-    await put(fixture, fixture.installation, target, "first");
-    await put(fixture, fixture.installation, target, "second");
-    const rotated = await read();
-    const replaced = await refusal(put(fixture, other, target, "stolen"));
-    const removed = await refusal(
-        fixture.mutate(
-            other,
-            vault.call("remove", {
-                ...vault.target({ scope: ids.space, id: credentials }),
-                secret: target.secret,
-            }),
-        ),
-    );
+    // refuse the stranger planting a secret in the whole vault
     const planted = await refusal(
         put(
             fixture,
@@ -245,17 +276,7 @@ test("let installations bound to a vault put and rotate their own secrets there,
             "planted",
         ),
     );
-    expect({ rotated, replaced, removed, planted, after: await read() }).toEqual({
-        rotated: { version: 2, value: { encoding: "text", value: "second" } },
-        replaced: [
-            "FORBIDDEN",
-            "PERMISSION_DENIED",
-            "permission 'update' is forbidden: the caller lacks it",
-        ],
-        removed: ["NOT_FOUND", "NOT_FOUND", `secret '${target.secret}' not found`],
-        planted: ["NOT_FOUND", "NOT_FOUND", `vault '${credentials}' not found`],
-        after: { version: 2, value: { encoding: "text", value: "second" } },
-    });
+    expect(planted).toEqual(["NOT_FOUND", "NOT_FOUND", `vault '${credentials}' not found`]);
 });
 
 test("destroy a vault's secrets with their records on its removal from the stack", async () => {
