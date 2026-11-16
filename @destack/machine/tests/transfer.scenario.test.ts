@@ -337,53 +337,61 @@ test("refuse a transfer without step-up or to a foreign machine", async () => {
     ]);
 });
 
-test("move the space's logged tables and the tables main applied", async () => {
+test("move every table with a space's rows and the tables main applied, leaving the universe's and the machine's", async () => {
     // plan the move from the fixture's store, before main applies any package's tables
     await using fixture = await TestSpace.open();
     const { database } = fixture;
     const moving = { space: ids.space, scope: ids.account, machine: fixture.machine.id, epoch: 1 };
     const steps = await SpaceTransfer.of(await fixture.store(), moving, UNKNOWN_MACHINE);
 
-    // list the transfer table first, then the logged space tables in declaration order,
-    //  leaving out the space's row from the universe
-    expect(steps.space.tables.map((table) => table[TABLE].sqlName)).toEqual([
-        "destack__stack__transfer",
-        "destack__sync__scope",
-        "destack__access__role",
-        "destack__access__role_permission",
-        "destack__access__relationship",
-        "destack__access__invitation",
-        "destack__object__call",
-        "destack__event__segment",
-        "destack__event__segment_deletion",
-        "destack__object__proof",
-        "destack__object__installation",
-        "destack__object__branch",
-        "destack__object__branch_entry",
-        "destack__object__branch_change",
-        "destack__object__approval",
-        "destack__object__change_request",
-        "destack__stack__rollout",
-        "destack__stack__installation_revision",
-        "destack__stack__deployment",
-        "destack__stack__instance",
-        "destack__stack__build",
-        "destack__stack__route",
-        "destack__stack__reading",
-        "destack__setting__setting",
-        "destack__stack__database",
-        "destack__stack__bucket",
-        "destack__stack__dependency",
-        "destack__stack__mail",
-        "destack__stack__git",
-        "destack__registry__repository",
-        "destack__registry__package",
-        "destack__registry__release",
-        "destack__object__chunk",
-        "destack__object__chunk_run",
-        "destack__object__counter",
-        "destack__account__identity_key",
-    ]);
+    // move the transfer table first and each table with a scope column once,
+    //  leaving out the tables the universe replicates here and the machine's own
+    const first = steps.space.tables.map((table) => table[TABLE].sqlName);
+    const scoped = database.tables
+        .filter((table) => table[TABLE].columns["scope"] !== undefined)
+        .map((table) => table[TABLE].sqlName);
+    expect({
+        first: first[0],
+        isMovedOnce: new Set(first).size === first.length,
+        unscoped: first.filter((name) => !scoped.includes(name)),
+        left: scoped.filter((name) => !first.includes(name)).toSorted(),
+    }).toEqual({
+        first: "destack__stack__transfer",
+        isMovedOnce: true,
+        unscoped: [],
+        left: [
+            "destack__access__grant",
+            "destack__account__account",
+            "destack__account__assignment",
+            "destack__account__client",
+            "destack__account__entitlement",
+            "destack__account__hostname",
+            "destack__account__key",
+            "destack__account__machine",
+            "destack__account__organization",
+            "destack__account__placement",
+            "destack__account__residency",
+            "destack__account__space",
+            "destack__account__user",
+            "destack__object__claim",
+            "destack__object__follow_key",
+            "destack__object__journal",
+            "destack__object__replica_request",
+            "destack__object__settlement",
+            "destack__registry__reference",
+            "destack__registry__tag",
+            "destack__stack__restore",
+            "destack__stack__snapshot",
+            "destack__stack__usage",
+            "destack__sync__replica",
+            "destack__sync__replica_key",
+            "destack__sync__replica_page",
+            "destack__sync__replica_position",
+            "destack__sync__replica_result",
+            "destack__sync__replica_subscription",
+            "destack__sync__subscription",
+        ],
+    });
 
     // apply an installed package's pins to the space's provisioned main database
     const pinState = DatabaseState.of([pin]);
