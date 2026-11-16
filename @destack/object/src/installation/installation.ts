@@ -1,5 +1,5 @@
 import { none, principal, self } from "@destack/access";
-import { Expression, type Select, type Snapshot } from "@destack/db";
+import type { Select, Snapshot } from "@destack/db";
 import { ComputeDefinition, DeclarationName, DirectoryGrant, PackageId } from "@destack/package";
 import { type Identifier, schema } from "@destack/schema";
 import { InstallationName } from "./name.ts";
@@ -45,16 +45,6 @@ export const installation = defineObject(
             directories: field.json(schema.array(DirectoryGrant)).default([]),
             /** How its server is isolated: a sandbox, or the machine's own process once trusted. */
             isolation: field.enum(["sandbox", "host"]).default("sandbox"),
-        },
-        convert: {
-            // read the process isolation that releases before 2026.11.0 stored as host
-            "2026.11.0": {
-                isolation: Expression.case(
-                    Expression.column("isolation"),
-                    [{ when: "process", then: Expression.literal("host") }],
-                    Expression.column("isolation"),
-                ),
-            },
         },
         constraints: {
             managerInstallation: {
