@@ -1,4 +1,5 @@
 import { Digest, type JsonValue, present, schema } from "@destack/schema";
+import { Failure } from "@destack/error";
 import { dirname, join, relative } from "node:path";
 import { testHost } from "@destack/test/host";
 import { fileURLToPath } from "node:url";
@@ -56,9 +57,19 @@ export const RunRecord = schema.object({
     dialect: Dialect,
     /** The longest one template's build may take, in milliseconds. */
     deadline: schema.number(),
+    /** When the run opened, in UTC epoch milliseconds, which marks the builds that failed in it. */
+    openedAt: schema.number(),
 });
 /** Where a run keeps its images and what they are of. */
 export type RunRecord = schema.Infer<typeof RunRecord>;
+
+/** A template's build that failed in a run, which the run's other tests fail with at once. */
+const BuildFailure = schema.object({
+    /** When the run it failed in opened. */
+    openedAt: schema.number(),
+    /** Why it failed, with its causes. */
+    message: schema.string(),
+});
 
 /** The run's provided values the templates read. */
 declare module "vitest" {
@@ -118,7 +129,13 @@ export const TestRun = {
         const release = await cache.use();
 
         return {
-            record: { directory: cache.directory, id: cache.id, dialect, deadline },
+            record: {
+                directory: cache.directory,
+                id: cache.id,
+                dialect,
+                deadline,
+                openedAt: HOST.clock.now(),
+            },
             release,
         };
     },
@@ -267,8 +284,30 @@ class ImageCache {
             return built;
         }
         await using _building = await HOST.files.lock(`${file}.build`, "exclusive");
+        const rebuilt = await ImageCache.#read(file);
+        if (rebuilt !== undefined) {
+            return rebuilt;
+        }
 
-        return (await ImageCache.#read(file)) ?? (await ImageCache.#build(template, run, file));
+        // fail at once with a build's failure earlier in this run, as its inputs are the same
+        const failure = `${file}.failed`;
+        if (await HOST.files.exists(failure)) {
+            const failed = BuildFailure.parse(JSON.parse(await HOST.files.readTextFile(failure)));
+            if (failed.openedAt === run.openedAt) {
+                throw new Error(`building template '${template.name}' failed: ${failed.message}`);
+            }
+        }
+
+        // build it, recording a failure for the run's other tests
+        try {
+            return await ImageCache.#build(template, run, file);
+        } catch (error) {
+            // record why with the failure's causes
+            const messages = Failure.causes(error).map((each) => each.message);
+            const failed = { openedAt: run.openedAt, message: messages.join(": ") };
+            await HOST.files.writeTextFile(failure, JSON.stringify(failed));
+            throw error;
+        }
     }
 
     /** Read a built image's record and claim its schemas, absent when unbuilt or not whole. */
