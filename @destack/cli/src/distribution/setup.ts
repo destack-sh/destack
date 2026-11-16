@@ -412,14 +412,25 @@ export class Setup {
             );
         }
 
-        // stage the latest release, copying the downloaded one's files
+        // register the installed release again when it is the latest
         const available = await updater.check();
-        if (available === undefined) {
+        const current = await updater.current();
+        if (available === undefined && current !== undefined) {
+            await (application === undefined
+                ? this.#registerArchive(current)
+                : this.#registerApplication(application));
+
+            return;
+        }
+        // refuse the latest release running from a download while none is installed
+        else if (available === undefined) {
             throw UpdateError.of(
                 "RELEASE_EXISTS",
                 "an installation of the latest Destack release already exists",
             );
         }
+
+        // stage the latest release, copying the downloaded one's files
         const download = await available.download(source === undefined ? {} : { source });
         const staged = await updater.stage(download);
 
