@@ -256,7 +256,10 @@ export const ObjectController = {
 
     /** Watch the scopes whose fence or suspension changes, listing the job again. */
     released(): Watch {
-        return { table: Scope.table, fields: [...RELEASING_FIELDS], isListing: true };
+        // match a scope fenced or suspended before or after the change, leaving a new free scope
+        const where = { OR: RELEASING_FIELDS.map((field) => ({ [field]: { isNotNull: true } })) };
+
+        return { table: Scope.table, fields: [...RELEASING_FIELDS], where, isListing: true };
     },
 
     /** Resolve a watch's relation names along its path through the store's relations. */
