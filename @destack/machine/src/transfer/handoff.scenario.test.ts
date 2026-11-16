@@ -15,9 +15,9 @@ test("serve a moving space's target only the blobs the space's rows reference an
     const fixture = await TestSpace.open();
     const now = fixture.machine.clock.now();
     const target = await fixture.universe.enroll(fixture.owner, ids.account, "http://target.test/");
-    const served = await fixture.serve();
+    await fixture.serve();
     await fixture.simulation.idle();
-    const owner = served.as(fixture.owner.subject).stepUp().endpoint(stackPackage);
+    const owner = fixture.as(fixture.owner.subject).stepUp().endpoint(stackPackage);
     await createClient(stackPackage, owner, fixture.machine.environment).transfer.create({
         spaceId: ids.space,
         requestId: RequestId.create(fixture.machine.environment),
@@ -25,8 +25,9 @@ test("serve a moving space's target only the blobs the space's rows reference an
     });
 
     // write a blob a snapshot of the space reads, and a stray no row references once its write's lease ends
+    const { blobs } = await fixture.space;
     const write = (text: string) =>
-        fixture.blobs.write(
+        blobs.write(
             (async function* () {
                 yield new TextEncoder().encode(text);
             })(),
@@ -52,9 +53,7 @@ test("serve a moving space's target only the blobs the space's rows reference an
     // list and read the snapshot's blob as the target, and refuse the other blob and another machine
     const read = async (caller: string, digest: Digest) => {
         const chunks: Uint8Array[] = [];
-        for await (const blob of fixture
-            .handoff(served, served.as(caller))
-            .batch(ids.space, [digest])) {
+        for await (const blob of fixture.handoff(fixture.as(caller)).batch(ids.space, [digest])) {
             for await (const chunk of blob.body) {
                 chunks.push(chunk);
             }
@@ -63,9 +62,9 @@ test("serve a moving space's target only the blobs the space's rows reference an
         return new TextDecoder().decode(Buffer.concat(chunks));
     };
     await fixture.simulation.jump(
-        fixture.simulation.clock.now() + fixture.blobs.leaseMilliseconds + 1,
+        fixture.simulation.clock.now() + (await fixture.space).blobs.leaseMilliseconds + 1,
     );
-    const listed = await fixture.handoff(served, served.as(target.id)).blobs(ids.space);
+    const listed = await fixture.handoff(fixture.as(target.id)).blobs(ids.space);
     const [main] = await fixture.database
         .select({ states: object.database.table.states })
         .from(object.database.table)

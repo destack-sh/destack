@@ -14,9 +14,9 @@ test("list a space's live sockets to its members only", async () => {
     // serve the owner's space with its sockets in memory
     const fixture = await TestSpace.open({});
     const sockets = await fixture.sockets();
-    const served = await fixture.serve({ sockets });
+    await fixture.serve();
     const listed = async (user: string | Subject) =>
-        (await served.as(user).client(stackPackage).socket.list({ spaceId: ids.space })).items
+        (await fixture.as(user).client(stackPackage).socket.list({ spaceId: ids.space })).items
             .toSorted((left, right) => left.kind.localeCompare(right.kind))
             .map((item) => [
                 item.kind,
@@ -75,11 +75,11 @@ test("show a socket's client and session to its principal and the space's manage
     // serve the owner's space, whose stack lets a viewer read its sockets
     const fixture = await TestSpace.open({});
     const sockets = await fixture.sockets();
-    const served = await fixture.serve({ sockets });
+    await fixture.serve();
     const owner = fixture.owner.subject;
     const person = await fixture.universe.signIn("viewer@example.com");
     const viewer = person.subject;
-    await fixture.apply(served, [], {
+    await fixture.apply([], {
         roles: {
             viewer: { description: "Sees who is here", permissions: [socket.permission("read")] },
         },
@@ -96,9 +96,7 @@ test("show a socket's client and session to its principal and the space's manage
         client: browser,
         session: "client:5f1d",
     });
-    await fixture.simulation.sleep(
-        fixture.simulation.clock.now() + 1 - fixture.simulation.clock.now(),
-    );
+    await fixture.simulation.sleep(1);
     await sockets.connect(ids.space, {
         kind: "tab",
         principal: viewer,
@@ -106,7 +104,7 @@ test("show a socket's client and session to its principal and the space's manage
         session: "client:9c2e",
     });
     const listed = async (user: string | Subject) =>
-        (await served.as(user).client(stackPackage).socket.list({ spaceId: ids.space })).items.map(
+        (await fixture.as(user).client(stackPackage).socket.list({ spaceId: ids.space })).items.map(
             (item) => [ObjectReference.at("principal", item), item.clientId, item.session],
         );
 

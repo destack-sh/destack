@@ -1,11 +1,13 @@
 import type { Runtime } from "@destack/package/runtime";
 import { Failure } from "@destack/error";
 import { BucketKind } from "@destack/bucket/declare";
-import { InstallationKind } from "@destack/object";
+import { InstallationKind, type InstallationSelection } from "@destack/object";
 import type { Crypto } from "@destack/environment";
 import { StackDefinition } from "@destack/stack/declare";
 import { StackError } from "@destack/stack/error";
-import { type Digest, type JsonObject, schema } from "@destack/schema";
+import { type Digest, type JsonObject, present, schema } from "@destack/schema";
+import { ObjectReference, Scope } from "@destack/sync";
+import { release, tag } from "@destack/registry/object";
 import { PackageVersion, PackageId, type PackageRelease } from "@destack/package";
 import {
     type BuildReader,
@@ -109,6 +111,12 @@ export function fixtureOutputs(
     );
 }
 
+/** The home space of the fixture registry's forge, which no machine of a test world serves. */
+const FORGE_HOME = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-0000000000f0");
+
+/** The hex digits a UUIDv8 leaves free past its version and variant: a fixture name's 9 bytes. */
+const FIXTURE_NAME_DIGITS = 18;
+
 /** The registry the fixture's releases come from. */
 export class TestRegistry implements Registry, ReleaseRegistry {
     /** The stored fixture builds. */
@@ -118,6 +126,8 @@ export class TestRegistry implements Registry, ReleaseRegistry {
 
     /** The fixture app whose declared releases it serves, absent where it serves released ones. */
     readonly #fixture: PackageId | undefined;
+    /** The forges a served machine calls for repositories, absent before one serves. */
+    #forges: Pick<Registry, "followed"> | undefined;
 
     /** Serve the releases released to it from a store, and a fixture app's declared releases. */
     constructor(store: BuildStore, fixture?: PackageId) {
@@ -126,9 +136,9 @@ export class TestRegistry implements Registry, ReleaseRegistry {
     }
 
     /** Find a release at a version or a tag: one released to it, or the fixture app's. */
-    async find(packageId: PackageId, release: string): Promise<Digest> {
+    async find(packageId: PackageId, named: string): Promise<Digest> {
         // find a release published to the registry
-        const version = TAGS[release] ?? release;
+        const version = TAGS[named] ?? named;
         const pushed = this.#pushed.get(`${packageId}@${version}`);
         if (pushed !== undefined) {
             return pushed;
@@ -146,17 +156,84 @@ export class TestRegistry implements Registry, ReleaseRegistry {
                 code: "NOT_FOUND",
                 reason: "RELEASE_NOT_FOUND",
                 domain: "@destack/forge",
-                message: `release '${release}' of '${packageId}' not found`,
+                message: `release '${named}' of '${packageId}' not found`,
             });
         }
+    }
+
+    /** Call the forges of a machine's world for repositories, as the machine does. */
+    serve(forges: Pick<Registry, "followed">): void {
+        this.#forges = forges;
+    }
+
+    /** Follow a release or a tag as a fixture row, and a repository's reference at its forge. */
+    async followed(
+        packageId: PackageId,
+        selection: Exclude<InstallationSelection, { readonly kind: "host" | "checkout" }>,
+    ): Promise<ObjectReference> {
+        // read a repository's reference at its forge
+        if (selection.kind === "repository") {
+            return await this.#served().followed(packageId, selection);
+        }
+
+        // stand the release or tag for a fixture row of its type
+        return selection.kind === "release"
+            ? TestRegistry.row("release", selection.version)
+            : TestRegistry.row("tag", selection.tag);
+    }
+
+    /** Stand a release or a tag of the fixture registry for a row, its identifier naming it. */
+    static row(kind: "release" | "tag", name: string): ObjectReference {
+        // stand a tag in its forge's home, where a space follows it from
+        const id = `${kind}-${TestRegistry.#encode(name)}`;
+
+        return kind === "release"
+            ? release.reference(Scope.universe.id, id)
+            : tag.reference(FORGE_HOME, id);
+    }
+
+    /** Read the version a followed release or tag stands for. */
+    async version(_packageId: PackageId, followed: ObjectReference): Promise<string> {
+        const named = TestRegistry.#decode(followed.id);
+
+        return TAGS[named] ?? named;
+    }
+
+    /** Write a fixture row's name into the free digits of a UUIDv8, so its identifier is valid. */
+    static #encode(name: string): string {
+        // refuse a name longer than the free digits hold
+        const hex = new TextEncoder().encode(name).toHex();
+        if (hex.length > FIXTURE_NAME_DIGITS) {
+            throw new RangeError(`fixture row name '${name}' is longer than 9 bytes`);
+        }
+
+        // place the digits around the version and the variant
+        const digits = hex.padEnd(FIXTURE_NAME_DIGITS, "0");
+
+        return `00000000-0000-8${digits.slice(0, 3)}-8${digits.slice(3, 6)}-${digits.slice(6)}`;
+    }
+
+    /** Read the name a fixture row's identifier carries. */
+    static #decode(id: string): string {
+        // take the free digits of its UUID, dropping the padding
+        const uuid = id.slice(-36);
+        const digits = `${uuid.slice(15, 18)}${uuid.slice(20, 23)}${uuid.slice(24)}`;
+        const bytes = Uint8Array.fromHex(digits.replace(/(?:00)+$/u, ""));
+
+        return new TextDecoder().decode(bytes);
+    }
+
+    /** Take the forges of the served machine. */
+    #served(): Pick<Registry, "followed"> {
+        return present(this.#forges, "the forges of a served machine");
     }
 
     /** The releases its distribution ships: none, as the fixture registry ships none. */
     readonly distribution: readonly PackageRelease[] = [];
 
     /** Open a release's build, as the universe opens the stacks it applies. */
-    async open(packageId: PackageId, release: string): Promise<BuildReader> {
-        const lock = await this.#store.lock(await this.find(packageId, release));
+    async open(packageId: PackageId, named: string): Promise<BuildReader> {
+        const lock = await this.#store.lock(await this.find(packageId, named));
 
         return await this.#store.contents(lock.root);
     }

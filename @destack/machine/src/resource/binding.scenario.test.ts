@@ -1,3 +1,4 @@
+import { TestRegistry } from "../test/build.ts";
 import { ObjectReference, Scope } from "@destack/sync";
 import { expect, test } from "@destack/test";
 import { type BindingSelection, installation } from "@destack/object";
@@ -6,7 +7,7 @@ import { Identifier, present, schema } from "@destack/schema";
 import * as object from "@destack/stack/object";
 import * as accountObject from "@destack/account/object";
 import { eq, Transaction } from "@destack/db";
-import { ids, insertRollout, reconcile, TestSpace } from "../test/index.ts";
+import { ids, insertRollout, TestSpace } from "../test/index.ts";
 
 test("deploy an installation capturing each binding at its target's generation or its pinned version, and relate it to the captured resources", async () => {
     // add two provisioned buckets at different generations, bound by one installation with one binding pinned
@@ -51,7 +52,7 @@ test("deploy an installation capturing each binding at its target's generation o
             scope: ids.space,
             packageId: ids.package,
             name: "notes",
-            selection: { kind: "release", version: "2026.9.1" },
+            follows: TestRegistry.row("release", "2026.9.1"),
             installer: fixture.owner.subject,
         },
         record.createdAt,
@@ -70,10 +71,7 @@ test("deploy an installation capturing each binding at its target's generation o
 
     // follow the release, bind its declared targets, and deploy it once the space serves it, capturing the bindings
     await fixture.release(ids.package, "2026.9.1");
-    const store = (await fixture.spaceStore()).store;
-    await reconcile(store, "rollout", { installationId: ids.notes });
-    await fixture.applyInstalled(store);
-    await reconcile(store, "rollout", { installationId: ids.notes });
+    await fixture.simulation.idle();
 
     // run the unpinned binding at the target's generation and the pinned one at its pinned generation
     const [deployed] = await database
@@ -85,13 +83,17 @@ test("deploy an installation capturing each binding at its target's generation o
         .select()
         .from(object.installationRevision.table)
         .where(eq(object.installationRevision.table.id, created.revisionId));
+    const [target] = await database
+        .select({ generation: object.bucket.table.generation })
+        .from(object.bucket.table)
+        .where(eq(object.bucket.table.id, ledger.id));
     expect(
         present(revision, "the deployment's revision")
             .bindings.map((entry) => [entry.name, entry.target, entry.version])
             .toSorted((left, right) => String(left[0]).localeCompare(String(right[0]))),
     ).toEqual([
         ["archive", archive.id, 4],
-        ["ledger", ledger.id, 3],
+        ["ledger", ledger.id, present(target, "the ledger").generation],
     ]);
 
     // leave the deployment live

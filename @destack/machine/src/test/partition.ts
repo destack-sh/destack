@@ -1,12 +1,12 @@
 import { Account, account, space } from "@destack/account/object";
 import { defineObject, definePackage, field } from "@destack/object";
 import { implementPackage } from "@destack/object/server";
-import { testBuild, testIdentity, type TestObjectStore } from "@destack/object/test";
+import { testBuild, testIdentity } from "@destack/object/test";
 import { testHost } from "@destack/test/host";
 import { TestPackage } from "./package.ts";
 import { PackageVersion } from "@destack/package";
 import { present, schema, type Identifier } from "@destack/schema";
-import { ids, TestSpace, type HostedSpace } from "./space.ts";
+import { ids, TestSpace, type AccountSpace } from "./space.ts";
 import { propagated } from "@destack/object";
 import { argument, plural, t } from "@destack/locale";
 
@@ -66,7 +66,7 @@ export const BOARD_PACKAGE: TestPackage = {
 const OTHER_SPACE = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-0000000000d1");
 
 /** The spaces the partition world hosts: the account's home, then another space of the account. */
-const SPACES: readonly HostedSpace[] = [
+const SPACES: readonly AccountSpace[] = [
     { id: Account.home(ids.account), account: ids.account, name: "home" },
     { id: OTHER_SPACE, account: ids.account, name: "other" },
 ];
@@ -83,18 +83,12 @@ export class TestPartition {
     readonly home: TestSpace;
     /** The other space of the account. */
     readonly other: TestSpace;
-    /** The home's served store, with the board installed. */
-    readonly homed: TestObjectStore;
-    /** The other space's served store, with the board installed. */
-    readonly served: TestObjectStore;
 
     /** Keep the two spaces and their served stores. */
-    private constructor(fields: Pick<TestPartition, "home" | "other" | "homed" | "served">) {
+    private constructor(fields: Pick<TestPartition, "home" | "other">) {
         // keep the spaces and their stores
         this.home = fields.home;
         this.other = fields.other;
-        this.homed = fields.homed;
-        this.served = fields.served;
     }
 
     /** Open the account's home and the other space from their template, each serving the board. */
@@ -104,23 +98,19 @@ export class TestPartition {
             PARTITION_TEMPLATE,
             TestPackage.options([BOARD_PACKAGE]),
         );
-        const copied = (id: Identifier<"space">) => present(spaces.get(id), `space ${id}`);
-        const home = copied(Account.home(ids.account));
-        const other = copied(OTHER_SPACE);
+        // take the account's home and the other space from the copy, installing the board in each
+        const find = (id: Identifier<"space">) => present(spaces.get(id), `space ${id}`);
+        const home = find(Account.home(ids.account));
+        const other = find(OTHER_SPACE);
+        await TestPartition.#install(home);
+        await TestPartition.#install(other);
 
-        return new TestPartition({
-            home,
-            other,
-            homed: await TestPartition.#installed(home),
-            served: await TestPartition.#installed(other),
-        });
+        return new TestPartition({ home, other });
     }
 
-    /** Serve a space with the board installed in process, served again once installed. */
-    static async #installed(hosted: TestSpace): Promise<TestObjectStore> {
-        // install the board as the space's owner, then serve its installed set
-        await hosted.install(await hosted.serve(), BOARD_PACKAGE.build, { isolation: "host" });
-
-        return hosted.serve();
+    /** Install the board in a space in process as its owner. */
+    static async #install(fixture: TestSpace): Promise<void> {
+        await fixture.serve();
+        await fixture.install(BOARD_PACKAGE.build, { isolation: "host" });
     }
 }

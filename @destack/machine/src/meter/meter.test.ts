@@ -8,7 +8,6 @@ import { expect, test } from "@destack/test";
 import { Traffic } from "../gateway/traffic.ts";
 import { SpaceMeter } from "./meter.ts";
 import type { Reading } from "./reading.ts";
-import { METER_OPTIONS, METER_START } from "../computer/test/templates.ts";
 
 /** Order readings by time, then by meter, as the log orders one time's readings by id. */
 function byTime(left: Logged, right: Logged): number {
@@ -27,6 +26,12 @@ interface Logged {
 
 /** The milliseconds in a minute, the space's reading interval. */
 const MINUTE = 60_000;
+
+/** The start of January 2026, the month the meter's scenario measures in. */
+const METER_START = Date.UTC(2026, 0, 1);
+
+/** The space of the meter's scenario, from its month's start. */
+const METER_OPTIONS = { start: METER_START };
 
 /** Wait for traffic that never comes, until the signal aborts. */
 function quiet(signal: AbortSignal): Promise<void> {
@@ -55,8 +60,8 @@ test("append a space's use as readings each round, measuring a failed round in t
     // serve a space, in a world the scenario moves
     const fixture = await TestSpace.open(METER_OPTIONS);
     const world = fixture.environment;
-    const served = await fixture.serve({ isControlled: false });
-    const { store } = served;
+    await fixture.serve();
+    const store = await fixture.store();
     const { events } = store;
     const spaceId = fixture.id;
     const accountId = fixture.account;
@@ -179,8 +184,8 @@ test("read nothing while a space idles, then its use a minute into its next traf
     // serve a space, read once, then follow its activity
     const fixture = await TestSpace.open(METER_OPTIONS);
     const world = fixture.environment;
-    const served = await fixture.serve({ isControlled: false });
-    const { store } = served;
+    await fixture.serve();
+    const store = await fixture.store();
     const spaceId = fixture.id;
     const traffic = new Traffic();
     const measured: [number, number][] = [];

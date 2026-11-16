@@ -1,3 +1,4 @@
+import { TestRegistry } from "../test/build.ts";
 import { testIdentity } from "@destack/object/test";
 import { eq } from "@destack/db";
 import { testBuild } from "@destack/object/test";
@@ -15,7 +16,7 @@ import objectDefinition from "@destack/object/destack.json" with { type: "json" 
 import { describeObject } from "@destack/object/inspect";
 import { ids, insertRelease, insertRollout, readStack, TestSpace } from "../test/index.ts";
 import { note } from "../test/schema.ts";
-import { database, installationRevision } from "@destack/stack/object";
+import { database, installationRevision, rollout } from "@destack/stack/object";
 import { t } from "@destack/locale";
 
 /** The one host the test package lists by name. */
@@ -49,7 +50,7 @@ async function installCaller(connect: readonly string[]) {
         ],
         linked: [build],
     });
-    await fixture.install(await fixture.serve(), build);
+    await fixture.install(build);
     await fixture.serve();
 
     return { fixture, context: present(contexts.at(-1), "the installation's context") };
@@ -147,9 +148,11 @@ test("call a wildcard's public hosts alone, and follow redirects without credent
 const STATE = { tables: { sqlite: [], postgresql: [] } };
 
 test("serve an installation once its targets are bound and the space's main database applied its tables, while a later plan waits, a stack at once, and none without main", async () => {
-    // install notes at a revision declaring a note type, bound to main
+    // install notes at a revision declaring a note type, bound to main, on a stopped machine so no job reads beside
     const fixture = await TestSpace.open();
     const { database: connection } = fixture;
+    const space = await fixture.space;
+    await fixture.stop();
     const now = fixture.machine.clock.now();
     const record = { scope: ids.space, createdAt: now, updatedAt: now };
     const main = nth(await connection.select().from(database.table), 0);
@@ -161,7 +164,7 @@ test("serve an installation once its targets are bound and the space's main data
             scope: ids.space,
             packageId: ids.package,
             name: "notes",
-            selection: { kind: "release", version: "2026.9.0" },
+            follows: TestRegistry.row("release", "2026.9.0"),
             installer: fixture.owner.subject,
         },
         record.createdAt,
@@ -179,7 +182,7 @@ test("serve an installation once its targets are bound and the space's main data
         [],
         fixture.machine.environment,
     );
-    const state = await fixture.blobs.writeJson(STATE);
+    const state = await space.blobs.writeJson(STATE);
     await connection.transaction(
         async (transaction) =>
             await transaction.insert(installationRevision.table).values({
@@ -197,9 +200,9 @@ test("serve an installation once its targets are bound and the space's main data
     await connection.transaction(
         async (transaction) =>
             await transaction
-                .update(installation.table)
-                .set({ revisionId: revision })
-                .where(eq(installation.table.id, ids.notes)),
+                .update(rollout.table)
+                .set({ targetRevisionId: revision })
+                .where(eq(rollout.table.installationId, ids.notes)),
     );
     const notes = await MemoryBuild.of(
         PackageVersion.parse({ id: ids.package, name: "@example/notes", version: "2026.9.0" }),
@@ -214,11 +217,11 @@ test("serve an installation once its targets are bound and the space's main data
         fixture.environment.crypto,
     );
     const open = async (packageId: PackageId, lock: Digest) =>
-        lock === release.lock ? notes : fixture.space.root(packageId, lock);
+        lock === release.lock ? notes : space.root(packageId, lock);
     const served = async (
         opening: (packageId: PackageId, lock: Digest) => Promise<BuildReader> = open,
     ) =>
-        (await fixture.space.installations(opening))
+        (await space.installations(opening))
             .map((entry) => [
                 entry.rollout.installationId,
                 entry.declarations.map((each) => each.name),

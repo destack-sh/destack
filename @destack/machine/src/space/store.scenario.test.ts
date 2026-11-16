@@ -8,11 +8,11 @@ import { expect, refusal, test } from "@destack/test";
 import stackPackage from "@destack/stack/package";
 import { ids, readStack, TestSpace } from "../test/index.ts";
 
-test("follow the served space's own rows as its machine serves them", async () => {
+test("follow a space's own rows as its machine serves it", async () => {
     // serve a space its universe placed on the machine
     const fixture = await TestSpace.open();
-    const { store } = await fixture.spaceStore();
-    const machineId = fixture.space.machine.id;
+    const store = await fixture.store();
+    const machineId = (await fixture.space).machine.id;
 
     // list the replicas of the space's own shape in its database
     const expected = Shape.subscription(
@@ -35,12 +35,12 @@ test("follow the served space's own rows as its machine serves them", async () =
 test("serve a person calling the space with the token their client exchanges for it, and refuse a stranger's", async () => {
     // list the space's installations as its owner, and as a person with no role in it
     const fixture = await TestSpace.open();
-    const served = await fixture.serve();
+    await fixture.serve();
     const stranger = await fixture.universe.signIn("stranger@example.test");
     const listing = (caller: ReturnType<TestSpace["person"]>) =>
         caller.client(stackPackage).rollout.list({ spaceId: fixture.id });
-    const owned = await listing(fixture.person(served, fixture.owner));
-    const refused = await refusal(listing(fixture.person(served, stranger)));
+    const owned = await listing(fixture.person(fixture.owner));
+    const refused = await refusal(listing(fixture.person(stranger)));
 
     // list the space's stack to its owner, and conceal the space from the stranger
     const stack = await readStack(fixture.database);

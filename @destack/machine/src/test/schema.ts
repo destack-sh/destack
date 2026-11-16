@@ -1,6 +1,6 @@
 import { principal, relation } from "@destack/access";
 import { space } from "@destack/account/object";
-import { defineObject, field } from "@destack/object";
+import { defineObject, field, Provisioned } from "@destack/object";
 import { schema } from "@destack/schema";
 import * as object from "@destack/stack/object";
 import { PackageVersion } from "@destack/package";
@@ -13,7 +13,7 @@ const NOTES = PackageVersion.parse({
     version: "2026.9.0",
 });
 
-/** A type of the notes package, declared by stacks and waiting for their main database. */
+/** A type of the notes package, declared by stacks and waiting for their archive database. */
 export const gauge = defineObject(
     {
         name: "gauge",
@@ -36,15 +36,15 @@ export const gauge = defineObject(
     declaration: {
         after: [object.database],
         resolve: async (_name, declared, plan) => {
-            // wait while the main database is not applied
-            const [main] = await plan.transaction.read(object.database.table).findMany({
+            // wait until the archive database is provisioned
+            const [archive] = await plan.transaction.read(object.database.table).findMany({
                 where: {
                     scope: schema.identifier("space").parse(plan.stack.scope),
-                    name: "main",
+                    name: "archive",
                 },
             });
-            if (main?.conditions["Ready"]?.reason !== "Applied") {
-                plan.wait("main is not ready");
+            if (archive === undefined || !Provisioned.isProvisioned(archive)) {
+                plan.wait("archive is not provisioned");
             }
 
             return declared;

@@ -1,10 +1,11 @@
+import { TestRegistry } from "../../test/build.ts";
 import { Identity } from "@destack/account/object";
 import { TokenVerifier } from "@destack/access/token";
 import { Directory } from "@destack/account/address";
 import type { S3Server } from "@destack/bucket/s3";
 import { installation, type Package } from "@destack/object";
 import { ids, type TestSpace } from "../../test/space.ts";
-import { insertRelease, insertRollout } from "../../test/install.ts";
+import { insertRollout } from "../../test/install.ts";
 import { workload } from "../../test/build.ts";
 import { deployment, instance, installationRevision, rollout } from "@destack/stack/object";
 import { eq } from "@destack/db";
@@ -152,16 +153,17 @@ export async function deployNotes(
     const { database } = space;
     const { environment } = space.machine;
     const now = environment.clock.now();
-    const release = await insertRelease(
-        database,
-        ids.space,
-        { package: ids.package, version: "2026.9.0", lock: Digest.parse("d".repeat(64)) },
-        ["server"],
-        environment,
-    );
-    const selection = { kind: "release" as const, version: "2026.9.0" };
+    const release = await space.release(ids.package, "2026.9.0");
     const notes = { id: ids.notes, scope: ids.space, packageId: ids.package, name: "notes" };
-    await insertRollout(database, { ...notes, selection, installer: space.owner.subject }, now);
+    await insertRollout(
+        database,
+        {
+            ...notes,
+            follows: TestRegistry.row("release", "2026.9.0"),
+            installer: space.owner.subject,
+        },
+        now,
+    );
 
     // follow the release's revision, applied, served and deployed as the machine's start leaves it
     const record = { scope: ids.space, createdAt: now, updatedAt: now };
@@ -194,7 +196,6 @@ export async function deployNotes(
         await transaction
             .update(installation.table)
             .set({
-                revisionId,
                 conditions: {
                     Synced: { ...observed, reason: "ReconcileSuccess" },
                     Ready: { ...observed, reason: "Deployed" },
@@ -203,7 +204,11 @@ export async function deployNotes(
             .where(eq(installation.table.id, ids.notes));
         await transaction
             .update(rollout.table)
-            .set({ appliedRevisionId: revisionId, servedRevisionId: revisionId })
+            .set({
+                targetRevisionId: revisionId,
+                appliedRevisionId: revisionId,
+                servedRevisionId: revisionId,
+            })
             .where(eq(rollout.table.installationId, ids.notes));
     });
 

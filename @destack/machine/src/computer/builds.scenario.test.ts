@@ -8,9 +8,9 @@ import type { Launcher } from "../launcher/index.ts";
 import { PackageId } from "@destack/package";
 import { reference, referenceShape } from "@destack/registry/object";
 import forgePackage from "@destack/forge/package";
-import { type Identifier, present } from "@destack/schema";
+import { type Identifier, present, schema } from "@destack/schema";
 import { createClient } from "@destack/object/client";
-import { RequestId } from "@destack/sync";
+import { RequestId, ObjectReference } from "@destack/sync";
 import * as stackObject from "@destack/stack/object";
 import { installation } from "@destack/object";
 import { build, installationRevision } from "@destack/stack/object";
@@ -90,21 +90,37 @@ async function pushHome() {
         person.endpoint(objectPackage.id, await device.locate(world.owner.home)),
         device.environment,
     );
-    const install = () =>
+    // follow the main branch as the person
+    const follow = async () => {
+        const { items } = await owner.reference.list({
+            spaceId: residency,
+            where: { parentId: created.id, name: MAIN },
+            limit: 1,
+        });
+        const [found] = items;
+
+        return reference.reference(residency, present(found, "the main branch").id);
+    };
+    const install = async () =>
         service.installation.create({
             scope: world.owner.home,
             requestId: RequestId.create(home.environment),
             packageId: SITE,
-            selection: {
-                kind: "repository",
-                repository: created.id,
-                reference: MAIN,
-                directory: ".",
-            },
+            ...ObjectReference.columns("follows", await follow()),
+            directory: ".",
             name: "site",
         });
 
-    return { home, residency, space: world.owner.home, repository: created, list, push, install };
+    return {
+        home,
+        residency,
+        space: world.owner.home,
+        repository: created,
+        list,
+        push,
+        install,
+        followed: follow,
+    };
 }
 
 /** Wait until the residency's home serves its forge in its store, answering it as the owner. */
@@ -224,19 +240,15 @@ async function writeSite(directory: string, files: FileSystem): Promise<string> 
 async function followed(database: DatabaseConnection, id: Identifier<"installation">) {
     const [row] = await database
         .select({ buildId: installationRevision.table.buildId })
-        .from(installation.table)
+        .from(stackObject.rollout.table)
         .innerJoin(
             installationRevision.table,
-            eq(installationRevision.table.id, installation.table.revisionId),
-        )
-        .innerJoin(
-            stackObject.rollout.table,
             and(
-                eq(stackObject.rollout.table.installationId, installation.table.id),
-                eq(stackObject.rollout.table.servedRevisionId, installation.table.revisionId),
+                eq(installationRevision.table.id, stackObject.rollout.table.targetRevisionId),
+                eq(installationRevision.table.id, stackObject.rollout.table.servedRevisionId),
             ),
         )
-        .where(eq(installation.table.id, id));
+        .where(eq(stackObject.rollout.table.installationId, id));
 
     return row?.buildId;
 }
@@ -261,12 +273,12 @@ async function git(directory: string, ...command: string[]): Promise<string> {
 }
 
 test("build each commit a push moves main to once in the space selecting it, pulling it as the space, and deploy it from the machine's build store", async () => {
-    // install the site following main and push its first version
+    // push the site's first version and install it following main
     const site = await pushHome();
     const { machine } = site.home;
     const { space } = site;
-    const installed = await site.install();
     const first = await site.push(1);
+    const installed = await site.install();
     const served = (await machine.space(space)).database;
 
     // wait until the installation follows the first commit's build
@@ -344,7 +356,8 @@ test("replicate the branch a space's installation follows as the space inside th
     const served = (await machine.space(space)).database;
 
     // wait until the space's replica of main applied its first snapshot
-    const key = { scope: site.residency, repository: site.repository.id, name: MAIN };
+    const main = await site.followed();
+    const key = { scope: site.residency, id: schema.identifier("reference").parse(main.id) };
     await site.home.world.simulation.wait(
         served.log.waitUntil(
             () => referenceShape.isSynced(served, key),

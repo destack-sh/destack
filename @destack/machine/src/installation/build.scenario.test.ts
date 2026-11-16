@@ -1,3 +1,4 @@
+import { checkout } from "../computer/checkout/object/index.ts";
 import { Failure } from "@destack/error";
 import { Identifier, schema, Digest } from "@destack/schema";
 import { expect, Recording, test } from "@destack/test";
@@ -58,12 +59,8 @@ test("retain each source's latest builds and every build a revision applies", as
             scope: ids.space,
             packageId: ids.package,
             name: "notes",
-            selection: {
-                kind: "checkout",
-                machine: ids.machine,
-                checkout: ids.checkout,
-                directory: ".",
-            },
+            follows: checkout.reference(ids.machine, ids.checkout),
+            directory: ".",
             installer: fixture.owner.subject,
         },
         now,
@@ -103,10 +100,11 @@ test("retain each source's latest builds and every build a revision applies", as
     ]);
 });
 
-test("decide the retention of many builds in two statements and one retention read per space", async () => {
-    // record many builds of a few directories in one space
+test("decide the retention of many builds in at most two statements and one retention read per space", async () => {
+    // record many builds of a few directories in one space, its machine stopped so no job reads beside
     const fixture = await TestSpace.open();
     const { database } = fixture;
+    await fixture.stop();
     const now = fixture.machine.clock.now();
     await database.transaction(
         async (transaction) =>
@@ -149,13 +147,14 @@ test("decide the retention of many builds in two statements and one retention re
     expect({
         retained: retained.size,
         expired: expired.length,
-        statements,
         reads,
     }).toEqual({
         // the latest two of each source, and the build the stack's revision applies
         retained: 2 * STRESS_SOURCES + 1,
         expired: STRESS_BUILDS - 2 * STRESS_SOURCES,
-        statements: 2,
         reads: 1,
     });
+
+    // read the builds once and the applied ones at most once, as the connection may still hold them
+    expect(statements).toBeLessThanOrEqual(2);
 });

@@ -127,7 +127,7 @@ test("report a controller's failed reconciliation to the machine: a stage its re
             captured: world.telemetry.take().map((captured) => captured.message),
         }).toEqual({
             reported: [
-                `'distribution' did not reconcile '${key}'`,
+                `'destack.distribution.stage' did not reconcile '${key}'`,
                 "metadata not found: metadata request failed: HTTP 404",
             ],
             captured: ["metadata not found: metadata request failed: HTTP 404"],

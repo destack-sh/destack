@@ -9,7 +9,7 @@ import type { StepUp } from "@destack/access";
 import type { Login } from "@destack/account/native";
 import { freshHandle, type TestPerson } from "@destack/account/test";
 import { type DatabaseConnection, Snapshot } from "@destack/db";
-import { TestDatabase, TestTemplate } from "@destack/db/test";
+import { TestTemplate, type TestDatabase, TestRun } from "@destack/db/test";
 import { Simulation, SimulatedClock } from "@destack/environment/simulation";
 import { reference, repository } from "@destack/registry/object";
 import { MemoryKeychain } from "@destack/identity";
@@ -20,7 +20,9 @@ import { type BuildReader, PackageManifest } from "@destack/package/manifest";
 import { rollout, Rollout } from "@destack/stack/object";
 import type { Installation } from "@destack/object";
 import objectPackage from "@destack/object/package";
-import { RequestId, Scope } from "@destack/sync";
+import { RequestId, Scope, ObjectReference } from "@destack/sync";
+import { RolloutTarget } from "../../installation/target.ts";
+import type { PackageId } from "@destack/package";
 import { inject, onTestFinished } from "@destack/test";
 import { Control } from "@destack/control";
 import { TestControl, ControlWorld } from "@destack/control/test";
@@ -247,9 +249,8 @@ export class TestComputer implements AsyncDisposable {
         defer: Defer = onTestFinished,
     ): Promise<TestWorld> {
         // fork the template's world with its universe and owner
-        const { simulation, databases, value } = await TestDatabase.copy(TestComputer.#universe(), {
-            label: "copy",
-        });
+        const image = await TestRun.image(TestComputer.#universe());
+        const { simulation, databases, value } = await image.fork("copy");
         defer(() => databases.universe.close());
         const distribution = await TestDistribution.build(
             simulation.environment(FILES_NODE),
@@ -311,7 +312,7 @@ export class TestComputer implements AsyncDisposable {
             databases: { universe: Control.database },
             value: UniverseTemplate,
             world: { seed: SEED, start: START },
-            write: async (databases, _directory, simulation) => {
+            build: async ({ databases, simulation }) => {
                 // start the universe over the template's database
                 await using lifetime = new AsyncDisposableStack();
                 const distribution = await TestDistribution.build(
@@ -477,7 +478,9 @@ export class TestComputer implements AsyncDisposable {
             ...(options.distribution === undefined ? {} : { distribution: options.distribution }),
             ...(enrollment === undefined ? {} : { enrollment }),
             report: (event, error) => {
+                // capture and record each failure as the process does, but the tunnel's dials
                 if (event !== "tunnel.failed") {
+                    Computer.capture(environment.telemetry, event, error);
                     reports.push(error);
                     reported.resolve(error);
                 }
@@ -532,9 +535,8 @@ export class TestComputer implements AsyncDisposable {
         // fork the template of the owner's organizations with its universe
         const { organizations = [], installs = [], ...started } = options;
         const template = TestComputer.homeTemplate(organizations, installs);
-        const { simulation, databases, value } = await TestDatabase.copy(template, {
-            label: "copy",
-        });
+        const image = await TestRun.image(template);
+        const { simulation, databases, value } = await image.fork("copy");
         defer(() => databases.universe.close());
         const distribution = await TestDistribution.build(simulation.environment(FILES_NODE));
         const world = await TestComputer.#start(
@@ -580,8 +582,8 @@ export class TestComputer implements AsyncDisposable {
             databases: { universe: Control.database },
             value: HomeWorld,
             world: { seed: SEED, start: START },
-            write: async (databases, directory, simulation) => {
-                // start the world over the template's database, closed once written
+            build: async ({ databases, directory, simulation }) => {
+                // start the world over the template's database, closed once built
                 await using lifetime = new AsyncDisposableStack();
                 const defer: Defer = (cleanup) => {
                     lifetime.defer(cleanup);
@@ -783,7 +785,7 @@ export class TestComputer implements AsyncDisposable {
             scope: spaceId,
             requestId: RequestId.create(this.environment),
             packageId: released.id,
-            selection: { kind: "release", version: released.version },
+            ...(await this.#follows(released.id, released.version)),
             name,
             ...options,
         });
@@ -811,11 +813,23 @@ export class TestComputer implements AsyncDisposable {
             scope: spaceId,
             id: installed.id,
             requestId: RequestId.create(this.environment),
-            selection: { kind: "release", version },
+            ...(await this.#follows(installed.packageId, version)),
         });
         await this.#waitRollout(spaceId, installed.id, name);
 
         return await service.installation.get({ scope: spaceId, id: installed.id });
+    }
+
+    /** Resolve what an installation of a release follows, the host's for a shipped version. */
+    async #follows(packageId: PackageId, version: string) {
+        const { machine } = this.computer;
+        const { follows } = await RolloutTarget.resolveDeclared(
+            packageId,
+            { version },
+            { registry: machine.releases, shipped: machine.shipped },
+        );
+
+        return ObjectReference.columns("follows", follows);
     }
 
     /** Call the object package of a space as a person signed in on this computer's device. */
@@ -858,7 +872,7 @@ export class TestComputer implements AsyncDisposable {
             const isApplied =
                 row !== undefined &&
                 row.appliedRevisionId !== null &&
-                row.appliedRevisionId === row.installation.revisionId;
+                row.appliedRevisionId === row.targetRevisionId;
 
             return (
                 isApplied ||
@@ -884,13 +898,16 @@ export class TestComputer implements AsyncDisposable {
     /** Wait until the machine serves a space with its stack and every installation applied. */
     async ready(spaceId: Identifier<"space">): Promise<void> {
         // wait on the world until the machine serves the space, then until the space reports itself up
-        await this.world.simulation.wait(this.machine.health.waitUp());
-        const space = await this.machine.space(spaceId);
         const deadline = this.clock.timeout(READY_MILLISECONDS);
         await this.world.simulation
-            .wait(space.health.waitUp(deadline))
+            .wait(
+                this.machine.health
+                    .waitUp(deadline)
+                    .then(async () => (await this.machine.space(spaceId)).health.waitUp(deadline)),
+            )
             .catch(async (error: unknown) => {
                 // name each installation not ready with its ready condition, beside the machine's reports
+                const space = await this.machine.space(spaceId);
                 const rows = await space.database
                     .select({
                         name: installation.table.name,

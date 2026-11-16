@@ -11,11 +11,11 @@ const dave = schema.identifier("user").parse("user-01996ab0-0000-7000-8000-00000
 
 test("retain a stack's declared relationship under its identifier until it changes, then replace it", async () => {
     const fixture = await TestSpace.open();
-    const served = await fixture.serve();
+    await fixture.serve();
 
     // declare a reader role bound to one user through the space's stack, as its owner applies it
     const apply = (user: Identifier<"user">, via: object = { role: "reader" }) =>
-        fixture.submit(served, [], {
+        fixture.submit([], {
             roles: { reader: { description: "Reads installations", permissions: [] } },
             relationships: { readers: { ...via, subject: { id: user } } },
         });
@@ -40,16 +40,15 @@ test("retain a stack's declared relationship under its identifier until it chang
 
     // expect the same row while unchanged and a new one for the other user
     const [id, subject] = nth(replaced, 0);
-    const message =
-        "@destack/object CALL_INVALID: grant is invalid: it must have exactly one relation or role";
+    const message = "grant is invalid: it must have exactly one relation or role";
     expect([kept, replaced.length, subject, id === nth(nth(first, 0), 0), refused]).toEqual([
         first,
         1,
         dave,
         false,
         [
-            ["failed", message],
-            ["failed", message],
+            ["BAD_REQUEST", "CALL_INVALID", message],
+            ["BAD_REQUEST", "CALL_INVALID", message],
         ],
     ]);
 });

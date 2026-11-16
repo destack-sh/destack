@@ -1,3 +1,4 @@
+import { TestRegistry } from "../src/test/build.ts";
 import { FOLLOWER_REVISION } from "@destack/sync/test";
 import objectPackage from "@destack/object/package";
 import accountPackage from "@destack/account/package";
@@ -6,7 +7,13 @@ import { user } from "@destack/account/object";
 import { TABLE } from "@destack/db";
 import { ObjectSink } from "@destack/object/server";
 import { Identifier, schema } from "@destack/schema";
-import { type ObjectTypeReference, type Page, RequestId, type Subject } from "@destack/sync";
+import {
+    type ObjectTypeReference,
+    type Page,
+    RequestId,
+    type Subject,
+    ObjectReference,
+} from "@destack/sync";
 import { expect, refusal, test } from "@destack/test";
 import stackPackage from "@destack/stack/package";
 import { ids, TestSpace } from "../src/test/index.ts";
@@ -58,13 +65,13 @@ test("relay the user enclosing a space to the space's installation, concealing i
 async function serveInstallation() {
     // install notes in the space as its owner, and create the account's other space at the universe
     const fixture = await TestSpace.open();
-    const served = await fixture.serve();
-    const installer = served.as(fixture.owner.subject).client(objectPackage);
+    await fixture.serve();
+    const installer = fixture.as(fixture.owner.subject).client(objectPackage);
     const installed = await installer.installation.create({
         scope: ids.space,
         requestId: RequestId.create(fixture.machine.environment),
         packageId: ids.package,
-        selection: { kind: "release", version: "2026.9.0" },
+        ...ObjectReference.columns("follows", TestRegistry.row("release", "2026.9.0")),
         name: "notes",
     });
     const otherSpace = Identifier.create("space", fixture.environment);
@@ -82,7 +89,7 @@ async function serveInstallation() {
 
     // read the snapshot of one scope's chain replica, with a type it propagates, as an installation with each row's scope
     const snapshot = async (as: Subject, scope: string, type?: ObjectTypeReference) => {
-        const pages = await served
+        const pages = await fixture
             .as(as)
             .client(stackPackage)
             .store.stream({

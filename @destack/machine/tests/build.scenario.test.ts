@@ -36,8 +36,8 @@ async function digests(build: BuildReader): Promise<string[]> {
 /** Serve a machine with builds in its build store, the owner creating builds it runs. */
 async function implementBuild() {
     const fixture = await TestSpace.open();
-    const served = await fixture.serve();
-    const client = (caller: string) => served.as(caller).client(stackPackage);
+    await fixture.serve();
+    const client = (caller: string) => fixture.as(caller).client(stackPackage);
     const create = () =>
         client(fixture.owner.id).build.create({
             spaceId: ids.space,
@@ -53,10 +53,9 @@ async function implementBuild() {
 
     return {
         fixture,
-        served,
         owner: client(fixture.owner.id),
         runner: client(fixture.machine.id),
-        machine: served.as(fixture.machine.id),
+        machine: fixture.as(fixture.machine.id),
         create,
     };
 }
@@ -246,8 +245,8 @@ test("run a commit's build on the space's build runner, and refuse one on a spac
         directory: ".",
     });
     const create = async (buildRunner: typeof fixture.machine.id | null) => {
-        const served = await fixture.serve({ machine: { isBuilding: buildRunner !== null } });
-        const owner = served.as(fixture.owner.subject).client(stackPackage);
+        await fixture.restart({ isBuilding: buildRunner !== null });
+        const owner = fixture.as(fixture.owner.subject).client(stackPackage);
 
         return owner.build.create({
             spaceId: ids.space,

@@ -650,10 +650,7 @@ test("register a working tree's directory, build its stack in a space as the per
         });
     const { submission } = await submit("./stack/");
     const { build, ...evaluated } = submission;
-    if (build.kind !== "build") {
-        throw new TypeError("the submission names no build");
-    }
-    const built = await service.build.get({ spaceId: space, id: build.build });
+    const built = await service.build.get({ spaceId: space, id: build });
     if (built.lock === null) {
         throw new TypeError("the build has no lock");
     }
@@ -687,10 +684,11 @@ test("register a working tree's directory, build its stack in a space as the per
             detachedAt: null,
         },
         submission: {
-            selection: followed,
+            follows: checkout.reference(machineId, registered.id),
+            directory: "stack",
             stack: { export: "personal", parameters: {} },
         },
-        build: { kind: "build", build: built.id },
+        build: built.id,
         built: [followed, ["bun", "workerd"], "succeeded", null, null],
         stored: [STACK_CHECKOUT_PACKAGE, ["bun", "workerd"], true],
     });
@@ -702,10 +700,7 @@ test("register a working tree's directory, build its stack in a space as the per
         0, 0,
     ]);
     const committed = (await submit("./stack/")).submission.build;
-    if (committed.kind !== "build") {
-        throw new TypeError("the submission names no build");
-    }
-    const rebuilt = await service.build.get({ spaceId: space, id: committed.build });
+    const rebuilt = await service.build.get({ spaceId: space, id: committed });
     const released = await (
         await machine.space(space)
     ).builds.root(present(rebuilt.lock, "the lock"));

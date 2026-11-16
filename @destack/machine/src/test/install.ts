@@ -4,6 +4,7 @@ import { TestDatabase } from "@destack/db/test";
 import { testSimulation } from "@destack/object/test";
 import { Digest, Identifier, present, schema } from "@destack/schema";
 import { ObjectReference, Scope, type Subject } from "@destack/sync";
+import { TestRegistry } from "./build.ts";
 import type { PackageId } from "@destack/package";
 import {
     build,
@@ -15,7 +16,7 @@ import {
     rollout,
 } from "@destack/stack/object";
 import stackPackage from "@destack/stack/package";
-import { installation, type InstallationSelection, SYNCED } from "@destack/object";
+import { installation, SYNCED } from "@destack/object";
 import { space } from "@destack/account/object";
 import { ids, spaceDatabase } from "./space.ts";
 import { onTestFinished } from "@destack/test";
@@ -67,7 +68,7 @@ export async function openSpaceDatabase(): Promise<{
     return { database, crypto: world.crypto, now };
 }
 
-/** Record an installed package following a selection and its rollout, as installing one does. */
+/** Record an installed package following a row and its rollout, as installing one does. */
 export async function insertRollout(
     database: DatabaseConnection,
     installed: {
@@ -75,14 +76,24 @@ export async function insertRollout(
         readonly scope: Identifier<"space">;
         readonly packageId: PackageId;
         readonly name: string;
-        readonly selection: InstallationSelection;
+        readonly follows: ObjectReference | undefined;
+        readonly directory?: string;
         readonly installer: Subject;
         readonly capabilities?: readonly string[];
     },
     now: number,
 ): Promise<Rollout> {
     // write the installation, then the rollout following its selection under the same identifier, both by the installer
-    const { id, scope, packageId, name, selection, installer, capabilities = [] } = installed;
+    const {
+        id,
+        scope,
+        packageId,
+        name,
+        follows,
+        directory,
+        installer,
+        capabilities = [],
+    } = installed;
     const record = {
         id,
         scope,
@@ -93,9 +104,14 @@ export async function insertRollout(
     };
 
     return await database.transaction(async (transaction) => {
-        await transaction
-            .insert(installation.table)
-            .values({ ...record, packageId, name, selection, capabilities: [...capabilities] });
+        await transaction.insert(installation.table).values({
+            ...record,
+            packageId,
+            name,
+            ...ObjectReference.columns("follows", follows),
+            directory: directory ?? null,
+            capabilities: [...capabilities],
+        });
         const [inserted] = await transaction
             .insert(rollout.table)
             .values({
@@ -235,9 +251,9 @@ async function installNotes(
 ): Promise<Identifier<"installation-revision">> {
     // record the notes installation in the space, at the world's time
     const now = environment.clock.now();
-    const selection = { kind: "release" as const, version: "2026.9.0" };
     const notes = { id: ids.notes, scope: ids.space, packageId: ids.package, name: "notes" };
-    await insertRollout(database, { ...notes, selection, installer }, now);
+    const follows = TestRegistry.row("release", "2026.9.0");
+    await insertRollout(database, { ...notes, follows, installer }, now);
 
     // follow the installation's release
     const revisionId = Identifier.create("installation-revision", environment);
@@ -259,12 +275,8 @@ async function installNotes(
     );
     await database.transaction(async (transaction) => {
         await transaction
-            .update(installation.table)
-            .set({ revisionId })
-            .where(eq(installation.table.id, ids.notes));
-        await transaction
             .update(rollout.table)
-            .set({ appliedRevisionId: revisionId })
+            .set({ targetRevisionId: revisionId, appliedRevisionId: revisionId })
             .where(eq(rollout.table.installationId, ids.notes));
     });
 

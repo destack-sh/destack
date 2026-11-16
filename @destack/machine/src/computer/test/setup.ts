@@ -19,9 +19,6 @@ import { MachineDriver } from "../../test/driver.ts";
 import { Toolchain } from "@destack/check/toolchain";
 import { COMPUTER_RUNTIMES } from "../computer.ts";
 
-/** The module of machine's test templates, which the run writes once. */
-const TEMPLATES = new URL("./templates.ts", import.meta.url);
-
 /** Build the platform, the stacks and the fixtures, write the templates and make a trash. */
 export default async function setup(project: TestProject): Promise<() => Promise<void>> {
     // build the platform's packages, the stacks and the fixtures at once, so each world only reads the run's store
@@ -77,7 +74,7 @@ export default async function setup(project: TestProject): Promise<() => Promise
     project.provide("built", built);
     project.provide("scenarios", scenario);
     const variables = { [BUILDS_VARIABLE]: canonicalize(built) };
-    const remove = await TestRun.setup(TEMPLATES, variables)(project);
+    const remove = await TestRun.setup(new URL(import.meta.url), variables)(project);
 
     // move the computers' state directories into one trash, removed with the run, as Bazel's execroots
     const { files } = testHost();

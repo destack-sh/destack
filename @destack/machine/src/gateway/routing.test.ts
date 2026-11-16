@@ -69,13 +69,13 @@ async function notesInstance(crypto: Crypto): Promise<InstanceSpec> {
 test("resolve each kind of address a workload calls", async () => {
     // install the notes package in the space as its owner
     const fixture = await TestSpace.open();
-    const served = await fixture.serve();
+    await fixture.serve();
     const notesBuild = await MemoryBuild.of(
         PackageVersion.parse({ id: ids.package, name: "@test/notes", version: "2026.9.0" }),
         [],
-        served.environment.crypto,
+        fixture.environment.crypto,
     );
-    const notes = await fixture.install(served, notesBuild);
+    const notes = await fixture.install(notesBuild);
 
     // create the acme space on another machine of the account, which publishes its endpoint
     const acmeMachine = await fixture.universe.enroll(
@@ -91,7 +91,7 @@ test("resolve each kind of address a workload calls", async () => {
         machine: acmeMachine.id,
     });
     await fixture.universe.simulation.idle();
-    await fixture.machine.simulation.idle();
+    await fixture.simulation.idle();
 
     // route with a package the space's store serves
     const gateway = openGateway(fixture, { packages: [objectPackage] });

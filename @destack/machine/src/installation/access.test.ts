@@ -1,3 +1,4 @@
+import { TestRegistry } from "../test/build.ts";
 import { testIdentity } from "@destack/object/test";
 import { schema } from "@destack/schema";
 import {
@@ -23,6 +24,7 @@ const DESCRIPTION: PackageDescription = {
     ...testIdentity,
     api: { name: "notes", procedures: [] },
     objects: {},
+    protocols: [],
     mounts: {},
     views: [],
     permissions: {
@@ -58,7 +60,7 @@ async function installNotes(): ReturnType<typeof openSpaceDatabase> {
             scope: ids.space,
             packageId: ids.package,
             name: "notes",
-            selection: { kind: "release", version: "2026.9.0" },
+            follows: TestRegistry.row("release", "2026.9.0"),
             installer: INSTALLER,
         },
         opened.now,

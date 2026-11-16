@@ -78,9 +78,9 @@ test("answer a relay-less computer's spaces at its loopback endpoint, and a rela
         await Snapshot.live(universe)
             .read(endpoint.table)
             .findFirst({ where: { parentId: relayed.machine.id } });
-    await relayed.waitUntil(universe, async () => (await published())?.relay?.url !== undefined);
+    await relayed.waitUntil(universe, async () => (await published())?.relay !== undefined);
     const tunnel = await published();
-    expect([local.machine.origin, relayed.machine.origin, tunnel?.relay?.url]).toEqual([
+    expect([local.machine.origin, relayed.machine.origin, tunnel?.relay]).toEqual([
         local.endpoint,
         tunnel?.url,
         new URL(relay.url).origin,
@@ -107,7 +107,7 @@ test("list a relayed computer's checkouts as its account's owner on another comp
             .read(endpoint.table)
             .findFirst({ where: { parentId: relayed.machine.id } });
 
-        return published?.relay?.url !== undefined;
+        return published?.relay !== undefined;
     });
 
     // list the checkouts at the relayed name as the owner signed in on another computer

@@ -310,7 +310,13 @@ async function install(served: Echoing, release: BuildReader, name: string, peer
         scope: space,
         requestId: RequestId.create(computer.environment),
         packageId: released.id,
-        selection: { kind: "release", version: released.version },
+        ...ObjectReference.columns(
+            "follows",
+            await computer.computer.machine.releases.followed(released.id, {
+                kind: "release",
+                version: released.version,
+            }),
+        ),
         name,
     });
 
@@ -677,7 +683,10 @@ test("relay a sandboxed instance's telemetry through its machine into its space'
         )
         .innerJoin(
             stackObject.installationRevision.table,
-            eq(stackObject.installationRevision.table.id, installation.table.revisionId),
+            eq(
+                stackObject.installationRevision.table.id,
+                stackObject.rollout.table.targetRevisionId,
+            ),
         )
         .innerJoin(
             stackObject.build.table,
@@ -959,7 +968,7 @@ test("serve a space whose installation fails to start", async () => {
         })(),
     );
 
-    // wait until the installation reads the failure
+    // wait until the installation reads the failure and its pass ends
     const read = async () =>
         present(
             await Snapshot.live(started.database)
@@ -971,6 +980,7 @@ test("serve a space whose installation fails to start", async () => {
         started.database,
         async () => (await read()).conditions["Synced"]?.status === "false",
     );
+    await world.simulation.idle();
     const installed = await read();
     const condition = present(installed.conditions["Serving"], "the installation's Serving");
 
@@ -997,6 +1007,10 @@ test("serve a space whose installation fails to start", async () => {
         serving: ["false", "StartFailed"],
         reported: "installation 'regional' serves nothing: its server did not start",
         answered: [503, "1"],
-        captured: [`cannot serve revision '${installed.revisionId}': ${condition.message}`],
+        // capture the failed start once at the machine, and its cause once by the installation's own pass
+        captured: [
+            "installation 'regional' serves nothing: its server did not start",
+            condition.message,
+        ],
     });
 });

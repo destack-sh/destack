@@ -1,8 +1,9 @@
-import { Snapshot } from "@destack/db";
+import { type DatabaseConnection, Snapshot } from "@destack/db";
 import { installation } from "@destack/object";
+import { rollout } from "@destack/stack/object";
 import { OWNER_EMAIL, TestComputer, TestDistribution } from "@destack/machine/computer/test";
 import { expect, test } from "@destack/test";
-import { present } from "@destack/schema";
+import { type Identifier, present } from "@destack/schema";
 import { entry } from "@destack/machine-journal-fixture/object";
 import journalPackage from "@destack/machine-journal-fixture/package";
 import binderPackage from "@destack/machine-binder-fixture/package";
@@ -36,7 +37,11 @@ test("serve a tracked type that reads through its space in a team space, the spa
         health: served.health.status,
     }).toEqual({
         isServed: true,
-        serving: ["true", "Served", `serving revision ${installed.revisionId}`],
+        serving: [
+            "true",
+            "Served",
+            `serving revision ${await targeted(served.database, installed.id)}`,
+        ],
         health: "up",
     });
 });
@@ -66,7 +71,7 @@ test("refuse serving an installation whose tracked type reads through a type wit
     );
     const reason =
         "object 'sheet' records history but reads through 'binder', which has no history";
-    const failure = `@destack/stack SERVING_BLOCKED: cannot serve revision '${installed.revisionId}': ${reason}`;
+    const failure = `@destack/stack SERVING_BLOCKED: cannot serve revision '${await targeted(served.database, installed.id)}': ${reason}`;
 
     // refuse it alone, naming why, and keep the space up
     expect({
@@ -84,6 +89,17 @@ test("refuse serving an installation whose tracked type reads through a type wit
         serving: ["false", "Refused", reason],
         synced: failure,
         health: "up",
-        captured: [`cannot serve revision '${installed.revisionId}': ${reason}`],
+        captured: [
+            `cannot serve revision '${await targeted(served.database, installed.id)}': ${reason}`,
+        ],
     });
 });
+
+/** Read the revision an installation's rollout targets. */
+async function targeted(database: DatabaseConnection, id: Identifier<"installation">) {
+    const row = await Snapshot.live(database)
+        .read(rollout.table)
+        .findFirst({ where: { installationId: id } });
+
+    return present(row, `the rollout of ${id}`).targetRevisionId;
+}

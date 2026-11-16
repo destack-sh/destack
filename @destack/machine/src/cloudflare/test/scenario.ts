@@ -1,3 +1,4 @@
+import { TestRegistry } from "../../test/build.ts";
 import { Random } from "@destack/environment";
 import { WorkerdEnvironment } from "@destack/environment/workerd";
 import { principal } from "@destack/access";
@@ -265,7 +266,10 @@ class Space {
                     scope: installed.scope,
                     packageId: installed.packageId,
                     name: `app-${name}`,
-                    selection: { kind: "release", version: MODULE.package.version },
+                    ...ObjectReference.columns(
+                        "follows",
+                        TestRegistry.row("release", MODULE.package.version),
+                    ),
                     capabilities: [],
                     createdAt: 0,
                     updatedAt: 0,

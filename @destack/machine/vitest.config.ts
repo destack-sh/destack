@@ -34,6 +34,8 @@ export default defineConfiguration(
                     test: {
                         name: "scenario",
                         include: SCENARIO_TESTS,
+                        // leave the fan-out scenarios, which measure sync's budgets, to the benchmarks
+                        exclude: ["src/scenario/feed.scenario.ts"],
                     },
                 },
             ],

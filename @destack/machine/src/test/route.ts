@@ -4,11 +4,10 @@ import { type DatabaseConnection, Snapshot } from "@destack/db";
 import type { Simulation } from "@destack/environment/simulation";
 import { ClaimLookup, claimTable } from "@destack/object";
 import type { StackInput } from "@destack/stack/declare";
-import type { TestObjectStore } from "@destack/object/test";
 import { found, type Identifier, nth, present, schema } from "@destack/schema";
 import { RequestId } from "@destack/sync";
 import { fixtureBuild } from "./build.ts";
-import { type FixtureOptions, ids, TestSpace, type HostedSpace } from "./space.ts";
+import { ids, TestSpace, type AccountSpace, type TestSpaceOptions } from "./space.ts";
 
 /** The resolver the universe reads DNS over HTTPS from, Cloudflare's. */
 const RESOLVER = "cloudflare-dns.com";
@@ -31,7 +30,7 @@ const OTHER_ACCOUNT = schema
     .parse("account-01996ab0-0000-7000-8000-0000000000c1");
 
 /** The spaces the world hosts: two of the fixture's account and one of the other account. */
-const SPACES: readonly HostedSpace[] = [
+const SPACES: readonly AccountSpace[] = [
     { id: ids.space, account: ids.account, name: "space" },
     {
         id: schema.identifier("space").parse("space-01996ab0-0000-7000-8000-0000000000c2"),
@@ -97,34 +96,33 @@ export class TestRoute implements AsyncDisposable {
     readonly lookup: ClaimLookup;
     /** The world the spaces run in, which the fixture's calls move through. */
     readonly simulation: Simulation;
-    /** Each space with its served store, by space. */
-    readonly #spaces: ReadonlyMap<
-        string,
-        { readonly space: TestSpace; readonly served: TestObjectStore }
-    >;
+    /** Each space, by space. */
+    readonly #spaces: ReadonlyMap<string, TestSpace>;
 
     /** Store the hosted spaces and their installations. */
     private constructor(
         simulation: Simulation,
-        spaces: readonly { readonly space: TestSpace; readonly served: TestObjectStore }[],
+        spaces: readonly TestSpace[],
         installations: ReadonlyMap<string, Identifier<"installation">>,
     ) {
         // store the world, the spaces, their installations, and the universe's names
         this.simulation = simulation;
-        this.spaceIds = [nth(spaces, 0).space.id, nth(spaces, 1).space.id, nth(spaces, 2).space.id];
-        this.#spaces = new Map(spaces.map((entry) => [entry.space.id, entry]));
+        this.spaceIds = [nth(spaces, 0).id, nth(spaces, 1).id, nth(spaces, 2).id];
+        this.#spaces = new Map(spaces.map((space) => [space.id, space]));
         this.installations = installations;
-        const { database } = nth(spaces, 0).space.universe.storage;
+        const { database } = nth(spaces, 0).universe.storage;
         this.lookup = ClaimLookup.of(Snapshot.live(database).read(claimTable));
     }
 
     /** Open the route world's spaces from its template, each served with its notes. */
-    static async open(options: FixtureOptions = {}): Promise<TestRoute> {
+    static async open(
+        options: Pick<TestSpaceOptions, "isServingHostnames"> = {},
+    ): Promise<TestRoute> {
         // copy the world into a fork of it, then serve each space
-        const { spaces, world } = await TestSpace.copy(ROUTE_TEMPLATE);
+        const { spaces, world } = await TestSpace.copy(ROUTE_TEMPLATE, options);
         const { simulation } = present(spaces.get(ids.space), "the fixture's space");
 
-        return await TestRoute.#serve(simulation, spaces, world, options);
+        return await TestRoute.#serve(simulation, spaces, world);
     }
 
     /** Serve each copied space, with the installations and hostnames the world wrote. */
@@ -132,12 +130,11 @@ export class TestRoute implements AsyncDisposable {
         simulation: Simulation,
         spaces: ReadonlyMap<Identifier<"space">, TestSpace>,
         world: RouteWorld,
-        options: FixtureOptions,
     ): Promise<TestRoute> {
         // serve each space
         const served = [];
         for (const space of spaces.values()) {
-            served.push({ space, served: await space.serve(options) });
+            served.push(await space.serve());
         }
 
         // read each space's installation and each account's hostname
@@ -165,10 +162,10 @@ export class TestRoute implements AsyncDisposable {
         const served = [];
         const installations = new Map<Identifier<"space">, Identifier<"installation">>();
         for (const space of spaces.values()) {
-            const store = await space.serve();
+            await space.serve();
             const build = await fixtureBuild(ids.package, "2026.9.0", space.environment.crypto);
-            installations.set(space.id, await space.install(store, build));
-            served.push({ space, served: store });
+            installations.set(space.id, await space.install(build));
+            served.push(space);
         }
         const fixture = new TestRoute(simulation, served, installations);
 
@@ -181,11 +178,6 @@ export class TestRoute implements AsyncDisposable {
             hostnames.push({ accountId, ...hostname });
         }
 
-        // close the served stores, the template closing the spaces
-        for (const each of served) {
-            await each.served[Symbol.asyncDispose]();
-        }
-
         return {
             installations: [...installations].map(([spaceId, id]) => ({ spaceId, id })),
             hostnames,
@@ -194,7 +186,7 @@ export class TestRoute implements AsyncDisposable {
 
     /** The database of one of the spaces. */
     database(spaceId: string): DatabaseConnection {
-        return found(this.#spaces, spaceId).space.database;
+        return found(this.#spaces, spaceId).database;
     }
 
     /** Apply a stack's route declarations to a space, approved as its owner. */
@@ -202,18 +194,15 @@ export class TestRoute implements AsyncDisposable {
         spaceId: Identifier<"space">,
         routes: NonNullable<StackInput["routes"]>,
     ): Promise<void> {
-        const { space, served } = found(this.#spaces, spaceId);
-        await space.apply(served, [], { routes });
+        await found(this.#spaces, spaceId).apply([], { routes });
     }
 
-    /** Submit a stack's route declarations to a space, answering how its stack stands. */
+    /** Submit a stack's route declarations to a space, answering its deploy's refusal. */
     submit(
         spaceId: Identifier<"space">,
         routes: NonNullable<StackInput["routes"]>,
-    ): Promise<readonly [string | undefined, string | undefined]> {
-        const { space, served } = found(this.#spaces, spaceId);
-
-        return space.submit(served, [], { routes });
+    ): Promise<readonly [string, string, string] | undefined> {
+        return found(this.#spaces, spaceId).submit([], { routes });
     }
 
     /** Create a hostname of an account as its owner, settled into each space replicating it. */
@@ -230,7 +219,7 @@ export class TestRoute implements AsyncDisposable {
         name: string,
     ): Promise<{ readonly id: Identifier<"hostname">; readonly name: string }> {
         // create the hostname at the universe as the account's owner
-        const { space } = found(this.#spaces, this.spaceIds[0]);
+        const space = found(this.#spaces, this.spaceIds[0]);
         const created = await space.owner.client(accountPackage).hostname.create({
             accountId,
             requestId: RequestId.create(space.universe.environment),
@@ -246,7 +235,7 @@ export class TestRoute implements AsyncDisposable {
     /** Claim a domain for an account as its owner and verify it by its published TXT record. */
     async #verify(dns: TestDns, accountId: Identifier<"account">, name: string): Promise<void> {
         // let the account's plan allow custom domains, as its residency's home entitles it
-        const { space } = found(this.#spaces, this.spaceIds[0]);
+        const space = found(this.#spaces, this.spaceIds[0]);
         await space.universe.entitle(accountId, "domain", { kind: "static", value: true });
 
         // claim the domain, then publish its challenge record
@@ -282,10 +271,9 @@ export class TestRoute implements AsyncDisposable {
         await this.#close();
     }
 
-    /** Close each space's store, then the space. */
+    /** Close each space. */
     async #close(): Promise<void> {
-        for (const { space, served } of this.#spaces.values()) {
-            await served[Symbol.asyncDispose]();
+        for (const space of this.#spaces.values()) {
             await space[Symbol.asyncDispose]();
         }
     }

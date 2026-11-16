@@ -1,20 +1,18 @@
 import { UNIVERSE_NODE } from "@destack/control/test";
 import accountPackage from "@destack/account/package";
-import { identityKey } from "@destack/account/identity";
 import * as accountObject from "@destack/account/object";
 import { BuildStore } from "@destack/build/store";
 import { eq } from "@destack/db";
 import { RequestId } from "@destack/sync";
 import { expect, test } from "@destack/test";
-import * as object from "@destack/stack/object";
 import { fixtureBuild, ids, reconcile, TestSpace } from "../test/index.ts";
 
 test("delete a space at its home once its installations are gone, clearing its builds", async () => {
     // serve the space its universe placed here, with an application installed and a build of its own
     const fixture = await TestSpace.open();
-    const served = await fixture.serve();
+    await fixture.serve();
     const reader = await fixtureBuild(ids.package, "2026.9.0", fixture.environment.crypto);
-    await fixture.install(served, reader);
+    await fixture.install(reader);
     await fixture.recordBuild(reader);
     const manifest = await BuildStore.digest(reader.manifest, fixture.environment.crypto);
 
@@ -30,27 +28,18 @@ test("delete a space at its home once its installations are gone, clearing its b
     });
     await fixture.simulation.idle();
 
-    // remove the installations, the space's replica here and its keys, and its placement and row at the universe, the account's home left
-    const installations = await fixture.database
-        .select({ id: object.rollout.table.installationId })
-        .from(object.rollout.table);
-    const keys = await fixture.database
-        .select({ scope: identityKey.scope })
-        .from(identityKey)
-        .where(eq(identityKey.scope, ids.space));
-    const replicas = await fixture.database
-        .select({ id: accountObject.space.table.id })
-        .from(accountObject.space.table);
+    // remove the space's volume here, and its placement and row at the universe, the account's home left
+    const volumes = await fixture.machine.volumes.list();
     const placed = await accountObject.Placement.find(fixture.machine.directory.snapshot, [
         ids.space,
     ]);
     const listed = await accounts.space.list({ accountId: ids.account, limit: 10 });
-    const isCleared = !(await builds.contains(manifest));
+    const isCleared = !(await fixture.machine.builds.roots()).has(`space:${ids.space}`);
     expect({
-        removed: [installations, keys, replicas, placed, listed.items.map((item) => item.id)],
+        removed: [volumes.includes(ids.space), placed, listed.items.map((item) => item.id)],
         builds: [isStored, isCleared],
     }).toEqual({
-        removed: [[], [], [], [], [accountObject.Account.home(ids.account)]],
+        removed: [false, [], [accountObject.Account.home(ids.account)]],
         builds: [true, true],
     });
 });
@@ -58,7 +47,7 @@ test("delete a space at its home once its installations are gone, clearing its b
 test("finish removing a deleted space whose row an earlier look already finalized at its home", async () => {
     // serve the space, its replicas following the universe until paused
     const fixture = await TestSpace.open();
-    const served = await fixture.serve();
+    await fixture.serve();
 
     // request the deletion as the owner stepped up, and pause the universe's pages once it arrives here
     const owner = await fixture.universe.elevate(fixture.owner);
@@ -85,7 +74,9 @@ test("finish removing a deleted space whose row an earlier look already finalize
 
     // remove the space and its row at the universe, then look again while its replica still has the row
     await fixture.simulation.idle();
-    const again = await reconcile(served.store, "space", { id: ids.space }).then(
+    const again = await reconcile(await fixture.store(), "destack.space.limit", {
+        id: ids.space,
+    }).then(
         () => "removed",
         (error: unknown) => (error instanceof Error ? error.message : "unknown"),
     );

@@ -28,8 +28,8 @@ test("serve a space and install a build in a simulated world without moving its 
         simulation.environment("test").crypto,
     );
     await (async () => {
-        const served = await fixture.serve();
-        await fixture.install(served, build);
+        await fixture.serve();
+        await fixture.install(build);
     })();
 
     // leave the world at its start, as serving and installing wait only on tracked work

@@ -41,7 +41,7 @@ test("serve a build's modules, declarations and code symbols from its index to t
     const fixture = await TestSpace.open();
     const { simulation } = fixture;
     const { clock } = simulation;
-    const served = await fixture.serve();
+    await fixture.serve();
     const notebook = await writeNotebook();
     const stored = notebook.reader;
     const index = { code: notebookCode(), modules: notebook.modules };
@@ -58,7 +58,7 @@ test("serve a build's modules, declarations and code symbols from its index to t
     const owner = reader(fixture.owner.subject);
     const moniker = (path: string) => `${NOTEBOOK_ID}/${path}`;
     const at = moniker("src/object.ts");
-    const { store } = served;
+    const store = await fixture.store();
     const declared = async (id: string) => {
         const row = await store.query(owner, declaration.call("get", { buildId, id }));
 
@@ -135,7 +135,7 @@ test("serve a build's modules, declarations and code symbols from its index to t
         dialect: "sqlite",
     });
     onTestFinished(() => local.close());
-    const endpoint = served.as(fixture.owner.subject).endpoint(stackPackage);
+    const endpoint = fixture.as(fixture.owner.subject).endpoint(stackPackage);
     const client = await ObjectClient.open({
         environment: browser,
         database: local.database,
@@ -262,14 +262,14 @@ async function writeNotebook(): Promise<{ reader: BuildReader; modules: graph.Mo
         });
     const notebook = monikerOf("src/object.ts", "notebook");
     const service = monikerOf("src/service.ts", "notebooksService");
-    const served = graph.Declaration.at(service, {
+    const notebooksService = graph.Declaration.at(service, {
         kind: "service",
         kindPackageId: PackageId.parse(packages.object),
         name: "notebooks",
         description: {},
     });
     const procedure = (name: string) =>
-        graph.Declaration.member(served, { kind: "procedure", name, description: {} });
+        graph.Declaration.member(notebooksService, { kind: "procedure", name, description: {} });
 
     // write each module's source next to its graph file
     const sources = new Map(
@@ -320,7 +320,7 @@ async function writeNotebook(): Promise<{ reader: BuildReader; modules: graph.Mo
             digest: await digest("src/service.ts"),
             imports: ["./object.ts"],
             exports: [{ name: "notebooksService", symbol: service, isTypeOnly: false }],
-            declarations: [served, procedure("notebook.get"), procedure("notebook.list")],
+            declarations: [notebooksService, procedure("notebook.get"), procedure("notebook.list")],
             edges: [
                 {
                     from: monikerOf("src/service.ts"),

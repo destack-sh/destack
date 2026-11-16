@@ -1,3 +1,4 @@
+import { TestRegistry } from "../src/test/build.ts";
 import { MAIN_DATABASE } from "@destack/stack/declare";
 import { eq, isNotNull } from "@destack/db";
 import { installation } from "@destack/object";
@@ -11,6 +12,8 @@ import { RequestId } from "@destack/sync";
 import { expect, test } from "@destack/test";
 import { testSimulation } from "@destack/object/test";
 import { build, database, rollout, installationRevision } from "@destack/stack/object";
+import objectPackage from "@destack/object/package";
+import { ObjectReference } from "@destack/sync";
 import stackPackage from "@destack/stack/package";
 import { ids, lockOf, spaceDatabase, TestSpace } from "../src/test/index.ts";
 import { t } from "@destack/locale";
@@ -61,7 +64,7 @@ test("give birth to placed spaces from their replicated rows with main in their 
         settings: {},
     });
 
-    // create a space carrying each stack at the universe, born on the residency's machine
+    // create a space carrying each stack at the universe, home on the residency's machine
     const home = await TestSpace.open({ stack: carrying("home"), releases: [stackBuild] });
     const refused = await TestSpace.refusals(
         TestSpace.open({
@@ -78,16 +81,11 @@ test("give birth to placed spaces from their replicated rows with main in their 
     // forget the home's submission as a crash before it would, and give birth to it again
     await home.database.transaction(async (transaction) => {
         await transaction
-            .update(installation.table)
-            .set({ revisionId: null })
-            .where(eq(installation.table.scope, home.id));
-        await transaction
             .update(rollout.table)
-            .set({ spaceStack: null })
+            .set({ targetRevisionId: null, spaceStack: null })
             .where(eq(rollout.table.scope, home.id));
     });
-    const born = await home.serve();
-    await born[Symbol.asyncDispose]();
+    await home.serve();
 
     // read the home's main placement and its stack installation
     const mains = await home.database
@@ -95,7 +93,7 @@ test("give birth to placed spaces from their replicated rows with main in their 
         .from(database.table)
         .where(eq(database.table.name, MAIN_DATABASE));
     const stacks = await home.database
-        .select({ scope: rollout.table.scope, revisionId: installation.table.revisionId })
+        .select({ scope: rollout.table.scope, revisionId: rollout.table.targetRevisionId })
         .from(rollout.table)
         .innerJoin(installation.table, eq(installation.table.id, rollout.table.installationId))
         .where(isNotNull(installation.table.export));
@@ -155,7 +153,7 @@ test("retain a person's own apply of a placed space's stack, and submit the spac
     const fixture = await TestSpace.open({ stack: carried, releases: builds });
 
     // serve the space, its machine's placement submitting its stack
-    const served = await fixture.serve();
+    await fixture.serve();
 
     // read the space's stack installation and the revision it follows
     const stack = async () => {
@@ -165,7 +163,7 @@ test("retain a person's own apply of a placed space's stack, and submit the spac
             .innerJoin(installation.table, eq(installation.table.id, rollout.table.installationId))
             .innerJoin(
                 installationRevision.table,
-                eq(installationRevision.table.id, installation.table.revisionId),
+                eq(installationRevision.table.id, rollout.table.targetRevisionId),
             )
             .where(eq(rollout.table.scope, fixture.id));
 
@@ -198,14 +196,17 @@ test("retain a person's own apply of a placed space's stack, and submit the spac
     // apply the second build as the space's owner does, without the space's stack
     const apply = async () => {
         const { installed } = await stack();
-        const owner = served.as(fixture.owner.subject).client(stackPackage);
-        await owner.rollout.submit({
-            spaceId: fixture.id,
-            id: installed.id,
+        const owner = fixture.as(fixture.owner.subject).client(objectPackage);
+        const id = installed.installationId;
+        const current = await owner.installation.get({ scope: fixture.id, id });
+        await owner.installation.update({
+            scope: fixture.id,
+            id,
             requestId: RequestId.create(fixture.machine.environment),
-            selection: { kind: "release", version: stacked.version },
-            build: { kind: "release", version: next.version },
-            stack: { export: "home", parameters: {} },
+            revision: current.revision,
+            ...ObjectReference.columns("follows", TestRegistry.row("release", next.version)),
+            export: "home",
+            parameters: {},
         });
     };
 
@@ -242,7 +243,7 @@ test("retain a person's own apply of a placed space's stack, and submit the spac
             // retain the revision of an unchanged stack
             { lock: first, settings: placed },
         ],
-        // record one revision per submission
-        revisions: 3,
+        // record one revision per submission, and one of the owner's build as the placed setting value reaches it first
+        revisions: 4,
     });
 });

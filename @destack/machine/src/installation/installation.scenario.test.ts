@@ -1,3 +1,7 @@
+import { Plan } from "@destack/resource";
+import type { Installation } from "@destack/object";
+import { ObjectReference } from "@destack/sync";
+import { TestRegistry } from "../test/build.ts";
 import { testIdentity } from "@destack/object/test";
 import { expect, refusal, test } from "@destack/test";
 import { eq, Snapshot } from "@destack/db";
@@ -18,7 +22,7 @@ import { testHost } from "@destack/test/host";
 import { PROCESS_RUNTIME } from "@destack/stack/object";
 import { PackageManifest } from "@destack/package/manifest";
 import * as object from "@destack/stack/object";
-import { installationRevision, Rollout, rollout } from "@destack/stack/object";
+import { build, installationRevision, Rollout, rollout } from "@destack/stack/object";
 import {
     fixtureBuild,
     ids,
@@ -34,16 +38,16 @@ const RETRY_MILLISECONDS = 30_000;
 
 test("install an application into a space as its owner, and refuse a stranger whether its name is taken or free", async () => {
     const fixture = await TestSpace.open();
-    const served = await fixture.serve();
+    await fixture.serve();
     const create = (user: string | Subject, name = "notes") =>
-        served
+        fixture
             .as(user)
             .client(objectPackage)
             .installation.create({
                 scope: ids.space,
                 requestId: RequestId.create(fixture.machine.environment),
                 packageId: ids.package,
-                selection: { kind: "release", version: "2026.9.0" },
+                ...ObjectReference.columns("follows", TestRegistry.row("release", "2026.9.0")),
                 name,
             });
 
@@ -92,7 +96,7 @@ test("find and list only the enabled installations not being deleted, as a machi
                 scope: ids.space,
                 packageId: Identifier.create("package", fixture.environment),
                 name,
-                selection: { kind: "release", version: "2026.9.0" },
+                follows: TestRegistry.row("release", "2026.9.0"),
                 installer: fixture.owner.subject,
             },
             now,
@@ -128,9 +132,9 @@ test("find and list only the enabled installations not being deleted, as a machi
         const { status, deletedAt } = state;
         await database.transaction(async (transaction) => {
             await transaction
-                .update(installation.table)
-                .set({ revisionId })
-                .where(eq(installation.table.id, id));
+                .update(rollout.table)
+                .set({ targetRevisionId: revisionId })
+                .where(eq(rollout.table.installationId, id));
             const changed = {
                 ...(status === undefined ? {} : { status }),
                 ...(deletedAt === undefined ? {} : { deletedAt }),
@@ -159,111 +163,113 @@ test("find and list only the enabled installations not being deleted, as a machi
     ]).toEqual(["notes", undefined, undefined, ["stack", "notes"]]);
 });
 
-test("roll an installation back to the revision applied before, a reused one too, and refuse one without", async () => {
-    // add an application with three revisions, applied by hand while no controller runs
+test("roll an installation back by following an earlier revision's build, each time", async () => {
+    // install notes as the owner following each release in turn
     const fixture = await TestSpace.open();
-    const served = await fixture.serve({ isControlled: false });
-    const owner = served.as(fixture.owner.subject).client(stackPackage);
-    const installer = served.as(fixture.owner.subject).client(objectPackage);
-    const installed = await installer.installation.create({
-        scope: ids.space,
-        requestId: RequestId.create(fixture.machine.environment),
-        packageId: ids.package,
-        selection: { kind: "release", version: "2026.9.2" },
-        name: "notes",
-    });
-    const revise = async (version: string) => {
-        const id = Identifier.create("installation-revision", fixture.environment);
-        const now = fixture.machine.clock.now();
-        const built = await fixture.release(ids.package, version);
-        await fixture.database.transaction(
-            async (transaction) =>
-                await transaction.insert(installationRevision.table).values({
-                    id,
-                    scope: ids.space,
-                    installationId: installed.id,
-                    buildId: built.id,
-                    dependencies: [],
-                    states: {},
-                    generation: 1,
-                    bindings: [],
-                    digest: Digest.parse(version.replaceAll(".", "").padEnd(64, "0")),
-                    createdAt: now,
-                    updatedAt: now,
-                }),
+    await fixture.serve();
+    const owner = fixture.as(fixture.owner.subject).client(stackPackage);
+    const installer = fixture.as(fixture.owner.subject).client(objectPackage);
+    let installed: Installation | undefined;
+    const install = async (version: string) => {
+        // release the version and follow it
+        await fixture.registry.release(
+            await fixtureBuild(ids.package, version, fixture.environment.crypto),
         );
+        const follows = ObjectReference.columns("follows", TestRegistry.row("release", version));
+        const requestId = RequestId.create(fixture.machine.environment);
+        installed =
+            installed === undefined
+                ? await installer.installation.create({
+                      scope: ids.space,
+                      requestId,
+                      packageId: ids.package,
+                      name: "notes",
+                      ...follows,
+                  })
+                : await installer.installation.update({
+                      scope: ids.space,
+                      id: installed.id,
+                      requestId,
+                      revision: (
+                          await installer.installation.get({ scope: ids.space, id: installed.id })
+                      ).revision,
+                      ...follows,
+                  });
+        await fixture.simulation.idle();
+        const { id } = installed;
 
-        return id;
-    };
-    const first = await revise("2026.9.0");
-    const second = await revise("2026.9.1");
-    const third = await revise("2026.9.2");
-    const read = async () => {
-        const [row] = await fixture.database
-            .select()
-            .from(rollout.table)
-            .where(eq(rollout.table.installationId, installed.id));
+        // approve the plan its release waits on
+        const { installation: waiting } = await readInstalled(fixture.database, id);
+        if (waiting.plan !== null) {
+            await owner.rollout.approve({
+                spaceId: ids.space,
+                id,
+                requestId: RequestId.create(fixture.machine.environment),
+                plan: await Plan.digest(waiting.plan, fixture.environment.crypto),
+            });
+            await fixture.simulation.idle();
+        }
 
-        return present(row, "the rollout");
+        return { id, revisionId: (await readInstalled(fixture.database, id)).targetRevisionId };
     };
-    const apply = async (revisionId: Identifier<"installation-revision">) => {
-        const fields = Rollout.applied(await read(), revisionId);
-        await fixture.database.transaction(async (transaction) => {
-            await transaction
-                .update(installation.table)
-                .set({ revisionId })
-                .where(eq(installation.table.id, installed.id));
-            await transaction
-                .update(rollout.table)
-                .set(fields)
-                .where(eq(rollout.table.installationId, installed.id));
-        });
-    };
-    const rollBack = () =>
-        owner.rollout.rollBack({
-            spaceId: ids.space,
-            id: installed.id,
+    const buildOf = async (id: Identifier<"installation-revision"> | null) =>
+        (
+            await fixture.database
+                .select({ buildId: installationRevision.table.buildId })
+                .from(installationRevision.table)
+                .where(eq(installationRevision.table.id, present(id, "the revision")))
+        )[0]?.buildId;
+
+    // follow an earlier revision's build, as a roll back does
+    const rollBack = async (
+        id: Identifier<"installation">,
+        revisionId: Identifier<"installation-revision"> | null,
+    ) => {
+        const built = present(await buildOf(revisionId), "the revision's build");
+        const current = await installer.installation.get({ scope: ids.space, id });
+        await installer.installation.update({
+            scope: ids.space,
+            id,
             requestId: RequestId.create(fixture.machine.environment),
+            revision: current.revision,
+            ...ObjectReference.columns("follows", build.reference(ids.space, built)),
+            directory: null,
         });
+        await fixture.simulation.idle();
 
-    // refuse a rollback before a second revision applied
-    await apply(first);
-    const refused = await refusal(rollBack());
+        return await buildOf((await readInstalled(fixture.database, id)).targetRevisionId);
+    };
 
-    // follow the revision applied before, with its release pinned
-    await apply(second);
-    await apply(third);
-    const back = await rollBack();
-    const { revisionId } = await readInstalled(fixture.database, installed.id);
-    const [reselected] = await fixture.database
-        .select({ selection: installation.table.selection })
+    // apply three releases, then roll back to the second
+    const first = await install("2026.9.0");
+    const second = await install("2026.9.1");
+    await install("2026.9.2");
+    const back = await rollBack(first.id, second.revisionId);
+    const [repinned] = await fixture.database
+        .select({ followsType: installation.table.followsType })
         .from(installation.table)
-        .where(eq(installation.table.id, installed.id));
-    const { selection } = present(reselected, "the installation");
+        .where(eq(installation.table.id, first.id));
+    const { followsType } = present(repinned, "the installation");
 
-    // follow a newer revision again after the older one is applied again
-    await apply(second);
-    await apply(first);
-    const reused = await rollBack();
+    // follow the first release again, then roll back to the second again
+    await install("2026.9.0");
+    const reused = await rollBack(first.id, second.revisionId);
 
-    expect({ refused, back, followed: { revisionId, selection }, reused }).toEqual({
-        refused: [
-            "NOT_FOUND",
-            "REVISION_NOT_FOUND",
-            "previous revision of installation 'notes' not found",
-        ],
-        back: { revisionId: second },
-        followed: { revisionId: second, selection: { kind: "release", version: "2026.9.1" } },
-        reused: { revisionId: second },
+    // target a revision of the second release's build both times, following that build
+    const built = await buildOf(second.revisionId);
+    expect({ back, followsType, reused }).toEqual({
+        back: built,
+        followsType: "build",
+        reused: built,
     });
 });
 
 test("identify a residency home's declared installation by its name, and forward its unrelating to the residency on each pass", async () => {
     // install notes in the eu residency's home through its stack, then serve it again
     const home = await TestSpace.residency();
-    const served = await home.serve();
-    const build = await fixtureBuild(ids.package, "2026.9.0", home.environment.crypto);
-    const installed = await home.install(served, build);
+    await home.serve();
+    const reader = await fixtureBuild(ids.package, "2026.9.0", home.environment.crypto);
+    const installed = await home.install(reader);
     await home.simulation.idle();
 
     // read the residency's installation relationships at the universe
@@ -272,7 +278,7 @@ test("identify a residency home's declared installation by its name, and forward
         residency.reference(Scope.universe.id, "eu"),
         { relation: "installation" },
     );
-    const { name } = PackageManifest.package(build.manifest);
+    const { name } = PackageManifest.package(reader.manifest);
     const declared = await InstallationId.of(
         { id: home.id },
         name.slice(name.lastIndexOf("/") + 1),
@@ -305,7 +311,7 @@ test("relate a residency home's declared installation at the universe once a pas
             },
         },
     });
-    const build = await MemoryBuild.of(
+    const reader = await MemoryBuild.of(
         PackageVersion.of(registry),
         [
             {
@@ -319,10 +325,10 @@ test("relate a residency home's declared installation at the universe once a pas
 
     // install it in the eu residency's home while its machine cannot call the universe
     const home = await TestSpace.residency();
-    const served = await home.serve();
+    await home.serve();
     const { network } = home.simulation;
     network.partition(home.machine.id, UNIVERSE_NODE);
-    const installed = await home.install(served, build);
+    const installed = await home.install(reader);
     const snapshot = Snapshot.live(home.universe.storage.database);
     const eu = present(
         await snapshot.read(residency.table).findFirst({ where: { code: "eu" } }),
@@ -354,7 +360,7 @@ test("relate a shipped server as consumer of the bucket it binds while its revis
     });
     const box = defineBucket({ name: "box", spec: {} }, { package: released });
     const boxes = Package.of(released, { objects: [], resources: [box] });
-    const build = await MemoryBuild.of(
+    const reader = await MemoryBuild.of(
         PackageVersion.of(boxes),
         [
             {
@@ -373,10 +379,10 @@ test("relate a shipped server as consumer of the bucket it binds while its revis
     );
     const fixture = await TestSpace.open({
         servers: [implementPackage(boxes, { objects: [] })],
-        linked: [build],
+        linked: [reader],
     });
-    const served = await fixture.serve();
-    const installed = await fixture.install(served, build);
+    await fixture.serve();
+    const installed = await fixture.install(reader);
 
     // read the installation's consumer relationships, by the bucket its binding targets
     const consumed = async () => {
@@ -403,7 +409,7 @@ test("relate a shipped server as consumer of the bucket it binds while its revis
     const serving = await consumed();
 
     // uninstall it, which stops its process deployment
-    await fixture.apply(served, [], { installations: {} });
+    await fixture.apply([], { installations: {} });
     expect({ bound, serving, uninstalled: await consumed() }).toEqual({
         bound: { target: present(bound, "the box binding").target, runtime: PROCESS_RUNTIME },
         serving: [{ object: present(bound, "the box binding").target, subject: installed }],

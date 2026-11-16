@@ -1,3 +1,4 @@
+import { TestRegistry } from "../src/test/build.ts";
 import { UNIVERSE_NODE } from "@destack/control/test";
 import { RetryPolicy } from "@destack/environment";
 import { MAIN_DATABASE } from "@destack/stack/declare";
@@ -20,9 +21,8 @@ import {
     DatabaseState,
     databaseProvider,
 } from "@destack/db";
-import { BunSqliteDatabaseHost, bunSqliteConnector } from "@destack/db/bun";
-import { SqliteDatabase } from "@destack/db/sqlite";
-import { Plan, ResourceId } from "@destack/resource";
+import { BunSqliteDatabaseHost } from "@destack/db/bun";
+import { ResourceId } from "@destack/resource";
 import { nth, Digest, Identifier, schema, present } from "@destack/schema";
 import { RequestId, Scope, ObjectReference } from "@destack/sync";
 import { ProviderIndex, SpaceTransfer } from "../src/index.ts";
@@ -30,15 +30,10 @@ import {
     fixtureBuild,
     ids,
     insertRollout,
-    reconcile,
     TestRuntime,
     runNotes,
     TestSpace,
 } from "../src/test/index.ts";
-import { sharedNote } from "../src/test/schema.ts";
-import { installation } from "@destack/object";
-import { PackageVersion } from "@destack/package";
-import { MemoryBuild } from "@destack/package/test";
 import { ResourceRecord } from "@destack/resource";
 import * as object from "@destack/stack/object";
 import * as accountObject from "@destack/account/object";
@@ -46,8 +41,6 @@ import { principal } from "@destack/access";
 import { createClient } from "@destack/object/client";
 import stackPackage from "@destack/stack/package";
 import type { StackClient } from "@destack/stack/client";
-import type { Environment } from "@destack/environment";
-import type { TestObjectStore } from "@destack/object/test";
 
 /** A day, in milliseconds. */
 const DAY_MILLISECONDS = 24 * 60 * 60 * 1000;
@@ -65,6 +58,9 @@ const UNKNOWN_MACHINE = schema
 
 /** The origin the target machine answers at. */
 const TARGET_ORIGIN = "http://target.test/";
+
+/** The longest a machine may take to destroy a cancelled move's copy, in milliseconds. */
+const ABANDON_MILLISECONDS = 600_000;
 
 /** The notes an installation stores in the space's database resource. */
 const note = defineTable(
@@ -99,47 +95,35 @@ const pin = defineTable(
 /** The database resource that stores the notes. */
 const notes = defineDatabase({ name: "notes", tables: [note] });
 
-/** Open a replica of the notes database where its host stores it, refusing another dialect. */
-async function openNotes(
-    id: ResourceId,
-    reference: string,
-    host: Pick<BunSqliteDatabaseHost, "resolve">,
-    environment: Environment,
-): Promise<SqliteDatabase> {
-    const connection = await bunSqliteConnector.connect(
-        { resource: id, kind: "database", provider: "sqlite", reference: host.resolve(reference) },
-        notes,
-        environment,
-    );
-    if (!(connection instanceof SqliteDatabase)) {
-        throw new TypeError(`the notes database '${id}' is no SQLite database`);
-    }
-
-    return connection;
-}
-
-test("receive a moving space with its rows, databases and keys, then remove the source's replica", async () => {
+test("receive a moving space with its databases, builds and keys, then remove the source's replica", async () => {
     // place the space on the fixture's cloud machine and an empty database on the target host
     const { source: sourceMachine, target, targetId, universe } = await openMove();
-    const source = sourceMachine.database;
     const built = await sourceMachine.recordBuild(
         await fixtureBuild(ids.package, "2026.9.0", sourceMachine.environment.crypto),
     );
-    // store the space's keys under the source machine's keyring, which differs from the target's
-    const targetKeystore = target.space.keystore;
-
-    // apply a notes database with two notes on the source for an installation's binding
+    // provision the notes database through the space's stack
     const world = sourceMachine.environment;
-    const files = await world.files.makeTemporaryDirectory("destack-space-transfer-");
-    const sourceHost = new BunSqliteDatabaseHost(pathToFileURL(`${files}/source/`), world);
-    const targetHost = new BunSqliteDatabaseHost(pathToFileURL(`${files}/target/`), world);
+    const sourceDatabases = join(sourceMachine.files, "databases");
+    const targetDatabases = join(target.files, "databases");
+    const sourceHost = new BunSqliteDatabaseHost(pathToFileURL(`${sourceDatabases}/`), world);
+    await sourceMachine.serve();
+    await sourceMachine.apply([], { databases: { notes: notes.provision() } });
+    const [declared] = await sourceMachine.database
+        .select()
+        .from(object.database.table)
+        .where(eq(object.database.table.name, "notes"));
+    const resource = present(declared, "the notes database");
+
+    // add an unbound scratch database the source deletes before its fence
     const sources = databaseProvider(sourceHost, object.database);
-    const targets = databaseProvider(targetHost, object.database);
     const now = sourceMachine.machine.clock.now();
-    const declared = {
-        id: schema.identifier("database").parse("database-01996ab0-0000-7000-8000-00000000000c"),
+    const scratchId = schema
+        .identifier("database")
+        .parse("database-01996ab0-0000-7000-8000-00000000000e");
+    const scratchDeclared = {
+        id: scratchId,
         scope: ids.space,
-        name: "notes",
+        name: "scratch",
         definitionPackageId: ids.package,
         definitionVersion: "2026.9.0",
         definitionName: "notes",
@@ -147,33 +131,6 @@ test("receive a moving space with its rows, databases and keys, then remove the 
         createdAt: now,
         updatedAt: now,
     };
-    const state = notes.state();
-    const desired = [state];
-    const digest = await Digest.json(state, world.crypto);
-    const provision = await sources.provision.provision(
-        ResourceRecord.of(DatabaseKind, { ...declared, reference: null }),
-    );
-    const resource = {
-        ...declared,
-        ...ObjectReference.columns(
-            "owner",
-            principal.space.reference(Scope.universe.id, ids.space),
-        ),
-        reference: provision.reference,
-        provider: "sqlite",
-        states: [digest],
-        appliedStates: [digest],
-    };
-    await sourceMachine.blobs.writeJson(state);
-    await source.transaction(
-        async (transaction) => await transaction.insert(object.database.table).values(resource),
-    );
-
-    // add an unbound scratch database the source deletes before its fence
-    const scratchId = schema
-        .identifier("database")
-        .parse("database-01996ab0-0000-7000-8000-00000000000e");
-    const scratchDeclared = { ...declared, id: scratchId, name: "scratch" };
     const scratchProvision = await sources.provision.provision(
         ResourceRecord.of(DatabaseKind, { ...scratchDeclared, reference: null }),
     );
@@ -187,127 +144,12 @@ test("receive a moving space with its rows, databases and keys, then remove the 
         provider: "sqlite",
         appliedStates: [],
     };
-    await source.transaction(
+    await sourceMachine.database.transaction(
         async (transaction) => await transaction.insert(object.database.table).values(scratch),
     );
-    const scratchRecord = ResourceRecord.of(DatabaseKind, scratch);
-    await sources.reconcile.apply(
-        scratchRecord,
-        [],
-        await Plan.digest(await sources.reconcile.plan(scratchRecord, []), world.crypto),
-    );
-    await insertRollout(
-        source,
-        {
-            id: ids.notes,
-            scope: ids.space,
-            packageId: ids.package,
-            name: "notes",
-            selection: {
-                kind: "checkout",
-                machine: ids.machine,
-                checkout: ids.checkout,
-                directory: ".",
-            },
-            installer: sourceMachine.owner.subject,
-        },
-        now,
-    );
 
-    // suspend notes at a build declaring the notes database, keeping its data, and bind the declaration to the database
-    const declaring = await MemoryBuild.of(
-        PackageVersion.parse({ id: ids.package, name: "@test/package", version: "2026.9.0" }),
-        [
-            {
-                ...DatabaseKind.identity,
-                provisioned: true,
-                name: "notes",
-                description: { name: "notes", spec: { replicated: [] }, ...state },
-            },
-        ],
-        world.crypto,
-    );
-    const notesBuild = await sourceMachine.recordBuild(declaring);
-    const [installed] = await source
-        .select()
-        .from(installation.table)
-        .where(eq(installation.table.id, ids.notes));
-    const described = await sourceMachine.describeRevision(
-        present(installed, "the notes installation"),
-        declaring,
-    );
-    const bindings = [
-        {
-            packageId: ids.package,
-            name: "notes",
-            target: declared.id,
-            targetSpaceId: null,
-            version: 1,
-        },
-    ];
-    const released = await object.InstallationRevision.digest(
-        await declaring.digest(),
-        undefined,
-        bindings,
-        world.crypto,
-    );
-    const revisionId = await object.InstallationRevision.id(ids.notes, released, world.crypto);
-    await source.transaction(async (transaction) => {
-        await transaction.insert(object.installationRevision.table).values({
-            id: revisionId,
-            scope: ids.space,
-            installationId: ids.notes,
-            buildId: notesBuild.build,
-            ...described,
-            generation: 1,
-            bindings,
-            digest: released,
-            createdAt: now,
-            updatedAt: now,
-        });
-        await transaction
-            .update(installation.table)
-            .set({ revisionId })
-            .where(eq(installation.table.id, ids.notes));
-        await transaction
-            .update(installation.table)
-            .set({
-                status: "suspended",
-                bindings: {
-                    [ids.package]: {
-                        notes: { target: { type: "database", id: declared.id } },
-                    },
-                },
-            })
-            .where(eq(installation.table.id, ids.notes));
-    });
-    const provisioned = ResourceRecord.of(DatabaseKind, resource);
-    await sources.reconcile.apply(
-        provisioned,
-        desired,
-        await Plan.digest(await sources.reconcile.plan(provisioned, desired), world.crypto),
-    );
-    const written = await openNotes(
-        resource.id,
-        resource.reference,
-        sourceHost,
-        sourceMachine.machine.environment,
-    );
-    await written.transaction(
-        async (transaction) =>
-            await transaction.insert(note).values([
-                { id: "n1", scope: ids.space, body: "first", rank: 1 },
-                { id: "n2", scope: ids.space, body: "second", rank: 2 },
-            ]),
-    );
-    await written.close();
-
-    // serve the space and let its owner create a transfer to the target
-    const serving = await sourceMachine.serve({
-        providers: [sources],
-    });
-    const announcing = serving.store;
-    const created = await serving
+    // let the space's owner create a transfer to the target
+    await sourceMachine
         .as(sourceMachine.owner.subject)
         .stepUp()
         .client(stackPackage)
@@ -317,14 +159,13 @@ test("receive a moving space with its rows, databases and keys, then remove the 
             requestId: RequestId.create(sourceMachine.machine.environment),
             targetId: targetId,
         });
-    await reconcile(announcing, "transfer", { id: created.id });
 
     // receive it on the target, deleting the scratch database on the source as the target asks it to fence
     const fencing = target.simulation.network.pause(targetId, sourceMachine.machine.id, (sent) =>
         sent.endsWith("/fence"),
     );
     const deleting = fencing.waiting.then(async () => {
-        await source.transaction((transaction) =>
+        await sourceMachine.database.transaction((transaction) =>
             transaction
                 .delete(object.database.table)
                 .where(eq(object.database.table.id, scratchId))
@@ -332,28 +173,23 @@ test("receive a moving space with its rows, databases and keys, then remove the 
         );
         fencing.resume();
     });
-    const receiving = await target.serve({ providers: [targets] });
+    await targeted(target, targetId);
+    await target.serve();
     const refused = await runMove(
         sourceMachine,
         target,
-        receiving,
         (placed) => placed?.machine === targetId,
         1,
     );
     await deleting;
     expect(refused).toEqual([]);
 
-    // stop serving the space as its primary, then remove the source's replica with its blobs as it stands by
-    await serving[Symbol.asyncDispose]();
-    const standing = await sourceMachine.serve({ providers: [sources] });
-    await reconcile(standing.store, "transfer", { id: created.id });
+    // let the source machine destroy the space it left: its volume, database files and blobs
+    await sourceMachine.simulation.idle();
     const removed = {
-        databases: await source.select().from(object.database.table),
-        snapshots: await source.select().from(object.snapshot.table),
-        files: (await world.files.readDirectory(join(files, "source", ids.space)))
-            .map((entry) => entry.name)
-            .filter((name) => name.endsWith(".db")),
-        blobs: await Array.fromAsync(sourceMachine.blobs.storage.packs()),
+        isVolumeKept: (await sourceMachine.machine.volumes.list()).includes(ids.space),
+        databases: await world.files.exists(join(sourceDatabases, ids.space)),
+        blobs: await world.files.exists(join(sourceMachine.files, "blobs", ids.space)),
     };
 
     // read the space, its notes and its records on the target
@@ -365,37 +201,31 @@ test("receive a moving space with its rows, databases and keys, then remove the 
         kept.find((entry) => entry.name === "notes"),
         "the replicated database",
     );
-    const read = await openNotes(
-        replicated.id,
-        present(replicated.reference, "the replica's reference"),
-        targetHost,
-        target.machine.environment,
-    );
     const record = nth(await target.database.select().from(object.transfer.table), 0);
     const [recorded] = await target.database
         .select({ lock: object.build.table.lock })
         .from(object.build.table)
         .where(eq(object.build.table.id, built.build));
     const lock = present(recorded?.lock, "the moved build's lock");
-    const served = await target.database
+    const spaces = await target.database
         .select({ id: accountObject.space.table.id })
         .from(accountObject.space.table)
         .where(and(eq(accountObject.space.table.id, ids.space), accountObject.Space.served()));
+    const targetKeystore = (await target.space).keystore;
     const signed = await targetKeystore.sign(target.database, ids.space, {
         sub: ids.space,
     });
     expect({
         removed,
         placement: await placementOf(universe),
-        notes: await read.select().from(note).orderBy(note.id),
         completed: [record.completedAt !== null, record.sourceId, record.targetId],
         moved: await (await target.builds()).contains(lock),
         reference: replicated.reference,
         kept: kept.map((entry) => [entry.name, entry.provider]),
-        databases: (await world.files.readDirectory(join(files, "target", ids.space)))
+        databases: (await world.files.readDirectory(join(targetDatabases, ids.space)))
             .map((entry) => entry.name)
             .filter((name) => name.endsWith(".db")),
-        served,
+        spaces,
         signer: (
             await Jwt.verify(
                 signed,
@@ -408,32 +238,22 @@ test("receive a moving space with its rows, databases and keys, then remove the 
             )
         ).claims.sub,
     }).toEqual({
-        // remove the scratch database's file alone
-        removed: {
-            databases: [],
-            snapshots: [],
-            files: [`${scratchId}.db`],
-            blobs: [],
-        },
+        // remove the source's whole volume
+        removed: { isVolumeKept: false, databases: false, blobs: false },
         placement: { space: ids.space, scope: ids.account, machine: targetId, epoch: 2 },
-        notes: [
-            { id: "n1", scope: ids.space, body: "first", rank: 1 },
-            { id: "n2", scope: ids.space, body: "second", rank: 2 },
-        ],
         completed: [true, sourceMachine.machine.id, targetId],
         // replicate the space's build into the target's build store
         moved: true,
-        reference: `${ids.space}/${declared.id}.db`,
+        reference: `${ids.space}/${resource.id}.db`,
         // store the main and notes databases in the target's storage
         kept: [
             ["main", "space"],
             ["notes", "sqlite"],
         ],
-        databases: [`${declared.id}.db`],
-        served: [{ id: ids.space }],
+        databases: [`${resource.id}.db`],
+        spaces: [{ id: ids.space }],
         signer: ids.space,
     });
-    await read.close();
 });
 
 test("refuse a transfer without a recent sign-in, to an unknown machine, or to a machine of another account", async () => {
@@ -460,10 +280,10 @@ test("refuse a transfer without a recent sign-in, to an unknown machine, or to a
                 updatedAt: now,
             }),
     );
-    const serving = await fixture.serve();
+    await fixture.serve();
 
     // refuse each transfer with its reason
-    const owner = serving.as(fixture.owner.subject);
+    const owner = fixture.as(fixture.owner.subject);
     const refused = (target: string, isAuthenticatedNow: boolean) =>
         refusal(
             (isAuthenticatedNow ? owner.stepUp() : owner).client(stackPackage).transfer.create({
@@ -497,15 +317,12 @@ test("refuse a transfer without a recent sign-in, to an unknown machine, or to a
 });
 
 test("move every table of the space database with rows in spaces, leaving out the machine's own, replicated and unlogged tables", async () => {
-    // declare a space database with another package's space-scoped notes next to the space's tables
-    const fixture = await TestSpace.open({
-        packages: [{ objects: { note: sharedNote }, tables: [], protocols: [] }],
-    });
+    const fixture = await TestSpace.open();
     const moving = { space: ids.space, scope: ids.account, machine: fixture.machine.id, epoch: 1 };
 
-    // plan the move from the served store, whose servers declared their tables
-    const served = await fixture.serve();
-    const steps = await SpaceTransfer.of(served.store, moving, UNKNOWN_MACHINE);
+    // plan the move from the fixture store
+    await fixture.serve();
+    const steps = await SpaceTransfer.of(await fixture.store(), moving, UNKNOWN_MACHINE);
     // list the transfer table first, then the logged space tables in declaration order,
     //  leaving out the space's row from the universe
     expect(steps.space.tables.map((table) => table[TABLE].sqlName)).toEqual([
@@ -541,7 +358,6 @@ test("move every table of the space database with rows in spaces, leaving out th
         "destack__registry__repository",
         "destack__registry__package",
         "destack__registry__release",
-        "destack__machine__shared_note",
         "destack__object__chunk",
         "destack__object__chunk_run",
         "destack__account__identity_key",
@@ -554,7 +370,7 @@ test("move the tables a space's main database applied in addition to the space d
     const { database } = fixture;
     const pinState = DatabaseState.of([pin]);
     const digest = await Digest.json(pinState, fixture.environment.crypto);
-    await fixture.blobs.writeJson(pinState);
+    await (await fixture.space).blobs.writeJson(pinState);
     const main = and(
         eq(object.database.table.scope, ids.space),
         eq(object.database.table.name, MAIN_DATABASE),
@@ -574,17 +390,17 @@ test("move the tables a space's main database applied in addition to the space d
 
     // plan the move with the pins and the space's tables, and read their state at the handoff
     const moving = { space: ids.space, scope: ids.account, machine: fixture.machine.id, epoch: 1 };
-    const states = await SpaceTransfer.states(fixture, ids.space);
-    const moved = names(await SpaceTransfer.of(fixture, moving, UNKNOWN_MACHINE));
-    const own = names(await SpaceTransfer.of(fixture, moving, UNKNOWN_MACHINE, []));
+    const states = (await SpaceTransfer.main(await fixture.space, ids.space))?.states;
+    const moved = names(await SpaceTransfer.of(await fixture.space, moving, UNKNOWN_MACHINE));
+    const own = names(await SpaceTransfer.of(await fixture.space, moving, UNKNOWN_MACHINE, []));
 
     // read only the applied states while the main database waits to apply its desired ones
     await database.transaction(
         async (transaction) =>
             await transaction.update(object.database.table).set({ appliedStates: [] }).where(main),
     );
-    const waiting = await SpaceTransfer.states(fixture, ids.space);
-    const pending = names(await SpaceTransfer.of(fixture, moving, UNKNOWN_MACHINE));
+    const waiting = (await SpaceTransfer.main(await fixture.space, ids.space))?.states;
+    const pending = names(await SpaceTransfer.of(await fixture.space, moving, UNKNOWN_MACHINE));
 
     // move the space's own tables and then the pins, a plan waiting or not
     expect({ states, moved, waiting, pending }).toEqual({
@@ -613,7 +429,7 @@ test("stop the instances of a moving space running on its machine once its fence
 
     // fence the moving space on the machine running it
     const moving = { space: ids.space, scope: ids.account, machine: space.machine.id, epoch: 1 };
-    const transfer = await SpaceTransfer.of(space, moving, UNKNOWN_MACHINE);
+    const transfer = await SpaceTransfer.of(await space.space, moving, UNKNOWN_MACHINE);
     await transfer.fence(
         { providers: new ProviderIndex(space.machine.id, []), runtimes: [runtime] },
         space.machine.clock.now(),
@@ -622,23 +438,26 @@ test("stop the instances of a moving space running on its machine once its fence
 });
 
 test("cancel a fenced transfer on its source as the space's owner, serving the space there again", async () => {
-    // let the space's owner move it to the target
-    const { source: fixture, targetId, universe } = await openMove();
+    // let the space's owner move it to the target, whose machine is stopped so the test acts for it
+    const { source: fixture, target, targetId, universe } = await openMove();
     const { database } = fixture;
-    const serving = await fixture.serve();
-    const announcing = serving.store;
-    const owner = serving.as(fixture.owner.subject).stepUp().client(stackPackage);
+    await target.stop();
+    await fixture.serve();
+    const owner = fixture.as(fixture.owner.subject).stepUp().client(stackPackage);
     const created = await owner.transfer.create({
         spaceId: ids.space,
         id: Identifier.create("transfer", fixture.environment),
         requestId: RequestId.create(fixture.machine.environment),
         targetId: targetId,
     });
-    await reconcile(announcing, "transfer", { id: created.id });
 
-    // let the target have the source fence and stop as if its captures failed each time
+    // let the target have the source fence once the source's replica shows the move, and stop as if its captures failed
+    await database.log.waitUntil(
+        async () => (await placementRow(database))?.targetId === targetId,
+        FOREVER,
+    );
     const moving = { spaceId: ids.space, id: created.id };
-    await serving
+    await fixture
         .as(targetId)
         .client(stackPackage)
         .transfer.fence({
@@ -653,7 +472,7 @@ test("cancel a fenced transfer on its source as the space's owner, serving the s
             ...moving,
             requestId: RequestId.create(fixture.machine.environment),
         });
-    const refused = await refusal(cancel(serving.as(targetId).client(stackPackage)));
+    const refused = await refusal(cancel(fixture.as(targetId).client(stackPackage)));
 
     // cancel as the owner
     await cancel(owner);
@@ -673,7 +492,7 @@ test("cancel a fenced transfer on its source as the space's owner, serving the s
             outcome: object.transfer.table.outcome,
         })
         .from(object.transfer.table);
-    const served = await database
+    const spaces = await database
         .select({ id: accountObject.space.table.id })
         .from(accountObject.space.table)
         .where(and(eq(accountObject.space.table.id, ids.space), accountObject.Space.served()));
@@ -681,13 +500,13 @@ test("cancel a fenced transfer on its source as the space's owner, serving the s
         refused,
         placement: placedAgain,
         outcome: [ended?.completedAt !== null, ended?.outcome],
-        served,
+        spaces,
         again: await refusal(cancel(owner)),
     }).toEqual({
         refused: ["NOT_FOUND", "NOT_FOUND", `transfer '${created.id}' not found`],
         placement: { machine: fixture.machine.id, epoch: 2, target: null },
         outcome: [true, "cancelled"],
-        served: [{ id: ids.space }],
+        spaces: [{ id: ids.space }],
         again: [
             "PRECONDITION_FAILED",
             "TRANSFER_BLOCKED",
@@ -696,20 +515,15 @@ test("cancel a fenced transfer on its source as the space's owner, serving the s
     });
 });
 
-test("move a space again to a machine it moved away from, removing the fenced rows of that move first", async () => {
+test("move a space again to a machine it moved away from once that machine destroyed its copy", async () => {
     // move the space to the target and back, leaving the target the fenced rows of its move away
     const { source, target, targetId, universe } = await openMove();
     const sourceId = source.machine.id;
-    const leaving = await source.serve();
-    const away = await moveSpace(source, leaving, target, targetId);
-    await leaving[Symbol.asyncDispose]();
-    await away[Symbol.asyncDispose]();
-    const back = await target.serve();
-    await (await moveSpace(target, back, source, sourceId))[Symbol.asyncDispose]();
-    await back[Symbol.asyncDispose]();
+    await moveSpace(source, target, targetId);
+    await moveSpace(target, source, sourceId);
 
-    // move it to the target again, which removes the fenced rows before it receives the space
-    await moveSpace(source, await source.serve(), target, targetId);
+    // move the space there again, the target machine having destroyed its copy once the space left it
+    await moveSpace(source, target, targetId);
     const transfers = await target.database
         .select({
             sourceId: object.transfer.table.sourceId,
@@ -739,17 +553,17 @@ test("move a space afresh after its cancelled move, never completing the old tak
             scope: ids.space,
             packageId: ids.package,
             name: "notes",
-            selection: { kind: "release", version: "2026.9.0" },
+            follows: TestRegistry.row("release", "2026.9.0"),
             installer: source.owner.subject,
         },
         now,
     );
 
     // serve the space on the source as its owner
-    const serving = await source.serve();
+    await source.serve();
     const owner = createClient(
         stackPackage,
-        serving.as(source.owner.subject).stepUp().endpoint(stackPackage),
+        source.as(source.owner.subject).stepUp().endpoint(stackPackage),
         source.machine.environment,
     );
 
@@ -764,35 +578,41 @@ test("move a space afresh after its cancelled move, never completing the old tak
         sent.endsWith("/store/receive"),
     );
     const cancelling = paused.waiting.then(async () => {
-        // cancel as the owner before the target's first call to the universe, and let the target see its placement no longer moves here
+        // cancel as the owner before the target's first call to the universe, and let the target's machine see the placement no longer moves here
         await owner.transfer.cancel({
             spaceId: ids.space,
             id: created.id,
             requestId: RequestId.create(source.machine.environment),
         });
-        await target.database.log.waitUntil(
-            async () => (await placementRow(target.database))?.targetId === null,
+        const seen = target.machine.directory.snapshot.database;
+        await seen.log.waitUntil(
+            async () => (await placementRow(seen))?.targetId === null,
             FOREVER,
         );
         paused.resume();
     });
-    const receiving = await target.serve();
+    await targeted(target, targetId);
     const cancelled = await runMove(
         source,
         target,
-        receiving,
         (placed) => placed?.machine === source.machine.id && placed.epoch === 2,
     );
     await cancelling;
 
     // read the installation as the owner on a store of the target, refused on the abandoned target
-    const read = (served: TestObjectStore) =>
+    const read = (space: TestSpace) =>
         createClient(
             stackPackage,
-            served.as(source.owner.id).endpoint(stackPackage),
+            space.as(source.owner.id).endpoint(stackPackage),
             source.machine.environment,
         ).rollout.get({ spaceId: ids.space, id: ids.notes });
-    const abandoned = await refusal(read(receiving));
+
+    // let the target machine destroy the cancelled move's copy once the space no longer moves there
+    await target.simulation.waitUntil(
+        async () => (await target.machine.volumes.list()).length === 0,
+        target.simulation.clock.now() + ABANDON_MILLISECONDS,
+    );
+    const abandoned = await target.machine.volumes.list();
 
     // move the space afresh to the same target as the owner, and read the installation as the target serves it placed there
     await owner.transfer.create({
@@ -801,12 +621,9 @@ test("move a space afresh after its cancelled move, never completing the old tak
         requestId: RequestId.create(source.machine.environment),
         targetId,
     });
-    const moved = await runMove(
-        source,
-        target,
-        receiving,
-        (placed) => placed?.machine === targetId,
-    );
+    await targeted(target, targetId);
+    await target.serve();
+    const moved = await runMove(source, target, (placed) => placed?.machine === targetId);
     const received = await target.database
         .select({
             sourceEpoch: object.transfer.table.sourceEpoch,
@@ -814,25 +631,24 @@ test("move a space afresh after its cancelled move, never completing the old tak
         })
         .from(object.transfer.table)
         .orderBy(object.transfer.table.sourceEpoch);
-    await receiving[Symbol.asyncDispose]();
-    const served = await read(await target.serve());
+    const rollout = await read(await target.serve());
     expect({
         cancelled,
         abandoned,
         moved,
         placement: await placementOf(universe),
         transfers: received,
-        served: served.installationId,
+        installation: rollout.installationId,
     }).toEqual({
         cancelled: [],
-        abandoned: ["NOT_FOUND", "SCOPE_NOT_FOUND", `scope '${ids.space}' not found`],
+        abandoned: [],
         moved: [],
         placement: { space: ids.space, scope: ids.account, machine: targetId, epoch: 3 },
         transfers: [
             { sourceEpoch: 1, outcome: "cancelled" },
             { sourceEpoch: 2, outcome: "succeeded" },
         ],
-        served: ids.notes,
+        installation: ids.notes,
     });
 });
 
@@ -840,7 +656,8 @@ test("collect a stray blob a grace after its lease ends, and a snapshot's blobs 
     // serve the fixture's space on the machine that stores the snapshots of it
     const fixture = await TestSpace.open({});
     await fixture.serve();
-    const { database, blobs } = fixture;
+    const { database } = fixture;
+    const { blobs } = await fixture.space;
     const start = fixture.machine.clock.now();
 
     // put a blob a taken snapshot references, and a stray blob none references
@@ -911,6 +728,13 @@ async function openMove() {
         machine: enrolled,
     });
 
+    // wait until the source machine's directory holds the target
+    const isKnown = async () =>
+        (await source.machine.directory.snapshot
+            .read(accountObject.machine.table)
+            .findFirst({ where: { id: enrolled.id } })) !== undefined;
+    await source.simulation.waitUntil(isKnown);
+
     return {
         source,
         target,
@@ -922,16 +746,16 @@ async function openMove() {
 /** Move the space as its owner to another machine, which stands by until placed there. */
 async function moveSpace(
     source: TestSpace,
-    serving: TestObjectStore,
     target: TestSpace,
     targetId: Identifier<"machine">,
-): Promise<TestObjectStore> {
+): Promise<void> {
     // ask for the move as the space's owner on its source, once it follows the space's chain
     const isFollowed = async () =>
         (await Scope.read(Snapshot.live(source.database), [ids.account])).length > 0;
     await source.simulation.idle();
+    await source.serve();
     await source.database.log.waitUntil(isFollowed, FOREVER);
-    await serving
+    await source
         .as(source.owner.subject)
         .stepUp()
         .client(stackPackage)
@@ -942,24 +766,17 @@ async function moveSpace(
             targetId,
         });
 
-    // receive it on the target as a standby, handed off by the source, until the universe places it there
-    const receiving = await target.serve();
-    const refused = await runMove(
-        source,
-        target,
-        receiving,
-        (placed) => placed?.machine === targetId,
-    );
+    // receive it on the target as a standby
+    await targeted(target, targetId);
+    await target.serve();
+    const refused = await runMove(source, target, (placed) => placed?.machine === targetId);
     expect(refused).toEqual([]);
-
-    return receiving;
 }
 
 /** Run the world until a move's placement settles within the target's lag and expected retries. */
 async function runMove(
     source: TestSpace,
     target: TestSpace,
-    receiving: TestObjectStore,
     isSettled: (placed: Placement | undefined) => boolean,
     expected = 0,
 ): Promise<(readonly [string, string, string])[]> {
@@ -967,7 +784,8 @@ async function runMove(
     const universe = source.universe.storage.database;
     const { simulation } = source;
     const policy = RetryPolicy.of();
-    let budget = receiving.store.authorizer.lag;
+    const serving = (await placementOf(universe))?.machine === target.machine.id ? target : source;
+    let budget = (await serving.store()).authorizer.lag;
     for (let failures = 1; failures <= expected; failures += 1) {
         budget += RetryPolicy.interval(policy, failures, () => 1);
     }
@@ -989,6 +807,15 @@ async function runMove(
     }
 
     return refused;
+}
+
+/** Wait until a target's directory shows the space moving to it, as its machine starts it then. */
+async function targeted(target: TestSpace, targetId: Identifier<"machine">): Promise<void> {
+    const { snapshot } = target.machine.directory;
+    await snapshot.database.log.waitUntil(
+        async () => (await placementRow(snapshot.database))?.targetId === targetId,
+        FOREVER,
+    );
 }
 
 /** Read the space's placement row a database replicates, none while unplaced. */

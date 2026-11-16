@@ -19,10 +19,10 @@ async function open(classes: readonly Tenancy[]) {
 
     // serve the space on its residency's cloud machine next to the owner's laptop, placing it as each change settles
     const laptop = await fixture.universe.enroll(fixture.owner, ids.account, LAPTOP_ENDPOINT);
-    const served = await fixture.serve();
+    await fixture.serve();
     await fixture.simulation.idle();
 
-    return { fixture, served, laptop: laptop.id };
+    return { fixture, laptop: laptop.id };
 }
 
 /** Set the space's tenancy at the universe, as its owner does. */
