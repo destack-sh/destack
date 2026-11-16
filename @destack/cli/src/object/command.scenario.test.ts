@@ -139,35 +139,47 @@ test("list a type's objects by its plural, restricted by field flags, a filter, 
 });
 
 test("offer every object type an installation lists as a noun, and refuse a word two installations serve", async () => {
-    // install the board, and as the archive another package declaring cards
+    // list the work cards and the archive's cards before the archive's install
     const terminal = await open(WORK_BOARD);
+    const listed = async (words: string[]) => {
+        const { code, output, error } = await line(terminal, words);
+
+        return [code, output.trim(), error.trim()];
+    };
+    const before = [await listed(["cards", "--json"]), await listed(["archive:cards", "--json"])];
+
+    // install as the archive another package declaring cards
     await terminal.publish("mention");
     await terminal.install("mention", "archive");
-    const refused = async (words: string[]) => {
-        const { code, error } = await line(terminal, words);
-
-        return [code, error.trim()];
-    };
 
     // refuse the bare nouns, and list a qualified one
-    expect([
-        await refused(["cards"]),
-        await refused(["card", "card-01996ab0-0000-7000-8000-0000000000d1"]),
-        await refused(["archive:cards", "--json"]),
-    ]).toEqual([
-        [
-            2,
-            "destack: noun 'cards' is invalid: it is ambiguous, so use one of 'archive:cards, work:cards'",
+    const after = [
+        await listed(["cards"]),
+        await listed(["card", "card-01996ab0-0000-7000-8000-0000000000d1"]),
+        await listed(["archive:cards", "--json"]),
+    ];
+    expect({ before, after }).toEqual({
+        before: [
+            [0, "[]", ""],
+            [2, "", failure("BAD_REQUEST", "unknown command destack archive:cards").trim()],
         ],
-        [
-            2,
-            "destack: noun 'card' is invalid: it is ambiguous, so use one of 'archive:card, work:card'",
+        after: [
+            [
+                2,
+                "",
+                "destack: noun 'cards' is invalid: it is ambiguous, so use one of 'archive:cards, work:cards'",
+            ],
+            [
+                2,
+                "",
+                "destack: noun 'card' is invalid: it is ambiguous, so use one of 'archive:card, work:card'",
+            ],
+            [0, "[]", ""],
         ],
-        [0, ""],
-    ]);
+    });
 });
 
-test("refuse a list's limit outside the positive whole numbers, and an order starting with a dash without an equals sign", async () => {
+test("refuse a list's zero limit and a dash value without an equals sign", async () => {
     // list with a zero limit, and with a descending order as its own word
     const terminal = await open(WORK_BOARD);
     const refused = async (words: string[]) => {
@@ -208,19 +220,6 @@ test("report a refused call with its service code, exiting with 1", async () => 
         output: "",
         error: failure("CONFLICT", "cannot update card: its revision changed"),
     });
-});
-
-test("find an installation's nouns on the command line after its install", async () => {
-    // list the work cards, then install the archive and list its cards by qualified noun
-    const terminal = await open(WORK_BOARD);
-    const listed = async (words: string[]) => (await line(terminal, [...words, "--json"])).code;
-    const before = [await listed(["cards"]), await listed(["archive:cards"])];
-    await terminal.publish("mention");
-    await terminal.install("mention", "archive");
-    const after = await listed(["archive:cards"]);
-
-    // expect the archive's noun unknown before its install and listed after it
-    expect({ before, after }).toEqual({ before: [0, 2], after: 0 });
 });
 
 test("print help for a command line without words as destack help does, and a noun's methods and flags", async () => {
@@ -291,7 +290,7 @@ test("pass a flag with an object's identifier or key, refusing an unknown key", 
     });
 });
 
-test("build a structured input from one flag per path, a union's variants each adding theirs", async () => {
+test("list a union input's flags in a method's help, one per path", async () => {
     // read the flags of a bucket's open
     const terminal = await open();
     const help = await line(terminal, ["bucket", BUCKET, "open", "--help"]);
@@ -324,7 +323,7 @@ Usage: destack bucket ${BUCKET} open
     });
 });
 
-test("run a declared command on an object as one of its verbs, setting its input, and refuse an object missing its condition", async () => {
+test("run a declared command on an object, refusing one its condition excludes", async () => {
     // retitle a card to Ideas, then try again once it is titled Ideas
     const terminal = await open(WORK_BOARD);
     const id = await create(terminal, "Plans");

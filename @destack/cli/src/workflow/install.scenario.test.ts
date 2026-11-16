@@ -48,7 +48,7 @@ const Calls = schema.array(
     schema.looseObject({ data: schema.looseObject({ method: schema.string() }) }),
 );
 
-test("install a published app, waiting until the space serves it, then write its objects while a watch shows them", async () => {
+test("install a published app, returning once the space serves its revision", async () => {
     // publish the notebooks as the owner's acme organization
     const terminal = await TerminalFixture.open({ NO_COLOR: "1" });
     const run = (words: readonly string[]) => terminal.printed(["--space", "home", ...words]);
@@ -91,8 +91,9 @@ test("install a published app, waiting until the space serves it, then write its
         followed: [
             installed.tag,
             statuses.at(-1)?.follows,
-            statuses.at(-1)?.rollout.servedRevisionId === served.targetRevisionId,
+            statuses.at(-1)?.rollout.servedRevisionId,
         ],
+        served: served.servedRevisionId,
         installed,
         version: Version.release(installed.version),
         watched: [watched.code, jsonLines(watched.output), watched.error],
@@ -110,7 +111,8 @@ test("install a published app, waiting until the space serves it, then write its
         published: [0, ""],
         installing: [0, ""],
         // follow the latest tag, showing its rollout until the space serves its revision
-        followed: ["latest", "tag latest", true],
+        followed: ["latest", "tag latest", served.targetRevisionId],
+        served: served.targetRevisionId,
         installed: {
             id: installed.id,
             tag: "latest",

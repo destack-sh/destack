@@ -6,7 +6,7 @@ import { TerminalFixture } from "../test/terminal.ts";
 /** A printed space's identifier. */
 const Created = schema.looseObject({ id: schema.identifier("space") });
 
-/** The printed installations: each one's name, scope and package. */
+/** The printed installations: each one's name and scope. */
 const Installed = schema.array(
     schema.looseObject({
         name: schema.string(),
@@ -37,21 +37,31 @@ test("switch to a space as this computer's space setting, which --space override
         await line(["switch", deskAddress]),
         await line(["whoami"]),
         await line(["--space", homeAddress, "whoami", "--json"]),
-        await line([`--space=${deskAddress}`, "installations", "--json"]),
+    ];
+
+    // list the desk's installations by its address
+    const listed = await line([`--space=${deskAddress}`, "installations", "--json"]);
+    const installations = Installed.parse(JSON.parse(listed.output))
+        .filter((row) => row.scope === desk)
+        .map((row) => row.name)
+        .toSorted();
+
+    // give spaces by name, and refuse missing spaces and values
+    lines.push(
         await line(["switch", missing, "--json"]),
         await line(["--space", "notes", "whoami"]),
         await line(["--space", "desk", "whoami", "--json"]),
         await line(["--space", "home", "whoami", "--json"]),
         await line(["--space"]),
-    ];
-
-    // list the desk's installations as its own store lists them
-    const listed = await terminal.printed([`--space=${deskAddress}`, "installations", "--json"]);
-    const installations = listed.output.trim();
+    );
 
     // set the space switched to as this computer's setting, resolving names and refusing a space nobody can open
     const { login } = terminal;
-    expect({ lines, setting: await terminal.native.setting(currentSpace) }).toEqual({
+    expect({
+        lines,
+        listed: [listed.code, listed.error, installations],
+        setting: await terminal.native.setting(currentSpace),
+    }).toEqual({
         lines: [
             { code: 0, output: whoami(terminal, null), error: "" },
             { code: 0, output: `Switched to ${deskAddress}.`, error: "" },
@@ -67,7 +77,6 @@ test("switch to a space as this computer's space setting, which --space override
                 error: "",
             },
             { code: 0, output: whoami(terminal, homeAddress), error: "" },
-            { code: 0, output: installations, error: "" },
             {
                 code: 1,
                 output: "",
@@ -84,11 +93,12 @@ test("switch to a space as this computer's space setting, which --space override
             { code: 0, output: whoami(terminal, homeAddress), error: "" },
             { code: 2, output: "", error: "destack: --space is invalid: it takes a value" },
         ],
+        listed: [0, "", ["inbox", "message", "observability", "social", "stack", "vault"]],
         setting: desk,
     });
 });
 
-test("refuse a command line acting as nobody signed in, telling the person to sign in, also for a universe noun", async () => {
+test("refuse whoami and universe nouns while nobody is signed in", async () => {
     // sign the owner out
     const terminal = await TerminalFixture.open();
     const { native } = terminal;
