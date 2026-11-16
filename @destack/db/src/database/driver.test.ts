@@ -145,3 +145,33 @@ test("announce a write through all whenever it runs, whatever rows it answers", 
         ],
     });
 });
+
+test("tell commit waiters of a row's write, and nothing of a moved checkpoint", async () => {
+    // open a database with a note, its commit watch listening
+    await using simulation = testSimulation();
+    const world = simulation.environment("test");
+    const storage = await TestDatabase.create([note], { environment: world, isMigrated: true });
+    onTestFinished(() => storage.close());
+    const { database } = storage;
+    await database.insert(note).values([{ id: "a", body: "first" }]);
+    await database.state.commits.listen();
+
+    // wait on the log while a checkpoint moves, then while the note changes
+    const stop = new AbortController();
+    const told: string[][] = [];
+    const waiting = database.log.waitUntil(async (tables) => {
+        told.push([...tables].toSorted());
+
+        return tables.has(note[TABLE].sqlName);
+    }, stop.signal);
+    const { sequence } = await database.log.position();
+    await database.log.move({ name: "reader", tables: [note] }, 0, sequence, world.clock.now());
+    await database.all(sql`UPDATE ${note} SET body = 'updated' WHERE ${note.id} = 'a'`);
+    const isTold = await waiting;
+
+    // leave out the first check, which runs before any commit
+    expect({ isTold, told: told.filter((tables) => tables.length > 0) }).toEqual({
+        isTold: true,
+        told: [[note[TABLE].sqlName]],
+    });
+});

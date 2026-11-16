@@ -660,7 +660,19 @@ export class Log {
         signal: AbortSignal,
         generation?: number,
     ): Promise<boolean> {
-        return this.database.state.commits.waitUntil(check, signal, generation);
+        // leave out the log's own checkpoints, which cursors and positions write
+        const written = async (tables: ReadonlySet<string>) => {
+            const rows = new Set([...tables].filter((table) => table !== LOG_CHECKPOINT));
+
+            // skip a commit that wrote checkpoints alone
+            if (tables.size > 0 && rows.size === 0) {
+                return false;
+            }
+
+            return await check(rows);
+        };
+
+        return this.database.state.commits.waitUntil(written, signal, generation);
     }
 
     /** Yield each page of selected changes past a sequence, or every advance, until aborted. */
