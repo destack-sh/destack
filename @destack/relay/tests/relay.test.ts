@@ -492,13 +492,13 @@ test("follow a space's rename", async () => {
     });
     await computer.waitCaughtUp(relay);
 
-    // refuse the old name and call the space by the new one
+    // route the former name and the new one to the space's machine
     const renamed = "notes--renamed--acme.destack.space";
     expect([
         before,
         await computer.request(relay, computer.notes, "/"),
         await computer.request(relay, renamed, "/"),
-    ]).toEqual(["hello GET /", unresolved(computer.notes), "hello GET /"]);
+    ]).toEqual(["hello GET /", "hello GET /", "hello GET /"]);
 });
 
 test("resolve a handle from the relay's replica after the account renames it", async () => {
@@ -519,13 +519,13 @@ test("resolve a handle from the relay's replica after the account renames it", a
     });
     await computer.waitCaughtUp(relay);
 
-    // refuse the old handle and call the space by the new one
+    // route the former handle and the new one to the space's machine
     const renamed = "notes--work--acme-renamed.destack.space";
     expect([
         before,
         await computer.request(relay, computer.notes, "/"),
         await computer.request(relay, renamed, "/"),
-    ]).toEqual(["hello GET /", unresolved(computer.notes), "hello GET /"]);
+    ]).toEqual(["hello GET /", "hello GET /", "hello GET /"]);
 });
 
 test("end a deleted machine's tunnel at once, refuse its names, and emit the opening and the close", async () => {
