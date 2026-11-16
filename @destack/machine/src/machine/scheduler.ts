@@ -1,19 +1,18 @@
 import { placement, Space } from "@destack/account/object";
 import { principal } from "@destack/access";
 import { type Select, Snapshot } from "@destack/db";
-import { ObjectWatch, type Condition } from "@destack/object";
+import { type ObjectWatch, type Condition } from "@destack/object";
 import type { ObjectStore } from "@destack/object/server";
 import { ObjectReference, RequestId, Scope } from "@destack/sync";
 import { transfer } from "@destack/stack/object";
 
 /** The scheduler of served spaces onto the machines the universe decides for their tenancy. */
 export const Scheduler = {
-    /** The changes that schedule a space again: its transfers, its placement and its row. */
+    /** The changes that schedule a space again beside its row: its transfers and its placement. */
     watches: [
-        ObjectWatch.of(transfer.table, (row) => [{ id: row.scope }]),
-        ObjectWatch.of(placement.table, (row) => [{ id: row.spaceId }]),
-        Space.watch(async (spaceId) => [{ id: spaceId }]),
-    ],
+        { table: transfer.table, on: { id: "scope" } },
+        { table: placement.table, on: { id: "spaceId" } },
+    ] satisfies ObjectWatch[],
 
     /** Move a served space where the universe decides, cancelling its own dropped move. */
     async schedule(

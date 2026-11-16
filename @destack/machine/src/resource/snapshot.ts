@@ -49,6 +49,7 @@ export function implementSnapshot(options: TransferOptions) {
     return snapshot.implement({
         controllers: [
             {
+                name: "take",
                 pending: TAKING,
                 reconcile: async (reconciliation) => {
                     // take each pending snapshot
@@ -108,7 +109,7 @@ export function implementSnapshot(options: TransferOptions) {
             },
             {
                 // delete each space's snapshots past their retention, as the space
-                name: "expiry",
+                name: "expire",
                 pending: {
                     takenAt: { lte: now.minus({ milliseconds: SNAPSHOT_RETENTION_MILLISECONDS }) },
                 },
@@ -135,6 +136,7 @@ export function implementRestore(options: TransferOptions) {
     return restore.implement({
         controllers: [
             {
+                name: "apply",
                 pending: RESTORING,
                 reconcile: async (reconciliation) => {
                     // restore each pending restore

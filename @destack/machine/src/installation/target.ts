@@ -3,13 +3,12 @@ import { Failure } from "@destack/error";
 import { DeclarationReference } from "@destack/package/declare";
 import { installableBuilds, MAIN_DATABASE, StackDefinition } from "@destack/stack/declare";
 import {
-    and,
     type BlobStore,
     type DatabaseConnection,
     DatabaseState,
-    eq,
-    isNull,
     Snapshot,
+    TABLE,
+    type TableState,
 } from "@destack/db";
 import {
     Installation,
@@ -17,9 +16,7 @@ import {
     InstallationBindingSpec,
     type InstallationBindingState,
     InstallationKind,
-    InstallationSelection,
     ObjectDescription,
-    type ObjectReconciliation,
     ObjectType,
     ObjectTypePool,
     PackageDescription,
@@ -36,12 +33,15 @@ import {
     schema,
     Version,
 } from "@destack/schema";
-import { type Call, ObjectTypeReference } from "@destack/sync";
+import { ObjectReference, ObjectTypeReference } from "@destack/sync";
 import { Setting } from "@destack/setting";
 import { SettingValue } from "@destack/setting/object";
 import { build, Build, type BuildSource } from "@destack/stack/object";
 import type { Registry } from "./build.ts";
 import type { Forge } from "./follow.ts";
+import { release, reference, tag } from "@destack/registry/object";
+import { checkout } from "../computer/checkout/object/index.ts";
+import type { InstallationSelection } from "@destack/object";
 import type { Binder } from "../resource/binding.ts";
 import { space } from "@destack/account/object";
 import { StackEvaluation } from "@destack/stack/object";
@@ -60,7 +60,10 @@ export interface RevisionOptions {
     /** The kinds of objects bindings target. */
     readonly binder: Binder;
     /** The space whose builds are read, through to its machine's builds and forges. */
-    readonly space: Pick<Space, "builds" | "machine" | "root" | "pull" | "read">;
+    readonly space: Pick<
+        Space,
+        "builds" | "machine" | "root" | "pull" | "read" | "requireFollowable" | "requireRepository"
+    >;
     /** The registry of published releases. */
     readonly registry: Registry;
     /** The space's blobs, storing the states its revisions require. */
@@ -77,18 +80,111 @@ export interface RevisionOptions {
     readonly trusted: ReadonlySet<Digest>;
 }
 
+/** A build chosen for an installation, with what its revision requires. */
+export interface ChosenBuild extends SelectedBuild {
+    /** The installable packages the build depends on, at the builds its lock has. */
+    readonly dependencies: InstallationRevision["dependencies"];
+    /** The state each declaration of the build requires of its target, as a blob. */
+    readonly states: InstallationRevision["states"];
+}
+
 /** The build a selection resolves to: the space's build, its lock and source. */
-interface SelectedBuild {
-    /** The space's build. */
-    readonly build: Identifier<"build">;
+export interface SelectedBuild {
+    /** The space's build, absent for a release its apply records. */
+    readonly build?: Identifier<"build">;
     /** The digest of the build's lock. */
     readonly lock: Digest;
     /** Where the build comes from. */
     readonly source: BuildSource;
 }
 
+/** The kind of row an installation follows, or the host's release without one. */
+export type FollowKind = "host" | "release" | "tag" | "reference" | "checkout" | "build";
+
 /** The revision a rollout targets: selecting its build, evaluating its stack, recording it. */
 export const RolloutTarget = {
+    /** Name the kind of row an installation follows, the host's release without one. */
+    follows(installed: Pick<Installation, "followsType">): FollowKind {
+        // follow the host's release without a followed row
+        const type = installed.followsType;
+        if (type === null) {
+            return "host";
+        }
+
+        // name the followed row's type, refusing one nothing follows
+        const kinds: Readonly<Record<string, FollowKind>> = {
+            [release.name]: "release",
+            [tag.name]: "tag",
+            [reference.name]: "reference",
+            [checkout.name]: "checkout",
+            [build.name]: "build",
+        };
+        const kind = kinds[type];
+        if (kind === undefined) {
+            throw new TypeError(`an installation cannot follow a ${type}`);
+        }
+
+        return kind;
+    },
+
+    /** Read the row an installation follows, absent for the host's release. */
+    followed(columns: {
+        readonly followsPackageId?: string | null;
+        readonly followsType?: string | null;
+        readonly followsScope?: string | null;
+        readonly followsId?: string | null;
+    }): ObjectReference | undefined {
+        return columns.followsId === undefined || columns.followsId === null
+            ? undefined
+            : ObjectReference.at("follows", columns);
+    },
+
+    /** Resolve the row a declaration follows: its pin, else the host's or its built release. */
+    async resolveDeclared(
+        packageId: PackageId,
+        declared: {
+            readonly selection?: InstallationSelection | undefined;
+            readonly version?: string | undefined;
+        },
+        options: Pick<RevisionOptions, "registry" | "shipped">,
+    ): Promise<{
+        readonly follows: ObjectReference | undefined;
+        readonly directory: string | null;
+    }> {
+        // follow the host's release without a pin when the host ships the version it was built with
+        const { version } = declared;
+        const shipped = options.shipped.get(packageId)?.package.version;
+        const selection =
+            declared.selection ??
+            (shipped !== undefined && shipped === version
+                ? { kind: "host" as const }
+                : { kind: "release" as const, version: present(version, "the built version") });
+
+        // follow the host's release without a row, and a checkout on its machine
+        if (selection.kind === "host") {
+            return { follows: undefined, directory: null };
+        } else if (selection.kind === "checkout") {
+            const followed = checkout.reference(selection.machine, selection.checkout);
+
+            return { follows: followed, directory: selection.directory };
+        }
+
+        // read a release, tag or reference at its forge's home
+        const followed = await options.registry.followed(packageId, selection);
+
+        return {
+            follows: followed,
+            directory: selection.kind === "repository" ? selection.directory : null,
+        };
+    },
+
+    /** Report whether an installation's build resolves without a build here: a release or a pin. */
+    isPinned(installed: Pick<Installation, "followsType">): boolean {
+        const kind = RolloutTarget.follows(installed);
+
+        return kind === "host" || kind === "release" || kind === "tag" || kind === "build";
+    },
+
     /** Attribute a rollout step's span to the target's space and installation. */
     attributes(target: Pick<InstallationRollout, "scope" | "installationId">) {
         return {
@@ -123,134 +219,124 @@ export const RolloutTarget = {
 
     /** Resolve the lock an installation runs, undefined for a host release the machine lacks. */
     running(
-        installed: Pick<Installation, "packageId" | "selection">,
+        installed: Pick<Installation, "packageId" | "followsType">,
         recorded: Digest,
         options: Pick<RevisionOptions, "linked" | "shipped">,
     ): Digest | undefined {
         const { packageId } = installed;
 
-        return installed.selection.kind === "host"
+        return RolloutTarget.follows(installed) === "host"
             ? RolloutTarget.provided(packageId, options)?.lock
             : (options.linked.get(packageId)?.lock ?? recorded);
     },
 
-    /** Revise each installation: its selected or targeted build at its current bindings. */
-    async revise(
-        reconciliation: ObjectReconciliation,
-        rows: readonly InstallationRollout[],
+    /** Choose the build an installation runs and describe its revision, none while none is here. */
+    async choose(
+        reader: Pick<Snapshot, "read">,
+        row: InstallationRollout,
+        requested: Identifier<"build"> | undefined,
+        objects: readonly ObjectType[],
         options: RevisionOptions,
-    ): Promise<void> {
-        // read the revisions the installations target and their builds
-        const { database, store } = reconciliation;
-        const snapshot = Snapshot.live(database);
-        const targetedIds = rows.flatMap((row) =>
-            row.revisionId === null ? [] : [row.revisionId],
-        );
-        const targeted = await snapshot
-            .read(installationRevision.table)
-            .findMany({ where: { id: { in: targetedIds } } });
-        const built = (
-            await snapshot
-                .read(build.table)
-                .findMany({ where: { id: { in: targeted.map((each) => each.buildId) } } })
-        ).map((each) => Build.of(each));
+    ): Promise<ChosenBuild | undefined> {
+        // read the build its targeted revision evaluates
+        const revision =
+            row.targetRevisionId === null
+                ? undefined
+                : await reader
+                      .read(installationRevision.table)
+                      .findFirst({ where: { id: row.targetRevisionId } });
+        const built =
+            revision === undefined
+                ? undefined
+                : await reader.read(build.table).findFirst({ where: { id: revision.buildId } });
+        const current = built === undefined ? undefined : Build.of(built);
 
-        // revise each one: its selected build, else its targeted one, at its bindings as they stand
-        const calls: Call[] = [];
-        for (const row of rows) {
-            // take a release or tag selection's build once built, else the targeted revision's
-            const revision = targeted.find((each) => each.id === row.revisionId);
-            const current = built.find((each) => each.id === revision?.buildId);
-            const selected = InstallationSelection.isRelease(row.installation.selection)
-                ? await selectBuild(reconciliation, row, current, options)
+        // take the requested build, else the build of what it follows, else its targeted one
+        const selected =
+            requested === undefined
+                ? await selectBuild(reader, row, current, options)
+                : await Build.require(reader, row.scope, requested).then((found) => ({
+                      build: found.id,
+                      lock: found.lock,
+                      source: found.source,
+                  }));
+        const targeted =
+            current === undefined
+                ? undefined
+                : { build: current.id, lock: Build.lock(current), source: current.source };
+        const chosen = selected ?? targeted;
+
+        // choose none without a build, or with one whose lock the machine lacks
+        if (
+            chosen === undefined ||
+            (await options.space.builds.storeOf(chosen.lock)) === undefined
+        ) {
+            return undefined;
+        }
+
+        // describe its revision, reusing the targeted one's for the same build
+        const lock = await options.space.builds.lock(chosen.lock);
+        const described =
+            revision !== undefined && revision.buildId === chosen.build
+                ? { dependencies: revision.dependencies, states: revision.states }
+                : await RolloutTarget.describe(row.installation, lock, objects, options);
+
+        return { ...chosen, ...described };
+    },
+
+    /** Pull the release an installation follows, none while its tag is unset. */
+    async pull(
+        reader: Pick<Snapshot, "read">,
+        row: InstallationRollout,
+        options: RevisionOptions,
+    ): Promise<SelectedBuild | undefined> {
+        // leave an installation following a build of the space
+        const { installation: installed } = row;
+        const { packageId } = installed;
+        const kind = RolloutTarget.follows(installed);
+        if (kind !== "host" && kind !== "release" && kind !== "tag") {
+            return undefined;
+        }
+
+        // leave a host's release already on the machine
+        const { forge } = options;
+        const hosted = kind === "host" ? RolloutTarget.host(packageId, options) : undefined;
+        if (
+            hosted !== undefined &&
+            (await options.space.builds.storeOf(hosted.lock)) !== undefined
+        ) {
+            return undefined;
+        }
+
+        // leave a tag still pointing at the targeted release
+        const current =
+            row.targetRevisionId === null
+                ? undefined
+                : await InstallationRevision.build(reader, row.targetRevisionId);
+        const tagged =
+            kind === "tag" && forge !== null
+                ? await forge.version(reader, present(installed.followsId, "the followed tag"))
                 : undefined;
-            const chosen =
-                selected ??
-                (revision === undefined || current === undefined
-                    ? undefined
-                    : { build: current.id, lock: Build.lock(current) });
-            // wait for an installation selecting a target of a kind no server here serves yet
-            const selections = Object.values(row.installation.bindings).flatMap((each) =>
-                Object.values(each),
-            );
-            const unserved = selections
-                .map(({ target }) => target)
-                .filter((target) => "id" in target && !options.binder.isBindable(target.id))
-                .map((target) => target.type);
-            if (unserved.length > 0) {
-                const message = `waiting for a provider of ${[...new Set(unserved)].join(", ")} resources`;
-                await reconciliation.observe(installation, row.installation, {
-                    conditions: {
-                        Bound: Rollout.waiting("WaitingForResources", message),
-                        Ready: Rollout.waiting("WaitingForResources", message),
-                    },
-                });
-                continue;
-            }
-            // pass over one with no build to revise yet
-            else if (chosen === undefined) {
-                continue;
-            }
-            // wait for a missing build
-            else if ((await options.space.builds.storeOf(chosen.lock)) === undefined) {
-                await reconciliation.observe(installation, row.installation, {
-                    conditions: { Ready: Rollout.waitingForBuild(chosen.lock) },
-                });
-                continue;
-            }
-
-            // pass over one whose targeted revision is current: this build, and an application's bindings or a stack's inputs as they stand
-            const inputs =
-                row.installation.export === null
-                    ? undefined
-                    : await RolloutTarget.inputs(snapshot, row.installation);
-            const isRevised =
-                revision !== undefined &&
-                revision.buildId === chosen.build &&
-                (inputs === undefined
-                    ? await options.binder.isCurrent(
-                          snapshot,
-                          row,
-                          revision,
-                          await options.space.root(row.installation.packageId, chosen.lock),
-                      )
-                    : revision.digest ===
-                      (await InstallationRevision.digest(
-                          chosen.lock,
-                          inputs,
-                          [],
-                          store.environment.crypto,
-                      )));
-            if (isRevised) {
-                continue;
-            }
-
-            // describe a new build's revision, reusing the targeted one's for the same build
-            const lock = await options.space.builds.lock(chosen.lock);
-            const described =
-                revision !== undefined && revision.buildId === chosen.build
-                    ? { dependencies: revision.dependencies, states: revision.states }
-                    : await RolloutTarget.describe(row.installation, lock, store.objects, options);
-
-            // evaluate a stack's export of it at its inputs
-            const evaluation =
-                inputs === undefined
-                    ? undefined
-                    : await RolloutTarget.evaluate(inputs, lock, options);
-            calls.push(
-                rollout.call("revise", {
-                    ...rollout.target({ scope: row.scope, id: row.installationId }),
-                    build: chosen.build,
-                    ...described,
-                    ...(evaluation === undefined ? {} : { evaluation }),
-                }),
-            );
+        if (
+            tagged !== undefined &&
+            current?.source.kind === "release" &&
+            current.source.version === tagged
+        ) {
+            return undefined;
         }
 
-        // revise them in one transaction, each at most once per digest
-        if (calls.length > 0) {
-            await reconciliation.mutate(calls);
+        // resolve the host's release, or the followed release or tag at its forge
+        const resolved = hosted ?? (await selectedRelease(reader, installed, options));
+        if (resolved === undefined) {
+            return undefined;
         }
+
+        // pull its lock onto the machine
+        const { lock } = resolved;
+        const pulled = await options.space.pull(packageId, lock);
+        const version = (await options.space.builds.get(pulled.root)).package.version;
+
+        return { lock, source: { kind: "release", package: packageId, version, lock } };
     },
 
     /** Read the build an installation follows, else the linked release, else its selection. */
@@ -278,7 +364,8 @@ export const RolloutTarget = {
         const [only] = installed.length === 1 ? installed : [];
         const linked = options.linked.get(packageId);
         const followed = installed.find((row) => row.id === found?.installationId);
-        const selection = followed?.selection ?? only?.selection;
+        const following = followed ?? only;
+        const kind = following === undefined ? undefined : RolloutTarget.follows(following);
         if (rows.length > 1) {
             throw StackError.of(
                 "TARGET_BLOCKED",
@@ -289,15 +376,15 @@ export const RolloutTarget = {
         else if (installed.length === 0 && linked === undefined) {
             return undefined;
         }
-        // read the release the machine provides for a host selection
-        else if (selection?.kind === "host") {
+        // read the release the machine provides for one following the host's
+        else if (kind === "host") {
             return options.space.root(packageId, RolloutTarget.host(packageId, options).lock);
         }
         // read the revision's build
-        else if (followed?.revisionId !== undefined && followed.revisionId !== null) {
+        else if (found?.targetRevisionId !== undefined && found.targetRevisionId !== null) {
             return InstallationRevision.reader(
                 snapshot,
-                followed.revisionId,
+                found.targetRevisionId,
                 packageId,
                 options.space,
             );
@@ -306,14 +393,9 @@ export const RolloutTarget = {
         else if (linked !== undefined) {
             return options.space.root(packageId, linked.lock);
         }
-        // resolve the release a planned installation selects as its rollout will
-        else if (selection?.kind === "release" || selection?.kind === "tag") {
-            const resolved = await selectedRelease(
-                snapshot,
-                { selection, packageId },
-                undefined,
-                options,
-            );
+        // resolve a planned installation's release
+        else if (following !== undefined && (kind === "release" || kind === "tag")) {
+            const resolved = await selectedRelease(snapshot, following, options);
             if (resolved !== undefined) {
                 return options.space.root(packageId, resolved.lock);
             }
@@ -324,43 +406,6 @@ export const RolloutTarget = {
             "INSTALLATION_NOT_FOUND",
             "installation in this space following a build of this package not found",
         );
-    },
-
-    /** List the live installations with a matching selection, in one space or all. */
-    async selecting(
-        database: DatabaseConnection,
-        spaceId: Identifier<"space"> | undefined,
-        matches: (selection: InstallationSelection) => boolean,
-    ): Promise<
-        {
-            readonly id: Identifier<"installation">;
-            readonly scope: string;
-            readonly packageId: PackageId;
-            readonly managerInstallationId: Identifier<"installation"> | null;
-            readonly selection: InstallationSelection;
-        }[]
-    > {
-        // read the live rollouts with their installations' selections, of the space if given
-        const live = isNull(installation.table.deletedAt);
-        const rows = await database
-            .select({
-                id: rollout.table.installationId,
-                scope: rollout.table.scope,
-                packageId: installation.table.packageId,
-                managerInstallationId: installation.table.managerInstallationId,
-                selection: installation.table.selection,
-            })
-            .from(rollout.table)
-            .innerJoin(
-                installation.table,
-                and(
-                    eq(installation.table.id, rollout.table.installationId),
-                    eq(installation.table.scope, rollout.table.scope),
-                ),
-            )
-            .where(spaceId === undefined ? live : and(eq(rollout.table.scope, spaceId), live));
-
-        return rows.filter((each) => matches(each.selection));
     },
 
     /** Evaluate a locked build's stack at an export, with the builds its lock has. */
@@ -375,14 +420,14 @@ export const RolloutTarget = {
         // take the builds the machine links, then the lock's
         const { machine } = options.space;
         const locks = await machine.linkedLocks();
-        const linked = [...machine.linked.values()].map((release) => {
+        const linked = [...machine.linked.values()].map((provided) => {
             const { root } = present(
-                locks.get(release.package.name),
-                `the lock of ${release.package.name}`,
+                locks.get(provided.package.name),
+                `the lock of ${provided.package.name}`,
             );
             const entry: DependencyRelease = {
                 kind: "destack",
-                package: release.package,
+                package: provided.package,
                 manifest: root,
             };
 
@@ -508,68 +553,68 @@ export const RolloutTarget = {
     },
 };
 
-/** Resolve a selection to its build now, recording a pulled release, none until built. */
+/** Resolve what an installation follows to its build, none until built or pulled. */
 async function selectBuild(
-    reconciliation: ObjectReconciliation,
+    snapshot: Pick<Snapshot, "read">,
     row: InstallationRollout,
     current: Build | undefined,
     options: RevisionOptions,
 ): Promise<SelectedBuild | undefined> {
-    // take the release the machine provides for one following the host's, else resolve a release or tag
-    const { selection, packageId } = row.installation;
-    const snapshot = Snapshot.live(reconciliation.database);
-    if (selection.kind === "host" || selection.kind === "release" || selection.kind === "tag") {
-        const resolved =
-            selection.kind === "host"
-                ? RolloutTarget.host(packageId, options)
-                : await selectedRelease(snapshot, row.installation, current, options);
-        if (resolved === undefined) {
-            return undefined;
-        }
+    // read what it follows
+    const { installation: installed } = row;
+    const { packageId } = installed;
+    const kind = RolloutTarget.follows(installed);
 
-        // pull the release, then reuse its current build
-        const { lock } = resolved;
-        const pulled = await options.space.pull(packageId, lock);
+    // take the release the machine provides for one following the host's, reusing its current build
+    if (kind === "host") {
+        const { lock } = RolloutTarget.host(packageId, options);
         const source = current?.source;
         if (source?.kind === "release" && current !== undefined && Build.lock(current) === lock) {
             return { lock, source, build: current.id };
         }
+        const stored = await options.space.builds.storeOf(lock);
+        if (stored === undefined) {
+            return undefined;
+        }
+        const root = (await options.space.builds.lock(lock)).root;
+        const version = (await options.space.builds.get(root)).package.version;
 
-        // record the release
-        const released = {
-            kind: "release" as const,
-            package: packageId,
-            version: (await options.space.builds.get(pulled.root)).package.version,
-            lock,
-        };
-        const recorded = await Build.release(
+        return { lock, source: { kind: "release", package: packageId, version, lock } };
+    }
+    // leave a followed release or tag to its pull
+    else if (kind === "release" || kind === "tag") {
+        return undefined;
+    }
+    // take the build pinned by a rollback
+    else if (kind === "build") {
+        const pinned = await Build.require(
             snapshot,
-            (calls) => reconciliation.mutate(calls),
             row.scope,
-            released,
+            schema.identifier("build").parse(installed.followsId),
         );
 
-        return { build: recorded.id, lock, source: released };
+        return pinned.state === "succeeded"
+            ? { lock: Build.lock(pinned), source: pinned.source, build: pinned.id }
+            : undefined;
     }
-    // take the succeeded build of the commit a repository reference points at
-    else if (selection.kind === "repository") {
+    // take the succeeded build of the commit a followed reference points at
+    else if (kind === "reference") {
         const { forge } = options;
-        const commit =
+        const followed =
             forge === null
                 ? undefined
-                : await forge.commit(
-                      reconciliation.database,
-                      selection.repository,
-                      selection.reference,
+                : await forge.reference(
+                      snapshot,
+                      present(installed.followsId, "the followed reference"),
                   );
-        if (commit === undefined) {
+        if (followed?.commit === undefined) {
             return undefined;
         }
         const source = {
             kind: "commit" as const,
-            repository: selection.repository,
-            commit,
-            directory: selection.directory,
+            repository: followed.repository,
+            commit: followed.commit,
+            directory: present(installed.directory, "the followed directory"),
         };
         const found = await Build.find(snapshot, row.scope, source);
 
@@ -577,7 +622,7 @@ async function selectBuild(
             ? { lock: Build.lock(found), source, build: found.id }
             : undefined;
     }
-    // take the checkout's newest succeeded build
+    // take the followed checkout's newest succeeded build
     else {
         const newest = (
             await snapshot.read(build.table).findMany({
@@ -588,9 +633,8 @@ async function selectBuild(
             .filter(
                 (entry) =>
                     entry.source.kind === "checkout" &&
-                    entry.source.machine === selection.machine &&
-                    entry.source.checkout === selection.checkout &&
-                    entry.source.directory === selection.directory,
+                    entry.source.checkout === installed.followsId &&
+                    entry.source.directory === installed.directory,
             )
             .toSorted((left, right) => right.createdAt - left.createdAt)
             .at(0);
@@ -601,50 +645,35 @@ async function selectBuild(
     }
 }
 
-/** Resolve a release or tag selection to its version and lock, none while its tag is unset. */
+/** Resolve a followed release or tag to its version and lock, none while its tag is unset. */
 async function selectedRelease(
     snapshot: Pick<Snapshot, "read">,
-    installed: Pick<Installation, "selection" | "packageId">,
-    current: Build | undefined,
+    installed: Pick<
+        Installation,
+        "followsPackageId" | "followsType" | "followsScope" | "followsId" | "packageId"
+    >,
     options: Pick<RevisionOptions, "forge" | "registry"> & {
         readonly space: Pick<Space, "builds" | "machine" | "root" | "pull" | "read">;
     },
 ): Promise<{ readonly version: string; readonly lock: Digest } | undefined> {
-    // take a release's version and the registry's lock of it
-    const { selection, packageId } = installed;
+    // read the version a tag points at in the forge's replica
+    const { packageId } = installed;
     const { forge, registry } = options;
-    if (selection.kind === "release") {
-        const lock = await published(registry, packageId, selection.version);
-
-        return lock === undefined ? undefined : { version: selection.version, lock };
-    }
-    // take the version a tag points at in the forge's replica
-    else if (selection.kind === "tag" && forge !== null) {
-        const version = await forge.version(snapshot, packageId, selection.tag);
+    const followed = ObjectReference.at("follows", installed);
+    const kind = RolloutTarget.follows(installed);
+    if (kind === "tag" && forge !== null) {
+        const version = await forge.version(snapshot, followed.id);
 
         return version === undefined
             ? undefined
             : { version, lock: await registry.find(packageId, version) };
     }
-    // keep the targeted release of a tag on a machine following no forge
-    else if (selection.kind === "tag" && current?.source.kind === "release") {
-        return { version: current.source.version, lock: Build.lock(current) };
-    }
-    // resolve a tag at the registry once, on a machine following no forge
-    else if (selection.kind === "tag") {
-        const lock = await published(registry, packageId, selection.tag);
-        if (lock === undefined) {
-            return undefined;
-        }
-        const version = (
-            await options.space.builds.get((await options.space.pull(packageId, lock)).root)
-        ).package.version;
-
-        return { version, lock };
-    }
-    // follow nothing else here
+    // read a release's version, or a tag's once on a machine following no forge, at the registry
     else {
-        return undefined;
+        const version = await registry.version(packageId, followed);
+        const lock = await published(registry, packageId, version);
+
+        return lock === undefined ? undefined : { version, lock };
     }
 }
 
@@ -652,9 +681,9 @@ async function selectedRelease(
 async function published(
     registry: Pick<Registry, "find">,
     packageId: PackageId,
-    release: string,
+    named: string,
 ): Promise<Digest | undefined> {
-    return await registry.find(packageId, release).catch((error: unknown) => {
+    return await registry.find(packageId, named).catch((error: unknown) => {
         // answer absent for the forge's missing release, and fail on any other refusal
         if (Failure.of(error).reason === "RELEASE_NOT_FOUND") {
             return undefined;
@@ -705,14 +734,34 @@ async function mainState(
     const declared = ObjectTypePool.of(pooled).declare([...unserved, ...owned]);
 
     // describe its durable and events objects' tables, placing the other packages' they refer to
+    const protocols = description?.protocols ?? [];
     const others = objects.filter((type) => type.package.id !== packageId);
+    const implemented = pooled.filter(
+        (type): type is ObjectType =>
+            type instanceof ObjectType && protocols.includes(type.package.id),
+    );
     const tables = new Set(
-        [...others, ...declared]
+        [...others, ...implemented, ...declared]
             .filter((type) => type.storage === "durable" || type.storage === "events")
             .flatMap((type) => type.tables),
     );
 
-    return DatabaseState.of([...tables], { package: packageId });
+    // own the package's tables, and those of the protocols it implements that a space replicates otherwise
+    const { volumes } = options.space.machine;
+    const replicated = new Set([
+        ...volumes.replicated.map((table) => table[TABLE].sqlName),
+        ...volumes.main.replicated,
+    ]);
+    const described = DatabaseState.of([...tables], { packages: [packageId, ...protocols] });
+    const isOwned = (state: TableState) =>
+        state.package.id === packageId || replicated.has(state.table.name);
+
+    return {
+        tables: {
+            sqlite: described.tables.sqlite.filter(isOwned),
+            postgresql: described.tables.postgresql.filter(isOwned),
+        },
+    };
 }
 
 /** Describe the state each resource declaration of a build requires of its target, by name. */
@@ -735,19 +784,19 @@ async function declaredStates(
         // record the callee's version in the lock
         if (isInstallation) {
             const callee = InstallationBindingSpec.parse(spec).package;
-            const release =
+            const version =
                 callee === own.id
                     ? own.version
                     : Object.values(entries).find(
                           (entry) => entry.kind === "destack" && entry.package.id === callee,
                       )?.package.version;
-            if (release === undefined) {
+            if (version === undefined) {
                 throw StackError.of(
                     "DEFINITION_INVALID",
                     `binding of installation '${name}' is invalid: the build binds it without requiring '${callee}'`,
                 );
             }
-            const recorded: InstallationBindingState = { release: Version.parse(release) };
+            const recorded: InstallationBindingState = { release: Version.parse(version) };
             states.set(name, recorded);
         }
         // take the state another resource requires, none for a stateless one

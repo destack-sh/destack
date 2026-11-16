@@ -9,6 +9,7 @@ import {
     Relationship,
 } from "@destack/access";
 import { Snapshot } from "@destack/db";
+import { RolloutTarget } from "./target.ts";
 import { grant, installation, type MethodContext, PackageDescription, role } from "@destack/object";
 import { canonicalize, present } from "@destack/schema";
 import { type Call, Scope, type Subject } from "@destack/sync";
@@ -149,7 +150,8 @@ export const InstallationAccess = {
         // read whether the residency relates the installation now
         const at = residency.target({ scope: Scope.universe.id, id: homed.id });
         const { installationId: installed } = target;
-        const { name, packageId, selection } = target.installation;
+        const { name, packageId } = target.installation;
+        const kind = RolloutTarget.follows(target.installation);
         const [related] = await Relationship.read(
             reader,
             residency.reference(Scope.universe.id, homed.id),
@@ -171,7 +173,7 @@ export const InstallationAccess = {
             return [residency.call("revoke", { ...at, installation: installed, name })];
         }
         // refuse one following no release, which every installation a residency's home declares follows
-        else if (selection.kind !== "release" && selection.kind !== "host") {
+        else if (kind !== "release" && kind !== "host") {
             throw StackError.of(
                 "RELEASE_BLOCKED",
                 `cannot grant residency: home installation '${name}' follows no release`,

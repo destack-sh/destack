@@ -56,7 +56,7 @@ export class SpaceMeter {
     /** Build the controller following the space's activity while its scope's row stands. */
     controller(): Controller<typeof Scope.table> {
         return {
-            name: "meter",
+            name: "destack.space.meter",
             table: Scope.table,
             pending: { scope: this.#options.space },
             follow: (_rows, following) => this.follow(following),

@@ -4,6 +4,5 @@ export * from "./build.ts";
 export * from "./installation.ts";
 export * from "./revision.ts";
 export * from "./follow.ts";
-export * from "./selection.ts";
 export * from "./stack.ts";
 export * from "./target.ts";

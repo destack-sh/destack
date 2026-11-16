@@ -1,5 +1,4 @@
-import type { defineDatabase } from "@destack/db";
-import { ObjectBindable } from "@destack/stack/object";
+import { ObjectBindable, SPACE_PROVIDER } from "@destack/stack/object";
 import { placement, Space, space } from "@destack/account/object";
 import { MAIN_DATABASE } from "@destack/stack/declare";
 import {
@@ -13,23 +12,20 @@ import {
     Provisioned,
     type Resource,
     type ResourceType,
+    ObjectController,
 } from "@destack/object";
 import { AccessContext, Caller, principal } from "@destack/access";
 import {
     and,
-    Change,
-    Condition,
-    type DatabaseConnection,
+    DatabaseState,
     eq,
-    inArray,
-    Projection,
+    type Projection,
     type Row,
-    type Snapshot,
+    Snapshot,
     type Table,
-    type TableState,
+    TABLE,
 } from "@destack/db";
-import { PackageId, type PackageRelease } from "@destack/package";
-import type { ResourceState } from "@destack/package/declare";
+import { PackageId } from "@destack/package";
 import { RequestId } from "@destack/sync";
 import { DRAINING, type ObjectStore, Stack, StackPlan } from "@destack/object/server";
 import type { BuildReader } from "@destack/package/manifest";
@@ -89,11 +85,25 @@ export class Binder {
     readonly #resources: ReadonlyMap<string, ResourceBindable>;
     /** The kinds packages serve, by their declaration kind. */
     readonly #objects: ReadonlyMap<string, ObjectBindable>;
-    /** The state of the platform's tables by its digest, per set of replicated tables left out. */
-    readonly #platform = new Map<string, Promise<ReadonlyMap<Digest, ResourceState>>>();
+    /** The state of the tables every space's main database replicates. */
+    readonly #replicated: DatabaseState | undefined;
+    /** The tables every space's main database replicates. */
+    readonly #replicatedTables: readonly Table[];
 
-    /** Index the resource kinds and the other bindable kinds a machine serves. */
-    constructor(resources: readonly ResourceBindable[], objects: readonly ObjectBindable[]) {
+    /** Index the kinds a machine serves, and describe the tables every main database replicates. */
+    constructor(
+        resources: readonly ResourceBindable[],
+        objects: readonly ObjectBindable[],
+        replicated: readonly Table[],
+    ) {
+        // describe the replicated tables as one state of the main database, none without any
+        const names = new Set(replicated.map((table) => table[TABLE].sqlName));
+        this.#replicatedTables = replicated;
+        this.#replicated =
+            replicated.length === 0
+                ? undefined
+                : DatabaseState.of(replicated, { replicated: names });
+
         // index the kinds by resource kind and by declaration kind
         this.#kinds = [...resources, ...objects];
         this.#resources = new Map(
@@ -854,41 +864,23 @@ export class Binder {
         return Caller.acting(declarer, context.self.subject);
     }
 
-    /** Declare the projection writing each resource's states from its consumers. */
-    specification(
-        store: ObjectStore,
-        main: ReturnType<typeof defineDatabase>,
-        linked: ReadonlyMap<PackageId, PackageRelease>,
-    ): Projection {
-        return new Projection(store.database, {
-            name: "specification",
-            tables: [
-                rollout.table,
-                installation.table,
-                deployment.table,
-                space.table,
-                placement.table,
-                ...this.#resourceObjects().map((object) => object.table),
+    /** Declare a projection per bindable kind writing each resource's states from its consumers. */
+    specifications(store: ObjectStore): Projection[] {
+        return this.#resourceObjects().map((object) => ({
+            name: ObjectController.job(object, "specify"),
+            key: "id",
+            all: { table: object.table, column: "id" },
+            watches: [
+                // take a resource itself
+                { table: object.table, isObserving: true },
+                // take the space's resources once a deployment runs or stops running a revision
+                { table: deployment.table, on: { scope: "scope" } },
+                // take the space's resources once its approval threshold or its placement changes
+                { table: space.table, fields: ["approval"], on: { scope: "id" } },
+                { table: placement.table, on: { scope: "spaceId" } },
             ],
-            keys: async (change) => this.#specificationKeys(change, store),
-            all: async () => this.#servedResources(store),
-            project: async (key) => this.#specify(key, store, main, linked),
-        });
-    }
-
-    /** List a space's main database and the resources a revision binds, none for no revision. */
-    async #revisionKeys(
-        connection: DatabaseConnection,
-        scope: Identifier<"space">,
-        revisionId: Identifier<"installation-revision"> | null,
-    ): Promise<readonly string[]> {
-        const main = await connection
-            .select({ id: database.table.id })
-            .from(database.table)
-            .where(and(eq(database.table.scope, scope), eq(database.table.name, MAIN_DATABASE)));
-        const bound = revisionId === null ? [] : await this.#bound(connection, [revisionId]);
-
-        return [...main.map((entry) => entry.id), ...bound];
+            project: async (key) => this.#specify(key, store),
+        }));
     }
 
     /** List the objects of the bindable resource kinds. */
@@ -896,79 +888,8 @@ export class Binder {
         return [...this.#resources.values()].map((kind) => kind.object);
     }
 
-    /** List the resources a change of a consumer, a space, its placement or a resource touches. */
-    async #specificationKeys(change: Change, store: ObjectStore): Promise<readonly string[]> {
-        const connection = store.database;
-
-        // select the space's main database and the resources an applied revision binds
-        if (Change.of(change, rollout.table)) {
-            const { scope, appliedRevisionId } = Change.image(change);
-
-            return this.#revisionKeys(connection, scope, appliedRevisionId);
-        }
-        // select the space's main database and the resources a targeted revision binds, none outside spaces
-        else if (Change.of(change, installation.table)) {
-            const { scope, revisionId } = Change.image(change);
-            const spaced = schema.identifier("space").safeParse(scope);
-
-            return spaced.success ? this.#revisionKeys(connection, spaced.data, revisionId) : [];
-        }
-        // select the resources a changed deployment's revision binds
-        else if (Change.of(change, deployment.table)) {
-            return this.#bound(connection, [Change.image(change).revisionId]);
-        }
-        // select the resources of a space whose approval threshold changed
-        else if (Change.of(change, space.table)) {
-            return this.#resourcesIn(connection, [Change.image(change).id]);
-        }
-        // select the resources of a space whose placement changed
-        else if (Change.of(change, placement.table)) {
-            return this.#resourcesIn(connection, [Change.image(change).spaceId]);
-        }
-        // select a changed resource
-        else {
-            const changed = Change.image(change)["id"];
-
-            return typeof changed === "string" ? [changed] : [];
-        }
-    }
-
-    /** List the resources of a served kind some revisions bind. */
-    async #bound(
-        connection: DatabaseConnection,
-        ids: readonly Identifier<"installation-revision">[],
-    ): Promise<string[]> {
-        const revisions = await connection
-            .select()
-            .from(installationRevision.table)
-            .where(inArray(installationRevision.table.id, [...ids]));
-
-        return this.#targets(
-            revisions.flatMap((revision) => revision.bindings.map((entry) => entry.target)),
-        );
-    }
-
-    /** List the resources of the spaces the machine serves. */
-    async #servedResources(store: ObjectStore): Promise<readonly string[]> {
-        const connection = store.database;
-        const served = await connection
-            .select({ id: space.table.id })
-            .from(space.table)
-            .where(Space.served());
-
-        return this.#resourcesIn(
-            connection,
-            served.map((entry) => entry.id),
-        );
-    }
-
     /** Write a resource's desired states and approval threshold. */
-    async #specify(
-        key: string,
-        store: ObjectStore,
-        main: ReturnType<typeof defineDatabase>,
-        linked: ReadonlyMap<PackageId, PackageRelease>,
-    ): Promise<void> {
+    async #specify(key: string, store: ObjectStore): Promise<void> {
         // read the resource and the served space it lives in, none for a resource of an account
         const connection = store.database;
         const object = this.#resourceObjects().find((each) => each.identifies(key));
@@ -990,39 +911,16 @@ export class Binder {
             return;
         }
 
-        // read the states its consumers need by digest, the platform's beside them for the main database
+        // write the states its consumers need and its space's approval threshold once they changed
         const isMain = object === database && row.name === MAIN_DATABASE;
-        const consumed = await consumedStates(connection, object, row, isMain);
-        const platform = isMain
-            ? await this.#platformState(
-                  new Set(consumed.targeted.map((entry) => entry.packageId)),
-                  store,
-                  main,
-                  linked,
-              )
-            : new Map<Digest, ResourceState>();
-        const { active, draining } = desiredStates(consumed, platform);
-        const input = {
-            id: row.id,
-            states: active,
-            drainingStates: draining,
-            approval: served.approval,
-        };
-
-        // record the states, and write their digests and its space's approval threshold once they changed
-        const isChanged =
-            input.states.join() !== row.states.join() ||
-            input.drainingStates.join() !== row.drainingStates.join() ||
-            input.approval !== row.approval;
-        if (isChanged) {
-            // write the platform's state as a blob once the space lacks it, else lease the one it has
-            const missing = new Set(await store.blobs.missing([...platform.keys()]));
-            for (const [digest, state] of platform) {
-                if (missing.has(digest)) {
-                    await store.blobs.writeJson(state);
-                }
-            }
-            await store.blobs.lease([...platform.keys()].filter((digest) => !missing.has(digest)));
+        const input = await this.#specification(
+            Snapshot.live(connection),
+            store,
+            object,
+            row,
+            served.approval,
+        );
+        if (input !== undefined) {
             await store.mutate(
                 store.as(object),
                 {
@@ -1039,45 +937,107 @@ export class Binder {
         }
     }
 
-    /** Read the platform's tables' state, without the replicated tables of a bound package. */
-    #platformState(
-        owning: ReadonlySet<string>,
-        store: ObjectStore,
-        main: ReturnType<typeof defineDatabase>,
-        linked: ReadonlyMap<PackageId, PackageRelease>,
-    ): Promise<ReadonlyMap<Digest, ResourceState>> {
-        // find the replicated tables of a bound package, which its own state describes
-        const { tables } = main.state();
-        const isOwned = (state: TableState) =>
-            main.replicated.has(state.table.name) && owning.has(state.package.id);
-        const key = tables.sqlite
-            .filter(isOwned)
-            .map((state) => state.table.name)
-            .join(" ");
-
-        // describe the other tables once per set left out, each at the release the machine links of its package
-        let read = this.#platform.get(key);
-        if (read === undefined) {
-            const kept = (states: readonly TableState[]) =>
-                states
-                    .filter((state) => !isOwned(state))
-                    .map((state) => {
-                        const release = linked.get(state.package.id);
-
-                        return release === undefined
-                            ? state
-                            : { ...state, package: release.package };
-                    });
-            const state = {
-                tables: { sqlite: kept(tables.sqlite), postgresql: kept(tables.postgresql) },
-            };
-            read = Digest.json(state, store.environment.crypto).then(
-                (digest) => new Map([[digest, state]]),
-            );
-            this.#platform.set(key, read);
+    /** Write the states a space's revisions require of its resources, in the call's transaction. */
+    async specify(call: MethodContext, scope: Identifier<"space">): Promise<void> {
+        // read the space's approval threshold
+        const reader: Pick<Snapshot, "read"> = { read: (table) => call.read(table) };
+        const served = await reader.read(space.table).findFirst({ where: { id: scope } });
+        if (served === undefined) {
+            return;
         }
 
-        return read;
+        // specify each resource whose states or threshold moved
+        const { store } = call.execution;
+        for (const object of this.#resourceObjects()) {
+            const rows = await reader.read(object.table).findMany({ where: { scope } });
+            for (const row of rows) {
+                const input = await this.#specification(
+                    reader,
+                    store,
+                    object,
+                    row,
+                    served.approval,
+                );
+                if (input !== undefined) {
+                    await call.mutate(store.as(object), [object.call("specify", input)]);
+                }
+            }
+        }
+    }
+
+    /** Reconcile the resources in the space's own storage in the call, where main migrates. */
+    async reconcileOwn(call: MethodContext, scope: Identifier<"space">): Promise<void> {
+        // read the space's databases, the one kind its own storage provides
+        const reader: Pick<Snapshot, "read"> = { read: (table) => call.read(table) };
+        const { store } = call.execution;
+        const stored = this.#resourceObjects().filter((object) => object === database);
+        for (const object of stored) {
+            const rows = await reader.read(object.table).findMany({ where: { scope } });
+            for (const row of rows) {
+                // reconcile one in the space's own storage whose desired states are not applied
+                const provider = row.provider ?? row.placement?.provider;
+                const desired = [...row.states, ...row.drainingStates];
+                const isApplied =
+                    desired.join() === row.appliedStates.join() &&
+                    row.conditions["Ready"]?.reason === "Applied";
+                if (provider === SPACE_PROVIDER && !isApplied) {
+                    await store.reconcileResource(call, object, row, (record, states) =>
+                        Binder.#migrateAtCommit(call, record.id, states),
+                    );
+                }
+
+                // declare the tables main replicates once it applied them, which replicas write and retire
+                const isMain = object === database && row.name === MAIN_DATABASE;
+                const reconciled = isApplied
+                    ? row
+                    : await reader.read(object.table).findFirst({ where: { id: row.id } });
+                if (isMain && desired.join() === reconciled?.appliedStates.join()) {
+                    store.database.state.declare(this.#replicatedTables);
+                }
+            }
+        }
+    }
+
+    /** Migrate the space's own database to some desired states in the call's commit. */
+    static async #migrateAtCommit(
+        call: MethodContext,
+        manager: string,
+        states: readonly unknown[],
+    ): Promise<void> {
+        // plan and apply on the committing connection, so the tables commit with the rows
+        const desired = schema.array(DatabaseState).parse(states);
+        call.execution.transaction.record(async (committing) => {
+            const declared = desired.map((state) => state.tables[committing.dialect]);
+            await committing.migrate([], { states: declared, manager });
+        }, `migrate:${manager}`);
+    }
+
+    /** Read a resource's specification once its consumers' states or its threshold moved. */
+    async #specification(
+        reader: Pick<Snapshot, "read">,
+        store: Pick<ObjectStore, "blobs">,
+        object: ResourceType<typeof space>,
+        row: Resource,
+        approval: NonNullable<Resource["approval"]>,
+    ) {
+        // read the states its consumers need by digest, and main's replicated tables beside them
+        const isMain = object === database && row.name === MAIN_DATABASE;
+        const consumed = await consumedStates(reader, object, row, isMain);
+        const desired = desiredStates(consumed);
+        const replicated =
+            isMain && this.#replicated !== undefined
+                ? [await store.blobs.writeJson(this.#replicated)]
+                : [];
+        const active = [...replicated, ...desired.active];
+        const { draining } = desired;
+        const isChanged =
+            active.join() !== row.states.join() ||
+            draining.join() !== row.drainingStates.join() ||
+            approval !== row.approval;
+
+        return isChanged
+            ? { id: row.id, states: active, drainingStates: draining, approval }
+            : undefined;
     }
 
     /** Stop the draining deployments whose revision binds a resource. */
@@ -1088,7 +1048,7 @@ export class Binder {
     ): Promise<void> {
         // find the deployments whose revision binds the resource on their way out: draining, or active on a revision their installation no longer targets
         const scope = schema.identifier("space").parse(row.scope);
-        const { running } = await consumersOf(store.database, scope, row.id, isMain);
+        const { running } = await consumersOf(Snapshot.live(store.database), scope, row.id, isMain);
         const draining = running.filter(
             (entry) => !entry.isCurrent && entry.deployment.status !== "retired",
         );
@@ -1108,30 +1068,6 @@ export class Binder {
             { component: "specification" },
         );
     }
-
-    /** Filter the targets to the resources of a served kind. */
-    #targets(targets: readonly string[]): string[] {
-        return targets.filter((target) =>
-            this.#resourceObjects().some((object) => object.identifies(target)),
-        );
-    }
-
-    /** List the resources of every kind in some spaces. */
-    async #resourcesIn(
-        connection: DatabaseConnection,
-        spaces: readonly string[],
-    ): Promise<string[]> {
-        const resources: string[] = [];
-        for (const object of this.#resourceObjects()) {
-            const rows = await connection
-                .select({ id: object.table.id })
-                .from(object.table)
-                .where(inArray(object.table.scope, [...spaces]));
-            resources.push(...rows.map((entry) => entry.id));
-        }
-
-        return resources;
-    }
 }
 
 /** The states a resource's consumers require: targeted revisions' and deployed revisions'. */
@@ -1144,7 +1080,7 @@ interface ConsumedStates {
 
 /** Read the states consumers require of a resource: every installation's for main. */
 async function consumedStates(
-    connection: DatabaseConnection,
+    reader: Pick<Snapshot, "read">,
     object: ResourceType<typeof space>,
     row: Resource,
     isMain: boolean,
@@ -1157,7 +1093,7 @@ async function consumedStates(
 
     // take the state each consumer's declaration requires of it
     const scope = schema.identifier("space").parse(row.scope);
-    const { targeted, running } = await consumersOf(connection, scope, row.id, isMain);
+    const { targeted, running } = await consumersOf(reader, scope, row.id, isMain);
 
     return {
         targeted: targeted.flatMap((entry) => {
@@ -1175,7 +1111,7 @@ async function consumedStates(
 
 /** Read the revisions binding a resource that rollouts target and available deployments run. */
 async function consumersOf(
-    connection: DatabaseConnection,
+    reader: Pick<Snapshot, "read">,
     scope: Identifier<"space">,
     id: string,
     isMain: boolean,
@@ -1193,31 +1129,30 @@ async function consumersOf(
     }[];
 }> {
     // read the space's rollouts with their installations, and its available deployments
-    const rollouts = await connection
-        .select({
-            installationId: rollout.table.installationId,
-            revisionId: installation.table.revisionId,
-            packageId: installation.table.packageId,
-            deletedAt: installation.table.deletedAt,
-        })
-        .from(rollout.table)
-        .innerJoin(
-            installation.table,
-            and(
-                eq(installation.table.id, rollout.table.installationId),
-                eq(installation.table.scope, rollout.table.scope),
-            ),
-        )
-        .where(eq(rollout.table.scope, scope));
-    const deployed = await connection
-        .select()
-        .from(deployment.table)
-        .where(
-            and(
-                eq(deployment.table.scope, scope),
-                Condition.render(Deployment.available(), deployment.table),
-            ),
-        );
+    const rolled = await reader.read(rollout.table).findMany({ where: { scope } });
+    const installed = new Map(
+        (await reader.read(installation.table).findMany({ where: { scope } })).map((row) => [
+            row.id,
+            row,
+        ]),
+    );
+    const rollouts = rolled.flatMap((row) => {
+        const owner = installed.get(row.installationId);
+
+        return owner === undefined
+            ? []
+            : [
+                  {
+                      installationId: row.installationId,
+                      revisionId: row.targetRevisionId,
+                      packageId: owner.packageId,
+                      deletedAt: owner.deletedAt,
+                  },
+              ];
+    });
+    const deployed = await reader
+        .read(deployment.table)
+        .findMany({ where: { ...Deployment.available(), scope } });
 
     // read their revisions once
     const ids = [
@@ -1226,10 +1161,9 @@ async function consumersOf(
     ];
     const revisions = new Map(
         (
-            await connection
-                .select()
-                .from(installationRevision.table)
-                .where(inArray(installationRevision.table.id, [...new Set(ids)]))
+            await reader
+                .read(installationRevision.table)
+                .findMany({ where: { id: { in: [...new Set(ids)] } } })
         ).map((revision) => [revision.id, revision]),
     );
 
@@ -1271,13 +1205,12 @@ async function consumersOf(
 }
 
 /** List the distinct desired states of a resource, active and draining, by digest in order. */
-function desiredStates(
-    consumed: ConsumedStates,
-    platform: ReadonlyMap<Digest, ResourceState>,
-): { readonly active: Digest[]; readonly draining: Digest[] } {
+function desiredStates(consumed: ConsumedStates): {
+    readonly active: Digest[];
+    readonly draining: Digest[];
+} {
     // list each targeted or current state once, then the states of deployments on their way out as draining
     const active = new Set([
-        ...platform.keys(),
         ...consumed.targeted.map((entry) => entry.state),
         ...consumed.running.filter((entry) => entry.isCurrent).map((entry) => entry.state),
     ]);

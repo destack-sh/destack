@@ -1,8 +1,8 @@
 import type { RevisionOptions } from "./target.ts";
 import { type Caller, principal } from "@destack/access";
 import { LATEST_TAG } from "@destack/registry/object";
-import { and, eq, Projection, Snapshot } from "@destack/db";
-import { SettingValue } from "@destack/setting/object";
+import { and, eq, Snapshot } from "@destack/db";
+import { setting, SettingValue } from "@destack/setting/object";
 import { buildRetention } from "@destack/stack/setting";
 import { type BuildObject, BuildStore } from "@destack/build/store";
 import type { Runtime } from "@destack/package/runtime";
@@ -21,6 +21,7 @@ import { Lock, PackageManifest } from "@destack/package/manifest";
 import { PackageId, type PackageRelease } from "@destack/package";
 import { Digest, type Identifier, present, schema } from "@destack/schema";
 import { RequestId, ObjectReference, Scope } from "@destack/sync";
+import type { InstallationSelection } from "@destack/object";
 import {
     build,
     Build,
@@ -49,6 +50,13 @@ export type PublishStore = Pick<
 export interface Registry {
     /** Find the digest of a package release's lock, by its version or a distribution tag. */
     readonly find: (packageId: PackageId, release: string) => Promise<Digest>;
+    /** Read the version a followed release or tag names at its package's forge. */
+    readonly version: (packageId: PackageId, followed: ObjectReference) => Promise<string>;
+    /** Read the release, tag or repository reference a selection names, at its forge's home. */
+    readonly followed: (
+        packageId: PackageId,
+        selection: Exclude<InstallationSelection, { readonly kind: "host" | "checkout" }>,
+    ) => Promise<ObjectReference>;
     /** The releases the distribution ships, which a scope runs of a package it installs none of. */
     readonly distribution: readonly PackageRelease[];
     /** Push a stored lock and its builds to its account's forge. */
@@ -155,27 +163,6 @@ async function adopt(
     return { kind: "stored", lock: end.lock };
 }
 
-/** Declare the projection expiring the space's builds past its retention as builds change. */
-export function retainBuilds(store: ObjectStore): Projection {
-    const { database, scope } = store;
-
-    return new Projection(database, {
-        name: "retention",
-        tables: [build.table, installationRevision.table],
-        keys: async () => [scope],
-        all: async () => [scope],
-        project: async () =>
-            expireBuilds(
-                store,
-                (space) =>
-                    SettingValue.resolve(Snapshot.live(database), buildRetention, {
-                        scope: space,
-                    }),
-                store.clock.now(),
-            ),
-    });
-}
-
 /** Expire the space's builds its retention drops, leaving their blobs to the collection. */
 async function expireBuilds(
     objects: Pick<ObjectStore, "database" | "as" | "mutate" | "environment">,
@@ -200,6 +187,26 @@ async function expireBuilds(
 /** Implement builds: a creator creates and cancels a build. */
 export function implementBuild(options: BuildOptions) {
     return build.implement({
+        projections: [
+            {
+                // expire a space's builds past its retention
+                name: "expire",
+                key: "scope",
+                watches: [
+                    { table: installationRevision.table, on: { scope: "scope" } },
+                    { table: setting.table, where: { name: buildRetention.name }, isListing: true },
+                ],
+                project: (scope, { store }) =>
+                    expireBuilds(
+                        store,
+                        (space) =>
+                            SettingValue.resolve(Snapshot.live(store.database), buildRetention, {
+                                scope: space,
+                            }),
+                        store.clock.now(),
+                    ),
+            },
+        ],
         methods: {
             create: {
                 // relate a compiled build's runner, which its modules and symbols use

@@ -1,6 +1,6 @@
 import type { RevisionOptions } from "./target.ts";
-import { account, Entitlement, Space, space } from "@destack/account/object";
-import type { ObjectType } from "@destack/object";
+import { account, Entitlement, space } from "@destack/account/object";
+import { Observation, type ObjectType } from "@destack/object";
 import { Setting } from "@destack/setting";
 import { SettingValue } from "@destack/setting/object";
 import { DeclarationReference } from "@destack/package/declare";
@@ -11,14 +11,7 @@ import {
     PermissionScope,
     principal,
 } from "@destack/access";
-import {
-    and,
-    type BlobStore,
-    type DatabaseConnection,
-    DatabaseKind,
-    eq,
-    Snapshot,
-} from "@destack/db";
+import { type BlobStore, type DatabaseConnection, DatabaseKind, Snapshot } from "@destack/db";
 import {
     installation,
     InstallationBindingSpec,
@@ -71,6 +64,7 @@ import {
     instance,
     Rollout,
     rollout,
+    type BuildSource,
     type InstallationRollout,
     type ResourceNeed,
     type StackEvaluation,
@@ -179,36 +173,136 @@ export class ApplicationInstallation {
         this.#options = options;
     }
 
-    /** Revise an unmanaged installation, deploy it in a served space, then relate it. */
-    async reconcile(reconciliation: ObjectReconciliation): Promise<undefined> {
-        // leave the application of a space not served here
+    /** Target the build the installation runs, specify what it binds and deploy its revision. */
+    async deploy(call: MethodContextOf<typeof rollout, "deploy">): Promise<void> {
+        // choose the build a live installation runs: the requested one, else what it follows
         const target = this.#target;
-        const [served] = await reconciliation.database
-            .select({ id: space.table.id })
-            .from(space.table)
-            .where(and(eq(space.table.id, target.scope), Space.served()));
-        if (served === undefined) {
-            return undefined;
+        const reader: Pick<Snapshot, "read"> = { read: (table) => call.read(table) };
+        const chosen =
+            target.installation.deletedAt === null
+                ? await RolloutTarget.choose(
+                      reader,
+                      target,
+                      call.input.build,
+                      call.objects,
+                      this.#options,
+                  )
+                : undefined;
+
+        // refuse a requested build the installation cannot run
+        if (chosen !== undefined && call.input.build !== undefined) {
+            await this.requireDeployable(call, chosen.lock);
         }
 
-        // span each step by its space and installation
-        const { scope: telemetry } = this.#options.space.machine;
-        const attributes = RolloutTarget.attributes(target);
+        // leave a targeted revision of the chosen build whose bindings still stand
+        const targeted =
+            target.targetRevisionId === null
+                ? undefined
+                : await call
+                      .read(installationRevision)
+                      .findFirst({ where: { id: target.targetRevisionId } });
+        const isCurrent =
+            chosen !== undefined &&
+            targeted !== undefined &&
+            targeted.buildId === chosen.build &&
+            (await this.#options.binder.isCurrent(
+                reader,
+                target,
+                targeted,
+                await this.#options.space.root(target.installation.packageId, chosen.lock),
+            ));
 
-        // revise it once its build or bindings moved, then deploy it
-        await telemetry.span("destack.rollout.revise", attributes, () =>
-            RolloutTarget.revise(reconciliation, [target], this.#options),
-        );
-        await telemetry.span("destack.rollout.deploy", attributes, () =>
-            reconciliation.mutate([
-                rollout.call(
-                    "deploy",
-                    rollout.target({ scope: target.scope, id: target.installationId }),
-                ),
-            ]),
-        );
+        // record a chosen release as the space's build, revise the installation at it and target the revision
+        let isRetargeted = target.installation.deletedAt !== null;
+        if (chosen !== undefined && !isCurrent) {
+            const built = chosen.build ?? (await this.record(call, chosen.source)).id;
+            const revision = await this.revise(call, {
+                build: built,
+                dependencies: chosen.dependencies,
+                states: chosen.states,
+            });
+            if (revision.id !== target.targetRevisionId) {
+                isRetargeted = true;
+                await call.mutate(call.self, [
+                    rollout.call("update", {
+                        ...rollout.target({ scope: target.scope, id: target.installationId }),
+                        targetRevisionId: revision.id,
+                    }),
+                ]);
+            }
+        }
 
-        // read what the committed deploy left: the rollout targeting its revision, or none once removed
+        // write the states the space's revisions require of its resources once they moved
+        const scope = space.identifier(target.scope);
+        if (isRetargeted) {
+            await this.#options.binder.specify(call, scope);
+        }
+
+        // reconcile the resources in the space's own storage here, where main migrates
+        await this.#options.binder.reconcileOwn(call, scope);
+
+        // deploy the revision the rollout targets now
+        const rows = await call
+            .read(rollout.table)
+            .findMany({ where: { installationId: target.installationId } });
+        const [current] = await Rollout.read(reader, rows);
+        const applying = new ApplicationInstallation(
+            present(current, `the rollout of ${target.installationId}`),
+            this.#options,
+        );
+        await applying.#deployTargeted(call);
+    }
+
+    /** Refuse a build of another package, or one whose required space settings are unset. */
+    async requireDeployable(
+        call: MethodContextOf<typeof rollout, "deploy">,
+        digest: Digest,
+    ): Promise<void> {
+        // require a build of the installation's package
+        const target = this.#target;
+        const lock = await this.#options.space.builds.lock(digest);
+        const reader = await this.#options.space.builds.contents(lock.root);
+        const built = PackageManifest.package(reader.manifest);
+        if (built.id !== target.installation.packageId) {
+            throw StackError.of(
+                "PACKAGE_INVALID",
+                `build is invalid: it is of '${built.name}', which '${target.installation.name}' does not install`,
+            );
+        }
+
+        // require each space setting without a default it declares
+        const placed = { scope: target.scope, installation: target.installationId };
+        for (const declared of await Setting.list(reader)) {
+            const { definition } = declared;
+            if (definition.scope === "space" && "required" in definition) {
+                await SettingValue.resolve(call, declared, placed);
+            }
+        }
+    }
+
+    /** Record a chosen release as the space's build. */
+    async record(
+        call: MethodContextOf<typeof rollout, "deploy">,
+        source: BuildSource,
+    ): Promise<{ readonly id: Identifier<"build"> }> {
+        // refuse a source the space builds itself, which a chosen build always names
+        if (source.kind !== "release") {
+            throw new TypeError(`a ${source.kind} source has a build of the space`);
+        }
+        const reader: Pick<Snapshot, "read"> = { read: (table) => call.read(table) };
+
+        return Build.release(
+            reader,
+            (calls) => call.mutate(call.self, calls),
+            this.#target.scope,
+            source,
+        );
+    }
+
+    /** Relate the installation at the universe as its space, through the uplink. */
+    async relate(reconciliation: ObjectReconciliation): Promise<void> {
+        // read the rollout as it stands, and the build of the revision it applied
+        const target = this.#target;
         const snapshot = Snapshot.live(reconciliation.database);
         const rows = await snapshot
             .read(rollout.table)
@@ -216,13 +310,13 @@ export class ApplicationInstallation {
         const [deployed] = await Rollout.read(snapshot, rows);
         const { trusted } = this.#options;
         const built =
-            deployed?.revisionId === null || deployed === undefined
+            deployed?.appliedRevisionId === null || deployed === undefined
                 ? undefined
-                : await InstallationRevision.build(snapshot, deployed.revisionId);
+                : await InstallationRevision.build(snapshot, deployed.appliedRevisionId);
 
         // keep the relations of a superseded host installation until its stack revises it
         if (built !== undefined && Rollout.isSuperseded(target.installation, built.lock, trusted)) {
-            return undefined;
+            return;
         }
         const { packageId } = target.installation;
         const build =
@@ -230,28 +324,24 @@ export class ApplicationInstallation {
         const description = build === undefined ? undefined : await PackageDescription.of(build);
         const set = Rollout.permissions((deployed ?? target).installation, description, "space");
 
-        // relate it at the universe as its space, through the uplink, converging on each pass
-        await telemetry.span("destack.rollout.relate", attributes, async () => {
-            const version =
-                build === undefined ? undefined : PackageManifest.package(build.manifest).version;
-            const calls = await InstallationAccess.relate(
-                snapshot,
-                target,
-                deployed ?? target,
-                set,
-                version,
-            );
-            if (calls.length > 0) {
-                const delegator = principal.space.reference(Scope.universe.id, target.scope);
-                const lending = Caller.acting(delegator, reconciliation.caller.subject);
-                await reconciliation.store.mutate(AccessContext.of(lending, reconciliation.now), {
-                    id: RequestId.create(reconciliation.store.environment),
-                    calls,
-                });
-            }
-        });
-
-        return undefined;
+        // relate it as its space, once its relations moved
+        const version =
+            build === undefined ? undefined : PackageManifest.package(build.manifest).version;
+        const calls = await InstallationAccess.relate(
+            snapshot,
+            target,
+            deployed ?? target,
+            set,
+            version,
+        );
+        if (calls.length > 0) {
+            const delegator = principal.space.reference(Scope.universe.id, target.scope);
+            const lending = Caller.acting(delegator, reconciliation.caller.subject);
+            await reconciliation.store.mutate(AccessContext.of(lending, reconciliation.now), {
+                id: RequestId.create(reconciliation.store.environment),
+                calls,
+            });
+        }
     }
 
     /** Revise the installation: a build at its bindings, retaining each revision once. */
@@ -280,9 +370,12 @@ export class ApplicationInstallation {
 
         // bind a stack's nothing, and a refused build's selected targets alone, as it creates nothing
         const { bindings: selected } = target.installation;
-        const needs = (await this.#readNeeds(reader, [])).filter(
+        const declared = await this.#readNeeds(reader, []);
+        const unprovided = this.#options.binder.unprovided(declared);
+        const needs = declared.filter(
             (need) =>
                 !this.#isUnaddressed(need) &&
+                !unprovided.includes(need.kind) &&
                 (!isRefused || selected[need.package.id]?.[need.name] !== undefined),
         );
         const bindings =
@@ -349,15 +442,15 @@ export class ApplicationInstallation {
     }
 
     /** Deploy the revision of an enabled application, and drain a suspended one. */
-    async deploy(call: MethodContextOf<typeof rollout, "deploy">): Promise<void> {
+    async #deployTargeted(call: MethodContextOf<typeof rollout, "deploy">): Promise<void> {
         // read the revision it targets and its live deployments
         const target = this.#target;
         const revision =
-            target.revisionId === null
+            target.targetRevisionId === null
                 ? undefined
                 : await call
                       .read(installationRevision)
-                      .findFirst({ where: { id: target.revisionId } });
+                      .findFirst({ where: { id: target.targetRevisionId } });
         const live = await call.read(deployment).findMany({
             where: {
                 ...Deployment.live(),
@@ -390,11 +483,11 @@ export class ApplicationInstallation {
                 active.map((entry) => Deployment.drain(entry)),
             );
 
-            // report an enabled application whose selected release is not published yet
-            const { kind } = target.installation.selection;
+            // report an unpublished followed release
+            const kind = RolloutTarget.follows(target.installation);
             const isEnabled = !isDeleted && target.installation.status === "enabled";
             if (isEnabled && revision === undefined && (kind === "release" || kind === "tag")) {
-                const message = `${target.installation.name} has no published release for its selection`;
+                const message = `${target.installation.name} has no published release for what it follows`;
                 await call.observe(installation, target.installation, {
                     conditions: {
                         Ready: { status: "false", reason: "ReleaseNotPublished", message },
@@ -524,6 +617,16 @@ export class ApplicationInstallation {
             fresh.length === 0 &&
             replaced.length === 0
         ) {
+            // leave a revision the installation observed deployed and the space serves
+            const ready = target.installation.conditions["Ready"];
+            const isObserved =
+                Observation.isCurrent(target.installation, "Ready") &&
+                ready?.reason === "Deployed" &&
+                target.servedRevisionId === revision.id;
+            if (isObserved) {
+                return;
+            }
+
             // grant again once the space serves the revision and what its grant names
             if (await this.#waitForSpace(call, revision, description)) {
                 return;
@@ -640,7 +743,7 @@ export class ApplicationInstallation {
         await call.mutate(call.self, [
             rollout.call("update", {
                 ...rollout.target({ scope: target.scope, id: target.installationId }),
-                ...Rollout.applied(target, revision.id),
+                appliedRevisionId: revision.id,
             }),
         ]);
     }
@@ -672,9 +775,11 @@ export class ApplicationInstallation {
         );
 
         // refuse the first build requiring a release of a builtin newer than the linked one
-        for (const build of Lock.builds(await this.#options.space.builds.lock(lock))) {
-            const manifest = await this.#options.space.builds.get(build);
-            for (const [name, required] of Object.entries(manifest.requires)) {
+        for (const {
+            package: requiring,
+            requires,
+        } of await this.#options.space.builds.requirements(lock)) {
+            for (const [name, required] of Object.entries(requires)) {
                 const running = builtins.get(name);
                 const isVersion = Version.safeParse(required).success;
                 if (
@@ -682,7 +787,7 @@ export class ApplicationInstallation {
                     isVersion &&
                     Version.compare(Version.release(running), Version.release(required)) < 0
                 ) {
-                    const { name: owner, version } = manifest.package;
+                    const { name: owner, version } = requiring;
                     const message = `cannot deploy '${owner}@${version}': it needs ${name} ${Version.release(required)} or newer, and this machine runs ${running}`;
 
                     return StackError.of("RELEASE_BLOCKED", message);

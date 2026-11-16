@@ -349,11 +349,11 @@ async function readResources(
 ): Promise<{ readonly object: ResourceType<typeof space>; readonly row: Resource }[]> {
     // read the targeted revision and the targets here it binds
     const revision =
-        target.revisionId === null
+        target.targetRevisionId === null
             ? undefined
             : await view
                   .read(installationRevision.table)
-                  .findFirst({ where: { id: target.revisionId } });
+                  .findFirst({ where: { id: target.targetRevisionId } });
     const bound = revision === undefined ? [] : revision.bindings;
     const main =
         revision?.states[MAIN_DATABASE] === undefined

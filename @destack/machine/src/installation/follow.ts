@@ -1,15 +1,8 @@
 import type { RevisionOptions } from "./target.ts";
 import { Manager } from "@destack/access";
-import { type RepositorySelection } from "@destack/object";
-import {
-    and,
-    type DatabaseConnection,
-    eq,
-    inArray,
-    type RowImage,
-    Snapshot,
-    type Table,
-} from "@destack/db";
+import { installation } from "@destack/object";
+import { reference } from "@destack/registry/object";
+import { and, type DatabaseConnection, eq, inArray, Snapshot, type Table } from "@destack/db";
 import type { ObjectReconciliation } from "@destack/object";
 import { type Commit, type Identifier, present } from "@destack/schema";
 import { DatabaseError } from "@destack/db";
@@ -17,37 +10,29 @@ import { StackError } from "@destack/stack/error";
 import { ACTIVE_BUILD_STATES, build, Build } from "@destack/stack/object";
 import { installationRevision, type InstallationRollout, rollout } from "@destack/stack/object";
 import type { CommitSource, Registry } from "./build.ts";
-import { SelectedRepository } from "./selection.ts";
-import { space } from "@destack/account/object";
-import { RolloutTarget } from "./target.ts";
 
-/** The forge a machine follows: the references and tags its spaces' installations select. */
+/** The forge a machine follows: the references and tags its spaces' installations follow. */
 export interface Forge {
     /** Read the account of a repository, absent for a repository without an account. */
     readonly owner: (id: string) => Promise<Identifier<"account"> | undefined>;
     /** The table of the references the space replicates. */
     readonly references: Table;
-    /** Read the repository and name of a changed reference row. */
-    readonly reference: (row: RowImage<Table>) => {
-        readonly repository: string;
-        readonly name: string;
-    };
-    /** Read the commit a reference resolves to in the space's replica, absent while none. */
-    readonly commit: (
-        database: DatabaseConnection,
-        repository: string,
-        name: string,
-    ) => Promise<Commit | undefined>;
     /** The table of the distribution tags the space replicates. */
     readonly tags: Table;
-    /** Read the package and name of a changed tag row. */
-    readonly tag: (row: RowImage<Table>) => { readonly package: string; readonly name: string };
-    /** Read the version a tag points at in the space's replica, absent while none. */
-    readonly version: (
+    /** Read a followed reference in a space's replica, absent once deleted. */
+    readonly reference: (
         reader: Pick<Snapshot, "read">,
-        packageId: string,
-        name: string,
-    ) => Promise<string | undefined>;
+        id: string,
+    ) => Promise<
+        | {
+              readonly repository: Identifier<"repository">;
+              readonly name: string;
+              readonly commit: Commit | undefined;
+          }
+        | undefined
+    >;
+    /** Read the version a followed tag points at in a space's replica, absent while none. */
+    readonly version: (reader: Pick<Snapshot, "read">, id: string) => Promise<string | undefined>;
 }
 
 /** What building an installation's selected commit builds and evaluates with. */
@@ -60,44 +45,43 @@ export interface CommitBuildOptions {
     readonly registry: Pick<Registry, "store">;
 }
 
-/** The build of the commit an installation's selected reference resolves to. */
+/** The build of the commit an installation's followed reference points at. */
 export class CommitBuild {
     /** The installation's rollout, with its installation's fields. */
     readonly #target: InstallationRollout;
-    /** The repository reference the installation selects. */
-    readonly #selection: RepositorySelection;
+    /** The followed reference's identifier, and the package directory within its repository. */
+    readonly #followed: { readonly id: string; readonly directory: string };
     /** What the machine builds and evaluates with. */
     readonly #options: CommitBuildOptions;
 
-    /** Build the commit an installation's selected reference resolves to. */
+    /** Build the commit an installation's followed reference points at. */
     constructor(
         target: InstallationRollout,
-        selection: RepositorySelection,
+        followed: { readonly id: string; readonly directory: string },
         options: CommitBuildOptions,
     ) {
         this.#target = target;
-        this.#selection = selection;
+        this.#followed = followed;
         this.#options = options;
     }
 
     /** Build the reference's commit once and submit it to an unmanaged installation. */
     async reconcile(reconciliation: ObjectReconciliation): Promise<void> {
-        // refuse a repository of another account before reading or building it
+        // read the followed reference once replicated, refusing a repository of another account
         const target = this.#target;
-        const selection = this.#selection;
+        const { id, directory } = this.#followed;
         const { forge } = this.#options;
         const { database } = reconciliation;
-        const owner = await SelectedRepository.owner(forge, selection);
-        const [served] = await Snapshot.live(database)
-            .read(space.table)
-            .findMany({ where: { id: target.scope } });
-        if (served?.scope !== owner) {
-            throw SelectedRepository.missing(selection.repository);
+        const snapshot = Snapshot.live(database);
+        const followed = await forge.reference(snapshot, id);
+        if (followed === undefined) {
+            return;
         }
+        await this.#options.space.requireRepository(followed.repository);
 
-        // cancel the directory's unfinished builds at commits no selection follows, and wait while the reference resolves to none
-        await this.#cancelSuperseded(reconciliation);
-        const commit = await forge.commit(database, selection.repository, selection.reference);
+        // cancel the directory's unfinished builds at commits nothing follows, and wait while the reference points at none
+        await this.#cancelSuperseded(reconciliation, followed.repository);
+        const { commit } = followed;
         if (commit === undefined) {
             return;
         }
@@ -105,9 +89,9 @@ export class CommitBuild {
         // create the commit's build once, and wait until it succeeded, leaving a managed installation's to its manager
         const source: CommitSource = {
             kind: "commit",
-            repository: selection.repository,
+            repository: followed.repository,
             commit,
-            directory: selection.directory,
+            directory,
         };
         const built = await this.#create(reconciliation, source);
         if (
@@ -118,48 +102,39 @@ export class CommitBuild {
             return;
         }
 
-        // submit the succeeded build, a stack's with its export
+        // apply the installation at the succeeded build
         await reconciliation.mutate([
-            rollout.call("submit", {
+            rollout.call("deploy", {
                 ...rollout.target({ scope: target.scope, id: target.installationId }),
-                selection,
-                build: { kind: "build", build: built.id },
-                ...(target.installation.export === null
-                    ? {}
-                    : {
-                          stack: {
-                              export: target.installation.export,
-                              parameters: present(
-                                  target.installation.parameters,
-                                  `the arguments of ${target.installation.export}`,
-                              ),
-                          },
-                      }),
+                build: built.id,
             }),
         ]);
     }
 
     /** Cancel the controller's unfinished builds of a repository directory at other commits. */
-    async #cancelSuperseded(reconciliation: ObjectReconciliation): Promise<void> {
-        // read the commits the space's selections of the repository directory follow
+    async #cancelSuperseded(
+        reconciliation: ObjectReconciliation,
+        repository: Identifier<"repository">,
+    ): Promise<void> {
+        // read the commits the space's installations following references of the directory point at
         const { scope } = this.#target;
-        const selected = this.#selection;
+        const { directory } = this.#followed;
         const { forge } = this.#options;
         const { database } = reconciliation;
+        const snapshot = Snapshot.live(database);
         const isSame = (source: { readonly repository: string; readonly directory: string }) =>
-            source.repository === selected.repository && source.directory === selected.directory;
-        const selecting = await RolloutTarget.selecting(
-            database,
-            scope,
-            (selection) => selection.kind === "repository" && isSame(selection),
+            source.repository === repository && source.directory === directory;
+        const following = await snapshot.read(installation.table).findMany({
+            where: { scope, followsType: reference.name, directory, deletedAt: { isNull: true } },
+        });
+        const references = await Promise.all(
+            following.map((each) =>
+                forge.reference(snapshot, present(each.followsId, "a followed reference")),
+            ),
         );
         const followed = new Set(
-            await Promise.all(
-                selecting.flatMap(({ selection }) =>
-                    selection.kind === "repository"
-                        ? [forge.commit(database, selection.repository, selection.reference)]
-                        : [],
-                ),
+            references.flatMap((each) =>
+                each !== undefined && each.repository === repository ? [each.commit] : [],
             ),
         );
 
@@ -229,7 +204,7 @@ export class CommitBuild {
     ): Promise<boolean> {
         // target nothing before the first submission
         const row = this.#target;
-        if (row.revisionId === null) {
+        if (row.targetRevisionId === null) {
             return false;
         }
 
@@ -237,7 +212,7 @@ export class CommitBuild {
         const [revision] = await database
             .select({ buildId: installationRevision.table.buildId })
             .from(installationRevision.table)
-            .where(eq(installationRevision.table.id, row.revisionId));
+            .where(eq(installationRevision.table.id, row.targetRevisionId));
 
         return revision?.buildId === buildId;
     }

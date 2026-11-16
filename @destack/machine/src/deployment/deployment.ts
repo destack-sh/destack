@@ -4,12 +4,12 @@ import {
     type Installation,
     InstallationName,
     type ObjectReconciliation,
-    ObjectWatch,
+    type ObjectWatch,
     type StatusCondition,
     InstallationBindingState,
     InstallationKind,
 } from "@destack/object";
-import { Space, space } from "@destack/account/object";
+import { placement, Space, space } from "@destack/account/object";
 import { ResourceId } from "@destack/resource";
 import {
     and,
@@ -21,6 +21,7 @@ import {
     or,
     Snapshot,
     Condition,
+    type Relation,
 } from "@destack/db";
 import { PackageError, type PackageId } from "@destack/package";
 import {
@@ -63,6 +64,13 @@ import type { ProviderIndex } from "../resource/resource.ts";
 import type { ObjectBindable } from "@destack/stack/object";
 import { RolloutTarget } from "../installation/target.ts";
 import type { Kind, Provisioning } from "@destack/package";
+
+/** The deployment an instance runs. */
+const INSTANCE_DEPLOYMENT: Relation = {
+    table: deployment.table,
+    cardinality: "one",
+    on: { kind: "key", column: "id", parent: "deploymentId" },
+};
 
 /** The instance statuses of a recorded workload not stopped for good. */
 const UNSTOPPED_STATUSES = ["starting", "running", "failed"] as const;
@@ -115,72 +123,30 @@ export function implementDeployment(options: DeploymentOptions) {
     return deployment.implement({
         controllers: [
             {
+                name: "run",
                 pending: { status: { in: ["active", "draining", "stopping"] } },
                 watches: [
-                    // wake an instance's deployment and the deployments of its workload it may replace
-                    ObjectWatch.of(instance.table, async (row, database) => [
-                        { id: row.deploymentId },
-                        ...(await replacedBy(row.deploymentId, database)),
-                    ]),
-                    // wake the space's draining deployments when another turns active or retires
-                    ObjectWatch.of(deployment.table, async (row, database) =>
-                        row.status === "active" || row.status === "retired"
-                            ? database
-                                  .select({ id: deployment.table.id })
-                                  .from(deployment.table)
-                                  .where(
-                                      and(
-                                          eq(deployment.table.scope, row.scope),
-                                          eq(deployment.table.status, "draining"),
-                                      ),
-                                  )
-                            : [],
-                    ),
-                    // wake a space's live deployments once a move fences or lifts its scope or its placement changes
-                    ObjectWatch.of(Scope.table, async (row, database) => {
-                        const fenced = schema.identifier("space").safeParse(row.scope);
-
-                        return fenced.success ? liveDeployments(fenced.data, database) : [];
-                    }),
-                    Space.watch(liveDeployments),
-                    // reconcile the live deployments whose revision binds a changed resource of any kind, or keeps tables in a changed main
-                    ...options.providers.objects().map((object) =>
-                        ObjectWatch.of(object.table, async (row, connection) => {
-                            // leave a resource outside spaces
-                            const scope = schema.identifier("space").safeParse(row.scope);
-                            if (!scope.success) {
-                                return [];
-                            }
-                            const isMain = Database.isMain(object, row);
-                            const live = await connection
-                                .select()
-                                .from(deployment.table)
-                                .where(
-                                    and(
-                                        eq(deployment.table.scope, scope.data),
-                                        Condition.render(Deployment.live(), deployment.table),
-                                    ),
-                                );
-                            const revisions = await runningRevisions(connection, scope.data);
-
-                            return live
-                                .filter((entry) => {
-                                    const revision = revisions.find(
-                                        (each) => each.id === entry.revisionId,
-                                    );
-
-                                    return (
-                                        revision !== undefined &&
-                                        (isMain
-                                            ? revision.states[MAIN_DATABASE] !== undefined
-                                            : revision.bindings.some(
-                                                  (bound) => bound.target === row.id,
-                                              ))
-                                    );
-                                })
-                                .map((entry) => ({ id: entry.id }));
-                        }),
-                    ),
+                    // wake an installation's live deployments once an instance of one changes
+                    {
+                        table: instance.table,
+                        path: [INSTANCE_DEPLOYMENT],
+                        on: { installationId: "installationId" },
+                    },
+                    // wake an installation's draining deployments once another of it turns active or retires
+                    {
+                        table: deployment.table,
+                        where: { status: { in: ["active", "retired"] } },
+                        fields: ["status"],
+                        on: { installationId: "installationId" },
+                    },
+                    // wake the space's live deployments once a move fences or lifts its scope, or its placement changes
+                    { table: Scope.table, on: { scope: "scope" } },
+                    { table: placement.table, on: { scope: "spaceId" } },
+                    // wake the space's live deployments once a resource changes
+                    ...options.providers.objects().map((object): ObjectWatch => ({
+                        table: object.table,
+                        on: { scope: "scope" },
+                    })),
                 ],
                 reconcile: async (reconciliation) => {
                     // reconcile a deployment of a served space the machine runs
@@ -283,8 +249,13 @@ class Reconcile {
 
     /** Run the instance of an active deployment, and stop the instances of one no longer active. */
     async reconcile(): Promise<void> {
+        // leave an active deployment on a runtime this machine lacks
+        const isRunnable = this.#options.runtimes.has(this.#current.runtime);
+        if (this.#current.status === "active" && !isRunnable) {
+            return;
+        }
         // run the active deployment's instance
-        if (this.#current.status === "active") {
+        else if (this.#current.status === "active") {
             return this.#runActive();
         }
         // let a draining deployment serve until the deployment replacing it runs
@@ -298,7 +269,7 @@ class Reconcile {
         // stop the instances of a deployment no longer active, running only this machine's
         else if (this.#recorded.length > 0) {
             const own = this.#recorded.filter((entry) => entry.machineId === this.#options.machine);
-            for (const stopped of own) {
+            for (const stopped of isRunnable ? own : []) {
                 await this.#runtime().stop(stopped.id);
             }
             await this.#reconciliation.mutate(
@@ -819,48 +790,6 @@ class Reconcile {
             }),
         ]);
     }
-}
-
-/** Select a space's live deployments. */
-function liveDeployments(spaceId: Identifier<"space">, database: DatabaseConnection) {
-    return database
-        .select({ id: deployment.table.id })
-        .from(deployment.table)
-        .where(
-            and(
-                eq(deployment.table.scope, spaceId),
-                Condition.render(Deployment.live(), deployment.table),
-            ),
-        );
-}
-
-/** Select the draining deployments of a deployment's workload. */
-async function replacedBy(
-    deploymentId: Identifier<"deployment">,
-    database: DatabaseConnection,
-): Promise<{ readonly id: Identifier<"deployment"> }[]> {
-    // read the deployment's workload
-    const [current] = await database
-        .select({
-            installationId: deployment.table.installationId,
-            workload: deployment.table.workload,
-        })
-        .from(deployment.table)
-        .where(eq(deployment.table.id, deploymentId));
-    if (current === undefined) {
-        return [];
-    }
-
-    return database
-        .select({ id: deployment.table.id })
-        .from(deployment.table)
-        .where(
-            and(
-                eq(deployment.table.installationId, current.installationId),
-                eq(deployment.table.workload, current.workload),
-                eq(deployment.table.status, "draining"),
-            ),
-        );
 }
 
 /** Match the deployments the machine runs: those selecting it, or selecting none. */
