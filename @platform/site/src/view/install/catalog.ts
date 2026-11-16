@@ -149,9 +149,7 @@ function downloadOf(target: Target, download: CatalogDownload): Download {
         address.origin !== "https://download.destack.sh" ||
         address.search !== "" ||
         address.hash !== "" ||
-        !/^\/(?:stable|nightly)\/targets\/[a-f0-9]{64}\.[a-z0-9_-]+\.(?:dmg|tar\.gz)$/u.test(
-            address.pathname,
-        )
+        !/^\/targets\/[a-f0-9]{64}\.[a-z0-9_-]+\.(?:dmg|tar\.gz)$/u.test(address.pathname)
     ) {
         throw new Error("download address is invalid: it must be a URL");
     }
