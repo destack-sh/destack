@@ -15,8 +15,15 @@ import { MemoryBuild } from "@destack/package/test";
 import { PackageName, PackageVersion } from "@destack/package";
 import { Tarball, TarballEntry } from "@destack/package/archive";
 
-/** The email a person without access to the account signs in with. */
-const STRANGER_EMAIL = "stranger@example.test";
+/** The forge's body for a build a caller cannot read or that does not exist. */
+const BUILD_NOT_FOUND = {
+    code: "NOT_FOUND",
+    defined: true,
+    domain: "@destack/forge",
+    message: "build not found",
+    reason: "BUILD_NOT_FOUND",
+    status: 404,
+};
 
 /** How long an unreferenced blob stays before deletion: a blob store's hour of grace. */
 const GRACE_MILLISECONDS = 60 * 60_000;
@@ -31,7 +38,7 @@ const CLOSURE = PackageVersion.parse({
     version: "2026.9.0",
 });
 
-test("serve a release's build by digest to its readers alone", async () => {
+test("serve a release's build by digest to its readers alone, also once yanked", async () => {
     // publish a private package, and copy its build by digest into another store as the owner
     const forge = await TestForge.open();
     const published = await forge.publish((await fixtureBuild("answer")).reader);
@@ -45,20 +52,17 @@ test("serve a release's build by digest to its readers alone", async () => {
     await copied.pull(source, root, "all");
 
     // refuse anonymous and other callers and an unknown build, and serve the build once yanked
-    const stranger = await forge.signIn(STRANGER_EMAIL);
-    const status = async (digest: Digest, person?: TestPerson) => {
-        const response = await as(forge, person)(
+    const stranger = forge.stranger();
+    const read = (digest: Digest, person?: TestPerson) =>
+        as(forge, person)(
             new URL(`${forge.origin}${forgePackage.mounts.builds.path}/${digest}/manifest.json`),
             {},
         );
-        await response.body?.cancel();
-
-        return response.status;
-    };
+    const unknown = Digest.parse("0".repeat(64));
     const refused = [
-        await status(published.manifest),
-        await status(published.manifest, stranger),
-        await status(Digest.parse("0".repeat(64)), forge.owner),
+        await answered(await read(published.manifest)),
+        await answered(await read(published.manifest, stranger)),
+        await answered(await read(unknown, forge.owner)),
     ];
     await forge.client(forge.owner).release.yank({
         spaceId: forge.space,
@@ -66,13 +70,19 @@ test("serve a release's build by digest to its readers alone", async () => {
         requestId: RequestId.create(forge.environment),
         isYanked: true,
     });
+    const yanked = await read(published.manifest, forge.owner);
+    await yanked.body?.cancel();
     expect({
         copied: (await copied.contents(published.manifest)).manifest,
         refused,
-        yanked: await status(published.manifest, forge.owner),
+        yanked: yanked.status,
     }).toEqual({
         copied: published.reader.manifest,
-        refused: [404, 404, 404],
+        refused: [
+            [404, BUILD_NOT_FOUND],
+            [404, BUILD_NOT_FOUND],
+            [404, BUILD_NOT_FOUND],
+        ],
         yanked: 200,
     });
 });
@@ -117,7 +127,7 @@ test("authorize manifest pushes by the account's publisher relation", async () =
     const build = await fixtureBuild("answer", "2026.9.1");
     const manifest = PackageManifest.serialize(build.manifest);
     const digest = await Digest.of(manifest, forge.environment.crypto);
-    const stranger = await forge.signIn(STRANGER_EMAIL);
+    const stranger = forge.stranger();
     const handle = PackageName.split(build.reader.manifest.package.name).handle;
     await using pushed = await TestBuildStore.create(forge.environment);
     const lock = await pushed.putLock(Lock.of(await pushed.put(build.reader)));
@@ -233,15 +243,23 @@ test("retain a pushed build a release locks past its lease", async () => {
     await forge.signOwnerIn();
     const released = await forge.publish(build.reader);
 
-    // wake past its lease
-    await forge.simulation.jump(forge.environment.clock.now() + UNRELEASED_MILLISECONDS + 1000);
+    // wake past its lease, and past the two graces that delete an unreleased build
+    const { clock } = forge.environment;
+    await forge.simulation.jump(clock.now() + UNRELEASED_MILLISECONDS + 1000);
+    await forge.simulation.jump(clock.now() + GRACE_MILLISECONDS);
+    await forge.simulation.jump(clock.now() + GRACE_MILLISECONDS);
 
-    // read and verify every file of the released build after the collection
+    // keep the build the release locks, and every file of it
     const store = await forge.store();
     const files = await (await store.contents(manifest)).distributed();
     const sizes = await Promise.all(files.map(async (file) => (await store.file(file)).length));
-    expect({ released: released.manifest, sizes }).toEqual({
-        released: manifest,
+    expect({
+        root: (await store.lock(released.release.lock)).root,
+        isStored: await store.contains(manifest),
+        sizes,
+    }).toEqual({
+        root: manifest,
+        isStored: true,
         sizes: files.map((file) => file.size),
     });
 });
@@ -298,29 +316,34 @@ test("serve and retain a release's npm units and Bun output", async () => {
     await copied.pull(source, root, ["bun"]);
 
     // refuse the build to a stranger
-    const stranger = await forge.signIn(STRANGER_EMAIL);
-    const refused = await as(forge, stranger)(
-        new URL(`${builds}/${buildManifest}/manifest.json`),
-        {},
+    const refused = await answered(
+        await as(forge, forge.stranger())(new URL(`${builds}/${buildManifest}/manifest.json`), {}),
     );
-    await refused.body?.cancel();
 
-    // retain both past their leases
+    // retain both past their leases and the two graces that delete an unreleased build
     const store = await forge.store();
-    await forge.simulation.jump(forge.environment.clock.now() + UNRELEASED_MILLISECONDS + 1000);
+    const { clock } = forge.environment;
+    await forge.simulation.jump(clock.now() + UNRELEASED_MILLISECONDS + 1000);
+    await forge.simulation.jump(clock.now() + GRACE_MILLISECONDS);
+    await forge.simulation.jump(clock.now() + GRACE_MILLISECONDS);
     expect({
         copied: [
             await copied.containsOutput(unitManifest, "bun"),
             await copied.containsOutput(buildManifest, "bun"),
         ],
-        refused: refused.status,
+        refused,
         kept: [await store.contains(unitManifest), await store.contains(buildManifest)],
     }).toEqual({
         copied: [true, true],
-        refused: 404,
+        refused: [404, BUILD_NOT_FOUND],
         kept: [true, true],
     });
 });
+
+/** Read a response as its status and its JSON body. */
+async function answered(response: Response): Promise<[number, unknown]> {
+    return [response.status, await response.json()];
+}
 
 /** Fetch from a forge as a person with their token, or anonymously. */
 function as(forge: TestForge, person?: TestPerson) {

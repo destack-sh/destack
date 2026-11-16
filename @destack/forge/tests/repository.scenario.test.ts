@@ -485,12 +485,17 @@ test("lease checkouts of platform and anonymous repositories by permission", asy
     const local = (mode: "read" | "write") => ({ url: site.remote, mode, headers: {} });
     expect([
         await reader.repository.open({ spaceId: forge.space, id: site.id, mode: "read" }),
-        await outcome(reader.repository.open({ spaceId: forge.space, id: site.id, mode: "write" })),
+        await refusal(reader.repository.open({ spaceId: forge.space, id: site.id, mode: "write" })),
         await owner.repository.open({ spaceId: forge.space, id: site.id, mode: "write" }),
-        await outcome(
+        await refusal(
             stranger.repository.open({ spaceId: forge.space, id: site.id, mode: "read" }),
         ),
-    ]).toEqual([local("read"), "FORBIDDEN", local("write"), "NOT_FOUND"]);
+    ]).toEqual([
+        local("read"),
+        ["FORBIDDEN", "PERMISSION_DENIED", "permission 'push' is forbidden: the caller lacks it"],
+        local("write"),
+        ["NOT_FOUND", "NOT_FOUND", `repository '${site.id}' not found`],
+    ]);
 
     // pull an anonymous remote unchanged and push to it without a platform credential
     expect([
@@ -732,6 +737,11 @@ test("keep a Git remote's credential in the forge's vault", async () => {
             ...(credential === undefined ? {} : { credential }),
         });
     const mirror = await create("mirror", "credential", { user: "ada", password: "token-1" });
+    const credentials = () =>
+        forge.home.database
+            .select({ name: secret.table.name, currentVersion: secret.table.currentVersion })
+            .from(secret.table)
+            .where(and(eq(secret.table.name, mirror.id), isNull(secret.table.purgedAt)));
 
     // lease the remote to pull and push with the credential as Basic authentication, refusing a reader the credential
     const open = (mode: "read" | "write") =>
@@ -745,6 +755,7 @@ test("keep a Git remote's credential in the forge's vault", async () => {
     ];
 
     // rotate the credential, then move the remote to anonymous, which purges it from the vault
+    const created = await credentials();
     const update = (input: object) =>
         owner.repository.update({
             spaceId: forge.space,
@@ -754,18 +765,17 @@ test("keep a Git remote's credential in the forge's vault", async () => {
         });
     await update({ credential: { user: "ada", password: "token-2" } });
     const rotated = await open("read");
+    const current = await credentials();
     await update({ authentication: "anonymous" });
-    const live = await forge.home.database
-        .select({ name: secret.table.name })
-        .from(secret.table)
-        .where(and(eq(secret.table.name, mirror.id), isNull(secret.table.purgedAt)));
+    const live = await credentials();
 
     // refuse a credential remote without its credential, and a credential for any other origin
     const refused = [
         await refusal(create("bare", "credential")),
         await refusal(create("stray", "anonymous", { user: "ada", password: "token-3" })),
     ];
-    expect({ leased, rotated, live, refused }).toEqual({
+    expect({ created, leased, current, rotated, live, refused }).toEqual({
+        created: [{ name: mirror.id, currentVersion: 1 }],
         leased: [
             { url: remote, mode: "read", headers: { authorization: basic("token-1") } },
             { url: remote, mode: "write", headers: { authorization: basic("token-1") } },
@@ -775,6 +785,7 @@ test("keep a Git remote's credential in the forge's vault", async () => {
                 "permission 'push' is forbidden: the caller lacks it",
             ],
         ],
+        current: [{ name: mirror.id, currentVersion: 2 }],
         rotated: { url: remote, mode: "read", headers: { authorization: basic("token-2") } },
         live: [],
         refused: [

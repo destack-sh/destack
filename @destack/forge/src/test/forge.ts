@@ -232,9 +232,9 @@ export interface Published {
     readonly packageId: PackageId;
     /** The digest of the release's build manifest. */
     readonly manifest: Digest;
-    /** The digest of the release's lock. */
+    /** The digest of the lock the owner pushed, which the release records. */
     readonly lock: Digest;
-    /** The release as its creation returned it. */
+    /** The release as the forge resolves it by version once published. */
     readonly release: Release;
 }
 
@@ -298,12 +298,9 @@ export class TestForge {
 
     /** Serve a copy of the template's home with the forge installed, in a fork of its world. */
     static async open(): Promise<TestForge> {
-        // copy the home, with GitHub answering in its world
+        // copy the served home, with GitHub answering in its world
         const { space: home, world } = await TestSpace.copy(FORGE_TEMPLATE, FORGE_HOME_OPTIONS);
         const standIn = TestForge.#github(home);
-
-        // serve it with the forge
-        await home.serve();
         const owner = home.universe.person(OWNER_EMAIL);
         const { installation, tenants } = world;
 
@@ -328,7 +325,6 @@ export class TestForge {
     /** Run the forge's GitHub App: its key and webhook secret, and its setting. */
     static async #runGitHubApp(home: TestSpace): Promise<void> {
         // write the App's key and webhook secret into the platform vault as the operator stepped up
-        await home.serve();
         const operator = await home.universe.elevate(await home.universe.operator());
         const vaults = home.person(operator).client(vaultPackage);
         const values = {
@@ -470,7 +466,7 @@ export class TestForge {
         });
         const manifest = await BuildStore.digest(reader.manifest, this.environment.crypto);
 
-        return { reader, packageId, manifest, lock: release.lock, release };
+        return { reader, packageId, manifest, lock, release };
     }
 
     /** Publish a pushed lock of a package as a person, answering the release its tag points at. */
