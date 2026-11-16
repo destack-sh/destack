@@ -5,7 +5,7 @@ import { expect, refusal, test } from "@destack/test";
 import type { Subject } from "@destack/sync";
 import { ids, TestSpace } from "../src/test/index.ts";
 
-test("decide an owner's permissions on a space in its own store through the predefined owner role, for its person and the space itself", async () => {
+test("grant a space's person and the space itself the owner role's permissions", async () => {
     // serve a space its person created, with the person and the space itself as owners, and sign a stranger up
     const fixture = await TestSpace.open();
     await fixture.serve();

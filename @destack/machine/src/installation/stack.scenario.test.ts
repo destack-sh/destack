@@ -305,7 +305,7 @@ test("apply a waiting stack again once its resources turn ready, without waking 
     ]);
 });
 
-test("leave a declared installation whose fields are unchanged as it is when its stack applies it again", async () => {
+test("leave an unchanged declared installation unwritten when its stack applies again", async () => {
     const fixture = await TestSpace.open();
     const { database } = fixture;
 
@@ -487,7 +487,7 @@ test("run a host installation at a restarted machine's linked release, then revi
     });
 });
 
-test("refuse a stack installing on the host at a release, allow a sandbox following the host's release, and hold one the machine does not provide", async () => {
+test("hold a host installation of a package this machine does not provide", async () => {
     // declare the package on the host at a release, which only the host's release may be
     const fixture = await TestSpace.open();
     const { database } = fixture;
@@ -550,7 +550,7 @@ test("refuse a stack installing on the host at a release, allow a sandbox follow
     });
 });
 
-test("replace an installation's own binding once its stack binds the declaration as a bucket next to its roles, releasing its previously owned bucket", async () => {
+test("replace an installation's owned bucket binding with its stack's, releasing it", async () => {
     const fixture = await TestSpace.open();
     const { database } = fixture;
 
@@ -626,7 +626,7 @@ test("replace an installation's own binding once its stack binds the declaration
     });
 });
 
-test("bind a declaration to an installation of another space by name, unpinned, block one pinning it, and refuse another kind there", async () => {
+test("bind a declaration to another space's installation by name, refusing a pin", async () => {
     const fixture = await TestSpace.open();
     const stack = await readStack(fixture.database);
     const store = await serve(fixture);

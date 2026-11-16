@@ -18,7 +18,7 @@ const GRACE_MILLISECONDS = 60 * 60_000;
 /** A week, far past every lease, in milliseconds. */
 const WEEK_MILLISECONDS = 7 * 24 * 60 * 60_000;
 
-test("expire a dropped build as builds change, and collect it with its graph once its lease ends, then rest", async () => {
+test("expire a build past retention and collect it with its graph after its lease", async () => {
     // record one build more of the fixture's checkout than the space retains by default, a millisecond apart
     const fixture = await TestSpace.open();
     const { simulation } = fixture;

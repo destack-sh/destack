@@ -10,7 +10,7 @@ import { OWNER_EMAIL, TestComputer } from "../src/computer/test/index.ts";
 /** The tag a change after the restart sets on the home's start installation. */
 const RESUMED = { resumed: "yes" };
 
-test("resume a person's replica of their home on their laptop once the home's computer restarts, receiving a change made after it at once", async () => {
+test("deliver a home change to a laptop replica soon after the home restarts", async () => {
     // run the owner's home in the cloud, and their laptop through the relay, signed in
     const { home, login } = await TestComputer.home();
     const { world } = home;

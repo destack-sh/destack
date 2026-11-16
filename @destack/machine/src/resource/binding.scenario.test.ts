@@ -9,7 +9,7 @@ import * as accountObject from "@destack/account/object";
 import { eq, Transaction } from "@destack/db";
 import { ids, insertRollout, TestSpace } from "../test/index.ts";
 
-test("deploy an installation capturing each binding at its target's generation or its pinned version, and relate it to the captured resources", async () => {
+test("capture each binding at its target's generation or pin, and relate its resources", async () => {
     // add two provisioned buckets at different generations, bound by one installation with one binding pinned
     const fixture = await TestSpace.open();
     const { database } = fixture;

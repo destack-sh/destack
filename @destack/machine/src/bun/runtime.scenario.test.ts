@@ -446,7 +446,7 @@ console.log(JSON.stringify({}));
 /** The answer of the fetching runner. */
 const FetchEcho = schema.object({ status: schema.number(), text: schema.string().nullable() });
 
-test("run a workload sandboxed: call the hosts its capabilities allow, see others denied by the proxy, and refuse any host before it starts", async () => {
+test("deny a sandboxed workload's calls to hosts its capabilities omit", async () => {
     // serve two loopback hosts, keyed from a world of their own
     const world = testSimulation().environment("runtime");
     const directory = await world.files.makeTemporaryDirectory("destack-runtime-");

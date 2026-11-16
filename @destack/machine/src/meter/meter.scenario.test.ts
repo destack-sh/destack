@@ -56,7 +56,7 @@ const SKUS = new Map([
     [computeUsage.key({}), MEMORY_SKU],
 ]);
 
-test("append a space's use as readings each round, measuring a failed round in the next and resuming after a restart from the latest reading", async () => {
+test("read a space's use each round, resuming after a failed round or restart", async () => {
     // serve a space, in a world the scenario moves
     const fixture = await TestSpace.open(METER_OPTIONS);
     const world = fixture.environment;

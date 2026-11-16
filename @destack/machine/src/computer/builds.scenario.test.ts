@@ -272,7 +272,7 @@ async function git(directory: string, ...command: string[]): Promise<string> {
     return output.trim();
 }
 
-test("build each commit a push moves main to once in the space selecting it, pulling it as the space, and deploy it from the machine's build store", async () => {
+test("build and deploy each commit a push moves main to", async () => {
     // push the site's first version and install it following main
     const site = await pushHome();
     const { machine } = site.home;
@@ -346,7 +346,7 @@ test("build each commit a push moves main to once in the space selecting it, pul
     ]);
 });
 
-test("replicate the branch a space's installation follows as the space inside the account, granting its machine nothing", async () => {
+test("replicate the branch an installation follows into its space", async () => {
     // push the site's first version and install it without granting the machine any role
     const site = await pushHome();
     const { machine } = site.home;

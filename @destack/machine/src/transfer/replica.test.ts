@@ -37,7 +37,7 @@ function scopeRow(scope: string, parent: string) {
     };
 }
 
-test("move the rows of a space and the scopes below it, digest them alike on both sides, and delete them all", async () => {
+test("capture a space's subtree rows onto a replica and delete them", async () => {
     // add a space, a room in it, a desk in the room and a scope outside, with a note in each
     const world = testSimulation().environment("test");
     const tables = [Scope.table, note, ...replicaTables];

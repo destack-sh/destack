@@ -36,7 +36,7 @@ const UNKNOWN_BUILD = schema
     .identifier("build")
     .parse("build-01996ab0-0000-7000-8000-000000000003");
 
-test("serve a build's modules, declarations and code symbols from its index to the build's readers, through the object store and a client", async () => {
+test("serve a build's modules, declarations and symbols to its readers", async () => {
     // record the notebook's build with its code index twice as the space's builds of one manifest
     const fixture = await TestSpace.open();
     const { simulation } = fixture;

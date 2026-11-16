@@ -36,7 +36,7 @@ async function autostart(os: OperatingSystem) {
     return { autostart: await Autostart.of(DIRECTORY, commands), commands };
 }
 
-test("describe a foreground machine with isolated state and bounded shutdown on each system, supervised but on Windows", async () => {
+test("describe the machine as a launchd agent, a systemd unit and a startup shortcut", async () => {
     // describe the machine as a launchd agent, a systemd unit and a startup shortcut
     const [mac, gnu, windows] = await Promise.all([
         autostart("darwin"),

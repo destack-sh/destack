@@ -115,7 +115,7 @@ test("bind an installation's requests on other packages' types on its consenter'
     });
 });
 
-test("relate a residency home's declared installation while it asks the universe, unrelate it once it stops, leave a settled relationship, and relate it again after an upgrade", async () => {
+test("relate and unrelate a residency home's installation as its requests change", async () => {
     // declare notes in the space, which homes a residency
     const { database, now } = await installNotes();
     const lab = schema

@@ -534,7 +534,7 @@ test("open a bucket's files as an installation using it, and refuse another", as
 });
 
 /** Refuse editors' and consumers' writes to a bucket the space alone writes, and allow reads. */
-test("refuse editors and consumers writes into a bucket the space alone writes", async () => {
+test("refuse writes into a bucket only its space writes, allowing reads", async () => {
     await using fixture = await openBucket();
     const { client, bucket, spaceId } = fixture;
     await fixture.files.put("builds/manifest.json", "{}");

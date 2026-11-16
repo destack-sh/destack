@@ -29,7 +29,7 @@ function providers(directory: string, environment: Environment<"files" | "server
     ] as const;
 }
 
-test("provision a space's database under the space's approval threshold, and leave it alone while a move fences the space", async () => {
+test("provision a space's database, and leave it alone while its space is fenced", async () => {
     const fixture = await TestSpace.open();
     const directory = await fixture.environment.files.makeTemporaryDirectory("destack-controller-");
     const { database } = fixture;

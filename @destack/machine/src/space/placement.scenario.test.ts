@@ -44,7 +44,7 @@ test("delete a space at its home once its installations are gone, clearing its b
     });
 });
 
-test("finish removing a deleted space whose row an earlier look already finalized at its home", async () => {
+test("finish removing a deleted space whose universe row is already gone", async () => {
     // serve the space, its replicas following the universe until paused
     const fixture = await TestSpace.open();
     await fixture.serve();

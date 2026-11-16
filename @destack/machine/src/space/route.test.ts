@@ -41,7 +41,7 @@ function post(path: string, body: unknown, headers: Record<string, string> = {})
     });
 }
 
-test("route a request to the space of its S3 origin, forwarded or not, space prefix, scoped route, creation or replica scope, and none for an account or otherwise", async () => {
+test("route a request to the space its S3 origin, path or body names", async () => {
     // read the space, its header and the path of each request at the space
     const requests = [
         new Request(`https://s3--${SPACE}.destack.space/bucket-1/notes.txt`),
@@ -125,7 +125,7 @@ test("route a request to the space of its installation origin, as a relay forwar
     expect(routed).toEqual([SPACE, SPACE, undefined]);
 });
 
-test("route a nested scoped route to its space, a stream below a space to the space, a call to an account nowhere, a space's URL to its space, and an installation's mount to its space", async () => {
+test("route nested routes, streams and installation mounts to their space", async () => {
     // address the space in each form a request names it
     const requests = [
         new Request(`${MOUNT}/accounts/${ACCOUNT}/spaces/${SPACE}/relationships`, {
@@ -176,7 +176,7 @@ test("route a nested scoped route to its space, a stream below a space to the sp
     ]);
 });
 
-test("route a request to a name to the space of its installation origin or S3 origin served here, else to its route's space with the route and the URL asked for, and none for a name nothing serves", async () => {
+test("route a name to its installation, S3 origin or route, redirecting former names", async () => {
     // serve work--ada here and route notes.acme.com/blog to a route of another space
     const ROUTED = "space-01996ab0-0000-7000-8000-000000000003";
     const ROUTE = "route-01996ab0-0000-7000-8000-000000000004";
@@ -233,7 +233,7 @@ test("route a request to a name to the space of its installation origin or S3 or
     ]);
 });
 
-test("drop the route and the URL a client sends to the machine's own host, which only the machine hands on", async () => {
+test("drop the route and client URL a client sends to the machine's host", async () => {
     const found = await SpaceRequest.of(
         new Request(`https://eu.destack.cloud/spaces/${SPACE}/notes`, {
             headers: {

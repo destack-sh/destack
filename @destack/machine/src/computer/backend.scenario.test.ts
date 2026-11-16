@@ -47,7 +47,7 @@ test("start a space while the machine serves, and refuse to start it once the ma
     ]);
 });
 
-test("answer a served space's liveness and readiness below its mount, as a server answers its own", async () => {
+test("answer a served space's livez and readyz below its mount", async () => {
     // probe the owner's served home
     const { home } = await TestComputer.home();
     const spaceId = home.world.owner.home;

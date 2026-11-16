@@ -479,7 +479,7 @@ test("pause serving while the account drains the machine", async () => {
     expect(started).toEqual(paused);
 });
 
-test("let the owner and the machine work its checkouts", async () => {
+test("decide checkout permissions for the owner, the machine and a stranger", async () => {
     // enroll a computer, and register a checkout as its local client
     const opened = await TestComputer.open();
     const { machine, world } = opened;

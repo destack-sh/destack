@@ -594,7 +594,7 @@ test("open the build each package's installation in a space follows, and none fo
     ]).toEqual(["2026.9.0", "2026.10.0", undefined]);
 });
 
-test("serve the installation of a call at its mount by its identifier or its name, refusing a name no installation has, a suspended one, and one while the stack applies", async () => {
+test("find a served installation by identifier or name, else ask to wait or refuse", async () => {
     // install notes from its checkout's build, applied and served as the machine's start serves it
     const fixture = await TestSpace.open();
     const { database } = fixture;
@@ -702,7 +702,7 @@ const region = defineSetting({
     required: true,
 });
 
-test("refuse submitting a build whose space settings without a default the space leaves unset, before applying it", async () => {
+test("refuse deploying a build needing a setting the space leaves unset", async () => {
     // record a checkout build of a package declaring a required region
     const fixture = await TestSpace.open();
     await fixture.serve();

@@ -205,7 +205,7 @@ test("open a workload's sandbox to exactly what its capabilities grant, refusing
     });
 });
 
-test("refuse connecting to any host, which the sandbox cannot enforce", async () => {
+test("refuse a sandbox that connects to any host", async () => {
     const sandbox = Sandbox.parse({
         network: { connect: ["*"] },
     });

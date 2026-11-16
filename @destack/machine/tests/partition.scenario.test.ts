@@ -5,7 +5,7 @@ import { RequestId } from "@destack/sync";
 import { expect, refusal, test } from "@destack/test";
 import { board, ids, memo, TestPartition } from "../src/test/index.ts";
 
-test("accept a token bound to an account at the account's home, writing an account card there, and refuse it at another space of the account", async () => {
+test("accept an account-bound token at the account's home, refusing it elsewhere", async () => {
     // host the account's home and another space of the account, each serving the cards
     const { home, other } = await TestPartition.open();
 

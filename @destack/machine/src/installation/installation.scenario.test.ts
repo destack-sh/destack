@@ -368,7 +368,7 @@ test("roll an installation back by following an earlier revision's build, each t
     });
 });
 
-test("identify a residency home's declared installation by its name, and forward its unrelating to the residency on each pass", async () => {
+test("name a residency home's declared installation by its derived identifier", async () => {
     // install notes in the eu residency's home through its stack, then serve it again
     const home = await TestSpace.residency();
     await home.serve();
@@ -394,7 +394,7 @@ test("identify a residency home's declared installation by its name, and forward
     });
 });
 
-test("relate a residency home's declared installation at the universe once a pass after a partition arrives there", async () => {
+test("relate a residency home's installation at the universe once a partition heals", async () => {
     // declare a package whose installations ask for what a residency's installation has
     const released = PackageVersion.parse({
         id: "package-01996ab0-0000-7000-8000-0000000000e2",
@@ -455,7 +455,7 @@ test("relate a residency home's declared installation at the universe once a pas
     });
 });
 
-test("relate a shipped server as consumer of the bucket it binds while its revision serves in process, and unrelate it once uninstalled", async () => {
+test("relate an in-process installation to its bound bucket until uninstalled", async () => {
     // ship a server binding a bucket, and install it in the space
     const released = PackageVersion.parse({
         id: "package-01996ab0-0000-7000-8000-0000000000e1",

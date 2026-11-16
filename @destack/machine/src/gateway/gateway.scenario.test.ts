@@ -499,7 +499,7 @@ test("answer a moved space to a call streaming a body above 1 MiB or of unknown 
     });
 });
 
-test("answer another origin's 421 the egress cannot read as a moved scope to the caller unchanged, sending the call once", async () => {
+test("pass another origin's unreadable 421 to the caller, sending once", async () => {
     // answer a 421 without a call error
     let sent = 0;
     const { gateway } = await openNotes([EARLIER, NEWEST], {
@@ -524,7 +524,7 @@ test("answer another origin's 421 the egress cannot read as a moved scope to the
     });
 });
 
-test("forward a request at a sandboxed package's mount to its newest deployment without a release, and refuse one without a deployment", async () => {
+test("forward a mount's request to its newest deployment, refusing none deployed", async () => {
     // deliver to notes' webhook mount over its two deployments, and over none
     const mounts = (installationId: string) => (installationId === ids.notes ? [PUSHES] : []);
     const deployed = await openNotes(undefined, { mounts });
@@ -722,7 +722,7 @@ test("send a person's own tool's call through a connection below its API, borrow
     });
 });
 
-test("send an instance's call for its subject under their grant with the token the universe exchanged, and its own calls signed as the installation", async () => {
+test("send a subject's call with an exchanged token, and the instance's own signed", async () => {
     // record each call leaving the machine
     const sent: [string, string | null, string | null][] = [];
     const { gateway, tokens, space } = await openNotes([EARLIER, NEWEST], {
@@ -770,7 +770,7 @@ test("send an instance's call for its subject under their grant with the token t
     });
 });
 
-test("send a call to the partition it addresses, and resend a call arriving at the wrong partition once to the partition its store points to", async () => {
+test("resend a call at the wrong partition once to the one its store names", async () => {
     // serve a room's calls only in the room's partition, recording each call's partition and body
     const room = "room-01996ab0-0000-7000-8000-0000000000c1";
     const reached: [string, string][] = [];

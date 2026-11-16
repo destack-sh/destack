@@ -219,7 +219,7 @@ test("resolve each kind of address a workload calls", async () => {
     ]);
 });
 
-test("hand an instance's telemetry to its space as the machine, stamped with its installation, instance and build, refusing an emitter it claims", async () => {
+test("stamp an instance's telemetry with its installation, refusing a claimed emitter", async () => {
     // route with an observer recording what it receives
     const fixture = await TestSpace.open();
     const received: unknown[] = [];

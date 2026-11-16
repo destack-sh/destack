@@ -58,7 +58,7 @@ test("measure a space's own object as the space's databases and an installation'
     }).toEqual({ space: own.own, installation: installation.own, isApart: true });
 });
 
-test("snapshot an installation's database in its facet through the space's store, and restore it into another installation's facet, refusing a page outside any copy", async () => {
+test("copy an installation's facet database into another facet through the space's store", async () => {
     const worker = await start();
 
     // copy the database through the space's object

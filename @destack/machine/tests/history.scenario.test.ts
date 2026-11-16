@@ -8,7 +8,7 @@ import { entry } from "@destack/machine-journal-fixture/object";
 import journalPackage from "@destack/machine-journal-fixture/package";
 import binderPackage from "@destack/machine-binder-fixture/package";
 
-test("serve a tracked type that reads through its space in a team space, the space up beside it", async () => {
+test("serve a tracked type reading through its space, keeping the space up", async () => {
     // create a team space in the owner's account on the home computer
     const { home } = await TestComputer.home();
     const { world } = home;
@@ -46,7 +46,7 @@ test("serve a tracked type that reads through its space in a team space, the spa
     });
 });
 
-test("refuse serving an installation whose tracked type reads through a type without history, the space up beside it", async () => {
+test("refuse serving a type reading through a type without history", async () => {
     // create a team space in the owner's account on the home computer
     const { home } = await TestComputer.home();
     const { world } = home;

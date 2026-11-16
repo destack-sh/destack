@@ -9,7 +9,7 @@ const carol = schema.identifier("user").parse("user-01996ab0-0000-7000-8000-0000
 /** A person the stack relates once it changes. */
 const dave = schema.identifier("user").parse("user-01996ab0-0000-7000-8000-000000000009");
 
-test("retain a stack's declared relationship under its identifier until it changes, then replace it", async () => {
+test("keep a stack's relationship row until it changes, then replace it", async () => {
     const fixture = await TestSpace.open();
     await fixture.serve();
 

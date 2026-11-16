@@ -84,7 +84,7 @@ test("record this machine's distribution, stage the published release and hand i
     }
 });
 
-test("report a controller's failed reconciliation to the machine: a stage its repository refuses", async () => {
+test("report a stage its repository refuses as the controller's failure", async () => {
     // follow a repository whose origin finds nothing, in the computer's world
     const world = await TestComputer.world();
     const { files } = world.simulation.environment(FILES_NODE);

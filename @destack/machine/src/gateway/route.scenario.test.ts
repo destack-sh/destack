@@ -36,7 +36,7 @@ async function described(action: RouteAction | undefined) {
 }
 
 /** Act on a request the machine routed to the space by its route's rules. */
-test("act on routed requests by their route's most specific rule: redirect, rewrite, change headers, and hand them to a mount, views or another site", async () => {
+test("act on a routed request by its route's most specific rule", async () => {
     await using fixture = await TestRoute.open();
     const [first] = fixture.spaceIds;
     const hostname = found(fixture.hostnames, fixture.accountId).name;

@@ -56,7 +56,7 @@ async function installCaller(connect: readonly string[]) {
     return { fixture, context: present(contexts.at(-1), "the installation's context") };
 }
 
-test("call only the hosts an in-process installation's capabilities declare, as an instance's sandbox does", async () => {
+test("refuse an in-process installation's calls to hosts its capabilities omit", async () => {
     const { context } = await installCaller([DECLARED_HOST]);
 
     // call an undeclared host and open a socket to another
@@ -81,7 +81,7 @@ test("call only the hosts an in-process installation's capabilities declare, as 
     ]);
 });
 
-test("call a wildcard's public hosts alone, and follow redirects without credentials toward another origin, refusing a refused or body-replaying redirect", async () => {
+test("follow a wildcard installation's redirects without credentials, refusing replays and private hosts", async () => {
     // serve a host redirecting to another origin, which records the headers it receives
     const { fixture, context } = await installCaller(["*", DECLARED_HOST]);
     const received: (string | null)[] = [];
@@ -147,7 +147,7 @@ test("call a wildcard's public hosts alone, and follow redirects without credent
 /** The tables the notes installation asks main for. */
 const STATE = { tables: { sqlite: [], postgresql: [] } };
 
-test("serve an installation once its targets are bound and the space's main database applied its tables, while a later plan waits, a stack at once, and none without main", async () => {
+test("serve an installation only once it is bound and main applied its tables", async () => {
     // install notes at a revision declaring a note type, bound to main, on a stopped machine so no job reads beside
     const fixture = await TestSpace.open();
     const { database: connection } = fixture;

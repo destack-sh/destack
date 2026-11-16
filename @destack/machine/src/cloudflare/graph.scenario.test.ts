@@ -28,7 +28,7 @@ const builds = [
     schema.identifier("build").parse("build-01996ab0-0000-7000-8000-0000000000a2"),
 ] as const;
 
-test("index a manifest once in its object, show each build of it the rows in its own scope, and delete the object a lease after its last view", async () => {
+test("share one graph index per manifest and delete it a lease after its last view", async () => {
     // record a release declaring a notification as two builds of the space, in a world of its own
     const simulation = testSimulation();
     const world = simulation.environment("test");

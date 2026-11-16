@@ -101,7 +101,7 @@ test("create, lease and complete a multipart upload into a file with the upload'
 });
 
 /** Discard an aborted upload and refuse its later parts and completion. */
-test("abort a multipart upload", async () => {
+test("abort a multipart upload, refusing its later parts and completion", async () => {
     await using fixture = await TestBucket.open(storage.database, world);
     const { client, bucket } = fixture;
     const key = "draft.bin";
