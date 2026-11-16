@@ -12,6 +12,9 @@ const STATEMENT_DURATION = "db.client.operation.duration";
 /** The counter of keys a committed change woke, by job and changed table. */
 const KEY_WAKES = "destack.controller.wakes";
 
+/** The histogram of log reads, by reader and whether the read found changes. */
+const LOG_READS = "destack.log.read.duration";
+
 /** The spans whose statements a recording totals: a job's pass and an object call. */
 const MEASURED_SPANS: ReadonlySet<string> = new Set([
     "destack.controller.pass",
@@ -256,6 +259,20 @@ export class Recording {
         }
 
         return queries;
+    }
+
+    /** Count the log reads, by reader and whether the read found changes. */
+    reads(): Record<string, number> {
+        const reads: Record<string, number> = {};
+        for (const point of this.points.filter((each) => each.name === LOG_READS)) {
+            // read the reader and the outcome
+            const reader = String(point.attributes["destack.log.reader"]);
+            const outcome = String(point.attributes["destack.log.read.outcome"]);
+            const key = `reads{${reader}:${outcome}}`;
+            reads[key] = (reads[key] ?? 0) + point.value;
+        }
+
+        return reads;
     }
 
     /** Count the keys changes woke, by the job woken and the changed table. */

@@ -367,6 +367,7 @@ async function measure(
             ...emitted.counters(),
             ...emitted.work(),
             ...emitted.queries(),
+            ...emitted.reads(),
             ...emitted.wakes(),
         },
         failures: emitted.failures(labelOf(operation), times, checks),
