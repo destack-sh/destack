@@ -103,7 +103,9 @@ async function verifyInstall(
         await command(executable, ["self", "update", "--stage", "--json"], variables, environment),
     );
     if (!isDeepStrictEqual(selection, { installed: version, staged: null })) {
-        throw new Error(`installed release differs from '${version}'`);
+        throw new Error(
+            `installed release differs from '${version}': it is ${JSON.stringify(selection)}`,
+        );
     }
     print(`verified installation and restart of ${version} from ${configuration.url}`, environment);
 }
