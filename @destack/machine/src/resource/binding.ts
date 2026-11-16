@@ -869,6 +869,7 @@ export class Binder {
         return this.#resourceObjects().map((object) => ({
             name: ObjectController.job(object, "specify"),
             key: "id",
+            result: "process",
             all: { table: object.table, column: "id" },
             watches: [
                 // take a resource itself

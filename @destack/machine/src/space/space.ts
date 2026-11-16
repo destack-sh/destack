@@ -310,6 +310,8 @@ export class Space {
     readonly builds: BuildStore;
     /** The import maps of the space's locks, by lock, runtime and base, each mapped once. */
     readonly #closures = new Map<string, Promise<ImportClosure>>();
+    /** The locks pulled into the machine's builds or pulling, by lock. */
+    readonly #pulled = new Map<Digest, Promise<Lock>>();
     /** Whether the space serves every installation at its revision, and why not. */
     readonly health: Health;
     /** The identities of the space and its installations, reusing their tokens, by subject. */
@@ -702,8 +704,24 @@ export class Space {
         return CallKey.of(await this.identity(), this.machine.environment.crypto);
     }
 
-    /** Pull a lock with its closures into the machine's builds, from the space or its forge. */
-    async pull(packageId: PackageId, lock: Digest): Promise<Lock> {
+    /** Pull a lock with its closures into the machine's builds once. */
+    pull(packageId: PackageId, lock: Digest): Promise<Lock> {
+        // take a lock pulled or pulling already
+        const known = this.#pulled.get(lock);
+        if (known !== undefined) {
+            return known;
+        }
+
+        // pull it once, forgetting a failed pull
+        const pulling = this.#pull(packageId, lock);
+        this.#pulled.set(lock, pulling);
+        pulling.catch(() => this.#pulled.delete(lock));
+
+        return pulling;
+    }
+
+    /** Pull a published lock from its forge, or the space's own lock from the space's builds. */
+    async #pull(packageId: PackageId, lock: Digest): Promise<Lock> {
         // pull a published lock from its forge
         if (!(await this.builds.contains(lock))) {
             return await this.machine.pull(packageId, lock);
@@ -1913,6 +1931,7 @@ export class Space {
         return {
             name: "destack.space.place",
             key: "id",
+            result: "process",
             all: { table: accountObject.space.table, column: "id", where: here },
             watches: [
                 // take the space's row, its placement and its rollouts, its stack's among them
@@ -1931,6 +1950,7 @@ export class Space {
         return {
             name: "destack.space.assign",
             key: "id",
+            result: "process",
             all: { table: accountObject.space.table, column: "id" },
             watches: [
                 // take a placement's space, and the space of an assignment's placement

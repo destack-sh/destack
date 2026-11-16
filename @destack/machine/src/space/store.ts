@@ -130,6 +130,17 @@ export function openStore(
                 () => store,
             ),
         origin: { package: stackPackage, machineId: space.machine.id },
+        // read by the space's jobs beside its rows, so a machine configured otherwise lists them again
+        configuration: {
+            runtimes: space.machine.runtimes.map((runtime) => runtime.name),
+            linked: [...space.machine.linked.values()].map((release) => [
+                release.package.id,
+                release.lock,
+            ]),
+            destack: JSON.stringify(space.machine.destack),
+            isEnforcingEntitlements: space.machine.isEnforcingEntitlements,
+            isBuilding: space.machine.isBuilding,
+        },
         // open the release the space runs, or the version a value names
         release: (view, scope, packageId, version) =>
             space.release(view, schema.identifier("space").parse(scope), packageId, version),

@@ -1241,6 +1241,7 @@ export class SpaceTransfer {
         return {
             name: "destack.transfer.finish",
             key: "scope",
+            result: "process",
             all: { table: Scope.table, column: "scope", where: { movedTo: machine } },
             watches: [
                 // take a space's scope, its placement and its moves
