@@ -158,7 +158,7 @@ export const AlertAction = schema.discriminatedUnion("kind", [
     schema.object({
         /** Call a method of the alert's installation. */
         kind: schema.literal("call"),
-        /** The installation method, such as `rollBack`. */
+        /** The installation method, such as `deploy`. */
         method: RolloutMethod,
     }),
 ]);

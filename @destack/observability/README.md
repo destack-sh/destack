@@ -87,7 +87,7 @@ export async function alertOnErrors(
 }
 ```
 
-### Roll back on a regression
+### Deploy on a regression
 
 An issue rule fires once per opened or regressed issue, and a `call` action calls the installation's method.
 
@@ -96,8 +96,8 @@ import type { ClientOf } from "@destack/object/client";
 import type observabilityPackage from "@destack/observability/package";
 import type { Identifier } from "@destack/schema";
 
-/** Notify the managers and roll back an installation whose fixed issue fails again. */
-export async function rollBackOnRegression(
+/** Notify the managers and deploy an installation again whose fixed issue fails again. */
+export async function deployOnRegression(
     client: ClientOf<typeof observabilityPackage>,
     spaceId: Identifier<"space">,
     requestId: string,
@@ -105,9 +105,9 @@ export async function rollBackOnRegression(
     await client.alertRule.create({
         spaceId,
         requestId,
-        title: "Roll back on regression",
+        title: "Deploy on regression",
         condition: { kind: "issue", on: "regress" },
-        actions: [{ kind: "notify" }, { kind: "call", method: "rollBack" }],
+        actions: [{ kind: "notify" }, { kind: "call", method: "deploy" }],
     });
 }
 ```

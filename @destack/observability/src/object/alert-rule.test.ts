@@ -197,10 +197,10 @@ test("refuse a rule calling an installation's method from an editor who does not
     await using fixture = await TestObservability.open();
     await fixture.allow([alertRule.permission("read"), alertRule.permission("write")]);
 
-    // refuse the member's rule rolling back the installation an error count names
+    // refuse the member's rule deploying the installation an error count names
     const calling = rule(
         fixture,
-        "Roll back",
+        "Redeploy",
         {
             kind: "events",
             event: log.typeReference,
@@ -210,7 +210,7 @@ test("refuse a rule calling an installation's method from an editor who does not
             comparison: "above",
             threshold: 1,
         },
-        [{ kind: "call", method: "rollBack" }],
+        [{ kind: "call", method: "deploy" }],
     );
     expect(await refusal(calling)).toEqual([
         "FORBIDDEN",
@@ -242,9 +242,7 @@ test("refuse a rule calling an installation once the space's owner withdraws obs
 
     // refuse the member's rule rolling the installation back
     expect(
-        await refusal(
-            rule(fixture, "Roll back", ERROR_COUNT, [{ kind: "call", method: "rollBack" }]),
-        ),
+        await refusal(rule(fixture, "Redeploy", ERROR_COUNT, [{ kind: "call", method: "deploy" }])),
     ).toEqual([
         "PRECONDITION_FAILED",
         "RESPOND_CAPABILITY_BLOCKED",
@@ -256,7 +254,7 @@ test("make the manager who last sets a rule's condition or actions its author, w
     // let the member create a rule notifying of an error count
     await using fixture = await TestObservability.open();
     const now = fixture.clock.now();
-    const created = await rule(fixture, "Roll back", ERROR_COUNT);
+    const created = await rule(fixture, "Redeploy", ERROR_COUNT);
     const author = async () => {
         const [row] = await fixture.space.database
             .select()
@@ -274,7 +272,7 @@ test("make the manager who last sets a rule's condition or actions its author, w
         requestId: RequestId.create(fixture.environment),
         ...fields,
     });
-    await owner.alertRule.update(update({ actions: [{ kind: "call", method: "rollBack" }] }));
+    await owner.alertRule.update(update({ actions: [{ kind: "call", method: "deploy" }] }));
     const acted = await author();
     await fixture.post("logs", fixture.emitter.logs(errors(now)));
     await fixture.simulation.waitUntil(async () => (await outcome(fixture)).responses.length === 1);
@@ -333,7 +331,7 @@ test("declare alert rules as code through the space's stack, checking each rule 
         },
     });
 
-    // write the declared rule with its defaults, and keep the stack from applying the unserved one
+    // write the declared rule with its defaults, and refuse the document declaring the unserved one
     expect(
         rules.map(({ title, condition, actions, interval, pending, noData }) => ({
             title,
@@ -354,8 +352,9 @@ test("declare alert rules as code through the space's stack, checking each rule 
         },
     ]);
     expect(refused).toEqual([
-        "failed",
-        "@destack/observability EVENTS_TYPE_INVALID: events type page-view is invalid: the space has no such type",
+        "BAD_REQUEST",
+        "EVENTS_TYPE_INVALID",
+        "events type page-view is invalid: the space has no such type",
     ]);
 });
 
@@ -373,7 +372,7 @@ test("refuse an events rule calling an installation its group names none of, and
 
     // call an installation from a rule grouping by nothing, and watch a type no package serves here
     const calling = await refusal(
-        rule(fixture, "Calling", condition, [{ kind: "call", method: "rollBack" }]),
+        rule(fixture, "Calling", condition, [{ kind: "call", method: "deploy" }]),
     );
     const unserved = await refusal(
         rule(fixture, "Unserved", {
@@ -408,7 +407,7 @@ test("keep an alert pending for its rule's pending period, then fire, announce a
         ...alertRule.in(ids.space),
         title: "Errors",
         condition: ERROR_COUNT,
-        actions: [{ kind: "notify" }, { kind: "call", method: "rollBack" }],
+        actions: [{ kind: "notify" }, { kind: "call", method: "deploy" }],
         pending: { minutes: 2 },
         requestId: RequestId.create(fixture.environment),
     });
@@ -504,7 +503,7 @@ test("fire a silenced subject's alert without announcing it or responding, and a
     });
     await rule(fixture, "Errors", ERROR_COUNT, [
         { kind: "notify" },
-        { kind: "call", method: "rollBack" },
+        { kind: "call", method: "deploy" },
     ]);
     await fixture.simulation.waitUntil(
         async () => (await outcome(fixture)).statuses.join() === "firing",

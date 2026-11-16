@@ -264,11 +264,11 @@ export class TestObservability implements AsyncDisposable {
         return this.space.apply(types, document);
     }
 
-    /** Submit a stack document to the space, answering how its stack stands. */
+    /** Submit a stack document to the space, answering the refusal of its deploy if any. */
     submit<const Types extends StackTypes>(
         types: Types,
         document: StackDocument<Types>,
-    ): Promise<readonly [string | undefined, string | undefined]> {
+    ): Promise<readonly [string, string, string] | undefined> {
         return this.space.submit(types, document);
     }
 

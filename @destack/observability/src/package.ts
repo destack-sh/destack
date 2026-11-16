@@ -60,7 +60,7 @@ export default definePackage({
     capabilities: [
         {
             name: RESPOND_CAPABILITY,
-            reason: t`Roll back installations when an alert rule you write fires`,
+            reason: t`Deploy installations when an alert rule you write fires`,
             optional: true,
             permissions: {
                 space: { space: [rollout.permission("apply")] },
