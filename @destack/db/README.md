@@ -252,7 +252,8 @@ export const countNotes = (write: (account: string) => Promise<void>): Projectio
 ### ControlLoop
 
 A `ControlLoop` runs sets of controllers, projections and cursors, and starts a set once its `activation` resolves.
-After a restart it continues a projection whose `result` is `"rows"` from its `position`, and lists every other job again.
+After a restart it continues a set's projections whose `result` is `"rows"` from the set's `position`, and lists every other job again.
+A loop given the stopped loop of its process as `previous` continues that loop's sets from where they stopped.
 
 ```ts
 import { ControlLoop, type DatabaseConnection, type Projection } from "@destack/db";
@@ -265,8 +266,8 @@ export async function project(
     signal: AbortSignal,
 ) {
     // run the projection after the replicas sync
-    const sets = [{ controllers: [], projections: [projection], cursors: [], activation: synced }];
-    const loop = new ControlLoop(database, sets, { report: console.error, position: "control" });
+    const set = { controllers: [], projections: [projection], cursors: [], activation: synced };
+    const loop = new ControlLoop(database, [{ ...set, position: "control" }], { report: console.error });
     void loop.run(signal);
 
     // wait until nothing is due among the active sets
@@ -621,7 +622,7 @@ Controllers basically follow Kubernetes: they're level-triggered and converge ro
 | ------------------------------------------------ | ---------------------------------- | ------------------------------------------------------------------------------- |
 | A watched resource                               | `table` and `pending`              | The rows with work are a query.                                                 |
 | `Watches(...)` with `EnqueueRequestsFromMapFunc` | `watches` with `on` or a `path`    | The mapping is declared as references, so a restart replays it from the log.    |
-| `resourceVersion`                                | the loop's `position`              | One position covers the projections whose result is rows.                       |
+| `resourceVersion`                                | a set's `position`                 | One position covers a set's projections whose result is rows.                   |
 | `Reconcile(request)`                             | `reconcile(rows)`                  | Takes the rows of one key.                                                      |
 | `RequeueAfter`                                   | a `pending` time compared to `now` | The loop wakes at the earliest due row.                                         |
 | The work queue                                   | `ControlLoop`                      | Keys are deduplicated, and commits to an unlogged table wake a controller once. |

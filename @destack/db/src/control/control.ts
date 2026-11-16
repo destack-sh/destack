@@ -80,6 +80,9 @@ const STORED_CONDITIONS = 10_000;
 /** How long the log keeps changes past a stopped loop's position: a week. */
 const POSITION_HOLD_MILLISECONDS = 7 * 24 * 60 * 60_000;
 
+/** How often a loop saves a set's position at most: Kafka's default auto-commit interval. */
+const POSITION_INTERVAL_MILLISECONDS = 5000;
+
 /** The key of a cursor's one checkpoint. */
 const ONE_CHECKPOINT = "";
 
@@ -241,6 +244,16 @@ export interface ControllerSet {
     readonly cursors: readonly Cursor[];
     /** Wait until the set may run. */
     readonly activation?: (signal: AbortSignal) => Promise<void>;
+    /** The name of its position in the log, none to list its projections at every start. */
+    readonly position?: string;
+}
+
+/** What a stopped loop leaves of one set: the last change its jobs saw, and the keys still owed. */
+interface Handover {
+    /** The sequence of the last change the set's projections were woken for. */
+    readonly after: number;
+    /** The keys each projection still owed a pass, by the projection's name. */
+    readonly owed: ReadonlyMap<string, readonly string[]>;
 }
 
 /** One job of a loop: a controller, a projection or a cursor, each locked and retried alike. */
@@ -363,6 +376,8 @@ export class ControlLoop {
     readonly #catchUps;
     /** The keys a table's changes made due or due sooner, by job and table. */
     readonly #keyWakes;
+    /** Counts each listing of a job's keys, by the job and what listed it. */
+    readonly #listings;
     /** The host clock the waits and catch-ups read. */
     readonly #monotonic: Environment["telemetry"]["monotonic"];
     /** How a transiently failed key retries. */
@@ -427,12 +442,20 @@ export class ControlLoop {
     readonly #changes = new Map<Job, Map<string, (() => void)[]>>();
     /** Aborts once work arrives after the worker last looked for it. */
     #woken = new AbortController();
-    /** The projections a start continues from the position: result and inputs in logged rows. */
+    /** The projections a start continues: in a set with a position, over logged rows alone. */
     readonly #continued: ReadonlySet<Job>;
-    /** The name of the loop's position in the log, absent for a loop listing at every start. */
-    readonly #position: string | undefined;
-    /** The position as the loop last read or wrote it, absent before the first. */
-    #checkpointed: number | undefined;
+    /** Each set's position as the loop last read or wrote it, absent before the first. */
+    readonly #checkpointed = new Map<ControllerSet, number>();
+    /** The time each set's position was last written at, in UTC epoch milliseconds. */
+    readonly #written = new Map<ControllerSet, number>();
+    /** How often the loop saves a set's position at most, in milliseconds. */
+    readonly #positionInterval: number;
+    /** What the stopped loop this one continues left of each set, by the set's position name. */
+    readonly #previous: ReadonlyMap<string, Handover>;
+    /** What this loop leaves of each set once stopped, by the set's position name. */
+    #handover: ReadonlyMap<string, Handover> = new Map();
+    /** The sets whose projections owed nothing when the loop was stopped. */
+    #settledAtStop: readonly ControllerSet[] = [];
 
     /** Create the loop. */
     constructor(
@@ -451,8 +474,10 @@ export class ControlLoop {
             readonly alarm?: Alarm;
             /** How long a key may fail transiently before reporting. */
             readonly transientFor?: number;
-            /** The name of the log position a start resumes from, none to list every start. */
-            readonly position?: string;
+            /** The stopped loop of this process whose sets it continues. */
+            readonly previous?: ControlLoop;
+            /** How often it saves a set's position at most, in milliseconds. */
+            readonly positionInterval?: number;
         },
     ) {
         // start idle
@@ -476,13 +501,16 @@ export class ControlLoop {
         ];
         this.#jobs = jobs;
         this.#continued = new Set(
-            control.projections.filter(
-                (projection) =>
-                    projection.result === "rows" &&
-                    ControlLoop.#tables(projection).every(
-                        (table) => table[TABLE].retention !== "none",
-                    ),
-            ),
+            sets
+                .filter((set) => set.position !== undefined)
+                .flatMap((set) => set.projections)
+                .filter(
+                    (projection) =>
+                        projection.result === "rows" &&
+                        ControlLoop.#tables(projection).every(
+                            (table) => table[TABLE].retention !== "none",
+                        ),
+                ),
         );
         const instruments = TelemetryScope.of(
             import.meta.destack.package,
@@ -515,6 +543,13 @@ export class ControlLoop {
                 ],
             },
         });
+        this.#listings = instruments.metric.counter("destack.controller.listings", {
+            unit: "{listing}",
+            attributes: {
+                "destack.controller.name": passed["destack.controller.name"],
+                "destack.wake.kind": ["start", "activation", "watch", "time"],
+            },
+        });
         this.#report = (controller, key, error) => {
             // record the failure with the controller and the failed key, then report it
             instruments.captureException(error, {
@@ -530,7 +565,8 @@ export class ControlLoop {
         if (options.alarm !== undefined) {
             this.#alarm = options.alarm;
         }
-        this.#position = options.position;
+        this.#previous = options.previous === undefined ? new Map() : options.previous.#handover;
+        this.#positionInterval = options.positionInterval ?? POSITION_INTERVAL_MILLISECONDS;
 
         // lock each controller as this loop when instances share the database
         if (database.isShared) {
@@ -570,6 +606,9 @@ export class ControlLoop {
     async run(signal: AbortSignal): Promise<void> {
         // stop every loop once one or a controller fails, the first failure kept
         const running = AbortSignal.any([signal, this.#failing.signal]);
+
+        // note what the loop leaves the moment it stops, before its running keys end
+        running.addEventListener("abort", () => this.#leave(), { once: true });
         const stopping = (loop: Promise<void>) =>
             loop.catch((error: unknown) => {
                 this.#failing.abort(error);
@@ -615,6 +654,7 @@ export class ControlLoop {
             // write what the cursors deferred while this instance still holds their locks
             if (!this.database.state.isClosing) {
                 await this.#settleCursors();
+                await this.#settlePositions(this.#unsaved(this.#settledAtStop, 0));
             }
 
             // leave a closing database's locks for the next instance to take over
@@ -844,22 +884,40 @@ export class ControlLoop {
 
     /** List the pending rows, then follow the logged tables from the loop's position. */
     async #follow(signal: AbortSignal): Promise<void> {
-        // resume from the loop's position, else list every job
-        const resumed =
-            this.#position === undefined
-                ? undefined
-                : await this.database.log.checkpoint(this.#position);
-        this.#checkpointed = resumed;
+        // read each set's saved position
+        const names = this.sets.flatMap((set) =>
+            set.position === undefined ? [] : [set.position],
+        );
+        const saved = await this.database.log.checkpointed(names);
+        for (const set of this.sets) {
+            const position = set.position === undefined ? undefined : saved.get(set.position);
+            if (position !== undefined) {
+                this.#checkpointed.set(set, position);
+            }
+        }
+
+        // continue the running sets' projections at the first listing, else list every job
         const active = () => this.#jobs.filter((job) => !this.#inactive.has(job));
-        let listed =
-            resumed === undefined ? active() : active().filter((job) => !this.#continued.has(job));
-        let start = resumed;
+        let isFirst = true;
         while (!signal.aborted) {
             // read the position before listing
-            const after = start ?? (await this.database.log.position()).sequence;
-            start = undefined;
-            for (const controller of listed) {
-                await this.#list(controller, "start");
+            const after = (await this.database.log.position()).sequence;
+            const continued = new Set<Job>();
+            const running = isFirst
+                ? this.sets.filter((each) => each.activation === undefined)
+                : [];
+            for (const set of running) {
+                if (await this.#resume(set, after, signal)) {
+                    for (const projection of set.projections) {
+                        continued.add(projection);
+                    }
+                }
+            }
+            isFirst = false;
+            for (const controller of active()) {
+                if (!continued.has(controller) || !this.#continued.has(controller)) {
+                    await this.#list(controller, "start");
+                }
             }
             this.#followed = after;
             this.#selected = after;
@@ -891,8 +949,30 @@ export class ControlLoop {
                     throw error;
                 }
             }
-            listed = active();
         }
+    }
+
+    /** Continue a set's projections from where they stopped, false to list them. */
+    async #resume(set: ControllerSet, until: number, signal: AbortSignal): Promise<boolean> {
+        // read where the set's projections stopped, in this process or by its saved position
+        const continued = set.projections.filter((each) => this.#continued.has(each));
+        const left = set.position === undefined ? undefined : this.#previous.get(set.position);
+        const from = left?.after ?? this.#checkpointed.get(set);
+        if (continued.length === 0 || from === undefined) {
+            return false;
+        }
+
+        // wake them for the changes since, then for the keys the stopped loop still owed
+        if (!(await this.#replay(continued, from, until, signal))) {
+            return false;
+        }
+        for (const projection of continued) {
+            for (const key of left?.owed.get(projection.name) ?? []) {
+                this.#enqueue(projection, key, this.#clock.now(), "start");
+            }
+        }
+
+        return true;
     }
 
     /** Run a set's jobs once activated. */
@@ -924,11 +1004,10 @@ export class ControlLoop {
                 await this.#list(job, "activation");
             }
 
-            // replay the projections continuing from the position, and list the others
-            const continued = set.projections.filter((each) => this.#continued.has(each));
-            const isReplayed = await this.#replay(continued, until, signal);
+            // continue the projections kept in rows, and list the others
+            const isResumed = await this.#resume(set, until, signal);
             for (const projection of set.projections) {
-                if (!isReplayed || !this.#continued.has(projection)) {
+                if (!isResumed || !this.#continued.has(projection)) {
                     await this.#list(projection, "activation");
                 }
             }
@@ -938,21 +1017,14 @@ export class ControlLoop {
         }
     }
 
-    /** Replay the changes since the position to projections, false when compacted. */
+    /** Wake projections for the changes in a range of the log, false when compacted. */
     async #replay(
         projections: readonly Projection[],
+        from: number,
         until: number,
         signal: AbortSignal,
     ): Promise<boolean> {
-        // check projections and position
-        const from = this.#checkpointed;
-        if (projections.length === 0) {
-            return true;
-        } else if (from === undefined) {
-            return false;
-        }
-
-        // read the changes up to the last one selected without the set
+        // read the changes up to the last one selected without them
         if (until <= from) {
             return true;
         }
@@ -1342,6 +1414,13 @@ export class ControlLoop {
 
     /** List a controller's pending keys and its next wake, one listing at a time. */
     #list(controller: Job, by: Listing): Promise<void> {
+        // count the listing by what listed it
+        this.#listings.add(1, {
+            "destack.controller.name": controller.name,
+            "destack.wake.kind": by,
+        });
+
+        // read the job's keys after its listing in flight
         const listing = (this.#listing.get(controller) ?? Promise.resolve()).then(() =>
             this.#read(controller, by),
         );
@@ -1616,7 +1695,21 @@ export class ControlLoop {
                 // write what the cursors deferred and the position once nothing runs
                 if (this.#unsettled.size === 0 && skipped === undefined) {
                     await this.#settleCursors();
-                    await this.#settlePosition();
+
+                    // write the positions due once the follow read every change
+                    const unsaved = this.#unsaved(
+                        this.sets.filter((set) => this.#isSettled(set)),
+                        this.#positionInterval,
+                    );
+                    if (
+                        unsaved.length > 0 &&
+                        this.#isListed &&
+                        this.#isListening &&
+                        (await this.#isFollowed()) &&
+                        !this.#woken.signal.aborted
+                    ) {
+                        await this.#settlePositions(unsaved);
+                    }
                 }
 
                 // settle idle waiters once every key and change is settled
@@ -1655,49 +1748,102 @@ export class ControlLoop {
         }
     }
 
-    /** Write the loop's position at idle, once no projection it covers waits. */
-    async #settlePosition(): Promise<void> {
-        // leave an unnamed or unmoved position, and one past a projection key still waiting
-        const name = this.#position;
-        const after = this.#followed;
-        const continued = [...this.#continued];
-        const isWaiting = continued.some(
-            (projection) =>
-                this.#inactive.has(projection) ||
-                found(this.#due, projection).size > 0 ||
-                found(this.#running, projection).size > 0 ||
-                found(this.#failures, projection).size > 0 ||
-                (this.#waiting.get(projection)?.size ?? 0) > 0,
-        );
-        if (name === undefined || after === this.#checkpointed || isWaiting) {
-            return;
-        }
-
-        // leave the position to the instance leading every projection it covers
-        const leading = await Promise.all(
-            continued.map(async (each) => (await this.#leading.get(each)) ?? true),
-        );
-        if (leading.some((isLeading) => !isLeading)) {
-            return;
-        }
-
-        // move the position from where it was read
-        const expiresAt = this.#clock.now() + POSITION_HOLD_MILLISECONDS;
-        try {
-            await this.database.log.move(
-                { name, tables: this.#watched },
-                this.#checkpointed ?? 0,
-                after,
-                expiresAt,
+    /** Report whether a set's continued projections owe no key a pass. */
+    #isSettled(set: ControllerSet): boolean {
+        return set.projections
+            .filter((each) => this.#continued.has(each))
+            .every(
+                (projection) =>
+                    !this.#inactive.has(projection) &&
+                    found(this.#due, projection).size === 0 &&
+                    found(this.#running, projection).size === 0 &&
+                    found(this.#failures, projection).size === 0 &&
+                    (this.#waiting.get(projection)?.size ?? 0) === 0,
             );
-            this.#checkpointed = after;
+    }
+
+    /** Note what the loop leaves once stopped: the settled sets, and the keys the others owe. */
+    #leave(): void {
+        // leave nothing before the first listing, as no key is known yet
+        if (!this.#isListed) {
+            this.#handover = this.#previous;
+
+            return;
         }
-        // read the position again after another instance moved it
-        catch (error) {
-            if (!DatabaseError.is(error, "UPDATE_CONFLICT")) {
-                throw error;
+
+        // leave each active set's owed keys, and a set never activated as the loop received it
+        const left = new Map<string, Handover>();
+        for (const set of this.sets) {
+            const { position } = set;
+            const continued = set.projections.filter((each) => this.#continued.has(each));
+            const received = position === undefined ? undefined : this.#previous.get(position);
+            if (position === undefined) {
+                continue;
+            } else if (continued.some((each) => this.#inactive.has(each))) {
+                if (received !== undefined) {
+                    left.set(position, received);
+                }
+                continue;
             }
-            this.#checkpointed = await this.database.log.checkpoint(name);
+            const owed = new Map(
+                continued.map((projection) => [
+                    projection.name,
+                    [
+                        ...new Set([
+                            ...found(this.#due, projection).keys(),
+                            ...found(this.#running, projection).keys(),
+                            ...found(this.#failures, projection).keys(),
+                            ...(this.#waiting.get(projection) ?? []),
+                        ]),
+                    ],
+                ]),
+            );
+            left.set(position, { after: this.#selected, owed });
+        }
+        this.#handover = left;
+        this.#settledAtStop = this.sets.filter((set) => this.#isSettled(set));
+    }
+
+    /** Select the sets whose position moved and was last written an interval ago or never. */
+    #unsaved(sets: readonly ControllerSet[], interval: number): ControllerSet[] {
+        return sets.filter((set) => {
+            const written = this.#written.get(set);
+
+            return (
+                set.position !== undefined &&
+                set.projections.some((each) => this.#continued.has(each)) &&
+                this.#followed !== this.#checkpointed.get(set) &&
+                (written === undefined || this.#clock.now() - written >= interval)
+            );
+        });
+    }
+
+    /** Write the positions of sets that owe nothing in one statement. */
+    async #settlePositions(sets: readonly ControllerSet[]): Promise<void> {
+        // leave each position to the instance leading every projection it covers
+        const after = this.#followed;
+        const cursors: { readonly set: ControllerSet; readonly cursor: LogCursor }[] = [];
+        for (const set of sets) {
+            const continued = set.projections.filter((each) => this.#continued.has(each));
+            const leading = await Promise.all(
+                continued.map(async (each) => (await this.#leading.get(each)) ?? true),
+            );
+            if (set.position !== undefined && leading.every((isLeading) => isLeading)) {
+                const tables = [...new Set(continued.flatMap((each) => ControlLoop.#tables(each)))];
+                cursors.push({ set, cursor: { name: set.position, tables } });
+            }
+        }
+
+        // move them forward, holding their changes for a stopped loop
+        const expiresAt = this.#clock.now() + POSITION_HOLD_MILLISECONDS;
+        await this.database.log.forward(
+            cursors.map((each) => each.cursor),
+            after,
+            expiresAt,
+        );
+        for (const { set } of cursors) {
+            this.#checkpointed.set(set, after);
+            this.#written.set(set, this.#clock.now());
         }
     }
 

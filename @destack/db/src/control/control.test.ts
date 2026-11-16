@@ -1166,8 +1166,8 @@ test("project every key at the first start, then only the keys the changes past 
         const stopping = new AbortController();
         const loop = new ControlLoop(
             database,
-            [{ controllers: [], projections: [projection], cursors: [] }],
-            { report: ignore, position: "control" },
+            [{ controllers: [], projections: [projection], cursors: [], position: "control" }],
+            { report: ignore, positionInterval: 0 },
         );
         const run = loop.run(stopping.signal);
         await loop.idle();
@@ -1232,8 +1232,8 @@ test("project a key again that was running when the loop stopped", async () => {
         const stopping = new AbortController();
         const loop = new ControlLoop(
             database,
-            [{ controllers: [], projections: [projection], cursors: [] }],
-            { report: ignore, position: "control" },
+            [{ controllers: [], projections: [projection], cursors: [], position: "control" }],
+            { report: ignore, positionInterval: 0 },
         );
         const run = loop.run(stopping.signal);
 
@@ -1286,10 +1286,8 @@ test("list a projection kept in the process at each start, beside one continuing
     const start = async () => {
         const stopping = new AbortController();
         const projections = [projectionOf("rows", "rows"), projectionOf("process", "process")];
-        const loop = new ControlLoop(database, [{ controllers: [], projections, cursors: [] }], {
-            report: ignore,
-            position: "control",
-        });
+        const set = { controllers: [], projections, cursors: [], position: "control" };
+        const loop = new ControlLoop(database, [set], { report: ignore, positionInterval: 0 });
         const run = loop.run(stopping.signal);
         await loop.idle();
         stopping.abort();
@@ -1330,11 +1328,16 @@ test("replay a late set's projection from the position", async () => {
     };
     const start = async (activation?: Promise<void>) => {
         const stopping = new AbortController();
-        const set = { controllers: [], projections: [projection], cursors: [] };
+        const set = {
+            controllers: [],
+            projections: [projection],
+            cursors: [],
+            position: "control",
+        };
         const loop = new ControlLoop(
             database,
             [activation === undefined ? set : { ...set, activation: () => activation }],
-            { report: ignore, position: "control" },
+            { report: ignore, positionInterval: 0 },
         );
         const run = loop.run(stopping.signal);
         await loop.idle();
@@ -1363,6 +1366,140 @@ test("replay a late set's projection from the position", async () => {
     const after = projected.splice(0);
     await waiting.stop();
     expect({ before, after }).toEqual({ before: [], after: ["b"] });
+});
+
+test("save a set's position once an interval while running, and at a stop that owes nothing", async () => {
+    // project the spaces with notes, saving the position at most once a minute
+    await using simulation = testSimulation();
+    const { database } = await openJobs(simulation, [note, lock]);
+    const append = (id: string, scope: string) =>
+        database.transaction((transaction) =>
+            transaction.insert(note).values({ id, scope }).execute(),
+        );
+    await append("first", "a");
+    const projection: Projection = {
+        name: "note-spaces",
+        key: "scope",
+        watches: [{ table: note, on: { scope: "scope" } }],
+        all: { table: note, column: "scope" },
+        result: "rows",
+        project: async () => {},
+    };
+    const stopping = new AbortController();
+    const loop = new ControlLoop(
+        database,
+        [{ controllers: [], projections: [projection], cursors: [], position: "control" }],
+        { report: ignore, positionInterval: 60_000 },
+    );
+    const run = loop.run(stopping.signal);
+
+    // save at the first idle, keep that position through a change within the interval
+    await loop.idle();
+    const first = await database.log.checkpoint("control");
+    await append("second", "b");
+    await loop.idle();
+    const within = await database.log.checkpoint("control");
+
+    // save the log's head at the stop
+    stopping.abort();
+    await run;
+    const stopped = await database.log.checkpoint("control");
+    const { sequence } = await database.log.position();
+    expect({ isKept: within === first, isMoved: stopped !== first, stopped }).toEqual({
+        isKept: true,
+        isMoved: true,
+        stopped: sequence,
+    });
+});
+
+test("continue a stopped loop's projections in the next loop of the process, listing its controllers again", async () => {
+    // reconcile open jobs, leaving the kept one open, and project the spaces with notes
+    await using simulation = testSimulation();
+    const { database } = await openJobs(simulation, [note, job, lock]);
+    const append = (id: string, scope: string) =>
+        database.transaction((transaction) =>
+            transaction.insert(note).values({ id, scope }).execute(),
+        );
+    const open = (id: string) =>
+        database.transaction((transaction) =>
+            transaction.insert(job).values({ id, scope: "a", status: "open", dueAt: 0 }).execute(),
+        );
+    await append("first", "a");
+    await open("kept");
+    const passed: string[] = [];
+    const controller: Controller<typeof job> = {
+        name: "job",
+        table: job,
+        pending: { status: "open" },
+        reconcile: async (rows) => {
+            const row = nth(rows, 0);
+            passed.push(`job ${row.id}`);
+            if (row.id !== "kept") {
+                await database.transaction((transaction) =>
+                    transaction
+                        .update(job)
+                        .set({ status: "done" })
+                        .where(eq(job.id, row.id))
+                        .execute(),
+                );
+            }
+        },
+    };
+    const projection: Projection = {
+        name: "note-spaces",
+        key: "scope",
+        watches: [{ table: note, on: { scope: "scope" } }],
+        all: { table: note, column: "scope" },
+        result: "rows",
+        project: async (key) => {
+            passed.push(`space ${key}`);
+        },
+    };
+    const start = async (previous?: ControlLoop) => {
+        const stopping = new AbortController();
+        const set = {
+            controllers: [controller],
+            projections: [projection],
+            cursors: [],
+            position: "set",
+        };
+        const loop = new ControlLoop(database, [set], {
+            report: ignore,
+            ...(previous === undefined ? {} : { previous }),
+        });
+        const run = loop.run(stopping.signal);
+        await loop.idle();
+
+        return {
+            loop,
+            stop: async () => {
+                stopping.abort();
+                await run;
+            },
+        };
+    };
+
+    // list every job at the first start
+    const first = await start();
+    const listed = passed.splice(0).toSorted();
+    await first.stop();
+
+    // change a space and open a job between the loops, then continue the first loop's projection
+    await append("second", "b");
+    await open("next");
+    const second = await start(first.loop);
+    const continued = passed.splice(0).toSorted();
+    await second.stop();
+
+    // list the controller again in a loop continuing none, its projection continuing from the position
+    const third = await start();
+    const relisted = passed.splice(0).toSorted();
+    await third.stop();
+    expect({ listed, continued, relisted }).toEqual({
+        listed: ["job kept", "space a"],
+        continued: ["job kept", "job next", "space b"],
+        relisted: ["job kept"],
+    });
 });
 
 test("wake a row at its earliest OR branch's time, a branch with a missing time leaving it", async () => {
@@ -1538,8 +1675,8 @@ test("project every key again once the changes past the loop's position were com
         const stopping = new AbortController();
         const loop = new ControlLoop(
             database,
-            [{ controllers: [], projections: [projection], cursors: [] }],
-            { report: ignore, position: "control" },
+            [{ controllers: [], projections: [projection], cursors: [], position: "control" }],
+            { report: ignore, positionInterval: 0 },
         );
         const run = loop.run(stopping.signal);
         await loop.idle();
