@@ -178,6 +178,24 @@ export async function readReadme(location: PackageLocation): Promise<string> {
 }
 ```
 
+## Conventions
+
+### README
+
+A package's README teaches a caller to use the package in a nicely standardised form
+
+| Section       | What it holds                                                                |
+| ------------- | ---------------------------------------------------------------------------- |
+| first line    | the package's description                                                    |
+| `Overview`    | what the package is beside its prior art, its key concepts, its smallest use |
+| `Reference`   | one subsection per concept: what it is, its main verbs, what its values mean |
+| `Examples`    | one subsection per task, titled verb first, with one listing                 |
+| `Conventions` | the names and files the package asks callers to write, when it has some      |
+| `Comparison`  | one subsection per prior art: theirs, ours, the difference, when it has some |
+
+One or multiple parts per section, one or two sentences per part (active voice preferred, natural-ish register, see other READMEs for examples), followed by some sort of listing (code, table, lists, etc.).
+Try to avoid using large code listings / prose in code listings to hack around this requirement, just work to factor the explanation properly (and if that is hard, that is backpressure on the package design itself).
+
 ## Comparison
 
 ### npm
