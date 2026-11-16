@@ -51,8 +51,24 @@ const failureSchema = schema.object({
 /** How a call failed: the call error a caller receives, as plain values. */
 export type Failure = schema.Infer<typeof failureSchema>;
 
+/** The causes of an error read at most, which also ends a cycle of causes. */
+const MAX_CAUSES = 8;
+
 /** How a call failed, how a thrown value reads as one, and how one raises again. */
 export const Failure = Object.assign(failureSchema, {
+    /** List a thrown error and the errors that caused it, nearest first. */
+    causes(error: unknown): Error[] {
+        // follow the causes up to the bound
+        const causes: Error[] = [];
+        let each = error;
+        while (each instanceof Error && causes.length <= MAX_CAUSES) {
+            causes.push(each);
+            each = each.cause;
+        }
+
+        return causes;
+    },
+
     /** Describe a thrown value as the failure its caller receives. */
     of(error: unknown): Failure {
         // read an undeclared value as an internal failure with its message
