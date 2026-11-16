@@ -730,8 +730,27 @@ async function mainState(
     );
     const unserved = depended.flat().filter((each) => !known.has(ObjectDescription.key(each)));
 
-    // declare the package's own types against the served ones and those of its dependencies
-    const declared = ObjectTypePool.of(pooled).declare([...unserved, ...owned]);
+    // read the linked packages whose types they refer to, as a linked package's lock lists none
+    const { linked } = options.space.machine;
+    const pool = ObjectTypePool.of(pooled);
+    const descriptions = [...unserved, ...owned];
+    const read = new Set<PackageId>();
+    const unread = () =>
+        [...new Set(pool.missing(descriptions).map((each) => each.packageId))].filter(
+            (id) => linked.has(id) && !read.has(id),
+        );
+    for (let ids = unread(); ids.length > 0; ids = unread()) {
+        for (const id of ids) {
+            // read each linked package once, its types' own references in the next round
+            read.add(id);
+            const { lock } = present(linked.get(id), `the linked release of ${id}`);
+            const types = await ObjectDescription.read(await options.space.root(id, lock));
+            descriptions.push(...types.filter((each) => !known.has(ObjectDescription.key(each))));
+        }
+    }
+
+    // declare the package's own types against the served ones, its dependencies' and the linked ones
+    const declared = pool.declare(descriptions);
 
     // describe its durable and events objects' tables, placing the other packages' they refer to
     const protocols = description?.protocols ?? [];
