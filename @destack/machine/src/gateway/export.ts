@@ -19,6 +19,13 @@ import { HEADERS_FILE, StaticHost, ViewAssets } from "./host.ts";
 /** The headers of a dependency build's files, which never change under its digest. */
 const BUILD_HEADERS = "  Cache-Control: public, max-age=31536000, immutable";
 
+/** The files whose text refers to other files of the site: pages and stylesheets. */
+const REFERRING = new Set([".html", ".css"]);
+
+/** A disk path or a path below the asset or build path, where a page or stylesheet loads a file. */
+const REFERENCE =
+    /(?:\b(?:href|src)=["']|url\(["']?)(file:\/\/[^"'\s)<>]+|\/\.destack\/(?:asset|build)\/[^"'\s)<>?#]+)/gu;
+
 /** A static view written out as files, as a static host serves them and a machine's origin does. */
 export class StaticExport {
     /** The directory the files are written below. */
@@ -29,6 +36,10 @@ export class StaticExport {
     readonly #environment: Environment<"files">;
     /** The media type of each written file's extension, which the host's headers declare. */
     readonly #types = new Map<string, string>();
+    /** The paths written, each a file the host answers. */
+    readonly #paths = new Set<string>();
+    /** The addresses pages and stylesheets refer to, with the first file referring to each. */
+    readonly #references = new Map<string, string>();
 
     /** Export into a directory from a store of builds. */
     constructor(
@@ -79,6 +90,16 @@ export class StaticExport {
             await this.#copy(asset.reader, asset.file, `${VIEW_ASSET_PATH}${name}`);
         }
 
+        // refuse a page or stylesheet referring to a disk path, or to an asset or build file the site lacks
+        for (const [reference, path] of this.#references) {
+            if (!this.#paths.has(reference)) {
+                throw MachineError.of(
+                    "SITE_INVALID",
+                    `static file '${path}' is invalid: it refers to '${reference}', which the site does not serve`,
+                );
+            }
+        }
+
         // add the views' permissions, the builds' caching and the media types to the site's headers
         await this.#writeHeaders(StaticExport.#policy(reader.manifest));
     }
@@ -96,6 +117,18 @@ export class StaticExport {
             map === undefined
                 ? bytes
                 : new TextEncoder().encode(ImportMap.insert(new TextDecoder().decode(bytes), map));
+
+        // note the addresses a page or stylesheet refers to, by the first file referring to each
+        if (REFERRING.has(extname(path))) {
+            for (const [, reference = ""] of new TextDecoder()
+                .decode(written)
+                .matchAll(REFERENCE)) {
+                if (!this.#references.has(reference)) {
+                    this.#references.set(reference, path);
+                }
+            }
+        }
+        this.#paths.add(path);
 
         // write them, recording the media type of the extension
         const target = join(this.directory, path);

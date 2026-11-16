@@ -4,6 +4,7 @@ import { PackageVersion, Sandbox } from "@destack/package";
 import { Lock } from "@destack/package/manifest";
 import { expect, test } from "@destack/test";
 import { testHost } from "@destack/test/host";
+import { MachineError } from "../error/index.ts";
 import { StaticExport } from "./export.ts";
 import { TestViewBuild } from "./test/view.ts";
 
@@ -132,4 +133,71 @@ test("export a static view as a static host serves it: pages with the import map
     } finally {
         await host.files.remove(directory, { recursive: true, force: true });
     }
+});
+
+test("refuse exporting a page that refers to a disk path or an unpublished asset", async () => {
+    // store two sites: one whose page preloads a font on the build's disk, one naming an asset it lacks
+    const host = testHost();
+    await using store = await TestBuildStore.create(host);
+    const encoder = new TextEncoder();
+    const view = {
+        entrypoint: "browser/assets/hydrate.js",
+        stylesheets: [],
+        sandbox: {},
+        presents: [],
+        categories: [],
+        audience: "person" as const,
+        packages: [],
+        render: { mode: "static" as const },
+    };
+    const exported = async (version: string, page: string) => {
+        // build the site with the page, then export it into a fresh directory
+        const site = await TestViewBuild.of(
+            PackageVersion.parse({
+                id: "package-01996ab0-0000-7000-8000-0000000000d3",
+                name: "@acme/site",
+                version,
+            }),
+            { site: view },
+            { files: new Map([["browser/view/site/index.html", encoder.encode(page)]]) },
+            host.crypto,
+        );
+        const lock = await store.putLock(Lock.of(await store.put(site)));
+        const directory = await host.files.makeTemporaryDirectory("destack-export-");
+        try {
+            await new StaticExport(directory, store, host).write(lock, "site", new Map());
+
+            return "exported";
+        } catch (error) {
+            return MachineError.is(error) ? [error.reason, error.message] : error;
+        } finally {
+            await host.files.remove(directory, { recursive: true, force: true });
+        }
+    };
+
+    expect({
+        // export a page that only writes about such paths in its text
+        written: await exported(
+            "2026.9.2",
+            "<p>Fonts once pointed at file:///home/build and /.destack/asset/type.woff2.</p>",
+        ),
+        disk: await exported(
+            "2026.9.0",
+            '<link rel="preload" href="file:///home/build/tree/asset/type.woff2">',
+        ),
+        missing: await exported(
+            "2026.9.1",
+            '<link rel="preload" href="/.destack/asset/type.woff2">',
+        ),
+    }).toEqual({
+        written: "exported",
+        disk: [
+            "SITE_INVALID",
+            "static file '/browser/view/site/index.html' is invalid: it refers to 'file:///home/build/tree/asset/type.woff2', which the site does not serve",
+        ],
+        missing: [
+            "SITE_INVALID",
+            "static file '/browser/view/site/index.html' is invalid: it refers to '/.destack/asset/type.woff2', which the site does not serve",
+        ],
+    });
 });
