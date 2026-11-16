@@ -2,9 +2,31 @@
 
 Instrument Destack packages with traces, metrics, logs, exceptions and analytics.
 
-## Instrument a package
+## Overview
 
-`TelemetryScope.of` is OpenTelemetry's `getTracer` and `getMeter` for one package, named under its scope, `acme` for `@acme/pages`.
+`@destack/telemetry` is OpenTelemetry's API with one scope per package: traces, metrics and logs, with exceptions and analytics on the same signals.
+
+You record what a package does:
+
+- `TelemetryScope`: records one package's spans, metrics and logs under its scope.
+- `captureException` and `captureMessage`: record a failure the package handled, which joins an issue.
+- `track` and `visit`: record what a person did and opened.
+
+You declare what a space uses:
+
+- `defineMeter`: declares a `Meter`, a measure of usage such as `databaseUsage`.
+
+A program exports the signals:
+
+- `startTelemetry`: starts the program's OpenTelemetry SDK on Bun, in a browser or in a worker.
+- `OtlpExporter`: exports OTLP/JSON through a fetch.
+- `RatioSampler` and `TailSampler`: keep a ratio of traces, and the traces that fail or run slow.
+
+Tests read them:
+
+- `TestTelemetry`: reads the exceptions and logs a simulation recorded.
+
+Scope a package and record a span with its duration and a log:
 
 ```ts
 import type { Environment } from "@destack/environment";
@@ -24,30 +46,38 @@ export async function savePage(environment: Environment, text: string) {
 }
 ```
 
-## Conventions
+## Reference
 
-Signals follow OpenTelemetry's semantic conventions, with these Destack additions:
+### TelemetryScope
 
-```ts
-import { type Environment, SpanPath } from "@destack/environment";
-import { TelemetryScope } from "@destack/telemetry";
+`TelemetryScope.of(package, telemetry)` is OpenTelemetry's `getTracer`, `getMeter` and `getLogger` for one package.
+It names the package's signals under its scope, such as `acme` for `@acme/pages`.
 
-/** Pass a controller over a key that waited since it came due. */
-export async function pass(environment: Environment, key: string, waited: number, run: () => Promise<void>) {
-    const { telemetry } = environment;
-    const { span, measure, metric, log } = TelemetryScope.of(import.meta.destack.package, telemetry); // per package, never a global
-    const bounded = { "destack.controller": "page" } as const;
-    const waits = metric.histogram("destack.controller.wait_time", { unit: "s", attributes: { "destack.controller": ["page"] } });
+| Verb                               | What it does                                                              |
+| ---------------------------------- | ------------------------------------------------------------------------- |
+| `span(name, attributes, run)`      | runs work in a child span, and records its duration when asked            |
+| `measure(name, attributes, run)`   | records the seconds work took without a span, with the failure it ends in |
+| `metric.histogram`, `counter`, …   | declares an instrument whose attributes take listed values                |
+| `log.info(name, attributes)`       | emits a log record under an event name, also `debug` and `warn`           |
+| `captureException(error, context)` | records a handled failure as an exception in the active trace             |
+| `track(name, attributes)`          | records an action a person took                                           |
+| `visit(route, detail)`             | records a view a person opened at a route                                 |
 
-    waits.record(waited, bounded); // every take, zero included, as OpenTelemetry's pools record wait_time
-    await span("destack.controller.pass", { ...bounded, "destack.key": key }, run, { duration: { attributes: bounded } }); // ids stay off metrics
-    await measure("db.client.operation.duration", bounded, run); // no span; error.type: CONFLICT
-    log.warn("destack.postgres.warned", { "db.response.status_code": "01000" }); // past tense
-    SpanPath.add(telemetry.context.active(), "db.client.operation.count", 1); // every running span's totals
-}
-```
+### Meter
 
-## Trace a stream
+A meter folds a month's events into one usage per space and attribute value.
+
+| Aggregation | Usage                            |
+| ----------- | -------------------------------- |
+| `sum`       | the events' values added up      |
+| `count`     | the number of events             |
+| `max`       | the largest value                |
+| `last`      | the latest value                 |
+| `average`   | the values' mean over the period |
+
+## Examples
+
+### Trace a stream
 
 `span` follows work that answers a stream, each step in the span, and ends it once the stream ends.
 
@@ -61,14 +91,22 @@ export async function* listPages(environment: Environment, pages: AsyncIterable<
     const attributes = { "rpc.method": "note/list" };
     let decided = { "destack.access.decision": "denied" };
 
-    await span("destack.access.check", attributes, async () => (decided = { "destack.access.decision": "allowed" }), {
-        duration: { attributes: () => decided }, // read at the end
-    });
-    yield* await span("note/list", attributes, () => pages, { kind: "server", duration: { attributes } }); // a reader closing early: CLIENT_CLOSED_REQUEST
+    await span(
+        "destack.access.check",
+        attributes,
+        async () => (decided = { "destack.access.decision": "allowed" }),
+        {
+            duration: { attributes: () => decided }, // read at the end
+        },
+    );
+    yield* await span("note/list", attributes, () => pages, {
+        kind: "server",
+        duration: { attributes },
+    }); // a reader closing early: CLIENT_CLOSED_REQUEST
 }
 ```
 
-## Capture an exception
+### Capture an exception
 
 `captureException` records a handled failure in the active trace.
 
@@ -78,12 +116,19 @@ import { TelemetryScope } from "@destack/telemetry";
 
 /** Record a failed export as a warning, grouped with every other failed export. */
 export function reportExport(environment: Environment, error: unknown) {
-    const { captureException } = TelemetryScope.of(import.meta.destack.package, environment.telemetry);
-    captureException(error, { level: "warning", tags: { feature: "export" }, fingerprint: ["export"] });
+    const { captureException } = TelemetryScope.of(
+        import.meta.destack.package,
+        environment.telemetry,
+    );
+    captureException(error, {
+        level: "warning",
+        tags: { feature: "export" },
+        fingerprint: ["export"],
+    });
 }
 ```
 
-## Track an action
+### Track an action
 
 `track` and `visit` record what a person did and opened, as Segment's `track` and `page`.
 
@@ -99,7 +144,7 @@ export function shareNote(environment: Environment) {
 }
 ```
 
-## Declare a meter
+### Declare a meter
 
 `defineMeter` declares a measure of what a space uses, priced apart by attribute.
 
@@ -116,7 +161,7 @@ export const requests = defineMeter({
 });
 ```
 
-## Start telemetry in a program
+### Start telemetry in a program
 
 `startTelemetry` starts a program's OpenTelemetry SDK once, and `OtlpExporter.http` exports OTLP/JSON through a fetch.
 
@@ -129,11 +174,14 @@ import { startTelemetry } from "@destack/telemetry/bun";
 export async function startExporting(endpoint: string) {
     const exporter = OtlpExporter.http({ endpoint, fetch }, (error) => console.error(error));
 
-    return await startTelemetry(exporter.options(import.meta.destack.package), BunEnvironment.system);
+    return await startTelemetry(
+        exporter.options(import.meta.destack.package),
+        BunEnvironment.system,
+    );
 }
 ```
 
-## Assert a captured exception
+### Assert a captured exception
 
 `TestTelemetry` reads a simulation's recorded exceptions.
 
@@ -156,7 +204,7 @@ test("capture a failed export", async () => {
 });
 ```
 
-## Read a test world's telemetry
+### Read a test world's telemetry
 
 `SimulatedTelemetry.counts()` gives each histogram's count and seconds, in all and by target.
 
@@ -167,16 +215,22 @@ import { testSimulation } from "@destack/test/world";
 
 test("save a page once", async () => {
     await using simulation = testSimulation();
-    const { span } = TelemetryScope.of(import.meta.destack.package, simulation.environment("host").telemetry);
+    const { span } = TelemetryScope.of(
+        import.meta.destack.package,
+        simulation.environment("host").telemetry,
+    );
     const before = await simulation.telemetry.counts();
     await span("acme.page.save", {}, async () => "saved");
     const after = await simulation.telemetry.counts();
 
-    expect((after["acme.page.save.duration.count"] ?? 0) - (before["acme.page.save.duration.count"] ?? 0)).toBe(1);
+    expect(
+        (after["acme.page.save.duration.count"] ?? 0) -
+            (before["acme.page.save.duration.count"] ?? 0),
+    ).toBe(1);
 });
 ```
 
-## Print a test world's telemetry
+### Print a test world's telemetry
 
 `DESTACK_TELEMETRY=tree` prints each test world's span tree with world and host time, and its histograms with p50 and p95.
 
@@ -184,7 +238,7 @@ test("save a page once", async () => {
 DESTACK_TELEMETRY=tree bun run test tests/apply.test.ts
 ```
 
-## Benchmark an operation
+### Benchmark an operation
 
 `just bench` reports host seconds per operation with p50 and p95, and each histogram's count per operation, for benchstat.
 
@@ -192,3 +246,20 @@ DESTACK_TELEMETRY=tree bun run test tests/apply.test.ts
 just bench
 benchstat node_modules/.cache/destack/bench/main/database-sqlite.txt node_modules/.cache/destack/bench/current/database-sqlite.txt
 ```
+
+## Conventions
+
+### Signal names
+
+Signals follow OpenTelemetry's semantic conventions, and a package's own names start with its scope.
+Spans and logs carry identifiers and metrics do not, so each metric has a bounded set of series.
+
+| Signal            | Name                                        | Such as                            |
+| ----------------- | ------------------------------------------- | ---------------------------------- |
+| span              | `<scope>.<noun>.<verb>`                     | `destack.controller.pass`          |
+| a span's duration | the span's name and `.duration`, in seconds | `destack.controller.pass.duration` |
+| wait time         | `<scope>.<noun>.wait_time`, zero included   | `destack.controller.wait_time`     |
+| log event         | `<scope>.<noun>.<verb in the past tense>`   | `destack.postgres.warned`          |
+| metric attribute  | `<scope>.<noun>`, which lists its values    | `destack.controller` of `page`     |
+| span attribute    | `<scope>.<noun>`, any value                 | `destack.key`                      |
+| failure           | `error.type`, the failure's code            | `CONFLICT`                         |
