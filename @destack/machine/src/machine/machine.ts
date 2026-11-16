@@ -248,6 +248,8 @@ export class Machine {
     readonly #describe: MachineOptions["describe"];
     /** The spaces started while serving, by space. */
     readonly #started = new Map<Identifier<"space">, Promise<Space>>();
+    /** Settles once the machine's own job read an enrollment, renewed when it is revoked. */
+    #enrolling = Promise.withResolvers<void>();
     /** Whether the machine serves its spaces, and why not. */
     readonly health: Health;
     /** The requests the machine's installations serve, the bytes they move and their CPU time. */
@@ -425,6 +427,11 @@ export class Machine {
 
     // standing at the universe
 
+    /** Wait until this machine's own job read an enrollment, or until aborted. */
+    async #waitEnrolled(signal: AbortSignal): Promise<void> {
+        await Promise.race([this.#enrolling.promise, waitAborted(signal)]);
+    }
+
     /** Read this machine's enrollment for an action, refusing it unenrolled or revoked. */
     async enrolled(action: string): Promise<MachineEnrollment> {
         const enrollment = await this.#enrollment();
@@ -553,7 +560,8 @@ export class Machine {
 
     /** Revoke the machine: close its spaces, delete it at its universe and forget its key. */
     async #revoke(enrollment: MachineEnrollment): Promise<void> {
-        // close the spaces before the key goes
+        // hold the follows of its universe again, and close the spaces before the key goes
+        this.#enrolling = Promise.withResolvers();
         this.health.set("down", "it is revoked");
         await this.#closeSpaces();
 
@@ -610,9 +618,15 @@ export class Machine {
         // follow the universe and this machine's own chain at the account package, once enrolled
         if (scope === Scope.universe.id || scope === this.id) {
             const accounts = () => this.accounts();
+            const enrolled = (signal: AbortSignal) => this.#waitEnrolled(signal);
 
             return {
                 stream: async function* (subscription, signal) {
+                    // wait until this machine is enrolled, as it follows with its enrollment's key
+                    await enrolled(signal);
+                    if (signal.aborted) {
+                        return;
+                    }
                     yield* await (await accounts()).store.stream(subscription, { signal });
                 },
                 request: async (subscription) => {
@@ -909,7 +923,8 @@ export class Machine {
             }
         }
 
-        // serve the machine's own partition, which follows its replicas, while enrolled
+        // let the follows of its universe start, then serve its own partition while enrolled
+        this.#enrolling.resolve();
         this.health.set("starting", "it opens its own partition");
         const partition = await this.#partition?.();
 
