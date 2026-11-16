@@ -103,7 +103,7 @@ test("present an object by its name, subtitle, chosen icon, accent and cover, de
     expect({
         stored: [created.name, created.icon, created.color, created.cover],
         presentation: board.presentation,
-        search: board.searchable,
+        search: board.search,
         indexes: board.table[TABLE]
             .constraints(storage.database.dialect)
             .flatMap((constraint) => (constraint.kind === "index" ? [constraint.name] : []))

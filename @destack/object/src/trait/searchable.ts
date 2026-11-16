@@ -16,7 +16,7 @@ import { callableTrait } from "./trait.ts";
 import type {} from "@destack/package/import-meta";
 
 /** How callers find a type's objects. */
-const ObjectSearchSchema = schema.object({
+const SearchSchema = schema.object({
     /** The fields the space's full-text index covers, the most significant first. */
     text: schema.array(schema.string().min(1)).readonly(),
     /** The fields lists filter and count facets by, each indexed. */
@@ -24,43 +24,33 @@ const ObjectSearchSchema = schema.object({
     /** The fields lists order by, each indexed. */
     sort: schema.array(schema.string().min(1)).readonly(),
 });
-/** How callers find an object type's objects. */
-export type ObjectSearch = schema.Infer<typeof ObjectSearchSchema>;
+/** The fields search ranks and lists filter and sort a type's objects by. */
+export type Search = schema.Infer<typeof SearchSchema>;
 
-/** How callers find an object type's objects, and how a definition's roles read. */
-export const ObjectSearch = Object.assign(ObjectSearchSchema, {
-    /** Read a definition's roles, a role left out pointing at no field. */
-    of(definition: SearchableDefinition): ObjectSearch {
-        return ObjectSearchSchema.parse({
-            text: [],
-            filter: [],
-            sort: [],
-            ...definition,
-        });
+/** The search of objects: resolving a definition's roles, expanding searches, indexing fields. */
+export const Searchable = {
+    /** Resolve a definition's search roles, absent without any. */
+    of(definition: Pick<ObjectDefinition, "searchable">): Search | undefined {
+        return definition.searchable === undefined
+            ? undefined
+            : SearchSchema.parse({ text: [], filter: [], sort: [], ...definition.searchable });
     },
 
     /** Expand a condition's searches: each word in a searched column or a searched text's chunk. */
     expand(object: ObjectType, condition: OpenCondition): OpenCondition {
         // leave a type searching no text to its table's index
-        const texts = (object.searchable?.text ?? []).filter((name) => object.text.includes(name));
+        const texts = (object.search?.text ?? []).filter((name) => object.text.includes(name));
         if (texts.length === 0) {
             return condition;
         }
-        const columns = (object.searchable?.text ?? []).filter((name) => !texts.includes(name));
+        const columns = (object.search?.text ?? []).filter((name) => !texts.includes(name));
 
-        return ObjectSearch.expandSearches(condition, texts, columns.length > 0);
-    },
-
-    /** Read a definition's query roles, absent without any. */
-    readSearch(definition: Pick<ObjectDefinition, "searchable">): ObjectSearch | undefined {
-        return definition.searchable === undefined
-            ? undefined
-            : ObjectSearch.of(definition.searchable);
+        return Searchable.expandSearches(condition, texts, columns.length > 0);
     },
 
     /** Index each filterable or sortable field once, after the objects' scope. */
     indexes(
-        options: ObjectSearch,
+        options: Search,
         table: string,
         columns: Readonly<Record<string, Column>>,
     ): TableConstraint[] {
@@ -77,7 +67,7 @@ export const ObjectSearch = Object.assign(ObjectSearchSchema, {
     },
 
     /** Refuse a role pointing at an unknown field, or a field its role cannot read. */
-    requireRoles(object: ObjectType, options: ObjectSearch): void {
+    requireRoles(object: ObjectType, options: Search): void {
         const roles = [
             ["text", options.text, SEARCHED_TYPES],
             ["filter", options.filter, INDEXED_TYPES],
@@ -104,17 +94,17 @@ export const ObjectSearch = Object.assign(ObjectSearchSchema, {
         // expand the conditions a condition combines and negates, with its other entries
         const { SEARCH: searched, AND: all, OR: any, NOT: negated, ...rest } = condition;
         const expand = (nested: OpenCondition) =>
-            ObjectSearch.expandSearches(nested, texts, isColumnSearched);
+            Searchable.expandSearches(nested, texts, isColumnSearched);
         const combined = [
-            ...ObjectSearch.readConditions(all).map(expand),
-            ...ObjectSearch.expandWords(searched, texts, isColumnSearched),
+            ...Searchable.readConditions(all).map(expand),
+            ...Searchable.expandWords(searched, texts, isColumnSearched),
         ];
 
         return {
             ...rest,
             ...(combined.length === 0 ? {} : { AND: combined }),
-            ...(any === undefined ? {} : { OR: ObjectSearch.readConditions(any).map(expand) }),
-            ...(negated === undefined ? {} : { NOT: expand(ObjectSearch.readCondition(negated)) }),
+            ...(any === undefined ? {} : { OR: Searchable.readConditions(any).map(expand) }),
+            ...(negated === undefined ? {} : { NOT: expand(Searchable.readCondition(negated)) }),
         };
     },
 
@@ -147,12 +137,12 @@ export const ObjectSearch = Object.assign(ObjectSearchSchema, {
             throw ObjectError.of("COMBINATION_REQUIRED", "combination condition is required");
         }
 
-        return entry.map((nested: unknown) => ObjectSearch.readCondition(nested));
+        return entry.map((nested: unknown) => Searchable.readCondition(nested));
     },
 
     /** Read a condition, refusing an entry that is not a condition. */
     readCondition(entry: unknown): OpenCondition {
-        if (!ObjectSearch.isCondition(entry)) {
+        if (!Searchable.isCondition(entry)) {
             throw ObjectError.of("COMBINATION_REQUIRED", "combination condition is required");
         }
 
@@ -163,10 +153,10 @@ export const ObjectSearch = Object.assign(ObjectSearchSchema, {
     isCondition(entry: unknown): entry is OpenCondition {
         return typeof entry === "object" && entry !== null && !Array.isArray(entry);
     },
-});
+};
 
 /** How a definition declares its query roles, a role left out pointing at no field. */
-export type SearchableDefinition = Partial<ObjectSearch>;
+export type SearchableDefinition = Partial<Search>;
 
 /** The field types full-text search reads. */
 const SEARCHED_TYPES: ReadonlySet<string> = new Set(["string", "text", "enum"]);
@@ -188,17 +178,17 @@ const INDEXED_TYPES: ReadonlySet<string> = new Set([
 ]);
 
 /** Objects found by query roles, each filter or sort field indexed in the objects' scope. */
-const searchTrait: TraitBehavior<ObjectSearch> = {
+const searchableTrait: TraitBehavior<Search> = {
     key: "searchable",
     storages: ["durable", "events"],
-    options: (definition) => ObjectSearch.readSearch(definition),
+    options: (definition) => Searchable.of(definition),
     columns: () => ({}),
-    constraints: (options, table, columns) => ObjectSearch.indexes(options, table, columns),
+    constraints: (options, table, columns) => Searchable.indexes(options, table, columns),
     // index the searchable fields' text, which a list's `SEARCH` condition matches
     table: (options) => ({ fullText: options.text }),
     methods: () => ({}),
-    validate: (options, object) => ObjectSearch.requireRoles(object, options),
+    validate: (options, object) => Searchable.requireRoles(object, options),
 };
 
 /** Find objects by text, and index the fields callers filter and sort by. */
-export const searchable = callableTrait("searchable", searchTrait);
+export const searchable = callableTrait("searchable", searchableTrait);

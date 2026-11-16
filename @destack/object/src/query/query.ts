@@ -6,7 +6,7 @@ import { present } from "@destack/schema";
 import type { ObjectQuery } from "../replica/replica.ts";
 import type { ObjectType } from "../object/object.ts";
 import { CHUNKS } from "../text/table.ts";
-import { ObjectSearch } from "../trait/search.ts";
+import { Searchable } from "../trait/searchable.ts";
 
 import type {} from "@destack/package/import-meta";
 
@@ -297,7 +297,7 @@ const QueryDerivation = {
 
         // filter a root's trashed and archived rows, which relations leave out for included ones
         const where = QueryDerivation.joined([
-            ...(options.where === undefined ? [] : [ObjectSearch.expand(object, options.where)]),
+            ...(options.where === undefined ? [] : [Searchable.expand(object, options.where)]),
             ...(isRoot ? QueryDerivation.selected(object, options) : []),
         ]);
 
