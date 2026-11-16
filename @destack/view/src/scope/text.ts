@@ -1,5 +1,5 @@
-import { type Undo, type ObjectType, TextChange } from "@destack/object";
-import { LiveText, type Submission } from "@destack/object/client";
+import { type ObjectType, TextChange } from "@destack/object";
+import type { Submission, TextDocument } from "@destack/object/client";
 import { type Accessor, createMemo, onCleanup } from "../solid/reactive.ts";
 import type { ContextScope } from "../declare/context.ts";
 import { useView } from "../page/context.ts";
@@ -17,7 +17,7 @@ export interface TextField {
     /** The current text, local predictions included, pending until the replica has it. */
     readonly text: Accessor<string>;
     /** Replace the text with a new value, as the one change between them. */
-    readonly replace: (value: string) => Promise<Submission<Undo>> | undefined;
+    readonly replace: (value: string) => Submission<void>;
 }
 
 /** Follow one text field of an object in the view's scope that keeps it. */
@@ -29,8 +29,8 @@ export function useText(
 ): TextField {
     // open the field in the object's scope for the component's lifetime
     const client = useClient(ViewContext.scope(useView(), options.scope ?? "space"));
-    const live = LiveText.open(client, object, id, field);
-    onCleanup(() => void live.close());
+    const followed = client.text(object, id, field);
+    onCleanup(() => void followed.close());
 
     // follow the text
     const text = createMemo(() => {
@@ -38,25 +38,18 @@ export function useText(
         const stopping = new AbortController();
         onCleanup(() => stopping.abort());
 
-        return follow(live, stopping.signal);
+        return follow(followed, stopping.signal);
     });
 
     return {
         text,
-        replace: (value) => {
-            // send the one change between the shown text and the new one
-            const change = TextChange.between(text(), value);
-
-            return change.from === change.to && change.insert === ""
-                ? undefined
-                : live.change(change);
-        },
+        replace: (value) => followed.change(TextChange.between(followed.rope.read().text(), value)),
     };
 }
 
-/** Follow a live text's value until the signal aborts. */
-async function* follow(live: LiveText, signal: AbortSignal): AsyncGenerator<string> {
-    for await (const sequence of live.watch(signal)) {
-        yield sequence.text();
+/** Follow a text document's characters until the signal aborts. */
+async function* follow(source: TextDocument, signal: AbortSignal): AsyncGenerator<string> {
+    for await (const rope of source.watch(signal)) {
+        yield rope.read().text();
     }
 }
