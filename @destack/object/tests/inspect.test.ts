@@ -76,7 +76,7 @@ test("list a task's methods as symbols, each with its route and input, reading o
     });
 });
 
-test("describe the methods callers call: kind, permission, route, and input without its request", () => {
+test("describe the methods callers call: kind, permission, target, route, and input without its request", () => {
     // define a gauge measured by a query and reset by a mutation
     const gauge = defineObject(
         {
@@ -118,6 +118,7 @@ test("describe the methods callers call: kind, permission, route, and input with
             kind: "custom",
             permission: "read",
             mutates: false,
+            target: "object",
             route: { method: "POST", path: "/gauges/{id}/measure" },
             input: {
                 $schema: "https://json-schema.org/draft/2020-12/schema",
@@ -141,6 +142,7 @@ test("describe the methods callers call: kind, permission, route, and input with
             kind: "custom",
             permission: "reset",
             mutates: true,
+            target: "object",
             route: { method: "POST", path: "/gauges/{id}/reset" },
             input: {
                 $schema: "https://json-schema.org/draft/2020-12/schema",

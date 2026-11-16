@@ -629,6 +629,8 @@ export interface MethodDescription {
     readonly permission: string;
     /** Whether the method changes state. */
     readonly mutates: boolean;
+    /** What callers call the method on: one object, or the scope without an object. */
+    readonly target: "object" | "scope";
     /** The HTTP method and path callers call the method at. */
     readonly route: { readonly method: string; readonly path: string };
     /** The input as JSON Schema, without the request a change replays under. */
@@ -1314,6 +1316,7 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
                 kind: declared.kind,
                 permission: declared.permission,
                 mutates: declared.mutates,
+                target: declared.target === "scope" ? "scope" : "object",
                 route: {
                     method: present(route.method, `the route method of ${name}`),
                     path: present(route.path, `the route path of ${name}`),
