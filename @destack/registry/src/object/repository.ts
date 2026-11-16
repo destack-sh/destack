@@ -188,6 +188,7 @@ export const repository = defineObject(
             name: {
                 on: ["accountId", "name"],
                 across: () => universe,
+                renamed: "former",
             },
             id: { on: ["id"], across: () => universe },
         },
