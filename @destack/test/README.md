@@ -193,7 +193,7 @@ export default defineConfiguration(
 
 ### Titles
 
-A title states one behavior, verb first, in the code's own nouns.
+A title states the scenario and its outcome as one imperative clause, in the code's own nouns.
 
 | Write                                                 | Instead of                                                                                                  |
 | ----------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
@@ -201,6 +201,29 @@ A title states one behavior, verb first, in the code's own nouns.
 | `rotate an endpoint's secret and release the old one` | `let the installation consume an endpoint's new secret as the manager who sets it, and release the old one` |
 | `unsubscribe a browser its push service answers gone` | `forget a browser its push service forgot, as the space, once its push fails as gone`                       |
 | `read transport refusals as outcomes`                 | `refuse an email message as its transport refuses it: %#`                                                   |
+| `refuse a put under another consumer's name`          | `let installations put their own secrets, refusing another consumer their replacement`                      |
+| `conceal a missing version from a stranger`           | `reveal a missing version only to readers of the secret`                                                    |
+
+### Verbs
+
+A title's verb says what the caller observes.
+
+| Verb                   | Outcome                                                 |
+| ---------------------- | ------------------------------------------------------- |
+| `refuse`               | The caller gets an error.                               |
+| `conceal`              | The caller gets "not found" for something that exists.  |
+| `fail`                 | A job ends failed, and no caller gets an error.         |
+| `keep`                 | State survives what happened.                           |
+| `read`, `list`, `find` | The caller gets one, many, or those matching a filter.  |
+| a method's own verb    | The test calls that method.                             |
+
+### Scope
+
+A test fails only when its own package is wrong.
+
+### Bodies
+
+A test sets up, acts once and asserts the whole outcome, with one commented block for each.
 
 ### Tiers
 
