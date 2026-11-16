@@ -739,6 +739,8 @@ export class ConnectionState {
     readonly scope: TelemetryScope;
     /** The commits that lost a race on their reads and ran again, counted by database. */
     readonly retries: ReturnType<TelemetryScope["meter"]["createCounter"]>;
+    /** The rows statements returned or changed, counted by operation and table. */
+    readonly rows: ReturnType<TelemetryScope["meter"]["createCounter"]>;
     /** The spans this process's latest logging transactions ran in. */
     readonly transactionSpans: TransactionSpans;
     /** The SQL names of the tables the declaration replicates, empty over bare tables. */
@@ -806,6 +808,7 @@ export class ConnectionState {
         this.name = options.name;
         this.scope = TelemetryScope.of(import.meta.destack.package, options.environment.telemetry);
         this.transactionSpans = new TransactionSpans(this.scope);
+        this.rows = this.scope.meter.createCounter("destack.db.rows", { unit: "{row}" });
         this.retries = this.scope.meter.createCounter("destack.transaction.retries", {
             unit: "{retry}",
         });

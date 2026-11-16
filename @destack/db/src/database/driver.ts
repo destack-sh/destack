@@ -100,6 +100,7 @@ export class DatabaseDriver {
                 SpanPath.add(active, "db.client.operation.count", 1);
                 SpanPath.add(active, "db.client.operation.duration", seconds);
                 SpanPath.add(active, "db.response.returned_rows", rows);
+                state.rows.add(rows, attributes);
             },
         );
     }
