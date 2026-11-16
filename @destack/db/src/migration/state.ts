@@ -27,6 +27,9 @@ export const STAMP = "__destack_stamp";
 /** The manager of a database's own tables. */
 export const DATABASE_MANAGER = "database";
 
+/** The column of the state and stamp tables with the manager that applied a row. */
+const MANAGER_COLUMN = "manager";
+
 /** A managed table as declared or applied. */
 export const TableState = schema.object({
     /** The package release declaring the table. */
@@ -345,20 +348,69 @@ export function createState(namespace?: string): string {
 
 /** Read a connected database's table names, within its namespace in a shared SQLite store. */
 export async function readTables(database: DatabaseConnection): Promise<string[]> {
+    return (await readListing(database)).tables;
+}
+
+/** A database's tables, and those of its state and stamp tables from before managers. */
+export interface Listing {
+    /** The table names, within the database's namespace. */
+    readonly tables: string[];
+    /** Its state and stamp tables without the manager column, by name. */
+    readonly unmanaged: string[];
+}
+
+/** List a database's tables with the columns of its state and stamp tables, in one statement. */
+export async function readListing(database: DatabaseConnection): Promise<Listing> {
     // list the tables whose names start with the namespace's prefix, every one outside a namespace
     const { namespace } = database.state;
     const prefix = relation("", namespace);
+    const kept = [relation(STATE, namespace), relation(STAMP, namespace)];
+    const [state, stamp] = kept;
     const rows = await database.execute(
         dialectSQL({
-            sqlite: sql`SELECT name FROM sqlite_schema WHERE type = 'table' AND substr(name, 1, ${prefix.length}) = ${prefix}`,
-            postgresql: sql`SELECT c.relname AS name FROM pg_depend d JOIN pg_class c ON c.oid = d.objid
+            sqlite: sql`SELECT name, CASE WHEN name IN (${state}, ${stamp}) THEN (
+                    SELECT group_concat(described.name) FROM pragma_table_info(sqlite_schema.name) AS described
+                ) END AS columns
+                FROM sqlite_schema WHERE type = 'table' AND substr(name, 1, ${prefix.length}) = ${prefix}`,
+            postgresql: sql`SELECT c.relname AS name, CASE WHEN c.relname IN (${state}, ${stamp}) THEN (
+                    SELECT string_agg(a.attname, ',') FROM pg_attribute a
+                    WHERE a.attrelid = c.oid AND a.attnum > 0 AND NOT a.attisdropped
+                ) END AS columns
+                FROM pg_depend d JOIN pg_class c ON c.oid = d.objid
                 WHERE d.classid = 'pg_class'::regclass AND d.refclassid = 'pg_namespace'::regclass
                     AND d.refobjid = current_schema()::regnamespace AND c.relkind IN ('r', 'p')`,
         }),
-        schema.object({ name: schema.string() }),
+        schema.object({ name: schema.string(), columns: schema.string().nullable() }),
     );
 
-    return rows.map((row) => row.name);
+    // take a state or stamp table without the manager column as one from before managers
+    const unmanaged = rows.filter(
+        (row) => row.columns !== null && !row.columns.split(",").includes(MANAGER_COLUMN),
+    );
+
+    return { tables: rows.map((row) => row.name), unmanaged: unmanaged.map((row) => row.name) };
+}
+
+/** Give a database's state and stamp tables from before managers their current shape. */
+export async function upgradeUnmanaged(
+    database: DatabaseConnection,
+    listing: Listing,
+): Promise<void> {
+    // record the database as the manager of every table its one declaration applied
+    const { namespace } = database.state;
+    const state = relation(STATE, namespace);
+    const stamp = relation(STAMP, namespace);
+    const guard = database.dialect === "postgresql" ? "IF NOT EXISTS " : "";
+    if (listing.unmanaged.includes(state)) {
+        await database.executeScript(
+            `ALTER TABLE ${quote(state)} ADD COLUMN ${guard}${MANAGER_COLUMN} TEXT NOT NULL DEFAULT ${literal(DATABASE_MANAGER)}`,
+        );
+    }
+
+    // drop its one stamp, which the next migration writes again for its manager
+    if (listing.unmanaged.includes(stamp)) {
+        await database.executeScript(`DROP TABLE IF EXISTS ${quote(stamp)}`);
+    }
 }
 
 /** List the tables among some that have no rows, a column each in statements the engine fits. */
@@ -406,10 +458,13 @@ export type Stamp =
     | { readonly kind: "unstamped" }
     | { readonly kind: "new" };
 
-/** Read the stamp of the declaration a manager applied last. */
-export async function readStamp(database: DatabaseConnection, manager: string): Promise<Stamp> {
+/** Read the stamp of the declaration a manager applied last, given the database's tables. */
+export async function readStamp(
+    database: DatabaseConnection,
+    manager: string,
+    tables: readonly string[],
+): Promise<Stamp> {
     // read a database migrated before stamps, whose stamp table an applied plan creates, apart from a new one
-    const tables = await readTables(database);
     if (!tables.includes(relation(STAMP, database.state.namespace))) {
         return tables.includes(relation(STATE, database.state.namespace))
             ? { kind: "unstamped" }

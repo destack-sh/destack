@@ -24,7 +24,9 @@ import {
     localState,
     namespaceState,
     readEmpty,
+    readListing,
     readManagers,
+    upgradeUnmanaged,
     readState,
     readTables,
     unappliedTables,
@@ -383,6 +385,7 @@ export class DatabaseConnection<
                 .filter((entry) => entry.isReplicated === true)
                 .map((entry) => entry.table.name),
         );
+        const existing = await this.#list();
         const managers = replicas.size === 0 ? new Map<string, string>() : await readManagers(this);
         const left = [...managers]
             .filter(([name, applier]) => applier !== manager && replicas.has(name))
@@ -394,7 +397,7 @@ export class DatabaseConnection<
             { declared, states, ...(left.length === 0 ? {} : { left }) },
             this.state.environment.crypto,
         );
-        const stamped = await readStamp(this, manager);
+        const stamped = await readStamp(this, manager, existing);
         if (stamped.kind === "stamped" && stamped.digest === stamp) {
             this.state.declare(tables);
 
@@ -426,8 +429,24 @@ export class DatabaseConnection<
         return { plan, outcome: "applied" };
     }
 
+    /** List the database's tables, bringing a database from before managers up to date first. */
+    async #list(): Promise<string[]> {
+        // list the tables as they are
+        const listing = await readListing(this);
+        if (listing.unmanaged.length === 0) {
+            return listing.tables;
+        }
+
+        // upgrade the state and stamp tables, then list again
+        await upgradeUnmanaged(this, listing);
+
+        return await readTables(this);
+    }
+
     /** List the tables with an unapplied declaration, by name in the database's namespace. */
     async unapplied(tables: readonly Table[], options: DeclareOptions = {}): Promise<string[]> {
+        // bring a database from before managers up to date before reading its applied states
+        await this.#list();
         const { namespace } = this.state;
         const declared = declareState(tables, this.dialect, {
             replicated: this.state.declaredReplicas,
@@ -443,7 +462,7 @@ export class DatabaseConnection<
     /** Declare those of some tables the database has, as a resource migrated them before. */
     async declareApplied(tables: readonly Table[]): Promise<void> {
         // read the tables it has and declare the given ones among them
-        const existing = new Set(await readTables(this));
+        const existing = new Set(await this.#list());
         const { namespace } = this.state;
         this.state.declare(
             tables.filter((table) => existing.has(relation(table[TABLE].sqlName, namespace))),

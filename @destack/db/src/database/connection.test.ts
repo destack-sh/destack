@@ -6,7 +6,10 @@ import { defineTable, TABLE, type Table } from "../table/table.ts";
 import type { WriteOperation } from "./connection.ts";
 import { post, remark, section } from "../dependent/test/fixture.ts";
 import { testSimulation } from "@destack/test/world";
-import { localState, readManagers, readState } from "../migration/state.ts";
+import { localState, readManagers, readState, STAMP, STATE } from "../migration/state.ts";
+import { sql } from "../sql/index.ts";
+import { quote } from "../dialect/quote.ts";
+import { relation } from "../table/namespace.ts";
 
 /** The counters one upsert writes and one remove deletes. */
 const COUNTERS = 201;
@@ -33,6 +36,9 @@ const counter = defineTable(
         log: {},
     },
 );
+
+/** One counter's row. */
+const VISITS = { scope: "a", owner: "ada", name: "visits", value: 3 };
 
 /** List tables by their SQL names. */
 function sqlNames(tables: readonly Table[]): string[] {
@@ -271,5 +277,49 @@ test("read each applied table's manager as its applied state names it", async ()
             [tally[TABLE].sqlName, "tallies"],
             [counter[TABLE].sqlName, "counters"],
         ],
+    });
+});
+
+test("open a database migrated before managers, keeping its tables under the database's manager", async () => {
+    // migrate counters, then give the state and stamp tables the shape from before managers
+    const simulation = testSimulation();
+    const storage = await TestDatabase.create([], { environment: simulation.environment("test") });
+    onTestFinished(() => storage.close());
+    const { database } = storage;
+    await database.migrate([counter]);
+    await database.transaction((transaction) =>
+        transaction.insert(counter).values(VISITS).execute(),
+    );
+    const { namespace } = database.state;
+    const [state, stamp] = [STATE, STAMP].map((name) => quote(relation(name, namespace)));
+    await database.executeScript(`ALTER TABLE ${state} DROP COLUMN manager`);
+    await database.executeScript(`DROP TABLE ${stamp}`);
+    await database.executeScript(
+        `CREATE TABLE ${stamp} (slot INTEGER PRIMARY KEY, digest TEXT NOT NULL)`,
+    );
+    await database.executeScript(`INSERT INTO ${stamp} (slot, digest) VALUES (1, 'before')`);
+
+    // read its unapplied tables, migrate the same declaration, then give it the old stamp alone once more
+    const unapplied = await database.unapplied([counter]);
+    const upgraded = await database.migrate([counter]);
+    await database.executeScript(`DROP TABLE ${stamp}`);
+    await database.executeScript(
+        `CREATE TABLE ${stamp} (slot INTEGER PRIMARY KEY, digest TEXT NOT NULL)`,
+    );
+    const again = await database.migrate([counter]);
+
+    // change no table, keep its rows, and stamp the declaration for the database's manager
+    expect({
+        unapplied,
+        steps: [upgraded.steps, again.steps],
+        managers: [...(await readManagers(database))],
+        rows: await database.select().from(counter),
+        stamps: await database.all(sql`SELECT manager FROM ${sql.relation(STAMP)}`),
+    }).toEqual({
+        unapplied: [],
+        steps: [[], []],
+        managers: [[counter[TABLE].sqlName, "database"]],
+        rows: [VISITS],
+        stamps: [{ manager: "database" }],
     });
 });
