@@ -103,7 +103,7 @@ import { Branch, type BranchEntry, type BranchType } from "../branch/index.ts";
 import { MethodContext, type ResultsOf, type Run } from "../method/context.ts";
 import { CallSite } from "../method/site.ts";
 import { Limits } from "../method/limits.ts";
-import { Method, type MethodKind } from "../method/method.ts";
+import { Method } from "../method/method.ts";
 import { callableProcedures } from "../method/procedure.ts";
 import { InputSchema } from "../method/input.ts";
 import { ACCESS_KINDS, ObjectType } from "../object/object.ts";
@@ -156,14 +156,6 @@ const LISTED_PAGE = schema.looseObject({
         .record(schema.string(), schema.record(schema.string(), schema.unknown()))
         .exactOptional(),
 });
-
-/** The methods an object in the trash still takes. */
-const TRASH_METHODS: ReadonlySet<MethodKind> = new Set([
-    "get",
-    "restore",
-    "purge",
-    "relationships",
-]);
 
 /** How long a request waits for its caller's watermarks: 5 s, above sub-second replica lag. */
 const BOOKMARK_TIMEOUT_MILLISECONDS = 5000;
@@ -3031,16 +3023,9 @@ export class ObjectStore {
             );
         }
 
-        // refuse other methods on a trashed object, but the package's own
-        const isTrashed =
-            object.lifecycle.recoverable !== undefined &&
-            target !== undefined &&
-            target["deletedAt"] !== null;
-        if (isTrashed && !TRASH_METHODS.has(method.kind) && method.visibility !== "package") {
-            throw ObjectError.of(
-                "OBJECT_BLOCKED",
-                `cannot change ${object.name}: it is in the trash`,
-            );
+        // refuse a method a trashed or archived target no longer takes
+        if (target !== undefined) {
+            object.refuseBlocked(method, target);
         }
 
         return {

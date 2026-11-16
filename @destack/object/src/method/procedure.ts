@@ -22,6 +22,7 @@ import { Method } from "./method.ts";
 import type { InputObject, InputSchema } from "./input.ts";
 import type { RecordProcedures } from "./record.ts";
 import type { RecoverableProcedures } from "../trait/recoverable.ts";
+import type { ArchivableProcedures } from "../trait/archivable.ts";
 import type { NestedProcedures } from "../trait/nested.ts";
 import type { ShareableProcedures } from "../trait/shareable.ts";
 import type { BindableProcedures } from "../trait/bindable.ts";
@@ -294,6 +295,7 @@ type MethodProcedureOf<
     ? AnyProcedure
     : (RecordProcedures<Object, Declaration> &
           RecoverableProcedures<Object> &
+          ArchivableProcedures<Object> &
           TransitionProcedures<Object, Declaration> &
           NestedProcedures<Object> &
           ShareableProcedures<Object> &

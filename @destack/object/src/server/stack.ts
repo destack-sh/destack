@@ -77,7 +77,7 @@ export interface DeclarationHandler<Object extends ObjectType = ObjectType> {
     readonly collection?: string;
     /** Read a declared record as its declaration lists its fields, when its own row lacks some. */
     read?(row: Select<Object["table"]>, reader: Pick<Snapshot, "read">): Promise<object>;
-    /** What undeclaring a record does: delete it by default, archive it inactive, or retain it. */
+    /** What undeclaring a record does: delete it by default, archive it, or retain it. */
     readonly retire?: "archived" | "retained";
 }
 
@@ -195,11 +195,9 @@ export class Stack {
                 throw new TypeError(`object ${object.name} has no declaration`);
             }
 
-            // require an active column on a type archiving undeclared records
-            if (declaration.retire === "archived" && !("active" in object.table[TABLE].columns)) {
-                throw new TypeError(
-                    `object ${object.name} archives records but has no active column`,
-                );
+            // require an archivable type archiving undeclared records
+            if (declaration.retire === "archived" && object.lifecycle.archivable === undefined) {
+                throw new TypeError(`object ${object.name} archives records but is not archivable`);
             }
 
             return { ...declaration, object };
@@ -1025,9 +1023,8 @@ export class StackPlan {
         const applied = StackPlan.#declarations(declaration, this.stack.options.applied);
         const steps: Step[] = [];
         for (const [name, resolved] of desired) {
-            // declare a record of an archiving type active, as retiring archives it
+            // read the declared input with the owner the stack supplies
             const input = JsonValue.object({
-                ...(declaration.retire === "archived" ? { active: true } : {}),
                 ...DECLARED.parse(resolved),
                 ...(await this.#supplied(declaration.object)),
             });
@@ -1113,14 +1110,19 @@ export class StackPlan {
         input: JsonObject,
         written: readonly string[],
     ): Promise<Step[]> {
-        // restore a deleted record, reading it again as restored
+        // restore a deleted record and unarchive an archived one, reading it again after
         const { object } = declaration;
         const values: Row = loaded;
         const isDeleted = "deletedAt" in values && values["deletedAt"] !== null;
+        const isArchived =
+            object.lifecycle.archivable !== undefined && values["archivedAt"] !== null;
         if (isDeleted) {
             await this.mutate(object, [object.call("restore", object.target(loaded))], name);
         }
-        const row = isDeleted ? await this.#reread(declaration, loaded) : loaded;
+        if (isArchived) {
+            await this.mutate(object, [object.call("unarchive", object.target(loaded))], name);
+        }
+        const row = isDeleted || isArchived ? await this.#reread(declaration, loaded) : loaded;
 
         // compare the declared fields with the record as its declaration reads it
         const current = await this.#declared(declaration, row);
@@ -1148,7 +1150,7 @@ export class StackPlan {
                 fields[field] = { before, after };
             }
         }
-        if (Object.keys(fields).length === 0 && !isDeleted) {
+        if (Object.keys(fields).length === 0 && !isDeleted && !isArchived) {
             return [];
         }
 
@@ -1204,6 +1206,18 @@ export class StackPlan {
                 },
             },
         };
+        const unarchived: Step = {
+            action: "update",
+            target,
+            risk: "safe",
+            detail: "unarchive",
+            fields: {
+                archivedAt: {
+                    before: StackPlan.#jsonOf(object.table, "archivedAt", values["archivedAt"]),
+                    after: null,
+                },
+            },
+        };
         const updated: Step = {
             action: "update",
             target,
@@ -1214,6 +1228,7 @@ export class StackPlan {
 
         return [
             ...(isDeleted ? [restored] : []),
+            ...(isArchived ? [unarchived] : []),
             ...(Object.keys(changed).length > 0 ? [updated] : []),
         ];
     }
@@ -1258,20 +1273,16 @@ export class StackPlan {
         if (
             retire === "retained" ||
             (isDeletable && values["deletedAt"] !== null) ||
-            (retire === "archived" && values["active"] === false)
+            (retire === "archived" && values["archivedAt"] !== null)
         ) {
             return [];
         }
         const target = Address.join(object.name, name);
 
-        // archive the record inactive, retained for what refers to it
+        // archive the record, retained for what refers to it
         if (retire === "archived") {
             if (mode === "apply") {
-                await this.mutate(
-                    object,
-                    [object.call("update", { ...object.target(row), active: false })],
-                    name,
-                );
+                await this.mutate(object, [object.call("archive", object.target(row))], name);
             }
 
             return [{ action: "update", target, risk: "safe", detail: "archive" }];

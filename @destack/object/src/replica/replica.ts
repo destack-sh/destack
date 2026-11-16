@@ -48,11 +48,13 @@ const RelationFields = {
 /** The query of a relation's rows. */
 const RelationQuery: schema.Schema<FindOptions> = schema.lazy(() => schema.object(RelationFields));
 
-/** The fields of a query of one object type's rows: its trashed rows, or aggregates of them. */
+/** The fields of a query of one object type's rows, or of aggregates of them. */
 export const QueryFields = {
     ...RelationFields,
     /** Which trashed rows of a recoverable type to select, none by default. */
     deleted: schema.enum(["exclude", "include", "only"]).exactOptional(),
+    /** Which archived rows of an archivable type to select, none by default. */
+    archived: schema.enum(["exclude", "include", "only"]).exactOptional(),
     /** Aggregates of the rows, replicated instead of the rows. */
     aggregate: Aggregate.exactOptional(),
     /** The permission the caller also has on each row, by its name on the type. */
@@ -132,6 +134,8 @@ export interface ObjectQuery extends FindOptions {
     readonly scopes?: "every";
     /** Which trashed rows of a recoverable type to select, none by default. */
     readonly deleted?: "exclude" | "include" | "only";
+    /** Which archived rows of an archivable type to select, none by default. */
+    readonly archived?: "exclude" | "include" | "only";
     /** Aggregates of the rows, replicated instead of the rows. */
     readonly aggregate?: Aggregate;
     /** The permission the caller also has on each row, by its name on the type. */

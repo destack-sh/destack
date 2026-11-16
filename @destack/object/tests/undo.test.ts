@@ -19,7 +19,7 @@ import { principal } from "@destack/access";
 import { tablesOf } from "../src/index.ts";
 import objectPackage from "../src/package.ts";
 import { TestObjectStore } from "../src/test/index.ts";
-import { nested, recoverable, shareable } from "../src/index.ts";
+import { archivable, nested, recoverable, shareable } from "../src/index.ts";
 import { argument, plural, t } from "@destack/locale";
 
 /** Folders with pages. */
@@ -61,6 +61,7 @@ const page = defineObject(
         traits: [
             nested({ in: folder, add: "write", move: "write" }),
             recoverable({ within: { days: 30 }, by: "write" }),
+            archivable({ by: "write" }),
             shareable({ by: "write" }),
         ],
     },
@@ -69,8 +70,6 @@ const page = defineObject(
         createMany: method.createMany("write", { fields: ["title"] }),
         update: method.update("write"),
         deleteMany: method.deleteMany("write", { match: ["status"] }),
-        archive: method.mutation({ title: t`Archive`, permission: "write", inverse: "unarchive" }),
-        unarchive: method.mutation({ title: t`Unarchive`, permission: "write" }),
         announce: method.mutation({ title: t`Announce`, permission: "write" }),
     }),
 );
@@ -222,13 +221,14 @@ test("invert each trait's methods into the calls that undo them, and leave the r
         ],
     ]);
 
-    // undo grants and custom methods with inverses
+    // undo grants, archiving and unarchiving, and leave the rest undoable by nothing
     expect([
         invert("grant", {
             input: { ...target, relation: "reader" },
             result: { id: "relationship-1" },
         }),
         invert("archive", { input: target }),
+        invert("unarchive", { input: target }),
         invert("announce", { input: target }),
         invert("revoke", { input: { ...target, relationshipId: "relationship-1" } }),
     ]).toEqual([
@@ -244,6 +244,14 @@ test("invert each trait's methods into the calls that undo them, and leave the r
             {
                 type: page.typeReference,
                 method: "unarchive",
+                release: page.package.version,
+                input: target,
+            },
+        ],
+        [
+            {
+                type: page.typeReference,
+                method: "archive",
                 release: page.package.version,
                 input: target,
             },

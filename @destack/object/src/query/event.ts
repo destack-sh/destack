@@ -26,7 +26,15 @@ import { Execution, type StoreExecution } from "../method/execution.ts";
 import type {} from "@destack/package/import-meta";
 
 /** The list input fields only the SQL dataflow serves, which the event log refuses. */
-const DATAFLOW_FIELDS = ["extras", "with", "aggregate", "deleted", "at", "branch"] as const;
+const DATAFLOW_FIELDS = [
+    "extras",
+    "with",
+    "aggregate",
+    "deleted",
+    "archived",
+    "at",
+    "branch",
+] as const;
 
 /** The event log behind an events type: `create` appends to it, `list` and `get` read it. */
 export const EventLog = {

@@ -144,6 +144,7 @@ A trait adds fields, methods and rules to a type, each declared with its options
 | `presentable` | shows objects with a title, an icon, a cover and an accent | none, or `{ title, subtitle, icon, color }`     | `presentable({ subtitle: "summary" })`                      |
 | `versioned`   | keeps immutable, numbered versions of a parent             | none                                            | `versioned()`                                               |
 | `recoverable` | deletes objects to a restorable trash                      | `{ within, by, purge, retain }`                 | `recoverable({ within: { days: 30 }, by: "delete" })`       |
+| `archivable`  | archives objects out of lists, read-only until unarchived  | `{ by }`                                        | `archivable({ by: "manage" })`                              |
 | `expiring`    | removes objects once a rule's window passes                | a list of `{ after, from }` rules               | `expiring([{ after: { days: 7 }, from: "expiresAt" }])`     |
 | `tracked`     | records objects' history in activities                     | `{ activity, by, session }`                     | `tracked({ activity, by: "update" })`                       |
 | `controlled`  | reconciles records with a controller                       | none, or `{ approval: true }`                   | `controlled()`                                              |

@@ -28,7 +28,7 @@ import { openSpace, space, spacePrincipal } from "../src/test/space.ts";
 import { userContext, users } from "./fixture/user.ts";
 import { tablesOf } from "../src/index.ts";
 import objectPackage from "../src/package.ts";
-import { controlled, nested, provisioned, recoverable } from "../src/index.ts";
+import { archivable, controlled, nested, provisioned, recoverable } from "../src/index.ts";
 import { argument, plural, t } from "@destack/locale";
 
 /** The space the declared objects live in. */
@@ -684,25 +684,26 @@ const board = defineObject(
     }),
 );
 
-/** Badges stacks declare, archived inactive on retiring. */
+/** Badges stacks declare, archived on retiring. */
 const badge = defineObject(
     {
         name: "badge",
         plural: "badges",
         title: t`${plural(argument("count"), { one: "Badge", other: "Badges" })}`,
         scope: space,
-        fields: { title: field.string(), active: field.boolean().default(true) },
+        fields: { title: field.string() },
         access: {
             permissions: ["write"],
         },
+        traits: [archivable({ by: "write" })],
     },
     (method) => ({
         create: method.create("write"),
-        update: method.update("write", { fields: ["title", "active"] }),
+        update: method.update("write", { fields: ["title"] }),
     }),
 );
 
-test("restore a trashed declared record, replace one whose changed field its type cannot update, and activate an archived one declared again", async () => {
+test("restore a trashed declared record, replace one whose changed field its type cannot update, and unarchive an archived one declared again", async () => {
     // run in a world of its own
     const world = testSimulation().environment("test");
 
@@ -760,7 +761,7 @@ test("restore a trashed declared record, replace one whose changed field its typ
         ]),
         badges: (await database.select().from(badge.table).orderBy(badge.table.id)).map((row) => [
             row.title,
-            row.active,
+            row.archivedAt === null,
         ]),
     });
 
@@ -777,10 +778,10 @@ test("restore a trashed declared record, replace one whose changed field its typ
     const replaced = await apply({ ...declared, boards: { main: { title: "Main", size: 4 } } });
     const afterReplace = await rows();
 
-    // archive the badge once undeclared, then activate it once declared again
+    // archive the badge once undeclared, then unarchive it once declared again
     const archived = await apply({ boards: { main: { title: "Main", size: 4 } } });
     const archivedRows = await rows();
-    const activated = await apply({ ...declared, boards: { main: { title: "Main", size: 4 } } });
+    const unarchived = await apply({ ...declared, boards: { main: { title: "Main", size: 4 } } });
     expect({
         retired,
         restored,
@@ -788,7 +789,7 @@ test("restore a trashed declared record, replace one whose changed field its typ
         afterReplace,
         archived,
         archivedRows,
-        activated,
+        unarchived,
         final: await rows(),
     }).toEqual({
         retired: [["delete", "board/main", "destructive", []]],
@@ -809,7 +810,7 @@ test("restore a trashed declared record, replace one whose changed field its typ
             ],
             badges: [["Gold", false]],
         },
-        activated: [["update", "badge/gold", "safe", ["active"]]],
+        unarchived: [["update", "badge/gold", "safe", ["archivedAt"]]],
         final: {
             boards: [
                 [3, false],

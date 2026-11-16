@@ -966,3 +966,31 @@ test("fail the queries open once the source refuses to follow, and refuse later 
         reported: [...new Set(reported.map((refused) => JSON.stringify(refused)))],
     }).toEqual({ reasons: [outside, outside, outside], reported: [JSON.stringify(outside)] });
 });
+
+test("refuse changing an archived notebook on the device before the server sees it", async () => {
+    // archive a notebook on the server, and follow it onto alice's device with the archive
+    const { connect, openDevice, environment } = await serveNotes();
+    const alice = connect(users.alice);
+    const request = () => ({ spaceId: spaceId, requestId: RequestId.create(environment) });
+    const plans = await alice.notebook.create({ ...request(), name: "Plans" });
+    await alice.notebook.archive({ ...request(), id: plans.id });
+    const device = await openDevice(users.alice, []);
+    device.client.query.notebook.findMany({ archived: "include" }).subscribe();
+    device.online();
+    const archived = async () =>
+        (
+            await device.client.database
+                .select({ archivedAt: notebook.table.archivedAt })
+                .from(notebook.table)
+        ).map((row) => row.archivedAt !== null);
+    await device.waitFor(archived, [true]);
+
+    // rename it on the device, which refuses before queueing the change
+    const renamed = device.client.mutate(notebook).update({ id: plans.id, name: "Old plans" });
+
+    expect(await refusal(renamed.predicted)).toEqual([
+        "PRECONDITION_FAILED",
+        "OBJECT_BLOCKED",
+        "cannot change notebook: it is archived",
+    ]);
+});

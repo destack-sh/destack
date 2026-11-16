@@ -991,7 +991,7 @@ export const RecordMethod = {
     } {
         // remove an object deleting at once
         const before: Row = target.target;
-        if (!target.object.isTrashable()) {
+        if (!target.object.defersDeletion()) {
             return { before, after: null };
         }
 
@@ -1012,15 +1012,17 @@ export const RecordMethod = {
         };
     },
 
-    /** Read the untrashed objects a bulk call matches, the permitted ones on a server. */
+    /** Read the listed objects a bulk call matches, the permitted ones on a server. */
     async matchingRows(context: MethodContext, execution: Execution) {
-        // match the values in the call's scope, leaving out objects whose deletion is requested
+        // match the values in the call's scope, leaving out objects deleting or archived, as lists do
         const table = context.object.table;
         const matched = MATCH.parse(context.input["where"]);
         const isDeleting = Object.hasOwn(table[TABLE].columns, "deletedAt");
+        const isArchivable = context.object.lifecycle.archivable !== undefined;
         const where = Condition.equal({
             ...matched,
             ...(isDeleting ? { deletedAt: null } : {}),
+            ...(isArchivable ? { archivedAt: null } : {}),
             scope: context.scope,
         });
 
@@ -1358,7 +1360,7 @@ export const RecordMethod = {
         }
 
         // request deletion when a trash or controller finishes it, moving the children nested to the trash with it
-        if (object.isTrashable()) {
+        if (object.defersDeletion()) {
             const trashed = RecordMethod.trashed(context);
             await context.update(trashed);
             await RecordMethod.trashChildren(
@@ -1422,14 +1424,15 @@ export const RecordMethod = {
         }
     },
 
-    /** Refuse a child under a missing parent or one in the trash. */
+    /** Refuse a child under a missing parent, or one in the trash or archive. */
     async requireParentReady(context: MethodContext, parentId: string | null): Promise<void> {
-        // check a child of a parent type with a trash
+        // check a child of a parent type with a trash or archive
         const declared = context.object.parent;
         if (
             declared === undefined ||
             declared.object === "any" ||
-            !declared.object.isTrashable() ||
+            (!declared.object.defersDeletion() &&
+                declared.object.lifecycle.archivable === undefined) ||
             parentId === null
         ) {
             return;
@@ -1438,15 +1441,29 @@ export const RecordMethod = {
             .read<Table>(declared.object.table)
             .findMany({ where: { id: parentId } });
 
-        // refuse a missing parent and one in the trash
+        // refuse a missing parent, one in the trash or being deleted, and one archived
+        const isDeleted = declared.object.defersDeletion() && parent?.["deletedAt"] !== null;
         if (parent === undefined) {
             throw CallError.http("NOT_FOUND", {
                 message: `${declared.object.name} '${parentId}' not found`,
             });
-        } else if (parent["deletedAt"] !== null) {
+        } else if (isDeleted && declared.object.lifecycle.recoverable !== undefined) {
             throw ObjectError.of(
                 "OBJECT_BLOCKED",
                 `cannot add to ${declared.object.name} '${parentId}': it is in the trash`,
+            );
+        } else if (isDeleted) {
+            throw ObjectError.of(
+                "OBJECT_BLOCKED",
+                `cannot add to ${declared.object.name} '${parentId}': it is being deleted`,
+            );
+        } else if (
+            declared.object.lifecycle.archivable !== undefined &&
+            parent["archivedAt"] !== null
+        ) {
+            throw ObjectError.of(
+                "OBJECT_BLOCKED",
+                `cannot add to ${declared.object.name} '${parentId}': it is archived`,
             );
         }
     },

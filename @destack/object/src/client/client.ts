@@ -2347,6 +2347,11 @@ export class ObjectClient<
             );
         }
 
+        // refuse a method a trashed or archived target no longer takes, as the store does
+        if (target !== undefined) {
+            object.refuseBlocked(method, target);
+        }
+
         // predict the call on the target's identifier
         const targetId = target === undefined ? requested : schema.string().parse(target["id"]);
         const context: MethodContext = new MethodContext({

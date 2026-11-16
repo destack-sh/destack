@@ -136,7 +136,7 @@ export class Command<
     get isDestructive(): boolean {
         const { kind } = this.object.method(this.method);
 
-        return kind === "purge" || (DELETING_KINDS.has(kind) && !this.object.isTrashable());
+        return kind === "purge" || (DELETING_KINDS.has(kind) && !this.object.defersDeletion());
     }
 
     /** The JSON Schema of the input a caller gives beside the target and the preset fields. */

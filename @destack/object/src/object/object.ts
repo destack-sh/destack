@@ -110,6 +110,7 @@ import {
     type SharingGateOf,
 } from "../trait/shareable.ts";
 import { suspendable, type SuspendableMethodMap } from "../trait/suspendable.ts";
+import { archivable, type ArchivableMethodMap } from "../trait/archivable.ts";
 import { fencing, type FencingMethodMap } from "../trait/fencing.ts";
 import { readable, type ReadableMethodMap } from "../trait/readable.ts";
 import { writable, type WritableMethodMap } from "../trait/writable.ts";
@@ -192,10 +193,30 @@ interface Derived {
 /** The scope and identifier of an object's row, read from a row of any object table. */
 export const ObjectKey = schema.looseObject({ scope: schema.string(), id: schema.string() });
 
+/** The methods an object in the trash still takes. */
+const TRASH_METHODS: ReadonlySet<MethodKind> = new Set([
+    "get",
+    "restore",
+    "purge",
+    "relationships",
+]);
+
+/** The mutating methods an archived object still takes: archiving, deleting and sharing it. */
+const ARCHIVE_METHODS: ReadonlySet<MethodKind> = new Set([
+    "archive",
+    "unarchive",
+    "delete",
+    "restore",
+    "purge",
+    "grant",
+    "revoke",
+]);
+
 /** The options an object type over another package's table takes none of. */
 const FOREIGN_REFUSED = [
     "identity",
     "recoverable",
+    "archivable",
     "versioned",
     "controlled",
     "shareable",
@@ -359,6 +380,8 @@ export interface ObjectTraits<Permissions extends string = string> {
     readonly nested?: NestedDefinition;
     /** Deleted objects stay restorable for a window. */
     readonly recoverable?: RecoverableDefinition<Permissions>;
+    /** Holders of the permission archive the objects, read-only until unarchived. */
+    readonly archivable?: TraitPermission<Permissions>;
     /** The rules after which their store removes the objects. */
     readonly expiring?: readonly ExpiryRule[];
     /** The column callers and sources also address the objects by, unique within a scope. */
@@ -506,6 +529,8 @@ export interface ObjectLifecycle<Permissions extends string = string> {
     readonly declarationSchema: schema.Schema | undefined;
     /** How deleted objects stay restorable, for recoverable objects. */
     readonly recoverable: RecoverableDefinition<Permissions> | undefined;
+    /** Who archives the objects, for archivable objects. */
+    readonly archivable: TraitPermission<Permissions> | undefined;
     /** When their store removes the objects, for expiring objects. */
     readonly expiring: readonly ExpiryRule[] | undefined;
     /** Whether the objects are numbered versions of their parent. */
@@ -913,6 +938,24 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
         return this.table[TABLE].predefined;
     }
 
+    /** Refuse a method a trashed or archived object no longer takes, but the package's own. */
+    refuseBlocked(method: Method, target: Row): void {
+        // read the target's state, and whether the package's own method calls
+        const kind = this.name;
+        const isOwn = method.visibility === "package";
+        const isTrashed = this.lifecycle.recoverable !== undefined && target["deletedAt"] !== null;
+        const isArchived = this.lifecycle.archivable !== undefined && target["archivedAt"] !== null;
+
+        // refuse other methods on a trashed object
+        if (isTrashed && !isOwn && !TRASH_METHODS.has(method.kind)) {
+            throw ObjectError.of("OBJECT_BLOCKED", `cannot change ${kind}: it is in the trash`);
+        }
+        // refuse changing an archived object, but by archiving, deleting or sharing it
+        else if (isArchived && !isOwn && method.mutates && !ARCHIVE_METHODS.has(method.kind)) {
+            throw ObjectError.of("OBJECT_BLOCKED", `cannot change ${kind}: it is archived`);
+        }
+    }
+
     /** Refuse writing one of the type's predefined rows. */
     refusePredefined(id: string): void {
         if (Key.isPredefined(this.table, { id })) {
@@ -968,7 +1011,7 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
     /** Match the object a value addresses in a scope: by identifier, else the live key holder. */
     address(scope: string, value: string): Condition {
         const column = this.identify(value);
-        const isLive = column !== "id" && this.isTrashable();
+        const isLive = column !== "id" && this.defersDeletion();
 
         return { scope, [column]: value, ...(isLive ? { deletedAt: { isNull: true } } : {}) };
     }
@@ -1003,13 +1046,14 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
         );
     }
 
-    /** How the objects are declared, deleted, expired, versioned, tracked and converted. */
+    /** How the objects are declared, deleted, archived, expired, versioned and converted. */
     get lifecycle(): ObjectLifecycle<Configuration["permissions"]> {
         const { definition } = this;
 
         return {
             declarationSchema: this.declarationSchema(),
             recoverable: definition.recoverable,
+            archivable: definition.archivable,
             expiring: definition.expiring,
             versioned: definition.versioned,
             tracked: definition.tracked,
@@ -1999,11 +2043,11 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
         return this.storage !== "events" && this.traits.some((applied) => applied.trait === record);
     }
 
-    /** Decide whether the type deletes to a trash, by its recoverable or controlled trait. */
-    isTrashable(): this is ObjectOf<{
+    /** Decide whether deleting the objects first records it: in a trash, or for a controller. */
+    defersDeletion(): this is ObjectOf<{
         table: TraitTable<{ readonly recoverable: RecoverableDefinition }>;
     }> {
-        return ObjectTable.isTrashable(this.definition, this.traits);
+        return ObjectTable.defersDeletion(this.definition, this.traits);
     }
 
     /** Decide whether the type retains purged records, as its recoverable trait declares. */
@@ -2826,6 +2870,7 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
             nested,
             transitions,
             recoverable,
+            archivable,
             expiring,
             versioned,
             controlled,
@@ -3129,6 +3174,7 @@ type DefinitionTraits<Definition> = TraitOptions<{
     readonly key: Option<Definition, "key">;
     readonly nested: Option<Definition, "nested">;
     readonly recoverable: Option<Definition, "recoverable">;
+    readonly archivable: Option<Definition, "archivable">;
     readonly versioned: Option<Definition, "versioned">;
     readonly controlled: Option<Definition, "controlled">;
     readonly suspendable: Option<Definition, "suspendable">;
@@ -3323,6 +3369,7 @@ export type ManagerMethodMap<Definition, Methods> =
 /** The methods an object's traits derive beside its declared ones. */
 export type TraitMethods<Fields, Traits> = TransitionMethodMap<Fields> &
     RecoverableMethodMap<TraitOf<Traits, "recoverable">> &
+    ArchivableMethodMap<TraitPermissionOf<TraitOf<Traits, "archivable">>> &
     ControlledMethodMap<TraitOf<Traits, "controlled">> &
     NestedMethodMap<TraitOf<Traits, "nested">> &
     ShareableMethodMap<SharingGateOf<TraitOf<Traits, "shareable">>> &

@@ -46,6 +46,7 @@ export const ObjectError = defineErrorFamily({
         // invalid
         AGGREGATE_AT_POSITION_INVALID: {},
         APPROVERS_INVALID: {},
+        ARCHIVE_INVALID: {},
         BODY_INVALID: {},
         BROADCAST_INVALID: {},
         CALL_INVALID: {},
@@ -88,6 +89,7 @@ export const ObjectError = defineErrorFamily({
 
         // required
         APPROVERS_REQUIRED: {},
+        ARCHIVE_REQUIRED: {},
         BRANCHES_REQUIRED: {},
         COMBINATION_REQUIRED: {},
         FIELD_REQUIRED: {},
@@ -137,6 +139,7 @@ export const ObjectError = defineErrorFamily({
         TABLE_DENIED: {},
 
         // blocked
+        ARCHIVE_BLOCKED: {},
         BRANCH_BLOCKED: {},
         CALL_BLOCKED: {},
         DELETION_BLOCKED: {},

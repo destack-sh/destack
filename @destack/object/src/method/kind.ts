@@ -11,6 +11,8 @@ export const METHOD_KINDS = [
     "custom",
     "restore",
     "purge",
+    "archive",
+    "unarchive",
     "move",
     "transition",
     "relationships",
@@ -33,6 +35,8 @@ export type TargetKind =
     | "custom"
     | "restore"
     | "purge"
+    | "archive"
+    | "unarchive"
     | "move"
     | "transition"
     | "edit"

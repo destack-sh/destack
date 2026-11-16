@@ -10,6 +10,26 @@ import { ObjectSearch } from "../trait/search.ts";
 
 import type {} from "@destack/package/import-meta";
 
+/** The lifecycle states a root query selects: the trash and the archive. */
+const SELECTIONS = [
+    {
+        option: "deleted",
+        trait: "recoverable",
+        column: "deletedAt",
+        noun: "trash",
+        required: "TRASH_REQUIRED",
+        invalid: "TRASH_INVALID",
+    },
+    {
+        option: "archived",
+        trait: "archivable",
+        column: "archivedAt",
+        noun: "archive",
+        required: "ARCHIVE_REQUIRED",
+        invalid: "ARCHIVE_INVALID",
+    },
+] as const;
+
 /** The relations between a set of served object types, which their queries compile against. */
 export class RelationGraph {
     /** The served object types. */
@@ -211,9 +231,9 @@ export class RelationGraph {
     }
 }
 
-/** The derivation of object types' queries: defaults, relations, joins and trash conditions. */
+/** The derivation of object types' queries: defaults, relations, joins, trash and archive. */
 const QueryDerivation = {
-    /** Query every listed object type of a scope level by name, including recoverable trash. */
+    /** Query every listed object type of a scope level by name, including its trash and archive. */
     defaultQueries(objects: readonly ObjectType[], isGlobal: boolean): Record<string, ObjectQuery> {
         const listed = objects.filter(
             (object) =>
@@ -230,9 +250,11 @@ const QueryDerivation = {
                 {
                     object: object.name,
                     package: object.package.id,
-                    ...(object.lifecycle.recoverable === undefined
-                        ? {}
-                        : { deleted: "include" as const }),
+                    ...Object.fromEntries(
+                        SELECTIONS.filter(
+                            (selection) => object.lifecycle[selection.trait] !== undefined,
+                        ).map((selection) => [selection.option, "include"]),
+                    ),
                 },
             ]),
         );
@@ -245,20 +267,14 @@ const QueryDerivation = {
         graph: RelationGraph,
         isRoot: boolean,
     ): FindOptions {
-        // require a listed object type, and trash selection at the root only
+        // require a listed object type, selecting its trash and archive at the root only
         if (object.listing === undefined) {
             throw ObjectError.of(
                 "LISTING_REQUIRED",
                 `listing of object ${object.name} is required`,
             );
-        } else if (options.deleted !== undefined && object.lifecycle.recoverable === undefined) {
-            throw ObjectError.of("TRASH_REQUIRED", `trash of object ${object.name} is required`);
-        } else if (options.deleted !== undefined && !isRoot) {
-            throw ObjectError.of(
-                "TRASH_INVALID",
-                `trash selection is invalid: included ${object.name} objects cannot select their trash`,
-            );
         }
+        QueryDerivation.requireSelections(object, options, isRoot);
 
         // include the requested relations, a text holder's chunks among them
         const includes =
@@ -279,11 +295,10 @@ const QueryDerivation = {
             ),
         );
 
-        // filter a root's trashed rows, which relations leave out for included ones
-        const trash = isRoot ? QueryDerivation.trashCondition(object, options) : undefined;
+        // filter a root's trashed and archived rows, which relations leave out for included ones
         const where = QueryDerivation.joined([
             ...(options.where === undefined ? [] : [ObjectSearch.expand(object, options.where)]),
-            ...(trash === undefined ? [] : [trash]),
+            ...(isRoot ? QueryDerivation.selected(object, options) : []),
         ]);
 
         return {
@@ -300,26 +315,44 @@ const QueryDerivation = {
         };
     },
 
-    /** Select a root query's trashed or live rows of a recoverable type, absent for every row. */
-    trashCondition(
+    /** Refuse selecting the trash or archive of a type without one, or of an included type. */
+    requireSelections(
         object: ObjectType,
         options: Omit<ObjectQuery, "object" | "package">,
-    ): Condition | undefined {
-        const live = { deletedAt: { isNull: true } };
-        const deleted = options.deleted ?? "exclude";
+        isRoot: boolean,
+    ): void {
+        for (const { option, trait, noun, required, invalid } of SELECTIONS) {
+            // require the lifecycle trait, and a root query
+            if (options[option] !== undefined && object.lifecycle[trait] === undefined) {
+                throw ObjectError.of(required, `${noun} of object ${object.name} is required`);
+            } else if (options[option] !== undefined && !isRoot) {
+                throw ObjectError.of(
+                    invalid,
+                    `${noun} selection is invalid: included ${object.name} objects cannot select their ${noun}`,
+                );
+            }
+        }
+    },
 
-        // take every row of a type without trash, or when asked to
-        if (object.lifecycle.recoverable === undefined || deleted === "include") {
-            return undefined;
-        }
-        // take only the trashed rows
-        else if (deleted === "only") {
-            return { NOT: live };
-        }
-        // leave the trashed rows out
-        else {
-            return live;
-        }
+    /** Select a root query's trashed and archived rows, every row of a state it includes. */
+    selected(object: ObjectType, options: Omit<ObjectQuery, "object" | "package">): Condition[] {
+        return SELECTIONS.flatMap(({ option, trait, column }): Condition[] => {
+            const unmarked = { [column]: { isNull: true } };
+            const selection = options[option] ?? "exclude";
+
+            // take every row of a type without the state, or when asked to
+            if (object.lifecycle[trait] === undefined || selection === "include") {
+                return [];
+            }
+            // take only the rows in the state
+            else if (selection === "only") {
+                return [{ NOT: unmarked }];
+            }
+            // leave the rows in the state out
+            else {
+                return [unmarked];
+            }
+        });
     },
 
     /** Relate through a to-many join type to each referenced type, keyed by reference name. */
@@ -369,16 +402,16 @@ const QueryDerivation = {
 
     /** Relate one object of a type, leaving its trash out. */
     one(target: ObjectType, on: Relation["on"]): Relation {
-        return QueryDerivation.excludeTrashed(target, {
+        return QueryDerivation.excludeSelected(target, {
             table: target.table,
             cardinality: "one",
             on,
         });
     },
 
-    /** Relate many objects of a type, leaving its trash out. */
+    /** Relate many objects of a type, leaving its trash and archive out. */
     many(target: ObjectType, on: Relation["on"], where: Condition | undefined): Relation {
-        return QueryDerivation.excludeTrashed(target, {
+        return QueryDerivation.excludeSelected(target, {
             table: target.table,
             cardinality: "many",
             on,
@@ -386,13 +419,12 @@ const QueryDerivation = {
         });
     },
 
-    /** Leave a recoverable type's trashed objects out of a relation. */
-    excludeTrashed(target: ObjectType, relation: Relation): Relation {
+    /** Leave a type's trashed objects out of a relation, and its archived ones out of a list. */
+    excludeSelected(target: ObjectType, relation: Relation): Relation {
+        const archived = relation.cardinality === "one" ? "include" : "exclude";
         const where = QueryDerivation.joined([
             ...(relation.where === undefined ? [] : [relation.where]),
-            ...(target.lifecycle.recoverable === undefined
-                ? []
-                : [{ deletedAt: { isNull: true } }]),
+            ...QueryDerivation.selected(target, { archived }),
         ]);
 
         return where === undefined ? relation : { ...relation, where };

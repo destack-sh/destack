@@ -16,6 +16,8 @@ export type FindOptions<
     readonly scopes?: "every";
     /** Which trashed rows of a recoverable type to select, none by default. */
     readonly deleted?: "exclude" | "include" | "only";
+    /** Which archived rows of an archivable type to select, none by default. */
+    readonly archived?: "exclude" | "include" | "only";
     /** The permission the caller also has on each row, beside reading it. */
     readonly permission?: PermissionOf<Object>;
 };

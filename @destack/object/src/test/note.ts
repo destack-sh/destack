@@ -4,6 +4,7 @@ import { defineDatabase } from "@destack/db";
 import { defineExample } from "@destack/package/declare";
 import { PackageVersion } from "@destack/package";
 import {
+    archivable,
     defineObject,
     definePackage,
     field,
@@ -23,7 +24,7 @@ const NOTES = PackageVersion.parse({
     version: "2026.9.0",
 });
 
-/** A collection of notes, shared with everyone who works on them. */
+/** A collection of notes, shared with everyone who works on them, archived once done. */
 export const notebook = defineObject(
     {
         name: "notebook",
@@ -34,7 +35,7 @@ export const notebook = defineObject(
             name: field.string(schema.string().min(1).max(200)),
             noteCount: field.count(),
         },
-        traits: [shareable({})],
+        traits: [shareable({}), archivable({ by: "manage" })],
     },
     (method) => ({
         create: method.create("manage"),

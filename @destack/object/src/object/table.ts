@@ -16,6 +16,7 @@ import type { Field, FieldColumn, TextField } from "../field/field.ts";
 import type { RecordBuilderMap, WriterBuilderMap } from "../trait/record.ts";
 import type { managedColumns } from "../trait/record.ts";
 import type { DeletionBuilderMap, deletionColumns } from "../trait/recoverable.ts";
+import type { ArchiveBuilderMap, archiveColumns } from "../trait/archivable.ts";
 import type { ParentBuilderMap } from "../trait/nested.ts";
 import type { TraitObject } from "../trait/trait.ts";
 import type { VersionBuilderMap } from "../trait/versioned.ts";
@@ -82,6 +83,7 @@ type TraitBuilderMap = {
     purgedAt: ColumnBuilder<FieldColumn<number, false, false>>;
     number: ColumnBuilder<FieldColumn<number, true, false>>;
 } & ReturnType<typeof deletionColumns> &
+    ReturnType<typeof archiveColumns> &
     ReturnType<typeof controlledColumns> &
     ReturnType<typeof suspensionColumns> &
     ReturnType<typeof managedColumns>;
@@ -121,6 +123,7 @@ export type ObjectBuilderMap<
     ScopeBuilderMap<Scope> &
     ParentBuilderMap<Identity, TraitOf<Traits, "nested">> &
     DeletionBuilderMap<TraitOf<Traits, "recoverable">> &
+    ArchiveBuilderMap<TraitOf<Traits, "archivable">> &
     VersionBuilderMap<TraitOf<Traits, "versioned">> &
     ControlledBuilderMap<TraitOf<Traits, "controlled">> &
     SuspensionBuilderMap<TraitOf<Traits, "suspendable">> &
@@ -151,8 +154,8 @@ export type ObjectTable<
 
 /** An object type's table: derived from its traits, scope and fields. */
 export const ObjectTable = {
-    /** Decide whether a type's objects go to the trash first: recoverable or controlled. */
-    isTrashable(
+    /** Decide whether deleting a type's objects first records it, for a trash or controller. */
+    defersDeletion(
         definition: { readonly recoverable?: unknown },
         traits: readonly TraitInstance[],
     ): boolean {
@@ -214,7 +217,7 @@ export const ObjectTable = {
                                       kind: "index",
                                       on: ["scope", definition.key],
                                       unique: true,
-                                      ...(ObjectTable.isTrashable(definition, applied)
+                                      ...(ObjectTable.defersDeletion(definition, applied)
                                           ? { where: { deletedAt: { isNull: true } } }
                                           : {}),
                                   },

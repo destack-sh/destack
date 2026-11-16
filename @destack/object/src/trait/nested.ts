@@ -194,7 +194,7 @@ const nestedTrait: TraitBehavior<NestedDefinition> = {
         const parent = options.in === "self" ? object : options.in;
         if (
             options.delete === "trash" &&
-            (parent === "any" || !parent.isTrashable() || !object.isTrashable())
+            (parent === "any" || !parent.defersDeletion() || !object.defersDeletion())
         ) {
             throw new TypeError(
                 `object ${object.name} moves to the trash with its parent, so both must have a trash`,

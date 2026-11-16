@@ -1,3 +1,4 @@
+export { archivable } from "./archivable.ts";
 export { recoverable } from "./recoverable.ts";
 export type { ManagedTable } from "./record.ts";
 export { controlled, type ControlledDefinition } from "./controlled.ts";
