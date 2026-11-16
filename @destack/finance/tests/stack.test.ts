@@ -82,9 +82,11 @@ test("declare the platform's seller active and its plans with their prices and g
     expect({
         again,
         sellers: sellers.map((row) => [row.status, row.providerId]),
-        products: products.map((row) => [row.name.source, row.active]).toSorted(byJson),
+        products: products
+            .map((row) => [row.name.source, row.archivedAt === null])
+            .toSorted(byJson),
         prices: prices
-            .map((row) => [named.get(row.parentId), row.unitAmount, row.active])
+            .map((row) => [named.get(row.parentId), row.unitAmount, row.archivedAt === null])
             .toSorted(byJson),
         grants: grants
             .map((row) => [named.get(row.parentId), row.feature, row.value])

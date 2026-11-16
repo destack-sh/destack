@@ -13,7 +13,7 @@ import { type FeatureGrant } from "../feature/grant.ts";
 import { productFeature } from "./product-feature.ts";
 import { seller } from "./seller.ts";
 import type {} from "@destack/package/import-meta";
-import { nested } from "@destack/object";
+import { archivable, nested } from "@destack/object";
 import { argument, plural, t } from "@destack/locale";
 
 /** The fields of every recurring price beside its usage. */
@@ -81,8 +81,6 @@ export const price = defineObject(
             billingScheme: field.enum(["per_unit", "tiered"]).default("per_unit"),
             /** The tiers of a tiered price, in rising order. */
             tiers: field.json(schema.array(Tier).min(1)).optional(),
-            /** Whether buyers may buy at the price. */
-            active: field.boolean().default(true),
             /** The payment provider's identifier of the price, mirrored at its first sale. */
             providerId: field.string().optional(),
         },
@@ -127,7 +125,10 @@ export const price = defineObject(
                 provide: through("parent", "provide"),
             },
         },
-        traits: [nested({ in: product, delete: "cascade", add: "sell" })],
+        traits: [
+            nested({ in: product, delete: "cascade", add: "sell" }),
+            archivable({ by: "sell" }),
+        ],
     },
     (method) => ({
         create: method.create("sell", {
@@ -139,12 +140,10 @@ export const price = defineObject(
                 "recurring",
                 "billingScheme",
                 "tiers",
-                "active",
             ],
         }),
         /** Record the provider's identifier of the price. */
         record: method.update("provide", { visibility: "package", fields: ["providerId"] }),
-        update: method.update("sell", { fields: ["active"] }),
     }),
 );
 /** The provider's identifiers of the product and prices a sale mirrored first, by finance's own. */
@@ -175,7 +174,7 @@ export const Price = {
         return Table.selectSchema(price.table).pick(PRICE_TERMS).parse(Object.fromEntries(terms));
     },
 
-    /** Read an active price's terms and its product's grants. */
+    /** Read the terms of a price on sale and its product's grants. */
     async offer(
         reference: { readonly scope: string; readonly id: string },
         reader: Pick<Snapshot, "read">,
@@ -192,12 +191,12 @@ export const Price = {
 
         // refuse a price or product taken off sale
         const owner = await reader.read(product.table).findFirst({ where: { id: row.parentId } });
-        if (!row.active) {
-            throw FinanceError.of("PRICE_INVALID", `price '${id}' is invalid: it is inactive`);
-        } else if (!present(owner, "a price's product").active) {
+        if (row.archivedAt !== null) {
+            throw FinanceError.of("PRICE_INVALID", `price '${id}' is invalid: it is archived`);
+        } else if (present(owner, "a price's product").archivedAt !== null) {
             throw FinanceError.of(
                 "PRODUCT_INVALID",
-                `product '${row.parentId}' is invalid: it is inactive`,
+                `product '${row.parentId}' is invalid: it is archived`,
             );
         }
 

@@ -2,7 +2,7 @@ import { resource, through, union } from "@destack/access";
 import { account, space } from "@destack/account/object";
 import { type Select } from "@destack/db";
 import { argument, Localization, plural, SOURCE_LOCALE, t } from "@destack/locale";
-import { defineObject, field } from "@destack/object";
+import { archivable, defineObject, field } from "@destack/object";
 
 /** The source language, in which providers without translations show products. */
 const SOURCE = Localization.of(SOURCE_LOCALE, []);
@@ -22,8 +22,6 @@ export const product = defineObject(
             name: field.message(),
             /** What buyers get, rendered with the declaring package's catalogs. */
             description: field.message(),
-            /** Whether buyers may buy it. */
-            active: field.boolean().default(true),
             /** Whether accounts without a subscription get its grants, valid without prices. */
             isDefault: field.boolean().default(false),
             /** A default product's usage per member a month, in credit minor units. */
@@ -38,30 +36,25 @@ export const product = defineObject(
             includedUsage: { kind: "check", condition: { includedUsage: { gte: 0 } } },
         },
         access: {
-            attributes: { active: "boolean" },
             permissions: {
-                read: union(through("account", "read"), resource({ active: true })),
+                read: union(
+                    through("account", "read"),
+                    resource({ "archived-at": { isNull: true } }),
+                ),
                 sell: through("account", "manage"),
                 provide: through("account", "serve"),
             },
         },
+        traits: [archivable({ by: "sell" })],
     },
     (method) => ({
         create: method.create("sell", {
-            fields: [
-                "accountId",
-                "name",
-                "description",
-                "active",
-                "isDefault",
-                "includedUsage",
-                "overage",
-            ],
+            fields: ["accountId", "name", "description", "isDefault", "includedUsage", "overage"],
         }),
         /** Record the provider's identifier of the product. */
         record: method.update("provide", { visibility: "package", fields: ["providerId"] }),
         update: method.update("sell", {
-            fields: ["name", "description", "active", "isDefault", "includedUsage", "overage"],
+            fields: ["name", "description", "isDefault", "includedUsage", "overage"],
         }),
     }),
 );

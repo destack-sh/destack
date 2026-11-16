@@ -74,29 +74,30 @@ test("offer a product at a price granting declared features, read by buyers whil
         ["sync", null],
     ]);
 
-    // let buyers outside the shop read its active products alone
-    const draft = await finance.call(
+    // let buyers outside the shop read its products on sale alone, not an archived one
+    const team = await finance.call(
         "carol",
         product.call("create", {
             accountId: ids.shop,
             name: t`Team`,
             description: t`Not offered yet.`,
-            active: false,
         }),
     );
+    const archived = await finance.call("carol", product.call("archive", { id: team.id }));
     const listed = (shopper: "alice" | "carol") =>
         finance.call(
             shopper,
             product.call("list", {
                 where: { accountId: ids.shop },
                 orderBy: { createdAt: "asc" },
+                archived: "include",
             }),
         );
     expect([
         (await listed("alice")).items.map((item) => item.name.source),
         (await listed("carol")).items.map((item) => item.name.source),
-        draft.active,
-    ]).toEqual([["Pro"], ["Pro", "Team"], false]);
+        archived.archivedAt !== null,
+    ]).toEqual([["Pro"], ["Pro", "Team"], true]);
 });
 
 test("let only a shop's sellers offer products in it, granting only features of packages its account publishes", async () => {
@@ -167,32 +168,14 @@ test("refuse offering a price or a product taken off sale", async () => {
     // take the monthly price off sale before the plan
     const offered = () => refusal(Price.offer(offer.monthly, Snapshot.live(finance.database)));
     const before = await offered();
-    await finance.call(
-        "carol",
-        price.call("update", {
-            id: offer.monthly.id,
-            active: false,
-        }),
-    );
-    const inactivePrice = await offered();
-    await finance.call(
-        "carol",
-        price.call("update", {
-            id: offer.monthly.id,
-            active: true,
-        }),
-    );
-    await finance.call(
-        "carol",
-        product.call("update", {
-            id: offer.product,
-            active: false,
-        }),
-    );
-    expect([before, inactivePrice, await offered()]).toEqual([
+    await finance.call("carol", price.call("archive", { id: offer.monthly.id }));
+    const archivedPrice = await offered();
+    await finance.call("carol", price.call("unarchive", { id: offer.monthly.id }));
+    await finance.call("carol", product.call("archive", { id: offer.product }));
+    expect([before, archivedPrice, await offered()]).toEqual([
         "done",
-        ["BAD_REQUEST", "PRICE_INVALID", `price '${offer.monthly.id}' is invalid: it is inactive`],
-        ["BAD_REQUEST", "PRODUCT_INVALID", `product '${offer.product}' is invalid: it is inactive`],
+        ["BAD_REQUEST", "PRICE_INVALID", `price '${offer.monthly.id}' is invalid: it is archived`],
+        ["BAD_REQUEST", "PRODUCT_INVALID", `product '${offer.product}' is invalid: it is archived`],
     ]);
 });
 

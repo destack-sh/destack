@@ -35,7 +35,7 @@ interface Offering {
     readonly product: Product;
     /** The seller of the product's account. */
     readonly seller: Seller;
-    /** The product's active recurring prices in the currency, empty for a default product. */
+    /** The product's recurring prices on sale in the currency, empty for a default product. */
     readonly prices: readonly Price[];
 }
 
@@ -43,11 +43,11 @@ interface Offering {
 const Offering = {
     /** Read a product's offering in a currency, a default product's without prices. */
     async read(wanted: Purchasable, context: Pick<MethodContext, "read">): Promise<Offering> {
-        // read the active product
+        // read the product on sale
         const row = await context
             .read(product)
             .findFirst({ where: { id: product.identifier(wanted.product.id) } });
-        if (row === undefined || !row.active || row.scope !== wanted.product.scope) {
+        if (row === undefined || row.archivedAt !== null || row.scope !== wanted.product.scope) {
             throw FinanceError.of(
                 "PRODUCT_NOT_FOUND",
                 `product '${wanted.product.id}' on sale not found`,
@@ -62,10 +62,10 @@ const Offering = {
             return { product: row, seller: sold, prices: [] };
         }
 
-        // read its active recurring prices in the currency, requiring a licensed fee, 0 for pay-as-you-go
-        const prices = await context
-            .read(price)
-            .findMany({ where: { parentId: row.id, currency: wanted.currency, active: true } });
+        // read its recurring prices on sale in the currency, requiring a licensed fee, 0 for pay-as-you-go
+        const prices = await context.read(price).findMany({
+            where: { parentId: row.id, currency: wanted.currency, archivedAt: { isNull: true } },
+        });
         if (prices.every((each) => Price.isMetered(each))) {
             throw FinanceError.of(
                 "PRICE_REQUIRED",

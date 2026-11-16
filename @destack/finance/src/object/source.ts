@@ -83,7 +83,7 @@ export class Source {
         const subscribed = new Set(subscriptions.map((row) => row.sellerId));
         const defaults = await reader
             .read(product.table)
-            .findMany({ where: { isDefault: true, active: true } });
+            .findMany({ where: { isDefault: true, archivedAt: { isNull: true } } });
         const selling = await reader.read(seller.table).findMany({
             where: { accountId: { in: defaults.map((row) => row.accountId) } },
         });
