@@ -1,5 +1,5 @@
 import { AuditActionName, call } from "@destack/object";
-import type { DatabaseConnection, LogCursor, Select } from "@destack/db";
+import { type DatabaseConnection, type LogCursor, LogPosition, type Select } from "@destack/db";
 import type { ObjectStore } from "@destack/object/server";
 import { ConditionSet, defineObject, field } from "@destack/object";
 import { Duration, schema } from "@destack/schema";
@@ -38,6 +38,8 @@ export const endpoint = defineObject(
             secret: field.json(ObjectReference),
             /** Whether the calls go to the endpoint. */
             status: field.enum(["enabled", "disabled"]).default("enabled"),
+            /** The log position its creating call started at, after which its calls go to it. */
+            base: field.json(LogPosition),
         },
         constraints: {
             scope: { kind: "index", on: ["scope", "status"] },
@@ -77,15 +79,15 @@ export const Endpoint = {
         return store.query(store.as(endpoint), endpoint.call("get", target));
     },
 
-    /** Read where an endpoint's delivery continues in its calls, the log's head at first. */
+    /** Read where an endpoint's delivery continues in its calls, its base at first. */
     async after(database: DatabaseConnection, row: Endpoint, now: number): Promise<number> {
-        // read its cursor, placing it at the log's head on its first delivery
+        // read its cursor, placing it at the endpoint's base on its first delivery
         const cursor = Endpoint.cursor(row);
         const placed = await database.log.checkpoint(cursor.name);
         if (placed !== undefined) {
             return placed;
         }
-        const { sequence } = await database.log.position();
+        const { sequence } = row.base;
         await database.log.advance(cursor, sequence, now + Duration.milliseconds(ENDPOINT_HOLD));
 
         return sequence;

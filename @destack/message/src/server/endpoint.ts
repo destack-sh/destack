@@ -34,7 +34,11 @@ export function implementEndpoint(keys: Pick<Deriver, "derivePrivateKey">) {
             create: async (mutation, next) => {
                 // let the installation consume the secret, as its creator may let software use it
                 requireHeader(mutation.input.authentication);
-                const created = await next();
+
+                // start its delivery at the position the call started at
+                const created = await next(
+                    mutation.with({ input: { ...mutation.input, base: mutation.base } }),
+                );
                 await consume(mutation, created.secret);
 
                 return created;
