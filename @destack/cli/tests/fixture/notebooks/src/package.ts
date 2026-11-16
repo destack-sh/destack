@@ -1,10 +1,10 @@
 import { space } from "@destack/account/object";
 import { relation } from "@destack/access";
-import { definePackage, defineObject, field } from "@destack/object";
+import { activity, definePackage, defineObject, field, tracked } from "@destack/object";
 import { schema } from "@destack/schema";
 import { argument, plural, t } from "@destack/locale";
 
-/** A notebook in a space, which its owner writes in. */
+/** A notebook in a space, which its owner writes in, its changes kept as activities. */
 export const notebook = defineObject(
     {
         name: "notebook",
@@ -20,6 +20,7 @@ export const notebook = defineObject(
         access: {
             permissions: { read: relation("owner"), manage: relation("owner") },
         },
+        traits: [tracked({ by: "manage", activity })],
     },
     (method) => ({
         create: method.create("manage", { fields: ["title"] }),

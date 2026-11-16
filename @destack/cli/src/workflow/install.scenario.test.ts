@@ -33,6 +33,16 @@ const Statuses = schema.array(
     }),
 );
 
+/** The printed activities of the space's history, as far as the scenario reads them. */
+const Activities = schema.array(
+    schema.looseObject({
+        parentType: schema.string(),
+        parentId: schema.string(),
+        fields: schema.array(schema.string()),
+        changes: schema.number(),
+    }),
+);
+
 /** The printed calls of the space's call log, by method. */
 const Calls = schema.array(
     schema.looseObject({ data: schema.looseObject({ method: schema.string() }) }),
@@ -69,8 +79,11 @@ test("install a published app, waiting until the space serves it, then write its
     watching.interrupt();
     const watched = await watching.printed;
     const calls = Calls.parse(JSON.parse((await run(["calls", "--json"])).output));
+    const history = await run(["object:activities", "--json"]);
+    const activities = Activities.parse(JSON.parse(history.output));
+    const notebook = schema.looseObject({ id: schema.string() }).parse(JSON.parse(created.output));
 
-    // install once the home serves the revision, show no notebooks then the created one, and log its call
+    // install once the home serves the revision, show no notebooks then the created one, and log its call and its history
     expect({
         organized: organized.code,
         published: [published.code, published.error],
@@ -86,6 +99,12 @@ test("install a published app, waiting until the space serves it, then write its
         calls: calls
             .map((call) => call.data.method)
             .filter((method) => method.split(".")[0] === "notebook"),
+        activities: activities.map(({ parentType, parentId, fields, changes }) => ({
+            parentType,
+            parentId,
+            fields,
+            changes,
+        })),
     }).toEqual({
         organized: 0,
         published: [0, ""],
@@ -102,5 +121,14 @@ test("install a published app, waiting until the space serves it, then write its
         version: RELEASE,
         watched: [130, [[], [JSON.parse(created.output)]], ""],
         calls: ["notebook.create"],
+        // record the creation as one activity on the notebook, with the fields it wrote
+        activities: [
+            {
+                parentType: "notebook",
+                parentId: notebook.id,
+                fields: ["ownerPackageId", "ownerType", "ownerScope", "ownerId", "title"],
+                changes: 1,
+            },
+        ],
     });
 });
