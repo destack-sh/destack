@@ -13,7 +13,6 @@ import {
 } from "../sql/index.ts";
 import { classifyError, DatabaseError, type DeclaredNames } from "../error/error.ts";
 import { DatabaseDriver } from "./driver.ts";
-import { StatementRecords } from "./statements.ts";
 import { TransactionSpans } from "./spans.ts";
 import type { ColumnCipher } from "./cipher.ts";
 import type { Session } from "./session.ts";
@@ -721,8 +720,6 @@ export class ConnectionState {
     readonly scope: TelemetryScope;
     /** The commits that lost a race on their reads and ran again, counted by database. */
     readonly retries: ReturnType<TelemetryScope["meter"]["createCounter"]>;
-    /** The records of the statements the connection ran, by span path and text. */
-    readonly statementRecords = new StatementRecords();
     /** The spans this process's latest logging transactions ran in. */
     readonly transactionSpans: TransactionSpans;
     /** The SQL names of the tables the declaration replicates, empty over bare tables. */

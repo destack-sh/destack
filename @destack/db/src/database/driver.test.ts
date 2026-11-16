@@ -3,8 +3,6 @@ import { testSimulation } from "@destack/test/world";
 import { SimulatedTelemetry } from "@destack/environment/simulation";
 import { asc, defineTable, sql, TABLE, text } from "../index.ts";
 import { TestDatabase } from "../test/index.ts";
-import { TelemetryScope } from "@destack/telemetry";
-import type {} from "@destack/package/import-meta";
 
 /** The notes a database keeps. */
 const note = defineTable("telemetry_note", {
@@ -66,43 +64,6 @@ test("count a database's statements, transactions, commits and connection waits 
 
     // expect the commit's one wake, the read's one cache miss, and SQLite's queue timing each statement's turn
     expect(grown).toEqual(statements);
-});
-
-test("record each statement text under the span path that ran it, with its runs and rows", async () => {
-    // insert two notes in a named work, then read them outside any
-    await using simulation = testSimulation();
-    const world = simulation.environment("test");
-    const telemetry = new SimulatedTelemetry(world);
-    const storage = await TestDatabase.create([note], {
-        environment: { ...world, telemetry },
-        isMigrated: true,
-    });
-    onTestFinished(() => storage.close());
-    const { database } = storage;
-    const scope = TelemetryScope.of(import.meta.destack.package, telemetry);
-    await scope.span("destack.note.create", { "destack.note.name": "a" }, () =>
-        database.transaction(async (transaction) => {
-            await transaction.insert(note).values({ id: "a", body: "first" }).execute();
-            await transaction.insert(note).values({ id: "b", body: "second" }).execute();
-        }),
-    );
-    await database.select().from(note);
-
-    // expect one record per text and span path, the inserts' under the span's transaction, leaving out times and hashes
-    const name = database.state.name;
-    const records = database.state.statementRecords
-        .list()
-        .filter(({ summary }) => /^(INSERT|SELECT) destack__db__telemetry_note$/u.test(summary))
-        .map(({ path, summary, count, rows }) => ({ path, summary, count, rows }));
-    expect(records.toSorted((left, right) => left.path.localeCompare(right.path))).toEqual([
-        { path: "(none)", summary: "SELECT destack__db__telemetry_note", count: 1, rows: 2 },
-        {
-            path: `destack.note.create[a]>destack.transaction.run[${name}:database]`,
-            summary: "INSERT destack__db__telemetry_note",
-            count: 2,
-            rows: 2,
-        },
-    ]);
 });
 
 test("announce a write through all whenever it runs, whatever rows it answers", async () => {

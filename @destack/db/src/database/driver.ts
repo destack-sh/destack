@@ -95,9 +95,8 @@ export class DatabaseDriver {
                 return value;
             },
             (seconds) => {
-                // add the run to its record and the running spans' totals
+                // add the run to the running spans' totals
                 const active = context.active();
-                state.statementRecords.add(SpanPath.of(active), statement, seconds, rows);
                 SpanPath.add(active, "db.client.operation.count", 1);
                 SpanPath.add(active, "db.client.operation.duration", seconds);
                 SpanPath.add(active, "db.response.returned_rows", rows);
