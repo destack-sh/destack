@@ -6,6 +6,12 @@ import type { Check, Selector } from "@destack/package/declare";
 /** The span attribute counting the statements run inside a span, nested ones included. */
 const STATEMENTS = "db.client.operation.count";
 
+/** The histogram every statement records its duration in, by database, operation and table. */
+const STATEMENT_DURATION = "db.client.operation.duration";
+
+/** The counter of keys a committed change woke, by job and changed table. */
+const KEY_WAKES = "destack.controller.wakes";
+
 /** The spans whose statements a recording totals: a job's pass and an object call. */
 const MEASURED_SPANS: ReadonlySet<string> = new Set([
     "destack.controller.pass",
@@ -235,6 +241,35 @@ export class Recording {
         }
 
         return counters;
+    }
+
+    /** Count the statements run on every database, by operation and table. */
+    queries(): Record<string, number> {
+        const queries: Record<string, number> = {};
+        for (const point of this.points.filter((each) => each.name === STATEMENT_DURATION)) {
+            // read the statement's operation and its table, absent for a transaction
+            const operation = String(point.attributes["db.operation.name"]);
+            const table = point.attributes["db.collection.name"];
+            const target = typeof table === "string" ? `${operation}:${table}` : operation;
+            const key = `queries{${target}}`;
+            queries[key] = (queries[key] ?? 0) + point.value;
+        }
+
+        return queries;
+    }
+
+    /** Count the keys changes woke, by the job woken and the changed table. */
+    wakes(): Record<string, number> {
+        const wakes: Record<string, number> = {};
+        for (const point of this.points.filter((each) => each.name === KEY_WAKES)) {
+            // read the woken job and the changed table
+            const job = String(point.attributes["destack.controller.name"]);
+            const table = String(point.attributes["db.collection.name"]);
+            const key = `wakes{${job}:${table}}`;
+            wakes[key] = (wakes[key] ?? 0) + point.value;
+        }
+
+        return wakes;
     }
 
     /** Count each controller pass and object call and total its statements, by the span's label. */

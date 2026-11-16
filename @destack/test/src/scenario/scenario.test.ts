@@ -13,6 +13,7 @@ import {
 import { schema } from "@destack/schema";
 import { expect, test } from "vitest";
 import { type Driver, type DriverType, Runner } from "./scenario.ts";
+import { Recording } from "./recording.ts";
 
 /** A tally's step: marking it once. */
 const MarkStep = schema.object({ action: schema.literal("mark") });
@@ -202,15 +203,16 @@ test("measure an operation in Go benchmark lines", async () => {
         },
     ]);
 
-    // expect configuration lines, then one line per operation with values per repetition, host times left out as they vary
+    // expect configuration lines, then one line per operation with values per repetition, host times and the start left out as they vary
     const lines = Runner.format(markTally, measured, { pkg: "@destack/test", database: "sqlite" })
         .replaceAll(/ \S+ (sec|p50-sec|p95-sec|cpu-sec)\/op/gu, " N $1/op")
+        .replace(/ \d+ start-unix-ms/u, " N start-unix-ms")
         .split("\n");
     expect(lines).toEqual([
         "pkg: @destack/test",
         "database: sqlite",
         "",
-        "BenchmarkTally/marks=4/op=tally.mark 4 N sec/op N p50-sec/op N p95-sec/op N cpu-sec/op 0 world-sec/op 1 tally.marks/op 1 tally.marks@tally/op",
+        "BenchmarkTally/marks=4/op=tally.mark 4 N sec/op N p50-sec/op N p95-sec/op N cpu-sec/op 0 world-sec/op N start-unix-ms 1 tally.marks/op 1 tally.marks@tally/op",
         "",
     ]);
 });
@@ -280,4 +282,33 @@ test("collect a play's undeclared error records", async () => {
         (await Runner.playthrough(negative, TallyDriver)).errors,
         (await Runner.playthrough(declared, TallyDriver)).errors,
     ]).toEqual([["negative marks"], []]);
+});
+
+/** Describe one data point of a metric the world itself emitted. */
+function point(name: string, attributes: Record<string, string>, value: number) {
+    return { name, host: undefined, attributes, value };
+}
+
+test("count statements by operation and table, and wakes by job and table", () => {
+    // record two selects of one table, a transaction, and a job woken twice by a table
+    const select = { "db.operation.name": "SELECT", "db.collection.name": "note" };
+    const recording = new Recording(
+        [],
+        [],
+        [
+            point("db.client.operation.duration", { ...select, "db.namespace": "main" }, 1),
+            point("db.client.operation.duration", { ...select, "db.namespace": "replica" }, 1),
+            point("db.client.operation.duration", { "db.operation.name": "TRANSACTION" }, 1),
+            point(
+                "destack.controller.wakes",
+                { "destack.controller.name": "note.index", "db.collection.name": "note" },
+                2,
+            ),
+        ],
+    );
+
+    expect({ queries: recording.queries(), wakes: recording.wakes() }).toEqual({
+        queries: { "queries{SELECT:note}": 2, "queries{TRANSACTION}": 1 },
+        wakes: { "wakes{note.index:note}": 2 },
+    });
 });

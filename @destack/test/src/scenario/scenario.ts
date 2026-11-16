@@ -82,6 +82,8 @@ export interface Measurement {
     readonly operation: string | undefined;
     /** The repetitions taken. */
     readonly times: number;
+    /** When the first repetition started on the host's clock, in Unix milliseconds. */
+    readonly startedAt: number;
     /** The host time each repetition took, in seconds, in order. */
     readonly host: readonly number[];
     /** The host CPU time all repetitions took, in seconds. */
@@ -271,7 +273,10 @@ export const Runner = {
         const header = Object.entries(configuration).map(([key, value]) => `${key}: ${value}`);
 
         // name each line by scenario and operation, its values per repetition
-        const lines = measured.map(({ operation, times, host, cpu, world, counters }) => {
+        const lines = measured.map((measurement) => {
+            // read the measurement
+            const { operation, times, startedAt, host, cpu, world, counters } = measurement;
+
             // write host time per repetition and its quantiles, CPU, world time and each counter
             const parameters = Object.entries(scenario.parameters).map(
                 ([key, value]) => `/${key}=${value}`,
@@ -285,6 +290,7 @@ export const Runner = {
                 `${quantile(ordered, 0.95)} p95-sec/op`,
                 `${cpu / times} cpu-sec/op`,
                 `${world / times} world-sec/op`,
+                `${startedAt} start-unix-ms`,
                 ...Object.entries(counters).map(([unit, value]) => `${value / times} ${unit}/op`),
             ];
 
@@ -327,6 +333,7 @@ async function measure(
         recorded: await Recording.read(driver.telemetry),
     };
     const host: number[] = [];
+    const startedAt = testHost().clock.now();
     const times = operation.times ?? 1;
     for (let repetition = 0; repetition < times; repetition += 1) {
         const acted = Clock.monotonic.now();
@@ -352,10 +359,16 @@ async function measure(
     return {
         operation: operation.operation,
         times,
+        startedAt,
         host,
         cpu,
         world: (after.now - before.now) / MILLISECONDS,
-        counters: { ...emitted.counters(), ...emitted.work() },
+        counters: {
+            ...emitted.counters(),
+            ...emitted.work(),
+            ...emitted.queries(),
+            ...emitted.wakes(),
+        },
         failures: emitted.failures(labelOf(operation), times, checks),
     };
 }
