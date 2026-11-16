@@ -510,6 +510,78 @@ test("commit the last record of a key alone, and the earlier one once a savepoin
     expect(recorded.map((row) => row.id).toSorted()).toEqual(["other", "second"]);
 });
 
+test("prepare the first participant of a key once before the commit, its writes committing with the transaction's, and confirm it", async () => {
+    const { database } = await open();
+    const calls: string[] = [];
+
+    // enlist a participant writing a row, and another under the same key
+    const transaction = await Transaction.open(database);
+    await transaction.write({
+        table: task,
+        before: null,
+        after: { id: "d", scope: "steps", priority: 1 },
+    });
+    transaction.enlist("names", {
+        prepare: async () => {
+            calls.push(`prepare ${transaction.changes.writes([task])}`);
+            await transaction.write({
+                table: task,
+                before: null,
+                after: { id: "e", scope: "steps", priority: 2 },
+            });
+        },
+        confirm: async () => void calls.push("confirm"),
+        cancel: async () => void calls.push("cancel"),
+    });
+    transaction.enlist("names", {
+        prepare: async () => void calls.push("second"),
+        confirm: async () => void calls.push("second"),
+        cancel: async () => void calls.push("second"),
+    });
+    await transaction.commit();
+
+    // prepare the first participant alone after the transaction's write, and commit both rows
+    const written = (await tasks(database)).filter((row) => row.scope === "steps");
+    expect({ calls, written: written.map((row) => row.id).toSorted() }).toEqual({
+        calls: ["prepare 1", "confirm"],
+        written: ["d", "e"],
+    });
+});
+
+test("cancel the prepared participants once a later one refuses the commit, committing nothing", async () => {
+    const { database } = await open();
+    const calls: string[] = [];
+
+    // enlist a participant, then one refusing the commit
+    const transaction = await Transaction.open(database);
+    await transaction.write({
+        table: task,
+        before: null,
+        after: { id: "d", scope: "steps", priority: 1 },
+    });
+    transaction.enlist("names", {
+        prepare: async () => void calls.push("prepare"),
+        confirm: async () => void calls.push("confirm"),
+        cancel: async () => void calls.push("cancel"),
+    });
+    transaction.enlist("refusal", {
+        prepare: async () => {
+            throw new TypeError("name taken");
+        },
+        confirm: async () => void calls.push("refusal"),
+        cancel: async () => void calls.push("refusal"),
+    });
+    const committing: unknown = await transaction.commit().catch((error: unknown) => error);
+
+    // pass the refusal on, cancel the first participant alone, and write no row
+    const written = (await tasks(database)).filter((row) => row.scope === "steps");
+    expect({ committing, calls, written }).toEqual({
+        committing: new TypeError("name taken"),
+        calls: ["prepare", "cancel"],
+        written: [],
+    });
+});
+
 test("refuse a write sharing a unique key with a committed row, the transaction's or its batch's, nulls being equal and archived rows outside the key", async () => {
     // run in a world of its own
     const simulation = testSimulation();

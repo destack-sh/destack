@@ -1,4 +1,4 @@
-import { nth, canonicalize } from "@destack/schema";
+import { nth, canonicalize, present } from "@destack/schema";
 import type { DatabaseConnection } from "../database/connection.ts";
 import { type Dialect } from "../dialect/dialect.ts";
 import { elementValue, jsonElements, jsonOf, Statement } from "../query/statement.ts";
@@ -545,6 +545,8 @@ export class Transaction {
     }[] = [];
     /** The items the transaction writes in one batch per writer at commit, in order. */
     readonly #batched: { readonly writer: BatchWriter<unknown>; readonly item: unknown }[] = [];
+    /** The participants enlisted in the commit, by key in the order they enlisted. */
+    readonly #participants = new Map<string, Participant>();
     /** The identifiers the transaction derived so far, counted from zero in every attempt. */
     #derived = 0;
     /** The committed rows the transaction read by key, each read once and checked at commit. */
@@ -949,6 +951,13 @@ export class Transaction {
         this.#records.push(key === undefined ? { write } : { write, key });
     }
 
+    /** Enlist a participant in the commit, the first one of a key alone. */
+    enlist(key: string, participant: Participant): void {
+        if (!this.#participants.has(key)) {
+            this.#participants.set(key, participant);
+        }
+    }
+
     /** Write an item at commit in one batch with the other items of its writer. */
     batch<Item>(writer: BatchWriter<Item>, item: Item): void {
         // oxlint-disable-next-line typescript/consistent-type-assertions, typescript/no-unsafe-type-assertion -- each writer receives only the items batched with it
@@ -962,9 +971,53 @@ export class Transaction {
         return this.database.state.scope.span(
             "destack.transaction.commit",
             attributes,
-            () => this.#commit(),
+            () => this.#settle(),
             { duration: { attributes } },
         );
+    }
+
+    /** Prepare the participants and commit, then confirm them, or cancel them on failure. */
+    async #settle(): Promise<void> {
+        const prepared: Participant[] = [];
+        try {
+            // prepare each participant once, those a preparation enlists too, as one may write rows and records
+            for (
+                let key = this.#unprepared(prepared);
+                key !== undefined;
+                key = this.#unprepared(prepared)
+            ) {
+                const participant = present(this.#participants.get(key), `the participant ${key}`);
+                await participant.prepare();
+                prepared.push(participant);
+            }
+
+            await this.#commit();
+        } catch (error) {
+            // cancel the prepared participants, keeping the commit's failure first
+            const cancelling = await Promise.allSettled(prepared.map((each) => each.cancel()));
+            const failed = cancelling.flatMap((each): unknown[] =>
+                each.status === "rejected" ? [each.reason] : [],
+            );
+            if (failed.length > 0) {
+                throw new AggregateError(
+                    [error, ...failed],
+                    "transaction and the cancellation of its participants failed",
+                    { cause: error },
+                );
+            }
+
+            throw error;
+        }
+
+        // confirm each participant once the commit stands
+        for (const participant of prepared) {
+            await participant.confirm();
+        }
+    }
+
+    /** Find the next enlisted participant that is not prepared. */
+    #unprepared(prepared: readonly Participant[]): string | undefined {
+        return [...this.#participants].find(([, each]) => !prepared.includes(each))?.[0];
     }
 
     /** Commit the records, batches and changes, refusing a read that changed since the base. */
@@ -1001,6 +1054,16 @@ export class Transaction {
             ]);
         });
     }
+}
+
+/** Work beside a transaction's commit, tried before it and confirmed or cancelled after it. */
+export interface Participant {
+    /** Do the work the commit depends on, refusing the commit by throwing. */
+    readonly prepare: () => Promise<void>;
+    /** Finish the prepared work, once the commit stands. */
+    readonly confirm: () => Promise<void>;
+    /** Undo the prepared work, once the commit failed. */
+    readonly cancel: () => Promise<void>;
 }
 
 /** Write a transaction's batched items at its commit. */
