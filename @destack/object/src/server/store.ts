@@ -142,7 +142,7 @@ import type { Clock, Environment } from "@destack/environment";
 
 import type {} from "@destack/package/import-meta";
 
-/** The prefix of the store loop's log position, which a digest of its projections completes. */
+/** The prefix of the positions of the store loop's sets in the log. */
 const POSITION_PREFIX = "control:";
 
 /** The recent pages sharing grant readers: 64 readers of a few KiB, well under a megabyte. */
@@ -2334,24 +2334,35 @@ export class ObjectStore {
         const synced = (signal: AbortSignal) =>
             subscriber === undefined ? Promise.resolve() : this.#waitReady(signal);
 
-        // run the store's own jobs and those of unserved packages' types once synced
+        // run the store's own jobs once synced
         const { served } = this.#catalog;
         const servedIds = new Set(served.map((entry) => entry.package.id));
-        const own = this.#objectControl((packageId) => !servedIds.has(packageId));
         const tables = [
             ...this.#catalog.tables,
             ...served.flatMap((entry) => entry.package.tables),
         ];
         const expiring = [...new Set(tables)].filter((table) => table[TABLE].expiry !== undefined);
         const store: ControllerSet = {
-            ...own,
             controllers: [
                 ...this.#storeControllers(),
                 ...expiring.map((table) => ControlLoop.expiry(table, this.database)),
-                ...own.controllers,
             ],
+            projections: [],
+            cursors: [],
             activation: synced,
         };
+
+        // run each unserved package's types' jobs once synced, as one set a package
+        const unserved = new Map(
+            [...this.objects, ...this.#catalog.provisioned]
+                .filter((object) => !servedIds.has(object.package.id))
+                .map((object) => [object.package.id, object.package]),
+        );
+        const own = [...unserved.values()].map((each): ControllerSet => ({
+            ...this.#objectControl((packageId) => packageId === each.id),
+            activation: synced,
+            position: `${POSITION_PREFIX}${each.id}@${each.version}`,
+        }));
 
         // run each package's jobs once synced and its installation activated
         const packages = served.map((entry): ControllerSet => {
@@ -2365,10 +2376,11 @@ export class ObjectStore {
                     await synced(signal);
                     await activation?.(signal);
                 },
+                position: `${POSITION_PREFIX}${entry.package.id}@${entry.package.version}`,
             };
         });
 
-        return [syncing, store, ...packages];
+        return [syncing, store, ...own, ...packages];
     }
 
     /** Run the store's jobs in one loop until stopped, restarting it as the jobs change. */
@@ -2383,6 +2395,13 @@ export class ObjectStore {
             readonly sets?: () => readonly ControllerSet[];
         } = {},
     ): Promise<void> {
+        // complete each set's position name by what its jobs read beyond the log
+        const read = {
+            store: import.meta.destack.package.version,
+            configuration: this.#configuration,
+        };
+        const digest = await Digest.json(read, this.environment.crypto);
+        let previous: ControlLoop | undefined;
         while (!signal.aborted) {
             // take the reload signal before reading the jobs, so a reload meanwhile restarts them
             const reloading = new AbortController();
@@ -2390,23 +2409,13 @@ export class ObjectStore {
 
             // read the store's job sets and the process's
             const sets = [
-                ...this.control(),
+                ...this.control().map((set) =>
+                    set.position === undefined
+                        ? set
+                        : { ...set, position: `${set.position}:${digest}` },
+                ),
                 ...(options.sets?.() ?? []).map((set) => this.#synced(set)),
             ];
-
-            // name the loop's position by what its projections are and read beyond the log
-            const projections = sets.flatMap((set) => set.projections.map((each) => each.name));
-            const packages = [...this.objects, ...this.#catalog.provisioned].map(
-                (object) => `${object.package.id}@${object.package.version}`,
-            );
-            const read = {
-                projections: projections.toSorted(),
-                packages: [...new Set(packages)].toSorted(),
-                store: import.meta.destack.package.version,
-                configuration: this.#configuration,
-            };
-            const digest = await Digest.json(read, this.environment.crypto);
-            const position = `${POSITION_PREFIX}${digest}`;
 
             // run the loop until stopped or reloaded
             const loop = new ControlLoop(this.database, sets, {
@@ -2417,9 +2426,10 @@ export class ObjectStore {
                             new Error(`'${job.name}' did not reconcile '${key}'`, { cause: error }),
                         );
                     }),
-                position,
+                ...(previous === undefined ? {} : { previous }),
                 ...(options.alarm === undefined ? {} : { alarm: options.alarm }),
             });
+            previous = loop;
             this.#loop.resolve({ loop, reloading: reloading.signal });
             await loop.run(AbortSignal.any([signal, reloading.signal]));
             this.#loop = Promise.withResolvers();
