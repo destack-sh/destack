@@ -33,11 +33,13 @@ export const TableState = schema.object({
     package: PackageVersion,
     /** The table's columns, keys, indexes and checks. */
     table: TableDescription,
+    /** Whether the declaration replicates the table from the package that owns it. */
+    isReplicated: schema.literal(true).exactOptional(),
     /** The columns the change triggers record, absent for unlogged tables. */
     log: ChangeDescription.exactOptional(),
     /** The ancestor index maintained over the table, absent without a tree. */
     tree: TreeDescription.exactOptional(),
-    /** The aggregates of this table's rows that other tables store. */
+    /** The aggregates the table declares, of its rows or of another table's into it. */
     aggregates: schema.array(AggregateDescription).exactOptional(),
     /** The rows of other tables referencing this table's rows. */
     dependents: schema.array(DependentDescription).exactOptional(),
@@ -234,6 +236,7 @@ export function declareState(
         return {
             package: definition.package,
             table: isReplica ? asReplica(table, kept) : kept,
+            ...(isReplicated ? { isReplicated: true as const } : {}),
             ...(log === undefined ? {} : { log }),
             ...(tree === undefined ? {} : { tree }),
             ...(aggregated === undefined ? {} : { aggregates: aggregated }),
@@ -593,7 +596,7 @@ function describeConversions(table: Table, dialect: Dialect): TableState["conver
     );
 }
 
-/** Describe the described tables' aggregates, skipping those a replica lacks. */
+/** Describe the aggregates the described tables declare, skipping those a replica lacks. */
 function describeAggregates(
     described: readonly Table[],
     named: ReadonlySet<string>,
@@ -624,8 +627,9 @@ function describeAggregates(
                 );
             }
 
-            // refer to every column by its SQL name
-            const entries = aggregates.get(definition.sqlName) ?? [];
+            // refer to every column by its SQL name, on the state of the table declaring it
+            const declaring = table[TABLE].sqlName;
+            const entries = aggregates.get(declaring) ?? [];
             const target = {
                 table: holder[TABLE].sqlName,
                 column: holder[TABLE].column(aggregate.column).definition.name,
@@ -646,7 +650,7 @@ function describeAggregates(
                           value: source[TABLE].column(aggregate.value).definition.name,
                       },
             );
-            aggregates.set(definition.sqlName, entries);
+            aggregates.set(declaring, entries);
         }
     }
 

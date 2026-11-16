@@ -79,7 +79,10 @@ export const DatabaseHandle = {
         await using database = await connect([]);
         const plan = await database.plan(mergeStates(desired), id);
         if ((await Plan.digest(plan, database.state.environment.crypto)) !== digest) {
-            throw DatabaseError.of("PLAN_BROKEN", `plan of '${id}' changed since review`);
+            throw DatabaseError.of(
+                "PLAN_CONFLICT",
+                `cannot apply the plan of '${id}': it changed since review`,
+            );
         }
         await database.apply(plan, id);
     },
@@ -87,6 +90,13 @@ export const DatabaseHandle = {
     /** Describe the tables some desired states declare together. */
     tables(desired: readonly (readonly TableState[])[]): Table[] {
         return mergeStates(desired).declared.map((state) => Table.describe(state));
+    },
+
+    /** Describe the tables some desired states have beyond the ones they only replicate. */
+    owned(desired: readonly (readonly TableState[])[]): Table[] {
+        return mergeStates(desired)
+            .declared.filter((state) => state.isReplicated !== true)
+            .map((state) => Table.describe(state));
     },
 
     /** Open the tables of the desired states, reopening them with tables beside once migrated. */

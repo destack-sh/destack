@@ -425,6 +425,16 @@ export class DatabaseConnection<
         );
     }
 
+    /** Declare those of some tables the database has, as a resource migrated them before. */
+    async declareApplied(tables: readonly Table[]): Promise<void> {
+        // read the tables it has and declare the given ones among them
+        const existing = new Set(await readTables(this));
+        const { namespace } = this.state;
+        this.state.declare(
+            tables.filter((table) => existing.has(relation(table[TABLE].sqlName, namespace))),
+        );
+    }
+
     /** Plan a manager's migration from its applied tables to the declared ones. */
     async plan(
         state: Pick<Merge, "declared"> & Partial<Merge>,

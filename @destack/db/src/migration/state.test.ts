@@ -3,6 +3,7 @@ import { PackageId } from "@destack/package";
 import { archive, item, list } from "../aggregate/test/fixture.ts";
 import { post, remark } from "../dependent/test/fixture.ts";
 import { TABLE } from "../table/index.ts";
+import { mergeStates } from "./merge.ts";
 import { declareState } from "./state.ts";
 
 /** A package that declares none of the fixture's tables. */
@@ -17,7 +18,7 @@ test("describe the aggregates of the described tables alone, a replica's too, re
         (state.aggregates ?? []).map((aggregate) => aggregate.column),
     );
 
-    // describe an aggregate declared through another object of the same table
+    // describe each aggregate on the table that declares it, its source or its holder
     const described = declareState([archive, item, list], "sqlite").map((state) => [
         state.table.name,
         state.aggregates?.map((aggregate) => [aggregate.table, aggregate.column]) ?? [],
@@ -33,11 +34,10 @@ test("describe the aggregates of the described tables alone, a replica's too, re
         placed: [],
         replicated: [["items", "done", "points", "largest"], []],
         described: [
-            ["destack__db__aggregate_archive", []],
+            ["destack__db__aggregate_archive", [["destack__db__aggregate_archive", "done"]]],
             [
                 "destack__db__aggregate_item",
                 [
-                    ["destack__db__aggregate_archive", "done"],
                     ["destack__db__aggregate_list", "items"],
                     ["destack__db__aggregate_list", "done"],
                     ["destack__db__aggregate_list", "points"],
@@ -64,4 +64,21 @@ test("describe a replicated table's dependents only where the database has their
     expect(
         [alone, beside].map((states) => states.map((state) => state.dependents?.length ?? 0)),
     ).toEqual([[0], [1, 0]]);
+});
+
+test("merge a table one declaration replicates and another owns into the owned table", () => {
+    // declare posts as a replica, as a follower does, and as their own package does
+    const replicated = new Set([post[TABLE].sqlName]);
+    const [followed] = declareState([post], "sqlite", { replicated });
+    const [owned] = declareState([post, remark], "sqlite");
+
+    // keep the owned table whole, whichever declaration comes first
+    const merged = [
+        mergeStates([[followed], [owned]].map((states) => states.flatMap((each) => each ?? []))),
+        mergeStates([[owned], [followed]].map((states) => states.flatMap((each) => each ?? []))),
+    ];
+    expect(merged.map((each) => [each.declared, each.conflicts])).toEqual([
+        [[owned], []],
+        [[owned], []],
+    ]);
 });

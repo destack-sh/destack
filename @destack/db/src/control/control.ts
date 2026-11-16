@@ -1796,7 +1796,8 @@ export class ControlLoop {
             const isRepeated =
                 previous?.isReported === true &&
                 previous.failure.domain === failure.domain &&
-                previous.failure.reason === failure.reason;
+                previous.failure.reason === failure.reason &&
+                previous.failure.message === failure.message;
             const isReported = !isRepeated && this.#recordFailure(work, failure, failed);
             if (isReported) {
                 this.#report(controller, key, error);

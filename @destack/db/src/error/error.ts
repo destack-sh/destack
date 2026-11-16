@@ -34,6 +34,7 @@ export const DatabaseError = defineErrorFamily({
         // conflict
         EPOCH_CONFLICT: {},
         TRANSACTION_CONFLICT: {},
+        PLAN_CONFLICT: {},
         UPDATE_CONFLICT: {},
 
         // invalid
@@ -54,7 +55,6 @@ export const DatabaseError = defineErrorFamily({
         CONTROLLER_BROKEN: {},
         FOLLOW_BROKEN: {},
         MIGRATION_BROKEN: {},
-        PLAN_BROKEN: {},
         QUERY_BROKEN: {},
         TRANSACTION_BROKEN: {},
         TREE_BROKEN: {},

@@ -22,7 +22,10 @@ export function mergeStates(declarations: readonly (readonly TableState[])[]): M
     // merge each table's states
     const declared: TableState[] = [];
     const conflicts: { table: string; reason: string }[] = [];
-    for (const [name, states] of groups) {
+    for (const [name, stated] of groups) {
+        // take the declarations of the table's owner over those replicating it
+        const owned = stated.filter((state) => state.isReplicated !== true);
+        const states = owned.length > 0 ? owned : stated;
         const distinct = [...new Map(states.map((state) => [canonicalize(state), state])).values()];
         const [only] = distinct;
         const merged =
