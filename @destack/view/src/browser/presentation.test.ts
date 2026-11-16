@@ -1,6 +1,7 @@
 import { testSimulation } from "@destack/test/world";
 import { TestDatabase } from "@destack/db/test";
 import { PackageVersion } from "@destack/package";
+import { DeclarationReference } from "@destack/package/declare";
 import { type JsonValue, schema } from "@destack/schema";
 import { type Setting } from "@destack/setting";
 import { deviceSetting, setting } from "@destack/setting/object";
@@ -8,7 +9,6 @@ import { DEFAULT_DISPLAY } from "@destack/theme";
 import { destackTheme } from "@destack/theme/declare";
 import { accessRelationship, ANONYMOUS, principal } from "@destack/access";
 import { expect, onTestFinished, test } from "@destack/test";
-import { CommandReference } from "@destack/object";
 import { keybindings, sources } from "../palette/index.ts";
 import { appearance } from "../setting/index.ts";
 import { Presentation, type Page } from "./presentation.ts";
@@ -73,7 +73,7 @@ test("present a page in its person's language, their display settings' style and
                 }),
         );
     };
-    const archive = CommandReference.format({ packageId: notes.id, name: "archive" });
+    const archive = DeclarationReference.key({ packageId: notes.id, name: "archive" });
     await place(appearance, "dark");
     await place(keybindings, { [archive]: "mod+a" });
 

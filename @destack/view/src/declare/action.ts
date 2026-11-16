@@ -1,5 +1,5 @@
 import { Message } from "@destack/locale";
-import { CommandReference, Shortcut, type ShortcutText } from "@destack/object";
+import { Shortcut, type ShortcutText } from "@destack/object";
 import {
     DeclarationName,
     defineKind,
@@ -7,6 +7,7 @@ import {
     PackageVersion,
     PackageError,
 } from "@destack/package";
+import { DeclarationReference } from "@destack/package/declare";
 import { schema } from "@destack/schema";
 
 /** Where focus may be for an action's keys to run it: outside form fields, or anywhere. */
@@ -72,7 +73,7 @@ export class Action {
     }
 
     /** The action's identity, shared with its package's commands: its package and name. */
-    get reference(): CommandReference {
+    get reference(): DeclarationReference {
         return { packageId: this.package.id, name: DeclarationName.parse(this.name) };
     }
 

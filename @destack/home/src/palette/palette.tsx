@@ -1,5 +1,5 @@
+import { DeclarationReference } from "@destack/package/declare";
 import { InstallationOrigin, SpaceAddress, OPEN_PATH } from "@destack/account/address";
-import { CommandReference } from "@destack/object";
 import { present, schema } from "@destack/schema";
 import {
     createEffect,
@@ -40,7 +40,7 @@ export default function Commands() {
     const page = new URL(environment.navigation.currentEntry.url);
     const query = page.searchParams;
     const asked = query.get(COMMAND_PARAMETER);
-    const command = asked === null ? undefined : parseCommand(asked);
+    const command = asked === null ? undefined : DeclarationReference.ofKey(asked);
     const domain = page.hostname.slice(page.hostname.indexOf(".") + 1);
     const over = query.get(FOCUS_PARAMETER);
     const focus = PaletteFocus.of(over, space, domain);
@@ -132,11 +132,4 @@ function openEntry(listing: PaletteListing, entry: ViewEntry | ObjectEntry, orig
 
     // open it in the window the palette opens in, or over
     (window.top ?? window).location.href = new URL(`${OPEN_PATH}?${query}`, origin).href;
-}
-
-/** Read a command named as `<package>/<name>`. */
-function parseCommand(text: string): CommandReference {
-    const [packageId, name] = text.split("/");
-
-    return CommandReference.parse({ packageId, name });
 }

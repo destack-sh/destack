@@ -1,4 +1,5 @@
-import { Shortcut, CommandReference } from "@destack/object";
+import { DeclarationReference } from "@destack/package/declare";
+import { Shortcut } from "@destack/object";
 import { schema } from "@destack/schema";
 import { ActionFocus } from "../declare/action.ts";
 
@@ -8,7 +9,7 @@ const COMMAND_PLATFORM = /Mac|iPhone|iPad/u;
 /** A key combination running a command or an action, outside form fields or anywhere. */
 const keybinding = schema.object({
     /** The command or action it runs. */
-    command: CommandReference,
+    command: DeclarationReference,
     /** The key combination. */
     key: Shortcut,
     /** Where focus may be for the keys to run it. */
@@ -19,11 +20,11 @@ const keybinding = schema.object({
 export const Keybinding = Object.assign(keybinding, {
     /** Bind a command to the person's key combination for it, else its declared one, if any. */
     of(
-        command: CommandReference,
+        command: DeclarationReference,
         declared: { readonly key: Shortcut | undefined; readonly focus: ActionFocus },
         overrides: Readonly<Record<string, Shortcut | null>>,
     ): Keybinding | undefined {
-        const settingKey = CommandReference.format(command);
+        const settingKey = DeclarationReference.key(command);
         const key = settingKey in overrides ? overrides[settingKey] : declared.key;
 
         return key === null || key === undefined
@@ -35,7 +36,7 @@ export const Keybinding = Object.assign(keybinding, {
 export type Keybinding = schema.Infer<typeof keybinding>;
 
 /** A command a package declares, with the key combination it declares. */
-export const CommandDeclaration = CommandReference.extend({
+export const CommandDeclaration = DeclarationReference.extend({
     /** The key combination the package declares, absent for none. */
     keybinding: Shortcut.exactOptional(),
 });

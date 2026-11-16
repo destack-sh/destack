@@ -1,6 +1,6 @@
 import { Localization, SOURCE_LOCALE, t } from "@destack/locale";
 import { PackageId } from "@destack/package";
-import { CommandReference } from "@destack/object";
+import { DeclarationReference } from "@destack/package/declare";
 import { expect, onTestFinished, test } from "@destack/test";
 import { defineAction } from "../declare/action.ts";
 import { ActionRegistry, undo } from "../page/action.ts";
@@ -179,7 +179,7 @@ test("run an action on its keys, on the person's keys once rebound, from a field
     press("c", editable);
     press("s", field);
     first.stop();
-    const rebound = palette({ [CommandReference.format(copyLink.reference)]: "mod+shift+l" });
+    const rebound = palette({ [DeclarationReference.key(copyLink.reference)]: "mod+shift+l" });
     press("l");
     const ranBefore = [...first.ran];
 

@@ -236,27 +236,6 @@ export function defineCommand<
     return new Command(owner, definition);
 }
 
-/** A command's identity across installations: its package and its name. */
-export const CommandReference = Object.assign(
-    schema.object({
-        /** The package declaring the command. */
-        packageId: PackageId,
-        /** The command's name in its package. */
-        name: DeclarationName,
-    }),
-    {
-        /** The key of a command in settings: its package and name, as `<package>/<name>`. */
-        key: schema.templateLiteral([PackageId, "/", DeclarationName]),
-
-        /** Write the key of a command in settings. */
-        format(reference: CommandReference): string {
-            return `${reference.packageId}/${reference.name}`;
-        },
-    },
-);
-/** A command's identity across installations. */
-export type CommandReference = schema.Infer<typeof CommandReference>;
-
 /** A titled call of an object type's method, as menus and the command palette offer it. */
 export const CommandDescription = schema.object({
     /** The package declaring the command. */

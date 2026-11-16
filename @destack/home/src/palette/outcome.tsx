@@ -1,7 +1,7 @@
+import { DeclarationReference } from "@destack/package/declare";
 import { argument, plural, t } from "@destack/locale";
 import { Command, CommandGroup, CommandItem, CommandList } from "@destack/ui/command";
 import { Spinner } from "@destack/ui/spinner";
-import { CommandReference } from "@destack/object";
 import { type JSX, Match, Switch, useLocale } from "@destack/view";
 import type { CommandEntry } from "@destack/view/palette";
 import { type PaletteStep, type RunEntry, stepOf } from "./run.ts";
@@ -18,7 +18,7 @@ export function ConfirmCommand(properties: {
             <CommandList>
                 <CommandGroup heading={locale.render(t`Run`)}>
                     <CommandItem
-                        value={CommandReference.format(properties.command)}
+                        value={DeclarationReference.key(properties.command)}
                         onSelect={() => properties.onRun(properties.command)}
                     >
                         {properties.command.title}
@@ -47,7 +47,7 @@ export function ApproveCommand(properties: {
                     )}
                 >
                     <CommandItem
-                        value={CommandReference.format(properties.command)}
+                        value={DeclarationReference.key(properties.command)}
                         onSelect={() => properties.onApprove()}
                     >
                         {properties.command.title}

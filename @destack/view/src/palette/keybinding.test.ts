@@ -1,5 +1,5 @@
 import { PackageId } from "@destack/package";
-import { CommandReference } from "@destack/object";
+import { DeclarationReference } from "@destack/package/declare";
 import { expect, test } from "@destack/test";
 import { Keybinding } from "./keybinding.ts";
 
@@ -11,8 +11,8 @@ test("bind a command to the person's keys, to none once unbound, else to its dec
     const archive = { packageId: TASKS, name: "archive" };
     const pin = { packageId: TASKS, name: "pin" };
     const overrides = {
-        [CommandReference.format(complete)]: "mod+shift+c",
-        [CommandReference.format(archive)]: null,
+        [DeclarationReference.key(complete)]: "mod+shift+c",
+        [DeclarationReference.key(archive)]: null,
     };
 
     expect([
