@@ -111,6 +111,36 @@ test("sign a person out of this computer", async () => {
     ]);
 });
 
+test("sign in again after signing out the person the login setting picked", async () => {
+    // pick the owner as the person the terminal acts as, then sign them out
+    const terminal = await TerminalFixture.open();
+    const { native } = terminal;
+    await native.set(currentLogin, terminal.login.id);
+    const signedOut = await terminal.printed(["logout", "--json"]);
+
+    // sign the owner in again
+    const signedIn = await terminal.signIn(
+        ["login", "--email", OWNER_EMAIL, "--json"],
+        OWNER_EMAIL,
+        [],
+        (code) => code,
+    );
+    const [again] = await native.logins.query.login.findMany();
+
+    // act as nobody once signed out, then as the owner's new login
+    expect({
+        signedOut: [signedOut.code, signedOut.error],
+        signedIn: [signedIn.code, signedIn.error],
+        login: await native.setting(currentLogin),
+        isNewLogin: again !== undefined && again.id !== terminal.login.id,
+    }).toEqual({
+        signedOut: [0, ""],
+        signedIn: [0, `Sent a code to ${OWNER_EMAIL}.\n`],
+        login: again?.id,
+        isNewLogin: true,
+    });
+});
+
 test("sign a new person up with a handle and a residency, then show who they are and their spaces", async () => {
     // sign Ada up with a mailed code, then show the login and list the spaces
     const terminal = await TerminalFixture.open();
