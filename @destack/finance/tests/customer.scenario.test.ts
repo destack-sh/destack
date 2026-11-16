@@ -2,7 +2,7 @@ import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { customer } from "../src/object/index.ts";
 import { Finance, ids } from "./fixture/finance.ts";
 
-test("store one customer per account and refuse invalid writes", async () => {
+test("store one customer per account, refusing a second, a provider field and a viewer", async () => {
     const finance = await Finance.open();
     onTestFinished(() => finance.close());
 
