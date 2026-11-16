@@ -556,9 +556,12 @@ export class Transaction {
         this.#base = base;
     }
 
-    /** Start a transaction at the database's current position. */
+    /** Start a transaction at the latest committed position, read unless the watch knows it. */
     static async open(database: DatabaseConnection): Promise<Transaction> {
-        return new Transaction(database, await database.log.position());
+        return new Transaction(
+            database,
+            database.state.commits.position ?? (await database.log.position()),
+        );
     }
 
     /** Run a transaction to commit, restarting while another commit wins a race on its reads. */

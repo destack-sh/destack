@@ -47,8 +47,10 @@ export class CommitWatch {
     readonly #settleListening: () => void;
     /** Fail the listening wait. */
     readonly #failListening: (error: unknown) => void;
-    /** The latest sequence an announced commit ended at, all earlier ones committed, else zero. */
+    /** The latest committed sequence an announced commit or a head read saw, else zero. */
     #sequence = 0;
+    /** The log and epoch a committed head read last saw, absent before one or after a restart. */
+    #head: Omit<LogPosition, "sequence"> | undefined;
     /** The latest position whose written tables a read of the log woke, absent before the first. */
     #caughtUp: Omit<LogPosition, "log"> | undefined;
     /** The wakes since the watch began: each commit received, delivery start and stop. */
@@ -97,7 +99,7 @@ export class CommitWatch {
         }
     }
 
-    /** The latest sequence an announced commit ended at, all earlier ones committed, else zero. */
+    /** The latest committed sequence an announced commit or a head read saw, else zero. */
     get sequence(): number {
         return this.#sequence;
     }
@@ -105,6 +107,21 @@ export class CommitWatch {
     /** The latest position whose written tables a read of the log woke, absent before the first. */
     get caughtUp(): Omit<LogPosition, "log"> | undefined {
         return this.#caughtUp;
+    }
+
+    /** The latest committed position while the watch has every commit, its own echoed, else absent. */
+    get position(): LogPosition | undefined {
+        return this.isComplete && this.#own.size === 0 && this.#head !== undefined
+            ? { ...this.#head, sequence: this.#sequence }
+            : undefined;
+    }
+
+    /** Take a committed head read, restarting the sequence at a new log or epoch. */
+    observe(position: LogPosition): void {
+        const head = this.#head;
+        const isSame = head?.log === position.log && head.epoch === position.epoch;
+        this.#head = { log: position.log, epoch: position.epoch };
+        this.#sequence = isSame ? Math.max(this.#sequence, position.sequence) : position.sequence;
     }
 
     /** The wakes since the watch began: each commit received, delivery start and stop. */
@@ -322,9 +339,10 @@ export class CommitWatch {
         this.#advance(woken, isLogged ? [...woken, ...LOG_TABLES] : woken);
     }
 
-    /** Expire every cached read here, waking no reader, such as after a lost race. */
+    /** Expire every cached read and the known head here, waking no reader, such as after a lost race. */
     expire(): void {
         this.#expire([...this.#tables, ...LOG_TABLES]);
+        this.#head = undefined;
     }
 
     /** Count a commit, version the known tables, and wake every reader with the committed ones. */

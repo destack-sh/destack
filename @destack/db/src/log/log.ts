@@ -371,6 +371,11 @@ export class Log {
         const sequence = latestOf(head.logged, head.horizon);
         const position = { log: head.log, epoch: head.epoch, sequence };
 
+        // keep a head read outside a transaction, which sees committed entries only
+        if (this.database.driver.transaction === undefined) {
+            commits.observe(position);
+        }
+
         // leave a sole writer's or a transaction's position as read
         if (!isCatching) {
             return position;
@@ -529,8 +534,9 @@ export class Log {
             sql`UPDATE ${sql.relation(LOG_EPOCH)} SET epoch = ${epoch} WHERE slot = 1`,
         );
 
-        // forget the process's tail, which read the old epoch
+        // forget the process's tail, cached reads and known head, which read the old epoch
         this.database.state.tail.reset();
+        this.database.state.commits.expire();
 
         return epoch;
     }
