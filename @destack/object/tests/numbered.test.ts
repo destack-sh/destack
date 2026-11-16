@@ -1,7 +1,15 @@
+import { isDeepStrictEqual } from "node:util";
+import type { Environment } from "@destack/environment";
 import { principal } from "@destack/access";
 import { RequestId, Scope } from "@destack/sync";
 import { expect, refusal, test } from "@destack/test";
 import { Snapshot } from "@destack/db";
+import { TestDatabase } from "@destack/db/test";
+import type { ClientOptions } from "@destack/object/client";
+import type { Identifier } from "@destack/schema";
+import { ObjectClient } from "../src/client/index.ts";
+import { unmoved } from "../src/test/space.ts";
+import { onTestFinished } from "@destack/test";
 import { present, schema } from "@destack/schema";
 import {
     defineObject,
@@ -17,6 +25,9 @@ import { space } from "../src/test/space.ts";
 import { users } from "./fixture/user.ts";
 import { argument, plural, t } from "@destack/locale";
 import objectPackage from "../src/package.ts";
+
+/** How long a device waits on the simulated clock for its replica to reach a value: a minute. */
+const WAIT_MILLISECONDS = 60_000;
 
 /** A team addressed by its key, such as TRK, its old keys resolving after a rename. */
 const team = defineObject(
@@ -329,6 +340,48 @@ test("number an invoice once finalized, printing its identifier as issued and re
     });
 });
 
+test("leave an order created on a device unnumbered until its store numbers it, each number issued once across devices and undo", async () => {
+    // serve alice's space, and open two of her devices offline
+    await using objects = await TestObjectStore.open({
+        packages: [issuesPackage],
+        scope: space.reference(Scope.universe.id, "space-01996ab0-0000-7000-8000-000000000324"),
+        owners: [principal.user.reference(Scope.universe.id, users.alice)],
+    });
+    const endpoint = objects.as(users.alice).endpoint(issuesPackage);
+    const laptop = await openDevice(objects.environment, objects.scope, users.alice, endpoint);
+    const phone = await openDevice(objects.environment, objects.scope, users.alice, endpoint);
+
+    // create an order on each, unnumbered while predicted
+    const first = laptop.client.mutate(order).create({ total: 40 });
+    const second = phone.client.mutate(order).create({ total: 75 });
+    await Promise.all([first.predicted, second.predicted]);
+    const predicted = [await laptop.numbers(), await phone.numbers()];
+
+    // go online, the laptop first, and read both devices once each has both orders
+    laptop.online();
+    await first.confirmed;
+    phone.online();
+    await second.confirmed;
+    const confirmed: (readonly [number, number | null])[] = [
+        [40, 1001],
+        [75, 1002],
+    ];
+    await laptop.waitFor(confirmed);
+    await phone.waitFor(confirmed);
+
+    // undo the laptop's creation, then create another order, which takes no number again
+    await laptop.client.undo().confirmed;
+    await laptop.client.mutate(order).create({ total: 20 }).confirmed;
+
+    expect({ predicted, recreated: await laptop.numbers() }).toEqual({
+        predicted: [[[40, null]], [[75, null]]],
+        recreated: [
+            [20, 1003],
+            [75, 1002],
+        ],
+    });
+});
+
 test("refuse numbering within a column some objects lack, and moving many numbered objects at once", () => {
     // declare issues numbered within an optional team, and issues moved between teams in bulk
     const declare = (within: { optional: boolean }, methods: "update" | "updateMany") => () =>
@@ -377,4 +430,61 @@ function refusalOf(declare: () => unknown): string {
     } catch (error) {
         return error instanceof TypeError ? error.message : "not a type error";
     }
+}
+
+/** Open a user's device replicating a space's orders, offline until it goes online. */
+async function openDevice(
+    world: Environment,
+    scope: string,
+    user: Identifier<"user">,
+    endpoint: ClientOptions,
+) {
+    // create the local database and replicate the space's orders in it
+    const storage = await TestDatabase.create(ObjectClient.tables({ order }), {
+        environment: world,
+        dialect: "sqlite",
+        storage: "file",
+    });
+    const client = await ObjectClient.open({
+        environment: world,
+        database: storage.database,
+        objects: { order },
+        scope,
+        caller: principal.user.reference("universe", user),
+        endpoint,
+        reconnect: unmoved,
+    });
+    client.query.order.findMany().subscribe();
+    const controller = new AbortController();
+    const loops: Promise<void>[] = [];
+    onTestFinished(async () => {
+        controller.abort();
+        await Promise.all(loops);
+        await storage.close();
+    });
+
+    // read the device's orders by total with their numbers, null until the store numbers one
+    const numbers = async () =>
+        (
+            await client.database
+                .select({ total: order.table.total, number: order.table.number })
+                .from(order.table)
+        )
+            .map((row) => [row.total, row.number] as const)
+            .toSorted((left, right) => left[0] - right[0]);
+
+    return {
+        client,
+        numbers,
+        online: () => {
+            loops.push(
+                client.push(controller.signal, () => {}),
+                client.follow(controller.signal, () => {}),
+            );
+        },
+        waitFor: async (expected: readonly (readonly [number, number | null])[]) => {
+            const isReached = async () => isDeepStrictEqual(await numbers(), expected);
+            await client.database.log.waitUntil(isReached, world.clock.timeout(WAIT_MILLISECONDS));
+        },
+    };
 }

@@ -9,7 +9,6 @@ import {
     definePackage,
     field,
     nested,
-    numbered,
     recoverable,
     shareable,
     tablesOf,
@@ -25,7 +24,7 @@ const NOTES = PackageVersion.parse({
     version: "2026.9.0",
 });
 
-/** A collection of notes, numbered, shared with everyone who works on them, archived once done. */
+/** A collection of notes, shared with everyone who works on them, archived once done. */
 export const notebook = defineObject(
     {
         name: "notebook",
@@ -36,7 +35,7 @@ export const notebook = defineObject(
             name: field.string(schema.string().min(1).max(200)),
             noteCount: field.count(),
         },
-        traits: [shareable({}), archivable({ by: "manage" }), numbered()],
+        traits: [shareable({}), archivable({ by: "manage" })],
     },
     (method) => ({
         create: method.create("manage"),

@@ -15,7 +15,7 @@ import { getEventMeta } from "@destack/object";
 import { note, notebook } from "../src/test/note.ts";
 import { principal } from "@destack/access";
 
-import { type Device, serveNotes, spaceId } from "./fixture/device.ts";
+import { serveNotes, spaceId } from "./fixture/device.ts";
 import { unmoved } from "../src/test/space.ts";
 
 /** The feed's heartbeat, after which a caught-up stream publishes its position: 10 s. */
@@ -994,52 +994,3 @@ test("refuse changing an archived notebook on the device before the server sees 
         "cannot change notebook: it is archived",
     ]);
 });
-
-test("leave a notebook created on a device unnumbered until its store numbers it, each number issued once across devices and undo", async () => {
-    // open two of alice's devices offline, and create a notebook on each
-    const { openDevice } = await serveNotes();
-    const laptop = await openDevice(users.alice, [notebook]);
-    const phone = await openDevice(users.alice, [notebook]);
-    const plans = laptop.client.mutate(notebook).create({ name: "Plans" });
-    const trips = phone.client.mutate(notebook).create({ name: "Trips" });
-    const { id } = await plans.predicted;
-    await trips.predicted;
-    const predicted = [await notebookNumbers(laptop), await notebookNumbers(phone)];
-
-    // go online, the laptop first, and read both devices once each has both notebooks
-    laptop.online();
-    await plans.confirmed;
-    phone.online();
-    await trips.confirmed;
-    const confirmed: (readonly [string, number | null])[] = [
-        ["Plans", 1],
-        ["Trips", 2],
-    ];
-    await laptop.waitFor(() => notebookNumbers(laptop), confirmed);
-    await phone.waitFor(() => notebookNumbers(phone), confirmed);
-
-    // undo the laptop's creation, then create another notebook, which takes no number again
-    await laptop.client.undo().confirmed;
-    await laptop.client.mutate(notebook).create({ name: "Ideas" }).confirmed;
-    const recreated = await notebookNumbers(laptop);
-
-    expect({ id: typeof id, predicted, recreated }).toEqual({
-        id: "string",
-        predicted: [[["Plans", null]], [["Trips", null]]],
-        recreated: [
-            ["Ideas", 3],
-            ["Trips", 2],
-        ],
-    });
-});
-
-/** Read a device's notebooks by name with their numbers, null until the store numbers one. */
-async function notebookNumbers(device: Device) {
-    const rows = await device.client.database
-        .select({ name: notebook.table.name, number: notebook.table.number })
-        .from(notebook.table);
-
-    return rows
-        .map((row) => [row.name, row.number] as const)
-        .toSorted((left, right) => left[0].localeCompare(right[0]));
-}
