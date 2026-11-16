@@ -1,7 +1,8 @@
+import { reference } from "@destack/registry/object";
 import type * as packageRuntime from "@destack/package/runtime";
 import type { defineDatabase } from "@destack/db";
 import { Failure } from "@destack/error";
-import { openStore, ownServers } from "./store.ts";
+import { openStore, ownServers, spaceProviders } from "./store.ts";
 import type { ClaimPrimary, ExternalStorage } from "@destack/object/server";
 import type { Follow, ObjectType } from "@destack/object";
 import {
@@ -19,15 +20,17 @@ import accountPackage from "@destack/account/package";
 import {
     and,
     BlobStore,
-    Change,
     Condition,
     type Controller,
+    type ControllerSet,
+    type Cursor,
     type DatabaseConnection,
     eq,
     inArray,
     isNotNull,
     isNull,
-    Projection,
+    type Projection,
+    type Relation,
     Snapshot,
     TABLE,
     Transaction,
@@ -142,6 +145,8 @@ import { BuildStore, type ImportClosure } from "@destack/build/store";
 import type { Volume } from "./storage.ts";
 import { PackageError } from "@destack/package/error";
 import { serveS3 } from "../resource/s3.ts";
+import { ProviderIndex } from "../resource/resource.ts";
+import { SpaceTransfer } from "../transfer/transfer.ts";
 import type { SpaceRole } from "./placement.ts";
 import type { OtlpSignal } from "@destack/telemetry/otlp";
 import { Gateway } from "../gateway/index.ts";
@@ -151,6 +156,21 @@ import { MachineError } from "../error/index.ts";
 import type { GrantRequest } from "@destack/account/authentication";
 import * as accountObject from "@destack/account/object";
 import * as stackObject from "@destack/stack/object";
+
+/** The release a space's declared stack follows, resolved at its forge, with the stack's digest. */
+interface ResolvedStack {
+    /** The digest of the declared stack. */
+    readonly digest: Digest;
+    /** The release or tag the stack installation follows, absent for the host's. */
+    readonly follows: ObjectReference | undefined;
+}
+
+/** An assignment's placement, whose space its change touches. */
+const ASSIGNMENT_PLACEMENT: Relation = {
+    table: accountObject.placement.table,
+    cardinality: "one",
+    on: { kind: "key", column: "id", parent: "placementId" },
+};
 
 /** The origin in-process installations call their space's stack service at, in process. */
 const STACK_ORIGIN = "http://stack.localhost";
@@ -246,9 +266,9 @@ export interface SpaceStart {
     /** The shapes the start follows beside the space's own, such as the forge's references. */
     readonly follows: readonly Follow[];
     /** The start's own controllers: the space's reconcile and a rated primary's meter. */
-    readonly controllers: NonNullable<ImplementationInput["controllers"]>;
+    readonly controllers: readonly ((store: ObjectStore) => Controller)[];
     /** The start's own cursors, such as a rated primary's readings. */
-    readonly cursors: NonNullable<ImplementationInput["cursors"]>;
+    readonly cursors: readonly ((store: ObjectStore) => Cursor)[];
     /** The installations a primary serves at the start, from the machine's builds. */
     readonly installed: readonly InstallationBuild[];
     /** The mounts the served installations declare. */
@@ -294,6 +314,8 @@ export class Space {
     readonly health: Health;
     /** The identities of the space and its installations, reusing their tokens, by subject. */
     readonly #identities = new Map<string, Identity>();
+    /** The failure each installation serving nothing reported last, by installation. */
+    readonly #failed = new Map<Identifier<"installation">, string>();
     /** The current start's servers, by installation and revision, kept while they stay served. */
     #served:
         | { readonly signal: AbortSignal; readonly entries: ReadonlyMap<string, ServedEntry> }
@@ -309,6 +331,7 @@ export class Space {
         | {
               readonly over: readonly PackageImplementation[];
               readonly servers: readonly PackageImplementation[];
+              readonly control: (store: ObjectStore) => readonly ControllerSet[];
           }
         | undefined;
 
@@ -418,7 +441,7 @@ export class Space {
                 await this.#root(installed, unavailable);
                 const forge = this.forge();
                 const accounts = this.accounts();
-                const isMetered = machine.skus !== undefined && role !== "standby";
+                const isMetered = machine.skus !== undefined && role === "primary";
                 const start: SpaceStart = {
                     role,
                     context,
@@ -476,9 +499,7 @@ export class Space {
         const { machine } = this;
         const lookup = ClaimLookup.of(machine.directory.snapshot.read(claimTable));
 
-        return machine.isBuilding
-            ? new Forge(lookup, (account) => this.#residencyHome(account), machine.id)
-            : null;
+        return machine.isBuilding ? new Forge(lookup) : null;
     }
 
     /** Serve one start of the space's workload: its store, installations, gateway and meters. */
@@ -498,7 +519,11 @@ export class Space {
                     start.store.resolve(store);
                     start.gateway.resolve(new Gateway(this, start, store));
 
-                    return { packages: store.packages };
+                    return {
+                        packages: store.packages,
+                        store,
+                        control: () => present(this.#own, "the space's own servers").control(store),
+                    };
                 }
                 // mark the space down and refuse its waits with why
                 catch (error) {
@@ -570,18 +595,22 @@ export class Space {
         // build the own servers again once the servers providing, binding or provisioning change
         const over = reads.filter(([, read]) => read.isProviding).map(([server]) => server);
         const earlier = this.#own;
-        const own =
+        const built =
             earlier !== undefined &&
             earlier.over.length === over.length &&
             earlier.over.every((server, index) => server === over[index])
-                ? earlier.servers
-                : ownServers(
-                      this,
-                      start,
-                      installed,
-                      reads.map(([, read]) => read.served),
-                  );
-        this.#own = { over, servers: own };
+                ? earlier
+                : {
+                      over,
+                      ...ownServers(
+                          this,
+                          start,
+                          installed,
+                          reads.map(([, read]) => read.served),
+                      ),
+                  };
+        this.#own = built;
+        const own = built.servers;
 
         // serve a primary's installed packages beside its own, a standby its own alone
         return start.role === "primary" ? [...own, ...reads.map(([, read]) => read.server)] : own;
@@ -733,15 +762,117 @@ export class Space {
         return mapping;
     }
 
-    /** Read the space's role here: primary where the directory places it on this machine. */
-    async role(): Promise<SpaceRole> {
-        const [placed] = await accountObject.Placement.find(this.machine.directory.snapshot, [
-            this.id,
-        ]);
+    /** Report an installation serving nothing, once per failure. */
+    #reportFailed(
+        row: Pick<InstallationRollout, "installationId" | "installation">,
+        description: "its server did not load" | "its server did not start",
+        error: unknown,
+    ): void {
+        // leave a failure the installation reported last
+        const failure = [description, Failure.of(error).message].join(": ");
+        if (this.#failed.get(row.installationId) === failure) {
+            return;
+        }
+        this.#failed.set(row.installationId, failure);
 
-        return present(placed, `the placement of ${this.id}`).machine === this.machine.id
-            ? "primary"
-            : "standby";
+        // report it with its cause
+        const name = row.installation.name ?? row.installationId;
+        this.#current().context.report(
+            new Error(`installation '${name}' serves nothing: ${description}`, { cause: error }),
+        );
+    }
+
+    /** Read the space's role on this machine. */
+    async role(): Promise<SpaceRole> {
+        // read the space's placement and whether its rows here are stale
+        const placed = await this.machine.directory.snapshot
+            .read(accountObject.placement.table)
+            .findFirst({ where: { spaceId: this.id } });
+        const isStale =
+            placed !== undefined &&
+            (await SpaceTransfer.isStale(this.database, this.id, this.machine.id, placed.epoch));
+
+        // decide the role of a placed space
+        if (placed?.machineId === this.machine.id) {
+            return "primary";
+        } else if (placed?.targetId === this.machine.id && !isStale) {
+            return "standby";
+        } else if (placed !== undefined) {
+            return "leaving";
+        }
+
+        // stand by where the copy never had the space, and leave once its row is deleted or removed
+        const snapshot = Snapshot.live(this.database);
+        const [row] = await snapshot
+            .read(accountObject.space.table)
+            .findMany({ where: { id: this.id } });
+        const [served] = await Scope.read(snapshot, [this.id]);
+        if (row === undefined && served === undefined) {
+            return "standby";
+        } else if (row !== undefined && row.deletedAt === null) {
+            throw new TypeError(
+                `space '${this.id}' has no placement in the directory, but its row is live`,
+            );
+        }
+
+        return "leaving";
+    }
+
+    /** Destroy a leaving space here: its resources, events, blobs, builds, keys and volume. */
+    destroy(): Promise<void> {
+        return this.machine.scope.span(
+            "destack.space.destroy",
+            { "destack.space.id": this.id },
+            async () => {
+                // require a leaving start
+                const start = this.#current();
+                if (start.role !== "leaving") {
+                    throw new TypeError(
+                        `space '${this.id}' cannot be destroyed as '${start.role}'`,
+                    );
+                }
+
+                // stop the instance
+                await this.#instance?.close();
+
+                // destroy each resource this machine provisioned apart from the main database
+                const providers = new ProviderIndex(
+                    this.machine.id,
+                    spaceProviders(this, start),
+                    [],
+                );
+                for (const object of providers.objects()) {
+                    const rows = await this.database
+                        .select()
+                        .from(object.table)
+                        .where(and(object.inScope(this.id), isNotNull(object.table.reference)));
+                    const here = rows.filter(
+                        (each) =>
+                            each.provider !== SPACE_PROVIDER && each.machineId === this.machine.id,
+                    );
+                    for (const row of here) {
+                        await providers.destroy(
+                            present(row.provider, `the provider of ${row.id}`),
+                            row,
+                        );
+                    }
+                }
+
+                // destroy the resources restored here
+                await SpaceTransfer.forgetRestores(this.database, providers, this.id, undefined);
+
+                // clear its events, blobs and builds and forget its keys
+                await this.volume.events.clear();
+                await this.blobs.clear();
+                await this.builds.clear();
+                await this.keystore.forget(this.database, this.id);
+
+                // close and delete the volume
+                await this.volume.close();
+                this.health.set("stopped", "the space closed");
+                await this.machine.volumes.delete(this.id);
+            },
+        );
     }
 
     /** Read the account the space is placed in. */
@@ -880,7 +1011,7 @@ export class Space {
         const earlier: ReadonlyMap<string, ServedEntry> =
             this.#served?.signal === signal ? this.#served.entries : new Map();
         const keys = installed.map(({ rollout: row, revisionId, lock }) =>
-            Space.#key(row.installationId, revisionId, lock),
+            Space.#key(row.installationId, revisionId, lock, row.installation.capabilities),
         );
 
         // load the server of each other installation the store runs from its build
@@ -897,15 +1028,7 @@ export class Space {
                 try {
                     return { kind: "host", server: await this.machine.server(lock) } as const;
                 } catch (error) {
-                    const name = row.installation.name ?? row.installationId;
-                    this.#current().context.report(
-                        new Error(
-                            `installation '${name}' serves nothing: its server did not load`,
-                            {
-                                cause: error,
-                            },
-                        ),
-                    );
+                    this.#reportFailed(row, "its server did not load", error);
 
                     return { kind: "failed", error } as const;
                 }
@@ -934,14 +1057,7 @@ export class Space {
                     : await this.#serve(entry, load, { signal, trusted }).catch(
                           (error: unknown) => {
                               // report an installation that fails to start, and start the space without it
-                              const name =
-                                  entry.rollout.installation.name ?? entry.rollout.installationId;
-                              this.#current().context.report(
-                                  new Error(
-                                      `installation '${name}' serves nothing: its server did not start`,
-                                      { cause: error },
-                                  ),
-                              );
+                              this.#reportFailed(entry.rollout, "its server did not start", error);
 
                               return { kind: "failed", reason: "StartFailed", error } as const;
                           },
@@ -958,9 +1074,11 @@ export class Space {
             } else if (served.kind === "server") {
                 servers.push(served.server);
                 serving.set(installationId, { revisionId: entry.revisionId });
+                this.#failed.delete(installationId);
             } else {
                 sandboxes.push(served.sandbox);
                 serving.set(installationId, { revisionId: entry.revisionId });
+                this.#failed.delete(installationId);
             }
         }
         this.#served = { signal, entries };
@@ -971,15 +1089,25 @@ export class Space {
     /** Build the controller applying the space's installed set at each start and change of it. */
     controller(): Controller<typeof Scope.table> {
         return {
-            name: "space",
+            name: "destack.space.serve",
             table: Scope.table,
             pending: { scope: this.id },
             // apply again as the installed set, its rollouts or the main database's status move
-            watches: [installation.table, rollout.table, database.table].map((table) => ({
-                table,
-                isObserving: true,
-                keys: () => [{ scope: this.id }],
-            })),
+            watches: [
+                {
+                    table: installation.table,
+                    fields: [
+                        "status",
+                        "deletedAt",
+                        "capabilities",
+                        "allowed",
+                        "isolation",
+                        "conditions",
+                    ],
+                },
+                { table: rollout.table, fields: ["targetRevisionId", "appliedRevisionId"] },
+                { table: database.table, fields: ["appliedStates"] },
+            ].map((watch) => ({ ...watch, isObserving: true, keys: () => [{ scope: this.id }] })),
             reconcile: () => this.reconcile(),
         };
     }
@@ -1039,7 +1167,7 @@ export class Space {
             await snapshot.read(rollout.table).findMany({ where: { scope: spaceId } }),
         );
         const revisionIds = installations.flatMap((entry) =>
-            [entry.revisionId, entry.appliedRevisionId].filter((id) => id !== null),
+            [entry.targetRevisionId, entry.appliedRevisionId].filter((id) => id !== null),
         );
         const revisions = await snapshot
             .read(installationRevision.table)
@@ -1060,7 +1188,7 @@ export class Space {
                     const installed = present(
                         installations.find(
                             (entry) =>
-                                entry.revisionId === revision.id ||
+                                entry.targetRevisionId === revision.id ||
                                 entry.appliedRevisionId === revision.id,
                         ),
                         `the installation of revision ${revision.id}`,
@@ -1100,11 +1228,13 @@ export class Space {
             installations.map(async (entry) => {
                 // serve a bound revision declaring no object types at once, and one declaring some once main applied them
                 const latest =
-                    entry.revisionId === null ? undefined : declared.get(entry.revisionId);
-                const tables =
-                    entry.revisionId === null
+                    entry.targetRevisionId === null
                         ? undefined
-                        : revisions.find((each) => each.id === entry.revisionId)?.states[
+                        : declared.get(entry.targetRevisionId);
+                const tables =
+                    entry.targetRevisionId === null
+                        ? undefined
+                        : revisions.find((each) => each.id === entry.targetRevisionId)?.states[
                               MAIN_DATABASE
                           ];
                 const isBound =
@@ -1114,7 +1244,7 @@ export class Space {
                     latest !== undefined &&
                     isBound &&
                     (latest.objects.length === 0 || (tables !== undefined && applied.has(tables)));
-                const revisionId = isApplied ? entry.revisionId : entry.appliedRevisionId;
+                const revisionId = isApplied ? entry.targetRevisionId : entry.appliedRevisionId;
 
                 return revisionId === null ? [] : [{ rollout: entry, revisionId }];
             }),
@@ -1149,13 +1279,14 @@ export class Space {
         });
     }
 
-    /** Key an installation's server by the installation, its served revision and its lock. */
+    /** Key an installation's server by its installation, revision, lock and capabilities. */
     static #key(
         installationId: Identifier<"installation">,
         revisionId: Identifier<"installation-revision">,
         lock: Digest,
+        capabilities: readonly unknown[],
     ): string {
-        return `${installationId}@${revisionId}@${lock}`;
+        return `${installationId}@${revisionId}@${lock}@${JSON.stringify(capabilities)}`;
     }
 
     /** Serve one installation: a loaded server in the store, else its hooks in a sandbox. */
@@ -1400,7 +1531,10 @@ export class Space {
                     ...Deployment.live(),
                     scope: row.scope,
                     installationId: row.installationId,
-                    revisionId: present(row.revisionId, `the revision of ${row.installation.name}`),
+                    revisionId: present(
+                        row.targetRevisionId,
+                        `the revision of ${row.installation.name}`,
+                    ),
                     runtime: PROCESS_RUNTIME,
                 },
                 limit: 1,
@@ -1774,108 +1908,44 @@ export class Space {
 
     /** Declare the projection giving birth to the space once placed here, following its stack. */
     placement(store: ObjectStore, main: ReturnType<typeof defineDatabase>): Projection {
-        return new Projection(this.database, {
-            name: "placement",
-            tables: [
-                accountObject.placement.table,
-                accountObject.space.table,
-                rollout.table,
-                Scope.table,
+        const here = { id: this.id };
+
+        return {
+            name: "destack.space.place",
+            key: "id",
+            all: { table: accountObject.space.table, column: "id", where: here },
+            watches: [
+                // take the space's row, its placement and its rollouts, its stack's among them
+                { table: accountObject.space.table, where: here },
+                { table: accountObject.placement.table, on: { id: "spaceId" } },
+                { table: rollout.table, fields: ["spaceStack"], on: { id: "scope" } },
+                // take the space again once its account's scope arrives
+                { table: Scope.table, where: { type: "account" }, isListing: true },
             ],
-            keys: async (change) => this.#placementKeys(change),
-            all: async () => this.#placed(),
             project: async (key) => this.#place(key, store, main),
-        });
+        };
     }
 
     /** Declare the projection assigning the space's work to the other machines doing it. */
     assignment(publisher: Uplink): Projection {
-        return new Projection(this.database, {
-            name: "assignment",
-            tables: [
-                build.table,
-                deployment.table,
-                accountObject.placement.table,
-                accountObject.assignment.table,
+        return {
+            name: "destack.space.assign",
+            key: "id",
+            all: { table: accountObject.space.table, column: "id" },
+            watches: [
+                // take a placement's space, and the space of an assignment's placement
+                { table: accountObject.placement.table, on: { id: "spaceId" } },
+                {
+                    table: accountObject.assignment.table,
+                    path: [ASSIGNMENT_PLACEMENT],
+                    on: { id: "spaceId" },
+                },
+                // take the space of a build or a deployment
+                { table: build.table, fields: ["state"], on: { id: "scope" } },
+                { table: deployment.table, fields: ["status"], on: { id: "scope" } },
             ],
-            keys: async (change) => this.#assignmentKeys(change),
-            all: async () => this.#spaces(),
             project: async (key) => this.#assign(key, publisher),
-        });
-    }
-
-    /** List the store's space when a change touches it or an account's scope arrived. */
-    #placementKeys(change: Change): readonly string[] {
-        // take the space's placement
-        if (Change.of(change, accountObject.placement.table)) {
-            return this.#touching(Change.image(change).spaceId);
-        }
-        // take the space's replicated row
-        else if (Change.of(change, accountObject.space.table)) {
-            return this.#touching(Change.image(change).id);
-        }
-        // take the space's rollouts, its stack's among them
-        else if (Change.of(change, rollout.table)) {
-            return this.#touching(Change.image(change).scope);
-        }
-        // take an account whose scope arrived, inside which the space may now be born
-        else if (Change.of(change, Scope.table)) {
-            return Change.image(change).type === "account" ? [this.id] : [];
-        }
-        // select nothing for any other change
-        else {
-            return [];
-        }
-    }
-
-    /** List the store's space if a change's space is it, else nothing. */
-    #touching(changed: string): readonly string[] {
-        return changed === this.id ? [this.id] : [];
-    }
-
-    /** List the space while placed here awaiting birth or its changed stack. */
-    async #placed(): Promise<readonly string[]> {
-        // read the space while placed here with its stack and the stack its installation last followed
-        const rows = await this.database
-            .select({
-                id: accountObject.placement.table.spaceId,
-                born: Scope.table.scope,
-                stack: accountObject.space.table.stack,
-                followed: rollout.table.spaceStack,
-            })
-            .from(accountObject.placement.table)
-            .innerJoin(
-                accountObject.space.table,
-                eq(accountObject.space.table.id, accountObject.placement.table.spaceId),
-            )
-            .leftJoin(Scope.table, eq(Scope.table.scope, accountObject.space.table.id))
-            .leftJoin(
-                installation.table,
-                and(
-                    eq(installation.table.scope, accountObject.placement.table.spaceId),
-                    isNotNull(installation.table.export),
-                ),
-            )
-            .leftJoin(rollout.table, eq(rollout.table.installationId, installation.table.id))
-            .where(
-                and(
-                    eq(accountObject.placement.table.spaceId, this.id),
-                    eq(accountObject.placement.table.machineId, this.machine.id),
-                    isNull(accountObject.space.table.deletedAt),
-                ),
-            );
-
-        // select it unborn, or with a stack changed since its installation followed it
-        const { crypto } = this.database.state.environment;
-        const listed = await Promise.all(
-            rows.map(async (row) =>
-                row.born === null || (await Digest.json(row.stack, crypto)) !== row.followed
-                    ? [row.id]
-                    : [],
-            ),
-        );
-
-        return listed.flat();
+        };
     }
 
     /** Place the space here: instantiate it, else follow its changed stack. */
@@ -1905,6 +1975,9 @@ export class Space {
             return;
         }
 
+        // resolve the release the declared stack follows at its forge, before any transaction
+        const resolved = await this.#resolveStack(spaceId);
+
         // instantiate the space once its parent's scope arrived
         if (placed.born === null) {
             const [parent] = await this.database
@@ -1913,13 +1986,13 @@ export class Space {
                 .where(eq(Scope.table.scope, placed.parent));
             if (parent !== undefined) {
                 const ancestors = [placed.parent, ...parent.ancestors];
-                await this.#instantiate(store, main, spaceId, ancestors);
+                await this.#instantiate(store, main, spaceId, ancestors, resolved);
             }
         }
         // otherwise follow the space's stack once it changed, leaving a stack its owner applied since
         else {
             await Transaction.run(this.database, (transaction) =>
-                this.#followChangedStack(store, spaceId, transaction),
+                this.#followChangedStack(store, spaceId, transaction, resolved),
             );
         }
     }
@@ -1930,12 +2003,31 @@ export class Space {
         main: ReturnType<typeof defineDatabase>,
         spaceId: Identifier<"space">,
         ancestors: readonly string[],
+        resolved: ResolvedStack,
     ): Promise<void> {
         await Transaction.run(this.database, async (transaction) => {
             await this.#receive(store, spaceId, ancestors, transaction);
             await this.#createMain(store, main, spaceId, transaction);
-            await this.#followChangedStack(store, spaceId, transaction);
+            await this.#followChangedStack(store, spaceId, transaction, resolved);
         });
+    }
+
+    /** Resolve what the space's declared stack follows, the host's for a shipped version. */
+    async #resolveStack(spaceId: Identifier<"space">): Promise<ResolvedStack> {
+        // read the declared stack, and resolve what it follows at its forge
+        const [declared] = await Snapshot.live(this.database)
+            .read(accountObject.space.table)
+            .findMany({ where: { id: spaceId } });
+        const { stack } = present(declared, `the row of ${spaceId}`);
+        const digest = await Digest.json(stack, this.machine.environment.crypto);
+        const { selection } = stack;
+        const { follows } = await RolloutTarget.resolveDeclared(
+            stack.packageId,
+            selection.kind === "release" ? { version: selection.version } : { selection },
+            { registry: this.machine.releases, shipped: this.machine.shipped },
+        );
+
+        return { digest, follows };
     }
 
     /** Follow the space's stack once it changed, leaving a stack its owner applied since. */
@@ -1943,6 +2035,7 @@ export class Space {
         store: ObjectStore,
         spaceId: Identifier<"space">,
         transaction: Transaction,
+        resolved: ResolvedStack,
     ): Promise<void> {
         // read the stack the space declares and the one its installation last followed
         const snapshot = transaction.view();
@@ -1960,13 +2053,13 @@ export class Space {
                       .read(rollout.table)
                       .findMany({ where: { installationId: installed.id } });
         const digest = await Digest.json(stack, transaction.database.state.environment.crypto);
-        if (digest !== followed?.spaceStack) {
+        if (digest !== followed?.spaceStack && digest === resolved.digest) {
             await this.#followStack(
                 store,
                 transaction,
                 spaceId,
                 stack,
-                digest,
+                resolved,
                 installed?.id ?? null,
                 installed?.packageId ?? null,
             );
@@ -2035,7 +2128,7 @@ export class Space {
         transaction: Transaction,
         spaceId: Identifier<"space">,
         stack: accountObject.StackRelease,
-        digest: Digest,
+        resolved: ResolvedStack,
         installed: Identifier<"installation"> | null,
         installedPackage: string | null,
     ): Promise<void> {
@@ -2047,7 +2140,11 @@ export class Space {
         }
 
         // install the stack package once, else follow the changed release and export
-        const followed = { selection: stack.selection, export: stack.export };
+        const followed = {
+            ...ObjectReference.columns("follows", resolved.follows),
+            directory: null,
+            export: stack.export,
+        };
         const [created] = await store.mutate(
             store.as(rollout),
             {
@@ -2079,42 +2176,12 @@ export class Space {
                 calls: [
                     rollout.call("follow", {
                         ...rollout.target({ scope: spaceId, id }),
-                        spaceStack: digest,
+                        spaceStack: resolved.digest,
                     }),
                 ],
             },
             { transaction, scope: spaceId },
         );
-    }
-
-    /** List the space a change of its work, its placement or its assignments touches. */
-    async #assignmentKeys(change: Change): Promise<readonly string[]> {
-        // take a placement's space
-        if (Change.of(change, accountObject.placement.table)) {
-            return [Change.image(change).spaceId];
-        }
-        // take the space of an assignment's placement
-        else if (Change.of(change, accountObject.assignment.table)) {
-            const placed = await Snapshot.live(this.database)
-                .read(accountObject.placement.table)
-                .findFirst({ where: { id: Change.image(change).placementId } });
-
-            return placed === undefined ? [] : [placed.spaceId];
-        }
-        // take the space of its work otherwise
-        else {
-            return [change.scope];
-        }
-    }
-
-    /** List the spaces this machine serves. */
-    async #spaces(): Promise<readonly string[]> {
-        const rows = await this.database
-            .select({ id: accountObject.space.table.id })
-            .from(accountObject.space.table)
-            .where(accountObject.Space.served());
-
-        return rows.map((row) => row.id);
     }
 
     /** Assign the machines with work in a space this machine serves and withdraw the others. */
@@ -2367,9 +2434,11 @@ export class Space {
 
     /** Read whether the space serves each installation at its revision, else the lagging one. */
     async #readiness(role: SpaceRole): Promise<["starting" | "up", string]> {
-        // serve a follower as its primary does
-        if (role !== "primary") {
-            return ["up", `it follows its primary as ${role}`];
+        // report a leaving space or a standby
+        if (role === "leaving") {
+            return ["up", "it is leaving this machine"];
+        } else if (role === "standby") {
+            return ["up", "it follows its primary as standby"];
         }
 
         // read the rollouts with their installations' conditions
@@ -2381,9 +2450,9 @@ export class Space {
         const lagging = rows.find(
             (row) =>
                 Rollout.servingFailure(row.installation) === undefined &&
-                (row.revisionId === null ||
-                    row.appliedRevisionId !== row.revisionId ||
-                    row.servedRevisionId !== row.revisionId),
+                (row.targetRevisionId === null ||
+                    row.appliedRevisionId !== row.targetRevisionId ||
+                    row.servedRevisionId !== row.targetRevisionId),
         );
 
         // wait for a first installation, then for each to serve its revision, naming its open condition
@@ -2447,7 +2516,8 @@ export class Space {
             return (
                 installed !== undefined &&
                 Observation.progress(installed) === "current" &&
-                served?.servedRevisionId === installed.revisionId
+                served?.targetRevisionId !== null &&
+                served?.servedRevisionId === served?.targetRevisionId
             );
         }, signal);
         if (!isServed) {
@@ -2459,12 +2529,16 @@ export class Space {
         }
     }
 
-    /** Restart the workload once the directory places the space here in another role. */
-    async restartIfRoleChanged(): Promise<void> {
+    /** Restart the workload in a changed role, and answer the role. */
+    async restartIfRoleChanged(): Promise<SpaceRole> {
+        // read the role, and reload a start serving another
+        const role = await this.role();
         const serving = this.#start;
-        if (serving !== undefined && (await this.role()) !== serving.role) {
-            serving.context.reload().catch((error: unknown) => serving.context.report(error));
+        if (serving !== undefined && role !== serving.role) {
+            await serving.context.reload();
         }
+
+        return role;
     }
 
     /** Read the mounts the installed set's packages declare. */
@@ -2526,17 +2600,52 @@ export class Space {
 
     /** Lease a repository of the space's account to read, at the forge in its residency's home. */
     async lease(repositoryId: Identifier<"repository">): Promise<Lease> {
-        // call the forge of the space's account as the space, a peer call to its home's stack
+        return this.#forges().lease(await this.account(), repositoryId);
+    }
+
+    /** Refuse a repository outside the space's account. */
+    async requireRepository(repository: Identifier<"repository">): Promise<void> {
+        // refuse any on a machine following no repositories
+        const { forge } = this.#current();
+        if (forge === null) {
+            throw StackError.of(
+                "REPOSITORIES_BLOCKED",
+                "cannot follow a repository: this machine does not follow any repositories",
+            );
+        }
+
+        // refuse one another account owns or none claims
+        if ((await forge.owner(repository)) !== (await this.account())) {
+            throw StackError.of(
+                "REPOSITORY_NOT_FOUND",
+                `repository '${repository}' of the space's account not found`,
+            );
+        }
+    }
+
+    /** Refuse following a reference of a repository outside the space's account. */
+    async requireFollowable(followed: ObjectReference | undefined): Promise<void> {
+        if (followed?.type === reference.name) {
+            await this.requireRepository((await this.reference(followed)).repository);
+        }
+    }
+
+    /** Read a followed reference at its forge's home as the space. */
+    reference(followed: ObjectReference): ReturnType<Registry["reference"]> {
+        return this.#forges().reference(followed);
+    }
+
+    /** Call the forges as the space, a peer call to each home's stack. */
+    #forges(): Registry {
         const self = principal.space.reference(Scope.universe.id, this.id);
-        const forges = Registry.of(
+
+        return Registry.of(
             this.machine.directory,
             (account) => this.#residencyHome(account),
             () => this.session(this.identityOf(self)).fetch(stackPackage.id),
             this.machine.environment,
             this.machine.registry,
         );
-
-        return forges.lease(await this.account(), repositoryId);
     }
 
     /** Forward an instance's telemetry export, stamped with its installation and instance. */

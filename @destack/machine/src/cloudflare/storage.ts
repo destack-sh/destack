@@ -97,6 +97,8 @@ export interface DurableObjectSpaceStorageOptions {
 export class DurableObjectSpaceStorage implements SpaceStorage {
     /** The main database the space stores. */
     readonly main: SpaceStorage["main"];
+    /** The tables every space replicates of packages a space can install. */
+    readonly replicated: SpaceStorage["replicated"];
     /** The event kinds the space records. */
     readonly kinds: SpaceStorage["kinds"];
     /** The servers' ephemeral object types. */
@@ -115,13 +117,14 @@ export class DurableObjectSpaceStorage implements SpaceStorage {
     /** Take a space over its object's migrated database. */
     private constructor(
         options: DurableObjectSpaceStorageOptions,
-        declared: Pick<SpaceStorage, "main" | "kinds" | "ephemeral">,
+        declared: Pick<SpaceStorage, "main" | "replicated" | "kinds" | "ephemeral">,
         host: DurableObjectDatabaseHost,
         database: DatabaseConnection,
     ) {
         // set the space, what it stores, the object's storage and the installations' objects
         this.#options = options;
         this.main = declared.main;
+        this.replicated = declared.replicated;
         this.kinds = declared.kinds;
         this.ephemeral = declared.ephemeral;
         this.#host = host;
@@ -146,7 +149,8 @@ export class DurableObjectSpaceStorage implements SpaceStorage {
             namespace: SPACE_NAMESPACE,
             openChannel: channelHub(),
         });
-        await database.migrate(declared.main.tables, { others: "retain" });
+        await database.migrate(declared.main.tables);
+        await database.declareApplied(declared.replicated);
 
         return new DurableObjectSpaceStorage(options, declared, host, database);
     }
@@ -158,7 +162,7 @@ export class DurableObjectSpaceStorage implements SpaceStorage {
         const database = this.#host.connect(BuildStore.database.tables, {
             namespace: CACHE_NAMESPACE,
         });
-        await database.migrate(BuildStore.database.tables, { others: "retain" });
+        await database.migrate(BuildStore.database.tables);
         const storage = new BucketBlobStorage(
             new R2Bucket(builds),
             `${CACHE_PREFIX}${space}/`,
@@ -172,6 +176,18 @@ export class DurableObjectSpaceStorage implements SpaceStorage {
     /** List the one space the object stores. */
     async list(): Promise<readonly Identifier<"space">[]> {
         return [this.#options.space];
+    }
+
+    /** Delete the closed space's storage in its object. */
+    async delete(space: Identifier<"space">): Promise<void> {
+        // refuse another space
+        if (space !== this.#options.space) {
+            throw MachineError.of(
+                "SPACE_NOT_FOUND",
+                `space '${space}' in the object of '${this.#options.space}' not found`,
+            );
+        }
+        await this.#options.storage.deleteAll();
     }
 
     /** Open the volume of the space the object stores, refusing any other space. */

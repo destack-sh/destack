@@ -379,6 +379,7 @@ export class Device<
         servers: readonly PackageImplementation[],
         callKey: CallKey,
         events: EventStore,
+        report: (error: unknown) => void,
     ): Promise<ObjectStore> {
         // serve each package as the device's own, acting as the device
         const { clock } = this;
@@ -394,6 +395,7 @@ export class Device<
             events,
             environment: this.environment,
             origin: { package: PackageVersion.of(machinePackage) },
+            report,
         });
 
         // receive the device's scope once, a root no other home knows

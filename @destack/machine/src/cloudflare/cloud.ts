@@ -296,7 +296,7 @@ export class CloudMachine {
         // store the replicas in the object's own storage, in the isolate's environment
         const host = new DurableObjectDatabaseHost(storage, this.environment);
         const database = host.connect(CloudMachine.database);
-        await database.migrate(CloudMachine.database.tables, { others: "retain" });
+        await database.migrate(CloudMachine.database.tables);
 
         // follow them as the machine through the universe's account package
         const accounts = createClient(

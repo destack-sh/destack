@@ -13,11 +13,11 @@ export const ScopeReceiver = {
         machineId: Identifier<"machine">,
     ): Controller<typeof accountObject.machine.table> {
         return {
-            name: "machine-scope",
+            name: "destack.machine.receive",
             table: accountObject.machine.table,
             pending: { id: machineId },
             // receive it again once its parent's scope arrives
-            watches: [{ table: Scope.table, keys: () => [{ id: machineId }] }],
+            watches: [{ table: Scope.table, isListing: true }],
             reconcile: (rows) => ScopeReceiver.receive(store, rows),
         };
     },

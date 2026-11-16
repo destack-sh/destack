@@ -17,10 +17,9 @@ import { PackageVersion } from "@destack/package";
 import objectServer, {
     implementPackage,
     ObjectStore,
-    type PackageHandler,
     type PackageImplementation,
 } from "@destack/object/server";
-import type { WorkloadContext } from "@destack/object/workload";
+import type { WorkloadContext, WorkloadImplementation } from "@destack/object/workload";
 import type { EventStore } from "@destack/event";
 import { DistributionHost, distributionServer } from "@destack/update/server";
 import type { Device } from "../device/device.ts";
@@ -129,7 +128,7 @@ export class ComputerServer {
     }
 
     /** Serve the device's partition: the computer's record, local objects and distribution. */
-    async serveDevice(): Promise<{ readonly packages: readonly PackageHandler[] }> {
+    async serveDevice(context: WorkloadContext): Promise<WorkloadImplementation> {
         // serve the device's own objects, the computer's record and the distribution over the device's store
         const { device } = this;
         const machine = this.machine.id;
@@ -144,6 +143,7 @@ export class ComputerServer {
             ],
             this.callKey,
             this.deviceEvents,
+            context.report,
         );
 
         // write the computer's record and an installed distribution's as the machine
@@ -160,18 +160,29 @@ export class ComputerServer {
         // hand the started store to the process
         this.receive.device(store);
 
-        return { packages: store.packages };
+        // serve the spaces while enrolled, and run sign-ins
+        const control = () => [
+            {
+                controllers: [
+                    this.machine.controller(),
+                    new SignInRunner(this.device, store).controller(),
+                ],
+                projections: [],
+                cursors: [],
+            },
+        ];
+
+        return { packages: store.packages, store, control };
     }
 
     /** Serve the machine's own partition once it enrolls: checkouts, previews and replicas. */
-    async serveMachine(
-        context: WorkloadContext,
-    ): Promise<{ readonly packages: readonly PackageHandler[] }> {
+    async serveMachine(context: WorkloadContext): Promise<WorkloadImplementation> {
         // serve the machine's checkouts, previews and replicas over its store, home of its partition
         const machine = this.machine.id;
 
         // serve each package as the machine's own, acting as the machine
-        const servers = [this.#implementMachine(), objectServer];
+        const checkouts = new CheckoutServer({ ...this.build, machine: this.machine });
+        const servers = [this.#implementMachine(checkouts), objectServer];
 
         // open the store, home of the machine's partition
         const store = new ObjectStore({
@@ -189,10 +200,24 @@ export class ComputerServer {
             // follow the machine's chain above it once enrolled
             chain: () => this.machine.chain(),
             publisher: (scope) => this.machine.publisher(scope),
+            report: (error) => context.report(error),
         });
         this.receive.machine(store);
 
-        return { packages: store.packages };
+        // receive the machine's scope, run the builds assigned here and the checkouts' previews and sources
+        const control = () => [
+            {
+                controllers: [
+                    ScopeReceiver.controller(store, machine),
+                    this.runner.controller(),
+                    new PreviewSource(store, checkouts).controller(),
+                ],
+                projections: [],
+                cursors: [],
+            },
+        ];
+
+        return { packages: store.packages, store, control };
     }
 
     /** Serve the computer's record in its device, beside this package's local objects. */
@@ -209,18 +234,12 @@ export class ComputerServer {
         return implementPackage(handle, {
             objects: [this.#computer(), ...objects],
             mounts: { people: (request) => this.#people(request) },
-            // serve the spaces as the machine while its record states an enrollment, and carry out sign-ins
-            controllers: [
-                () => this.machine.controller(),
-                (store) => new SignInRunner(this.device, store).controller(),
-            ],
         });
     }
 
     /** Serve the machine's partition once enrolled: checkouts, previews, replicas and builds. */
-    #implementMachine(): PackageImplementation {
+    #implementMachine(checkouts: CheckoutServer): PackageImplementation {
         // follow the machine's replicas and its builds, and serve its checkouts and previews
-        const checkouts = new CheckoutServer({ ...this.build, machine: this.machine });
         const { id } = this.machine;
         const follows: readonly Follow[] = [
             // follow the directory, the identities and this machine's placements
@@ -250,12 +269,6 @@ export class ComputerServer {
         return implementPackage(machinePackage, {
             objects: [checkouts.checkout(), checkouts.preview()],
             follows,
-            // receive the machine's scope, run the builds assigned here and the checkouts' previews and sources
-            controllers: [
-                (store) => ScopeReceiver.controller(store, id),
-                () => this.runner.controller(),
-                (store) => new PreviewSource(store, checkouts).controller(),
-            ],
         });
     }
 

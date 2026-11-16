@@ -1100,8 +1100,7 @@ export class Computer implements AsyncDisposable {
             },
             ...(home.stage.name === "local" ? {} : { distribution: installed }),
             toolchain,
-            report: (event, error) =>
-                instruments.captureException(error, { isEscaped: true, tags: { event } }),
+            report: (event, error) => Computer.capture(telemetry, event, error),
             shutdown: () => stopping.abort(),
         });
         running = started;
@@ -1250,6 +1249,14 @@ export class Computer implements AsyncDisposable {
         const isMachine = MACHINE_IDENTIFIER.safeParse(partition).success;
 
         return { server, request: routed.request, isMachine };
+    }
+
+    /** Capture a failure the computer reports. */
+    static capture(telemetry: Environment["telemetry"], event: string, error: unknown): void {
+        TelemetryScope.of(MACHINE_PACKAGE, telemetry).captureException(error, {
+            isEscaped: true,
+            tags: { event },
+        });
     }
 
     /** Start a machine process's telemetry: its own log, and its owner's home once enrolled. */

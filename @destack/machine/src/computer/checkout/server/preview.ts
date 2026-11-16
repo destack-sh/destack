@@ -38,7 +38,7 @@ export class PreviewSource {
     /** Build the controller watching each preview's sources until the preview is deleted. */
     controller(): Controller<typeof preview.table> {
         return {
-            name: "preview-source",
+            name: "destack.preview.watch",
             table: preview.table,
             pending: { deletedAt: { isNull: true } },
             concurrency: WATCHED_PREVIEWS,

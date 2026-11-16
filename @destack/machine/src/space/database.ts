@@ -30,9 +30,15 @@ export class SpaceDatabaseHost implements DatabaseHost {
         return { reference: this.#reference(schema.identifier("space").parse(record.scope)) };
     }
 
-    /** Remove the space's storage. */
-    destroy(record: ResourceRecord<typeof DatabaseKind>): Promise<void> {
-        return this.#host.destroy(record);
+    /** Drop the database's tables from the space's storage. */
+    async destroy(record: ResourceRecord<typeof DatabaseKind>): Promise<void> {
+        // drop the tables the database applied
+        const opened = await this.open(record, []);
+        try {
+            await opened.migrate([]);
+        } finally {
+            await opened.close();
+        }
     }
 
     /** Diff the storage's applied state against the desired states. */

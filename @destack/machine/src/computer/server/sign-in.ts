@@ -30,7 +30,7 @@ export class SignInRunner {
     /** Build the controller running each sign-in until it is removed. */
     controller(): Controller<typeof signIn.table> {
         return {
-            name: "sign-in",
+            name: "destack.sign_in.run",
             table: signIn.table,
             pending: { deletedAt: { isNull: true } },
             concurrency: RUNNING_SIGN_INS,

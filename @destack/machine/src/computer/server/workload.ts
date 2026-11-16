@@ -11,7 +11,7 @@ export const computerServer = new ResourceHandle<ComputerServer>(
 /** The packages of the device's partition: the computer's record and local objects. */
 export const deviceWorkload = defineWorkload({
     name: "device",
-    start: (context) => computerServer.get(context.resources).serveDevice(),
+    start: (context) => computerServer.get(context.resources).serveDevice(context),
 });
 
 /** The packages of the machine's own partition, which serves once the machine enrolls. */

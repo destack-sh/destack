@@ -2,7 +2,6 @@ import { waitAborted } from "@destack/environment";
 import {
     and,
     type BlobStore,
-    Change,
     Condition,
     type DatabaseConnection,
     DatabaseHandle,
@@ -15,9 +14,8 @@ import {
     lt,
     or,
     type Controller,
-    Projection,
+    type Projection,
     type RowImage,
-    type Select,
     Snapshot,
     sql,
     type SQL,
@@ -32,18 +30,16 @@ import {
     Replica,
     type Call,
     ObjectReference,
-    replica,
     Scope,
     type Subject,
     type Uplink,
 } from "@destack/sync";
-import { placement, Space, Placement, type space } from "@destack/account/object";
+import { placement, Placement, type space } from "@destack/account/object";
 import { SpaceReplica } from "./replica.ts";
 import { machineBound, type HandoffOptions, type Handoff, SourceHandoff } from "./handoff.ts";
 import type { Runtime } from "../runtime/index.ts";
 import {
     type Digest,
-    nth,
     type Identifier,
     type UuidEnvironment,
     present,
@@ -69,8 +65,6 @@ import {
     type Fence,
 } from "@destack/stack/object";
 import type { BuildStore } from "@destack/build/store";
-import { retireSnapshots } from "../resource/snapshot.ts";
-import type { SpaceRole } from "../space/placement.ts";
 import type {} from "@destack/package/import-meta";
 import { TelemetryScope } from "@destack/telemetry";
 import { StackError } from "@destack/stack/error";
@@ -80,8 +74,6 @@ const TRANSFER_CONCURRENCY = 4;
 
 /** What a machine moves spaces with: the sources' handoffs, providers and store. */
 export interface TransferOptions {
-    /** The space's role on the machine: only a standby removes a moved space's fenced replica. */
-    readonly role: SpaceRole;
     /** The machine serving the spaces. */
     readonly machine: Identifier<"machine">;
     /** The space's database, which a move fences and copies. */
@@ -225,26 +217,6 @@ export function implementTransfer(options: TransferOptions) {
                 },
             },
         },
-        controllers: [
-            {
-                pending: { completedAt: { isNull: true }, sourceId: options.machine },
-                watches: [
-                    Space.watch((spaceId, database) =>
-                        database
-                            .select({ id: transfer.table.id })
-                            .from(transfer.table)
-                            .where(
-                                and(
-                                    eq(transfer.table.scope, spaceId),
-                                    isNull(transfer.table.completedAt),
-                                ),
-                            ),
-                    ),
-                ],
-                reconcile: (reconciliation) =>
-                    advance(nth(reconciliation.rows, 0), reconciliation, options),
-            },
-        ],
     });
 }
 
@@ -317,33 +289,44 @@ async function unmark(context: SettlementContext, options: TransferOptions): Pro
     });
 }
 
-/** Advance a transfer from this machine. */
-async function advance(
-    record: Select<typeof transfer.table>,
-    reconciliation: {
-        readonly database: DatabaseConnection;
-        readonly now: number;
-        readonly store: TransferStore;
-    },
-    options: TransferOptions,
-): Promise<undefined> {
-    // remove the fenced replica of a space its target serves now, once this machine stands by
-    const [located] = await Placement.find(Snapshot.live(reconciliation.database), [record.scope]);
-    const isServedThere =
-        located?.machine === record.targetId && located.epoch > record.sourceEpoch;
-    if (options.role === "standby" && located !== undefined && isServedThere) {
-        const machine = record.sourceId;
-        const source = { ...located, machine, epoch: record.sourceEpoch };
-        const target = record.targetId;
-        const moved = await SpaceTransfer.of(reconciliation.store, source, target);
-        await moved.remove(options, reconciliation.store, reconciliation.now);
-    }
-
-    return undefined;
-}
-
 /** The move of one space to another machine. */
 export class SpaceTransfer {
+    /** Report whether a machine's volume of a space predates its move away. */
+    static async isStale(
+        database: DatabaseConnection,
+        spaceId: Identifier<"space">,
+        machine: Identifier<"machine">,
+        epoch: number,
+    ): Promise<boolean> {
+        // read the moves away before the epoch and back at the epoch
+        const rows = await database
+            .select({ sourceId: transfer.table.sourceId, targetId: transfer.table.targetId })
+            .from(transfer.table)
+            .where(
+                and(
+                    eq(transfer.table.scope, spaceId),
+                    or(
+                        and(
+                            eq(transfer.table.sourceId, machine),
+                            or(
+                                isNull(transfer.table.outcome),
+                                eq(transfer.table.outcome, "succeeded"),
+                            ),
+                            lt(transfer.table.sourceEpoch, epoch),
+                        ),
+                        and(
+                            eq(transfer.table.targetId, machine),
+                            eq(transfer.table.sourceEpoch, epoch),
+                        ),
+                    ),
+                ),
+            );
+        const isDeparted = rows.some((row) => row.sourceId === machine);
+        const isReturning = rows.some((row) => row.targetId === machine);
+
+        return isDeparted && !isReturning;
+    }
+
     /** The space as its source serves it. */
     readonly placement: Placement;
     /** The machine receiving the space. */
@@ -358,36 +341,58 @@ export class SpaceTransfer {
         return this.placement.space;
     }
 
-    /** Plan a space's move with its main database's tables, by default those applied here. */
+    /** Plan a space's move with its main database's states, by default those applied here. */
     static async of(
         space: TransferSpace,
         placed: Placement,
         target: Identifier<"machine">,
-        tables?: readonly Table[],
+        states?: readonly DatabaseState[],
     ): Promise<SpaceTransfer> {
-        const added =
-            tables ??
-            SpaceTransfer.tables(space.database, await SpaceTransfer.states(space, placed.space));
+        // move the tables the states have of their own, leaving the ones they only replicate
+        const main = states ?? (await SpaceTransfer.main(space, placed.space))?.states ?? [];
+        const declared = main.map((state) => state.tables[space.database.dialect]);
+        const moved = SpaceTransfer.owned(space.database, main);
+        const kept = new Set(DatabaseHandle.owned(declared).map((table) => table[TABLE].sqlName));
+        const replicated = DatabaseHandle.tables(declared)
+            .map((table) => table[TABLE].sqlName)
+            .filter((name) => !kept.has(name));
 
         return new SpaceTransfer({
             placement: placed,
             target,
-            space: await SpaceReplica.of(space.database, placed.space, added),
+            space: await SpaceReplica.of(space.database, placed.space, moved, replicated),
         });
     }
 
-    /** Read the states the space's main database applied, none while absent or unprovisioned. */
-    static async states(
+    /** Read the space's main database and its applied states, null while unprovisioned. */
+    static async main(
         space: TransferSpace,
         spaceId: Identifier<"space">,
-    ): Promise<DatabaseState[]> {
+    ): Promise<{ readonly id: ResourceId; readonly states: DatabaseState[] } | null> {
         const main = await Database.mainMaybe(Snapshot.live(space.database), spaceId);
 
         return main === undefined || main.reference === null
-            ? []
-            : await Promise.all(
-                  main.appliedStates.map((digest) => space.blobs.readJson(digest, DatabaseState)),
-              );
+            ? null
+            : {
+                  id: main.id,
+                  states: await Promise.all(
+                      main.appliedStates.map((digest) =>
+                          space.blobs.readJson(digest, DatabaseState),
+                      ),
+                  ),
+              };
+    }
+
+    /** Create the tables a main database applied elsewhere, and return them. */
+    static async migrate(
+        database: DatabaseConnection,
+        id: ResourceId,
+        states: readonly DatabaseState[],
+    ): Promise<Table[]> {
+        const tables = SpaceTransfer.tables(database, states);
+        await database.migrate(tables, { manager: id });
+
+        return tables;
     }
 
     /** Describe the tables some main database states declare in addition to a database's own. */
@@ -395,6 +400,16 @@ export class SpaceTransfer {
         // describe the states' tables in the database's dialect, leaving the ones it declares
         const own = new Set(database.tables.map((table) => table[TABLE].sqlName));
         const described = DatabaseHandle.tables(
+            states.map((state) => state.tables[database.dialect]),
+        );
+
+        return described.filter((table) => !own.has(table[TABLE].sqlName));
+    }
+
+    /** Describe the tables main's states have beside the database's, whose rows move. */
+    static owned(database: DatabaseConnection, states: readonly DatabaseState[]): Table[] {
+        const own = new Set(database.tables.map((table) => table[TABLE].sqlName));
+        const described = DatabaseHandle.owned(
             states.map((state) => state.tables[database.dialect]),
         );
 
@@ -431,12 +446,7 @@ export class SpaceTransfer {
                           ),
                       );
 
-            return SpaceTransfer.of(
-                options,
-                located,
-                record.targetId,
-                SpaceTransfer.tables(options.database, states),
-            );
+            return SpaceTransfer.of(options, located, record.targetId, states);
         });
     }
 
@@ -552,31 +562,6 @@ export class SpaceTransfer {
                 await Promise.all(fences.map((resource) => resource.fence.lift(resource.record)));
             },
         );
-    }
-
-    /** Remove the source's replica of a space its target serves now. */
-    async remove(
-        options: Pick<HandoffOptions, "providers" | "builds" | "blobs">,
-        store: Pick<ObjectStore, "mutate" | "environment">,
-        now: number,
-    ): Promise<void> {
-        // destroy each provisioned resource of the space on this machine
-        for (const { row } of await this.#provisioned(options.providers)) {
-            await options.providers.destroy(
-                present(row.provider, `the provider of ${row.id}`),
-                row,
-            );
-        }
-
-        // retire the space's snapshots
-        await Transaction.run(this.space.database, (transaction) =>
-            retireSnapshots(transaction, store, this.spaceId, now),
-        );
-
-        // delete the space's rows, then its builds and blobs
-        await this.space.delete();
-        await options.builds.clear();
-        await options.blobs.clear();
     }
 
     /** Cut over to this machine. */
@@ -762,7 +747,12 @@ export class SpaceTransfer {
         const deleted = restores.filter((row) => !resources.includes(row.resourceId));
         if (deleted.length > 0) {
             const ids = deleted.map((row) => row.id);
-            await this.#forget(database, options.providers, inArray(restore.table.id, ids));
+            await SpaceTransfer.forgetRestores(
+                database,
+                options.providers,
+                this.spaceId,
+                inArray(restore.table.id, ids),
+            );
         }
 
         // request the missing restores and mark the others fenced, then wait until each caught up
@@ -925,7 +915,7 @@ export class SpaceTransfer {
             async () => {
                 // forget the restores and destroy their resources
                 const restoring = Condition.render(this.#restoring(), restore.table);
-                await this.#forget(database, providers, restoring);
+                await SpaceTransfer.forgetRestores(database, providers, this.spaceId, restoring);
 
                 // drop a replica still following its source
                 if (await this.space.replica.isRecorded(Snapshot.live(database))) {
@@ -957,9 +947,10 @@ export class SpaceTransfer {
     }
 
     /** Forget some restores and destroy the resources they restored here. */
-    async #forget(
+    static async forgetRestores(
         database: DatabaseConnection,
         providers: ProviderIndex,
+        spaceId: Identifier<"space">,
         restores: SQL | undefined,
     ): Promise<void> {
         // forget the restores and read what each recorded
@@ -973,7 +964,7 @@ export class SpaceTransfer {
             const restored = Restore.restored(row);
             await providers.destroy(restored.provider, {
                 id: row.resourceId,
-                scope: this.spaceId,
+                scope: spaceId,
                 spec: restored.spec,
                 reference: restored.reference,
             });
@@ -1115,28 +1106,19 @@ export class SpaceTransfer {
         }
     }
 
-    /** Match the spaces a machine stores from a move to it whose placement is elsewhere now. */
-    static abandoned(machine: Identifier<"machine">): SQL {
-        return sql`EXISTS (SELECT 1 FROM ${transfer.table} WHERE ${transfer.table.scope} = ${Scope.table.scope} AND ${transfer.table.targetId} = ${machine}) AND NOT EXISTS (SELECT 1 FROM ${placement.table} WHERE ${placement.table.spaceId} = ${Scope.table.scope} AND (${placement.table.machineId} = ${machine} OR ${placement.table.targetId} = ${machine})) AND (EXISTS (SELECT 1 FROM ${replica} WHERE ${replica.scope} = ${Scope.table.scope}) OR ${Scope.table.movedTo} IS NULL OR ${Scope.table.movedTo} = ${machine})`;
-    }
-
     /** Match the spaces a machine took over and fenced toward itself. */
     static fenced(machine: Identifier<"machine">): SQL {
         return sql`${Scope.table.movedTo} = ${machine}`;
     }
 
-    /** Find the latest move to a machine of a space it has in a state. */
+    /** Find the latest move of a space a machine took over. */
     static async latest(
         space: TransferSpace,
         spaceId: Identifier<"space">,
         machine: Identifier<"machine">,
-        state: "abandoned" | "fenced",
     ): Promise<SpaceTransfer | undefined> {
-        // read the latest move here of the space in that state
-        const condition =
-            state === "abandoned"
-                ? SpaceTransfer.abandoned(machine)
-                : SpaceTransfer.fenced(machine);
+        // read the latest move here of the space fenced toward this machine
+        const condition = SpaceTransfer.fenced(machine);
         const [latest] = await space.database
             .select({
                 account: Scope.table.parent,
@@ -1169,33 +1151,6 @@ export class SpaceTransfer {
         return SpaceTransfer.of(space, served, machine);
     }
 
-    /** Find the latest move of a space away from a machine, which a later placement superseded. */
-    static async away(
-        space: TransferSpace,
-        moving: Placement,
-        machine: Identifier<"machine">,
-    ): Promise<SpaceTransfer | undefined> {
-        // read the latest uncancelled move away from the machine before the space's current epoch
-        const [latest] = await space.database
-            .select({ target: transfer.table.targetId, epoch: transfer.table.sourceEpoch })
-            .from(transfer.table)
-            .where(
-                and(
-                    eq(transfer.table.scope, moving.space),
-                    eq(transfer.table.sourceId, machine),
-                    or(isNull(transfer.table.outcome), eq(transfer.table.outcome, "succeeded")),
-                    lt(transfer.table.sourceEpoch, moving.epoch),
-                ),
-            )
-            .orderBy(desc(transfer.table.sourceEpoch))
-            .limit(1);
-
-        // plan it from the placement the machine served before
-        return latest === undefined
-            ? undefined
-            : SpaceTransfer.of(space, { ...moving, machine, epoch: latest.epoch }, latest.target);
-    }
-
     /** Receive one space moving to this machine. */
     static async receive(
         moving: Placement,
@@ -1216,24 +1171,15 @@ export class SpaceTransfer {
         const isTakenOver =
             replicated !== undefined && !isReplicating && (await move.isTakenOver(database));
 
-        // abort the takeover of a cancelled move here, remove the fenced rows of a move away, and fail on others
+        // abort the takeover of a cancelled move here
         if (replicated !== undefined && !isReplicating && !isTakenOver) {
-            const earlier = await SpaceTransfer.latest(
-                store,
-                move.spaceId,
-                options.machine,
-                "fenced",
-            );
-            const away = await SpaceTransfer.away(store, moving, options.machine);
-            if (earlier !== undefined) {
-                await earlier.abort(options.providers, database);
-            } else if (away !== undefined) {
-                await away.remove(options, store, store.clock.now());
-            } else {
+            const earlier = await SpaceTransfer.latest(store, move.spaceId, options.machine);
+            if (earlier === undefined) {
                 throw new TypeError(
                     `the rows of '${moving.space}' here belong to no transfer of this machine`,
                 );
             }
+            await earlier.abort(options.providers, database);
         }
 
         // settle a move taken over already, and place the space here
@@ -1241,12 +1187,15 @@ export class SpaceTransfer {
             await move.settle(options, store);
             await move.place(options, database, store.environment);
         }
-        // otherwise create the tables the source's main database applied, then move the space
+        // otherwise create the source's main tables, then move the space
         else {
             const source = await options.source(moving.machine, move.spaceId);
-            const tables = SpaceTransfer.tables(database, await source.states(move.spaceId));
-            await database.migrate(tables, { others: "retain" });
-            const moved = await SpaceTransfer.of(store, moving, options.machine, tables);
+            const main = await source.main(move.spaceId);
+            const states = main?.states ?? [];
+            if (main !== null) {
+                await SpaceTransfer.migrate(database, main.id, states);
+            }
+            const moved = await SpaceTransfer.of(store, moving, options.machine, states);
 
             // cut over to this machine and place the space here
             await moved.cutover(source, signal, options, store);
@@ -1260,7 +1209,7 @@ export class SpaceTransfer {
         store: TransferStore,
     ): Controller<typeof placement.table> {
         return {
-            name: "transfer:receive",
+            name: "destack.transfer.receive",
             table: placement.table,
             pending: { targetId: options.machine },
             concurrency: TRANSFER_CONCURRENCY,
@@ -1283,54 +1232,35 @@ export class SpaceTransfer {
         };
     }
 
-    /** Declare the projection ending moves: placing fenced spaces, aborting abandoned moves. */
+    /** Declare a primary's projection placing the spaces a move fenced toward it. */
     static projection(options: TransferOptions, store: TransferStore): Projection {
-        // match the spaces fenced toward this primary, else those whose moves to this standby were abandoned
+        // key the spaces fenced toward this primary by their scope
         const { database } = store;
-        const { machine, role } = options;
-        const condition =
-            role === "primary" ? SpaceTransfer.fenced(machine) : SpaceTransfer.abandoned(machine);
+        const { machine } = options;
 
-        return new Projection(database, {
-            name: "transfer:finish",
-            tables: [placement.table, transfer.table, Scope.table],
-            keys: async (change) => {
-                // take the space of a placement, a move or a space's scope
-                const image = Change.image(change);
-                const key = Change.of(change, placement.table) ? image["spaceId"] : image["scope"];
-                const spaceId = schema.identifier("space").safeParse(key);
-
-                return spaceId.success ? [spaceId.data] : [];
-            },
-            all: async () => {
-                // list the spaces with a fenced or an abandoned move here
-                const rows = await database
-                    .select({ id: Scope.table.scope })
-                    .from(Scope.table)
-                    .where(condition);
-
-                return rows.map((row) => row.id);
-            },
+        return {
+            name: "destack.transfer.finish",
+            key: "scope",
+            all: { table: Scope.table, column: "scope", where: { movedTo: machine } },
+            watches: [
+                // take a space's scope, its placement and its moves
+                { table: Scope.table, where: { movedTo: machine } },
+                { table: placement.table, on: { scope: "spaceId" } },
+                { table: transfer.table, on: { scope: "scope" } },
+            ],
             project: async (key) => {
                 // place a space fenced toward this primary once placed here
                 const spaceId = schema.identifier("space").parse(key);
-                if (role === "primary") {
-                    const [row] = await database
-                        .select({ machine: placement.table.machineId })
-                        .from(placement.table)
-                        .where(eq(placement.table.spaceId, spaceId));
-                    const move =
-                        row?.machine === machine
-                            ? await SpaceTransfer.latest(store, spaceId, machine, "fenced")
-                            : undefined;
-                    await move?.place(options, database, store.environment);
-                }
-                // abort a move to this standby its placement no longer targets
-                else {
-                    const move = await SpaceTransfer.latest(store, spaceId, machine, "abandoned");
-                    await move?.abort(options.providers, database);
-                }
+                const [row] = await database
+                    .select({ machine: placement.table.machineId })
+                    .from(placement.table)
+                    .where(eq(placement.table.spaceId, spaceId));
+                const move =
+                    row?.machine === machine
+                        ? await SpaceTransfer.latest(store, spaceId, machine)
+                        : undefined;
+                await move?.place(options, database, store.environment);
             },
-        });
+        };
     }
 }

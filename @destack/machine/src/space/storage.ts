@@ -19,10 +19,21 @@ import type { ExternalStorage } from "@destack/object/server";
 import type { Traffic } from "../gateway/traffic.ts";
 import type { Reading } from "../meter/index.ts";
 
+/** The tables the kernel reads replicated in every space. */
+const KERNEL_REPLICATED: readonly Table[] = [
+    ...spaceReplicated,
+    organization.table,
+    entitlement.table,
+    ...Forge.replicated.map((type) => type.table),
+    claim.table,
+];
+
 /** The storage of a machine's spaces, opened as one volume per space. */
 export interface SpaceStorage {
     /** The main database every space stores: stack tables, hosted records and events. */
     readonly main: ReturnType<typeof defineDatabase>;
+    /** The tables every space replicates of installable packages, declared by its deploys. */
+    readonly replicated: readonly Table[];
     /** The event kinds every space records: its calls and its servers' event types. */
     readonly kinds: readonly EventKind[];
     /** The servers' ephemeral object types, which a space stores in memory with its sockets. */
@@ -31,6 +42,8 @@ export interface SpaceStorage {
     readonly list: () => Promise<readonly Identifier<"space">[]>;
     /** Open a space's volume with its database migrated to the space's tables, until it closes. */
     readonly open: (space: Identifier<"space">) => Promise<Volume>;
+    /** Delete a closed space's volume. */
+    readonly delete: (space: Identifier<"space">) => Promise<void>;
 }
 
 /** One space's volume while it runs: its database, events, blobs, buckets, sockets and graphs. */
@@ -72,11 +85,16 @@ export interface Volume {
 /** The storage of a machine's spaces: the kernel's, each installation adding its own. */
 export const SpaceStorage = {
     /** Declare what every space stores before its installations: the kernel's tables and events. */
-    declare(): Pick<SpaceStorage, "main" | "kinds" | "ephemeral"> {
-        return { main: SpaceStorage.main(), kinds: [call.eventKind()], ephemeral: [] };
+    declare(): Pick<SpaceStorage, "main" | "replicated" | "kinds" | "ephemeral"> {
+        return {
+            main: SpaceStorage.main(),
+            replicated: SpaceStorage.replicas(),
+            kinds: [call.eventKind()],
+            ephemeral: [],
+        };
     },
 
-    /** Declare a space's main database: the stack's tables, its replicas, and additions. */
+    /** Declare a space's main database before its installations: kernel tables and replicas. */
     main(
         additions: {
             /** The packages the space serves, owning their tables and their protocols'. */
@@ -87,25 +105,19 @@ export const SpaceStorage = {
             readonly tables?: readonly Table[];
         } = {},
     ): ReturnType<typeof defineDatabase> {
-        // replicate the stack's rows, the account's entitlements, the registry's references and tags, the names it resolves handles by, and the additions' replicas
+        // replicate the rows the kernel reads
         const derived = spaceTables(additions);
-        const followed = [
-            ...spaceReplicated,
-            organization.table,
-            entitlement.table,
-            ...Forge.replicated.map((type) => type.table),
-            claim.table,
-            ...(derived.replicated ?? []),
-        ];
+        const followed = KERNEL_REPLICATED;
 
         // own the tables of the packages the space serves and of the protocols they implement
         const served = (additions.packages ?? []).flatMap((each) => [each, ...each.protocols]);
         const owned = new Set(tablesOf({ packages: served, follows: [], tables: [] }).tables);
+        const installed = new Set(SpaceStorage.replicas(additions));
         const replicated = new Set<Table>(followed.filter((table) => !owned.has(table)));
 
         // store the stack's and the additions' other tables, the space's identity keys and the calls
         const tables = [...derived.tables, ...owned, identityKey, ...call.tables].filter(
-            (table) => !replicated.has(table),
+            (table) => !replicated.has(table) && (owned.has(table) || !installed.has(table)),
         );
 
         return defineDatabase({
@@ -113,5 +125,20 @@ export const SpaceStorage = {
             tables: [...new Set(tables)],
             replicated: [...replicated],
         });
+    },
+
+    /** List the tables a space replicates of installable packages, declared by its deploys. */
+    replicas(
+        additions: {
+            /** The shapes the space follows beside the stack's. */
+            readonly follows?: readonly Follow[];
+        } = {},
+    ): readonly Table[] {
+        // leave the tables the kernel replicates itself to the storage
+        const derived = spaceTables({ follows: additions.follows ?? [] });
+        const kernel = new Set<Table>(KERNEL_REPLICATED);
+        const replicated = derived.replicated ?? [];
+
+        return [...new Set(replicated)].filter((table) => !kernel.has(table));
     },
 };

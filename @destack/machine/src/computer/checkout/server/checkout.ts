@@ -1,5 +1,5 @@
 import type { Environment, FileSystem } from "@destack/environment";
-import { ListPage, type MethodOutput, Observation, type Package } from "@destack/object";
+import { ListPage, type MethodOutput, type Package } from "@destack/object";
 import type { PackageVersion } from "@destack/package";
 import { preview, type Preview } from "../object/index.ts";
 import type { CommandHost } from "../../process/command.ts";
@@ -13,7 +13,7 @@ import { checkout, type CheckoutStack, WorkingTree } from "../object/index.ts";
 import { Git } from "./git.ts";
 import { type CompilerPool, outputsOf, Workspace } from "@destack/build";
 import { PackageInspection } from "@destack/package/code";
-import { RequestId } from "@destack/sync";
+import { ObjectReference, RequestId } from "@destack/sync";
 import { build, Build } from "@destack/stack/object";
 import type { CheckoutSource } from "../../../installation/build.ts";
 import type { StackClient } from "@destack/stack/client";
@@ -141,7 +141,14 @@ export class CheckoutServer {
         return preview.implement({
             controllers: [
                 {
-                    pending: {},
+                    name: "build",
+                    // run each preview at a generation not synced yet, and each deleted one
+                    pending: {
+                        OR: [
+                            { generation: { gt: { field: "syncedGeneration" } } },
+                            { deletedAt: { isNotNull: true } },
+                        ],
+                    },
                     reconcile: async (reconciliation) => {
                         // finalize a deleted preview
                         const row = nth(reconciliation.rows, 0);
@@ -150,10 +157,6 @@ export class CheckoutServer {
                                 preview.call("finalize", preview.target(row)),
                             ]);
 
-                            return;
-                        }
-                        // leave one observed at its generation
-                        else if (Observation.isCurrent(row, "Ready")) {
                             return;
                         }
 
@@ -268,8 +271,9 @@ export class CheckoutServer {
         return {
             packageId,
             submission: {
-                selection,
-                build: { kind: "build", build: built.id },
+                follows: checkout.reference(selection.machine, selection.checkout),
+                directory: selection.directory,
+                build: built.id,
                 stack: { export: source.export, parameters: { ...source.parameters } },
             },
         };
@@ -371,39 +375,40 @@ export class CheckoutServer {
         const items = await Array.fromAsync(
             ListPage.all(objects.installation.list, { scope: spaceId }),
         );
+        const follows = checkout.reference(selection.machine, selection.checkout);
         const installed =
-            items.find((item) => CheckoutServer.#isFollowing(item.selection, selection)) ??
+            items.find((item) => CheckoutServer.#isFollowing(item, selection)) ??
             (await objects.installation.create({
                 scope: spaceId,
                 requestId: RequestId.create(submitted.environment),
                 packageId: built.id,
-                selection,
+                ...ObjectReference.columns("follows", follows),
+                directory: selection.directory,
                 name: built.name.slice(built.name.lastIndexOf("/") + 1),
             }));
 
-        // submit the build for the installation to follow
-        await spaces.rollout.submit({
+        // apply the installation at the build
+        await spaces.rollout.deploy({
             spaceId,
             id: installed.id,
             requestId: RequestId.create(submitted.environment),
-            selection,
-            build: { kind: "build", build: submitted.build },
+            build: submitted.build,
         });
     }
 
     /** Report whether an installation follows the same checkout's package directory. */
     static #isFollowing(
-        followed: {
-            readonly kind: string;
-            readonly checkout?: string;
-            readonly directory?: string;
+        installed: {
+            readonly followsType: string | null;
+            readonly followsId: string | null;
+            readonly directory: string | null;
         },
         selection: { readonly checkout: string; readonly directory: string },
     ): boolean {
         return (
-            followed.kind === "checkout" &&
-            followed.checkout === selection.checkout &&
-            followed.directory === selection.directory
+            installed.followsType === checkout.name &&
+            installed.followsId === selection.checkout &&
+            installed.directory === selection.directory
         );
     }
 }

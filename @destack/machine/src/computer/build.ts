@@ -58,7 +58,7 @@ export class BuildRunner {
     /** Build the controller running the unfinished replicated builds, two at once. */
     controller(): Controller<typeof build.table> {
         return {
-            name: "build",
+            name: "destack.build.run",
             table: build.table,
             pending: { state: { in: [...ACTIVE_BUILD_STATES] } },
             concurrency: RUN_CONCURRENCY,

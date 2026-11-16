@@ -42,7 +42,7 @@ const TakenSnapshot = schema.object({
 /** The paths of a space's handoff below the mount: rows, states, snapshots and blobs. */
 const HandoffPath = {
     /** Write the path of a space's handoff part. */
-    of(spaceId: string, part: "watch" | "capture" | "states" | "snapshots" | "blobs"): string {
+    of(spaceId: string, part: "watch" | "capture" | "main" | "snapshots" | "blobs"): string {
         return `/${spaceId}/${part}`;
     },
 
@@ -68,11 +68,11 @@ export interface Handoff {
         input: { readonly spaceId: Identifier<"space">; readonly after?: LogPosition },
         options?: HandoffCall,
     ) => AsyncIterable<Page>;
-    /** Read the desired states the space's main database applied. */
-    readonly states: (
+    /** Read the space's main database's id and applied states, null without one. */
+    readonly main: (
         spaceId: Identifier<"space">,
         options?: HandoffCall,
-    ) => Promise<DatabaseState[]>;
+    ) => Promise<{ readonly id: ResourceId; readonly states: DatabaseState[] } | null>;
     /** Fence the space for the transfer's target, answering its position and digest. */
     readonly fence: (transfer: Pick<Transfer, "scope" | "id">) => Promise<Fence>;
     /** Read the fenced space's rows whole, sealing machine-bound values to a recipient. */
@@ -126,11 +126,14 @@ export const Handoff = {
                 const path = `${mount}${HandoffPath.of(spaceId, "watch")}${query}`;
                 yield* pagesOf(await send(new Request(path, { signal: options.signal ?? null })));
             },
-            states: async (spaceId, options = {}) => {
-                const path = `${mount}${HandoffPath.of(spaceId, "states")}`;
+            main: async (spaceId, options = {}) => {
+                const path = `${mount}${HandoffPath.of(spaceId, "main")}`;
                 const response = await send(new Request(path, { signal: options.signal ?? null }));
 
-                return schema.array(DatabaseState).parse(await response.json());
+                return schema
+                    .object({ id: ResourceId, states: schema.array(DatabaseState) })
+                    .nullable()
+                    .parse(await response.json());
             },
             fence: (transfer) =>
                 stack.transfer.fence({
@@ -296,9 +299,9 @@ export function handoffMount(options: HandoffOptions): MountFetch {
                 }),
             );
         }
-        // answer the desired states the space's main database applied
-        else if (part === "states" && request.method === "GET") {
-            return Response.json(await SpaceTransfer.states(options, spaceId));
+        // answer the space's main database's id and applied states
+        else if (part === "main" && request.method === "GET") {
+            return Response.json(await SpaceTransfer.main(options, spaceId));
         }
         // capture every column of the fenced space, sealing machine-bound values to the recipient
         else if (part === "capture" && request.method === "POST") {

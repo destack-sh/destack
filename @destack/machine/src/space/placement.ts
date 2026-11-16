@@ -1,69 +1,62 @@
-import { Entitlement, Placement, placement, Space, space } from "@destack/account/object";
-import { and, type BlobStore, eq, Snapshot, Transaction } from "@destack/db";
-import { IdentityKeystore } from "@destack/account/identity";
+import { Entitlement, Space, space } from "@destack/account/object";
+import { and, eq, Snapshot, Transaction } from "@destack/db";
 import {
-    type ObjectController,
+    type ObjectProjection,
     type ObjectReconciliation,
-    ObjectWatch,
     type Observation,
 } from "@destack/object";
-import { nth, present, type UuidEnvironment, type JsonObject } from "@destack/schema";
+import { present, type UuidEnvironment, type JsonObject } from "@destack/schema";
 import { RequestId, Scope, type Uplink } from "@destack/sync";
 import { AccessContext, Authorization, Caller, principal } from "@destack/access";
 import { installation } from "@destack/object";
 import { Failure } from "@destack/error";
 import { installationRevision, Rollout, rollout } from "@destack/stack/object";
 import { Scheduler } from "../machine/scheduler.ts";
-import type { BuildStore } from "@destack/build/store";
 
 /** The condition a space records its placement under, next to its entitlements' conditions. */
 const PLACEMENT_CONDITION = "placement";
 
-/** A space's role on a machine: placed here, or standing by for a move while placed elsewhere. */
-export type SpaceRole = "primary" | "standby";
+/** A space's role on a machine: placed here, moving here, or leaving. */
+export type SpaceRole = "primary" | "standby" | "leaving";
 
 /** Control the replicas of the spaces this machine serves: place, limit and delete each. */
 export function implementSpace(options: {
-    /** The keystore whose keys of a deleted space the machine forgets. */
-    readonly keystore: IdentityKeystore;
-    /** The space's builds, deleted with the space. */
-    readonly builds: BuildStore;
-    /** The space's blobs, deleted with the space. */
-    readonly blobs: BlobStore;
     /** The universe's uplink, receiving the space's status as the space. */
     readonly publisher: Uplink;
     /** Whether the machine checks its spaces' use against their accounts' entitlements. */
     readonly isEnforcingEntitlements: boolean;
 }) {
-    return space.implement({ methods: {}, controllers: [control(options)] });
+    return space.implement({ methods: {}, projections: [project(options)] });
 }
 
-/** Control each served space. */
-function control(options: Parameters<typeof implementSpace>[0]): ObjectController<typeof space> {
+/** Project each served space: its deletion, suspension, entitlements and schedule. */
+function project(options: Parameters<typeof implementSpace>[0]): ObjectProjection<typeof space> {
     const { isEnforcingEntitlements } = options;
 
     return {
-        pending: {},
+        name: "limit",
         watches: [
             ...Scheduler.watches,
             ...(isEnforcingEntitlements ? Entitlement.watches() : []),
             // look again at a deleting space as each of its uninstalling installations changes
-            ObjectWatch.of(installation.table, (row) =>
-                row.deletedAt === null ? [] : [{ id: row.scope }],
-            ),
+            {
+                table: installation.table,
+                where: { deletedAt: { isNotNull: true } },
+                on: { id: "scope" },
+            },
         ],
-        reconcile: async ({ rows, database, store, now }) => {
-            // leave a space another machine serves
-            const row = nth(rows, 0);
-            if (!(await Space.isServing(Snapshot.live(database), row.id))) {
-                return undefined;
+        project: async (_id, { rows, database, store, now }) => {
+            // leave a space gone or another machine serves
+            const [row] = rows;
+            if (row === undefined || !(await Space.isServing(Snapshot.live(database), row.id))) {
+                return;
             }
 
             // delete a space whose deletion is requested
             if (row.deletedAt !== null) {
                 await remove(row, { database, store, now }, options);
 
-                return undefined;
+                return;
             }
 
             // suspend or resume the space's scope here as its row asks
@@ -86,8 +79,6 @@ function control(options: Parameters<typeof implementSpace>[0]): ObjectControlle
                     store.environment,
                 );
             }
-
-            return undefined;
         },
     };
 }
@@ -124,10 +115,7 @@ async function mirrorSuspension(
 async function remove(
     row: Space,
     reconciliation: Pick<ObjectReconciliation<typeof space>, "database" | "store" | "now">,
-    options: Pick<
-        Parameters<typeof implementSpace>[0],
-        "keystore" | "builds" | "blobs" | "publisher"
-    >,
+    options: Pick<Parameters<typeof implementSpace>[0], "publisher">,
 ): Promise<void> {
     // request the uninstall of the unmanaged rollouts not deleting yet as the space itself, the stack deleting what it manages
     const { database, store, now } = reconciliation;
@@ -151,7 +139,7 @@ async function remove(
         )
         .leftJoin(
             installationRevision.table,
-            eq(installationRevision.table.id, installation.table.revisionId),
+            eq(installationRevision.table.id, rollout.table.targetRevisionId),
         )
         .where(eq(rollout.table.scope, row.id));
     const live = rollouts.filter(
@@ -173,22 +161,7 @@ async function remove(
         return;
     }
 
-    // withdraw the space's placement as its machine, which an earlier look may have withdrawn already
-    const [located] = await Placement.find(Snapshot.live(database), [row.id]);
-    if (located !== undefined) {
-        const withdrawal = { accountId: located.scope, id: located.space, epoch: located.epoch };
-        await options.publisher
-            .receive({
-                id: RequestId.create(store.environment),
-                calls: [placement.call("withdraw", withdrawal)],
-            })
-            .catch(refuseUnlessRemoved);
-    }
-
-    // forget its keys and delete its builds and blobs, then remove its row at the universe as the space
-    await options.keystore.forget(database, row.id);
-    await options.builds.clear();
-    await options.blobs.clear();
+    // remove its row at the universe as the space
     await report(options.publisher, row, "finalize", {}, store.environment).catch(
         refuseUnlessRemoved,
     );

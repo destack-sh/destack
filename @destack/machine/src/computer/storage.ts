@@ -54,6 +54,8 @@ export interface LocalSpaceStorageOptions {
 export class LocalSpaceStorage implements SpaceStorage, AsyncDisposable {
     /** The main database every space stores. */
     readonly main: SpaceStorage["main"];
+    /** The tables every space replicates of packages a space can install. */
+    readonly replicated: SpaceStorage["replicated"];
     /** The event kinds every space records. */
     readonly kinds: SpaceStorage["kinds"];
     /** The servers' ephemeral object types. */
@@ -70,7 +72,7 @@ export class LocalSpaceStorage implements SpaceStorage, AsyncDisposable {
     /** Take the stores the host opened for the spaces. */
     private constructor(
         options: LocalSpaceStorageOptions,
-        opened: Pick<SpaceStorage, "main" | "kinds" | "ephemeral"> & {
+        opened: Pick<SpaceStorage, "main" | "replicated" | "kinds" | "ephemeral"> & {
             readonly databases: BunSqliteDatabaseHost;
             readonly sockets: SocketRegistry;
             readonly providers: readonly SpaceProvider[];
@@ -79,6 +81,7 @@ export class LocalSpaceStorage implements SpaceStorage, AsyncDisposable {
         // set the options, what every space stores and the stores the host opened
         this.#options = options;
         this.main = opened.main;
+        this.replicated = opened.replicated;
         this.kinds = opened.kinds;
         this.ephemeral = opened.ephemeral;
         this.#databases = opened.databases;
@@ -155,7 +158,8 @@ export class LocalSpaceStorage implements SpaceStorage, AsyncDisposable {
                     );
                     const database = await connectBunSqlite(file, definition, { environment });
                     lifetime.defer(() => database.close());
-                    await database.migrate(definition.tables, { others: "retain" });
+                    await database.migrate(definition.tables);
+                    await database.declareApplied(this.replicated);
 
                     // open its events, their segments in a bucket of the space's own
                     const segments = lifetime.use(
@@ -205,6 +209,27 @@ export class LocalSpaceStorage implements SpaceStorage, AsyncDisposable {
             },
             { duration: { attributes: { "destack.volume.provider": "local" } } },
         );
+    }
+
+    /** Delete a closed space's databases, events and blobs. */
+    async delete(space: Identifier<"space">): Promise<void> {
+        // delete the space's own database files and its installations' databases
+        const { files } = this.#options.environment;
+        const file = fileURLToPath(this.#databases.resolve(LocalSpaceStorage.#reference(space)));
+        for (const path of [file, `${file}-wal`, `${file}-shm`]) {
+            await files.remove(path, { force: true });
+        }
+        await files.remove(join(this.#options.directory, space), { recursive: true, force: true });
+
+        // delete its events and blobs
+        await files.remove(join(this.#directory("events"), space), {
+            recursive: true,
+            force: true,
+        });
+        await files.remove(join(this.#options.directory, "blobs", space), {
+            recursive: true,
+            force: true,
+        });
     }
 
     /** Close the spaces' sockets. */

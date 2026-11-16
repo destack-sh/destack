@@ -64,6 +64,7 @@ export class SpaceReplica {
         database: DatabaseConnection,
         spaceId: Identifier<"space">,
         beside: readonly Table[],
+        replicated: readonly string[] = [],
     ): Promise<SpaceReplica> {
         // take the tables of the database and the given ones that have the space's rows
         const tables = [...database.tables, ...beside].filter((table) => {
@@ -73,6 +74,7 @@ export class SpaceReplica {
                 scope !== undefined &&
                 scope.definition.schema.safeParse(spaceId).success &&
                 !database.replicates(table) &&
+                !replicated.includes(table[TABLE].sqlName) &&
                 !MACHINE_TABLES.has(table) &&
                 table !== transfer.table
             );

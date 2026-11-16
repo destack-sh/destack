@@ -56,8 +56,9 @@ export const directoryWorkload = defineWorkload({
             environment: context.environment,
             origin: { package: PackageVersion.of(machinePackage), machineId },
             machine: machineId,
+            report: context.report,
         });
 
-        return { packages: store.packages };
+        return { packages: store.packages, store };
     },
 });

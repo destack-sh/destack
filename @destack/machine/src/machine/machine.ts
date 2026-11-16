@@ -551,8 +551,13 @@ export class Machine {
         return this.scope.span("destack.machine.revoke", {}, () => this.#revoke(enrollment));
     }
 
-    /** Delete the enrollment's machine at its universe, then forget the key. */
+    /** Revoke the machine: close its spaces, delete it at its universe and forget its key. */
     async #revoke(enrollment: MachineEnrollment): Promise<void> {
+        // close the spaces before the key goes
+        this.health.set("down", "it is revoked");
+        await this.#closeSpaces();
+
+        // delete the machine at its universe, then forget its key
         const accounts = createClient(
             accountPackage,
             {
@@ -865,7 +870,7 @@ export class Machine {
     /** Build the controller serving the spaces while this machine's record states an enrollment. */
     controller(): Controller<typeof computer.table> {
         return {
-            name: "machine",
+            name: "destack.computer.serve",
             table: computer.table,
             pending: { machineId: this.id },
             follow: (_rows, following) => this.follow(following),
@@ -921,13 +926,19 @@ export class Machine {
                 replicated = canonicalize(current);
 
                 // open the tunnel peers reach a personal machine through before its spaces start, while enrolled
-                if (current.status !== undefined && (await this.isEnrolled())) {
+                const isEnrolled = await this.isEnrolled();
+                if (current.status !== undefined && isEnrolled) {
                     tunnel ??= await this.#relay();
                 }
 
+                // close the spaces while not enrolled
+                if (!isEnrolled) {
+                    this.health.set("down", "it is not enrolled");
+                    await this.#closeSpaces();
+                }
                 // serve while the account enables the machine
-                if (current.status === "enabled") {
-                    await this.#serveSpaces(current.placements);
+                else if (current.status === "enabled") {
+                    await this.#sync(current.placements);
                 }
                 // pause while it drains or disables the machine
                 else if (current.status !== undefined) {
@@ -1014,8 +1025,8 @@ export class Machine {
         };
     }
 
-    /** Serve the spaces stored and placed here. */
-    async #serveSpaces(rows: readonly Select<typeof placement.table>[]): Promise<void> {
+    /** Sync the machine's spaces to the directory. */
+    async #sync(rows: readonly Select<typeof placement.table>[]): Promise<void> {
         // start serving the spaces this machine stores
         const stored: Identifier<"space">[] = [];
         if (this.health.status !== "up") {
@@ -1034,12 +1045,28 @@ export class Machine {
             ),
         );
 
-        // restart each started space whose role here changed
-        const started = [...this.#started.values()];
+        // restart each space in its current role
+        const started = [...this.#started];
         await Promise.all(
-            started.map((starting) =>
+            started.map(([id, starting]) =>
                 starting
-                    .then((space) => space.restartIfRoleChanged())
+                    .then(async (space) => {
+                        const role = await space.restartIfRoleChanged();
+
+                        // destroy a leaving space, starting none of it until its volume is deleted
+                        if (role === "leaving") {
+                            try {
+                                await space.destroy();
+                            } finally {
+                                this.#started.delete(id);
+                            }
+
+                            // start it afresh while it moves here
+                            if (rows.some((row) => row.spaceId === id)) {
+                                await this.space(id);
+                            }
+                        }
+                    })
                     .catch((error: unknown) => this.report(error)),
             ),
         );

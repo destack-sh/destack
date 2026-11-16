@@ -1,7 +1,7 @@
 import * as accountObject from "@destack/account/object";
 import { PROCESS_RUNTIME } from "@destack/stack/object";
 import { KNOWN_TYPES } from "@destack/stack/stack";
-import { and, eq, isNull, Snapshot } from "@destack/db";
+import { and, type ControllerSet, eq, isNull, Snapshot } from "@destack/db";
 import { principal } from "@destack/access";
 import { hostname, machine } from "@destack/account/object";
 import { type Identifier, schema } from "@destack/schema";
@@ -47,7 +47,7 @@ import { type SpaceProvider } from "@destack/stack/object";
 import { implementSpace } from "./placement.ts";
 import { implementTransfer, type TransferOptions } from "../transfer/transfer.ts";
 import { handoffMount } from "../transfer/handoff.ts";
-import { implementBuild, pushMount, retainBuilds } from "../installation/build.ts";
+import { implementBuild, pushMount } from "../installation/build.ts";
 import { SpaceTransfer } from "../transfer/transfer.ts";
 import type { Space, SpaceStart } from "./space.ts";
 import { hookMount } from "../installation/hook.ts";
@@ -61,13 +61,14 @@ function stackServer(
     start: SpaceStart,
     providers: ProviderIndex,
     binder: Binder,
+    transfers: TransferOptions,
 ): PackageImplementation {
-    // configure the moves
+    // serve the providers this machine lists
     const listed = providers.own;
-    const transfers = configureTransfers(space, start, providers);
 
-    // serve the space's objects with the external types, a standby only those its moves write
+    // serve the objects of the space's role
     const isPrimary = start.role === "primary";
+    const isStandby = start.role === "standby";
     const own = isPrimary
         ? ownObjects(space, start, providers, binder, transfers)
         : stackObjects([implementRestore(transfers), implementTransfer(transfers)]);
@@ -76,9 +77,9 @@ function stackServer(
         objects: [...own, ...externalObjects(start, own)],
         external: start.external,
         providers: listed,
+        // follow the space's row, and the entitlements on a primary
         follows: [
-            ...spaceFollows(space, start),
-            // follow the account's entitlements, which enforcement reads
+            ...(isPrimary || isStandby ? spaceFollows(space, start) : []),
             ...(isPrimary ? [Entitlement.follow, ...start.follows] : []),
         ],
         // answer moving spaces' targets and installations' hook sessions
@@ -95,35 +96,6 @@ function stackServer(
             push: pushMount(space.builds),
             hook: hookMount,
         },
-        // receive moving spaces on a standby, run a primary's providers, and the host's own
-        controllers: [
-            ...(isPrimary
-                ? space.volume.providers
-                      .filter((each): each is SpaceProvider => !("connect" in each))
-                      .flatMap((provider) =>
-                          (provider.controllers ?? []).map((controller) => () => controller),
-                      )
-                : [(store: ObjectStore) => SpaceTransfer.controller(transfers, store)]),
-            ...start.controllers,
-        ],
-        // finish moves in either role, and project a primary's birth, assignments, resources and retention
-        cursors: [
-            (store) => SpaceTransfer.projection(transfers, store),
-            ...(isPrimary
-                ? [
-                      (store: ObjectStore) => space.placement(store, space.machine.volumes.main),
-                      () => space.assignment(start.uplink),
-                      (store: ObjectStore) =>
-                          binder.specification(
-                              store,
-                              space.machine.volumes.main,
-                              space.machine.linked,
-                          ),
-                      retainBuilds,
-                  ]
-                : []),
-            ...start.cursors,
-        ],
         responseHeaders: { "Cache-Control": "no-store" },
     });
 }
@@ -158,7 +130,6 @@ export function openStore(
                 () => store,
             ),
         origin: { package: stackPackage, machineId: space.machine.id },
-        uplink: start.uplink,
         // open the release the space runs, or the version a value names
         release: (view, scope, packageId, version) =>
             space.release(view, schema.identifier("space").parse(scope), packageId, version),
@@ -178,8 +149,13 @@ export function openStore(
 
             return undefined;
         },
-        // send to the universe by the uplink, and to other scopes at their homes by the machine's route
-        publisher: (scope) => homePublisher(space, start, scope),
+        // send through the uplink and the homes' publishers, apart from a leaving space
+        ...(start.role === "leaving"
+            ? {}
+            : {
+                  uplink: start.uplink,
+                  publisher: (scope: string) => homePublisher(space, start, scope),
+              }),
         machine: space.machine.id,
         sandboxes,
     });
@@ -193,20 +169,25 @@ export function ownServers(
     start: SpaceStart,
     installed: readonly PackageImplementation[],
     served: ConstructorParameters<typeof ProviderIndex>[2],
-): readonly PackageImplementation[] {
+): {
+    readonly servers: readonly PackageImplementation[];
+    readonly control: (store: ObjectStore) => readonly ControllerSet[];
+} {
     // index the machine's providers and bindable kinds, which the stack and the installations bind with
     const bindables = ObjectBindable.of(installed);
     const providers = new ProviderIndex(space.machine.id, spaceProviders(space, start), served);
     const binder = new Binder(
         providers.objects().map((type) => ResourceBindable.of(providers.kind(type), type)),
         bindables,
+        space.machine.volumes.replicated,
     );
+    const transfers = configureTransfers(space, start, providers);
 
     // serve the space's own packages on a standby: the stack with its access objects
     const standby: {
         readonly [Name in Exclude<BootstrapPackageName, "setting">]: PackageImplementation;
     } = {
-        stack: stackServer(space, start, providers, binder),
+        stack: stackServer(space, start, providers, binder, transfers),
         object: implementPackage(objectPackage, {
             objects: [
                 implementRole(),
@@ -222,7 +203,43 @@ export function ownServers(
         setting: settingServer({ after: [rollout] }),
     };
 
-    return Object.values(start.role === "primary" ? primary : standby);
+    return {
+        servers: Object.values(start.role === "primary" ? primary : standby),
+        control: (store) => [spaceControl(space, start, store, binder, transfers)],
+    };
+}
+
+/** List the space's process jobs: a primary's or a standby's, and the start's own. */
+function spaceControl(
+    space: Space,
+    start: SpaceStart,
+    store: ObjectStore,
+    binder: Binder,
+    transfers: TransferOptions,
+): ControllerSet {
+    // run a primary's jobs and a standby's receiver
+    const isPrimary = start.role === "primary";
+    const isStandby = start.role === "standby";
+    const providers = space.volume.providers.filter(
+        (each): each is SpaceProvider => !("connect" in each),
+    );
+
+    return {
+        controllers: [
+            ...(isPrimary ? providers.flatMap((provider) => provider.controllers ?? []) : []),
+            ...(isStandby ? [SpaceTransfer.controller(transfers, store)] : []),
+            ...start.controllers.map((controller) => controller(store)),
+        ],
+        projections: isPrimary
+            ? [
+                  SpaceTransfer.projection(transfers, store),
+                  space.placement(store, space.machine.volumes.main),
+                  space.assignment(start.uplink),
+                  ...binder.specifications(store),
+              ]
+            : [],
+        cursors: start.cursors.map((cursor) => cursor(store)),
+    };
 }
 
 /** Serve the space's own objects. */
@@ -234,14 +251,10 @@ function ownObjects(
     transfers: TransferOptions,
 ) {
     // serve the space's types with their behaviour
-    const { builds } = space;
     const served = [
         implementSnapshot(transfers),
         implementRestore(transfers),
         implementSpace({
-            keystore: space.keystore,
-            builds,
-            blobs: space.blobs,
             publisher: start.uplink,
             isEnforcingEntitlements: space.machine.isEnforcingEntitlements,
         }),
@@ -319,7 +332,7 @@ function externalObjects(start: SpaceStart, own: readonly ObjectType[]): readonl
 }
 
 /** List the providers of a space's resources. */
-function spaceProviders(space: Space, start: SpaceStart) {
+export function spaceProviders(space: Space, start: SpaceStart) {
     return [
         installationProvider,
         bucketProvider(start.buckets, implementBucket(start.buckets)),
@@ -334,7 +347,6 @@ function configureTransfers(
     providers: ProviderIndex,
 ): TransferOptions {
     return {
-        role: start.role,
         machine: space.machine.id,
         database: space.database,
         publisher: start.uplink,
