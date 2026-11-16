@@ -1,3 +1,4 @@
+import { Numbered } from "@destack/object";
 import type { RowImage, Select, Snapshot } from "@destack/db";
 import type { MethodContext } from "@destack/object";
 import { Binding } from "@destack/stack/object";
@@ -51,7 +52,7 @@ export const SecretVersion = {
         }
 
         return {
-            version: selected.number,
+            version: Numbered.number(selected),
             value: SecretVersion.requireReadable(selected, context.now),
         };
     },
@@ -92,9 +93,9 @@ export const SecretVersion = {
         // answer them newest first
         const readings = readable
             .flat()
-            .toSorted((left, right) => right.number - left.number)
+            .toSorted((left, right) => Numbered.number(right) - Numbered.number(left))
             .map((row) => ({
-                version: row.number,
+                version: Numbered.number(row),
                 value: SecretVersion.requireReadable(row, context.now),
             }));
 
@@ -118,7 +119,7 @@ export const SecretVersion = {
             type: secret.name,
             scope: version.scope,
             id: version.parentId,
-            version: version.number,
+            version: Numbered.number(version),
         });
     },
 

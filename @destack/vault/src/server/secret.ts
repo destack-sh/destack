@@ -1,3 +1,4 @@
+import { Numbered } from "@destack/object";
 import { SECRET_KIND } from "@destack/stack/declare";
 import { AccessContext, Caller, principal } from "@destack/access";
 import { Duration, nth, schema } from "@destack/schema";
@@ -45,7 +46,7 @@ export function implementSecret(): typeof secret {
                     secretVersion.call("create", { parentId: target.id, value }),
                 ]);
 
-                return call.update({ currentVersion: created.number, algorithm });
+                return call.update({ currentVersion: Numbered.number(created), algorithm });
             },
             versions: (call) => SecretVersion.versions(call.target, call.input.version, call),
             rotate: async (call) => {
@@ -85,7 +86,7 @@ export function implementSecret(): typeof secret {
                     secretVersion.call("create", { parentId: target.id, value: next }),
                 ]);
 
-                return call.update({ currentVersion: nth(written, -1).number });
+                return call.update({ currentVersion: Numbered.number(nth(written, -1)) });
             },
             update: async (call, next) => {
                 // refuse unsetting the current alias, and require the version it moves to to be readable
@@ -286,7 +287,9 @@ export const secretBindable: ObjectBindable<typeof secret, Secret> = {
         }
         const retiring = versions.filter(
             (entry) =>
-                entry.number < number && entry.state === "enabled" && entry.expiresAt !== null,
+                Numbered.number(entry) < number &&
+                entry.state === "enabled" &&
+                entry.expiresAt !== null,
         );
 
         return [

@@ -1,3 +1,4 @@
+import { Numbered } from "@destack/object";
 import { SECRET_KIND } from "@destack/stack/declare";
 import { TestPackage } from "@destack/machine/test";
 import { testHost } from "@destack/test/host";
@@ -253,7 +254,7 @@ export class TestVault {
         };
         const version = await client.version.create(request);
         const key = { scope, id: created.id };
-        await this.point(caller, key, version.number);
+        await this.point(caller, key, Numbered.number(version));
 
         return { secret: created, key, request, version };
     }

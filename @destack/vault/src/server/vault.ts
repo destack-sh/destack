@@ -1,3 +1,4 @@
+import { Numbered } from "@destack/object";
 import { Caller } from "@destack/access";
 import { present } from "@destack/schema";
 import { Binding } from "@destack/stack/object";
@@ -103,7 +104,7 @@ export function implementVault(): typeof vault {
                 // point the current alias at it, then retire the earlier versions
                 await call.mutate(call.caller, [
                     secretVersion.call("bindConsumer", { ...version, consumer }),
-                    secret.call("update", { id, currentVersion: created.number }),
+                    secret.call("update", { id, currentVersion: Numbered.number(created) }),
                     ...retiring,
                 ]);
 

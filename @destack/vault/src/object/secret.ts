@@ -11,7 +11,7 @@ import {
     SecretSelection,
 } from "../secret/secret.ts";
 import { vault } from "./vault.ts";
-import { audited, bindable, nested, recoverable, versioned } from "@destack/object";
+import { audited, bindable, nested, numbered, recoverable } from "@destack/object";
 import { argument, plural, t } from "@destack/locale";
 
 /** The value of a new version and when its reads end. */
@@ -200,7 +200,7 @@ export const secretVersion = defineObject(
             permissions: {
                 get: none(),
                 list: none(),
-                write: through("parent", "update"),
+                rotate: through("parent", "update"),
                 read: relation("consumer"),
                 disable: none(),
                 enable: none(),
@@ -214,20 +214,20 @@ export const secretVersion = defineObject(
         },
         traits: [
             nested({ in: secret, delete: "cascade", add: "update" }),
-            versioned(),
+            numbered({ within: "parentId" }),
             audited({ reads: true }),
             // bind the packages reading a version on their behalf as its consumers
             bindable({ by: "bind" }),
         ],
     },
     (method) => ({
-        create: method.create("write", { fields: [], input: SecretVersionInput }),
+        create: method.create("rotate", { fields: [], input: SecretVersionInput }),
         get: method.get("get"),
         list: method.list("list"),
         /** Set when the version's reads end, as a rotation retires it. */
         expire: method.mutation({
             title: t`Expire`,
-            permission: "write",
+            permission: "rotate",
             input: schema.object({ expiresAt: schema.number().int() }),
         }),
         disable: method.mutation({ title: t`Disable`, permission: "disable" }),

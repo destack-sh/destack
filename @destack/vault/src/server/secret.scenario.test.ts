@@ -1,5 +1,5 @@
 import { eq, Snapshot, type DatabaseConnection } from "@destack/db";
-import { CallEvent, call } from "@destack/object";
+import { call, CallEvent, Numbered } from "@destack/object";
 import { Duration, type Identifier, schema } from "@destack/schema";
 import { Binding, Rollout, rollout } from "@destack/stack/object";
 import { ids, TestSpace } from "@destack/machine/test";
@@ -77,7 +77,7 @@ test("roundtrip bounded text and binary values without committing rejected write
     // write the largest UTF-8 text as current, keeping the binary version readable
     const text = { encoding: "text" as const, value: "é".repeat(32768) };
     const textual = await write(text);
-    await fixture.point(caller, key, textual.number);
+    await fixture.point(caller, key, Numbered.number(textual));
     expect({
         refused,
         listed: listed.items,
@@ -110,7 +110,7 @@ test("add a version, point the current alias at it, destroy and restore, recordi
         value: { encoding: "base64", value: "AAECAw==" },
     });
     const before = await client.secret.read(key);
-    const pointed = await fixture.point(caller, key, added.number);
+    const pointed = await fixture.point(caller, key, Numbered.number(added));
     const after = await client.secret.read(key);
 
     // delete the secret, and read it again once restored
@@ -225,7 +225,7 @@ test("refuse writing a version with a past expiry and reading an expired version
         requestId: RequestId.create(fixture.environment),
         expiresAt,
     });
-    await fixture.point(caller, key, expiring.number);
+    await fixture.point(caller, key, Numbered.number(expiring));
     const live = await client.secret.read(key);
 
     // refuse reading the version once its expiry passed
@@ -256,7 +256,7 @@ test("rotate to a given value, keeping the rotated-out version live through its 
         ...request,
         requestId: RequestId.create(fixture.environment),
     });
-    await fixture.point(caller, key, second.number);
+    await fixture.point(caller, key, Numbered.number(second));
     const rotatedAt = fixture.clock.now();
     const value = { encoding: "text" as const, value: "rotated" };
     await client.secret.rotate({
@@ -488,7 +488,7 @@ test("refuse reading a version whose stored value was copied from another versio
         requestId: RequestId.create(fixture.environment),
         value: { encoding: "text", value: "rotated" },
     });
-    await fixture.point(caller, key, second.number);
+    await fixture.point(caller, key, Numbered.number(second));
 
     // copy the first version's stored value into the second, as a write to the database could
     const stored = single(
@@ -782,7 +782,7 @@ test("point a secret the stack declares at a version as the space's owner, keepi
 
     // point the current alias at it, and apply the stack again
     const key = { scope: ids.space, id: declared.id };
-    await fixture.point(caller, key, version.number);
+    await fixture.point(caller, key, Numbered.number(version));
     await fixture.space.apply([vaultPackage], stack);
     const kept = await client.secret.get(key);
     expect({ current: kept.currentVersion, name: kept.name }).toEqual({
