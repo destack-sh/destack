@@ -2,7 +2,6 @@ import { contained, principal } from "@destack/access";
 import { AccountHandle, SpaceAddress } from "@destack/account/address";
 import { PlacementEndpoint } from "@destack/account/object";
 import { MachineName, ResidencyCode } from "@destack/account/object";
-import { Expression } from "@destack/db";
 import { defineObject, device, field } from "@destack/object";
 import { schema } from "@destack/schema";
 import { Scope } from "@destack/sync";
@@ -73,50 +72,6 @@ export const computer = defineObject(
             tunnel: field.enum(COMPUTER_TUNNELS).default("none"),
         },
         // let the device do the computer's own work, as its owner acts as the device
-        convert: {
-            // read the universe's origin that enrollments before 2026.11.0 stored as their issuer
-            "2026.11.0": {
-                enrollment: Expression.case(
-                    Expression.scalar(
-                        Expression.path(Expression.column("enrollment"), "kind"),
-                        "text",
-                    ),
-                    [
-                        {
-                            when: "personal",
-                            then: Expression.object({
-                                kind: Expression.literal("personal"),
-                                accountId: Expression.path(
-                                    Expression.column("enrollment"),
-                                    "accountId",
-                                ),
-                                universe: Expression.path(
-                                    Expression.column("enrollment"),
-                                    "issuer",
-                                ),
-                                status: Expression.path(Expression.column("enrollment"), "status"),
-                            }),
-                        },
-                        {
-                            when: "cloud",
-                            then: Expression.object({
-                                kind: Expression.literal("cloud"),
-                                residencyId: Expression.path(
-                                    Expression.column("enrollment"),
-                                    "residencyId",
-                                ),
-                                universe: Expression.path(
-                                    Expression.column("enrollment"),
-                                    "issuer",
-                                ),
-                                status: Expression.path(Expression.column("enrollment"), "status"),
-                            }),
-                        },
-                    ],
-                    Expression.column("enrollment"),
-                ),
-            },
-        },
         access: {
             permissions: {
                 read: contained(principal.device),
