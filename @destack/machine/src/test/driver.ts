@@ -7,7 +7,7 @@ import type { DatabaseConnection } from "@destack/db";
 import { connectBunSqlite } from "@destack/db/bun";
 import { type Clock, type Environment, World } from "@destack/environment";
 import { ObjectType, PackageMount, role, SpaceMount } from "@destack/object";
-import { DynamicObjectClient, LiveText, ObjectClient } from "@destack/object/client";
+import { DynamicObjectClient, ObjectClient, type TextDocument } from "@destack/object/client";
 import { PackageManifest } from "@destack/package/manifest";
 import type { PackageId } from "@destack/package";
 import type { Given, SetStep } from "@destack/package/declare";
@@ -111,7 +111,7 @@ export class MachineDriver implements Driver<MachineStep, MachineObservation> {
     /** The client calling each object type's package, by type and person. */
     readonly #callers = new Map<string, DynamicObjectClient>();
     /** The texts the devices follow, by device, object and field. */
-    readonly #texts = new Map<string, LiveText>();
+    readonly #texts = new Map<string, TextDocument>();
     /** The characters typed into each text so far, by object and field. */
     readonly #typed = new Map<string, number>();
     /** The invitation each member was sent last, by member. */
@@ -506,12 +506,20 @@ export class MachineDriver implements Driver<MachineStep, MachineObservation> {
         }
         await Promise.all(
             typing.map(async (member) => {
+                // follow the text on the member's first device
                 const device = present(member.devices[0], "a member's device");
                 const text = this.#text(device, step.object, id, step.field);
-                for (const character of step.text) {
-                    const length = (await text.read()).text().length;
-                    await text.change({ from: length, to: length, insert: character });
-                }
+                await text.ready;
+
+                // type key by key, then wait for the edits to land
+                const typed = step.text.split("").map((character) =>
+                    text.change({
+                        from: text.rope.length,
+                        to: text.rope.length,
+                        insert: character,
+                    }),
+                );
+                await Promise.all(typed.map((submission) => submission.confirmed));
             }),
         );
 
@@ -523,8 +531,8 @@ export class MachineDriver implements Driver<MachineStep, MachineObservation> {
         const shown = await Promise.all(
             (await this.#holders(type, id)).map(async (device) => {
                 const text = this.#text(device, step.object, id, step.field);
-                for await (const sequence of text.watch(deadline)) {
-                    if (sequence.text().length >= typed) {
+                for await (const rope of text.watch(deadline)) {
+                    if (rope.length >= typed) {
                         return true;
                     }
                 }
@@ -742,7 +750,7 @@ export class MachineDriver implements Driver<MachineStep, MachineObservation> {
     }
 
     /** Follow a text field on a device once. */
-    #text(device: MemberDevice, object: string, id: string, field: string): LiveText {
+    #text(device: MemberDevice, object: string, id: string, field: string): TextDocument {
         // open the device's text once, keyed by its replica
         const index = this.members.flatMap((member) => member.devices).indexOf(device);
         const key = `${index} ${object} ${id} ${field}`;
@@ -751,7 +759,7 @@ export class MachineDriver implements Driver<MachineStep, MachineObservation> {
             return known;
         }
         const { type } = present(this.#objects.get(object), `an object type ${object}`);
-        const opened = LiveText.open(device.client, type, id, field);
+        const opened = device.client.text(type, id, field);
         this.#texts.set(key, opened);
 
         return opened;
