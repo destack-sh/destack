@@ -39,11 +39,11 @@ export async function deploySite(
     const { store } = platform;
     const lock = await siteLock(platform);
 
-    // read the builtins a cloud machine links, at their locks
+    // read the builtins a cloud machine links, at their locks, by package name as a machine links them
     const builtins = DistributionManifest.builtins(platform.distribution(PLATFORM), PLATFORM);
     const linked = new Map<string, Lock>();
-    for (const [id, release] of builtins) {
-        linked.set(id, await store.lock(release.lock));
+    for (const release of builtins.values()) {
+        linked.set(release.package.name, await store.lock(release.lock));
     }
 
     // export the site's view into a fresh directory, as a machine's origin serves it
