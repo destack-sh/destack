@@ -1,13 +1,5 @@
 import { anyone, Contact, Invitation, none, principal, relation, union } from "@destack/access";
-import {
-    and,
-    type DatabaseConnection,
-    eq,
-    Expression,
-    isNull,
-    type Select,
-    type SQL,
-} from "@destack/db";
+import { and, type DatabaseConnection, eq, isNull, type Select, type SQL } from "@destack/db";
 import { defineObject, field } from "@destack/object";
 import { argument, LocaleTag, plural, t } from "@destack/locale";
 import { type Identifier, schema, TimeZone } from "@destack/schema";
@@ -53,24 +45,6 @@ export const user = defineObject(
         },
         constraints: {
             email: { kind: "unique", on: ["email"] },
-        },
-        convert: {
-            // fill an empty name from the email's local part, which a replica without the email takes from its home
-            "2026.9.0": {
-                name: Expression.case(
-                    Expression.column("name"),
-                    [
-                        {
-                            when: "",
-                            then: Expression.coalesce(
-                                Expression.before(Expression.column("email"), "@"),
-                                Expression.column("name"),
-                            ),
-                        },
-                    ],
-                    Expression.column("name"),
-                ),
-            },
         },
         container: "scope",
         access: {
