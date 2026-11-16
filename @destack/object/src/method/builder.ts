@@ -36,11 +36,9 @@ import { list } from "../query/list.ts";
 import { ListFields, QueryFields, ViewFields } from "../replica/replica.ts";
 import type { ObjectType, WrittenField } from "../object/object.ts";
 
-import { TagMap } from "@destack/resource";
-
 import { type StoreExecution } from "./execution.ts";
 
-import { ObjectRecord } from "../trait/record.ts";
+import { BatchIds, ObjectRecord, TagFields } from "./record.ts";
 
 import type { MethodLimits } from "./limits.ts";
 import type { Message } from "@destack/locale";
@@ -50,12 +48,6 @@ export const BATCH_LIMIT = 1000;
 
 /** The count of objects a bulk update or deletion changed. */
 export const BatchPayload = schema.object({ count: schema.number().int().nonnegative() });
-
-/** The identifiers of the objects a bulk creation created, in item order. */
-export const BatchIds = schema.object({ ids: schema.array(schema.string()) });
-
-/** One item of a bulk call: one creation's or one update's fields. */
-export const BatchItem = schema.jsonObject();
 
 /** The column sets of a sum type, by discriminating field and then value. */
 export type Variants<Fields extends string = string> = Readonly<
@@ -358,9 +350,6 @@ type CreateFields<Object extends ObjectType, Declaration extends Method> = Scope
     WrittenFields<Object, Declaration, false> &
     typeof TagFields &
     InputFields<Declaration>;
-
-/** The labels a creation or an update writes beside the fields, every record's. */
-export const TagFields = { tags: TagMap.exactOptional() };
 
 /** The items of a bulk creation, each a creation's chosen identifier, parent and fields. */
 type ItemsSchema<

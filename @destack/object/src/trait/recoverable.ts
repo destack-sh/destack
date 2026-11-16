@@ -18,7 +18,7 @@ import { method, MethodBuilder } from "../method/builder.ts";
 import { Step } from "../method/step.ts";
 import type { FieldColumn } from "../field/field.ts";
 import type { TraitTable } from "../object/table.ts";
-import { ObjectRecord } from "./record.ts";
+import { ObjectRecord } from "../method/record.ts";
 import {
     Empty,
     type MethodProcedure,

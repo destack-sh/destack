@@ -57,7 +57,7 @@ import type { MethodKind } from "./kind.ts";
 import type { ServerContext } from "../workload/workload.ts";
 import type { SettlementContext } from "./settlement.ts";
 import { type IsSum } from "./builder.ts";
-import { ObjectRecord } from "../trait/record.ts";
+import { ObjectRecord } from "./record.ts";
 import type { list } from "../query/list.ts";
 import { ParentReference } from "../trait/nested.ts";
 import type { Session } from "./reader.ts";

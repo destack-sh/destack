@@ -16,7 +16,7 @@ import {
     type RowSchema,
     type TargetFields,
 } from "../method/procedure.ts";
-import { ObjectRecord } from "./record.ts";
+import { ObjectRecord } from "../method/record.ts";
 import { Step } from "../method/step.ts";
 import type { ObjectType } from "../object/object.ts";
 import { idColumn } from "../field/field.ts";
