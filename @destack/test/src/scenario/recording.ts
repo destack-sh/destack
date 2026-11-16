@@ -1,6 +1,16 @@
 import { present } from "@destack/schema";
 import type { SimulatedTelemetry } from "@destack/environment/simulation";
+import { SpanPath } from "@destack/environment";
 import type { Check, Selector } from "@destack/package/declare";
+
+/** The span attribute counting the statements run inside a span, nested ones included. */
+const STATEMENTS = "db.client.operation.count";
+
+/** The spans whose statements a recording totals: a job's pass and an object call. */
+const MEASURED_SPANS: ReadonlySet<string> = new Set([
+    "destack.controller.pass",
+    "destack.object.call",
+]);
 
 /** The largest points of a failed metric check its failure lists. */
 const LISTED_POINTS = 8;
@@ -225,6 +235,24 @@ export class Recording {
         }
 
         return counters;
+    }
+
+    /** Count each controller pass and object call and total its statements, by the span's label. */
+    work(): Record<string, number> {
+        // take the spans that are a job's pass or a call
+        const statements: Record<string, number> = {};
+        const measured = this.spans.filter((span) => MEASURED_SPANS.has(span.name));
+        for (const span of measured) {
+            // count the span and the statements run under it, none for a span that ran none
+            const counted = span.attributes[STATEMENTS];
+            const count = typeof counted === "number" ? counted : 0;
+            const label = SpanPath.label(span.name, span.attributes).replaceAll(/\s/gu, "_");
+            const key = `statements{${label}}`;
+            statements[key] = (statements[key] ?? 0) + count;
+            statements[`spans{${label}}`] = (statements[`spans{${label}}`] ?? 0) + 1;
+        }
+
+        return statements;
     }
 }
 

@@ -355,7 +355,7 @@ async function measure(
         host,
         cpu,
         world: (after.now - before.now) / MILLISECONDS,
-        counters: emitted.counters(),
+        counters: { ...emitted.counters(), ...emitted.work() },
         failures: emitted.failures(labelOf(operation), times, checks),
     };
 }
