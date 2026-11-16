@@ -4,14 +4,32 @@ import { fileURLToPath } from "node:url";
 
 export default defineConfiguration(
     {
-        tier: "scenario",
         root: fileURLToPath(new URL(".", import.meta.url)),
-        // run every test against each database the package stores in
-        targets: { database: ["sqlite"] },
         test: {
-            include: ["src/**/*.test.ts"],
-            globalSetup: ["src/test/setup.ts"],
-            fileParallelism: false,
+            projects: [
+                // run the tests that fork no image once
+                {
+                    extends: true,
+                    tier: "unit",
+                    test: {
+                        name: "unit",
+                        include: ["src/**/*.test.ts"],
+                        exclude: ["src/**/*.scenario.test.ts"],
+                    },
+                },
+                // run the tests forking a space against each database the package stores in
+                {
+                    extends: true,
+                    tier: "scenario",
+                    targets: { database: ["sqlite"] },
+                    test: {
+                        include: ["src/**/*.scenario.test.ts"],
+                        globalSetup: ["src/test/setup.ts"],
+                        fileParallelism: false,
+                        sequence: { groupOrder: 1 },
+                    },
+                },
+            ],
         },
     },
     BunEnvironment.system,

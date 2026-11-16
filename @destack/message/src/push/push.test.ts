@@ -34,7 +34,7 @@ const EXAMPLE = {
     body: "DGv6ra1nlYgDCS1FRnbzlwAAEABBBP4z9KsN6nGRTbVYI_c7VJSPQTBtkgcy27mlmlMoZIIgDll6e3vCYLocInmYWAmS6TlzAC8wEqKK6PBru3jl7A_yl95bQpu6cVPTpK4Mqgkf1CXztLVBSt2Ks3oZwbuwXPXLWyouBWLVWGNWQexSgSxsj_Qulcy4a-fN",
 };
 
-test("encrypt RFC 8291's example message to its exact body, which the browser decrypts", async () => {
+test("encrypt RFC 8291's example message to its exact body", async () => {
     // encrypt with the example's sender keys and salt
     const sender = await importBrowser(
         { p256dh: EXAMPLE.sender.publicKey, auth: EXAMPLE.receiver.keys.auth },
@@ -60,7 +60,7 @@ test("encrypt RFC 8291's example message to its exact body, which the browser de
     expect([encode(body), await decrypt(browser, body)]).toEqual([EXAMPLE.body, EXAMPLE.message]);
 });
 
-test("encrypt each message under a fresh key and salt, which only its browser decrypts", async () => {
+test("encrypt each push under a fresh key and salt", async () => {
     const browser = await subscribeBrowser(world);
     const stranger = await subscribeBrowser(world);
     const message = new TextEncoder().encode(JSON.stringify({ title: "Alice mentioned you" }));
@@ -79,23 +79,11 @@ test("encrypt each message under a fresh key and salt, which only its browser de
     await expect(decrypt(stranger, first)).rejects.toThrow(DOMException);
 });
 
-test("sign VAPID tokens for the push service's origin, verifiable with the application server key", async () => {
-    // sign a token for a push resource at a fixed time
+test("accept only mailto and https VAPID contacts", async () => {
+    // accept a mailto contact
     const { pair: keys } = await KeyPair.generate(world.crypto);
     const vapid = new Vapid(keys, "mailto:push@destack.app", world.crypto);
-    const header = await vapid.authorization("https://fcm.googleapis.com/fcm/send/abc", NOW);
-
-    // verify the signature with the key browsers subscribe with, and read the claims
-    expect(await readVapid(header)).toEqual({
-        isValid: true,
-        header: { typ: "JWT", alg: "ES256" },
-        claims: {
-            aud: "https://fcm.googleapis.com",
-            exp: 1_790_043_200,
-            sub: "mailto:push@destack.app",
-        },
-        key: vapid.publicKey(),
-    });
+    expect(vapid.subject).toBe("mailto:push@destack.app");
 
     // refuse a contact push services cannot find
     expect(() => new Vapid(keys, "push@destack.app", world.crypto)).toThrow(
@@ -145,7 +133,7 @@ async function pushTo(responses: Response[]) {
     return { provider, vapid, browser, message, service, send };
 }
 
-test("answer the application server key, and post a push signed by it and encrypted with RFC 8030's headers", async () => {
+test("post a push signed with VAPID and encrypted with aes128gcm", async () => {
     const { provider, vapid, browser, service, send } = await pushTo([
         new Response(null, { status: 201 }),
     ]);
@@ -245,7 +233,7 @@ function readSegment(segment: string): unknown {
     );
 }
 
-test("refuse a push payload past one record, at sealing and at encryption", async () => {
+test("refuse a push payload larger than one record", async () => {
     // fill a payload one byte past the most a push carries
     const environment = testSimulation().environment("push");
     const data = "a".repeat(PUSH_DATA_BYTES - 1);
@@ -258,9 +246,8 @@ test("refuse a push payload past one record, at sealing and at encryption", asyn
         payload,
         environment,
     ).catch((error: unknown) => error);
-    expect([PushContent.safeParse(content).success, payload.length, encrypted]).toEqual([
+    expect([PushContent.safeParse(content).success, encrypted]).toEqual([
         false,
-        PUSH_DATA_BYTES + 1,
         new RangeError(
             `a push carries at most ${PUSH_DATA_BYTES} bytes, not ${PUSH_DATA_BYTES + 1}`,
         ),

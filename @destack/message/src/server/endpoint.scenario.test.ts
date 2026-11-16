@@ -8,7 +8,7 @@ import { secret } from "@destack/vault/object";
 import vaultPackage from "@destack/vault/package";
 import { endpoint, message } from "../object/index.ts";
 import messagePackage from "../package.ts";
-import { documentsPackage, TestMessage } from "../test/index.ts";
+import { documentsPackage, TestMessage, type TestRequest } from "../test/index.ts";
 
 /** The value of the endpoints' secret, the Standard Webhooks example secret. */
 const SECRET_VALUE = "whsec_MfKQ9r8GKYqrTwjUPD8ILPZIo2LaLaSw";
@@ -47,7 +47,10 @@ async function delivery(fixture: TestMessage, id: string) {
         .select({ conditions: endpoint.table.conditions })
         .from(endpoint.table)
         .where(eq(endpoint.table.id, endpoint.identifier(id)));
-    const sent = await fixture.space.database.select({ id: message.table.id }).from(message.table);
+    const sent = await fixture.space.database
+        .select({ id: message.table.id })
+        .from(message.table)
+        .where(eq(message.table.sourceId, id));
     const delivered = row?.conditions["Delivered"];
 
     return {
@@ -57,9 +60,9 @@ async function delivery(fixture: TestMessage, id: string) {
 }
 
 /** Read posted bodies' types, refusing a post the secret does not verify. */
-async function readPosts(fixture: TestMessage) {
+async function readPosts(fixture: TestMessage, posts: readonly TestRequest[]) {
     return Promise.all(
-        fixture.hooks.requests.map(async (post) => {
+        posts.map(async (post) => {
             const received = new Request(post.url, {
                 method: "POST",
                 headers: post.headers,
@@ -73,7 +76,7 @@ async function readPosts(fixture: TestMessage) {
     );
 }
 
-test("refuse a webhook message to an endpoint from a sender who does not manage it", async () => {
+test("refuse a webhook message unless the sender manages its endpoint", async () => {
     // create an endpoint, and a member who may send messages but not manage endpoints
     const fixture = await TestMessage.open();
     const id = await fixture.subscribe({ ...EVENTS, secret: await fixture.secret(SECRET_VALUE) });
@@ -108,7 +111,7 @@ test("refuse a webhook message to an endpoint from a sender who does not manage 
     ]);
 });
 
-test("let the installation consume an endpoint's new secret as the manager who sets it, and release the old one", async () => {
+test("rotate an endpoint's secret and release the old one", async () => {
     // create an endpoint with a secret, a second secret, and a member managing endpoints
     const fixture = await TestMessage.open();
     const first = await fixture.secret(SECRET_VALUE);
@@ -142,14 +145,23 @@ test("let the installation consume an endpoint's new secret as the manager who s
     });
 });
 
-test("send each subscribed succeeded call as one event signed with the secret the installation consumes", async () => {
-    // subscribe to renames, then create, rename twice, fail a rename and delete a document
+test("post subscribed calls in each endpoint's format", async () => {
+    // subscribe one endpoint to renames as signed events, and one to creates and deletes in NDJSON
     const fixture = await TestMessage.open();
-    const id = await fixture.subscribe({
+    const stored = await fixture.secret(SECRET_VALUE);
+    const signed = await fixture.subscribe({
         ...EVENTS,
         events: ["document.update"],
-        secret: await fixture.secret(SECRET_VALUE),
+        secret: stored,
     });
+    await fixture.subscribe({
+        events: ["document.create", "document.delete"],
+        format: "ndjson",
+        authentication: { kind: "header", name: "api-key" },
+        secret: stored,
+    });
+
+    // create, rename twice, fail a rename and delete a document
     const history = documents(fixture);
     const created = await history.create("draft");
     await history.rename(created.id, "first");
@@ -158,31 +170,16 @@ test("send each subscribed succeeded call as one event signed with the secret th
     await history.delete(created.id);
     await fixture.simulation.idle();
 
-    // post both renames once each, signed, and mark the endpoint delivered
-    expect({ delivery: await delivery(fixture, id), posts: await readPosts(fixture) }).toEqual({
-        delivery: { messages: 2, delivered: ["true", "Delivered", ""] },
-        posts: ["document.update", "document.update"],
-    });
-});
-
-test("send a page of calls as one NDJSON batch with the secret in the endpoint's header", async () => {
-    // subscribe in NDJSON with the secret in a header, then create and delete a document
-    const fixture = await TestMessage.open();
-    await fixture.subscribe({
-        events: ["document.create", "document.delete"],
-        format: "ndjson",
-        authentication: { kind: "header", name: "api-key" },
-        secret: await fixture.secret(SECRET_VALUE),
-    });
-    const history = documents(fixture);
-    const created = await history.create("draft");
-    await history.delete(created.id);
-    await fixture.simulation.idle();
-
-    // post both calls as lines of JSON in the pages they landed in, with the secret in the header and no signature
+    // tell the endpoints' posts apart by the header carrying the secret
     const posts = fixture.hooks.requests;
+    const events = posts.filter((post) => !post.headers.has("api-key"));
+    const batches = posts.filter((post) => post.headers.has("api-key"));
+
+    // post both renames once each signed, and both other calls as lines of JSON with the secret in the header
     expect({
-        methods: posts.flatMap((post) =>
+        delivery: await delivery(fixture, signed),
+        events: await readPosts(fixture, events),
+        methods: batches.flatMap((post) =>
             post.body
                 .trim()
                 .split("\n")
@@ -190,7 +187,7 @@ test("send a page of calls as one NDJSON batch with the secret in the endpoint's
         ),
         headers: [
             ...new Set(
-                posts.map((post) =>
+                batches.map((post) =>
                     JSON.stringify([
                         post.headers.get("api-key"),
                         post.headers.get("webhook-signature"),
@@ -200,12 +197,14 @@ test("send a page of calls as one NDJSON batch with the secret in the endpoint's
             ),
         ],
     }).toEqual({
+        delivery: { messages: 2, delivered: ["true", "Delivered", ""] },
+        events: ["document.update", "document.update"],
         methods: ["document.create", "document.delete"],
         headers: [JSON.stringify([SECRET_VALUE, null, "application/x-ndjson"])],
     });
 });
 
-test("hold a disabled endpoint's position and deliver only the calls after it once enabled again", async () => {
+test("deliver only later calls once an endpoint is enabled again", async () => {
     // deliver a first call
     const fixture = await TestMessage.open();
     const id = await fixture.subscribe({
@@ -237,7 +236,7 @@ test("hold a disabled endpoint's position and deliver only the calls after it on
         before,
         resting,
         after: await delivery(fixture, id),
-        types: await readPosts(fixture),
+        types: await readPosts(fixture, fixture.hooks.requests),
     }).toEqual({
         before: { messages: 1, delivered: ["true", "Delivered", ""] },
         resting: 1,
@@ -246,33 +245,7 @@ test("hold a disabled endpoint's position and deliver only the calls after it on
     });
 });
 
-test("mark an endpoint failing once the message controller gives up a message its URL refuses every time", async () => {
-    // refuse every post with a server failure
-    const fixture = await TestMessage.open({ hooks: Array.from({ length: 8 }, () => 500) });
-    const id = await fixture.subscribe({
-        ...EVENTS,
-        events: ["document.create"],
-        format: "json",
-        secret: await fixture.secret(SECRET_VALUE),
-    });
-    await documents(fixture).create("draft");
-    await fixture.simulation.idle();
-
-    // give the batch up after the retries, and flag the endpoint with the URL's answer
-    const [sent] = await fixture.space.database
-        .select({ id: message.table.id })
-        .from(message.table);
-    for (let attempt = 1; attempt < 8; attempt++) {
-        await fixture.retry(message.identifier(String(sent?.id)));
-    }
-    await fixture.simulation.idle();
-    expect(await delivery(fixture, id)).toEqual({
-        messages: 1,
-        delivered: ["false", "Failing", "PROVIDER_UNAVAILABLE: answered 500"],
-    });
-});
-
-test("fail a webhook message once its endpoint is disabled or deleted, or answers with a redirect it never follows", async () => {
+test("fail webhook messages their endpoint can no longer take", async () => {
     // subscribe three endpoints to one call each, the first two answered with a server failure
     const fixture = await TestMessage.open({ hooks: [500, 500, 302] });
     const stored = await fixture.secret(SECRET_VALUE);
@@ -309,7 +282,7 @@ test("fail a webhook message once its endpoint is disabled or deleted, or answer
     await client.endpoint.delete(target(deleted));
     await fixture.retry(await sentTo(deleted));
 
-    // post the third message once, answered with a redirect
+    // post the third message once, answered with a redirect, and mark its endpoint failing
     await history.delete(created.id);
     await fixture.simulation.idle();
     const read = async (id: string) => {
@@ -322,15 +295,17 @@ test("fail a webhook message once its endpoint is disabled or deleted, or answer
         deleted: await read(deleted),
         redirected: await read(redirected),
         posts: fixture.hooks.requests.length,
+        marked: await delivery(fixture, redirected),
     }).toEqual({
         disabled: ["failed", "ENDPOINT_BLOCKED", ["deferred", "failed"]],
         deleted: ["failed", "RECIPIENT_GONE_NOT_FOUND", ["deferred", "failed"]],
         redirected: ["failed", "MESSAGE_INVALID", ["failed"]],
         posts: 3,
+        marked: { messages: 1, delivered: ["false", "Failing", "MESSAGE_INVALID: answered 302"] },
     });
 });
 
-test("refuse an endpoint whose secret header is one every webhook post sets itself", async () => {
+test("refuse a secret header that webhook posts reserve", async () => {
     const fixture = await TestMessage.open();
     const stored = await fixture.secret(SECRET_VALUE);
     const subscribe = (name: string) =>

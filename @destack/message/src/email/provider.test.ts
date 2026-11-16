@@ -25,8 +25,42 @@ const SOURCE = {
     id: "notification-019f5530-8000-7000-8000-0000000000e4",
 };
 
+/** The answers a transport gives in turn: one send, then each refusal a provider meets. */
+const ANSWERS: readonly TestMailAnswer[] = [
+    "sent",
+    MailError.of(
+        "COMMAND_UNAVAILABLE",
+        "command 'RCPT TO' is unavailable: the server answered 450 'mailbox busy'",
+        {
+            data: { code: 450, enhancedCode: "4.2.1", text: "mailbox busy" },
+        },
+    ),
+    MailError.of(
+        "COMMAND_INVALID",
+        "command 'RCPT TO' is invalid: the server answered 550 'no such user'",
+        {
+            data: { code: 550, enhancedCode: "5.1.1", text: "no such user" },
+        },
+    ),
+    MailError.of("PROVIDER_EXHAUSTED", "sending rate exceeds the SES limit", {
+        data: { awsCode: "Throttling" },
+    }),
+    MailError.of("CREDENTIALS_UNAVAILABLE", "SES credential is unavailable: it expired", {
+        data: { awsCode: "ExpiredTokenException" },
+    }),
+    MailError.of("PROVIDER_UNAVAILABLE", "SES is unavailable", { data: {} }),
+    MailError.of("PROVIDER_UNREACHABLE", "could not connect to SES"),
+    MailError.of("MESSAGE_INVALID", "sender address is invalid: it is unverified", {
+        data: { awsCode: "MessageRejected" },
+    }),
+    MailError.of("ADDRESS_INVALID", "address is invalid: it is not a dot-atom addr-spec"),
+];
+
 /** Send one email message through a transport answering as scripted, reading the outcome. */
-function send(transport: TestMailTransport): Promise<Outcome> {
+function send(
+    transport: TestMailTransport,
+    store: ReturnType<typeof TestMessage.store>,
+): Promise<Outcome> {
     return emailProvider(transport).send(
         {
             id: ID,
@@ -41,128 +75,88 @@ function send(transport: TestMailTransport): Promise<Outcome> {
                 html: "<p>On it</p>",
             },
         },
-        TestMessage.store(testSimulation(NOW).environment("email")),
+        store,
     );
 }
 
-test("send an email message through the transport, keyed by its identifier with its HTML body", async () => {
-    const transport = new TestMailTransport();
+test("read transport refusals as outcomes", async () => {
+    // send one email message per answer through one transport, in turn
+    const transport = new TestMailTransport(ANSWERS);
+    const store = TestMessage.store(testSimulation(NOW).environment("email"));
+    const outcomes: Outcome[] = [];
+    for (let index = 0; index < ANSWERS.length; index++) {
+        outcomes.push(await send(transport, store));
+    }
 
-    // send one email message on the email channel
-    const outcome = await send(transport);
-    expect({ outcome, sent: transport.sent }).toEqual({
-        outcome: { kind: "sent" },
-        sent: [
+    // hand the transport each email keyed by its identifier, and read each answer as an outcome
+    const mail = {
+        to: "ada@example.com",
+        subject: "Mentioned",
+        text: "On it",
+        html: "<p>On it</p>",
+        key: ID,
+        date: NOW,
+    };
+    expect({ outcomes, sent: transport.sent }).toEqual({
+        outcomes: [
+            { kind: "sent" },
             {
-                to: "ada@example.com",
-                subject: "Mentioned",
-                text: "On it",
-                html: "<p>On it</p>",
-                key: ID,
-                date: NOW,
+                kind: "deferred",
+                refusal: {
+                    reason: "COMMAND_UNAVAILABLE",
+                    code: "450",
+                    message:
+                        "command 'RCPT TO' is unavailable: the server answered 450 'mailbox busy'",
+                },
+            },
+            {
+                kind: "failed",
+                refusal: {
+                    reason: "COMMAND_INVALID",
+                    code: "550",
+                    message: "command 'RCPT TO' is invalid: the server answered 550 'no such user'",
+                },
+            },
+            {
+                kind: "deferred",
+                refusal: {
+                    reason: "PROVIDER_EXHAUSTED",
+                    code: "Throttling",
+                    message: "sending rate exceeds the SES limit",
+                },
+            },
+            {
+                kind: "deferred",
+                refusal: {
+                    reason: "CREDENTIALS_UNAVAILABLE",
+                    code: "ExpiredTokenException",
+                    message: "SES credential is unavailable: it expired",
+                },
+            },
+            {
+                kind: "deferred",
+                refusal: { reason: "PROVIDER_UNAVAILABLE", message: "SES is unavailable" },
+            },
+            {
+                kind: "deferred",
+                refusal: { reason: "PROVIDER_UNREACHABLE", message: "could not connect to SES" },
+            },
+            {
+                kind: "failed",
+                refusal: {
+                    reason: "MESSAGE_INVALID",
+                    code: "MessageRejected",
+                    message: "sender address is invalid: it is unverified",
+                },
+            },
+            {
+                kind: "failed",
+                refusal: {
+                    reason: "ADDRESS_INVALID",
+                    message: "address is invalid: it is not a dot-atom addr-spec",
+                },
             },
         ],
+        sent: ANSWERS.map(() => mail),
     });
-});
-
-test.each<[TestMailAnswer, Outcome]>([
-    [
-        MailError.of(
-            "COMMAND_UNAVAILABLE",
-            "command 'RCPT TO' is unavailable: the server answered 450 'mailbox busy'",
-            {
-                data: { code: 450, enhancedCode: "4.2.1", text: "mailbox busy" },
-            },
-        ),
-        {
-            kind: "deferred",
-            refusal: {
-                reason: "COMMAND_UNAVAILABLE",
-                code: "450",
-                message: "command 'RCPT TO' is unavailable: the server answered 450 'mailbox busy'",
-            },
-        },
-    ],
-    [
-        MailError.of(
-            "COMMAND_INVALID",
-            "command 'RCPT TO' is invalid: the server answered 550 'no such user'",
-            {
-                data: { code: 550, enhancedCode: "5.1.1", text: "no such user" },
-            },
-        ),
-        {
-            kind: "failed",
-            refusal: {
-                reason: "COMMAND_INVALID",
-                code: "550",
-                message: "command 'RCPT TO' is invalid: the server answered 550 'no such user'",
-            },
-        },
-    ],
-    [
-        MailError.of("PROVIDER_EXHAUSTED", "sending rate exceeds the SES limit", {
-            data: { awsCode: "Throttling" },
-        }),
-        {
-            kind: "deferred",
-            refusal: {
-                reason: "PROVIDER_EXHAUSTED",
-                code: "Throttling",
-                message: "sending rate exceeds the SES limit",
-            },
-        },
-    ],
-    [
-        MailError.of("CREDENTIALS_UNAVAILABLE", "SES credential is unavailable: it expired", {
-            data: { awsCode: "ExpiredTokenException" },
-        }),
-        {
-            kind: "deferred",
-            refusal: {
-                reason: "CREDENTIALS_UNAVAILABLE",
-                code: "ExpiredTokenException",
-                message: "SES credential is unavailable: it expired",
-            },
-        },
-    ],
-    [
-        MailError.of("PROVIDER_UNAVAILABLE", "SES is unavailable", { data: {} }),
-        {
-            kind: "deferred",
-            refusal: { reason: "PROVIDER_UNAVAILABLE", message: "SES is unavailable" },
-        },
-    ],
-    [
-        MailError.of("PROVIDER_UNREACHABLE", "could not connect to SES"),
-        {
-            kind: "deferred",
-            refusal: { reason: "PROVIDER_UNREACHABLE", message: "could not connect to SES" },
-        },
-    ],
-    [
-        MailError.of("MESSAGE_INVALID", "sender address is invalid: it is unverified", {
-            data: { awsCode: "MessageRejected" },
-        }),
-        {
-            kind: "failed",
-            refusal: {
-                reason: "MESSAGE_INVALID",
-                code: "MessageRejected",
-                message: "sender address is invalid: it is unverified",
-            },
-        },
-    ],
-    [
-        MailError.of("ADDRESS_INVALID", "address is invalid: it is not a dot-atom addr-spec"),
-        {
-            kind: "failed",
-            refusal: {
-                reason: "ADDRESS_INVALID",
-                message: "address is invalid: it is not a dot-atom addr-spec",
-            },
-        },
-    ],
-])("refuse an email message as its transport refuses it: %#", async (answer, outcome) => {
-    expect(await send(new TestMailTransport([answer]))).toEqual(outcome);
 });

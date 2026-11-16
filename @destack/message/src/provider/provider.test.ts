@@ -9,7 +9,7 @@ const NOW = Date.UTC(2026, 9, 5);
 /** The origin the simulated endpoint listens at. */
 const ORIGIN = "https://hooks.example.com";
 
-test("read an endpoint's answers as sent, gone, retried after their wait, or rejected", () => {
+test("read HTTP answers as outcomes", () => {
     // answer each status once, and throttles with a valid, empty, negative and impossible wait
     const answers = [
         new Response(null, { status: 204 }),
@@ -48,7 +48,7 @@ test("read an endpoint's answers as sent, gone, retried after their wait, or rej
     ]);
 });
 
-test("retry a post the network failed to deliver or its timeout ended, and rethrow any other failure", async () => {
+test("defer lost or timed-out posts and rethrow other failures", async () => {
     // post to an origin nothing serves, and to one that never answers before the timeout
     await using simulation = new Simulation({ world: testWorldOptions(), seed: 1, start: NOW });
     const { clock } = simulation;

@@ -11,7 +11,7 @@ const PHONE = schema.identifier("client").parse("client-019f5530-8000-7000-8000-
 /** The person the clients belong to. */
 const DANA = schema.identifier("user").parse("user-019f5530-8000-7000-8000-0000000000a4");
 
-test("key each destination by its channel and address, matching one address across its other fields", () => {
+test("key destinations by channel and address", () => {
     // key one destination per channel, a browser by its client
     const browser = { channel: "push" as const, client: PHONE, user: DANA };
     const destinations: readonly Destination[] = [
