@@ -278,7 +278,7 @@ export function implementBuild(options: BuildOptions) {
                                 ...context.input,
                                 ...ObjectReference.columns("runner", runner),
                                 ...(source.kind === "commit"
-                                    ? { checkout: Build.checkout(source) }
+                                    ? { checkout: Build.checkout(source), commit: source.commit }
                                     : {}),
                             },
                         }),

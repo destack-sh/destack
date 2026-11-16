@@ -338,7 +338,7 @@ test("build each commit a push moves main to once in the space selecting it, pul
             { kind: "commit", repository: site.repository.id, commit, directory: "." },
             ["bun"],
             "succeeded",
-            null,
+            commit,
         ]),
         [SITE, SITE],
         builds[1]?.id,

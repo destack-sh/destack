@@ -38,6 +38,7 @@ import {
 import { ViewDescription } from "@destack/package/manifest";
 import { type ApplicationOptions, ApplicationInstallation } from "./application.ts";
 import { Approval } from "./approval.ts";
+import { checkout } from "../computer/checkout/object/index.ts";
 import { CommitBuild, type Forge } from "./follow.ts";
 import { StackInstallation } from "./stack.ts";
 import type { TokenIssuer } from "@destack/access/token";
@@ -433,6 +434,20 @@ function forgeWatches(forge: Forge): ObjectWatch[] {
         ]),
         // a rollout whose plan waits for a release once a tag of its space moves
         { table: forge.tags, path: [WAITING], on: { installationId: "installationId" } },
+        // the followers of a reference, and their managers, once the build of its commit succeeds
+        ...["id", "managerInstallationId"].map((column): ObjectWatch => ({
+            table: build.table,
+            where: { state: "succeeded" },
+            path: [
+                {
+                    table: forge.references,
+                    cardinality: "many",
+                    on: { kind: "key", column: "commit", parent: "commit" },
+                },
+                FOLLOWERS,
+            ],
+            on: { installationId: column },
+        })),
     ];
 }
 
@@ -465,24 +480,51 @@ function resumeWatches(
         },
         // the rollout once one of its deployments changes
         { table: deployment.table, on: { installationId: "installationId" } },
-        // the space's rollouts once a build succeeds, as one may follow its source
+        // the installations pinned to a build once it succeeds
         {
             table: build.table,
             where: { state: "succeeded" },
-            on: { scope: "scope" },
+            path: [FOLLOWERS],
+            on: { installationId: "id" },
+        },
+        // the space's installations following a checkout once a build succeeds
+        {
+            table: build.table,
+            where: { state: "succeeded" },
+            path: [
+                {
+                    table: installation.table,
+                    cardinality: "many",
+                    on: { kind: "key", column: "scope", parent: "scope" },
+                    where: { followsType: checkout.name },
+                },
+            ],
+            on: { installationId: "id" },
+        },
+        // the space's waiting rollouts once a build succeeds, as one may wait for it
+        {
+            table: build.table,
+            where: { state: "succeeded" },
+            path: [WAITING],
+            on: { installationId: "installationId" },
         },
         // the space's rollouts once its row, its placement or a setting value changes
         { table: space.table, on: { scope: "id" } },
-        { table: placement.table, on: { scope: "spaceId" } },
+        {
+            table: placement.table,
+            path: [{ ...WAITING, on: { kind: "key", column: "scope", parent: "spaceId" } }],
+            on: { installationId: "installationId" },
+        },
         { table: setting.table, on: { scope: "scope" } },
         // the account's rollouts once an entitlement changes
         { table: entitlement.table, path: [ENTITLED_SPACES], on: { scope: "id" } },
-        // the space's rollouts once a resource's status moves, or a bindable object changes
+        // the space's waiting rollouts once a resource's status moves, and its rollouts once a bindable object changes
         ...resources.map((object): ObjectWatch => ({
             table: object.table,
             fields: ["reference", "appliedStates", "plan", "conditions"],
             isObserving: true,
-            on: { scope: "scope" },
+            path: [WAITING],
+            on: { installationId: "installationId" },
         })),
         ...objects.map((kind): ObjectWatch => ({
             table: kind.object.table,
