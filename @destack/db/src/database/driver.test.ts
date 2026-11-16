@@ -51,6 +51,7 @@ test("count a database's statements, transactions, commits and connection waits 
     const statements = {
         ...queued,
         "destack.cache.requests": 1,
+        "destack.db.rows": 3,
         "destack.watch.wakes": 1,
         "db.client.operation.duration.count": 5,
         [`db.client.operation.duration.count.${name}:INSERT:destack__db__telemetry_note`]: 1,
