@@ -7,13 +7,14 @@ import {
     ImportMap,
     type Lock,
     type PackageManifest,
+    VIEW_ASSET_PATH,
     ViewDescription,
 } from "@destack/package/manifest";
 import { Sandbox } from "@destack/package";
 import type { Digest } from "@destack/schema";
 import { MachineError } from "../error/index.ts";
 import { BUILD_PATH } from "./origin.ts";
-import { HEADERS_FILE, StaticHost } from "./host.ts";
+import { HEADERS_FILE, StaticHost, ViewAssets } from "./host.ts";
 
 /** The headers of a dependency build's files, which never change under its digest. */
 const BUILD_HEADERS = "  Cache-Control: public, max-age=31536000, immutable";
@@ -68,6 +69,14 @@ export class StaticExport {
         // write each build the pages import below its digest, the view's own among them
         for (const digest of closure.builds) {
             await this.#copyBuild(digest);
+        }
+
+        // write each asset the builds emit below the asset path, by its name
+        const assets = await ViewAssets.of(closure.builds, (digest) =>
+            this.#builds.contents(digest),
+        );
+        for (const [name, asset] of assets.files) {
+            await this.#copy(asset.reader, asset.file, `${VIEW_ASSET_PATH}${name}`);
         }
 
         // add the views' permissions, the builds' caching and the media types to the site's headers

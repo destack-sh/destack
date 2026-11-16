@@ -12,6 +12,16 @@ test("export a static view as a static host serves it: pages with the import map
     const host = testHost();
     await using store = await TestBuildStore.create(host);
     const encoder = new TextEncoder();
+    const library = await TestViewBuild.of(
+        PackageVersion.parse({
+            id: "package-01996ab0-0000-7000-8000-0000000000d2",
+            name: "@acme/type",
+            version: "2026.9.0",
+        }),
+        {},
+        { files: new Map([["browser/asset/type.woff2", encoder.encode("type")]]) },
+        host.crypto,
+    );
     const site = await TestViewBuild.of(
         PackageVersion.parse({
             id: "package-01996ab0-0000-7000-8000-0000000000d1",
@@ -42,11 +52,15 @@ test("export a static view as a static host serves it: pages with the import map
                 ],
                 ["browser/asset/font.woff2", encoder.encode("font")],
             ]),
+            dependencies: [library],
         },
         host.crypto,
     );
+    const typeface = await store.put(library);
     const root = await store.put(site);
-    const lock = await store.putLock(Lock.of(root));
+    const lock = await store.putLock(
+        await Lock.hoisted(root, { "@acme/type": typeface }, (digest) => store.get(digest)),
+    );
 
     // export it below a fresh directory
     const directory = await host.files.makeTemporaryDirectory("destack-export-");
@@ -59,11 +73,16 @@ test("export a static view as a static host serves it: pages with the import map
         const index = await host.files.readTextFile(join(directory, "index.html"));
         const headers = await host.files.readTextFile(join(directory, "_headers"));
 
-        // expect the pages at the root, the asset below the asset path, every file of the build below its digest
-        const built = (path: string) => `.destack/build/${root}/${path}`;
+        // expect the pages at the root, its asset and its library's below the asset path, and every build below its digest
+        const built = (path: string, digest?: string) => `.destack/build/${digest ?? root}/${path}`;
         expect({ paths, isMapped: index.includes(`"importmap"`), headers }).toEqual({
             paths: [
                 ".destack/asset/font.woff2",
+                ".destack/asset/type.woff2",
+                built("browser/asset/type.woff2", typeface),
+                built("browser/index.js", typeface),
+                built("destack.json", typeface),
+                built("package.json", typeface),
                 built("browser/asset/font.woff2"),
                 built("browser/assets/hydrate.js"),
                 built("browser/index.js"),
@@ -88,7 +107,7 @@ test("export a static view as a static host serves it: pages with the import map
                 "browser/view/site/blog/index.html",
                 "browser/view/site/index.html",
                 "index.html",
-            ],
+            ].toSorted(),
             isMapped: true,
             headers: [
                 "/blog/*",

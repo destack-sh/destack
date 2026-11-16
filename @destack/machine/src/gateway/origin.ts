@@ -74,7 +74,7 @@ import { ScopePrimary } from "./primary.ts";
 import type { Gateway, GatewaySpace } from "./gateway.ts";
 import { MachineError } from "../error/index.ts";
 import { OriginCookie } from "./cookie.ts";
-import { StaticHost } from "./host.ts";
+import { StaticHost, ViewAssets } from "./host.ts";
 
 /** The path a view's dependency builds are served below, each under its digest. */
 export const BUILD_PATH = "/.destack/build/";
@@ -136,6 +136,8 @@ export class ViewOrigin {
     readonly #builds = new Map<string, Promise<Pick<Page, "lock" | "reader">>>();
     /** The browser import map closure of each build served so far, by build and base. */
     readonly #closures = new Map<string, Promise<ImportClosure>>();
+    /** The assets of each lock's closure by mount base, indexed once. */
+    readonly #assets = new Map<string, Promise<ViewAssets>>();
     /** The catalog paths each build's pages load, by build and base. */
     readonly #catalogs = new Map<string, Promise<string[]>>();
 
@@ -1002,6 +1004,20 @@ export class ViewOrigin {
             const file = await dependency.file(path.join("/"));
 
             return ViewOrigin.#file(request, file, () => dependency.load(file.path), {
+                "cache-control": "public, max-age=31536000, immutable",
+                "permissions-policy": policy,
+            });
+        }
+
+        // serve an asset of the installation's build or of a build its import map reaches, unchanging under its name
+        const assets = await ViewOrigin.#memo(this.#assets, `${page.lock} ${base}`, () =>
+            ViewAssets.of(closure.builds, (digest) => this.#space.builds.contents(digest)),
+        );
+        const published = assets.find(pathname);
+        if (published !== undefined) {
+            const { reader: emitter, file: emitted } = published;
+
+            return ViewOrigin.#file(request, emitted, () => emitter.load(emitted.path), {
                 "cache-control": "public, max-age=31536000, immutable",
                 "permissions-policy": policy,
             });

@@ -1,4 +1,10 @@
-import { type PackageManifest, VIEW_ASSET_PATH, ViewDescription } from "@destack/package/manifest";
+import {
+    type BuildReader,
+    type PackageManifest,
+    VIEW_ASSET_PATH,
+    ViewDescription,
+} from "@destack/package/manifest";
+import type { Digest } from "@destack/schema";
 import type { PackageFile } from "@destack/package/file";
 import { Catalog } from "@destack/locale";
 import { MachineError } from "../error/index.ts";
@@ -108,6 +114,55 @@ export type SiteAnswer =
           /** The path it moved to. */
           readonly path: string;
       };
+
+/** The assets some builds emit, by the name an origin publishes each at below the asset path. */
+export class ViewAssets {
+    /** Each asset's build and file, by its name. */
+    readonly files: ReadonlyMap<
+        string,
+        { readonly reader: BuildReader; readonly file: PackageFile }
+    >;
+
+    /** Index assets by name. */
+    constructor(files: ViewAssets["files"]) {
+        this.files = files;
+    }
+
+    /** Index the assets of some builds' outputs, the first build's taking a name several emit. */
+    static async of(
+        builds: Iterable<Digest>,
+        contents: (digest: Digest) => Promise<BuildReader>,
+    ): Promise<ViewAssets> {
+        const files = new Map<
+            string,
+            { readonly reader: BuildReader; readonly file: PackageFile }
+        >();
+        for (const digest of builds) {
+            // list the files below each output's asset directory
+            const reader = await contents(digest);
+            const directories = Object.values(reader.manifest.outputs).map(
+                (output) => `${ViewDescription.assets(output)}/`,
+            );
+            for (const file of await reader.files()) {
+                const directory = directories.find((each) => file.path.startsWith(each));
+                const name =
+                    directory === undefined ? undefined : file.path.slice(directory.length);
+                if (name !== undefined && !files.has(name)) {
+                    files.set(name, { reader, file });
+                }
+            }
+        }
+
+        return new ViewAssets(files);
+    }
+
+    /** Find the asset a path below the asset path answers. */
+    find(path: string): { readonly reader: BuildReader; readonly file: PackageFile } | undefined {
+        return path.startsWith(VIEW_ASSET_PATH)
+            ? this.files.get(path.slice(VIEW_ASSET_PATH.length))
+            : undefined;
+    }
+}
 
 /** A build's static site as Cloudflare's hosts it: its pages, redirects and headers. */
 export class StaticHost {
