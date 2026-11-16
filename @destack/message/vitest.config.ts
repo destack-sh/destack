@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 
 export default defineConfiguration(
     {
-        tier: "unit",
+        tier: "scenario",
         root: fileURLToPath(new URL(".", import.meta.url)),
         // run every test against each database the package stores in
         targets: { database: ["sqlite"] },
