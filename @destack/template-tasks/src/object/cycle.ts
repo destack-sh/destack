@@ -1,10 +1,10 @@
 import { through } from "@destack/access";
 import { space } from "@destack/account/object";
 import { argument, plural, t } from "@destack/locale";
-import { archivable, defineObject, field } from "@destack/object";
+import { archivable, defineObject, field, numbered } from "@destack/object";
 import { schema } from "@destack/schema";
 
-/** A time box in a space that tasks are planned into. */
+/** A time box in a space that tasks are planned into, numbered from 1. */
 export const cycle = defineObject({
     name: "cycle",
     plural: "cycles",
@@ -14,8 +14,6 @@ export const cycle = defineObject({
         permissions: { read: through("scope", "read"), write: through("scope", "write") },
     },
     fields: {
-        /** The cycle's number in its space, counted from 1. */
-        number: field.integer(),
         /** The cycle's name. */
         name: field.string(schema.string().min(1).max(200)),
         /** The moment the cycle starts. */
@@ -24,9 +22,7 @@ export const cycle = defineObject({
         endsAt: field.time(),
     },
     constraints: {
-        number: { kind: "index", on: ["number"], unique: true },
-        counted: { kind: "check", condition: { number: { gte: 1 } } },
         span: { kind: "check", condition: { endsAt: { gt: { field: "startsAt" } } } },
     },
-    traits: [archivable({ by: "write" })],
+    traits: [archivable({ by: "write" }), numbered()],
 });
