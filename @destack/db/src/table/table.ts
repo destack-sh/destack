@@ -14,6 +14,7 @@ import {
     type ColumnDefinition,
     type ColumnValue,
     type ValueOf,
+    ElementKey,
 } from "./column.ts";
 import { check, ForeignKey, Index, Unique, type TableConstraint } from "./constraint.ts";
 import type { Dialect } from "../dialect/dialect.ts";
@@ -31,6 +32,7 @@ import type { Condition, Scalar } from "../query/condition.ts";
 import { qualify } from "./namespace.ts";
 import type { ChangeRetention } from "../log/description.ts";
 import { Tree } from "../tree/tree.ts";
+import { MultikeyIndex, type EntryTable, type MultikeyName } from "../multikey/multikey.ts";
 import { FullTextIndex } from "../search/search.ts";
 import { DatabaseError } from "../error/error.ts";
 import type { ColumnDescription, TableDescription } from "./description.ts";
@@ -60,9 +62,10 @@ const COLUMNS: Readonly<Record<ColumnDescription["kind"], (name: string) => Colu
 export class Table<
     Name extends string = string,
     Columns extends ColumnMap = ColumnMap,
+    Constraints extends readonly TableConstraint[] = readonly TableConstraint[],
 > implements SQLWrapper {
     /** The table's identity, columns and declaration. */
-    readonly [TABLE]: TableDefinition<Name, Columns>;
+    readonly [TABLE]: TableDefinition<Name, Columns, Constraints>;
     /** The selected application record type. */
     declare readonly $inferSelect: Select<Table<Name, Columns>>;
     /** The inserted application record type. */
@@ -77,9 +80,18 @@ export class Table<
         },
         columns: Columns,
         declaration: TableDeclaration,
-        options: { readonly tree?: TreeColumns; readonly source?: Table } = {},
+        options: {
+            readonly tree?: TreeColumns;
+            readonly source?: Table;
+        } = {},
     ) {
-        this[TABLE] = new TableDefinition(this, identity, columns, declaration, options);
+        this[TABLE] = new TableDefinition<Name, Columns, Constraints>(
+            this,
+            identity,
+            columns,
+            declaration,
+            options,
+        );
     }
 
     /** Build the table a state describes, such as another host's. */
@@ -120,7 +132,11 @@ export class Table<
 
                 return [
                     properties[column.name] ?? column.name,
-                    new Column(description.name, definition),
+                    new Column(
+                        description.name,
+                        properties[column.name] ?? column.name,
+                        definition,
+                    ),
                 ];
             }),
         );
@@ -269,7 +285,11 @@ export class Table<
 }
 
 /** A table's identity, columns and declaration, with what derives from them. */
-export class TableDefinition<Name extends string = string, Columns extends ColumnMap = ColumnMap> {
+export class TableDefinition<
+    Name extends string = string,
+    Columns extends ColumnMap = ColumnMap,
+    Constraints extends readonly TableConstraint[] = readonly TableConstraint[],
+> {
     /** The declaring package. */
     readonly package: PackageVersion;
     /** The table name within its package. */
@@ -310,6 +330,8 @@ export class TableDefinition<Name extends string = string, Columns extends Colum
     readonly #treeColumns: TreeColumns | undefined;
     /** The tree, built on first read. */
     #tree: Tree | undefined;
+    /** The multikey indexes, built on first read. */
+    #multikeyIndexes: readonly MultikeyIndex[] | undefined;
     /** The primary key properties, read on first use. */
     #key: readonly string[] | undefined;
     /** The unique keys, read on first use. */
@@ -337,7 +359,10 @@ export class TableDefinition<Name extends string = string, Columns extends Colum
         },
         columns: Columns,
         declaration: TableDeclaration,
-        options: { readonly tree?: TreeColumns; readonly source?: Table },
+        options: {
+            readonly tree?: TreeColumns;
+            readonly source?: Table;
+        },
     ) {
         // store the identity, columns and declaration
         this.package = identity.package;
@@ -359,6 +384,31 @@ export class TableDefinition<Name extends string = string, Columns extends Colum
         this.#table = table;
         this.#declared = declaration.constraints;
         this.#treeColumns = options.tree;
+    }
+
+    /** The multikey indexes the table declares. */
+    get multikeyIndexes(): readonly MultikeyIndex[] {
+        this.#multikeyIndexes ??= this.#declared()
+            .filter((constraint): constraint is Index => constraint.kind === "index")
+            .filter((declared) => declared.isMultikey)
+            .map((declared) => new MultikeyIndex(this.#table, declared));
+
+        return this.#multikeyIndexes;
+    }
+
+    /** Read the entry table of a multikey index by name, typed by the index's keys. */
+    entryTable<const IndexName extends MultikeyName<Constraints>>(
+        name: IndexName,
+    ): EntryTable<Extract<Constraints[number], Index<IndexName>>> {
+        // find the index by its name
+        const indexName: string = name;
+        const found = this.multikeyIndexes.find((each) => each.index.name === indexName);
+        if (found === undefined) {
+            throw new TypeError(`table '${this.sqlName}' has no multikey index '${indexName}'`);
+        }
+
+        // oxlint-disable-next-line typescript/consistent-type-assertions, typescript/no-unsafe-type-assertion -- the entry table was declared from these keys
+        return found.table as EntryTable<Extract<Constraints[number], Index<IndexName>>>;
     }
 
     /** The ancestor index over the parent column, absent without a tree. */
@@ -408,6 +458,10 @@ export class TableDefinition<Name extends string = string, Columns extends Colum
                     if (column instanceof SQL) {
                         throw new TypeError(
                             `unique index '${constraint.name}' cannot use an expression as key`,
+                        );
+                    } else if (column instanceof ElementKey) {
+                        throw new TypeError(
+                            `unique index '${constraint.name}' cannot use an array element as key`,
                         );
                     }
 
@@ -738,9 +792,12 @@ export type LogOptions = {
 };
 
 /** The options of a table. */
-export interface TableOptions<Columns> {
+export interface TableOptions<
+    Columns,
+    Constraints extends readonly TableConstraint[] = readonly TableConstraint[],
+> {
     /** The constraints and indexes. */
-    readonly constraints?: (columns: Columns) => readonly TableConstraint[];
+    readonly constraints?: (columns: Columns) => Constraints;
     /** Log committed changes under the scope column, or the database's scope without one. */
     readonly log?: LogOptions;
     /** The time column past which a row is deleted, as a MongoDB TTL index deletes documents. */
@@ -798,7 +855,7 @@ export type ColumnBuilderMap = Record<string, ColumnBuilder>;
 
 /** Attach each column's definition and table. */
 export type TableColumnMap<Builders extends ColumnBuilderMap, Name extends string = string> = {
-    [Property in keyof Builders]: Column<Builders[Property]["definition"], Name>;
+    [Property in keyof Builders]: Column<Builders[Property]["definition"], Name, Property & string>;
 };
 
 /** A table's column definitions by property. */
@@ -859,12 +916,16 @@ export type Insert<Definition extends Table> = Pick<
     Partial<Omit<Select<Definition>, RequiredColumns<Definition> | GeneratedColumns<Definition>>>;
 
 /** Declare a table. */
-export function defineTable<Name extends string, Builders extends ColumnBuilderMap>(
+export function defineTable<
+    Name extends string,
+    Builders extends ColumnBuilderMap,
+    const Constraints extends readonly TableConstraint[] = readonly [],
+>(
     name: Name,
     builders: Builders & { [Property in Extract<keyof Table, string>]?: never },
-    options: TableOptions<TableColumnMap<Builders, Name>> = {},
+    options: TableOptions<TableColumnMap<Builders, Name>, Constraints> = {},
     module?: ModuleMetadata,
-): Table<Name, TableColumnMap<Builders, Name>> & TableColumnMap<Builders, Name> {
+): Table<Name, TableColumnMap<Builders, Name>, Constraints> & TableColumnMap<Builders, Name> {
     // qualify the table by its package
     const owner = ModuleMetadata.require(module, "defineTable").package;
     const sqlName = qualify(owner, name);
@@ -889,7 +950,7 @@ export function defineTable<Name extends string, Builders extends ColumnBuilderM
 
     // attach the columns in order
     const columns = attachColumns<Builders, Name>(sqlName, builders);
-    const definition = new Table(
+    const definition = new Table<Name, TableColumnMap<Builders, Name>, Constraints>(
         { package: owner, name, sqlName },
         columns,
         {
@@ -977,7 +1038,7 @@ function attachColumns<Builders extends ColumnBuilderMap, Name extends string>(
 ): TableColumnMap<Builders, Name> {
     return mapValues<Builders, TableColumnMap<Builders, Name>>(
         builders,
-        (builder) => new Column(sqlName, builder.definition),
+        (builder, property) => new Column(sqlName, property, builder.definition),
     );
 }
 
@@ -988,7 +1049,7 @@ function aliasColumns<Definition extends Table, Name extends string>(
 ): AliasColumnMap<Definition, Name> {
     return mapValues<ColumnMap, AliasColumnMap<Definition, Name>>(
         source[TABLE].columns,
-        (column) => new Column(name, column.definition, true),
+        (column) => new Column(name, column.property, column.definition, true),
     );
 }
 

@@ -1,6 +1,6 @@
 import type { Condition } from "../query/condition.ts";
 import type { SQL } from "../sql/index.ts";
-import type { Column, ReferenceAction } from "./column.ts";
+import { ElementKey, type Column, type ReferenceAction } from "./column.ts";
 
 /** A table constraint or index. */
 export type TableConstraint = Check | Index | Unique | ForeignKey;
@@ -15,28 +15,37 @@ export interface Check {
     readonly condition: Condition;
 }
 
-/** A named ordered index, optionally partial. */
-export class Index {
+/** A key of an index: a column, an expression, or a value of each array element. */
+export type IndexKey = Column | SQL | ElementKey;
+
+/** A named ordered index, optionally partial, over columns, expressions or array elements. */
+export class Index<
+    Name extends string = string,
+    Keys extends readonly IndexKey[] = readonly IndexKey[],
+> {
     /** The constraint category. */
     readonly kind = "index";
     /** The SQL index name. */
-    readonly name: string;
+    readonly name: Name;
     /** Whether duplicate keys are rejected. */
     readonly isUnique: boolean;
-    /** The indexed columns or expressions. */
-    readonly columns: readonly (Column | SQL)[];
+    /** The indexed columns, expressions or element keys. */
+    readonly columns: Keys;
     /** The condition selecting indexed rows, all rows when absent. */
     readonly predicate: Condition | undefined;
     /** Whether a unique index treats nulls as equal values. */
     readonly isNullsNotDistinct: boolean;
+    /** Whether a multikey index skips elements whose element keys are all null. */
+    readonly isSparse: boolean;
 
     /** Declare an index. */
     constructor(
-        name: string,
+        name: Name,
         isUnique: boolean,
-        columns: readonly (Column | SQL)[] = [],
+        columns: Keys,
         predicate?: Condition,
         isNullsNotDistinct = false,
+        isSparse = false,
     ) {
         // store the index definition
         this.name = name;
@@ -44,33 +53,62 @@ export class Index {
         this.columns = columns;
         this.predicate = predicate;
         this.isNullsNotDistinct = isNullsNotDistinct;
+        this.isSparse = isSparse;
     }
 
-    /** Select indexed columns in order. */
-    on(...columns: [Column | SQL, ...(Column | SQL)[]]): Index {
+    /** Whether an element key makes the index keep one entry per array element. */
+    get isMultikey(): boolean {
+        return this.columns.some((column) => column instanceof ElementKey);
+    }
+
+    /** Select indexed columns, expressions or element keys in order. */
+    on<const Selected extends readonly [IndexKey, ...IndexKey[]]>(
+        ...columns: Selected
+    ): Index<Name, Selected> {
         return new Index(
             this.name,
             this.isUnique,
             columns,
             this.predicate,
             this.isNullsNotDistinct,
+            this.isSparse,
         );
     }
 
     /** Restrict the index to rows meeting a condition. */
-    where(predicate: Condition): Index {
+    where(predicate: Condition): Index<Name, Keys> {
         return new Index(
             this.name,
             this.isUnique,
             this.columns,
             predicate,
             this.isNullsNotDistinct,
+            this.isSparse,
         );
     }
 
     /** Treat nulls as equal values in a unique index. */
-    nullsNotDistinct(): Index {
-        return new Index(this.name, this.isUnique, this.columns, this.predicate, true);
+    nullsNotDistinct(): Index<Name, Keys> {
+        return new Index(
+            this.name,
+            this.isUnique,
+            this.columns,
+            this.predicate,
+            true,
+            this.isSparse,
+        );
+    }
+
+    /** Skip the array elements whose element keys are all null. */
+    sparse(): Index<Name, Keys> {
+        return new Index(
+            this.name,
+            this.isUnique,
+            this.columns,
+            this.predicate,
+            this.isNullsNotDistinct,
+            true,
+        );
     }
 }
 
@@ -153,13 +191,13 @@ export function check(name: string, condition: Condition): Check {
 }
 
 /** Declare a non-unique index. */
-export function index(name: string): Index {
-    return new Index(name, false);
+export function index<const Name extends string>(name: Name): Index<Name, readonly []> {
+    return new Index(name, false, []);
 }
 
 /** Declare a unique index. */
-export function uniqueIndex(name: string): Index {
-    return new Index(name, true);
+export function uniqueIndex<const Name extends string>(name: Name): Index<Name, readonly []> {
+    return new Index(name, true, []);
 }
 
 /** Declare a compound unique constraint. */

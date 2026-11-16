@@ -251,6 +251,42 @@ export const countNotes = (write: (account: string) => Promise<void>): Projectio
 });
 ```
 
+### Multikey index
+
+An `index` keyed by `column.element(path, kind)` is a MongoDB multikey index, with one entry per element of a JSON array column.
+`table[TABLE].entryTable(name)` reads its entries, and `.sparse()` leaves out elements without any keyed value.
+
+```ts
+import { type DatabaseConnection, defineTable, index, json, TABLE, text, Transaction } from "@destack/db";
+import { schema } from "@destack/schema";
+
+// index each order line by customer and product
+const order = defineTable(
+    "order",
+    {
+        id: text("id").primaryKey(),
+        customer: text("customer").notNull(),
+        lines: json("lines", schema.array(schema.json())).notNull(),
+    },
+    {
+        constraints: (columns) => [
+            index("order_line").on(
+                columns.customer,
+                columns.lines.element("product.id", "text"),
+                columns.lines.element("quantity", "integer"),
+            ),
+        ],
+    },
+);
+const line = order[TABLE].entryTable("order_line"); // row, position, customer, productId, quantity
+
+/** Read the lines of a customer's orders of a product. */
+export const ordered = (database: DatabaseConnection, customer: string, productId: string) =>
+    Transaction.run(database, (transaction) =>
+        transaction.read(line).findMany({ where: { customer, productId } }),
+    );
+```
+
 ### ControlLoop
 
 A `ControlLoop` runs sets of controllers, projections and cursors, and starts a set once its `activation` resolves.

@@ -2,7 +2,7 @@ import { JsonValue, schema, toJsonSchema } from "@destack/schema";
 import { inline, SQL } from "../sql/index.ts";
 import { Dialect } from "../dialect/dialect.ts";
 import { literal, quote } from "../dialect/quote.ts";
-import { Column, COLUMN_KINDS, REFERENCE_ACTIONS } from "./column.ts";
+import { Column, COLUMN_KINDS, ElementKey, REFERENCE_ACTIONS } from "./column.ts";
 import type { ForeignKey, Index, TableConstraint } from "./constraint.ts";
 import { TABLE, type Table } from "./table.ts";
 import { boundedName, qualify } from "./namespace.ts";
@@ -167,6 +167,7 @@ function describe(table: Table, dialect: Dialect): TableDescription {
         ],
         indexes: constraints
             .filter((value) => value.kind === "index")
+            .filter((index) => !index.isMultikey)
             .map((index) => describeIndex(table, index, dialect)),
     };
 
@@ -316,9 +317,13 @@ function describeIndex(table: Table, index: Index, dialect: Dialect): IndexDescr
             ) {
                 return { expression: `coalesce(${quote(column.definition.name)}, X'')` };
             }
-            // key a column or an expression
+            // key a column or an expression, refusing an element key a plain index cannot hold
             else if (column instanceof Column) {
                 return { column: column.definition.name };
+            } else if (column instanceof ElementKey) {
+                throw new TypeError(
+                    `index '${index.name}' keys array elements: describe its entries`,
+                );
             } else {
                 return { expression: inline(column, dialect) };
             }

@@ -77,17 +77,22 @@ export const DriverValue: schema.Schema<DriverValue> = schema.union([
 export class Column<
     Definition extends ColumnDefinition = ColumnDefinition,
     TableName extends string = string,
+    Property extends string = string,
 > implements SQLWrapper {
     /** The column declaration. */
     readonly definition: Definition;
     /** The SQL table name. */
     readonly table: TableName;
+    /** The property naming the column in its table. */
+    readonly property: Property;
     /** Whether the table name is a query alias, which no namespace qualifies. */
     readonly isAliased: boolean;
 
     /** Create the column of a table or of a query alias. */
-    constructor(table: TableName, definition: Definition, isAliased = false) {
+    constructor(table: TableName, property: Property, definition: Definition, isAliased = false) {
+        // store the table, the property and the declaration
         this.table = table;
+        this.property = property;
         this.definition = definition;
         this.isAliased = isAliased;
     }
@@ -123,6 +128,35 @@ export class Column<
     /** Embed the column, qualified by its table. */
     getSQL(): SQL {
         return new SQL([this]);
+    }
+
+    /** Key an index by a value of each element of this JSON array column, at a dotted path. */
+    element<const Path extends string, const Kind extends ElementKind>(
+        this: Column<ColumnDefinition & { readonly kind: "json" }>,
+        path: Path,
+        kind: Kind,
+    ): ElementKey<Path, Kind> {
+        return new ElementKey(this, path, kind);
+    }
+}
+
+/** How an index stores a value it reads from an array element. */
+export type ElementKind = "text" | "integer" | "json";
+
+/** An index key over the elements of a JSON array column: each element's value at a path. */
+export class ElementKey<Path extends string = string, Kind extends ElementKind = ElementKind> {
+    /** The JSON array column. */
+    readonly column: Column;
+    /** The dotted path of the value in each element. */
+    readonly path: Path;
+    /** How the index stores the value. */
+    readonly kind: Kind;
+
+    /** Key an index by the value at a path of each element of an array column. */
+    constructor(column: Column, path: Path, kind: Kind) {
+        this.column = column;
+        this.path = path;
+        this.kind = kind;
     }
 }
 

@@ -18,6 +18,8 @@ import { expandTrees } from "../tree/tree.ts";
 import { literal, quote } from "../dialect/quote.ts";
 import { DatabaseError } from "../error/error.ts";
 
+import { MultikeyIndexDescription } from "../multikey/description.ts";
+import { expandMultikeyIndexes } from "../multikey/multikey.ts";
 /** The SQL name of the applied state table. */
 export const STATE = "__destack_state";
 
@@ -42,6 +44,8 @@ export const TableState = schema.object({
     log: ChangeDescription.exactOptional(),
     /** The ancestor index maintained over the table, absent without a tree. */
     tree: TreeDescription.exactOptional(),
+    /** The table's multikey indexes. */
+    multikeyIndexes: schema.array(MultikeyIndexDescription).exactOptional(),
     /** The aggregates the table declares, of its rows or of another table's into it. */
     aggregates: schema.array(AggregateDescription).exactOptional(),
     /** The rows of other tables referencing this table's rows. */
@@ -163,6 +167,8 @@ export function coversState(applied: TableState, declared: TableState): boolean 
         Version.compare(applied.package.version, declared.package.version) < 0 ||
         logOf(applied) !== logOf(declared) ||
         canonicalize(applied.tree ?? null) !== canonicalize(declared.tree ?? null) ||
+        canonicalize(applied.multikeyIndexes ?? []) !==
+            canonicalize(declared.multikeyIndexes ?? []) ||
         canonicalize(applied.aggregates ?? []) !== canonicalize(declared.aggregates ?? []) ||
         canonicalize(applied.dependents ?? []) !== canonicalize(declared.dependents ?? [])
     ) {
@@ -207,7 +213,7 @@ export function declareState(
 ): TableState[] {
     // add foreign keys to tables this database has and leave other references logical
     const isReplica = options.isReplica === true;
-    const declared = isReplica ? tables : expandTrees(tables);
+    const declared = expandMultikeyIndexes(isReplica ? tables : expandTrees(tables));
     const local = new Set(isReplica ? [] : declared.map((table) => table[TABLE].sqlName));
     const replicated = options.replicated ?? new Set<string>();
     const { packages } = options;
@@ -225,6 +231,7 @@ export function declareState(
         const definition = table[TABLE];
         const log = describeLog(table);
         const tree = isReplica ? undefined : definition.tree?.describe();
+        const multikeyIndexes = definition.multikeyIndexes.map((each) => each.describe());
         const moved = describeMoves(table);
         const conversions = describeConversions(table, dialect);
         const predefined = describePredefined(table, dialect);
@@ -242,6 +249,7 @@ export function declareState(
             ...(isReplicated ? { isReplicated: true as const } : {}),
             ...(log === undefined ? {} : { log }),
             ...(tree === undefined ? {} : { tree }),
+            ...(multikeyIndexes.length === 0 ? {} : { multikeyIndexes }),
             ...(aggregated === undefined ? {} : { aggregates: aggregated }),
             ...(dependents.length === 0 ? {} : { dependents }),
             ...(definition.fullText === undefined

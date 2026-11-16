@@ -3,6 +3,7 @@ import type { TableDescription } from "../table/description.ts";
 import type { TreeDescription } from "../tree/description.ts";
 import { createLog, logTriggers } from "../log/trigger.ts";
 import { treeTriggers } from "../tree/trigger.ts";
+import { multikeyIndexTriggers, rebuildMultikeyIndex } from "../multikey/trigger.ts";
 import { FullTextIndex } from "../search/search.ts";
 import { aggregateTriggers, recomputeAggregate } from "../aggregate/trigger.ts";
 import { dependentTriggers } from "../dependent/trigger.ts";
@@ -21,6 +22,7 @@ import { type PlanProblem, ResourceError, unreachablePlan } from "@destack/resou
 const TRIGGERS: readonly Triggers[] = [
     logTriggers,
     treeTriggers,
+    multikeyIndexTriggers,
     aggregateTriggers,
     dependentTriggers,
     bridgeTriggers,
@@ -106,6 +108,7 @@ export function planTables(input: PlanInput): TablePlan {
     // plan each agreeing table and its aggregates, dependents and foreign keys
     const { steps, created } = planDeclared(input, remaining, problems);
     steps.push(...aggregateSteps(declared, applied, dialect));
+    steps.push(...multikeyIndexSteps(declared, applied, dialect));
     steps.push(...dependentSteps(declared, applied));
     steps.push(...(dialect === "postgresql" ? foreignKeySteps(created) : []));
     steps.push(...declared.flatMap((state) => predefinedSteps(state, applied)));
@@ -338,6 +341,34 @@ function treeSteps(state: TableState, previous: TableState): TableStep[] {
     );
 
     return [{ ...rebuild, tree: state.tree }];
+}
+
+/** Fill the multikey indexes an existing table adds. */
+function multikeyIndexSteps(
+    declared: readonly TableState[],
+    applied: readonly TableState[],
+    dialect: Dialect,
+): TableStep[] {
+    return declared.flatMap((state) => {
+        // leave a new table to its triggers
+        const previous = applied.find((entry) => entry.table.name === state.table.name);
+        if (previous === undefined) {
+            return [];
+        }
+        const filled = new Set((previous.multikeyIndexes ?? []).map((each) => canonicalize(each)));
+
+        return (state.multikeyIndexes ?? [])
+            .filter((each) => !filled.has(canonicalize(each)))
+            .map((each) =>
+                step(
+                    "update",
+                    Address.join("table", state.table.name, "entries", each.name),
+                    "safe",
+                    `fill the ${each.name} entries`,
+                    rebuildMultikeyIndex(each, dialect),
+                ),
+            );
+    });
 }
 
 /** Rebuild a full-text index whose columns or table changed, and drop or create one as declared. */
