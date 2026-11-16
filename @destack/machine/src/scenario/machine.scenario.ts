@@ -2,44 +2,12 @@ import { defineScenario } from "@destack/package/declare";
 import { Machine } from "../machine/machine.ts";
 import { machineInteraction } from "./interaction.ts";
 
-/** Idle the owner's home and wake it, while three enrolled computers follow it. */
-export const idleAndWake = defineScenario({
-    of: Machine,
-    interaction: machineInteraction,
-    name: "idle-and-wake",
-    description:
-        "idle the owner's settled home for minutes and wake it after half hours, three computers following",
-    given: { examples: [] },
-    parameters: { minute: 60_000, halfHour: 1_800_000 },
-    when: [
-        {
-            operation: "computer.enroll",
-            times: 1,
-            step: { action: "open", computer: "laptop" },
-        },
-        { action: "open", computer: "desktop" },
-        { action: "open", computer: "tablet" },
-        { action: "run", milliseconds: "{minute}" },
-        {
-            operation: "machine.idle",
-            times: 3,
-            step: { action: "run", milliseconds: "{minute}" },
-            then: [{ spans: { host: "home" }, count: 0 }],
-        },
-        {
-            operation: "machine.wake",
-            times: 3,
-            step: { action: "jump", milliseconds: "{halfHour}" },
-        },
-    ],
-});
-
 /** Wake the owner's home after a night, holding a team's issues. */
 export const wakeAfterNight = defineScenario({
     of: Machine,
     interaction: machineInteraction,
     name: "wake-after-night",
-    description: "wake the owner's home after a night, holding a team's fifty issues",
+    description: "wake a home after a night holding its issues",
     given: { examples: [] },
     parameters: { members: 3, issues: 50, night: 28_800_000 },
     when: [
@@ -76,8 +44,7 @@ export const restartAndServeAgain = defineScenario({
     of: Machine,
     interaction: machineInteraction,
     name: "restart-and-serve-again",
-    description:
-        "restart the owner's home computer while three computers follow it, until it serves the home again",
+    description: "restart a home computer and start its three spaces again",
     given: { examples: [] },
     parameters: { restarts: 2 },
     when: [

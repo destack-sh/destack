@@ -143,7 +143,7 @@ async function outcome(authorizing: Promise<void>): Promise<string> {
     return refused === "done" ? "allowed" : refused[2];
 }
 
-test("let clients call served services' own procedures, restricting machine procedures and the machine's own to the owner", async () => {
+test("restrict machine procedures to the owner", async () => {
     const { authenticator } = (await TestComputer.open()).computer;
 
     // allow a served service's permissionless and public procedures
@@ -170,9 +170,10 @@ test("let clients call served services' own procedures, restricting machine proc
     ]);
 });
 
-test("take the owner's token only from this computer outside a browser, by the request's first hop, whatever host it names", async () => {
+test("authenticate the owner's direct calls and a client's key proof", async () => {
     // ask as the owner directly, from another computer through a proxy naming the loopback host, and from a browser
-    const { authenticator } = (await TestComputer.open()).computer;
+    const computer = await TestComputer.open();
+    const { device: native, authenticator } = computer.computer;
     const asked = (headers: Record<string, string>) =>
         refusal(
             authenticator.authenticate(
@@ -188,32 +189,62 @@ test("take the owner's token only from this computer outside a browser, by the r
         await asked({ origin: "http://127.0.0.1:3000" }),
     ];
 
-    // accept the direct call alone
+    // sign the owner in, then forget every stored session
+    const signedIn = await computer.signIn(OWNER_EMAIL);
+    computer.keychain(SESSIONS).secrets.clear();
+    const registration = schema.identifier("client").parse(signedIn.clientId);
+    const proof = await native.credential.prove(await native.signedIn(signedIn.id));
+
+    // take the client's proof from this machine as the person
+    const authentication = await authenticator.authenticate(
+        new Request("http://127.0.0.1/status", { headers: { authorization: `Bearer ${proof}` } }),
+        machinePackage.id,
+    );
+    const { verifiedAt } = present(authentication, "the person's authentication").credential;
+    const owner = principal.user.reference(Scope.universe.id, computer.world.owner.id);
+
+    // accept the owner's direct call alone, and the person's client by its proof, reading no session
     const refused = [
         "UNAUTHORIZED",
         "ORIGIN_UNAUTHENTICATED",
         "authentication required: the credential is not accepted from this origin",
     ];
-    expect([local, remote, browser]).toEqual(["done", refused, refused]);
+    expect({ owner: [local, remote, browser], client: authentication }).toEqual({
+        owner: ["done", refused, refused],
+        // the person, contained in this computer's device
+        client: {
+            caller: { ...Caller.of(owner), groups: [{ ...native.subject, relation: "contained" }] },
+            credential: {
+                kind: "session",
+                id: registration,
+                client: registration,
+                audience: machinePackage.id,
+                verifiedAt,
+                expiresAt: verifiedAt + TOKEN_LIFETIME_MILLISECONDS,
+            },
+        },
+    });
 });
 
-test("record the computer at each start under the same identifier", async () => {
+test("record each start of the computer under one identifier", async () => {
     const opened = await TestComputer.open();
     const client = opened.connect(machinePackage);
     const machineId = opened.machine.id;
     const deviceId = opened.device.id;
     const device = principal.device.reference(Scope.universe.id, deviceId);
+    const read = async () => (await client.computer.get({ deviceId, id: machineId })).tunnel;
+    const record = async (startedAt: number) =>
+        await ComputerServer.record(
+            opened.computer.objects,
+            { device: deviceId, machine: machineId },
+            { version: machinePackage.version, pid: 4343, startedAt },
+            undefined,
+        );
 
     // record the next start's process on the same record, as the device storing it
-    const { id: first } = await client.computer.get({ deviceId, id: machineId });
+    const { id: first, tunnel: unrelayed } = await client.computer.get({ deviceId, id: machineId });
     const startedAt = opened.clock.now();
-    const next = { version: machinePackage.version, pid: 4343, startedAt };
-    await ComputerServer.record(
-        opened.computer.objects,
-        { device: deviceId, machine: machineId },
-        next,
-        undefined,
-    );
+    await record(startedAt);
 
     // store one machine record in the device, written by the device's own packages in order
     const writer = device;
@@ -221,7 +252,18 @@ test("record the computer at each start under the same identifier", async () => 
         deviceId,
         id: machineId,
     });
-    expect([status, createdAt <= updatedAt]).toEqual([
+
+    // open the tunnel, lose it, then start the next process
+    const tunnels = [unrelayed];
+    await ComputerServer.link(opened.computer.objects, machineId, "open");
+    tunnels.push(await read());
+    await ComputerServer.link(opened.computer.objects, machineId, "dialing");
+    tunnels.push(await read());
+    await record(opened.clock.now());
+    tunnels.push(await read());
+
+    // expect one record, no tunnel without a relay, then each status, then none for the new process
+    expect([status, createdAt <= updatedAt, tunnels]).toEqual([
         {
             id: first,
             machineId,
@@ -238,36 +280,11 @@ test("record the computer at each start under the same identifier", async () => 
             revision: 2,
         },
         true,
+        ["none", "open", "dialing", "none"],
     ]);
 });
 
-test("record the tunnel opening and dialing on the computer's record, and none again at the next start", async () => {
-    const opened = await TestComputer.open();
-    const client = opened.connect(machinePackage);
-    const machineId = opened.machine.id;
-    const deviceId = opened.device.id;
-    const read = async () => (await client.computer.get({ deviceId, id: machineId })).tunnel;
-
-    // open the tunnel, lose it, then start the next process
-    const tunnels = [await read()];
-    await ComputerServer.link(opened.computer.objects, machineId, "open");
-    tunnels.push(await read());
-    await ComputerServer.link(opened.computer.objects, machineId, "dialing");
-    tunnels.push(await read());
-    const next = { version: machinePackage.version, pid: 4343, startedAt: opened.clock.now() };
-    await ComputerServer.record(
-        opened.computer.objects,
-        { device: deviceId, machine: machineId },
-        next,
-        undefined,
-    );
-    tunnels.push(await read());
-
-    // expect no tunnel without a relay, then each status, then none for the new process
-    expect(tunnels).toEqual(["none", "open", "dialing", "none"]);
-});
-
-test("stop the machine as its device's owner, and refuse another device stopping it", async () => {
+test("stop the machine only as its own device", async () => {
     const computer = await TestComputer.open();
     const opened = computer.computer;
     const machineId = computer.machine.id;
@@ -314,7 +331,7 @@ test("stop the machine as its device's owner, and refuse another device stopping
     ]);
 });
 
-test("send a desktop's telemetry export to its person's home, sent through the computer's machine", async () => {
+test("send a desktop's telemetry to its person's home", async () => {
     const { home: computer, login } = await TestComputer.home();
     const { device: native, machine } = computer;
     const home = accountObject.Account.home(await (await native.launcher(login)).account());
@@ -354,37 +371,7 @@ test("send a desktop's telemetry export to its person's home, sent through the c
     ).toEqual([["inbox.failed", "the inbox stopped"]]);
 });
 
-test("authenticate a signed-in person's own client by its key's proof, reading no session", async () => {
-    // sign the owner in, then forget every stored session
-    const computer = await TestComputer.open();
-    const { device: native, authenticator } = computer.computer;
-    const signedIn = await computer.signIn(OWNER_EMAIL);
-    computer.keychain(SESSIONS).secrets.clear();
-    const registration = schema.identifier("client").parse(signedIn.clientId);
-    const proof = await native.credential.prove(await native.signedIn(signedIn.id));
-
-    // take the client's proof from this machine as the person
-    const authentication = await authenticator.authenticate(
-        new Request("http://127.0.0.1/status", { headers: { authorization: `Bearer ${proof}` } }),
-        machinePackage.id,
-    );
-    const { verifiedAt } = present(authentication, "the person's authentication").credential;
-    const owner = principal.user.reference(Scope.universe.id, computer.world.owner.id);
-    expect(authentication).toEqual({
-        // the person, contained in this computer's device
-        caller: { ...Caller.of(owner), groups: [{ ...native.subject, relation: "contained" }] },
-        credential: {
-            kind: "session",
-            id: registration,
-            client: registration,
-            audience: machinePackage.id,
-            verifiedAt,
-            expiresAt: verifiedAt + TOKEN_LIFETIME_MILLISECONDS,
-        },
-    });
-});
-
-test("enroll as the signed-in person, serve spaces only while enrolled, and revoke at the universe", async () => {
+test("serve spaces only while the machine is enrolled", async () => {
     const opened = await TestComputer.open();
     const { machine } = opened;
     const { owner, universe } = opened.world;
@@ -457,7 +444,7 @@ test("enroll as the signed-in person, serve spaces only while enrolled, and revo
     });
 });
 
-test("pause serving while the account drains the machine, refusing its space's calls and starts, and serve again once enabled", async () => {
+test("pause serving while the account drains the machine", async () => {
     const opened = await TestComputer.open();
     const { machine, device } = opened;
     const { owner } = opened.world;
@@ -492,8 +479,8 @@ test("pause serving while the account drains the machine, refusing its space's c
     expect(started).toEqual(paused);
 });
 
-test("receive the machine scope in its partition with its own packages, letting the machine register checkouts and writing nothing at the universe", async () => {
-    // enroll a computer, and register a checkout as its local owner
+test("let the owner and the machine work its checkouts", async () => {
+    // enroll a computer, and register a checkout as its local client
     const opened = await TestComputer.open();
     const { machine, world } = opened;
     await opened.enroll(await opened.signIn(OWNER_EMAIL), world.owner.account);
@@ -525,29 +512,11 @@ test("receive the machine scope in its partition with its own packages, letting 
             .filter((row) => row.roleId !== null)
             .map((row) => [row.scope, row.subjectType, row.subjectId]),
     });
-    expect({
+    const stored = {
         partition: await bound(opened.computer.machineObjects().database),
         universe: await bound(world.universe.storage.database),
         read: read.id,
-    }).toEqual({
-        // store no role, as the base packages request nothing there and act on their own types by their policies
-        partition: { roles: [], bindings: [] },
-        universe: { roles: [], bindings: [] },
-        read: registered.id,
-    });
-});
-
-test("let the machine's local client and its account's owner work its checkouts once the partition's chain synced, and refuse a stranger", async () => {
-    // enroll a computer, and register a checkout as its local client
-    const opened = await TestComputer.open();
-    const { machine, world } = opened;
-    await opened.enroll(await opened.signIn(OWNER_EMAIL), world.owner.account);
-    const registered = await opened.connect(machinePackage).checkout.create({
-        machineId: machine.id,
-        requestId: RequestId.create(opened.environment),
-        directory: templateStack,
-        source: { kind: "existing" },
-    });
+    };
 
     // decide each caller's permissions on the checkout in the partition
     const partition = opened.computer.machineObjects();
@@ -589,13 +558,19 @@ test("let the machine's local client and its account's owner work its checkouts 
         local: await permissions(local),
         stranger: await permissions(stranger),
     };
-    expect([decided, opened.reports]).toEqual([
+    expect([stored, decided, opened.reports]).toEqual([
+        {
+            // store no role, as the base packages request nothing there and act on their own types by their policies
+            partition: { roles: [], bindings: [] },
+            universe: { roles: [], bindings: [] },
+            read: registered.id,
+        },
         { owner: [true, true, true], local: [true, true, true], stranger: [false, false, false] },
         [],
     ]);
 });
 
-test("register a working tree's directory, build its stack in a space as the person, a prerelease while uncommitted and a release once committed, and refuse a directory outside it", async () => {
+test("build a checkout as a prerelease until committed", async () => {
     // release the stack package with the board's closure, which the working tree installs
     const world = await TestComputer.world({ bundled: [await TestDistribution.fixture("board")] });
     const opened = await TestComputer.open({ world });
@@ -716,7 +691,7 @@ test("register a working tree's directory, build its stack in a space as the per
     );
 });
 
-test("derive a workspace's members, and start a preview's next generation once its own or a dependency's sources settle", async () => {
+test("start a preview's next generation once sources settle", async () => {
     // enroll the owner's computer, which stores checkouts and previews once enrolled
     const computer = await TestComputer.open();
     const { machine } = computer;

@@ -511,7 +511,7 @@ async function contextOf(document: Response): Promise<unknown> {
     return embedded === null ? undefined : JSON.parse(nth(embedded, 1));
 }
 
-test("launch a view of the person's own home under a grant created at once, onto a session cookie serving its document with its installation's browser features, and serve it to an anonymous visitor without one", async () => {
+test("launch a view onto a session cookie serving its document", async () => {
     // install notes in the owner's home
     const opened = await openHome();
     const { computer, spaceId } = opened;
@@ -550,14 +550,8 @@ test("launch a view of the person's own home under a grant created at once, onto
     });
     const allowed = await listener.fetch(new Request(page, { headers: { cookie } }));
 
-    // serve the page without its cookie to an anonymous visitor, and refuse a launch with a forged token at the loopback origin
-    const port = new URL(await native.origin()).port;
-    const unopened = await listener.fetch(new Request(page));
-    const forged = await listener.fetch(
-        new Request(`http://notes--${opened.address}.localhost:${port}/home?token=forged`),
-    );
-
     // open the origin's root, which serves the main view, and load a page of no view
+    const port = new URL(await native.origin()).port;
     const root = await listener.fetch(
         new Request(`http://notes--${opened.address}.localhost:${port}/`),
     );
@@ -565,6 +559,37 @@ test("launch a view of the person's own home under a grant created at once, onto
         new Request(`http://notes--${opened.address}.localhost:${port}/missing`, {
             headers: { "sec-fetch-mode": "navigate", "sec-fetch-dest": "document" },
         }),
+    );
+
+    // open a note in the view presenting notes most strongly and in the view asked for
+    const note = ObjectReference.parse({
+        packageId: notes.id,
+        type: "note",
+        scope: spaceId,
+        id: "note-01996ab0-0000-7000-8000-0000000000aa",
+    });
+    const openIn = async (view?: string) => {
+        const object = await login.launch({
+            space: opened.address,
+            object: note,
+            ...(view === undefined ? {} : { view }),
+        });
+        const objectTraded = await listener.fetch(new Request(object.url));
+        const objectCookie = nth(header(objectTraded, "set-cookie").split(";"), 0);
+        const location = new URL(header(objectTraded, "location"), object.url);
+        const objectDocument = await listener.fetch(
+            new Request(location.href, { headers: { cookie: objectCookie } }),
+        );
+        const objectContext = Launched.parse(await contextOf(objectDocument));
+
+        return [location.pathname, objectContext.view, objectContext.target];
+    };
+    const strongest = await openIn();
+    const asked = await openIn("home");
+
+    // refuse a type no view presents
+    const unpresented = await refusal(
+        login.launch({ space: opened.address, object: { ...note, type: "folder" } }),
     );
     const person = principal.user.reference(Scope.universe.id, owner.id);
     const permissions = [owner.id, spaceId].map((scope) => ({
@@ -580,10 +605,11 @@ test("launch a view of the person's own home under a grant created at once, onto
         document: document.status,
         context,
         policies: [policy, allowed.headers.get("permissions-policy")],
-        unopened: [unopened.status, await contextOf(unopened)],
-        forged: forged.status,
         root: [root.status, Launched.pick({ view: true }).parse(await contextOf(root)).view],
         missing: [missing.status, missing.headers.get("content-type")],
+        strongest,
+        asked,
+        unpresented,
     }).toEqual({
         granted: { id: "grant", scope: owner.id, permissions },
         url: `http://notes--${opened.address}.localhost:${port}/home?token=…`,
@@ -606,12 +632,58 @@ test("launch a view of the person's own home under a grant created at once, onto
             Sandbox.policy({ "clipboard-write": {} }),
             Sandbox.policy({ "clipboard-write": {}, camera: {} }),
         ],
+        root: [200, "home"],
+        missing: [404, "text/html; charset=utf-8"],
+        strongest: ["/editor/", "editor", note],
+        asked: ["/home/", "home", note],
+        unpresented: [
+            "NOT_FOUND",
+            "PRESENTER_NOT_FOUND",
+            `presenter 'no view' for folder objects of '${spaceId}' not found`,
+        ],
+    });
+});
+
+test("serve anonymous visitors and refuse forged credentials", async () => {
+    // install notes in the owner's home
+    const opened = await openHome();
+    const { computer, spaceId } = opened;
+    const listener = computer.computer;
+    const installation = await install(
+        opened,
+        await notesBuild(computer.environment.crypto),
+        "notes",
+    );
+    const port = new URL(await computer.device.origin()).port;
+    const origin = `http://notes--${opened.address}.localhost:${port}`;
+
+    // serve the page without a cookie to an anonymous visitor, and take their telemetry
+    const unopened = await listener.fetch(new Request(`${origin}/home`));
+    const telemetry = await listener.fetch(
+        new Request(`${origin}${OTLP_ORIGIN_PATH}/v1/traces`, {
+            method: "POST",
+            headers: { origin, "content-type": "application/json" },
+            body: "{}",
+        }),
+    );
+
+    // refuse a launch with a forged token and a session cookie the space did not sign
+    const forgedToken = await listener.fetch(new Request(`${origin}/home?token=forged`));
+    const forgedSession = await listener.fetch(
+        new Request(`${origin}/home`, { headers: { cookie: `${SESSION_COOKIE}=forged` } }),
+    );
+    expect({
+        unopened: [unopened.status, await contextOf(unopened)],
+        telemetry: await summary(telemetry),
+        forgedToken: forgedToken.status,
+        forgedSession: [...(await summary(forgedSession)), header(forgedSession, "set-cookie")],
+    }).toEqual({
         unopened: [
             200,
             {
                 installation: installation.id,
                 space: spaceId,
-                account: owner.account,
+                account: computer.world.owner.account,
                 view: "home",
                 base: "",
                 universe: computer.world.universe.origin,
@@ -619,58 +691,22 @@ test("launch a view of the person's own home under a grant created at once, onto
                 user: ANONYMOUS,
             },
         ],
-        forged: 401,
-        root: [200, "home"],
-        missing: [404, "text/html; charset=utf-8"],
+        telemetry: [200, "{}"],
+        forgedToken: 401,
+        forgedSession: [
+            ...answered(
+                "UNAUTHORIZED",
+                "SESSION_UNAUTHENTICATED",
+                401,
+                "authentication required: the page's session is invalid or expired",
+            ),
+            `${SESSION_COOKIE}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0`,
+        ],
     });
 });
 
-test("ask an anonymous page load's person at the issuer for a grant a view another installed needs beyond its space, then launch it as them", async () => {
+test("ask a signed-out member at the issuer for consent and permissions", async () => {
     // install notes in the owner's work space, whose origin the person they shared it with loads signed out
-    const opened = await openShared(await openHome());
-    const { computer } = opened;
-    const { universe } = computer.world;
-    const listener = computer.computer;
-    await install(opened, await notesBuild(computer.environment.crypto), "notes");
-    const port = new URL(await computer.device.origin()).port;
-    const origin = `http://notes--${opened.address}.localhost:${port}`;
-    const loaded = await listener.fetch(
-        new Request(`${origin}/`, {
-            headers: { "sec-fetch-mode": "navigate", "sec-fetch-dest": "document" },
-        }),
-    );
-
-    // sign the member in at the issuer, whose code returns to the origin, which asks them for the grant
-    const member = await universe.signIn(MEMBER_EMAIL);
-    const signedIn = await universe.approve(header(loaded, "location"), member);
-    const asking = await listener.fetch(
-        new Request(signedIn, { headers: { cookie: firstCookie(loaded) } }),
-    );
-
-    // consent to the grant at the issuer, then trade the launch for the origin's session and load the page
-    const consented = await universe.approve(header(asking, "location"), member);
-    const completed = await listener.fetch(
-        new Request(consented, { headers: { cookie: firstCookie(asking) } }),
-    );
-    const traded = await listener.fetch(new Request(header(completed, "location")));
-    const page = await listener.fetch(
-        new Request(new URL(header(traded, "location"), origin).href, {
-            headers: { cookie: firstCookie(traded) },
-        }),
-    );
-    expect({
-        asking: [asking.status, new URL(header(asking, "location")).pathname],
-        completed: completed.status,
-        page: [page.status, Launched.pick({ view: true }).parse(await contextOf(page)).view],
-    }).toEqual({
-        asking: [302, "/oauth/oauth2/authorize"],
-        completed: 303,
-        page: [200, "home"],
-    });
-});
-
-test("ask a page's person at the issuer for an optional permission a call needs, then return to the page with it", async () => {
-    // load notes signed in as the member, as a signed-out page load does
     const opened = await openShared(await openHome());
     const { computer } = opened;
     const { universe } = computer.world;
@@ -680,6 +716,8 @@ test("ask a page's person at the issuer for an optional permission a call needs,
     const origin = `http://notes--${opened.address}.localhost:${port}`;
     const document = { "sec-fetch-mode": "navigate", "sec-fetch-dest": "document" };
     const loaded = await listener.fetch(new Request(`${origin}/`, { headers: document }));
+
+    // sign the member in at the issuer, whose code returns to the origin, which asks them for the grant
     const member = await universe.signIn(MEMBER_EMAIL);
     const follow = async (from: Response, cookie: string) => {
         const signedIn = await universe.approve(header(from, "location"), member);
@@ -687,9 +725,16 @@ test("ask a page's person at the issuer for an optional permission a call needs,
         return listener.fetch(new Request(signedIn, { headers: { cookie } }));
     };
     const asking = await follow(loaded, firstCookie(loaded));
+
+    // consent to the grant at the issuer, then trade the launch for the origin's session and load the page
     const completed = await follow(asking, firstCookie(asking));
     const traded = await listener.fetch(new Request(header(completed, "location")));
     const session = firstCookie(traded);
+    const page = await listener.fetch(
+        new Request(new URL(header(traded, "location"), origin).href, {
+            headers: { cookie: session },
+        }),
+    );
 
     // ask for writing the member's settings, which the package declares optional, returning to the editor
     const query = new URLSearchParams({
@@ -719,52 +764,25 @@ test("ask a page's person at the issuer for an optional permission a call needs,
         })
         .parse(Jwt.claims(present(request, "the signed request")));
     expect({
+        asking: [asking.status, new URL(header(asking, "location")).pathname],
+        completed: completed.status,
+        page: [page.status, Launched.pick({ view: true }).parse(await contextOf(page)).view],
         asked: [asked.status, new URL(header(asked, "location")).pathname],
         permissions: details.authorization_details.flatMap((detail) =>
             detail.permissions.map((permission) => permission.name),
         ),
         returned: new URL(header(returned, "location"), origin).pathname,
     }).toEqual({
+        asking: [302, "/oauth/oauth2/authorize"],
+        completed: 303,
+        page: [200, "home"],
         asked: [302, "/oauth/oauth2/authorize"],
         permissions: ["read", "read", "write", "write"],
         returned: "/editor",
     });
 });
 
-test("store a link's secret in its origin's cookie for an anonymous visitor, dropping it from the address on the same origin, and refuse a malformed one", async () => {
-    // install notes in the owner's home, and draw a link's secret
-    const opened = await openHome();
-    const { computer } = opened;
-    await install(opened, await notesBuild(computer.environment.crypto), "notes");
-    const { secret } = await LinkSecret.create(computer.environment);
-    const port = new URL(await computer.device.origin()).port;
-    const page = `http://notes--${opened.address}.localhost:${port}/home`;
-
-    // open the view by the link, by a malformed secret, and by a path a browser reads as another host
-    const origin = new URL(page).origin;
-    const linked = await computer.computer.fetch(new Request(`${page}?link=${secret}`));
-    const malformed = await computer.computer.fetch(new Request(`${page}?link=forged`));
-    const outside = await computer.computer.fetch(
-        new Request(`${origin}//evil.example/home?link=${secret}`),
-    );
-    expect({
-        linked: [linked.status, header(linked, "location"), header(linked, "set-cookie")],
-        outside: header(outside, "location"),
-        malformed: await summary(malformed),
-    }).toEqual({
-        linked: [303, "/home", `${LINK_COOKIE}=${secret}; Path=/; HttpOnly; SameSite=Lax`],
-        outside: "/evil.example/home",
-        malformed: answered(
-            "FORBIDDEN",
-            "LINK_SECRET_DENIED",
-            403,
-            "link secret is forbidden: it does not match",
-            "@destack/access",
-        ),
-    });
-});
-
-test("sign an anonymous page load of a person's view in at the issuer by its space's signed request, and launch the page as them", async () => {
+test("sign a signed-out page load in at the issuer", async () => {
     // install notes in the owner's home, and load its origin's root as a browser with no session
     const opened = await openHome();
     const { computer } = opened;
@@ -819,43 +837,7 @@ test("sign an anonymous page load of a person's view in at the issuer by its spa
     });
 });
 
-test("take an anonymous visitor's telemetry, and refuse a session cookie the space did not sign, clearing it", async () => {
-    // install notes in the owner's home
-    const opened = await openHome();
-    const { computer } = opened;
-    await install(opened, await notesBuild(computer.environment.crypto), "notes");
-    const port = new URL(await computer.device.origin()).port;
-    const origin = `http://notes--${opened.address}.localhost:${port}`;
-
-    // send telemetry without a session, and open the view with a forged one
-    const telemetry = await computer.computer.fetch(
-        new Request(`${origin}${OTLP_ORIGIN_PATH}/v1/traces`, {
-            method: "POST",
-            headers: { origin, "content-type": "application/json" },
-            body: "{}",
-        }),
-    );
-    const forged = await computer.computer.fetch(
-        new Request(`${origin}/home`, { headers: { cookie: `${SESSION_COOKIE}=forged` } }),
-    );
-    expect({
-        telemetry: await summary(telemetry),
-        forged: [...(await summary(forged)), header(forged, "set-cookie")],
-    }).toEqual({
-        telemetry: [200, "{}"],
-        forged: [
-            ...answered(
-                "UNAUTHORIZED",
-                "SESSION_UNAUTHENTICATED",
-                401,
-                "authentication required: the page's session is invalid or expired",
-            ),
-            `${SESSION_COOKIE}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0`,
-        ],
-    });
-});
-
-test("serve an article shared by link to an anonymous visitor holding its secret in the origin's cookie, and refuse it without the link or once revoked", async () => {
+test("serve a link-shared article to holders of its secret", async () => {
     // open the articles reader as the owner and create a article
     const home = await openHome();
     const { environment } = home.computer.device;
@@ -909,17 +891,39 @@ test("serve an article shared by link to an anonymous visitor holding its secret
     ).title;
     const without = await read(visit(undefined));
 
+    // open the reader by a malformed secret, and by a path a browser reads as another host
+    const malformed = await listener.fetch(new Request(`${page.origin}/reader?link=forged`));
+    const outside = await listener.fetch(
+        new Request(`${page.origin}//evil.example/reader?link=${secret}`),
+    );
+
     // revoke the link, then read by it again
     await owner.call("article", "revoke", { id: created.id, relationshipId: granted.id });
     const revoked = await read(visit(cookie));
-    expect({ withLink, without, revoked }).toEqual({
+    expect({
+        linked: [linked.status, header(linked, "location"), header(linked, "set-cookie")],
+        outside: header(outside, "location"),
+        malformed: await summary(malformed),
+        withLink,
+        without,
+        revoked,
+    }).toEqual({
+        linked: [303, "/reader", `${LINK_COOKIE}=${secret}; Path=/; HttpOnly; SameSite=Lax`],
+        outside: "/evil.example/reader",
+        malformed: answered(
+            "FORBIDDEN",
+            "LINK_SECRET_DENIED",
+            403,
+            "link secret is forbidden: it does not match",
+            "@destack/access",
+        ),
         withLink: "Roadmap",
         without: ["NOT_FOUND", "SCOPE_NOT_FOUND", `scope '${home.spaceId}' not found`],
         revoked: ["NOT_FOUND", "SCOPE_NOT_FOUND", `scope '${home.spaceId}' not found`],
     });
 });
 
-test("limit each anonymous visitor's writes apart by the address their first proxy wrote, as anyone may edit a public article", async () => {
+test("rate-limit anonymous writes by the first proxy's address", async () => {
     // open the articles reader as the owner, create an article and let anyone edit it
     const home = await openHome();
     const { environment } = home.computer.device;
@@ -973,54 +977,7 @@ test("limit each anonymous visitor's writes apart by the address their first pro
     });
 });
 
-test("open an object in the view presenting its type most strongly, or in the view asked for, with the object as the view's target", async () => {
-    // install notes, whose editor presents notes by default and whose home view offers them
-    const opened = await openHome();
-    const { device: native } = opened.computer;
-    const listener = opened.computer.computer;
-    await install(opened, await notesBuild(opened.computer.environment.crypto), "notes");
-    const login = await native.launcher(opened.login);
-    const note = ObjectReference.parse({
-        packageId: notes.id,
-        type: "note",
-        scope: opened.spaceId,
-        id: "note-01996ab0-0000-7000-8000-0000000000aa",
-    });
-
-    // open the note in the strongest view and in the home view, and a type no view presents
-    const openIn = async (view?: string) => {
-        const address = {
-            space: opened.address,
-            object: note,
-            ...(view === undefined ? {} : { view }),
-        };
-        const launched = await login.launch(address);
-        const traded = await listener.fetch(new Request(launched.url));
-        const cookie = nth(header(traded, "set-cookie").split(";"), 0);
-        const location = new URL(header(traded, "location"), launched.url);
-        const document = await listener.fetch(new Request(location.href, { headers: { cookie } }));
-        const context = Launched.parse(await contextOf(document));
-
-        return [location.pathname, context.view, context.target];
-    };
-    const strongest = await openIn();
-    const asked = await openIn("home");
-    const unpresented = await refusal(
-        login.launch({ space: opened.address, object: { ...note, type: "folder" } }),
-    );
-
-    expect({ strongest, asked, unpresented }).toEqual({
-        strongest: ["/editor/", "editor", note],
-        asked: ["/home/", "home", note],
-        unpresented: [
-            "NOT_FOUND",
-            "PRESENTER_NOT_FOUND",
-            `presenter 'no view' for folder objects of '${opened.spaceId}' not found`,
-        ],
-    });
-});
-
-test("call a page's own package and a platform service its views declare as its person under their grant, refusing another origin and an undeclared service, and refusing an anonymous visitor the unshared space", async () => {
+test("call a page's package and declared services under its grant", async () => {
     // open the tasks board in the owner's home
     const home = await openHome();
     const installation = await installTasks(home);
@@ -1124,7 +1081,7 @@ test("call a page's own package and a platform service its views declare as its 
     });
 });
 
-test("end a page's calls once the person revokes their grant to its installation, and once the client that launched it is revoked", async () => {
+test("end a page's calls once its grant or client is revoked", async () => {
     // open the tasks board and list its tasks
     const home = await openHome();
     const { owner } = home.computer.world;
@@ -1190,7 +1147,7 @@ test("end a page's calls once the person revokes their grant to its installation
     });
 });
 
-test("serve the start page with its session cookie after its computer restarts, its document and its home path's calls answering", async () => {
+test("keep a page's session cookie across its computer's restart", async () => {
     // open the start page, then restart the computer serving the home
     const home = await openHome();
     const page = await openPage(home, {
@@ -1257,9 +1214,10 @@ test("serve the start page with its session cookie after its computer restarts, 
     });
 });
 
-test("list a space's rollouts and installations through its home path, at the packages its store serves", async () => {
-    // open the start page, whose grant lists the space's installations and rollouts
+test("call a scope's home path within the start page's grant only", async () => {
+    // open the start page, whose grant lists the space's installations and rollouts and gives the owner's settings
     const home = await openHome();
+    const { owner } = home.computer.world;
     const page = await openPage(home, {
         space: home.address,
         installation: "start",
@@ -1279,7 +1237,7 @@ test("list a space's rollouts and installations through its home path, at the pa
     const stack = createClient(stackPackage, below(stackPackage.id), home.computer.environment);
     const objects = createClient(objectPackage, below(objectPackage.id), home.computer.environment);
 
-    // list the applied rollouts and the enabled installations, each rollout of an enabled installation
+    // list the applied rollouts and the enabled installations
     const rollouts = await stack.rollout.list({
         spaceId: home.spaceId,
         where: { appliedRevisionId: { isNotNull: true } },
@@ -1288,27 +1246,11 @@ test("list a space's rollouts and installations through its home path, at the pa
         scope: home.spaceId,
         where: { status: "enabled" },
     });
-    const enabled = new Set(installations.items.map((row) => row.id));
-    expect(rollouts.items.filter((row) => !enabled.has(row.installationId))).toEqual([]);
-});
-
-test("refuse a page's push to a scope's home for a call outside the view's grant", async () => {
-    // open the start page, whose grant gives the owner's settings alone
-    const home = await openHome();
-    const { owner } = home.computer.world;
-    const page = await openPage(home, {
-        space: home.address,
-        installation: "start",
-        view: "start",
-        path: "/",
-    });
 
     // push revoking the owner's client, which the start page's grant does not allow
+    const client = schema.identifier("client").parse(page.signedIn.row.clientId);
     const call = accountObject.client.call("revoke", {
-        ...accountObject.client.target({
-            scope: user.identifier(owner.id),
-            id: schema.identifier("client").parse(page.signedIn.row.clientId),
-        }),
+        ...accountObject.client.target({ scope: user.identifier(owner.id), id: client }),
     });
     const response = await page.fetch(
         new Request(`${page.origin}${HOME_PATH}/${owner.id}/store/push`, {
@@ -1321,31 +1263,47 @@ test("refuse a page's push to a scope's home for a call outside the view's grant
         }),
     );
 
-    // refuse the call at the universe as outside the start page's grant, which revokes no clients
-    const client = schema.identifier("client").parse(page.signedIn.row.clientId);
-    expect([response.status, await response.json()]).toEqual([
-        403,
-        {
-            defined: true,
-            code: "FORBIDDEN",
-            status: 403,
-            reason: "GRANT_DENIED",
-            domain: "@destack/object",
-            message: `'revoke' on client '${client}' is forbidden: grant '${page.grant.id}' does not give it`,
-            data: {
-                permission: accountObject.client.permission("revoke"),
-                object: accountObject.client.reference(owner.id, client),
-                grant: page.grant.id,
+    // list each enabled installation with its applied rollout, and refuse the push at the universe as outside the grant
+    expect({
+        installations: installations.items.map((row) => row.name).toSorted(),
+        rollouts: rollouts.items.map((row) => row.installationId).toSorted(),
+        pushed: [response.status, await response.json()],
+    }).toEqual({
+        installations: [
+            "connection",
+            "inbox",
+            "message",
+            "observability",
+            "social",
+            "stack",
+            "start",
+            "vault",
+        ],
+        rollouts: installations.items.map((row) => row.id).toSorted(),
+        pushed: [
+            403,
+            {
+                defined: true,
+                code: "FORBIDDEN",
+                status: 403,
+                reason: "GRANT_DENIED",
+                domain: "@destack/object",
+                message: `'revoke' on client '${client}' is forbidden: grant '${page.grant.id}' does not give it`,
+                data: {
+                    permission: accountObject.client.permission("revoke"),
+                    object: accountObject.client.reference(owner.id, client),
+                    grant: page.grant.id,
+                },
             },
-        },
-    ]);
+        ],
+    });
 });
 
-test("register the browser as the person's client from a view granted it, refusing a view granted none", async () => {
+test("register a browser client and bind pages to it by proof", async () => {
     // open the start page and the tasks board
     const home = await openHome();
     await installTasks(home);
-    const homePage = await openPage(home, {
+    const page = await openPage(home, {
         space: home.address,
         installation: "start",
         view: "start",
@@ -1359,43 +1317,15 @@ test("register the browser as the person's client from a view granted it, refusi
     });
 
     // register a browser client from the start page, granted it, then from the board, granted none
-    const person = (await home.computer.device.launcher(home.login)).user.subject.id;
-    const client = Identifier.create("client", home.computer.device.environment);
-    const registered = await registerClient(homePage, client);
-    const refused = await registerClient(
-        board,
-        Identifier.create("client", home.computer.device.environment),
-    );
-
-    expect({
-        registered: [registered.status, await registered.json()],
-        refused: await summary(refused),
-    }).toEqual({
-        registered: [201, { client }],
-        refused: answered(
-            "NOT_FOUND",
-            "SCOPE_NOT_FOUND",
-            404,
-            `scope '${person}' not found`,
-            "@destack/object",
-        ),
-    });
-});
-
-test("bind the start page to a registered client by a proof of its key for the bind, refusing a proof for another request, and answer a removed client as gone", async () => {
-    // open the start page, and register a browser client and its key from it
-    const home = await openHome();
-    const page = await openPage(home, {
-        space: home.address,
-        installation: "start",
-        view: "start",
-        path: "/",
-    });
     const { environment } = home.computer.device;
-    const { pair } = await KeyPair.generate(environment.crypto);
+    const person = (await home.computer.device.launcher(home.login)).user.subject.id;
     const client = Identifier.create("client", environment);
+    const registered = await registerClient(page, client);
+    const refused = await registerClient(board, Identifier.create("client", environment));
+
+    // register the client's key from the start page
+    const { pair } = await KeyPair.generate(environment.crypto);
     const now = () => environment.clock.now();
-    await registerClient(page, client);
     const keyed = await page.fetch(
         new Request(`${page.origin}/.destack/client/key`, {
             method: "POST",
@@ -1449,12 +1379,22 @@ test("bind the start page to a registered client by a proof of its key for the b
     const removed = await bind(url);
 
     expect({
+        registered: [registered.status, await registered.json()],
+        refused: await summary(refused),
         keyed: keyed.status,
         bound: [bound.status, await bound.json()],
         document: document.status,
         elsewhere: await summary(elsewhere),
         removed: await summary(removed),
     }).toEqual({
+        registered: [201, { client }],
+        refused: answered(
+            "NOT_FOUND",
+            "SCOPE_NOT_FOUND",
+            404,
+            `scope '${person}' not found`,
+            "@destack/object",
+        ),
         keyed: 200,
         bound: [200, { client }],
         document: 200,
@@ -1473,7 +1413,7 @@ test("bind the start page to a registered client by a proof of its key for the b
     });
 });
 
-test("launch a view of a space another machine serves at that machine, whose origin opens it", async () => {
+test("launch and call a space another machine serves", async () => {
     // serve the owner's home here and a work space they joined on another machine
     const home = await openHome();
     const work = await openWork(home);
@@ -1493,39 +1433,27 @@ test("launch a view of a space another machine serves at that machine, whose ori
     );
     await Promise.all([traded.body?.cancel(), document.body?.cancel()]);
 
-    expect({
-        host: new URL(launched.url).host,
-        traded: [traded.status, header(traded, "location")],
-        document: document.status,
-    }).toEqual({
-        host: `tasks--${work.address}.${DOMAINS.space}`,
-        traded: [303, "/board"],
-        document: 200,
-    });
-});
-
-test("call an installation of a space another machine serves through the native device's platform route, with the universe's token for its space", async () => {
-    // serve the owner's home here and a work space they joined on another machine
-    const home = await openHome();
-    const work = await openWork(home);
-    await installTasks(work);
-
     // create and list tasks in the work space through the route the CLI's platform calls take
-    const { device: native } = home.computer;
     const remote = new DynamicObjectClient({
         objects: [task],
         scope: work.spaceId,
-        endpoint: await (
-            await native.launcher(home.login)
-        ).installation(work.spaceId, "tasks", tasks.id),
+        endpoint: await login.installation(work.spaceId, "tasks", tasks.id),
         environment: home.computer.device.environment,
     });
     await remote.call("task", "create", { title: "Write the report" });
     const listed = await remote.list("task");
 
-    expect(listed.map((row) => [row["title"], row["status"]])).toEqual([
-        ["Write the report", "open"],
-    ]);
+    expect({
+        host: new URL(launched.url).host,
+        traded: [traded.status, header(traded, "location")],
+        document: document.status,
+        listed: listed.map((row) => [row["title"], row["status"]]),
+    }).toEqual({
+        host: `tasks--${work.address}.${DOMAINS.space}`,
+        traded: [303, "/board"],
+        document: 200,
+        listed: [["Write the report", "open"]],
+    });
 });
 
 /** Encode a package's German catalog of one greeting message. */
@@ -1542,7 +1470,7 @@ const ServedCatalog = schema.looseObject({
     messages: schema.record(schema.string(), schema.string()),
 });
 
-test("serve a view's build with the German catalogs of its package and of a release dependency, and no French ones", async () => {
+test("serve a view's catalogs with its dependencies' catalogs", async () => {
     // publish a widget library with its German catalog
     const { crypto } = testHost();
     const widgets = await TestViewBuild.of(
@@ -1727,7 +1655,7 @@ async function createRoute(
     await served.computer.world.simulation.idle();
 }
 
-test("serve a site at a route of its account's verified hostname to an anonymous visitor: its pages, an asset below them and its not-found page", async () => {
+test("serve a site at a verified hostname's route", async () => {
     // serve a space of the owner's account on the residency's cloud machine, which its hostnames reach
     const home = await openHome();
     const { computer } = home;

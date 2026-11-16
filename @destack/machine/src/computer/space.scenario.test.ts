@@ -524,16 +524,7 @@ async function openComputers() {
     return { world, source, caller, called, calling, call };
 }
 
-test("call an installation of a space on another computer through the relay as an installation of a space here, verified by the calling space's token", async () => {
-    // call the source's echo installation from the caller's installation
-    const { source, calling, call } = await openComputers();
-    const answered = await call("/greeting");
-
-    // answer as the source space, seeing the calling installation
-    expect(answered).toEqual([200, { path: "/greeting", caller: calling.id, scope: source.space }]);
-});
-
-test("move a space with its app, database, builds and files to its caller's computer, answering its calls throughout, after cancelling a stuck move that leaves it serving where it was", async () => {
+test("move a space with its files to its caller's computer", async () => {
     // store a file in another bucket of the source space and answer a first call
     const { world, source, caller, called, calling, call } = await openComputers();
     const files = await keepBucket(source, { name: "files", spec: {}, package: echo });
@@ -663,7 +654,7 @@ test("move a space with its app, database, builds and files to its caller's comp
     });
 });
 
-test("relay a sandboxed instance's telemetry through its machine into its space's observability, stamped with the installation, instance and build its secret proves", async () => {
+test("stamp a sandboxed instance's telemetry with its installation", async () => {
     // run the board sandboxed
     const { home, organizations } = await TestComputer.home({ organizations: [PUBLISHER] });
     const source = await openBoard(home, found(organizations, PUBLISHER.handle));
@@ -718,7 +709,7 @@ test("relay a sandboxed instance's telemetry through its machine into its space'
     expect([await started(), computer.reports]).toEqual([[[boardId, instance, lock]], []]);
 });
 
-test("accept a peer machine's universe token only for the space it is bound to, fence only a space it receives, and refuse it at once after its key is revoked", async () => {
+test("authorize a move by step-up and its fence by a bound token", async () => {
     // serve two spaces and enroll a peer computer through the relay
     const world = await TestComputer.world();
     const relay = await TestComputer.relay(world);
@@ -727,6 +718,27 @@ test("accept a peer machine's universe token only for the space it is bound to, 
     const other = await computer.space(served.login.id, world.owner.account, "other");
     const peer = await TestComputer.open({ world, relay: relay.url });
     await peer.enroll(await peer.signIn(OWNER_EMAIL), world.owner.account);
+
+    // challenge the owner's token without a second factor for a step-up
+    const { user } = await computer.device.launcher(served.login.id);
+    const challenge = await stackAt(
+        served,
+        space,
+        await user.token(stackPackage.id, { partition: space }),
+    )
+        .transfer.create({
+            spaceId: space,
+            requestId: RequestId.create(computer.environment),
+            targetId: peer.machine.id,
+        })
+        .then(
+            () => undefined,
+            (error: unknown) => {
+                const known = CallError.of(error);
+
+                return known === undefined ? error : [known.code, known.data];
+            },
+        );
 
     // move the moving space to the peer as the owner, stepped up to a second factor
     const moving = await (
@@ -786,9 +798,13 @@ test("accept a peer machine's universe token only for the space it is bound to, 
         (await peerKeys()).every((each) => each.revokedAt !== null),
     );
     expect({
+        challenge,
+        moved: [moving.sourceId, moving.targetId],
         outcomes,
         revoked: await refusal(fence(space, bound)),
     }).toEqual({
+        challenge: ["UNAUTHORIZED", { assurance: 2, maxAge: 900_000 }],
+        moved: [computer.machine.id, peer.machine.id],
         outcomes: [
             [
                 "UNAUTHORIZED",
@@ -811,44 +827,7 @@ test("accept a peer machine's universe token only for the space it is bound to, 
     });
 });
 
-test("move a space through its machine as its owner once a stepped-up session exchanges for the universe's token of the space", async () => {
-    // serve a space and enroll another computer of the account to move it to
-    const world = await TestComputer.world();
-    const served = await openComputer(world, world.owner.account, "work");
-    const { computer, space, login } = served;
-    const peer = await TestComputer.open({ world });
-    await peer.enroll(await peer.signIn(OWNER_EMAIL), world.owner.account);
-    const move = (token: string) =>
-        stackAt(served, space, token).transfer.create({
-            spaceId: space,
-            requestId: RequestId.create(computer.environment),
-            targetId: peer.machine.id,
-        });
-
-    // challenge the person's token for a second factor
-    const { user } = await computer.device.launcher(login.id);
-    const challenge = await move(await user.token(stackPackage.id, { partition: space })).then(
-        () => undefined,
-        (error: unknown) => {
-            const known = CallError.of(error);
-
-            return known === undefined ? error : [known.code, known.data];
-        },
-    );
-
-    // exchange the token again after a second factor, then move the space
-    const stepUp = StepUp.schema.parse(Array.isArray(challenge) ? challenge[1] : undefined);
-    const elevated = await computer.device.launcher((await computer.elevate(stepUp)).id);
-    const moved = await move(
-        await elevated.user.token(stackPackage.id, { partition: space }, stepUp),
-    );
-    expect({ challenge, moved: [moved.sourceId, moved.targetId] }).toEqual({
-        challenge: ["UNAUTHORIZED", { assurance: 2, maxAge: 900_000 }],
-        moved: [computer.machine.id, peer.machine.id],
-    });
-});
-
-test("publish a renamed machine's new relay name while it serves, without a restart", async () => {
+test("publish a renamed machine's relay name without a restart", async () => {
     // serve a computer routing its names through the residency's relay
     const world = await TestComputer.world();
     const relay = await TestComputer.relay(world);
@@ -884,7 +863,7 @@ test("publish a renamed machine's new relay name while it serves, without a rest
     expect(computer.reports).toEqual([]);
 });
 
-test("close a space before its buckets while one of them is open, failing nothing busy", async () => {
+test("close a space before its open bucket without a failure", async () => {
     // store a file in a bucket of a space
     const world = await TestComputer.world();
     const served = await openComputer(world, world.owner.account, "work");
@@ -897,7 +876,7 @@ test("close a space before its buckets while one of them is open, failing nothin
     expect(served.computer.reports).toEqual([]);
 });
 
-test("refuse a package the machine neither ships nor links in its process, its installation serving nothing", async () => {
+test("refuse a host installation of an untrusted release", async () => {
     // publish the board, which no machine ships, and install it in process on a computer
     const { home, organizations } = await TestComputer.home({ organizations: [PUBLISHER] });
     const { world } = home;
@@ -955,6 +934,7 @@ test("serve a space whose installation fails to start", async () => {
 
     // restart the computer, which starts the space, then wait until it serves the rest without the installation
     const restarted = await computer.restart();
+    await world.simulation.wait(restarted.machine.health.waitUp());
     const started = await world.simulation.wait(restarted.machine.space(space));
     const settled = await world.simulation.wait(
         (async () => {

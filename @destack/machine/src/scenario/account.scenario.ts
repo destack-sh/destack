@@ -7,7 +7,7 @@ export const joinOnFirstDevice = defineScenario({
     of: account,
     interaction: machineInteraction,
     name: "join-on-first-device",
-    description: "sign a person in with a first device following the owner's home and its app",
+    description: "sign a member in on their first device",
     given: { examples: [] },
     parameters: {},
     when: [
@@ -26,7 +26,7 @@ export const syncNewDevice = defineScenario({
     of: account,
     interaction: machineInteraction,
     name: "sync-new-device",
-    description: "open a member's new device on a team's fifty issues, syncing them first",
+    description: "sync a team's issues onto a new device",
     given: { examples: [] },
     parameters: { members: 3, issues: 50 },
     when: [

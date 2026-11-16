@@ -95,7 +95,7 @@ const pin = defineTable(
 /** The database resource that stores the notes. */
 const notes = defineDatabase({ name: "notes", tables: [note] });
 
-test("receive a moving space with its databases, builds and keys, then remove the source's replica", async () => {
+test("move a space and back, each source destroying its copy", async () => {
     // place the space on the fixture's cloud machine and an empty database on the target host
     const { source: sourceMachine, target, targetId, universe } = await openMove();
     const built = await sourceMachine.recordBuild(
@@ -254,9 +254,30 @@ test("receive a moving space with its databases, builds and keys, then remove th
         spaces: [{ id: ids.space }],
         signer: ids.space,
     });
+
+    // move the space back to its source and to the target again, each having destroyed its copy once the space left it
+    const sourceId = sourceMachine.machine.id;
+    await moveSpace(target, sourceMachine, sourceId);
+    await moveSpace(sourceMachine, target, targetId);
+    const transfers = await target.database
+        .select({
+            sourceId: object.transfer.table.sourceId,
+            sourceEpoch: object.transfer.table.sourceEpoch,
+            outcome: object.transfer.table.outcome,
+        })
+        .from(object.transfer.table)
+        .orderBy(object.transfer.table.sourceEpoch);
+    expect({ placement: await placementOf(universe), transfers }).toEqual({
+        placement: { space: ids.space, scope: ids.account, machine: targetId, epoch: 4 },
+        transfers: [
+            { sourceId, sourceEpoch: 1, outcome: "succeeded" },
+            { sourceId: targetId, sourceEpoch: 2, outcome: "succeeded" },
+            { sourceId, sourceEpoch: 3, outcome: "succeeded" },
+        ],
+    });
 });
 
-test("refuse a transfer without a recent sign-in, to an unknown machine, or to a machine of another account", async () => {
+test("refuse a transfer without step-up or to a foreign machine", async () => {
     // replicate one machine of another account next to the fixture's cloud machine
     const fixture = await TestSpace.open();
     const foreign = schema
@@ -316,13 +337,13 @@ test("refuse a transfer without a recent sign-in, to an unknown machine, or to a
     ]);
 });
 
-test("move every table of the space database with rows in spaces, leaving out the machine's own, replicated and unlogged tables", async () => {
-    const fixture = await TestSpace.open();
+test("move the space's logged tables and the tables main applied", async () => {
+    // plan the move from the fixture's store, before main applies any package's tables
+    await using fixture = await TestSpace.open();
+    const { database } = fixture;
     const moving = { space: ids.space, scope: ids.account, machine: fixture.machine.id, epoch: 1 };
-
-    // plan the move from the fixture store
-    await fixture.serve();
     const steps = await SpaceTransfer.of(await fixture.store(), moving, UNKNOWN_MACHINE);
+
     // list the transfer table first, then the logged space tables in declaration order,
     //  leaving out the space's row from the universe
     expect(steps.space.tables.map((table) => table[TABLE].sqlName)).toEqual([
@@ -360,14 +381,11 @@ test("move every table of the space database with rows in spaces, leaving out th
         "destack__registry__release",
         "destack__object__chunk",
         "destack__object__chunk_run",
+        "destack__object__counter",
         "destack__account__identity_key",
     ]);
-});
 
-test("move the tables a space's main database applied in addition to the space database's, reading only the applied ones while a plan waits", async () => {
     // apply an installed package's pins to the space's provisioned main database
-    await using fixture = await TestSpace.open();
-    const { database } = fixture;
     const pinState = DatabaseState.of([pin]);
     const digest = await Digest.json(pinState, fixture.environment.crypto);
     await (await fixture.space).blobs.writeJson(pinState);
@@ -389,7 +407,6 @@ test("move the tables a space's main database applied in addition to the space d
     );
 
     // plan the move with the pins and the space's tables, and read their state at the handoff
-    const moving = { space: ids.space, scope: ids.account, machine: fixture.machine.id, epoch: 1 };
     const states = (await SpaceTransfer.main(await fixture.space, ids.space))?.states;
     const moved = names(await SpaceTransfer.of(await fixture.space, moving, UNKNOWN_MACHINE));
     const own = names(await SpaceTransfer.of(await fixture.space, moving, UNKNOWN_MACHINE, []));
@@ -411,7 +428,7 @@ test("move the tables a space's main database applied in addition to the space d
     });
 });
 
-test("stop the instances of a moving space running on its machine once its fence starts", async () => {
+test("stop a moving space's instances once its fence starts", async () => {
     // run an instance of the notes installation in the space
     await using space = await TestSpace.open();
     const release = await space.release(ids.package, "2026.9.0");
@@ -437,7 +454,7 @@ test("stop the instances of a moving space running on its machine once its fence
     expect(runtime.stopped).toEqual([running]);
 });
 
-test("cancel a fenced transfer on its source as the space's owner, serving the space there again", async () => {
+test("cancel a fenced transfer and serve the space on its source", async () => {
     // let the space's owner move it to the target, whose machine is stopped so the test acts for it
     const { source: fixture, target, targetId, universe } = await openMove();
     const { database } = fixture;
@@ -515,34 +532,7 @@ test("cancel a fenced transfer on its source as the space's owner, serving the s
     });
 });
 
-test("move a space again to a machine it moved away from once that machine destroyed its copy", async () => {
-    // move the space to the target and back, leaving the target the fenced rows of its move away
-    const { source, target, targetId, universe } = await openMove();
-    const sourceId = source.machine.id;
-    await moveSpace(source, target, targetId);
-    await moveSpace(target, source, sourceId);
-
-    // move the space there again, the target machine having destroyed its copy once the space left it
-    await moveSpace(source, target, targetId);
-    const transfers = await target.database
-        .select({
-            sourceId: object.transfer.table.sourceId,
-            sourceEpoch: object.transfer.table.sourceEpoch,
-            outcome: object.transfer.table.outcome,
-        })
-        .from(object.transfer.table)
-        .orderBy(object.transfer.table.sourceEpoch);
-    expect({ placement: await placementOf(universe), transfers }).toEqual({
-        placement: { space: ids.space, scope: ids.account, machine: targetId, epoch: 4 },
-        transfers: [
-            { sourceId, sourceEpoch: 1, outcome: "succeeded" },
-            { sourceId: targetId, sourceEpoch: 2, outcome: "succeeded" },
-            { sourceId, sourceEpoch: 3, outcome: "succeeded" },
-        ],
-    });
-});
-
-test("move a space afresh after its cancelled move, never completing the old takeover", async () => {
+test("move a space afresh after a cancelled takeover", async () => {
     // add an enabled installation on the space's machine and an empty target
     const { source, target, targetId, universe } = await openMove();
     const now = source.machine.clock.now();
@@ -652,10 +642,9 @@ test("move a space afresh after its cancelled move, never completing the old tak
     });
 });
 
-test("collect a stray blob a grace after its lease ends, and a snapshot's blobs a grace after the snapshot expires", async () => {
+test("collect stray and expired snapshot blobs after a grace", async () => {
     // serve the fixture's space on the machine that stores the snapshots of it
     const fixture = await TestSpace.open({});
-    await fixture.serve();
     const { database } = fixture;
     const { blobs } = await fixture.space;
     const start = fixture.machine.clock.now();
