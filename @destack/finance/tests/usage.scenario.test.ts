@@ -68,6 +68,21 @@ async function open(options: Parameters<typeof Finance.open>[0] = {}) {
     return { finance, offer };
 }
 
+/** Open the service with Carol's shop as the seller of its package, offering nothing yet. */
+async function openSeller() {
+    const finance = await Finance.open();
+    onTestFinished(() => finance.close());
+    const shop = await finance.call(
+        "carol",
+        seller.call("create", {
+            accountId: ids.shop,
+            creditPrices: { EUR: "1", USD: "1", CHF: "1" },
+        }),
+    );
+
+    return { finance, shop };
+}
+
 /** Offer a product in Carol's shop at some prices and features, returning the prices. */
 async function offerPlan(
     finance: Finance,
@@ -527,7 +542,7 @@ test("bill nothing for usage outside a subscription's current period", async () 
 
 test("cap each machine's priced hours per period at the SKU maximum", async () => {
     // run machine a 8 then 6 hours and machine b 3 hours in October, then machine a 4 hours in November
-    const { finance } = await open();
+    const { finance } = await openSeller();
     const machines = await finance.fixture.declareMachines(ids.buyer, 2);
     const [alpha, beta] = [nth(machines, 0), nth(machines, 1)];
     for (const [name, machine, hours, time] of [
@@ -567,9 +582,9 @@ test("cap each machine's priced hours per period at the SKU maximum", async () =
     ]);
 });
 
-test("rate flushed usage once a restarted loop takes its cursor", async () => {
+test("rate flushed usage once across a restart of its machine", async () => {
     // append 100 GB-months measured two hours ago, which the machine flushes at once as past the flush age
-    const { finance } = await open();
+    const { finance } = await openSeller();
     const now = finance.fixture.clock.now();
     await finance.fixture.append(ids.buyer, [
         {
@@ -582,16 +597,25 @@ test("rate flushed usage once a restarted loop takes its cursor", async () => {
             time: now - 2 * HOUR,
         },
     ]);
-    await finance.fixture.idle();
 
-    // rate the flushed usage once the restarted loop takes the cursor
+    // rate it before the restart
+    await finance.fixture.idle();
+    const idle = await charges(finance);
+
+    // restart the machine, whose loop takes the cursor again
     await finance.fixture.restart();
-    expect(await charges(finance)).toEqual([["Usage", spaces.notes, 100, "200", "0", "open"]]);
+    const restarted = await charges(finance);
+
+    // rate the flushed usage before the restart, and not again after it
+    expect({ idle, restarted }).toEqual({
+        idle: [["Usage", spaces.notes, 100, "200", "0", "open"]],
+        restarted: [["Usage", spaces.notes, 100, "200", "0", "open"]],
+    });
 });
 
 test("rate usage once when two ratings overlap", async () => {
     // append 100 and 50 GB-months in two spaces, then rate twice at once
-    const { finance } = await open();
+    const { finance } = await openSeller();
     const now = finance.fixture.clock.now();
     await finance.fixture.append(
         ids.buyer,
@@ -668,7 +692,7 @@ test("capture usage before the current billed period as refused", async () => {
 
 test("store one credit line per account, seller and period", async () => {
     // credit the buyer for the period from Carol's shop and from another seller
-    const { finance, offer } = await open();
+    const { finance, shop } = await openSeller();
     const credit = (sellerId: string) =>
         refusal(
             finance.store.mutate(finance.store.as(charge), {
@@ -695,11 +719,7 @@ test("store one credit line per account, seller and period", async () => {
         );
     const other = "seller-019f5530-8000-7000-8000-0000000000ee";
 
-    expect([
-        await credit(offer.seller.id),
-        await credit(other),
-        await credit(offer.seller.id),
-    ]).toEqual([
+    expect([await credit(shop.id), await credit(other), await credit(shop.id)]).toEqual([
         "done",
         "done",
         [

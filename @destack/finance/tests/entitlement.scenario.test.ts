@@ -191,25 +191,29 @@ test("combine the grants of a subscription's plan and add-on items", async () =>
     await finance.entitle();
 
     // grant access, the most seats, the latest support, summed calls in the first period, and unlimited storage
-    const rows = await finance.resolutions(ids.buyer);
-    expect([
-        rows.filter((row) => row.feature === calls.name).length,
-        ...[sync, seats, support, calls, storageLimit].map((feature) =>
-            resolved(rows, feature.reference),
-        ),
-    ]).toEqual([
-        1,
-        { kind: "boolean" },
-        { kind: "static", value: ADDON_SEATS },
-        { kind: "static", value: "community" },
+    const granted = { packageId: storage.id, resource: null, periodStart: START };
+    expect(await finance.resolutions(ids.buyer)).toEqual([
         {
+            ...granted,
+            feature: calls.name,
             kind: "metered",
             limit: CALL_LIMIT + ADDON_CALLS,
             usage: 30,
             resetAt: END,
             state: "within",
         },
-        { kind: "metered", limit: null, usage: 0, resetAt: null, state: "within" },
+        { ...granted, feature: seats.name, kind: "static", value: ADDON_SEATS },
+        {
+            ...granted,
+            feature: storageLimit.name,
+            kind: "metered",
+            limit: null,
+            usage: 0,
+            resetAt: null,
+            state: "within",
+        },
+        { ...granted, feature: support.name, kind: "static", value: "community" },
+        { ...granted, feature: sync.name, kind: "boolean" },
     ]);
 });
 

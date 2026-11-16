@@ -43,6 +43,8 @@ import connectionPackage, { CONNECTION_INSTALLATION } from "@destack/connection/
 import { connectionVault } from "@destack/connection/stack";
 import { CONNECTION } from "@destack/connection/test";
 import { stripe } from "../declare/connection.ts";
+import { secret } from "@destack/vault/object";
+import vaultPackage from "@destack/vault/package";
 import { TestVault, VAULT } from "@destack/vault/test";
 import { RequestId, Scope, Subject } from "@destack/sync";
 import { TestTelemetry } from "@destack/telemetry/test";
@@ -235,7 +237,6 @@ export class TestFinance {
     readonly platform: Identifier<"account">;
     /** The published builds the metering reads, by package and version. */
     readonly #published: Map<string, BuildReader>;
-    /** The derivation of customers' entitlements, which the test runs as the loop would. */
     /** What finance's server implements in the home, which the test builds its readers from. */
     readonly #implementation: FinanceDefinition;
 
@@ -287,8 +288,7 @@ export class TestFinance {
             ),
         });
 
-        // serve it at the test's start, and publish the releases as the platform
-        await home.serve();
+        // read the store the copy serves, start at the test's start, and publish the releases as the platform
         const store = await home.store();
         const implementation = await implemented.promise;
         if (options.start !== undefined) {
@@ -561,6 +561,36 @@ export class TestFinance {
         await this.space.simulation.idle();
     }
 
+    /** Write a value as the current version of a home secret, as the operator stepped up. */
+    async writeSecret(name: string, value: string): Promise<void> {
+        // step the operator up, and find the secret the home's stack declares
+        const operator = await this.space.universe.elevate(this.person("dave"));
+        const vaults = this.space.person(operator).client(vaultPackage);
+        const row = await Snapshot.live(this.database)
+            .read(secret.table)
+            .findFirst({ where: { name } });
+        const { id } = present(row, `the home secret ${name}`);
+
+        // store the value as a new version, and make it current
+        const version = await vaults.version.create({
+            scope: this.home,
+            parentId: id,
+            requestId: RequestId.create(this.environment),
+            value: { encoding: "text", value },
+        });
+        await vaults.secret.update({
+            scope: this.home,
+            id,
+            requestId: RequestId.create(this.environment),
+            currentVersion: version.number,
+        });
+    }
+
+    /** Send a request to one of finance's mounts in the home, at its path below the package. */
+    fetch(request: Request): Promise<Response> {
+        return this.space.server(financePackage).fetch(request);
+    }
+
     /** Apply sellers and products through the home's stack, its controllers running. */
     async declare(definition: StackDocument<readonly [typeof financePackage]>): Promise<void> {
         await this.space.serve();
@@ -614,7 +644,6 @@ export class TestFinance {
 
     /** Stop serving, refusing exceptions no test took. */
     async close(): Promise<void> {
-        await this.space[Symbol.asyncDispose]();
         await this.space[Symbol.asyncDispose]();
         this.telemetry[Symbol.dispose]();
     }

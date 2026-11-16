@@ -18,7 +18,7 @@ import {
     SubscriptionItem,
     subscriptionItem,
 } from "../src/object/index.ts";
-import { type PaymentProvider, ProviderEvent } from "../src/provider/index.ts";
+import { ProviderEvent } from "../src/provider/index.ts";
 import {
     Stripe,
     StripeClient,
@@ -26,6 +26,7 @@ import {
     STRIPE_EVENTS,
 } from "../src/provider/stripe/index.ts";
 import { StripeSignature } from "../src/provider/stripe/signature.ts";
+import { stripeWebhook, stripeWebhookSecret } from "../src/declare/webhook.ts";
 import financePackage from "../src/package.ts";
 import { spaces, type StripeDelivery, TestStripe } from "../src/test/index.ts";
 import { Finance, ids, resolved } from "./fixture/finance.ts";
@@ -71,12 +72,14 @@ async function open() {
     const finance = await Finance.open({
         provider: (home) => new StripeProvider({ api: stripe.api, home }),
     });
-    const provider = present(finance.fixture.provider, "the Stripe provider");
     onTestFinished(() => finance.close());
+
+    // register finance's webhook at Stripe, and keep its signing secret in the home's vault
     await new StripeClient(stripe.api).request("POST", "/v1/webhook_endpoints", {
         url: WEBHOOK,
         enabled_events: STRIPE_EVENTS,
     });
+    await finance.fixture.writeSecret(stripeWebhookSecret.name, stripe.secret(WEBHOOK));
 
     // open Carol's connected account at her onboarding, finish it, and create Acme's customer
     const offer = await finance.offer();
@@ -90,30 +93,20 @@ async function open() {
         }),
     );
     const deliver = (deliveries: readonly StripeDelivery[]) =>
-        stripe.deliver(deliveries, endpoint(stripe, finance, provider), WEBHOOK);
+        stripe.deliver(deliveries, endpoint(finance), WEBHOOK);
     const [shop] = await finance.database.select().from(seller.table);
     await deliver(
         stripe.onboard(present(present(shop, "shop").providerId, "a provider identifier")),
     );
     await finance.customer();
 
-    return { stripe, provider, finance, offer, deliver };
+    return { stripe, finance, offer, deliver };
 }
 
-/** Verify a delivery with the endpoint's secret, as finance's webhook does, then apply it. */
-function endpoint(stripe: TestStripe, finance: Finance, provider: PaymentProvider) {
-    return async (request: Request) => {
-        const delivery = await new StripeSignature().verify(
-            request,
-            [stripe.secret(WEBHOOK)],
-            {},
-            stripe.now * 1000,
-            finance.store.environment.crypto,
-        );
-        await ProviderEvent.receive(finance.fixture.home, provider, delivery, finance.store);
-
-        return new Response(null, { status: 202 });
-    };
+/** Post a delivery to finance's webhook mount in the home, as the gateway routes it. */
+function endpoint(finance: Finance) {
+    return (request: Request) =>
+        finance.fixture.fetch(new Request(new URL(stripeWebhook.path, request.url), request));
 }
 
 /** Offer a plan in Carol's shop granting unlimited calls, returning the product. */
@@ -224,10 +217,10 @@ async function subscriptions(finance: Finance) {
 
     return rows.map((row) => ({
         status: row.status,
-        isBilled: row.providerId !== null,
+        providerId: row.providerId,
         items: items
             .filter((item) => item.parentId === row.id)
-            .map((item) => [item.terms.recurring.usage, item.providerId !== null]),
+            .map((item) => [item.terms.recurring.usage, item.providerId]),
     }));
 }
 
@@ -250,13 +243,8 @@ test("open a seller's connected account in its onboarding country", async () => 
     );
 
     // expect the connected account in Austria, and the Swiss onboarding refused
-    expect([
-        present(shop, "shop").providerId === null,
-        present(shop, "shop").country,
-        again,
-    ]).toEqual([
-        false,
-        "AT",
+    expect([shop, again]).toEqual([
+        { providerId: "acct_000002", country: "AT" },
         [
             "BAD_REQUEST",
             "COUNTRY_INVALID",
@@ -297,12 +285,16 @@ test("subscribe through Checkout and mirror the paid invoice", async () => {
             currency: invoice.table.currency,
         })
         .from(invoice.table);
+    const [subscribed] = await finance.database
+        .select({ id: subscription.table.id })
+        .from(subscription.table);
     const entitled = resolved(await finance.resolutions(ids.buyer), calls.reference);
 
+    // link the session to the subscription, each item to Stripe's but the metered one, and mirror the invoice
     expect({
         url: session.url,
         statuses,
-        session: { status: settled?.status, isLinked: settled?.subscriptionId !== null },
+        session: settled,
         subscriptions: await subscriptions(finance),
         invoice: mirrored,
         entitled:
@@ -310,14 +302,17 @@ test("subscribe through Checkout and mirror the paid invoice", async () => {
     }).toEqual({
         url: `https://checkout.stripe.test/pay/${present(session.providerId, "the session's provider identifier")}`,
         statuses: [202, 202],
-        session: { status: "complete", isLinked: true },
+        session: {
+            status: "complete",
+            subscriptionId: present(subscribed, "the subscription").id,
+        },
         subscriptions: [
             {
                 status: "active",
-                isBilled: true,
+                providerId: "sub_000008",
                 items: [
-                    ["licensed", true],
-                    ["metered", false],
+                    ["licensed", "si_000009"],
+                    ["metered", null],
                 ],
             },
         ],
@@ -509,7 +504,7 @@ test("invoice metered usage on the renewal draft less included usage", async () 
 
 test("apply signed deliveries for the home's own customers alone", async () => {
     // open a checkout of the Go plan
-    const { stripe, provider, finance, deliver } = await open();
+    const { stripe, finance, deliver } = await open();
     const go = await offerGo(finance);
     const session = await finance.call(
         "alice",
@@ -521,20 +516,17 @@ test("apply signed deliveries for the home's own customers alone", async () => {
         }),
     );
 
-    // refuse a completion signed with another secret
+    // refuse a completion signed with another secret at the webhook
     const body = JSON.stringify({ id: "evt_forged", type: "checkout.session.completed" });
     const headers = await new StripeSignature().sign(
         { id: "evt_forged", event: "checkout.session.completed", body, sentAt: stripe.now * 1000 },
         "whsec_forged",
         finance.store.environment.crypto,
     );
-    const forged = await refusal(
-        endpoint(
-            stripe,
-            finance,
-            provider,
-        )(new Request(WEBHOOK, { method: "POST", headers, body })),
+    const refused = await endpoint(finance)(
+        new Request(WEBHOOK, { method: "POST", headers, body }),
     );
+    const forged = [refused.status, await refused.json()];
 
     // complete the session from Stripe's signed delivery
     const [completed] = stripe.complete(present(session.providerId, "the session"));
@@ -566,9 +558,15 @@ test("apply signed deliveries for the home's own customers alone", async () => {
         invoices: invoices.map((row) => row.providerId),
     }).toEqual({
         forged: [
-            "UNAUTHORIZED",
-            "SIGNATURE_UNAUTHENTICATED",
-            "authentication required: webhook signature does not match",
+            401,
+            {
+                code: "UNAUTHORIZED",
+                status: 401,
+                message: "authentication required: webhook signature does not match",
+                defined: true,
+                reason: "SIGNATURE_UNAUTHENTICATED",
+                domain: "@destack/object",
+            },
         ],
         settled: { status: "complete" },
         statuses: [202],
@@ -718,16 +716,17 @@ test("change a plan at Stripe once the change commits", async () => {
         ],
         afterRollback: [String(FEE)],
         afterCommit: [String(2 * FEE)],
-        subscriptions: [{ status: "active", isBilled: true, items: [["licensed", true]] }],
+        subscriptions: [
+            { status: "active", providerId: "sub_000008", items: [["licensed", "si_000015"]] },
+        ],
     });
 });
 
 test("invoice rated usage on the renewal draft up to the spending limit", async () => {
-    // bill 10 euro of disk once at the default spending limit and once without a limit
-    const outcomes = [];
-    for (const spendingLimit of [0, null]) {
-        outcomes.push(await invoiceDisk(spendingLimit));
-    }
+    // bill 10 euro of disk once at the default spending limit and once without a limit, in two worlds at once
+    const outcomes = await Promise.all(
+        [0, null].map((spendingLimit) => invoiceDisk(spendingLimit)),
+    );
 
     // bill the usage up to the limit on the draft, drawing the 9 euro prepaid: the next fee and the rest due, all of it earned
     expect(outcomes).toEqual(
