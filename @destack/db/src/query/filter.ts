@@ -261,12 +261,12 @@ function tokenize(filter: string): Token[] {
             tokens.push({ kind: "minus", start: index });
             index++;
         }
-        // read a quoted text with backslash escapes
-        else if (character === '"') {
+        // read a text in double or single quotes with backslash escapes
+        else if (character === '"' || character === "'") {
             const start = index;
             let text = "";
             index++;
-            while (index < filter.length && filter[index] !== '"') {
+            while (index < filter.length && filter[index] !== character) {
                 text += filter[index] === "\\" ? (filter[++index] ?? "") : filter[index];
                 index++;
             }
@@ -289,7 +289,7 @@ function tokenize(filter: string): Token[] {
             const start = index;
             while (
                 index < filter.length &&
-                !/[\s()"]/u.test(filter.charAt(index)) &&
+                !/[\s()"']/u.test(filter.charAt(index)) &&
                 comparatorAt(filter, index) === undefined
             ) {
                 index++;

@@ -135,6 +135,7 @@ A filter string in AIP-160's language, with SQL's precedence: `NOT` first, then 
 | --------------------------------------- | ----------------------------------------------------------------------- |
 | `status = open`                         | `{ status: "open" }`                                                    |
 | `title = "Ship it"`                     | `{ title: "Ship it" }`, a quoted text                                   |
+| `title = 'Ship it'`                     | the same text in single quotes                                          |
 | `status != done`                        | `{ status: { ne: "done" } }`                                            |
 | `priority < 2`, `<=`, `>`, `>=`         | `{ priority: { lt: 2 } }`, and `lte`, `gt`, `gte`                       |
 | `title:plan`                            | `{ title: { ilike: "%plan%" } }`, containment ignoring case             |
