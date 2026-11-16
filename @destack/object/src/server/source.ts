@@ -581,7 +581,10 @@ export class ObjectSource {
             ? undefined
             : Object.fromEntries(
                   Object.entries(named).filter(([, query]) =>
-                      this.store.followed.objects.some((object) => object.name === query.object),
+                      this.store.followed.objects.some(
+                          (object) =>
+                              object.name === query.object && object.package.id === query.package,
+                      ),
                   ),
               );
     }
