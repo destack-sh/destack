@@ -222,14 +222,7 @@ confirm(call, prepared)  after the transaction committed, at least once
 cancel(call, prepared)   after it failed, at least once, prepared absent when prepare crashed before returning
 ```
 
-### definePackage
-
-`definePackage({ title, description, icon, color, objects, views, commands, mounts, resources, access, errors })` declares a package's handle, with how people recognise it: its title, its description, its Phosphor icon and the swatch the stack draws it in.
-`implementPackage(handle, code)` implements it, from code or per installation.
-
-## Where calls run
-
-### On a server
+### Calls on a server
 
 A space's store runs a call: it checks access, runs the phases, writes one transaction, and logs the change for replicas.
 
@@ -240,7 +233,7 @@ request ─► authorize ─► relate ─► expand ─► prepare (settlement 
 
 A settlement row keeps a prepared call's outside work, so a controller confirms or cancels it after a crash.
 
-### On a client
+### Calls on a client
 
 An `ObjectClient` follows a scope into a local replica, predicts its own writes there, and sends them to the store.
 
@@ -251,7 +244,7 @@ client.mutate(...)  ─► predicted on the replica at once ─► sent ─► t
 
 `prepare`, `confirm` and `cancel` run on the server only, so a method with outside work is never predicted.
 
-### In a sandbox
+### Calls in a sandbox
 
 An installation running in a sandbox serves its types' phases from its own process, one request per phase in its call's session.
 
@@ -260,6 +253,11 @@ store ─► sandbox: authorize, relate, expand, prepare, handle(next ─► sto
 ```
 
 `confirm` and `cancel` run at the store, where the settlement is kept.
+
+### definePackage
+
+`definePackage({ title, description, icon, color, objects, views, commands, mounts, resources, access, errors })` declares a package's handle, with how people recognise it: its title, its description, its Phosphor icon and the swatch the stack draws it in.
+`implementPackage(handle, code)` implements it, from code or per installation.
 
 ## Examples
 
