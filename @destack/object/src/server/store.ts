@@ -134,7 +134,6 @@ import type { Resource, ResourceType } from "../trait/provisioned.ts";
 import { TrackedHistory } from "./tracked.ts";
 import { Settlement } from "./settlement.ts";
 import { TelemetryScope } from "@destack/telemetry";
-import { Claimant } from "../claim/claim.ts";
 import type { StoreExecution } from "../method/execution.ts";
 import type { HookSandbox } from "../hook/sandbox.ts";
 import type { MountFetch, PackageImplementation } from "./implementation.ts";
@@ -310,12 +309,10 @@ export interface MutateOptions {
     readonly manager?: Manager;
 }
 
-/** The journal's progress through a mutation: the running call and its claim reservation. */
+/** The journal's progress through a mutation: the running call. */
 type MutationProgress = {
     /** The position of the call running now, absent before and after the calls. */
     running: number | undefined;
-    /** The reservation of the names the written objects claim, once the calls ran. */
-    reservation: Reservation | undefined;
 };
 
 /** How one call runs within its mutation. */
@@ -1625,15 +1622,11 @@ export class ObjectStore {
         const planned = { ...run, prepared };
 
         // execute through the journal, tracking the running call
-        const progress: MutationProgress = { running: undefined, reservation: undefined };
+        const progress: MutationProgress = { running: undefined };
         const results = await this.#executeDurable(planned, progress);
 
-        // confirm keys and settle prepared work
-        try {
-            await progress.reservation?.confirm();
-        } finally {
-            await this.#settle(ObjectStore.#settlementsOf(prepared));
-        }
+        // settle prepared work
+        await this.#settle(ObjectStore.#settlementsOf(prepared));
 
         // answer the submitted calls without their expansions
         return zip(results, calls)
@@ -1662,6 +1655,9 @@ export class ObjectStore {
         caller: AccessContext,
         options: MutateOptions,
     ): Promise<unknown[]> {
+        // keep former keys and claim the written names before the transaction's commit, whoever opened it
+        this.#enlist(transaction);
+
         // run each call in order as the caller under the mutation's request, recorded under the component making it
         const recorded: CallOptions = {
             requestId: mutation.id,
@@ -1812,17 +1808,8 @@ export class ObjectStore {
                 return committed;
             }
 
-            // roll back prepared work and release the reserved names
+            // roll back prepared work
             await this.#settle(ObjectStore.#settlementsOf(planned.prepared));
-            await progress.reservation?.release().catch((failure: unknown) => {
-                throw new AggregateError(
-                    [error, failure],
-                    "transaction and its name release failed",
-                    {
-                        cause: error,
-                    },
-                );
-            });
 
             // record the failed call for audit and retries
             if (progress.running !== undefined) {
@@ -1915,37 +1902,18 @@ export class ObjectStore {
             );
         }
 
-        // release the names a lost attempt reserved
+        // keep former keys and claim the written names before the commit, and commit the prepared work with it
         progress.running = undefined;
-        await progress.reservation?.release();
-        progress.reservation = undefined;
-
-        // keep the keys written objects held before a rename
-        await FormerKey.written(transaction, this.objects);
-
-        // reserve the claimed names before the commit
-        const claimants = await Claimant.written(transaction, this.objects);
-        const reservation =
-            this.claims &&
-            (await Reservation.reserve(
-                this.claims,
-                claimants,
-                this.objects,
-                { id: run.id, environment: this.environment },
-                this.database,
-            ));
-        progress.reservation = reservation;
-
-        // commit prepared work and claims with the mutation
-        transaction.record(async (committing) => {
-            // commit the prepared work
-            await this.#commit(committing, run.prepared);
-
-            // commit the claimed names
-            await reservation?.commit(committing);
-        });
+        this.#enlist(transaction);
+        transaction.record((committing) => this.#commit(committing, run.prepared));
 
         return executed;
+    }
+
+    /** Enlist the written objects' former keys and names in a transaction's commit. */
+    #enlist(transaction: Transaction): void {
+        FormerKey.enlist(transaction, this);
+        Reservation.enlist(transaction, this);
     }
 
     /** Record a mutation's failed call for audit and retries, leaving denials to procedures. */

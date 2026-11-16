@@ -4,7 +4,6 @@ import { AccessContext, Caller } from "@destack/access";
 import {
     and,
     type Controller,
-    type DatabaseConnection,
     defineTable,
     eq,
     index,
@@ -14,19 +13,34 @@ import {
     Snapshot,
     TABLE,
     text,
+    type Participant,
+    type Transaction,
 } from "@destack/db";
-import { type UuidEnvironment, present, schema } from "@destack/schema";
+import { type UuidEnvironment, present, schema, Uuid } from "@destack/schema";
 
 import { RequestId } from "@destack/sync";
 import type * as sync from "@destack/sync";
 import type { ObjectStore } from "../server/store.ts";
-import type { ObjectType } from "../object/object.ts";
+import { ObjectKey, type ObjectType } from "../object/object.ts";
+import { Condition } from "../object/condition.ts";
 import { Claim, Claimant, ClaimRefusal, RESERVATION_MILLISECONDS } from "./claim.ts";
 import type { ClaimType } from "./method.ts";
 import type { PushResult } from "../replica/replica.ts";
 
 import type {} from "@destack/package/import-meta";
 import { TelemetryScope } from "@destack/telemetry";
+
+/** The ready reason of a controlled object one of whose names another object holds. */
+export const NAME_TAKEN = "NameTaken";
+
+/** The ready reason of a controlled object holding its names again. */
+const APPLIED = "Applied";
+
+/** The store a reservation takes names for: its claims, types, database and principal. */
+type ReservingStore = Pick<
+    ObjectStore,
+    "claims" | "objects" | "database" | "environment" | "principal"
+>;
 
 /** A store serving object types elsewhere, called as the claiming store. */
 export interface RemoteStore {
@@ -110,78 +124,256 @@ export interface ClaimPrimary {
     readonly home?: RemoteStore;
 }
 
-/** The names a write reserved, and how its commit and outcome settle them. */
-export interface Reservation {
-    /** Write the names in the committing transaction where the store has the claims itself. */
-    readonly commit: (committing: DatabaseConnection) => Promise<void>;
+/** A write's hold on the names its rows change: taken before its commit, settled after it. */
+export class Reservation implements Participant {
+    /** The transaction whose written rows the reservation reads. */
+    readonly #transaction: Transaction;
+    /** The store whose types and claims the reservation takes names for. */
+    readonly #store: ReservingStore;
+    /** The request the names are reserved under at the claims' home. */
+    readonly #id: string;
+    /** The objects whose names the reservation holds at the claims' home. */
+    #reserved: readonly Claimant[] = [];
 
-    /** Settle the reserved names once the write committed. */
-    readonly confirm: () => Promise<void>;
+    /** Hold the names of a store's rows a transaction writes. */
+    constructor(transaction: Transaction, store: ReservingStore) {
+        this.#transaction = transaction;
+        this.#store = store;
+        this.#id = Uuid.v4(store.environment.random);
+    }
 
-    /** Release the reserved names once the write failed. */
-    readonly release: () => Promise<void>;
-}
-
-/** A write's claim request: its identifier and the environment its claims draw from. */
-interface ClaimRequest {
-    /** The write's request, which has its reservations. */
-    readonly id: string;
-    /** The environment of the write's store. */
-    readonly environment: UuidEnvironment;
-}
-
-/** The reservations of writes claiming names. */
-export const Reservation = {
-    /** Reserve written objects' names before the write commits, refusing taken names. */
-    async reserve(
-        claims: ClaimPrimary,
-        claimants: readonly Claimant[],
-        types: readonly ObjectType[],
-        request: ClaimRequest,
-        database: DatabaseConnection,
-    ): Promise<Reservation> {
-        // claim in the committing transaction of the store serving the claim type, else at its home now
-        const { telemetry } = database.state.environment;
-        const scope = TelemetryScope.of(import.meta.destack.package, telemetry);
-
-        return scope.span("destack.claim.reserve", {}, async () =>
-            claims.home === undefined
-                ? Reservation.local(claimants, types, request.environment)
-                : Reservation.remote(
-                      claims.object,
-                      claims.home,
-                      claimants,
-                      types,
-                      request,
-                      database,
-                  ),
+    /** Enlist a store's reservation in a transaction's commit, once for each store. */
+    static enlist(transaction: Transaction, store: ReservingStore): void {
+        transaction.enlist(
+            `destack.object.reservation:${store.principal.id}`,
+            new Reservation(transaction, store),
         );
-    },
+    }
 
-    /** Replace objects' names at their home after unreserved writes, refusing taken names. */
-    async replace(
+    /** Take the names the written rows change: queued, written here, or reserved at their home. */
+    async prepare(): Promise<void> {
+        // take the rows whose names changed, none for most writes
+        const { claims, objects, environment } = this.#store;
+        const claimants = await Claimant.written(this.#transaction, objects);
+        if (claims === undefined || claimants.length === 0) {
+            return;
+        }
+        const { home } = claims;
+
+        // write the names with the commit where the store has the claims itself
+        if (home === undefined) {
+            this.#transaction.record(async (committing) => {
+                const refused = await Promise.all(
+                    claimants.map((claimant) => Claim.replace(committing, claimant, environment)),
+                );
+                Reservation.refuse(objects, refused.flat());
+            });
+
+            return;
+        }
+
+        // queue the names of controlled types in this transaction, which their controller claims at the home
+        const types = Reservation.#types(objects);
+        const isQueued = (claimant: Claimant) =>
+            claimant.indexes.some((name) => types.get(name)?.isControlled === true);
+        const queued = this.#rows(claimants.filter(isQueued), environment.clock.now());
+        if (queued.length > 0) {
+            this.#transaction.record(async (committing) => {
+                await committing.insert(claimReservation).values(queued).onConflictDoNothing();
+            });
+        }
+
+        // reserve every other name at the home before the commit
+        const scope = TelemetryScope.of(import.meta.destack.package, environment.telemetry);
+        await scope.span("destack.claim.reserve", {}, () =>
+            this.#reserve(
+                claims.object,
+                home,
+                claimants.filter((each) => !isQueued(each)),
+            ),
+        );
+    }
+
+    /** Confirm the reserved names at their home once the commit stands. */
+    async confirm(): Promise<void> {
+        // confirm nothing for a write that reserved no name at a home
+        const { claims, environment } = this.#store;
+        if (claims?.home === undefined || this.#reserved.length === 0) {
+            return;
+        }
+
+        // confirm every reserved object's names in one request, then forget the rows here
+        await claims.home.mutate({
+            id: RequestId.create(environment),
+            calls: this.#reserved.map((claimant) =>
+                claims.object.call("confirm", { ...claimant, request: this.#id }),
+            ),
+        });
+        await this.#forget();
+    }
+
+    /** Release the reserved names at their home once the commit failed. */
+    async cancel(): Promise<void> {
+        // release nothing for a write that reserved no name at a home
+        const { claims, environment } = this.#store;
+        if (claims?.home === undefined || this.#reserved.length === 0) {
+            return;
+        }
+
+        // release the claiming objects' names in one request, then forget the rows here
+        const claiming = this.#reserved.filter((claimant) => claimant.claims.length > 0);
+        if (claiming.length > 0) {
+            await claims.home.mutate({
+                id: RequestId.create(environment),
+                calls: claiming.map(({ objectId, owner }) =>
+                    claims.object.call("release", { objectId, owner, request: this.#id }),
+                ),
+            });
+        }
+        await this.#forget();
+    }
+
+    /** Reserve objects' names at the claims' home, refusing the write once others claim some. */
+    async #reserve(
         claim: ClaimType,
         home: RemoteStore,
         claimants: readonly Claimant[],
-        types: readonly ObjectType[],
-        environment: UuidEnvironment,
     ): Promise<void> {
-        // replace every object's names in one mutation at the home
+        // record the reservations here first, so a crash before their confirmation leaves them due
         if (claimants.length === 0) {
             return;
+        }
+        const { database, environment, objects } = this.#store;
+        const recorded = this.#rows(claimants, environment.clock.now() + RESERVATION_MILLISECONDS);
+        await database.transaction(
+            async (transaction) =>
+                await transaction.insert(claimReservation).values(recorded).onConflictDoNothing(),
+        );
+        this.#reserved = claimants;
+
+        // reserve the claiming objects' names in one request
+        const claiming = claimants.filter((claimant) => claimant.claims.length > 0);
+        const results =
+            claiming.length === 0
+                ? []
+                : await home.mutate({
+                      id: RequestId.create(environment),
+                      calls: claiming.map((claimant) =>
+                          claim.call("reserve", { ...claimant, request: this.#id }),
+                      ),
+                  });
+
+        // release the reserved names and refuse the write once other objects claim some
+        const refused = results.flatMap((result) => ClaimRefusal.parse(result).refused);
+        if (refused.length > 0) {
+            await this.cancel();
+            Reservation.refuse(objects, refused);
+        }
+    }
+
+    /** Describe the reservation rows of some objects, due at a time. */
+    #rows(claimants: readonly Claimant[], expiresAt: number) {
+        return claimants.flatMap((claimant) => {
+            const [first] = claimant.indexes;
+
+            return first === undefined
+                ? []
+                : [
+                      {
+                          requestId: this.#id,
+                          objectId: claimant.objectId,
+                          owner: claimant.owner,
+                          index: first,
+                          expiresAt,
+                      },
+                  ];
+        });
+    }
+
+    /** Forget the reservation's rows here. */
+    async #forget(): Promise<void> {
+        await this.#store.database.transaction(
+            async (transaction) =>
+                await transaction
+                    .delete(claimReservation)
+                    .where(eq(claimReservation.requestId, this.#id)),
+        );
+    }
+
+    /** Find each indexed type by its indexes. */
+    static #types(objects: readonly ObjectType[]): Map<string, ObjectType> {
+        return new Map(
+            objects.flatMap((object) =>
+                Object.keys(object.indexes).map(
+                    (name) => [Claim.index(object, name), object] as const,
+                ),
+            ),
+        );
+    }
+
+    /** Replace objects' names at their home after unreserved writes, answering the taken names. */
+    static async #replace(
+        claim: ClaimType,
+        home: RemoteStore,
+        claimants: readonly Claimant[],
+        environment: UuidEnvironment,
+    ): Promise<Claim[]> {
+        // replace every object's names in one mutation at the home
+        if (claimants.length === 0) {
+            return [];
         }
         const calls = claimants.map((claimant) => claim.call("replace", claimant));
         const results = await home.mutate({ id: RequestId.create(environment), calls });
 
-        // refuse names other objects claim
-        Reservation.refuse(
-            types,
-            results.flatMap((result) => ClaimRefusal.parse(result).refused),
-        );
-    },
+        return results.flatMap((result) => ClaimRefusal.parse(result).refused);
+    }
+
+    /** Observe on a controlled object whether another object holds one of its names. */
+    static async #observe(
+        store: ObjectStore,
+        types: ReadonlyMap<string, ObjectType>,
+        reservation: { readonly objectId: string; readonly index: string },
+        taken: readonly Claim[],
+    ): Promise<void> {
+        // read the object, leaving one that is gone
+        const object = present(types.get(reservation.index), "the reserved type");
+        const [row]: readonly Row[] = await store.database
+            .select()
+            .from(object.table)
+            .where(eq(object.table[TABLE].column("id"), reservation.objectId));
+        if (row === undefined) {
+            return;
+        }
+
+        // observe a taken name, and a name held again after one was taken
+        const refused = taken.find((entry) => entry.objectId === reservation.objectId);
+        const conditions = schema.record(schema.string(), Condition).parse(row["conditions"]);
+        const isTaken = conditions["Ready"]?.reason === NAME_TAKEN;
+        if (refused === undefined && !isTaken) {
+            return;
+        }
+        const ready: Condition =
+            refused === undefined
+                ? { status: "true", reason: APPLIED, message: "" }
+                : {
+                      status: "false",
+                      reason: NAME_TAKEN,
+                      message: `'${Claim.values(refused).join(" ")}' is already taken`,
+                  };
+        await store.mutate(store.as(object), {
+            id: RequestId.create(store.environment),
+            calls: [
+                object.call("observe", {
+                    ...object.target(ObjectKey.parse(row)),
+                    observedGeneration: row["generation"],
+                    conditions: { Ready: ready },
+                }),
+            ],
+        });
+    }
 
     /** Refuse a write whose names other objects claim, reporting the index of the first. */
-    refuse(types: readonly ObjectType[], taken: readonly Claim[]): void {
+    static refuse(types: readonly ObjectType[], taken: readonly Claim[]): void {
         const [first] = taken;
         if (first !== undefined) {
             const [name] = types.flatMap((type) =>
@@ -194,135 +386,15 @@ export const Reservation = {
                 `'${present(name, `the index of claim ${first.index}`)}' already exists`,
             );
         }
-    },
-
-    /** Claim the names in the committing transaction of the store serving the claim type. */
-    local(
-        claimants: readonly Claimant[],
-        types: readonly ObjectType[],
-        environment: UuidEnvironment,
-    ): Reservation {
-        return {
-            commit: async (committing) => {
-                // replace every object's names together, refusing names other objects claim
-                const refused = await Promise.all(
-                    claimants.map((claimant) => Claim.replace(committing, claimant, environment)),
-                );
-                Reservation.refuse(types, refused.flat());
-            },
-            confirm: async () => {},
-            release: async () => {},
-        };
-    },
-
-    /** Reserve the names at the claim type's home until the write commits. */
-    async remote(
-        claim: ClaimType,
-        home: RemoteStore,
-        claimants: readonly Claimant[],
-        types: readonly ObjectType[],
-        request: ClaimRequest,
-        database: DatabaseConnection,
-    ): Promise<Reservation> {
-        // record the reservations here first, so a crash before their confirmation leaves them due
-        const { id, environment } = request;
-        const expiresAt = environment.clock.now() + RESERVATION_MILLISECONDS;
-        const recorded = claimants.flatMap((claimant) => {
-            const [first] = claimant.indexes;
-
-            return first === undefined
-                ? []
-                : [
-                      {
-                          requestId: id,
-                          objectId: claimant.objectId,
-                          owner: claimant.owner,
-                          index: first,
-                          expiresAt,
-                      },
-                  ];
-        });
-        if (recorded.length > 0) {
-            await database.transaction(
-                async (transaction) =>
-                    await transaction
-                        .insert(claimReservation)
-                        .values(recorded)
-                        .onConflictDoNothing(),
-            );
-        }
-        const forget = async () => {
-            await database.transaction(
-                async (transaction) =>
-                    await transaction
-                        .delete(claimReservation)
-                        .where(eq(claimReservation.requestId, id)),
-            );
-        };
-
-        // reserve the claiming objects' names in one request
-        const claiming = claimants.filter((claimant) => claimant.claims.length > 0);
-        const results =
-            claiming.length === 0
-                ? []
-                : await home.mutate({
-                      id: RequestId.create(environment),
-                      calls: claiming.map((claimant) =>
-                          claim.call("reserve", { ...claimant, request: id }),
-                      ),
-                  });
-        const refused = results.flatMap((result) => ClaimRefusal.parse(result).refused);
-
-        // confirm the reserved names on commit, and release them on failure
-        const reservation: Reservation = {
-            commit: async () => {},
-            confirm: async () => {
-                if (claimants.length > 0) {
-                    await home.mutate({
-                        id: RequestId.create(environment),
-                        calls: claimants.map((claimant) =>
-                            claim.call("confirm", { ...claimant, request: id }),
-                        ),
-                    });
-                }
-                await forget();
-            },
-            release: async () => {
-                if (claiming.length > 0) {
-                    await home.mutate({
-                        id: RequestId.create(environment),
-                        calls: claiming.map(({ objectId, owner }) =>
-                            claim.call("release", { objectId, owner, request: id }),
-                        ),
-                    });
-                }
-                await forget();
-            },
-        };
-
-        // release the reserved names and refuse the write once other objects claim some
-        if (refused.length > 0) {
-            await reservation.release();
-            Reservation.refuse(types, refused);
-        }
-
-        return reservation;
-    },
+    }
 
     /** Declare the controller replacing the names a crash left reserved, or a migration queued. */
-    controller(
+    static controller(
         store: ObjectStore,
         claim: ClaimType,
         home: RemoteStore | undefined,
     ): Controller<typeof claimReservation> {
-        // find each indexed type by its indexes
-        const types = new Map(
-            store.objects.flatMap((object) =>
-                Object.keys(object.indexes).map(
-                    (name) => [Claim.index(object, name), object] as const,
-                ),
-            ),
-        );
+        const types = Reservation.#types(store.objects);
 
         return {
             name: "destack.claim_reservation.expire",
@@ -366,24 +438,32 @@ export const Reservation = {
                     }),
                 );
 
-                // replace their names here where the store keeps the claims
-                if (home === undefined) {
-                    const taken = await database.transaction(async (transaction) => {
-                        const refused: Claim[] = [];
-                        for (const claimant of claimants) {
-                            refused.push(
-                                ...(await Claim.replace(transaction, claimant, environment)),
-                            );
-                        }
+                // replace their names here where the store keeps the claims, else at the claim home
+                const taken =
+                    home === undefined
+                        ? await database.transaction(async (transaction) => {
+                              const refused: Claim[] = [];
+                              for (const claimant of claimants) {
+                                  refused.push(
+                                      ...(await Claim.replace(transaction, claimant, environment)),
+                                  );
+                              }
 
-                        return refused;
-                    });
-                    Reservation.refuse(store.objects, taken);
+                              return refused;
+                          })
+                        : await Reservation.#replace(claim, home, claimants, environment);
+
+                // observe a controlled object's names on it, and refuse any other type's taken name
+                const declared = rows.filter(
+                    (reservation) => types.get(reservation.index)?.isControlled === true,
+                );
+                for (const reservation of declared) {
+                    await Reservation.#observe(store, types, reservation, taken);
                 }
-                // otherwise replace them at the claim home
-                else {
-                    await Reservation.replace(claim, home, claimants, store.objects, environment);
-                }
+                Reservation.refuse(
+                    store.objects,
+                    taken.filter((entry) => types.get(entry.index)?.isControlled !== true),
+                );
 
                 // forget the reservations
                 await database.transaction(async (transaction) => {
@@ -400,5 +480,5 @@ export const Reservation = {
                 });
             },
         };
-    },
-};
+    }
+}

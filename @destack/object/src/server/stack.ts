@@ -1,4 +1,3 @@
-import { FormerKey } from "../object/former.ts";
 import { Address, type Plan, type Step } from "@destack/resource";
 import { ObjectReference, Scope, type Subject, type Call, RequestId } from "@destack/sync";
 import { AccessContext, anyone, Authorizer, Manager, type Policy, Caller } from "@destack/access";
@@ -21,7 +20,6 @@ import {
     nth,
     present,
     schema,
-    Uuid,
 } from "@destack/schema";
 import { ObjectError } from "../error/error.ts";
 import { type ObjectOf, ObjectType } from "../object/object.ts";
@@ -37,7 +35,7 @@ import {
 import type { DeclarationName, PackageId } from "@destack/package";
 import type { ManagedTable } from "../trait/record.ts";
 import { InputSchema } from "../method/input.ts";
-import { type ClaimPrimary, Reservation } from "../claim/reservation.ts";
+import { type ClaimPrimary } from "../claim/reservation.ts";
 import type { ObjectStore } from "./store.ts";
 import type { Authorization } from "./authorization.ts";
 import { RecordedRow, type ResultsOf } from "../method/context.ts";
@@ -45,7 +43,6 @@ import type { MethodName, OmitEach, ParsedInput } from "../method/procedure.ts";
 
 import { CallSite } from "../method/site.ts";
 import type { BuildReader } from "@destack/package/manifest";
-import { Claimant } from "../claim/claim.ts";
 import type {} from "@destack/package/import-meta";
 
 /** One section of a stack document: declarations by name. */
@@ -1351,45 +1348,9 @@ export class StackPlan {
             : table[TABLE].column(column).definition.toJson(value);
     }
 
-    /** Reserve the names the written objects claim until the commit, absent without claims. */
-    async #reserve(): Promise<Reservation | undefined> {
-        // reserve before the commit, and write the reservation in it
-        const { claims, objects, store, database } = this.stack.options;
-        const claimants = await Claimant.written(this.transaction, objects);
-        const reservation =
-            claims &&
-            (await Reservation.reserve(
-                claims,
-                claimants,
-                objects,
-                { id: Uuid.v4(store.environment.random), environment: store.environment },
-                database,
-            ));
-        this.transaction.record(async (committing) => {
-            await reservation?.commit(committing);
-        });
-
-        return reservation;
-    }
-
     /** Apply the planned steps unchanged, refusing a plan another commit made stale. */
     async apply(): Promise<void> {
-        // keep the keys written objects held before a rename
-        await FormerKey.written(this.transaction, this.stack.options.objects);
-
-        // reserve the names the written objects claim before the commit
-        const reservation = await this.#reserve();
-
-        // commit, releasing the names once the commit fails
-        try {
-            await this.transaction.commit();
-        } catch (error) {
-            await reservation?.release();
-            throw error;
-        }
-
-        // confirm the reserved names
-        await reservation?.confirm();
+        await this.transaction.commit();
     }
 }
 

@@ -6,6 +6,7 @@ import {
     Change,
     type DatabaseConnection,
     Snapshot,
+    Transaction,
     type Row,
     type RelationalQueryBuilder,
     defineDatabase,
@@ -28,7 +29,7 @@ import { TestDatabase } from "@destack/db/test";
 import { PackageVersion } from "@destack/package";
 import { nth, Identifier, present, schema, Uuid } from "@destack/schema";
 import { profile, profilesDatabase, profilesPackage } from "./fixture/profile.ts";
-import { none, principal, relation, universe } from "@destack/access";
+import { AccessContext, Caller, none, principal, relation, universe } from "@destack/access";
 import { TestAccess } from "@destack/access/test";
 import { openSpace, space, spacePrincipal } from "../src/test/space.ts";
 import { testCallKey } from "@destack/object/test";
@@ -178,6 +179,62 @@ test("reserve a write's names before it commits and confirm them once it committ
         ["reserve", 0],
         ["confirm", 1],
     ]);
+});
+
+test("reserve and confirm the names of a write the store makes inside a caller's transaction", async () => {
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
+    // record each claim call with the profiles the space committed when it arrived
+    const storage = await universeStorage(world);
+    const served = await serveClaims(storage.database, world);
+    const home = present(served.home, "the universe's claims");
+    const seen: (readonly [string, number])[] = [];
+    let spaceDatabase: DatabaseConnection | undefined;
+    const claims: ClaimPrimary = {
+        object: served.object,
+        home: {
+            mutate: async (mutation) => {
+                const database = present(spaceDatabase, "the space's database");
+                const rows = await database.select().from(profile.table);
+                seen.push(...mutation.calls.map((call) => [call.method, rows.length] as const));
+
+                return home.mutate(mutation);
+            },
+            query: (call) => home.query(call),
+        },
+    };
+    const east = await receiveProfiles(world, claims);
+    spaceDatabase = east.database;
+
+    // create a profile as alice in a transaction the caller opened and commits itself
+    const [created] = await Transaction.run(east.database, (transaction) =>
+        east.store.mutate(
+            AccessContext.of(
+                Caller.of(principal.user.reference(Scope.universe.id, users.alice)),
+                world.clock.now(),
+            ),
+            {
+                id: RequestId.create(world),
+                calls: [profile.call("create", { ...profile.in(east.spaceId), handle: "ada" })],
+            },
+            { transaction },
+        ),
+    );
+
+    // reserve the handle before the caller's commit, confirm it after, and resolve it at the universe
+    expect({
+        seen,
+        isClaimed:
+            (await Claim.lookup(profile, names(storage.database), "handle", ["ada"]))?.id ===
+            schema.looseObject({ id: schema.string() }).parse(created).id,
+    }).toEqual({
+        seen: [
+            ["reserve", 0],
+            ["confirm", 1],
+        ],
+        isClaimed: true,
+    });
 });
 
 test("claim the names of writes outside the object store and finish expired reservations", async () => {

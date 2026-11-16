@@ -10,6 +10,7 @@ import {
 } from "@destack/db";
 import { schema } from "@destack/schema";
 import type { ObjectType } from "./object.ts";
+import type { ObjectStore } from "../server/store.ts";
 
 /** The keys objects held before a rename, each resolving to its object until another takes it. */
 export const formerKey = defineTable(
@@ -34,6 +35,15 @@ export const formerKey = defineTable(
 
 /** The keys objects held before a rename, as the store records and resolves them. */
 export const FormerKey = {
+    /** Enlist a store's written rows in their transaction's commit, to keep their former keys. */
+    enlist(transaction: Transaction, store: Pick<ObjectStore, "objects" | "principal">): void {
+        transaction.enlist(`destack.object.former:${store.principal.id}`, {
+            prepare: () => FormerKey.written(transaction, store.objects),
+            confirm: async () => {},
+            cancel: async () => {},
+        });
+    },
+
     /** Follow every row of a keyed type a transaction wrote, before it commits. */
     async written(transaction: Transaction, types: readonly ObjectType[]): Promise<void> {
         // take each written row of a type keeping former keys, once all calls wrote it

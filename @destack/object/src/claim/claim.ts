@@ -610,16 +610,18 @@ export const Claimant = Object.assign(claimant, {
         };
     },
 
-    /** Read the names each object a transaction wrote claims, by its last image. */
+    /** Read the names of each object whose names a transaction changed, by its last image. */
     async written(transaction: Transaction, types: readonly ObjectType[]): Promise<Claimant[]> {
-        // take each written object's last image
+        // take the last image of each written object whose names changed
         const indexed = types.filter((type) => Object.keys(type.indexes).length > 0);
         const byTable = new Map(indexed.map((type) => [type.table[TABLE].sqlName, type]));
         const written = transaction.changes.changes.flatMap((change) => {
             const type = byTable.get(change.table[TABLE].sqlName);
             const image = present(change.after ?? change.before, "the row a change writes");
 
-            return type === undefined ? [] : [{ type, image, row: change.after ?? undefined }];
+            return type === undefined || !Claimant.isRenaming(type, change.before, change.after)
+                ? []
+                : [{ type, image, row: change.after ?? undefined }];
         });
 
         // read each object's names once
@@ -634,6 +636,27 @@ export const Claimant = Object.assign(claimant, {
         }
 
         return claimants;
+    },
+
+    /** Decide whether a write changes what an object claims: its names, owner, trash or purge. */
+    isRenaming(type: ObjectType, before: Row | null, after: Row | null): boolean {
+        // claim or release every name of a created or removed row
+        if (before === null || after === null) {
+            return true;
+        }
+
+        // compare the indexed values, the owner and scope, and whether the row is trashed or purged
+        const fields = Object.values(type.indexes).flatMap((declared) => declared.on);
+        const claimed = (row: Row) =>
+            canonicalize([
+                ...fields.map((field) => row[field] ?? null),
+                Claim.owning(type, row),
+                ObjectKey.parse(row).scope,
+                Claim.isSet(row, "deletedAt"),
+                Claim.isSet(row, "purgedAt"),
+            ]);
+
+        return claimed(before) !== claimed(after);
     },
 
     /** Refuse a claimant with a name of another object or owner. */
