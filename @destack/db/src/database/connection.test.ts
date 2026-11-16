@@ -6,9 +6,15 @@ import { defineTable, TABLE, type Table } from "../table/table.ts";
 import type { WriteOperation } from "./connection.ts";
 import { post, remark, section } from "../dependent/test/fixture.ts";
 import { testSimulation } from "@destack/test/world";
+import { localState, readManagers, readState } from "../migration/state.ts";
 
 /** The counters one upsert writes and one remove deletes. */
 const COUNTERS = 201;
+
+/** Order two pairs by their first text. */
+function byName(left: readonly [string, string], right: readonly [string, string]): number {
+    return left[0].localeCompare(right[0]);
+}
 
 /** Counters by owner and name. */
 const counter = defineTable(
@@ -235,4 +241,35 @@ test("skip planning a declaration the database applied last, by its stamp", asyn
             .since(before)
             .count(TestDatabase.statements(database)),
     }).toEqual({ applied: true, again: [], statements: 2 });
+});
+
+test("read each applied table's manager as its applied state names it", async () => {
+    // migrate counters under one manager and tallies under another
+    const simulation = testSimulation();
+    const storage = await TestDatabase.create([], { environment: simulation.environment("test") });
+    onTestFinished(() => storage.close());
+    const { database } = storage;
+    const tally = defineTable("connection_tally", { id: text("id").primaryKey() });
+    await database.migrate([counter], { manager: "counters" });
+    await database.migrate([tally], { manager: "tallies" });
+
+    // read the managers alone, and from the whole applied states
+    const { namespace } = database.state;
+    const applied = await readState(database);
+    const named = applied.map(
+        (entry) => [localState(entry.state, namespace).table.name, entry.manager] as const,
+    );
+    expect({
+        managers: [...(await readManagers(database))].toSorted(byName),
+        named: named.toSorted(byName),
+    }).toEqual({
+        managers: [
+            [tally[TABLE].sqlName, "tallies"],
+            [counter[TABLE].sqlName, "counters"],
+        ],
+        named: [
+            [tally[TABLE].sqlName, "tallies"],
+            [counter[TABLE].sqlName, "counters"],
+        ],
+    });
 });

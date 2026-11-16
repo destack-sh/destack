@@ -475,6 +475,30 @@ export async function readState(database: DatabaseConnection): Promise<AppliedSt
     return states;
 }
 
+/** Read the manager of every managed table, by the table's name without its namespace. */
+export async function readManagers(database: DatabaseConnection): Promise<Map<string, string>> {
+    // find the state table
+    const { namespace } = database.state;
+    const tables = await readTables(database);
+    if (!tables.includes(relation(STATE, namespace))) {
+        return new Map();
+    }
+
+    // read each table's manager, leaving its state unparsed
+    const rows = await database.execute(
+        sql`SELECT "table", manager FROM ${sql.relation(STATE)}`,
+        schema.object({ table: schema.string(), manager: schema.string() }),
+    );
+    const prefix = namespace === undefined ? "" : relation("", namespace);
+
+    return new Map(
+        rows.map((row) => [
+            row.table.startsWith(prefix) ? row.table.slice(prefix.length) : row.table,
+            row.manager,
+        ]),
+    );
+}
+
 /** Read the database's name: the server's database and schema, or a SQLite store's namespace. */
 export async function readName(database: DatabaseConnection): Promise<string> {
     // read a SQLite database's namespace in a shared store

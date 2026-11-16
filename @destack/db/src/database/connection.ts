@@ -25,6 +25,7 @@ import {
     localState,
     namespaceState,
     readEmpty,
+    readManagers,
     readState,
     readTables,
     unappliedTables,
@@ -378,17 +379,16 @@ export class DatabaseConnection<
         });
 
         // list the replicated tables another manager applied, which the plan leaves to it
-        const { namespace } = this.state;
         const replicas = new Set(
             declared
                 .filter((entry) => entry.isReplicated === true)
                 .map((entry) => entry.table.name),
         );
-        const applied = replicas.size === 0 ? [] : await readState(this);
-        const left = applied
-            .filter((entry) => entry.manager !== manager)
-            .map((entry) => localState(entry.state, namespace).table.name)
-            .filter((name) => replicas.has(name));
+        const managers = replicas.size === 0 ? new Map<string, string>() : await readManagers(this);
+        const left = [...managers]
+            .filter(([name, applier]) => applier !== manager && replicas.has(name))
+            .map(([name]) => name)
+            .toSorted();
 
         // skip a declaration the manager applied last with the same tables left to others
         const stamp = await Digest.json(
