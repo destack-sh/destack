@@ -1,4 +1,4 @@
-import { nth, found, present } from "@destack/schema";
+import { nth, found } from "@destack/schema";
 import type { Anchor } from "./anchor.ts";
 import type { Annotation, Span } from "./annotation.ts";
 import type { Element, Run } from "./element.ts";
@@ -27,11 +27,11 @@ export class Sequence {
         if ("insert" in edit) {
             return this.#insert(edit.insert, edit.run, edit.after);
         }
-        // replace a range's characters by tombstones, or tombstones by characters
+        // set exactly the named pieces to tombstones, or tombstones back to characters
         else if ("delete" in edit) {
-            return this.#mark(edit.delete.from, edit.delete.to, undefined);
+            return this.#set(edit.delete);
         } else {
-            return this.#mark(edit.restore.from, edit.restore.to, edit.restore.text);
+            return this.#set(edit.restore);
         }
     }
 
@@ -39,50 +39,26 @@ export class Sequence {
     static inverse(edit: SequenceEdit, before: Sequence): SequenceEdit[] {
         // delete what an insertion added
         if ("insert" in edit) {
-            const last = { run: edit.run, offset: edit.insert.length - 1 };
-
-            return [{ delete: { from: { run: edit.run, offset: 0 }, to: last } }];
+            return [{ delete: [{ run: edit.run, start: 0, text: edit.insert.length }] }];
         }
 
-        // invert each piece the edit changed
-        const range = "delete" in edit ? edit.delete : edit.restore;
-        const cut = before.#cut(range.from, "before").#cut(range.to, "after");
-        const pieces = cut.runs.slice(cut.#find(range.from), cut.#find(range.to) + 1);
+        // restore the named pieces a deletion found visible, or delete those a restoration found deleted
+        const parts = before.#covered("delete" in edit ? edit.delete : edit.restore);
+        if ("delete" in edit) {
+            const visible = parts.filter((part) => typeof part.text === "string");
 
-        return pieces.flatMap((piece): SequenceEdit[] => {
-            // restore deleted characters, or delete restored ones
-            const from = { run: piece.run, offset: piece.start };
-            const to = { run: piece.run, offset: piece.start + Sequence.length(piece) - 1 };
-            if ("delete" in edit) {
-                return typeof piece.text === "string"
-                    ? [{ restore: { from, to, text: piece.text } }]
-                    : [];
-            }
+            return visible.length === 0 ? [] : [{ restore: visible }];
+        }
+        const deleted = parts.filter((part) => typeof part.text === "number");
 
-            return typeof piece.text === "number" ? [{ delete: { from, to } }] : [];
-        });
+        return deleted.length === 0 ? [] : [{ delete: deleted }];
     }
 
     /** Translate a text change at offsets into edits referring to elements. */
     change(change: TextChange, run: string): SequenceEdit[] {
-        // delete before inserting
-        const deleted: SequenceEdit[] =
-            change.to > change.from
-                ? [
-                      {
-                          delete: {
-                              from: present(
-                                  this.element(change.from),
-                                  `the element at offset ${change.from}`,
-                              ),
-                              to: present(
-                                  this.element(change.to - 1),
-                                  `the element at offset ${change.to - 1}`,
-                              ),
-                          },
-                      },
-                  ]
-                : [];
+        // delete the visible pieces between the offsets before inserting
+        const pieces = this.#visible(change.from, change.to);
+        const deleted: SequenceEdit[] = pieces.length === 0 ? [] : [{ delete: pieces }];
         const after = change.from === 0 ? undefined : this.element(change.from - 1);
         const inserted: SequenceEdit[] =
             change.insert.length > 0
@@ -92,7 +68,7 @@ export class Sequence {
         return [...deleted, ...inserted];
     }
 
-    /** Translate an edit into text changes at offsets. */
+    /** Translate an edit into text changes at offsets, each applying after the ones before. */
     translate(edit: SequenceEdit): TextChange[] {
         // insert at the offset after the anchor
         if ("insert" in edit) {
@@ -101,32 +77,29 @@ export class Sequence {
             return [{ from, to: from, insert: edit.insert }];
         }
 
-        // walk the range's pieces
-        const range = "delete" in edit ? edit.delete : edit.restore;
-        const cut = this.#cut(range.from, "before").#cut(range.to, "after");
-        const pieces = cut.runs.slice(cut.#find(range.from), cut.#find(range.to) + 1);
-        const from = this.offset(range.from);
+        // walk the text, deleting named visible pieces and inserting named restored ones
+        const named = "delete" in edit ? edit.delete : edit.restore;
         const changes: TextChange[] = [];
-        let cursor = from;
-        let restored = "restore" in edit ? edit.restore.text : "";
-        for (const piece of pieces) {
-            // insert restored characters at each tombstone, and step over visible ones
-            const length = Sequence.length(piece);
-            if ("restore" in edit && typeof piece.text === "number") {
-                changes.push({ from: cursor, to: cursor, insert: restored.slice(0, length) });
-                restored = restored.slice(length);
+        let cursor = 0;
+        for (const part of this.#cutAt(named).runs) {
+            // remove a deleted visible part, insert a restored deleted one, and step over the rest
+            const piece = Sequence.#coverer(named, part);
+            const length = Sequence.length(part);
+            if (piece !== undefined && "delete" in edit && typeof part.text === "string") {
+                changes.push({ from: cursor, to: cursor + length, insert: "" });
+            } else if (piece !== undefined && "restore" in edit && typeof part.text === "number") {
+                changes.push({
+                    from: cursor,
+                    to: cursor,
+                    insert: Sequence.#characters(piece, part),
+                });
                 cursor += length;
-            } else if (typeof piece.text === "string") {
+            } else if (typeof part.text === "string") {
                 cursor += length;
             }
         }
 
-        // delete the covered text, or apply the changes
-        if (!("delete" in edit)) {
-            return changes;
-        }
-
-        return cursor > from ? [{ from, to: cursor, insert: "" }] : [];
+        return changes;
     }
 
     /** Split the visible text into stretches each covered by one set of annotations. */
@@ -252,49 +225,83 @@ export class Sequence {
         ]);
     }
 
-    /** Delete a range of elements, or restore its tombstones with the given characters. */
-    #mark(from: Element, to: Element, restored: string | undefined): Sequence {
-        // cut at the ends
-        const cut = this.#cut(from, "before").#cut(to, "after");
-        const first = cut.#find(from);
-        const last = cut.#find(to);
-        if (last < first) {
-            throw new RangeError(
-                `sequence range ends before it starts: '${from.run}' at offset ${from.offset}`,
-            );
-        }
-
-        // require as many restored characters as tombstones
-        const inside = cut.runs.slice(first, last + 1);
-        const deleted = inside.reduce(
-            (sum, piece) => sum + (typeof piece.text === "number" ? piece.text : 0),
-            0,
-        );
-        if (restored !== undefined && restored.length !== deleted) {
-            throw new RangeError(
-                `sequence cannot restore ${restored.length} characters into '${deleted}' deleted characters`,
-            );
-        }
-
-        // replace characters by lengths, or lengths by restored characters
-        let remaining = restored ?? "";
-        const marked = cut.runs.map((piece, index): Run => {
-            // change only the pieces in the range
-            const length = Sequence.length(piece);
-            if (index < first || index > last) {
-                return piece;
-            } else if (restored === undefined) {
-                return { run: piece.run, start: piece.start, text: length };
-            } else if (typeof piece.text === "string") {
-                return piece;
+    /** Set the named pieces of runs to tombstones or characters, leaving every other element. */
+    #set(named: readonly Run[]): Sequence {
+        // delete each named part, and restore each named deleted one with the piece's characters
+        const set = this.#cutAt(named).runs.map((part): Run => {
+            const piece = Sequence.#coverer(named, part);
+            if (piece === undefined) {
+                return part;
+            } else if (typeof piece.text === "number") {
+                return { run: part.run, start: part.start, text: Sequence.length(part) };
+            } else if (typeof part.text === "string") {
+                return part;
             }
-            const text = remaining.slice(0, length);
-            remaining = remaining.slice(length);
 
-            return { run: piece.run, start: piece.start, text };
+            return { run: part.run, start: part.start, text: Sequence.#characters(piece, part) };
         });
 
-        return new Sequence(Sequence.#merge(marked));
+        return new Sequence(Sequence.#merge(set));
+    }
+
+    /** Read the parts of the sequence the named pieces cover, in sequence order, as they stand. */
+    #covered(named: readonly Run[]): Run[] {
+        return this.#cutAt(named).runs.filter(
+            (part) => Sequence.#coverer(named, part) !== undefined,
+        );
+    }
+
+    /** Cut the sequence at the edges of the named pieces, refusing a piece whose end it lacks. */
+    #cutAt(named: readonly Run[]): Sequence {
+        // cut before each piece's first element and after its last, a run's elements between them
+        return named.reduce((cut: Sequence, piece) => {
+            const first = { run: piece.run, offset: piece.start };
+            const last = { run: piece.run, offset: piece.start + Sequence.length(piece) - 1 };
+
+            return cut.#cut(first, "before").#cut(last, "after");
+        }, this);
+    }
+
+    /** Read the visible elements between two text offsets as pieces of runs, each as its length. */
+    #visible(from: number, to: number): Run[] {
+        // walk the visible parts overlapping the offsets
+        const pieces: Run[] = [];
+        let cursor = 0;
+        for (const part of this.runs) {
+            if (typeof part.text !== "string") {
+                continue;
+            }
+            const length = part.text.length;
+            const start = Math.max(from, cursor);
+            const end = Math.min(to, cursor + length);
+            if (start < end) {
+                pieces.push({
+                    run: part.run,
+                    start: part.start + start - cursor,
+                    text: end - start,
+                });
+            }
+            cursor += length;
+        }
+
+        return Sequence.#merge(pieces);
+    }
+
+    /** Find the named piece covering a whole part of the sequence, absent for none. */
+    static #coverer(named: readonly Run[], part: Run): Run | undefined {
+        return named.find(
+            (piece) =>
+                piece.run === part.run &&
+                part.start >= piece.start &&
+                part.start < piece.start + Sequence.length(piece),
+        );
+    }
+
+    /** Read the characters a restored piece gives one of its parts. */
+    static #characters(piece: Run, part: Run): string {
+        const offset = part.start - piece.start;
+
+        return String(piece.text).slice(offset, offset + Sequence.length(part));
     }
 
     /** Split the piece with an element at one of its edges. */

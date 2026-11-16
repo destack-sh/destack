@@ -1,7 +1,7 @@
 import { schema } from "@destack/schema";
-import { Element } from "./element.ts";
+import { Element, type Run } from "./element.ts";
 
-/** One change to a sequence: an insertion, deletion or restoration. */
+/** One change to a sequence: an insertion, or the deletion or restoration of exact pieces. */
 export type SequenceEdit =
     | {
           /** Insert a new run's characters right after an element, or at the start. */
@@ -12,17 +12,33 @@ export type SequenceEdit =
           readonly after?: Element;
       }
     | {
-          /** Delete the elements from one element through another, in sequence order. */
-          readonly delete: { readonly from: Element; readonly to: Element };
+          /** Delete the pieces of runs the editor saw, each as the tombstone length it leaves. */
+          readonly delete: readonly Run[];
       }
     | {
-          /** Restore the deleted elements between two elements with their characters. */
-          readonly restore: {
-              readonly from: Element;
-              readonly to: Element;
-              readonly text: string;
-          };
+          /** Restore deleted pieces of runs, each with its characters. */
+          readonly restore: readonly Run[];
       };
+
+/** A piece of one run deleted: its first element and its length. */
+const DeletedPiece = schema.object({
+    /** The run the elements were inserted in. */
+    run: schema.string().min(1),
+    /** The offset of the piece's first element within its run. */
+    start: schema.number().int().nonnegative(),
+    /** The piece's length. */
+    text: schema.number().int().positive(),
+});
+
+/** A piece of one run restored: its first element and its characters. */
+const RestoredPiece = schema.object({
+    /** The run the elements were inserted in. */
+    run: schema.string().min(1),
+    /** The offset of the piece's first element within its run. */
+    start: schema.number().int().nonnegative(),
+    /** The piece's characters. */
+    text: schema.string().min(1),
+});
 
 /** One change to a sequence. */
 export const SequenceEdit: schema.Schema<SequenceEdit> = schema.union([
@@ -35,12 +51,12 @@ export const SequenceEdit: schema.Schema<SequenceEdit> = schema.union([
         after: Element.exactOptional(),
     }),
     schema.object({
-        /** Delete the elements from one element through another, in sequence order. */
-        delete: schema.object({ from: Element, to: Element }),
+        /** Delete the pieces of runs the editor saw, each as the tombstone length it leaves. */
+        delete: schema.array(DeletedPiece).min(1),
     }),
     schema.object({
-        /** Restore the deleted elements from one element through another with their characters. */
-        restore: schema.object({ from: Element, to: Element, text: schema.string().min(1) }),
+        /** Restore deleted pieces of runs, each with its characters. */
+        restore: schema.array(RestoredPiece).min(1),
     }),
 ]);
 

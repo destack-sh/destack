@@ -753,19 +753,16 @@ const ChunkLayout = {
         return { run: first.run, offset: first.start };
     },
 
-    /** List the elements an edit refers to: an insertion's anchor, or a deletion's ends. */
+    /** List the elements an edit refers to: an insertion's anchor, or each named piece's ends. */
     namedElements(edit: SequenceEdit): Element[] {
-        // take an insertion's anchor
+        // take an insertion's anchor, else the first and last element of each deleted or restored piece
         if ("insert" in edit) {
             return edit.after === undefined ? [] : [edit.after];
-        }
-        // take a deletion's ends
-        else if ("delete" in edit) {
-            return [edit.delete.from, edit.delete.to];
-        }
-        // take a restoration's ends
-        else {
-            return [edit.restore.from, edit.restore.to];
+        } else {
+            return ("delete" in edit ? edit.delete : edit.restore).flatMap((piece) => [
+                { run: piece.run, offset: piece.start },
+                { run: piece.run, offset: piece.start + Sequence.length(piece) - 1 },
+            ]);
         }
     },
 };

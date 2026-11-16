@@ -37,12 +37,9 @@ function edit(
         const from = Math.floor(random(seed) * (length - 1));
         const to = Math.min(length - 1, from + Math.floor(random(seed) * 5));
 
-        return {
-            delete: {
-                from: present(sequence.element(from), `the element at ${from}`),
-                to: present(sequence.element(to), `the element at ${to}`),
-            },
-        };
+        const [deleted] = sequence.change({ from, to: to + 1, insert: "" }, `${site}.${counter}`);
+
+        return present(deleted, `the deletion between ${from} and ${to}`);
     }
 
     // type a few characters after a visible element, or at the start
@@ -68,11 +65,6 @@ function visible(sequence: Sequence): string[] {
 /** Read a party's replica: the server's sequence it saw with its pending edits over it. */
 function replica(party: Party): Sequence {
     return party.pending.reduce((sequence, next) => sequence.apply(next), party.seen);
-}
-
-/** Build an element of the base run. */
-function element(offset: number): Element {
-    return { run: "base.1", offset };
 }
 
 /** Build an element of the first typed run. */
@@ -154,8 +146,8 @@ test.for([5, 23, 77])(
 test("restore only the elements a deletion hid, leaving another party's earlier deletion in place", () => {
     // delete "quick " as one party and "the quick brown" as another, undoing only the second
     const base = new Sequence().apply({ insert: "the quick brown fox", run: "base.1" });
-    const first = base.apply({ delete: { from: element(4), to: element(9) } });
-    const second = { delete: { from: element(0), to: element(14) } } as const;
+    const first = base.apply({ delete: [{ run: "base.1", start: 4, text: 6 }] });
+    const second: SequenceEdit = { delete: [{ run: "base.1", start: 0, text: 15 }] };
     const undone = Sequence.inverse(second, first).reduce(
         (sequence, next) => sequence.apply(next),
         first.apply(second),
@@ -167,7 +159,7 @@ test("find elements by visible offset and offsets by element, across tombstones"
     // type, delete the middle, and read positions on both sides of the tombstone
     const sequence = new Sequence()
         .apply({ insert: "hello world", run: "a.1" })
-        .apply({ delete: { from: { run: "a.1", offset: 5 }, to: { run: "a.1", offset: 5 } } });
+        .apply({ delete: [{ run: "a.1", start: 5, text: 1 }] });
     expect([
         sequence.text(),
         sequence.element(5),
@@ -200,7 +192,7 @@ test("resolve annotations over edits by their edges: bold grows at its end, a li
         .apply({ insert: "!", run: "b.1", after: at(4) })
         .apply({ insert: "?", run: "b.2", after: at(10) })
         .apply({ insert: "¿", run: "b.3", after: at(5) })
-        .apply({ delete: { from: at(1), to: at(2) } });
+        .apply({ delete: [{ run: "a.1", start: 1, text: 2 }] });
     const spans = edited
         .spans([bold, link])
         .map((span) => [span.text, span.annotations.map((annotation) => annotation.kind)]);
@@ -230,7 +222,7 @@ test("cover overlapping annotations in one stretch each, with edges on deleted e
         end: { element: at(18), side: "after" },
     };
     const spans = text
-        .apply({ delete: { from: at(4), to: at(4) } })
+        .apply({ delete: [{ run: "a.1", start: 4, text: 1 }] })
         .spans([comment, italic])
         .map((span) => [span.text, span.annotations.map((annotation) => annotation.kind)]);
     expect(spans).toEqual([
@@ -291,9 +283,7 @@ test.for([7, 41])(
 test("record a deletion's length alone, and restore exactly the characters it removed", () => {
     // delete the middle of a text and record only its length
     const typed = new Sequence().apply({ insert: "abcdef", run: "a.1" });
-    const deletion = {
-        delete: { from: { run: "a.1", offset: 1 }, to: { run: "a.1", offset: 3 } },
-    } as const;
+    const deletion: SequenceEdit = { delete: [{ run: "a.1", start: 1, text: 3 }] };
     const deleted = typed.apply(deletion);
     expect([deleted.runs, deleted.text()]).toEqual([
         [
@@ -311,24 +301,33 @@ test("record a deletion's length alone, and restore exactly the characters it re
         inserted.text(),
         restore,
         deleted.apply(present(restore, "the restoring edit")).text(),
-    ]).toEqual([
-        "aXef",
-        {
-            restore: {
-                from: { run: "a.1", offset: 1 },
-                to: { run: "a.1", offset: 3 },
-                text: "bcd",
-            },
-        },
-        "abcdef",
-    ]);
+        inserted.apply(present(restore, "the restoring edit")).text(),
+    ]).toEqual(["aXef", { restore: [{ run: "a.1", start: 1, text: "bcd" }] }, "abcdef", "abcXdef"]);
 
-    // refuse restoring another number of characters than the tombstones have
-    expect(() =>
-        deleted.apply({
-            restore: { from: { run: "a.1", offset: 1 }, to: { run: "a.1", offset: 3 }, text: "bc" },
-        }),
-    ).toThrow(new RangeError("sequence cannot restore 2 characters into '3' deleted characters"));
+    // refuse a piece naming elements the text lacks
+    expect(() => deleted.apply({ restore: [{ run: "a.1", start: 4, text: "xyz" }] })).toThrow(
+        new RangeError("sequence has no element 'a.1' at offset 6"),
+    );
+});
+
+test("keep what another party typed inside a deleted range when the deletion runs after it, and undo the deletion exactly", () => {
+    // delete "quick " on one replica while another types "very " inside it, the server taking the typing first
+    const base = new Sequence().apply({ insert: "the quick brown fox", run: "a.1" });
+    const [deletion] = base.change({ from: 4, to: 10, insert: "" }, "b.1");
+    const typed = base.apply({ insert: "very ", run: "c.1", after: { run: "a.1", offset: 6 } });
+    const deleted = typed.apply(present(deletion, "the deletion"));
+
+    // undo the deletion against the text it ran on, restoring only what it hid
+    const undone = Sequence.inverse(present(deletion, "the deletion"), typed).reduce(
+        (sequence, next) => sequence.apply(next),
+        deleted,
+    );
+
+    expect([
+        deleted.text(),
+        undone.text(),
+        deleted.translate(present(deletion, "the deletion")),
+    ]).toEqual(["the very brown fox", "the quivery ck brown fox", []]);
 });
 
 test("find the one replacement between two texts, around their common start and end", () => {
