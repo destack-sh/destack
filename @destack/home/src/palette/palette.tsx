@@ -72,7 +72,7 @@ export default function Commands() {
         () => ({ keybindings: bound(), sources: offered() }),
         (chosen) => {
             if (chosen.keybindings !== undefined && chosen.sources !== undefined) {
-                // read the listing with the commands and the selection of the page under the palette
+                // read the listing with the actions and the selection of the page under the palette
                 const preferences = { keybindings: chosen.keybindings, sources: chosen.sources };
                 const listed = parent?.list(stopping.signal) ?? Promise.resolve(undefined);
                 listed
@@ -85,7 +85,7 @@ export default function Commands() {
                             environment,
                             localization,
                             focus: selected,
-                            page: under,
+                            actions: under?.actions ?? [],
                         });
 
                         return { listing: read, focus: selected };
@@ -107,9 +107,7 @@ export default function Commands() {
                             .listing.focus(entry)
                             .then(close, (error: unknown) => globalThis.reportError(error));
                     }}
-                    onRegistered={(entry, input) =>
-                        present(parent, "the page registering the command").run(entry, input)
-                    }
+                    onAction={(entry) => present(parent, "the page handling the action").run(entry)}
                     onClose={close}
                     {...(command === undefined ? {} : { command })}
                 />

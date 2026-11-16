@@ -7,19 +7,17 @@ import { ObjectReference, type Subject } from "@destack/sync";
 import type { ClientOptions } from "@destack/object/client";
 import { HOME_PATH } from "@destack/view/declare";
 import {
+    type ActionEntry,
     type CommandEntry,
     type ObjectEntry,
     Palette,
     type PaletteEntry,
     PaletteFocus,
     type PaletteSource,
-    type RegisteredCommand,
-    type RegisteredEntry,
     type ViewEntry,
     type WindowEntry,
 } from "@destack/view/palette";
 import { type PaletteSpace, SpaceCatalog } from "./catalog.ts";
-import type { PageCommands } from "./parent.ts";
 import type { Environment } from "@destack/environment";
 
 /** The most objects the person opened lately that the palette offers: a screenful. */
@@ -64,8 +62,6 @@ export class PaletteListing {
     readonly #home: SpaceCatalog | undefined;
     /** The local objects of the device hosting the palette, absent outside one. */
     readonly #local: DynamicObjectClient | undefined;
-    /** The commands the page under the palette registers, by name. */
-    readonly #registered: ReadonlyMap<string, RegisteredCommand>;
 
     /** Create a listing from its entries, its failures and where they come from. */
     constructor(
@@ -74,18 +70,16 @@ export class PaletteListing {
         from: {
             readonly home: SpaceCatalog | undefined;
             readonly local: DynamicObjectClient | undefined;
-            readonly registered: readonly RegisteredCommand[];
         },
     ) {
-        // set the entries and failures, and the catalog, local objects and page commands they come from
+        // set the entries and failures, and the catalog and local objects they come from
         this.entries = entries;
         this.failures = failures;
         this.#home = from.home;
         this.#local = from.local;
-        this.#registered = new Map(from.registered.map((command) => [command.name, command]));
     }
 
-    /** Read the person's home, their device's objects and the commands of the page under it. */
+    /** Read the person's home, their device's objects and the actions of the page under it. */
     static async read(
         origin: (path: string) => ClientOptions,
         person: {
@@ -98,11 +92,11 @@ export class PaletteListing {
             readonly environment: Environment;
             readonly localization: Localization;
             readonly focus: PaletteFocus;
-            readonly page: PageCommands | undefined;
+            readonly actions: readonly ActionEntry[];
         },
     ): Promise<PaletteListing> {
         // read the person's home's catalog
-        const { environment, localization, focus, page } = reading;
+        const { environment, localization, focus, actions } = reading;
         const [home] = await Promise.allSettled([
             SpaceCatalog.read(person.home, origin, environment),
         ]);
@@ -117,18 +111,7 @@ export class PaletteListing {
                       PaletteListing.#readLocal(origin, device, person.user, catalog, environment),
                   ]);
 
-        // offer the page's commands, and the home's commands applying to the focused object
-        const registered =
-            page === undefined
-                ? []
-                : page.commands.map((command): RegisteredEntry => ({
-                      kind: "registered",
-                      packageId: page.packageId,
-                      name: command.name,
-                      title: command.title,
-                      category: command.category ?? null,
-                      keybinding: command.keybinding ?? null,
-                  }));
+        // offer the page's actions, and the home's commands applying to the focused object
         const declared =
             catalog === undefined
                 ? []
@@ -140,7 +123,7 @@ export class PaletteListing {
 
         // offer the entries of every source left on, and name each failure
         const entries: PaletteEntry[] = [
-            ...registered,
+            ...actions,
             ...(local?.status === "fulfilled" ? local.value.entries : []),
             ...(catalog === undefined
                 ? []
@@ -163,7 +146,6 @@ export class PaletteListing {
             {
                 home: catalog,
                 local: local?.status === "fulfilled" ? local.value.reached : undefined,
-                registered: page?.commands ?? [],
             },
         );
     }
@@ -176,16 +158,6 @@ export class PaletteListing {
         }
 
         await this.#local.call("window", "focus", { id: entry.id });
-    }
-
-    /** Find a command the page under the palette registers. */
-    registered(entry: RegisteredEntry): RegisteredCommand {
-        const command = this.#registered.get(entry.name);
-        if (command === undefined) {
-            throw new TypeError(`the page under the palette registers no '${entry.name}'`);
-        }
-
-        return command;
     }
 
     /** Find the catalog of the space a command, a view or an object belongs to. */

@@ -1,23 +1,6 @@
-import type { PackageId } from "@destack/package";
-import type { JsonObject } from "@destack/schema";
-import type { ObjectReference } from "@destack/sync";
-import {
-    PaletteMessage,
-    type RegisteredCommand,
-    type RegisteredEntry,
-} from "@destack/view/palette";
+import { type ActionEntry, PaletteMessage } from "@destack/view/palette";
 
-/** The commands a page's view registers, by the package serving it. */
-export interface PageCommands {
-    /** The package serving the view. */
-    readonly packageId: PackageId;
-    /** The commands the view registers. */
-    readonly commands: readonly RegisteredCommand[];
-    /** The objects the person selected in the page. */
-    readonly selection: readonly ObjectReference[];
-}
-
-/** The page the palette is framed over, which registers commands and closes the palette. */
+/** The page the palette is framed over, which handles actions and closes the palette. */
 export class ParentPage {
     /** The parent window. */
     readonly #window: Window;
@@ -37,8 +20,8 @@ export class ParentPage {
             : new ParentPage(window.parent, new URL(focus).origin);
     }
 
-    /** List the commands the page's view registers, once the page answers. */
-    list(signal: AbortSignal): Promise<PageCommands> {
+    /** List the actions the page runs now and its selection, once the page answers. */
+    list(signal: AbortSignal): Promise<Extract<PaletteMessage, { action: "actions.listed" }>> {
         return new Promise((resolve, reject) => {
             // take the first listing the page posts from its origin
             const listener = (event: MessageEvent) => {
@@ -48,26 +31,28 @@ export class ParentPage {
                     event.source !== this.#window ||
                     event.origin !== this.#origin ||
                     !message.success ||
-                    message.data.action !== "commands.listed"
+                    message.data.action !== "actions.listed"
                 ) {
                     return;
                 }
-                // stop listening and answer the page's commands
+                // stop listening and answer the page's listing
                 window.removeEventListener("message", listener);
-                const { packageId, commands, selection } = message.data;
-                resolve({ packageId, commands, selection });
+                resolve(message.data);
             };
             window.addEventListener("message", listener, { signal });
             signal.addEventListener("abort", () => reject(signal.reason), { once: true });
 
             // ask for them
-            this.#post({ action: "commands.list" });
+            this.#post({ action: "actions.list" });
         });
     }
 
-    /** Run a command the page's view registers with its input, which closes the palette first. */
-    run(entry: RegisteredEntry, input: JsonObject): void {
-        this.#post({ action: "command.run", name: entry.name, input });
+    /** Run an action the page handles, which closes the palette first. */
+    run(entry: ActionEntry): void {
+        this.#post({
+            action: "action.run",
+            command: { packageId: entry.packageId, name: entry.name },
+        });
     }
 
     /** Close the palette. */

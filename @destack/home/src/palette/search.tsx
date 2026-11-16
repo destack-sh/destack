@@ -144,7 +144,7 @@ function EntryGroups(
             />
             <EntryGroup
                 heading={locale.render(t`Commands`)}
-                entries={[...kind("registered"), ...kind("command")]}
+                entries={[...kind("action"), ...kind("command")]}
                 spaces={properties.spaces}
                 onSelect={properties.onCommand}
             />
@@ -184,7 +184,7 @@ function EntryGroup<Entry extends PaletteEntry>(properties: {
                     <CommandItem value={valueOf(entry)} onSelect={() => properties.onSelect(entry)}>
                         <Show
                             when={
-                                entry.kind === "command" || entry.kind === "registered"
+                                entry.kind === "command" || entry.kind === "action"
                                     ? entry.category
                                     : null
                             }
@@ -197,7 +197,7 @@ function EntryGroup<Entry extends PaletteEntry>(properties: {
                         </Show>
                         <Show
                             when={
-                                entry.kind === "command" || entry.kind === "registered"
+                                entry.kind === "command" || entry.kind === "action"
                                     ? entry.keybinding
                                     : null
                             }
@@ -217,8 +217,8 @@ function valueOf(entry: PaletteEntry): string {
     if (entry.kind === "command") {
         return `${entry.space}/${CommandReference.format(entry)}`;
     }
-    // name a command of the view under the palette by its package and name
-    else if (entry.kind === "registered") {
+    // name an action of the page under the palette by its package and name
+    else if (entry.kind === "action") {
         return `page/${entry.packageId}/${entry.name}`;
     }
     // name a view by its installation

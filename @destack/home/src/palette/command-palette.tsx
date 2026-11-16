@@ -1,12 +1,11 @@
 import { Command } from "@destack/ui/command";
 import { CommandReference } from "@destack/object";
-import type { JsonObject } from "@destack/schema";
 import { SchemaForm } from "@destack/ui/schema-form";
 import { type JSX, Match, Switch } from "@destack/view";
 import type {
     ObjectEntry,
     PaletteFocus,
-    RegisteredEntry,
+    ActionEntry,
     ViewEntry,
     WindowEntry,
 } from "@destack/view/palette";
@@ -28,8 +27,8 @@ export interface CommandPaletteProperties {
     readonly onOpen: (entry: ViewEntry | ObjectEntry) => void;
     /** Bring a window of this computer into focus. */
     readonly onWindow: (entry: WindowEntry) => void;
-    /** Run a command of the view under the palette in its page with its input. */
-    readonly onRegistered: (entry: RegisteredEntry, input: JsonObject) => void;
+    /** Run an action of the page under the palette. */
+    readonly onAction: (entry: ActionEntry) => void;
     /** Close the palette. */
     readonly onClose: () => void;
 }
@@ -40,15 +39,15 @@ export function CommandPalette(properties: CommandPaletteProperties): JSX.Elemen
     const { listing, focus } = properties;
     const running = new PaletteRun(listing, focus, {
         close: properties.onClose,
-        run: properties.onRegistered,
+        run: properties.onAction,
     });
     const asked = listing.entries.find(
         (entry) =>
-            (entry.kind === "command" || entry.kind === "registered") &&
+            (entry.kind === "command" || entry.kind === "action") &&
             properties.command !== undefined &&
             CommandReference.format(entry) === CommandReference.format(properties.command),
     );
-    if (asked?.kind === "command" || asked?.kind === "registered") {
+    if (asked?.kind === "command" || asked?.kind === "action") {
         running.offer(asked);
     }
 

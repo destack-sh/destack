@@ -2,11 +2,11 @@ import { Failure } from "@destack/error";
 import type { Identifier, JsonObject } from "@destack/schema";
 import { type Accessor, createSignal, type Setter } from "@destack/view";
 import { schemaFields } from "@destack/ui/schema-form";
-import { type CommandEntry, PaletteFocus, type RegisteredEntry } from "@destack/view/palette";
+import { type ActionEntry, type CommandEntry, PaletteFocus } from "@destack/view/palette";
 import type { PaletteListing } from "./listing.ts";
 
-/** A command the palette runs: one an installation declares, or one the page under it registers. */
-export type RunEntry = CommandEntry | RegisteredEntry;
+/** What the palette runs: a command an installation declares, or an action of the page under it. */
+export type RunEntry = CommandEntry | ActionEntry;
 
 /** Where running a command stands, from the search to its outcome. */
 export type PaletteStep =
@@ -15,7 +15,7 @@ export type PaletteStep =
     | { readonly kind: "object"; readonly command: CommandEntry }
     | {
           readonly kind: "input";
-          readonly command: RunEntry;
+          readonly command: CommandEntry;
           readonly parameters: JsonObject;
           readonly targets: readonly string[];
       }
@@ -25,9 +25,9 @@ export type PaletteStep =
           readonly input: JsonObject;
           readonly targets: readonly string[];
       }
-    | { readonly kind: "running"; readonly command: RunEntry }
-    | { readonly kind: "done"; readonly command: RunEntry }
-    | { readonly kind: "failed"; readonly command: RunEntry; readonly message: string };
+    | { readonly kind: "running"; readonly command: CommandEntry }
+    | { readonly kind: "done"; readonly command: CommandEntry }
+    | { readonly kind: "failed"; readonly command: CommandEntry; readonly message: string };
 
 /** The run of commands from a palette: its step and the space it narrows to. */
 export class PaletteRun {
@@ -45,8 +45,8 @@ export class PaletteRun {
     readonly #focus: PaletteFocus;
     /** Close the palette. */
     readonly #close: () => void;
-    /** Run a command of the page under the palette, which closes it. */
-    readonly #runInPage: (entry: RegisteredEntry, input: JsonObject) => void;
+    /** Run an action of the page under the palette, which closes it. */
+    readonly #runInPage: (entry: ActionEntry) => void;
 
     /** Start at the search over every space. */
     constructor(
@@ -54,7 +54,7 @@ export class PaletteRun {
         focus: PaletteFocus,
         page: {
             readonly close: () => void;
-            readonly run: (entry: RegisteredEntry, input: JsonObject) => void;
+            readonly run: (entry: ActionEntry) => void;
         },
     ) {
         // start searching every space
@@ -89,11 +89,11 @@ export class PaletteRun {
         }
     }
 
-    /** Run a command: on the focused object or the ones the person picks, else on its scope. */
+    /** Run an action in its page, or a command on the focused objects, picked ones or its scope. */
     run(entry: RunEntry): void {
-        // ask for a page command's input
-        if (entry.kind === "registered") {
-            this.#ask(entry, this.#listing.registered(entry).input ?? {}, []);
+        // run a page action in the page, which closes the palette
+        if (entry.kind === "action") {
+            this.#runInPage(entry);
 
             return;
         }
@@ -129,13 +129,9 @@ export class PaletteRun {
     }
 
     /** Run a command with its input, once the person approves a command removing its targets. */
-    submit(entry: RunEntry, input: JsonObject, targets: readonly string[]): void {
-        // run a page command in the page, which closes the palette
-        if (entry.kind === "registered") {
-            this.#runInPage(entry, input);
-        }
+    submit(entry: CommandEntry, input: JsonObject, targets: readonly string[]): void {
         // ask before removing objects
-        else if (this.#listing.catalog(entry).command(entry).isDestructive) {
+        if (this.#listing.catalog(entry).command(entry).isDestructive) {
             this.#setStep({ kind: "approve", command: entry, input, targets });
         }
         // call it
@@ -160,7 +156,7 @@ export class PaletteRun {
     }
 
     /** Ask for a command's input when it takes any, else submit it. */
-    #ask(entry: RunEntry, parameters: JsonObject, targets: readonly string[]): void {
+    #ask(entry: CommandEntry, parameters: JsonObject, targets: readonly string[]): void {
         if (schemaFields(parameters).length > 0) {
             this.#setStep({ kind: "input", command: entry, parameters, targets });
         } else {
@@ -169,7 +165,7 @@ export class PaletteRun {
     }
 
     /** Show why a command failed. */
-    #fail(entry: RunEntry, error: unknown): void {
+    #fail(entry: CommandEntry, error: unknown): void {
         this.#setStep({ kind: "failed", command: entry, message: Failure.of(error).message });
     }
 }

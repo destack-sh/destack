@@ -19,7 +19,7 @@ import { type Identifier, type JsonObject, type JsonValue, schema, Text } from "
 import { ObjectReference } from "@destack/sync";
 import stackPackage from "@destack/stack/package";
 import { HOME_PATH, VIEW_KIND } from "@destack/view/declare";
-import { type CommandEntry, Palette, type PaletteEntry } from "@destack/view/palette";
+import { type CommandEntry, Keybinding, type PaletteEntry } from "@destack/view/palette";
 import homePackage from "../package.ts";
 import type { Environment } from "@destack/environment";
 
@@ -148,11 +148,12 @@ export class SpaceCatalog {
                 typePackageId: command.object.package.id,
                 type: command.object.name,
                 method: command.method,
-                keybinding: Palette.keybinding(
-                    { packageId, name: command.name },
-                    command.keybinding,
-                    keybindings,
-                ),
+                keybinding:
+                    Keybinding.of(
+                        { packageId, name: DeclarationName.parse(command.name) },
+                        { key: command.keybinding, focus: "page" },
+                        keybindings,
+                    )?.key ?? null,
             }));
 
             // offer each view it mounts but the palette's own page
