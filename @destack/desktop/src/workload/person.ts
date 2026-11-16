@@ -253,7 +253,7 @@ export class Person {
         }
         // close the row of a window the person closed
         else if (event.action === "window.closed") {
-            await this.closed(event.id);
+            await this.closed(schema.identifier("window").parse(event.id));
         }
         // write where the person placed a window once the drag rests
         else if (event.action === "window.moved") {
@@ -261,7 +261,7 @@ export class Person {
         }
         // open a location a window navigated to off its origin
         else if (event.action === "window.navigated") {
-            await this.navigated(event.id, event.url);
+            await this.navigated(schema.identifier("window").parse(event.id), event.url);
         }
         // remember the window in focus while it shows
         else if (event.action === "window.focused") {

@@ -187,30 +187,30 @@ export const Event = schema.discriminatedUnion("action", [
     schema.object({
         /** The person closed a window. */
         action: schema.literal("window.closed"),
-        /** The window's identity. */
-        id: schema.identifier("window"),
+        /** The identity the host opened the window with. */
+        id: schema.string().min(1),
     }),
     schema.object({
         /** A window navigated off its origin, which the shell stopped. */
         action: schema.literal("window.navigated"),
-        /** The window's identity. */
-        id: schema.identifier("window"),
+        /** The identity the host opened the window with. */
+        id: schema.string().min(1),
         /** The location. */
         url: schema.string().min(1),
     }),
     schema.object({
         /** The person moved or resized a window. */
         action: schema.literal("window.moved"),
-        /** The window's identity. */
-        id: schema.identifier("window"),
+        /** The identity the host opened the window with. */
+        id: schema.string().min(1),
         /** Where the window sits now. */
         bounds: WindowBounds,
     }),
     schema.object({
         /** A window came into focus. */
         action: schema.literal("window.focused"),
-        /** The window's identity. */
-        id: schema.identifier("window"),
+        /** The identity the host opened the window with. */
+        id: schema.string().min(1),
     }),
 
     // banners
