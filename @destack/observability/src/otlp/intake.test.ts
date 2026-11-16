@@ -39,7 +39,7 @@ const BROWSER = {
     [EMITTER_ATTRIBUTES.userAgent]: "Mozilla/5.0 (Macintosh)",
 };
 
-test("append an export through the otlp mount as the machine forwarding it, and conceal the append from a member not serving the space", async () => {
+test("append an export the machine forwards, and refuse a member's export as not found", async () => {
     await using fixture = await TestObservability.open();
     const now = fixture.clock.now();
 
@@ -81,7 +81,7 @@ test("append an export through the otlp mount as the machine forwarding it, and 
     });
 });
 
-test("group an export's failures in the transaction appending it, opening no issue for a refused append", async () => {
+test("open no issue and keep no record for a refused exception append", async () => {
     await using fixture = await TestObservability.open();
 
     // post a failure as the member, who serves nothing, so its append is refused
@@ -106,7 +106,7 @@ test("group an export's failures in the transaction appending it, opening no iss
     });
 });
 
-test("count an exception exported twice at once a single time, as the issue records each occurrence once", async () => {
+test("count an exception posted twice concurrently once", async () => {
     await using fixture = await TestObservability.open();
     const exported = fixture.emitter.exceptions([
         fixture.renameFailure(fixture.clock.now(), "dana"),
@@ -128,7 +128,7 @@ test("count an exception exported twice at once a single time, as the issue reco
     });
 });
 
-test("keep an issue ignored for good through further failures, reopen it until its next failure, and refuse a revision of another installation", async () => {
+test("keep an ignored issue ignored through failures, reopen it, and refuse resolving it until a foreign revision or a past count", async () => {
     await using fixture = await TestObservability.open();
     const now = fixture.clock.now();
     const client = fixture.member.client(observabilityPackage);
@@ -194,7 +194,7 @@ test("keep an issue ignored for good through further failures, reopen it until i
     });
 });
 
-test("group failures logged and annotated on spans into an issue at their declaration, counting each carrying record once, and regress it once resolved", async () => {
+test("group logged and span-annotated failures into one issue by declaration, skip declared outcomes, and regress it once resolved", async () => {
     await using fixture = await TestObservability.open();
     const now = fixture.clock.now();
     const trace = `${now.toString(16).padStart(12, "0")}${"a".repeat(20)}`;
@@ -436,7 +436,7 @@ test("keep a page's visits and actions apart from its logs, its visitor a hash o
     });
 });
 
-test("record each session's end with its build and status, keying its records by session, so release health counts crashed sessions per build", async () => {
+test("record session ends by build and status, and key a session's records by it", async () => {
     await using fixture = await TestObservability.open();
     const now = fixture.clock.now();
 

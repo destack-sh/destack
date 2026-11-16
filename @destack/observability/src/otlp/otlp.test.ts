@@ -66,7 +66,7 @@ function decode(signal: "logs" | "metrics", body: unknown) {
     return refusal(OtlpResource.decode(new OtlpExport(signal, body), ids.space, testHost().crypto));
 }
 
-test("read a resource's spans and records under the emitter its forwarder names, keying their session and sealing personal attributes only under a person", async () => {
+test("decode spans and records under the forwarder's emitter, keeping personal attributes only under a person", async () => {
     // read a span for dana in her session and two records, one of them for nobody, in the notes instance's resource
     const [traced] = await OtlpResource.decode(
         new OtlpExport(
@@ -210,7 +210,7 @@ test("identify the same records alike in one scope and apart across scopes, and 
     });
 });
 
-test("refuse records and points missing what their kind requires", async () => {
+test("refuse log records and metric points missing what their kind requires, and an explicit-bucket histogram", async () => {
     // read a logs export of one record, then of the same record without its time
     const logs = (records: readonly TestLog[]) => decode("logs", emitter.logs(records));
     const timed = emitter.logs([{ time: START, name: "note.saved", severity: 9 }]);

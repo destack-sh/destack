@@ -31,7 +31,7 @@ const exception = (
         grouping,
     });
 
-test("fingerprint by error type and in-app symbols across lines and recursion, else by message, unless the capture asks for a grouping", async () => {
+test("fingerprint by error type and in-app symbols, else by message, or by the capture's grouping", async () => {
     const symbols = [frame("#Note.rename"), frame("#check")];
     const moved = [frame("#Note.rename", 40), frame("#Note.rename", 41), frame("#check", 80)];
     const dependency = [{ file: "b.js", line: 1, column: 1, isInApp: false }];

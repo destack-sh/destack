@@ -250,7 +250,7 @@ test("refuse a rule calling an installation once the space's owner withdraws obs
     ]);
 });
 
-test("make the manager who last sets a rule's condition or actions its author, whom its calls act as", async () => {
+test("make the last manager to set a rule's condition or actions its author, and call as that author", async () => {
     // let the member create a rule notifying of an error count
     await using fixture = await TestObservability.open();
     const now = fixture.clock.now();
@@ -312,7 +312,7 @@ test("make the manager who last sets a rule's condition or actions its author, w
     });
 });
 
-test("declare alert rules as code through the space's stack, checking each rule as it applies", async () => {
+test("declare alert rules through the space's stack, and refuse a declared rule over an unserved type", async () => {
     await using fixture = await TestObservability.open();
 
     // declare an error count rule through the stack
