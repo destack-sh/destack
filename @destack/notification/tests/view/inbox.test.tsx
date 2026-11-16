@@ -1,12 +1,11 @@
 import germanCatalog from "../../locale/de.json" with { type: "json" };
 import { Catalog, Localization, SOURCE_LOCALE, t } from "@destack/locale";
 import { expect, onTestFinished, test } from "@destack/test";
-import { Loading, type JSX } from "@destack/view";
+import { ActionRegistry, Loading, type JSX } from "@destack/view";
 import { renderView } from "@destack/view/test";
 import { NotificationBadge, NotificationInbox } from "../../src/view/index.ts";
 import { openHome, type Home } from "./home.ts";
 import type {} from "@destack/package/import-meta";
-import { CommandRegistry } from "@destack/view/palette";
 
 /** The German catalog this package ships of its built-in messages. */
 const GERMAN = Catalog.of("locale/de.json", germanCatalog, t`Unread`.package);
@@ -30,7 +29,7 @@ function drawInHome(
                 context: home.context,
                 clients: new Map(Object.entries(home.clients)),
                 packages: new Map(),
-                commands: new CommandRegistry(),
+                actions: new ActionRegistry(),
                 origin: (path) => {
                     throw new TypeError(`the inbox cannot call '${path}'`);
                 },
