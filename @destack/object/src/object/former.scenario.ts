@@ -23,7 +23,7 @@ export const renameKeys = defineScenario({
             times: "{calls}",
             warmup: "{calls}",
             step: { call: "team.update", as: "alice", input: { id: "$teams.{n}", key: "new{n}" } },
-            then: [{ metric: { name: "db.client.operation.duration" }, atMost: 17 }],
+            then: [{ metric: { name: "db.client.operation.duration" }, atMost: 16 }],
         },
         {
             operation: "team.get",

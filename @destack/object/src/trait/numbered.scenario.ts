@@ -28,7 +28,7 @@ export const numberIssues = defineScenario({
                 input: { teamId: "$teams.0", title: "issue {n}" },
                 bind: "issues",
             },
-            then: [{ metric: { name: "db.client.operation.duration" }, atMost: 14 }],
+            then: [{ metric: { name: "db.client.operation.duration" }, atMost: 13 }],
         },
         {
             operation: "issue.update",
@@ -39,7 +39,7 @@ export const numberIssues = defineScenario({
                 as: "alice",
                 input: { id: "$issues.{n}", teamId: "$teams.1" },
             },
-            then: [{ metric: { name: "db.client.operation.duration" }, atMost: 16 }],
+            then: [{ metric: { name: "db.client.operation.duration" }, atMost: 15 }],
         },
     ],
     then: [{ observe: { count: "issue" }, is: 20 }],

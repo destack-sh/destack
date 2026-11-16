@@ -33,7 +33,7 @@ export const archiveIssues = defineScenario({
             times: "{calls}",
             warmup: "{calls}",
             step: { call: "issue.archive", as: "alice", input: { id: "$issues.{n}" } },
-            then: [{ metric: { name: "db.client.operation.duration" }, atMost: 13 }],
+            then: [{ metric: { name: "db.client.operation.duration" }, atMost: 12 }],
         },
         {
             operation: "issue.list",
@@ -47,7 +47,7 @@ export const archiveIssues = defineScenario({
             times: "{calls}",
             warmup: "{calls}",
             step: { call: "issue.unarchive", as: "alice", input: { id: "$issues.{n}" } },
-            then: [{ metric: { name: "db.client.operation.duration" }, atMost: 12 }],
+            then: [{ metric: { name: "db.client.operation.duration" }, atMost: 11 }],
         },
     ],
     then: [{ observe: { count: "issue" }, is: 20 }],
