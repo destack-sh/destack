@@ -10,14 +10,14 @@ import { type DatabaseConnection, eq, Snapshot } from "@destack/db";
 import { reference, referenceShape } from "@destack/registry/object";
 import type { BuildReader } from "@destack/package/manifest";
 import { MemoryBuild } from "@destack/package/test";
-import { Commit, Identifier, present, schema } from "@destack/schema";
+import { Commit, present, schema } from "@destack/schema";
 import { ObjectReference, RequestId } from "@destack/sync";
-import { build, installationRevision } from "@destack/stack/object";
+import { build, installationRevision, rollout } from "@destack/stack/object";
 import stackPackage from "@destack/stack/package";
 import objectPackage from "@destack/object/package";
 import { ids, reconcile, TestSpace } from "@destack/machine/test";
 import { expect, refusal, test } from "@destack/test";
-import { installation, Shape } from "@destack/object";
+import { Shape } from "@destack/object";
 
 /** The branch the installations follow. */
 const MAIN = "refs/heads/main";
@@ -71,7 +71,9 @@ async function serveCommits() {
     const store = await fixture.store();
     const follow = () => fixture.simulation.idle();
     const reconcileTwice = (id: string) =>
-        Promise.all([0, 1].map(() => reconcile(store, "rollout", { installationId: id })));
+        Promise.all(
+            [0, 1].map(() => reconcile(store, "destack.rollout.resume", { installationId: id })),
+        );
 
     // create a platform repository of the space's account at the forge, as the account's owner
     const forge = (await residency.serve())
@@ -198,12 +200,12 @@ test("build the commit a followed reference resolves to once for the installatio
     await follow();
     const [followed] = await database
         .select({ buildId: installationRevision.table.buildId })
-        .from(installation.table)
+        .from(rollout.table)
         .innerJoin(
             installationRevision.table,
-            eq(installationRevision.table.id, installation.table.revisionId),
+            eq(installationRevision.table.id, rollout.table.targetRevisionId),
         )
-        .where(eq(installation.table.id, installed.id));
+        .where(eq(rollout.table.installationId, installed.id));
     const [only] = await commitBuilds(database);
 
     expect({
@@ -247,9 +249,9 @@ test("request one replica of the references a space's installations follow, from
     ).toEqual([Shape.subscription(home, [{ shape: referenceShape, keys }], ids.space)]);
 });
 
-test("refuse an installation following a reference of another account's repository, when created, updated or submitted", async () => {
+test("refuse an installation following a reference of another account's repository, when created or updated", async () => {
     // push the main branch of another account's repository
-    const { fixture, home, forge, owner, installer, follows, install, move, environment } =
+    const { fixture, home, forge, installer, follows, install, move, environment } =
         await serveCommits();
     await move();
     const other = schema
@@ -286,7 +288,7 @@ test("refuse an installation following a reference of another account's reposito
     expect(await refusal(create(foreign))).toEqual(unreadable(foreign.id));
     const installed = await install("site");
 
-    // refuse moving it to another account's repository by an update or a submission
+    // refuse moving it to another account's repository
     const update = installer.installation.update({
         scope: ids.space,
         id: installed.id,
@@ -294,18 +296,7 @@ test("refuse an installation following a reference of another account's reposito
         revision: installed.revision,
         ...ObjectReference.columns("follows", foreign),
     });
-    const submit = owner.rollout.submit({
-        spaceId: ids.space,
-        id: installed.id,
-        requestId: RequestId.create(environment),
-        follows: foreign,
-        directory: ".",
-        build: { kind: "build", build: Identifier.create("build", environment) },
-    });
-    expect(await Promise.all([refusal(update), refusal(submit)])).toEqual([
-        unreadable(foreign.id),
-        unreadable(foreign.id),
-    ]);
+    expect(await refusal(update)).toEqual(unreadable(foreign.id));
 });
 
 test("cancel the unfinished build of a commit a newer commit of the selected branch supersedes, and build a commit followed again anew", async () => {
