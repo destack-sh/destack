@@ -18,7 +18,7 @@ import {
     TestVault,
     VAULT_PERMISSIONS,
 } from "../test/index.ts";
-import { secretBindable } from "./secret.ts";
+import { secretBindingKind } from "./secret.ts";
 
 /** The recovery window a machine gives deleted secrets, in milliseconds. */
 const RECOVERY_MILLISECONDS = Duration.milliseconds(SECRET_RECOVERY);
@@ -306,7 +306,7 @@ test("rotate a generated secret to a new value of its algorithm, a capture of it
         .select()
         .from(secretVersion.table)
         .orderBy(secretVersion.table.number);
-    const uses = await secretBindable.uses(
+    const uses = await secretBindingKind.uses(
         { scope: ids.space, target: row.id, version: 2 },
         Snapshot.live(database),
     );
@@ -619,12 +619,12 @@ test("generate a declared key in the vault its installation binds, and read what
         .map((entry) => ({ installationId: entry.installationId, name: entry.name }));
     const snapshot = Snapshot.live(database);
     const uses = (captured: number | null) =>
-        secretBindable.uses({ scope: ids.space, target: row.id, version: captured }, snapshot);
+        secretBindingKind.uses({ scope: ids.space, target: row.id, version: captured }, snapshot);
     expect({
         secret: [row.parentId, row.name, row.currentVersion],
         key: [jwk.kty, jwk.crv, jwk.alg],
         bound,
-        versions: [secretBindable.version(row, null), secretBindable.version(row, 3)],
+        versions: [secretBindingKind.version(row, null), secretBindingKind.version(row, 3)],
         uses: [await uses(null), await uses(1)],
     }).toEqual({
         secret: [await fixture.vault(), "key", 1],
@@ -671,8 +671,8 @@ test("read a bound secret in process as its installation, and refuse another ins
     const strayBinding = await keyOf(otherInstallation);
     const strayId = strayBinding.target;
     const ownBinding = await keyOf(fixture.installation);
-    const own = await secretBindable.connect(store, row, ownBinding);
-    const stray = await secretBindable.connect(store, row, strayBinding);
+    const own = await secretBindingKind.connect(store, row, ownBinding);
+    const stray = await secretBindingKind.connect(store, row, strayBinding);
 
     // read its own key's stored value, and find no secret of the other's, which it may not see
     const read = await own.read();

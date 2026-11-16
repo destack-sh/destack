@@ -3,7 +3,7 @@ import { SECRET_KIND } from "@destack/stack/declare";
 import { AccessContext, Caller, principal } from "@destack/access";
 import { Duration, nth, schema } from "@destack/schema";
 import { Binding } from "@destack/stack/object";
-import type { ObjectBindable } from "@destack/stack/object";
+import type { ObjectBindingKind } from "@destack/stack/object";
 import { VAULT_PROVIDER } from "../declare/kind.ts";
 import { SecretDescription } from "../declare/secret.ts";
 import { ROTATION_OVERLAP, secret, secretVersion } from "../object/index.ts";
@@ -196,7 +196,7 @@ export function implementSecretVersion(): typeof secretVersion {
 }
 
 /** Secrets that deployments capture at their current version or at a binding's fixed one. */
-export const secretBindable: ObjectBindable<typeof secret, Secret> = {
+export const secretBindingKind: ObjectBindingKind<typeof secret, Secret> = {
     object: secret,
     used: [secret, secretVersion],
     kind: SECRET_KIND,
