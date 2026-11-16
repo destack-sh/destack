@@ -217,6 +217,7 @@ async function openReplica(
         database,
         environment: context.environment,
         origin: { package: relayPackage },
+        report: context.report,
     });
 }
 
