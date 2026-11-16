@@ -781,7 +781,7 @@ test("record a projection's lasting failure and its sync on the controlled objec
     });
 });
 
-test("project a type's objects at a start, then each one its own or a watched input's change touches, and every one again at a restart", async () => {
+test("project a type's objects at the first start, then each one its own or a watched input's change touches, and none at an unchanged restart", async () => {
     // run in a world of its own
     const world = testSimulation().environment("test");
 
@@ -816,7 +816,7 @@ test("project a type's objects at a start, then each one its own or a watched in
     onTestFinished(() => storage.close());
     const database = storage.database;
     await openSpace(database, world, spaceId);
-    const store = await TestObjectStore.receive(space.reference(Scope.universe.id, spaceId), {
+    const options = {
         chain: async () => undefined,
         environment: world,
         principal: spacePrincipal(spaceId),
@@ -825,35 +825,38 @@ test("project a type's objects at a start, then each one its own or a watched in
         callKey: testCallKey,
         events: await testEvents(database, world),
         origin: { package: reminder.package },
-    });
+    };
+    const scope = space.reference(Scope.universe.id, spaceId);
+    const store = await TestObjectStore.receive(scope, options);
     const access = userContext(users.frank, spaceId, { environment: world }).access();
     const later = world.clock.now() + 86_400_000;
     const mutate = (calls: Parameters<typeof store.mutate>[1]["calls"]) =>
         store.mutate(access, { id: RequestId.create(world), calls });
 
-    // project the existing reminder at the start, due a day later so the type's controller leaves it
+    // project the existing reminder at the first start, due a day later so the type's controller leaves it
     await mutate([reminder.call("create", { spaceId, topic: "tea", dueAt: later })]);
-    const stopping = new AbortController();
-    const running = store.run(stopping.signal);
-    await store.idle();
+    await settleControl(store);
     const first = projected.splice(0);
 
-    // project a created reminder, then the reminder a gate's topic names, while running
+    // project a created reminder, then the reminder a gate's topic names, across restarts
     await mutate([reminder.call("create", { spaceId, topic: "cake", dueAt: later })]);
-    await store.idle();
+    await settleControl(store);
     const created = projected.splice(0);
     await mutate([gate.call("create", { spaceId, outcome: "tea" })]);
-    await store.idle();
-    const watched = projected.splice(0);
-    stopping.abort();
-    await running;
-
-    // project every reminder again at a restart, as the process may have changed
     await settleControl(store);
-    expect({ first, created, watched, restarted: projected.toSorted() }).toEqual({
+    const watched = projected.splice(0);
+    await settleControl(store);
+    const unchanged = projected.splice(0);
+
+    // project every reminder again in a process configured otherwise
+    const configured = await TestObjectStore.receive(scope, { ...options, configuration: "other" });
+    await settleControl(configured);
+    const reconfigured = projected.splice(0).toSorted();
+    expect({ first, created, watched, unchanged, reconfigured }).toEqual({
         first: ["tea"],
         created: ["cake"],
         watched: ["tea"],
-        restarted: ["cake", "tea"],
+        unchanged: [],
+        reconfigured: ["cake", "tea"],
     });
 });

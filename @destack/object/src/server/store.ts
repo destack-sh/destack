@@ -66,6 +66,7 @@ import type { CallKey } from "../audit/key.ts";
 import {
     nth,
     canonicalize,
+    Digest,
     Duration,
     Identifier,
     type JsonObject,
@@ -139,6 +140,9 @@ import type { MountFetch, PackageImplementation } from "./implementation.ts";
 import type { Clock, Environment } from "@destack/environment";
 
 import type {} from "@destack/package/import-meta";
+
+/** The prefix of the store loop's log position, which a digest of its projections completes. */
+const POSITION_PREFIX = "control:";
 
 /** The recent pages sharing grant readers: 64 readers of a few KiB, well under a megabyte. */
 const SHARED_READERS = 64;
@@ -419,6 +423,8 @@ interface StoreComposition {
     readonly partitions?: readonly string[];
     /** The package recording the calls. */
     readonly origin: Omit<AuditOrigin, "scope">;
+    /** What the process's jobs read beyond the database, such as its linked releases. */
+    readonly configuration?: JsonValue;
     /** The claim type recording the names of unique indexes, and the store serving it. */
     readonly claims?: ClaimPrimary;
     /** The installations serving objects and their implementing packages, by type key. */
@@ -477,6 +483,8 @@ export class ObjectStore {
     readonly #journal: Journal | undefined;
     /** The package the store serves, as the audit records it. */
     readonly origin: Omit<AuditOrigin, "scope">;
+    /** What the process's jobs read beyond the database, which names the loop's position. */
+    readonly #configuration: JsonValue;
     /** The feed serving every sync. */
     readonly feed: sync.Feed;
     /** The claim type recording the names of the served objects' unique indexes. */
@@ -580,6 +588,7 @@ export class ObjectStore {
         this.connect = given.connect;
         this.isAccessAudited = given.isAccessAudited ?? false;
         this.origin = { ...given.origin, package: PackageVersion.of(given.origin.package) };
+        this.#configuration = given.configuration ?? null;
         this.#report = given.report ?? ((error) => ObjectStore.#rethrow(error));
         this.#instruments = TelemetryScope.of(
             import.meta.destack.package,
@@ -2381,6 +2390,20 @@ export class ObjectStore {
                 ...(options.sets?.() ?? []).map((set) => this.#synced(set)),
             ];
 
+            // name the loop's position by what its projections are and read beyond the log
+            const projections = sets.flatMap((set) => set.projections.map((each) => each.name));
+            const packages = [...this.objects, ...this.#catalog.provisioned].map(
+                (object) => `${object.package.id}@${object.package.version}`,
+            );
+            const read = {
+                projections: projections.toSorted(),
+                packages: [...new Set(packages)].toSorted(),
+                store: import.meta.destack.package.version,
+                configuration: this.#configuration,
+            };
+            const digest = await Digest.json(read, this.environment.crypto);
+            const position = `${POSITION_PREFIX}${digest}`;
+
             // run the loop until stopped or reloaded
             const loop = new ControlLoop(this.database, sets, {
                 report:
@@ -2390,6 +2413,7 @@ export class ObjectStore {
                             new Error(`'${job.name}' did not reconcile '${key}'`, { cause: error }),
                         );
                     }),
+                position,
                 ...(options.alarm === undefined ? {} : { alarm: options.alarm }),
             });
             this.#loop.resolve({ loop, reloading: reloading.signal });

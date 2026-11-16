@@ -23,7 +23,7 @@ export const runEachVerb = defineScenario({
                 input: { name: "book {n}" },
                 bind: "books",
             },
-            then: [{ metric: { name: "db.client.operation.duration" }, atMost: 12 }],
+            then: [{ metric: { name: "db.client.operation.duration" }, atMost: 14 }],
         },
         {
             operation: "notebook.get",
@@ -59,7 +59,7 @@ export const runEachVerb = defineScenario({
                 as: "alice",
                 input: { parentId: "$books.{n}", title: "note {n}" },
             },
-            then: [{ metric: { name: "db.client.operation.duration" }, atMost: 13 }],
+            then: [{ metric: { name: "db.client.operation.duration" }, atMost: 14 }],
         },
         {
             operation: "notebook.delete",

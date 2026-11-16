@@ -233,6 +233,7 @@ export const ObjectController = {
                 ObjectController.released(),
             ],
             all,
+            result: "rows",
             project: async (key, reconciliation) => {
                 // project an absent object or one of the store's scopes, left to its home where it is a replica
                 const rows = await store.database
