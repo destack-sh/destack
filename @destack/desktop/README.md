@@ -84,6 +84,59 @@ The shell is a Tauri process on the host's private pipes, one JSON line per comm
 | `application.reopened`                            | the desktop was launched again                |
 | `shell.failed`                                    | a command or native step failed               |
 
+## Examples
+
+### Link to a view
+
+`format` writes a view's deep link under the stage's scheme, and leaves out the view's root location.
+
+```ts
+import { Link } from "@destack/desktop";
+import { Stage } from "@destack/update/release";
+
+// link to the open projects on a space's task board
+export const href = Link.of(Stage.of("production")).format({
+    space: "work--acme",
+    installation: "tasks",
+    view: "board",
+    path: "/projects?filter=open",
+});
+```
+
+### Read a deep link
+
+`parse` reads the view or object a link opens, and nothing for a link of another scheme.
+
+```ts
+import { Link } from "@destack/desktop";
+import { Stage } from "@destack/update/release";
+
+/** Read the name a deep link's window shows under, absent for a link of another stage. */
+export function windowTitle(href: string): string | undefined {
+    const address = Link.of(Stage.of("production")).parse(href);
+
+    return address === undefined ? undefined : Link.title(address);
+}
+```
+
+### Drive the shell
+
+A host talks to the shell over its standard output and input, one command or event per line.
+
+```ts
+import { Shell } from "@destack/desktop";
+import { BunEnvironment } from "@destack/environment/bun";
+
+/** Show an unread count on the app icon, then log the shell's events until it closes. */
+export async function showUnread(count: number) {
+    const shell = Shell.of(BunEnvironment.system.process);
+    await shell.send({ action: "badge.set", count });
+    for await (const event of shell.events()) {
+        console.log(event);
+    }
+}
+```
+
 ## Comparison
 
 ### Tauri
