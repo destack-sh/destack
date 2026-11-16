@@ -1,5 +1,5 @@
 /** The events a worker sends its parent: its messages, and its failure to load or run. */
-export interface WorkerEvents {
+export interface WorkerEventMap {
     /** A message the worker sent. */
     readonly message: MessageEvent;
     /** The worker's failure to load or run, as the platform's `ErrorEvent` has it. */
@@ -11,9 +11,9 @@ export interface WorkerThread {
     /** Send the worker a message. */
     readonly postMessage: (message: unknown) => void;
     /** Take each event of a type the worker sends. */
-    readonly addEventListener: <Type extends keyof WorkerEvents>(
+    readonly addEventListener: <Type extends keyof WorkerEventMap>(
         type: Type,
-        listener: (event: WorkerEvents[Type]) => void,
+        listener: (event: WorkerEventMap[Type]) => void,
     ) => void;
     /** Stop the worker at once. */
     readonly terminate: () => void;

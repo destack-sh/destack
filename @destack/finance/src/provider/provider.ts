@@ -95,8 +95,8 @@ export interface Order {
     readonly prices: readonly { readonly price: string; readonly quantity: number }[];
 }
 
-/** The pages a checkout returns its buyer to. */
-export interface CheckoutPages {
+/** The pages a checkout redirects its buyer to. */
+export interface CheckoutRedirect {
     /** The page after a completed checkout. */
     readonly successUrl: string;
     /** The page after a canceled checkout. */
@@ -131,7 +131,7 @@ export interface PaymentProvider {
     /** Open the onboarding page of a seller's connected account. */
     readonly onboard: (
         seller: string,
-        pages: { readonly returnUrl: string; readonly refreshUrl: string },
+        redirect: { readonly returnUrl: string; readonly refreshUrl: string },
     ) => Promise<string>;
     /** Store a customer's billing details, returning the provider's identifier. */
     readonly upsertCustomer: (customer: Customer, key: string) => Promise<string>;
@@ -143,7 +143,7 @@ export interface PaymentProvider {
     /** Open a checkout of an order, returning the provider's session identifier and page. */
     readonly checkout: (
         order: Order,
-        pages: CheckoutPages,
+        redirect: CheckoutRedirect,
         key: string,
     ) => Promise<{ readonly providerId: string; readonly url: string }>;
     /** Expire an open checkout session, or report it complete once its buyer paid. */

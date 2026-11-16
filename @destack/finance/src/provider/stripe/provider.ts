@@ -1,7 +1,7 @@
 import type { ExternalClient } from "@destack/resource";
 import { schema } from "@destack/schema";
 import type {
-    CheckoutPages,
+    CheckoutRedirect,
     InvoiceLine,
     Order,
     PaymentProvider,
@@ -70,13 +70,13 @@ export class StripeProvider implements PaymentProvider {
     /** Open an account link onboarding a connected account. */
     async onboard(
         seller: string,
-        pages: { readonly returnUrl: string; readonly refreshUrl: string },
+        redirect: { readonly returnUrl: string; readonly refreshUrl: string },
     ): Promise<string> {
         const link = await this.#client.request("POST", "/v1/account_links", {
             account: seller,
             type: "account_onboarding",
-            return_url: pages.returnUrl,
-            refresh_url: pages.refreshUrl,
+            return_url: redirect.returnUrl,
+            refresh_url: redirect.refreshUrl,
         });
 
         return schema.looseObject({ url: schema.string() }).parse(link).url;
@@ -146,7 +146,7 @@ export class StripeProvider implements PaymentProvider {
     /** Open a Checkout session paying the seller, taxed by Stripe Tax. */
     async checkout(
         order: Order,
-        pages: CheckoutPages,
+        redirect: CheckoutRedirect,
         key: string,
     ): Promise<{ readonly providerId: string; readonly url: string }> {
         // transfer a connected seller's charges, and leave the platform's own
@@ -162,8 +162,8 @@ export class StripeProvider implements PaymentProvider {
                 subscription_data: transfer,
                 automatic_tax: { enabled: true },
                 customer_update: { address: "auto" },
-                success_url: pages.successUrl,
-                cancel_url: pages.cancelUrl,
+                success_url: redirect.successUrl,
+                cancel_url: redirect.cancelUrl,
             },
             key,
         );

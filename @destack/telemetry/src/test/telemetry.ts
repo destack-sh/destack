@@ -1,6 +1,7 @@
 import { AsyncLocalStorageContextManager } from "@opentelemetry/context-async-hooks";
 import type { ReadableLogRecord } from "@opentelemetry/sdk-logs";
 import type { Environment } from "@destack/environment";
+import type { SimulatedTelemetry } from "@destack/environment/simulation";
 import { schema } from "@destack/schema";
 import { Telemetry, type TelemetryOptions } from "../sdk/index.ts";
 
@@ -26,21 +27,15 @@ export interface CapturedRecord {
     readonly attributes: Readonly<Record<string, unknown>>;
 }
 
-/** The log records a world's telemetry keeps, as a world's SimulatedTelemetry has them. */
-export interface RecordedLogs {
-    /** The log records emitted so far, oldest first. */
-    readonly logs: readonly ReadableLogRecord[];
-}
-
 /** The records a test reads back from a world's telemetry, refusing exceptions no test took. */
 export class TestTelemetry implements Disposable {
     /** The world's telemetry. */
-    readonly #recorded: RecordedLogs;
+    readonly #recorded: Pick<SimulatedTelemetry, "logs">;
     /** The records a test took already, which later reads skip. */
     #taken = 0;
 
     /** Read back the records a world's telemetry keeps, from now on. */
-    constructor(recorded: RecordedLogs) {
+    constructor(recorded: Pick<SimulatedTelemetry, "logs">) {
         this.#recorded = recorded;
         this.#taken = recorded.logs.length;
     }

@@ -14,7 +14,7 @@ import { Sandbox } from "@destack/package";
 import type { Digest } from "@destack/schema";
 import { MachineError } from "../error/index.ts";
 import { BUILD_PATH } from "./origin.ts";
-import { HEADERS_FILE, StaticHost, ViewAssets } from "./host.ts";
+import { HEADERS_FILE, StaticHost, AssetIndex } from "./host.ts";
 
 /** The headers of a dependency build's files, which never change under its digest. */
 const BUILD_HEADERS = "  Cache-Control: public, max-age=31536000, immutable";
@@ -83,7 +83,7 @@ export class StaticExport {
         }
 
         // write each asset the builds emit below the asset path, by its name
-        const assets = await ViewAssets.of(closure.builds, (digest) =>
+        const assets = await AssetIndex.of(closure.builds, (digest) =>
             this.#builds.contents(digest),
         );
         for (const [name, asset] of assets.files) {

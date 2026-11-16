@@ -1,7 +1,7 @@
 import { testSimulation } from "@destack/test/world";
 import { createContextKey, ROOT_CONTEXT, SpanKind, trace } from "@opentelemetry/api";
 import { expect, test } from "@destack/test";
-import { TraceHeaders } from "./headers.ts";
+import { Telemetry } from "./telemetry.ts";
 
 test("join a client span and its server span in one trace across inject and extract on a world", async () => {
     // start a client span on the world's telemetry and inject its context into outgoing headers
@@ -10,14 +10,12 @@ test("join a client span and its server span in one trace across inject and extr
     const tracer = telemetry.tracers.getTracer("@example/notes");
     const client = tracer.startSpan("note.sync", { kind: SpanKind.CLIENT });
     const headers = new Headers();
-    TraceHeaders.inject(headers, telemetry, trace.setSpan(telemetry.context.active(), client));
+    Telemetry.inject(headers, telemetry, trace.setSpan(telemetry.context.active(), client));
 
     // extract it on the server side, carrying nothing of the server's active context
     const inherited = createContextKey("inherited");
     const active = ROOT_CONTEXT.setValue(inherited, true);
-    const extracted = telemetry.context.with(active, () =>
-        TraceHeaders.extract(headers, telemetry),
-    );
+    const extracted = telemetry.context.with(active, () => Telemetry.extract(headers, telemetry));
     const server = tracer.startSpan("note.receive", { kind: SpanKind.SERVER }, extracted);
     server.end();
     client.end();

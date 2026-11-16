@@ -54,7 +54,7 @@ interface LockHold {
 }
 
 /** One origin's locks, shared by every node of a browser simulation, granted in request order. */
-export class SimulatedLocks {
+export class LockTable {
     /** The holders of each lock by name. */
     readonly #held = new Map<string, LockHold[]>();
     /** The waiting requests of each lock by name, oldest first. */
@@ -485,7 +485,7 @@ export class BrowserSimulation {
     /** Each node's browser environment, made once. */
     readonly #environments = new Map<string, SimulatedBrowserEnvironment>();
     /** The origin's locks every node shares. */
-    readonly locks = new SimulatedLocks();
+    readonly locks = new LockTable();
     /** The origin's broadcast channels every node shares, with what their listeners threw. */
     readonly broadcast: SimulatedBroadcast;
 

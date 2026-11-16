@@ -84,7 +84,7 @@ const SUBJECTS: Relation = {
 type ChainTable = [Table, Condition | undefined, readonly string[]];
 
 /** A caller's permitted rows of a set by position, and the next time they change. */
-export interface PermittedRows {
+export interface RowAccess {
     /** The positions of the rows the caller has the permission on. */
     readonly permitted: ReadonlySet<number>;
     /** The next time the permitted rows may change. */
@@ -1891,7 +1891,7 @@ export class Authorizer {
         rows: readonly Row[],
         reader = this.reader(snapshot, access.scopes),
         below: ReadonlyMap<string, Access> = new Map(),
-    ): Promise<PermittedRows> {
+    ): Promise<RowAccess> {
         return this.scope(snapshot.database).span("destack.access.filter", {}, () =>
             this.#checkRows(snapshot, permission, access, rows, reader, below),
         );
@@ -1905,7 +1905,7 @@ export class Authorizer {
         rows: readonly Row[],
         reader: Reader,
         below: ReadonlyMap<string, Access>,
-    ): Promise<PermittedRows> {
+    ): Promise<RowAccess> {
         // decide each row by the caller's access in the row's scope
         const mapping = this.requireMapping(permission);
         const accesses = rows.map((row) => below.get(TableMapping.scope(mapping, row)) ?? access);

@@ -23,7 +23,7 @@ import { Role, type RolePermission } from "../role/role.ts";
 import { accessRole, accessRolePermission } from "../role/table.ts";
 
 import type { Access } from "./access.ts";
-import type { PermittedRows, Authorizer } from "./authorizer.ts";
+import type { RowAccess, Authorizer } from "./authorizer.ts";
 import type { Decision } from "./decision.ts";
 import type { Reader } from "./tuple.ts";
 
@@ -218,7 +218,7 @@ export class Authorization {
         rows: readonly Row[],
         reader?: Reader,
         below?: ReadonlyMap<string, Access>,
-    ): Promise<PermittedRows> {
+    ): Promise<RowAccess> {
         const access = await this.in(scope);
 
         return this.authorizer.checkRows(this.snapshot, permission, access, rows, reader, below);

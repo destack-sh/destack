@@ -16,7 +16,7 @@ import {
     START,
 } from "../../test/fixture.ts";
 import { Follower } from "./replica.ts";
-import { evaluate, type Contents } from "./oracle.ts";
+import { evaluate, type SubscriberState } from "./oracle.ts";
 import type { ConditionAudience } from "./audience.ts";
 import { AUDIENCE } from "./query.ts";
 import { Random } from "./random.ts";
@@ -155,7 +155,7 @@ async function matchExactly(run: Run): Promise<void> {
 }
 
 /** Sort some contents for comparison. */
-function sorted(contents: Contents): [Record<string, unknown>, Record<string, unknown>] {
+function sorted(contents: SubscriberState): [Record<string, unknown>, Record<string, unknown>] {
     return [
         Object.fromEntries(
             [...contents.rows].toSorted(([left], [right]) => (left < right ? -1 : 1)),
@@ -167,7 +167,7 @@ function sorted(contents: Contents): [Record<string, unknown>, Record<string, un
 }
 
 /** Read what a replica database has. */
-async function replicated(database: DatabaseConnection): Promise<Contents> {
+async function replicated(database: DatabaseConnection): Promise<SubscriberState> {
     // read every replicated row
     const rows = new Map<string, Record<string, unknown>>();
     for (const table of TABLES) {

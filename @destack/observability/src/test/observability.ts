@@ -13,7 +13,7 @@ import { type Identifier, present, schema } from "@destack/schema";
 import { describeSetting } from "@destack/setting/inspect";
 import settingPackage from "@destack/setting/package";
 import { SOCIAL } from "@destack/social/test";
-import type { StackDocument, StackTypes } from "@destack/stack/declare";
+import type { StackDocument, StackType } from "@destack/stack/declare";
 import { TestPackage, TestSpace } from "@destack/machine/test";
 import { Scope } from "@destack/sync";
 import { FRAMES_ATTRIBUTE, type OtlpSignal } from "@destack/telemetry/otlp";
@@ -257,7 +257,7 @@ export class TestObservability implements AsyncDisposable {
     }
 
     /** Apply a stack document declaring records of some types to the space under the simulation. */
-    apply<const Types extends StackTypes>(
+    apply<const Types extends readonly StackType[]>(
         types: Types,
         document: StackDocument<Types>,
     ): Promise<void> {
@@ -265,7 +265,7 @@ export class TestObservability implements AsyncDisposable {
     }
 
     /** Submit a stack document to the space, answering the refusal of its deploy if any. */
-    submit<const Types extends StackTypes>(
+    submit<const Types extends readonly StackType[]>(
         types: Types,
         document: StackDocument<Types>,
     ): Promise<readonly [string, string, string] | undefined> {

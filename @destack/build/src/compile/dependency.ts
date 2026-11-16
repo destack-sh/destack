@@ -17,7 +17,7 @@ import {
 import { type Runtime } from "@destack/package/runtime";
 import { modulePackage, relativePath } from "../source/dependency.ts";
 import { isBuiltin } from "node:module";
-import { type OutputBundle, type OutputChunk, RUNTIME_MODULE_ID } from "rolldown";
+import { type ModuleInfo, type OutputBundle, type OutputChunk, RUNTIME_MODULE_ID } from "rolldown";
 import { type ESTree, Visitor } from "rolldown/utils";
 import { found, Text, type Version } from "@destack/schema";
 import { Catalog } from "@destack/locale";
@@ -44,14 +44,6 @@ export interface ModuleSource {
     runtimes?: Runtime[];
     /** Import expressions requiring execution to resolve. */
     unresolvedImports?: string[];
-}
-
-/** A parsed module's resolved imports. */
-export interface ParsedImports {
-    /** Statically imported module identifiers. */
-    importedIds: string[];
-    /** Dynamically imported module identifiers. */
-    dynamicallyImportedIds: string[];
 }
 
 /** One import of a described input or output. */
@@ -221,7 +213,10 @@ class DependencyRecorder {
     }
 
     /** Give each project module the runtimes of the exports importing it, else the runtime. */
-    propagate(imports: ReadonlyMap<string, ParsedImports>, runtime: Runtime): void {
+    propagate(
+        imports: ReadonlyMap<string, Pick<ModuleInfo, "importedIds" | "dynamicallyImportedIds">>,
+        runtime: Runtime,
+    ): void {
         // seed each export's entry with the runtimes its export declares
         const { definition } = this.project.packageJson;
         const seen = new Map<string, Set<Runtime>>();
@@ -505,7 +500,7 @@ export function dependencyPlugin(
         files,
     );
     const runtimes = new Map<string, Runtime[]>();
-    const imports = new Map<string, ParsedImports>();
+    const imports = new Map<string, Pick<ModuleInfo, "importedIds" | "dynamicallyImportedIds">>();
     let root = project.directory;
 
     return {
@@ -753,7 +748,7 @@ export function describeCompilation(
     packages: BuildDescription["packages"],
     output: string,
     bundle: OutputBundle,
-    parsed: ReadonlyMap<string, ParsedImports>,
+    parsed: ReadonlyMap<string, Pick<ModuleInfo, "importedIds" | "dynamicallyImportedIds">>,
 ): BuildDescription {
     // describe parsed inputs, then each emitted file
     const description: BuildDescription = { packages, inputs: {}, outputs: {} };
@@ -781,7 +776,7 @@ export function describeCompilation(
 function describeInputs(
     description: BuildDescription,
     locations: ReadonlyMap<string, ModuleSource>,
-    parsed: ReadonlyMap<string, ParsedImports>,
+    parsed: ReadonlyMap<string, Pick<ModuleInfo, "importedIds" | "dynamicallyImportedIds">>,
 ): Map<string, string> {
     // order the parsed modules by kind, package and path
     const names = new Map<string, string>();

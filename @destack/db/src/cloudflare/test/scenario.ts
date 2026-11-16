@@ -96,7 +96,7 @@ const UNKEPT = () => ({
 });
 
 /** A Durable Object that stores notes in its SQLite storage through a Destack connection. */
-export class Notes {
+export class NoteStore {
     /** The host the object runs on, the Workers runtime's. */
     readonly environment: Environment;
     /** The databases the object stores in its storage. */

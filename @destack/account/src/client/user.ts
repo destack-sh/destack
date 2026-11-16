@@ -10,7 +10,7 @@ import { bearer, type Credential } from "./credential.ts";
 import type { Issuer, TokenBinding } from "./issuer.ts";
 
 /** Where a user's account tokens come from, and the cache of the tokens exchanged for them. */
-export interface UserTokens {
+export interface TokenSource {
     /** The cache of the user's access tokens, by package and binding. */
     readonly cache: TokenCache;
     /** Issue the user's account access token anew. */
@@ -24,7 +24,7 @@ export class UserIdentity implements Credential {
     /** The issuer that signed the user in. */
     readonly issuer: Issuer;
     /** Where the user's account tokens come from. */
-    readonly #tokens: UserTokens;
+    readonly #tokens: TokenSource;
     /** The environment tokens are reused by. */
     readonly #environment: Environment;
 
@@ -32,7 +32,7 @@ export class UserIdentity implements Credential {
     constructor(
         userId: Identifier<"user">,
         issuer: Issuer,
-        tokens: UserTokens,
+        tokens: TokenSource,
         environment: Environment,
     ) {
         // keep the user, their issuer, their tokens and the environment

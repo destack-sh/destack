@@ -116,7 +116,7 @@ export type SiteAnswer =
       };
 
 /** The assets some builds emit, by the name an origin publishes each at below the asset path. */
-export class ViewAssets {
+export class AssetIndex {
     /** Each asset's build and file, by its name. */
     readonly files: ReadonlyMap<
         string,
@@ -124,7 +124,7 @@ export class ViewAssets {
     >;
 
     /** Index assets by name. */
-    constructor(files: ViewAssets["files"]) {
+    constructor(files: AssetIndex["files"]) {
         this.files = files;
     }
 
@@ -132,7 +132,7 @@ export class ViewAssets {
     static async of(
         builds: Iterable<Digest>,
         contents: (digest: Digest) => Promise<BuildReader>,
-    ): Promise<ViewAssets> {
+    ): Promise<AssetIndex> {
         const files = new Map<
             string,
             { readonly reader: BuildReader; readonly file: PackageFile }
@@ -153,7 +153,7 @@ export class ViewAssets {
             }
         }
 
-        return new ViewAssets(files);
+        return new AssetIndex(files);
     }
 
     /** Find the asset a path below the asset path answers. */

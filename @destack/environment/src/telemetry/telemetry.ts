@@ -5,7 +5,9 @@ import {
     type LoggerProvider,
     type MeterProvider,
     ROOT_CONTEXT,
+    type TextMapGetter,
     type TextMapPropagator,
+    type TextMapSetter,
     type TracerProvider,
 } from "@opentelemetry/api";
 import {
@@ -17,6 +19,17 @@ import * as logs from "@opentelemetry/sdk-logs";
 import * as metrics from "@opentelemetry/sdk-metrics";
 import * as traces from "@opentelemetry/sdk-trace";
 import { LineExporter } from "./line.ts";
+
+/** The setter writing trace fields into HTTP headers. */
+const HEADERS_SETTER: TextMapSetter<Headers> = {
+    set: (carrier, name, value) => carrier.set(name, value),
+};
+
+/** The getter reading trace fields from HTTP headers. */
+const HEADERS_GETTER: TextMapGetter<Headers> = {
+    keys: (carrier) => [...carrier.keys()],
+    get: (carrier, name) => carrier.get(name) ?? undefined,
+};
 
 /** The W3C propagator of trace context and baggage, which keeps no state. */
 export const W3C_PROPAGATOR: TextMapPropagator = new CompositePropagator({
@@ -43,7 +56,7 @@ export interface Telemetry {
     readonly ingest: (spans: readonly traces.ReadableSpan[]) => void;
 }
 
-/** Telemetry sources. */
+/** Telemetry sources, and the trace context HTTP headers carry between processes. */
 export const Telemetry = {
     /** Export nothing, until an entry point gives an environment providers that export. */
     none(clock: Clock, context: ContextManager = new RootContextManager()): Telemetry {
@@ -72,6 +85,20 @@ export const Telemetry = {
             ...Telemetry.none(clock, context),
             loggers: new logs.LoggerProvider({ processors: [exporter.processor] }),
         };
+    },
+
+    /** Write a trace, the telemetry's active one by default, into an outgoing request's headers. */
+    inject(
+        headers: Headers,
+        telemetry: Pick<Telemetry, "propagator" | "context">,
+        parent: Context = telemetry.context.active(),
+    ): void {
+        telemetry.propagator.inject(parent, headers, HEADERS_SETTER);
+    },
+
+    /** Read a remote trace from a request's headers, inheriting no active context. */
+    extract(headers: Headers, telemetry: Pick<Telemetry, "propagator">): Context {
+        return telemetry.propagator.extract(ROOT_CONTEXT, headers, HEADERS_GETTER);
     },
 };
 

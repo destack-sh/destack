@@ -4,7 +4,7 @@ import { Localization, SOURCE_LOCALE } from "@destack/locale";
 import type { ThemeDescription } from "@destack/theme";
 import { type Component, createComponent, NoHydration } from "solid-js";
 import { createRequestEvent, createSSRResponse, type JSX, renderToStream } from "@solidjs/web";
-import type { StaticPages, View } from "../declare/view.ts";
+import type { RouteModule, View } from "../declare/view.ts";
 import { ViewError } from "../error/error.ts";
 import { ViewRoot } from "../page/mount.ts";
 import { ViewDocument } from "./document.tsx";
@@ -21,7 +21,7 @@ export class StaticPage {
     /** The environment the components run in. */
     readonly environment: BrowserEnvironment;
     /** The view's pages module once loaded, on the server only. */
-    #pages: Promise<StaticPages> | undefined;
+    #pages: Promise<RouteModule> | undefined;
 
     /** Create a page of a view's loaded component and shell in an environment. */
     constructor(
@@ -101,7 +101,7 @@ export class StaticPage {
     }
 
     /** List the view's paths, not-found path and endpoint paths from its pages module. */
-    async routes(): Promise<StaticRoutes> {
+    async routes(): Promise<RouteTable> {
         const { paths, notFound, endpoints = {} } = await this.#loadPages();
 
         return {
@@ -112,14 +112,14 @@ export class StaticPage {
     }
 
     /** Load the view's pages module once. */
-    #loadPages(): Promise<StaticPages> {
+    #loadPages(): Promise<RouteModule> {
         this.#pages ??= loadPages(this.view);
 
         return this.#pages;
     }
 
     /** Answer a request: an endpoint's file at its path, else the page's complete HTML. */
-    async respond(request: Request, assets: PageAssets): Promise<Response> {
+    async respond(request: Request, head: PageHead): Promise<Response> {
         // answer an endpoint at its path
         const { render } = this.view;
         const { endpoints = {} } = await this.#loadPages();
@@ -145,8 +145,8 @@ export class StaticPage {
             );
         }
         const links = [
-            ...assets.stylesheets.map((href) => `<link rel="stylesheet" href="${escape(href)}">`),
-            `<script type="module" src="${escape(assets.script)}" async></script>`,
+            ...head.stylesheets.map((href) => `<link rel="stylesheet" href="${escape(href)}">`),
+            `<script type="module" src="${escape(head.script)}" async></script>`,
         ];
 
         return createSSRResponse(html.replace("</head>", `${links.join("")}</head>`), event);
@@ -154,7 +154,7 @@ export class StaticPage {
 }
 
 /** Load a static view's pages module, refusing a view of another mode. */
-function loadPages(view: View): Promise<StaticPages> {
+function loadPages(view: View): Promise<RouteModule> {
     const { render } = view;
     if (render.mode !== "static") {
         throw ViewError.of(
@@ -167,7 +167,7 @@ function loadPages(view: View): Promise<StaticPages> {
 }
 
 /** A static view's routes: the paths of its pages, its not-found page and its endpoints. */
-export interface StaticRoutes {
+export interface RouteTable {
     /** The paths prerendered below the view's base. */
     readonly paths: readonly string[];
     /** The path rendering the not-found page, none when absent. */
@@ -176,8 +176,8 @@ export interface StaticRoutes {
     readonly endpoints: readonly string[];
 }
 
-/** The assets a page links: its entry module and stylesheets, by URL. */
-export interface PageAssets {
+/** What a page's head links: its entry module and stylesheets, by URL. */
+export interface PageHead {
     /** The module the page loads. */
     readonly script: string;
     /** The stylesheets the page links, in order. */

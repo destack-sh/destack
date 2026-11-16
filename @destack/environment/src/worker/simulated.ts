@@ -1,6 +1,6 @@
 import type { Environment, HostCapability } from "../environment/environment.ts";
 import type { Scheduler } from "../scheduler/scheduler.ts";
-import type { WorkerConstructor, WorkerEvents, WorkerHost, WorkerThread } from "./worker.ts";
+import type { WorkerConstructor, WorkerEventMap, WorkerHost, WorkerThread } from "./worker.ts";
 
 /** The scope a worker's body runs in: its messages to and from the node that started it. */
 export interface WorkerScope {
@@ -84,11 +84,12 @@ export class SimulatedWorkerHost {
         this.#started += 1;
         const node = `${parent}/worker-${this.#started}`;
         const toWorker = new Set<(event: MessageEvent) => void>();
-        const toParent: { [Type in keyof WorkerEvents]: Set<(event: WorkerEvents[Type]) => void> } =
-            {
-                message: new Set(),
-                error: new Set(),
-            };
+        const toParent: {
+            [Type in keyof WorkerEventMap]: Set<(event: WorkerEventMap[Type]) => void>;
+        } = {
+            message: new Set(),
+            error: new Set(),
+        };
         let isTerminated = false;
 
         // run the body on its node with a scope sending to the parent
@@ -178,9 +179,9 @@ function workerConstructor(
         }
 
         /** Take each event of a type the worker sends. */
-        addEventListener<Type extends keyof WorkerEvents>(
+        addEventListener<Type extends keyof WorkerEventMap>(
             type: Type,
-            listener: (event: WorkerEvents[Type]) => void,
+            listener: (event: WorkerEventMap[Type]) => void,
         ): void {
             this.#thread.addEventListener(type, listener);
         }
