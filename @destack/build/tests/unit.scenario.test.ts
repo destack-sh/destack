@@ -15,6 +15,9 @@ import { Toolchain } from "@destack/check/toolchain";
 /** One module output per unit, its dependencies external. */
 const OUTPUTS = { bun: { kind: "module", runtime: "bun" } } as const;
 
+/** The integrity a fixture lockfile records for its npm release, which the build requires. */
+const FIXTURE_INTEGRITY = "sha512-fixture";
+
 /** The library unit's package name, as the application requires it. */
 const LIBRARY = "@destack/build-unit-library-fixture";
 
@@ -64,6 +67,28 @@ async function initializeWorkspace(
     );
     await files.writeTextFile(join(workspace, ".gitignore"), "node_modules/\n");
     expect((await process.spawn(["git", "init", "--quiet", workspace]).output()).code).toBe(0);
+}
+
+/** Make a library declare left-pad, installed in its checkout and locked in the workspace. */
+async function installLeftPad(workspace: string, library: string, files: FileSystem): Promise<void> {
+    // lock the release beside the members
+    const lockfile = join(workspace, "bun.lock");
+    const locked = schema.looseObject({}).parse(JSON.parse(await files.readTextFile(lockfile)));
+    const packages = { "left-pad": ["left-pad@1.3.0", "", {}, FIXTURE_INTEGRITY] };
+    await files.writeTextFile(lockfile, JSON.stringify({ ...locked, packages }));
+
+    // declare it in the library
+    const manifest = join(library, "package.json");
+    const authored = schema.looseObject({}).parse(JSON.parse(await files.readTextFile(manifest)));
+    const dependencies = { "left-pad": "1.3.0" };
+    await files.writeTextFile(manifest, JSON.stringify({ ...authored, dependencies }));
+
+    // install it in the library's node_modules
+    const installed = join(library, "node_modules", "left-pad");
+    await files.mkdir(installed, { recursive: true });
+    const release = { name: "left-pad", version: "1.3.0", main: "index.js" };
+    await files.writeTextFile(join(installed, "package.json"), JSON.stringify(release));
+    await files.writeTextFile(join(installed, "index.js"), "module.exports = () => '';\n");
 }
 
 /** Report whether a built export is the greeting function. */
@@ -406,4 +431,44 @@ test("trace a workspace's unit builds: compile each unit on a miss, take each fr
             "destack.workspace.open.duration.count": 2,
         },
     });
+});
+
+test("materialize a library's tree once per checkout, each linking the npm package its own checkout installed", async () => {
+    // lay out two checkouts of one workspace, each installing the library's npm package
+    await using simulation = testSimulation();
+    const environment = simulation.environment("test");
+    const { files } = environment;
+    const first = await layOut(environment);
+    const second = await layOut(environment);
+    for (const { workspace, library } of [first, second]) {
+        await installLeftPad(workspace, library, files);
+    }
+
+    // build the library from the first checkout into one store
+    await using store = await LocalBuildStore.temporary(environment);
+    await using compilers = await CompilerPool.open(store, async () => Toolchain.workspace());
+    const opened = await (await Workspace.open(first.application, compilers)).package();
+    const inputs = await opened.storeDependencies({});
+    const built = present(inputs[LIBRARY], "the library unit");
+
+    // materialize its tree for each checkout into the store's shared trees
+    const linked: string[] = [];
+    for (const { workspace } of [first, second]) {
+        const tree = await DependencyTree.materialize(
+            store,
+            [built],
+            () => undefined,
+            store.trees,
+            { kind: "compile" },
+            { workspace },
+        );
+        const directory = present(tree.directories[LIBRARY], "the library's directory");
+        linked.push(await files.realPath(join(directory, "node_modules", "left-pad")));
+    }
+
+    // link each tree to its own checkout's install
+    expect(linked).toEqual([
+        await files.realPath(join(first.library, "node_modules", "left-pad")),
+        await files.realPath(join(second.library, "node_modules", "left-pad")),
+    ]);
 });

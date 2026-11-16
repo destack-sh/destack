@@ -95,6 +95,8 @@ interface TreeVisit {
     readonly required: readonly string[];
     /** The build each required package the tree places resolves to, by name. */
     readonly links: Readonly<Record<string, Digest>>;
+    /** The directory the workspace installed each other npm package it links, by name. */
+    readonly installed: ReadonlyMap<string, string>;
 }
 
 /** The builds of a package's Destack dependencies, materialized as a node_modules tree. */
@@ -188,6 +190,7 @@ export class DependencyTree {
                 readonly reader: BuildReader;
                 readonly required: readonly string[];
                 readonly links: Readonly<Record<string, Digest>>;
+                readonly installed: ReadonlyMap<string, string>;
             }
         >();
         for (const [manifest, entry] of placed) {
@@ -200,16 +203,31 @@ export class DependencyTree {
                     ? [[each, target] as const]
                     : [];
             });
-            read.set(manifest, { reader, required, links: Object.fromEntries(resolved) });
+            const links = Object.fromEntries(resolved);
+
+            // find the npm packages a workspace member links from the workspace's install
+            const isMember =
+                entry.kind === "destack" && installation?.members.has(entry.package.name) === true;
+            const installed =
+                installation === undefined || !isMember
+                    ? new Map<string, string>()
+                    : await DependencyTree.#installed(
+                          installation,
+                          entry.package.name,
+                          await DependencyTree.#authored(reader),
+                          links,
+                      );
+            read.set(manifest, { reader, required, links, installed });
         }
 
-        // key each root by its build and every edge of its tree
+        // key each root by its build, every edge of its tree, and every installed package it links
         const visits = new Map<Digest, TreeVisit>();
         for (const [manifest, entry] of placed) {
-            const { reader, required, links } = present(read.get(manifest), manifest);
+            const { reader, required, links, installed } = present(read.get(manifest), manifest);
             const edges = DependencyTree.#edges(
                 manifest,
                 (each) => present(read.get(each), each).links,
+                (each) => present(read.get(each), each).installed,
             );
             const base =
                 edges.length === 0 ? manifest : `${manifest}+${await Digest.json(edges, crypto)}`;
@@ -221,6 +239,7 @@ export class DependencyTree {
                 root,
                 required,
                 links,
+                installed,
             });
         }
 
@@ -239,7 +258,7 @@ export class DependencyTree {
 
             // place a root the trees lack
             if (!(await files.exists(visit.root))) {
-                await DependencyTree.#place(store, visit, visits, directory, installation, scope);
+                await DependencyTree.#place(store, visit, visits, directory, scope);
             }
         };
         for (const manifest of visits.keys()) {
@@ -276,24 +295,33 @@ export class DependencyTree {
         }
         // take every runtime dependency a Destack build's package.json declares
         else {
-            const authored = AuthoredPackage.parse(
-                JSON.parse(new TextDecoder().decode(await reader.load("package.json"))),
-            );
+            const authored = await DependencyTree.#authored(reader);
 
             return PackageJson.runtimeDependencies(authored);
         }
     }
 
-    /** List every edge of a build's tree, as sorted from, name and target triples. */
+    /** Read the package.json a Destack build was authored with. */
+    static async #authored(reader: BuildReader): Promise<schema.Infer<typeof AuthoredPackage>> {
+        return AuthoredPackage.parse(
+            JSON.parse(new TextDecoder().decode(await reader.load("package.json"))),
+        );
+    }
+
+    /** List every edge of a build's tree, to builds and installed packages, as sorted triples. */
     static #edges(
         root: Digest,
         links: (build: Digest) => Readonly<Record<string, Digest>>,
+        installed: (build: Digest) => ReadonlyMap<string, string>,
     ): string[] {
-        // walk the links once each from the root
+        // walk the links once each from the root, with each build's installed packages
         const edges: string[] = [];
         const seen = new Set<Digest>([root]);
         const pending = [root];
         for (let next = pending.pop(); next !== undefined; next = pending.pop()) {
+            for (const [name, path] of installed(next)) {
+                edges.push(`${next} ${name} ${path}`);
+            }
             for (const [name, target] of Object.entries(links(next))) {
                 edges.push(`${next} ${name} ${target}`);
                 if (!seen.has(target)) {
@@ -312,7 +340,6 @@ export class DependencyTree {
         visit: TreeVisit,
         visits: ReadonlyMap<Digest, TreeVisit>,
         directory: string,
-        installation: WorkspaceInstall | undefined,
         scope: TreeScope,
     ): Promise<void> {
         // stage the build beside its root
@@ -380,24 +407,14 @@ export class DependencyTree {
                 join(target, MANIFEST_PATH),
                 PackageManifest.serialize(reader.manifest),
             );
-            const authored = AuthoredPackage.parse(
-                JSON.parse(new TextDecoder().decode(await reader.load("package.json"))),
-            );
-            if (installation !== undefined && installation.members.has(name)) {
-                const installed = await DependencyTree.#installed(
-                    installation,
-                    name,
-                    authored,
-                    visit.links,
+            const authored = await DependencyTree.#authored(reader);
+            for (const [each, path] of visit.installed) {
+                await DependencyTree.#symlink(
+                    path,
+                    join(target, "node_modules", each),
+                    { staged, root },
+                    files,
                 );
-                for (const [each, path] of installed) {
-                    await DependencyTree.#symlink(
-                        path,
-                        join(target, "node_modules", each),
-                        { staged, root },
-                        files,
-                    );
-                }
             }
             const exports = DependencyTree.#exportsOf(
                 Object.values(reader.manifest.outputs),
