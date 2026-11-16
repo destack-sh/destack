@@ -214,6 +214,12 @@ tester.run("error-message-style", rules["error-message-style"], {
         'throw new Error("note not found");',
         'throw new Error("HTTP request failed");',
         "throw new Error(`machine '${name}' stopped:\\n${log}`);",
+        "throw new Error(`${object.name} '${id}' not found`);",
+        "throw new Error(`${object.name} records are bound`);",
+        "throw new Error(`object '${object.name}' has no text field '${field}'`);",
+        "throw new Error(`object '${owner.name}' has no text field '${field}'`);",
+        "throw new Error(`cannot copy column '${entry.column}'`);",
+        "throw new Error(`cannot copy column ${entry.column}`);",
         {
             code: "throw new CallError(\"NOT_FOUND\", { message: `no note '${id}'` });",
             filename: SOURCE,

@@ -28,8 +28,8 @@ const DEFINE_ERROR_FAMILY = "defineErrorFamily";
 const COUNT_NAMES =
     /^(?:status|code|length|size|count|limit|line|column|timeout|lag|epoch|sequence|offset|start|end|position|port|attempts|steps|seconds|milliseconds|bits|written|completed|wait|capacity|index|floor|minimum|maximum)$|[a-z](?:Number|Count|Index|Size|Length)$/u;
 
-/** The count names that also name text, such as an exit code or a region code, kept as written. */
-const AMBIGUOUS_NAMES = /^(?:code|line|status|start|end|position)$/u;
+/** The count names that also name text, such as an exit code or a table column, kept as written. */
+const AMBIGUOUS_NAMES = /^(?:code|line|column|status|start|end|position)$/u;
 
 /** The units after a count, as in `${size} bytes`. */
 const COUNT_UNITS =
@@ -38,7 +38,7 @@ const COUNT_UNITS =
 /** The names of kinds, which a message leaves bare, as Kubernetes' `pods "nginx" not found`. */
 const KIND_NAMES = /^(?:kind|type|channel|storage)$/u;
 
-/** The owners whose `.name` is a kind, as in `${object.name} '${id}' not found`. */
+/** The owners whose `.name` is a kind, bare as a noun or quoted as a value. */
 const KIND_OWNERS = /^(?:object|type)$/u;
 
 /** The names of embedded text, such as another error's message. */
@@ -94,7 +94,7 @@ function isStaticCall(expression: ESTree.Node, owner: string, method?: string): 
     );
 }
 
-/** Report whether a `.name` reads an object's or type's name, which is its kind. */
+/** Report whether a `.name` reads an object's or type's name, a kind the message may also quote. */
 function isKindName(expression: ESTree.Node): boolean {
     const owner = expression.type === "MemberExpression" ? nameOf(expression.object) : undefined;
 
@@ -204,7 +204,7 @@ export const errorMessageStyle: Rule = {
                     !/^[^\s']*'/u.test(quasis[end + 1]?.value.raw ?? ""),
             );
 
-            // unquote a lone bare interpolation, unless its name or a constant may be text
+            // unquote a lone bare interpolation, unless a kind, its name or a constant may be text
             const unquoted = new Set(
                 grouped
                     .filter(({ start, end }) => {
@@ -220,6 +220,7 @@ export const errorMessageStyle: Rule = {
                             before.endsWith("'") &&
                             after.startsWith("'") &&
                             isBare(part, before.slice(0, -1), after) &&
+                            !isKindName(part) &&
                             !(
                                 name !== undefined &&
                                 (AMBIGUOUS_NAMES.test(name) || CONSTANT_NAMES.test(name))
