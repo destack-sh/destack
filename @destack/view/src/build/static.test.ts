@@ -1,4 +1,4 @@
-import { normalize } from "node:path";
+import { dirname, normalize } from "node:path";
 import { afterAll, beforeAll, expect, test } from "@destack/test";
 import { CompilerPool, type LocalBuildStore } from "@destack/build";
 import { PackageCopy, testStore, testSimulation } from "@destack/build/test";
@@ -56,6 +56,13 @@ function stylesheets(document: string): string[] {
     );
 }
 
+/** List the font files a page preloads. */
+function fonts(document: string): string[] {
+    return [...document.matchAll(/<link rel="preload" as="font"[^>]* href="([^"]+)"/gu)].map(
+        (match) => match[1] ?? "",
+    );
+}
+
 /** List the text of a page's headings. */
 function headings(document: string): string[] {
     return [...document.matchAll(/<h1[^>]*>([^<]*)<\/h1>/gu)].map((match) => match[1] ?? "");
@@ -107,6 +114,7 @@ test("prerender a static view's pages from its declaration, hydrated by its view
         logo: (await read("index.html"))
             .match(/<img[^>]* src="([^"]+)"/u)?.[1]
             ?.replace(/-[\w-]+\.png$/u, ".png"),
+        fonts: [...new Set(fonts(await read("index.html")).map((href) => dirname(href)))],
     }).toEqual({
         outputs: ["browser", "bun"],
         render: { mode: "static" },
@@ -132,6 +140,8 @@ test("prerender a static view's pages from its declaration, hydrated by its view
         ].join("\n"),
         favicon: '<svg xmlns="http://www.w3.org/2000/svg"/>\n',
         logo: "/.destack/asset/logo.png",
+        // address the view library's fonts where the origin publishes assets, as the package's own
+        fonts: ["/.destack/asset"],
     });
 });
 

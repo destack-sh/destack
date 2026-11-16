@@ -75,10 +75,10 @@ export const viewExtension: BuildExtension = {
             compilation.entry(`./view/${view.name}`, `${PREFIX}${view.name}`);
         }
 
-        // address the server's assets where its pages publish them
-        const isRendering = compilation.runtime === "bun" && views.length > 0;
+        // address a server output's assets where an origin publishes them, in a library too
+        const isServer = compilation.runtime === "bun";
 
-        return [entryPlugin(views, compilation), ...(isRendering ? [assetPlugin()] : [])];
+        return [entryPlugin(views, compilation), ...(isServer ? [assetPlugin()] : [])];
     },
     describe(compilation, compiled) {
         // describe each view of a browser output by its entry, stylesheets, browser abilities and presented types
@@ -195,7 +195,7 @@ function publish(
     files.set(path, bytes);
 }
 
-/** Address each asset a server output emits below its pages' asset path. */
+/** Address each asset a server output emits below the path origins publish assets at. */
 function assetPlugin(): Plugin {
     return {
         name: `${VIEW_PACKAGE}/asset`,
