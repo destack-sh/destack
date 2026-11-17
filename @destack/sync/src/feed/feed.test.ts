@@ -141,6 +141,77 @@ test("publish nothing past a commit outside a caught-up stream's queries until t
     await pages.return(undefined);
 });
 
+test("publish a caught-up stream's position at once when its follower waits for a later one", async () => {
+    // follow the inbox's notes to their snapshot, under a follower's request
+    await using simulation = new Simulation({
+        world: testWorldOptions(),
+        seed: 1,
+        start: 1000,
+    });
+    const { clock } = simulation;
+    const database = await open({ simulation });
+    const feed = new Feed(database, [note], { heartbeat: 60_000 });
+    const caller = "follower";
+    const subscription = {
+        name: "notes",
+        publication: "notes",
+        scope: "inbox",
+        target: "inbox",
+        parameters: { title: "Open" },
+        revision: await database.log.position(),
+    };
+    await Subscription.request(database, subscription, caller);
+    const signal = AbortSignal.timeout(5000);
+    const pages = feed.subscribe(await notesQueries({ title: "Open" }), undefined, signal, {
+        request: {
+            feed,
+            key: { name: "notes", scope: "inbox", target: "inbox", caller },
+            parameters: { title: "Open" },
+            queries: notesQueries,
+        },
+    });
+    let snapshot = await nextValue(pages);
+    while (!snapshot.complete) {
+        snapshot = await nextValue(pages);
+    }
+
+    // commit an archived note, and see the stream publish nothing once the feed read it
+    await database.transaction(
+        async (transaction) =>
+            await transaction.insert(note).values({ ...first, id: "archived", scope: "archive" }),
+    );
+    const archived = await database.log.position();
+    const next = nextValue(pages);
+    let isSettled = false;
+    void next.then(() => {
+        isSettled = true;
+    });
+    await simulation.idle();
+    const isQuiet = !isSettled;
+
+    // wait for the archived note's position, and read the source's position before any heartbeat
+    await Subscription.request(database, { ...subscription, waiting: archived }, caller);
+    const page = await simulation.wait(next);
+    const { log, epoch } = archived;
+    expect({
+        isQuiet,
+        page: { ...page, position: { ...page.position, sequence: undefined } },
+        isReached: page.position.sequence >= archived.sequence,
+        at: clock.now() - 1000,
+    }).toEqual({
+        isQuiet: true,
+        page: {
+            reset: false,
+            complete: true,
+            changes: [],
+            position: { log, epoch, sequence: undefined },
+        },
+        isReached: true,
+        at: 0,
+    });
+    await pages.return(undefined);
+});
+
 test("maintain a query of one scope's matching rows", async () => {
     await using simulation = new Simulation({
         world: testWorldOptions(),

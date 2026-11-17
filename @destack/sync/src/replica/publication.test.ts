@@ -140,8 +140,25 @@ test("write a follower's request only when it is new, at a later revision or wit
         await request({ folder: "archive", queries: {} }, 3),
     ];
 
-    // expect writes for the new request, the other parameters and the later revision only
-    expect(written).toEqual([true, false, false, true, true]);
+    // wait for a position of the source's log, the same one again, an earlier one and a later one
+    const waiting = (sequence: number) =>
+        Subscription.request(
+            database,
+            {
+                ...subscription,
+                parameters: { folder: "archive", queries: {} },
+                revision: at("first", 3),
+                waiting: at("source", sequence),
+            },
+            caller,
+        );
+    const waited = [await waiting(7), await waiting(7), await waiting(6), await waiting(8)];
+
+    // expect writes for the new request, the other parameters, the later revision and each later wait only
+    expect({ written, waited }).toEqual({
+        written: [true, false, false, true, true],
+        waited: [true, false, false, true],
+    });
 });
 
 test("refuse a subscription whose parameters its publication rejects, reading valid ones as parsed", async () => {
