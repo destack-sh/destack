@@ -19,7 +19,7 @@ import {
 import { WORKERD_COMPATIBILITY_DATE } from "@destack/package/runtime";
 import { type BuildReader, ImportMap } from "@destack/package/manifest";
 import type { Space } from "../../space/space.ts";
-import type { ImportClosure } from "@destack/build/store";
+import { ImportClosure } from "@destack/build/store";
 import type {} from "@destack/package/import-meta";
 import { MachineError } from "../../error/index.ts";
 
@@ -28,9 +28,6 @@ const INSTANCE_ORIGIN = "https://instance";
 
 /** The runtime the Cloudflare machine's instances run on. */
 const WORKERD_RUNTIME = "workerd";
-
-/** The media type of the JavaScript modules a workerd output distributes. */
-const MODULE_MEDIA_TYPE = "text/javascript";
 
 /** The base of the module names in an isolate, which name each build's modules below its digest. */
 const MODULE_BASE = "/";
@@ -191,27 +188,37 @@ export class WorkerdRuntime implements Runtime {
         return this.#modules(identified.build, identified.lock);
     }
 
-    /** Read each module a lock's root's imports reach, resolved through its import map. */
-    async #modules(build: BuildReader, lock: Digest): Promise<Record<string, string>> {
-        // read each module the root's imports reach
+    /** Read each module a lock's root's modules reach, resolved through its import map. */
+    async #modules(
+        build: BuildReader,
+        lock: Digest,
+        called: readonly string[] = [],
+    ): Promise<Record<string, string>> {
+        // read what the root's workloads, mounted views and called modules reach
         const closure = await this.#served().imports(lock, WORKERD_RUNTIME, MODULE_BASE);
         const own = await build.digest();
-        const read = await Promise.all(
-            (await this.#names(build, closure)).map(async (name) => {
-                // load the module from its build, the instance's own or a dependency the space keeps
-                const [digest = "", ...path] = name.split("/");
-                const reader =
-                    digest === own
-                        ? build
-                        : await this.#served().builds.contents(Digest.parse(digest));
-                const code = new TextDecoder().decode(await reader.load(path.join("/")));
-                const resolved = await ImportMap.apply(closure.map, code, `${MODULE_BASE}${name}`);
-
-                return [name, resolved] as const;
-            }),
+        const entries = [
+            ...(await ImportClosure.entries(own, build, WORKERD_RUNTIME)),
+            ...called.map((path) => `${own}/${path}`),
+        ];
+        const reached = await ImportClosure.modules(
+            entries,
+            WORKERD_RUNTIME,
+            closure,
+            MODULE_BASE,
+            (digest) =>
+                digest === own ? Promise.resolve(build) : this.#served().builds.contents(digest),
         );
 
-        return Object.fromEntries(read);
+        // resolve each module's imports through the map, ahead of loading
+        const resolved = await Promise.all(
+            [...reached].map(async ([name, code]): Promise<[string, string]> => [
+                name,
+                await ImportMap.apply(closure.map, code, `${MODULE_BASE}${name}`),
+            ]),
+        );
+
+        return Object.fromEntries(resolved);
     }
 
     /** Call an export of a lock's root module once, in an isolate of its own beside the space. */
@@ -223,7 +230,7 @@ export class WorkerdRuntime implements Runtime {
     ): Promise<JsonValue> {
         // load the root's modules beside a module calling the export
         const build = await this.#served().builds.root(lock);
-        const modules = await this.#modules(build, lock);
+        const modules = await this.#modules(build, lock, [path]);
         const main = JSON.stringify(`./${await build.digest()}/${path}`);
         const isolate = this.#loader.get(this.#random.bytes(SECRET_BYTES).toHex(), async () => ({
             compatibilityDate: WORKERD_COMPATIBILITY_DATE,
@@ -377,33 +384,6 @@ export class WorkerdRuntime implements Runtime {
         await WorkerdRuntime.#requireAnswer(response, `start ${spec.instanceId}`);
 
         return running;
-    }
-
-    /** Name every module of a build and its dependencies on workerd, below their digests. */
-    async #names(build: BuildReader, closure: ImportClosure): Promise<string[]> {
-        const own = await build.digest();
-        const names = await Promise.all(
-            [...closure.builds].map(async (digest) => {
-                // read the build's workerd output directories
-                const reader =
-                    digest === own ? build : await this.#served().builds.contents(digest);
-                const directories = Object.values(reader.manifest.outputs)
-                    .filter((output) => output.runtime === WORKERD_RUNTIME)
-                    .map((output) => `${output.directory}/`);
-                const files = await reader.files();
-
-                // name each JavaScript module below them by its build's digest and its path
-                return files
-                    .filter(
-                        (file) =>
-                            file.mediaType === MODULE_MEDIA_TYPE &&
-                            directories.some((directory) => file.path.startsWith(directory)),
-                    )
-                    .map((file) => `${digest}/${file.path}`);
-            }),
-        );
-
-        return names.flat();
     }
 
     /** Read an object's answer to the end, refusing a failed one. */
