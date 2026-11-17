@@ -11,8 +11,8 @@ import { settingCommand, settingsCommand } from "../object/setting.ts";
 import { applyCommand, approveCommand, planCommand, rejectCommand } from "../workflow/apply.ts";
 import { buildCommand, devCommand, publishCommand } from "../workflow/dev.ts";
 import { tagCommand } from "../workflow/tag.ts";
-import { createCommand } from "../workflow/create.ts";
-import { installCommand } from "../workflow/install.ts";
+import { newCommand } from "../workflow/new.ts";
+import { installCommand, uninstallCommand } from "../workflow/install.ts";
 import { acceptCommand, invitedCommand, shareCommand } from "../workflow/share.ts";
 import { openCommand } from "../workflow/open.ts";
 import { CommandTree, GLOBAL_OPTIONS, type Group, SEPARATOR } from "./command.ts";
@@ -109,6 +109,7 @@ export class CommandLine {
 
             // the space's packages, and its stack
             install: installCommand(context),
+            uninstall: uninstallCommand(context),
             share: shareCommand(context),
             invited: invitedCommand(context),
             accept: acceptCommand(context),
@@ -118,7 +119,7 @@ export class CommandLine {
             reject: rejectCommand(context),
 
             // this computer's checkouts
-            create: createCommand(context),
+            new: newCommand(context),
             dev: devCommand(context),
             build: buildCommand(context),
             publish: publishCommand(context),

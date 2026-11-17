@@ -8,7 +8,7 @@ import { type Verb, OptionValue } from "../command/command.ts";
 import type { Context } from "../context/context.ts";
 import { CliError } from "../error/index.ts";
 import { openForge } from "./forge.ts";
-import { driveInstallation } from "./status.ts";
+import { driveInstallation, followRemoval } from "./status.ts";
 
 /** The separator of a package specifier's version. */
 const VERSION_SEPARATOR = "@";
@@ -72,6 +72,69 @@ export function installCommand(context: Context): Verb {
             );
         },
     };
+}
+
+/** Uninstall a package's installation, or the one of a name, following its removal. */
+export function uninstallCommand(context: Context): Verb {
+    return {
+        description: "Uninstall a package, or the installation of a name, deleting its resources",
+        arguments: [{ name: "installation", usage: "@scope/name|name" }],
+        options: {
+            yes: { type: "boolean", description: "Uninstall without asking" },
+        },
+        json: true,
+        async run({ arguments: { installation: given }, options, json }) {
+            // find the package's one installation in the space, or the one of the name
+            const asked = present(given, "the installation argument");
+            const space = await context.requireSpace();
+            const objects = await context.package(objectPackage, await context.locate());
+            const where = PackageName.safeParse(asked).success
+                ? { packageId: await packageOf(asked, context) }
+                : { name: asked };
+            const { items } = await objects.installation.list({ scope: space, where, limit: 1 });
+            const [installed] = items;
+            if (installed === undefined) {
+                throw CliError.of(
+                    "INSTALLATION_NOT_FOUND",
+                    `installation '${asked}' of '${space}' not found`,
+                );
+            }
+
+            // ask before deleting its resources, on a terminal or with --yes
+            const { name } = installed;
+            const isConfirmed =
+                options["yes"] === true ||
+                (context.environment.process.stdin.isTerminal &&
+                    (await context.terminal.prompt.confirm(
+                        `Uninstall ${name} and delete its resources?`,
+                    )));
+            if (!isConfirmed) {
+                throw CliError.of(
+                    "COMMAND_BLOCKED",
+                    `cannot uninstall '${name}': it deletes the installation's resources, so confirm it with --yes`,
+                );
+            }
+
+            // delete it, then follow it until its controller removed it with its resources
+            const { environment } = await context.native();
+            await objects.installation.delete({
+                scope: space,
+                id: installed.id,
+                requestId: RequestId.create(environment),
+            });
+            await followRemoval(installed.id, context);
+            await context.terminal.print(
+                json ? JSON.stringify({ id: installed.id, name }) : `Uninstalled ${name}.`,
+            );
+        },
+    };
+}
+
+/** Find a package by its name at its forge. */
+async function packageOf(name: string, context: Context): Promise<PackageId> {
+    const { client, home } = await openForge(name, context);
+
+    return (await client.package.resolve({ spaceId: home, name })).id;
 }
 
 /** Read a specifier `@scope/name[@version|@tag]`: the name, and the version, tag or latest. */

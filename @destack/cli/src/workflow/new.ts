@@ -11,7 +11,7 @@ import { readSpecifier } from "./install.ts";
 const DEFAULT_TEMPLATE = "@destack/template-blank";
 
 /** Make a package from a published template in a new checkout on this computer. */
-export function createCommand(context: Context): Verb {
+export function newCommand(context: Context): Verb {
     return {
         description: "Make a package from a template in a new directory, as a checkout",
         arguments: [

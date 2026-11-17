@@ -140,6 +140,38 @@ export async function* followInstallation(
     }
 }
 
+/** Follow an installation being deleted until its controller removed it. */
+export async function followRemoval(
+    id: Identifier<"installation">,
+    context: Context,
+): Promise<void> {
+    // open the space's installations as the person until the follow ends
+    const space = await context.requireSpace();
+    const launcher = await context.launcher();
+    await using opened = new AsyncDisposableStack();
+    const native = await context.native();
+    const { query } = await native.open(launcher, { space }, { installation }, opened);
+    const watching = new AbortController();
+    opened.defer(() => watching.abort());
+
+    // end once the installation is gone
+    const removal = RelationalQuery.latest(
+        { installed: query.installation.findFirst({ where: { id } }) },
+        watching.signal,
+    );
+    for await (const { installed } of removal) {
+        if (installed === undefined) {
+            return;
+        }
+    }
+
+    // stop following once interrupted
+    throw CliError.of(
+        "FOLLOW_UNAVAILABLE",
+        `'${id}' is unavailable: following stopped before it was removed`,
+    );
+}
+
 /** Follow an installation until current, approving each plan it waits on, refusing a failure. */
 export async function driveInstallation(
     id: Identifier<"installation">,
