@@ -290,9 +290,9 @@ export function localState(state: TableState, namespace: string | undefined): Ta
     );
 }
 
-/** Rename the table, its indexes and the tables its keys, tree, aggregates and dependents name. */
+/** Rename the table, its indexes and every table the state refers to. */
 function renameState(state: TableState, name: (relation: string) => string): TableState {
-    const { table, tree, aggregates, dependents, moved } = state;
+    const { table, tree, aggregates, dependents, multikeyIndexes, moved } = state;
 
     return {
         ...state,
@@ -332,6 +332,15 @@ function renameState(state: TableState, name: (relation: string) => string): Tab
                       ...dependent,
                       table: name(dependent.table),
                       source: name(dependent.source),
+                  })),
+              }),
+        ...(multikeyIndexes === undefined
+            ? {}
+            : {
+                  multikeyIndexes: multikeyIndexes.map((multikey) => ({
+                      ...multikey,
+                      table: name(multikey.table),
+                      entryTable: name(multikey.entryTable),
                   })),
               }),
         ...(moved?.table === undefined ? {} : { moved: { ...moved, table: name(moved.table) } }),
