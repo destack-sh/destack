@@ -15,7 +15,7 @@ import type { ObjectType, PermissionOf } from "../object/object.ts";
 import type { ConditionOf } from "../query/index.ts";
 import { Shortcut, type ShortcutText } from "./shortcut.ts";
 
-/** The method kinds that remove their target, for good unless its type deletes to a trash. */
+/** The method kinds that remove their target, for good unless its type has a trash. */
 const DELETING_KINDS: ReadonlySet<string> = new Set(["delete", "deleteMany"]);
 
 /** The input fields a command never asks for: the request, and the revision a change expects. */
@@ -134,9 +134,17 @@ export class Command<
 
     /** Whether the command removes its target for good, which people confirm first. */
     get isDestructive(): boolean {
-        const { kind } = this.object.method(this.method);
+        return Command.isDestructive(this.object, this.method);
+    }
 
-        return kind === "purge" || (DELETING_KINDS.has(kind) && !this.object.defersDeletion());
+    /** Report whether a type's method removes its target for good, which people confirm first. */
+    static isDestructive(object: ObjectType, method: string): boolean {
+        const { kind } = object.method(method);
+
+        // count a delete as final unless the type has a trash: a controller's deletion removes for good
+        const isRecoverable = object.lifecycle.recoverable !== undefined;
+
+        return kind === "purge" || (DELETING_KINDS.has(kind) && !isRecoverable);
     }
 
     /** The JSON Schema of the input a caller gives beside the target and the preset fields. */
