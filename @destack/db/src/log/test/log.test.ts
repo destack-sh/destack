@@ -203,6 +203,11 @@ test("log committed changes of tables in commit order", async () => {
 test("share one read of the log among the followers a commit wakes", async () => {
     const { database, simulation } = await open();
 
+    // wait until a shared log listens, whose first delivery wakes every reader once more
+    if (database.state.commits.isShared) {
+        await database.state.commits.listen();
+    }
+
     // follow the notes three times from the head, then commit a note
     const controller = new AbortController();
     onTestFinished(() => controller.abort());
