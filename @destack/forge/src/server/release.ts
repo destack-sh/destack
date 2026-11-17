@@ -282,6 +282,30 @@ export const ReleaseMethod = {
         return published;
     },
 
+    /** Read the version a package's next release takes. */
+    async next(
+        context: MethodContextOf<typeof release, "next">,
+    ): Promise<ResultOf<typeof release, "next">> {
+        // find the package's newest release, leaving its dev builds
+        const published = await context
+            .read(release)
+            .findMany({ where: { parentId: context.input.parentId } });
+        const [newest] = published
+            .map((each) => each.version)
+            .filter((version) => !Version.isPrerelease(version))
+            .toSorted((left, right) => Version.compare(right, left));
+
+        // start this month at its first release, and follow a release of this month or a later one
+        const now = new Date(context.now);
+        const first = `${now.getUTCFullYear()}.${now.getUTCMonth() + 1}.0`;
+        const version =
+            newest === undefined || Version.compare(newest, first) < 0
+                ? first
+                : Version.next(newest);
+
+        return { version: Version.parse(version) };
+    },
+
     /** Deprecate a release with the warning installers show, or withdraw its deprecation. */
     async deprecate(
         context: MethodContextOf<typeof release, "deprecate">,
@@ -387,6 +411,7 @@ export function implementRelease(): typeof release {
         methods: {
             create: (context, next) => ReleaseMethod.publish(context, next),
             resolve: (call) => ReleaseMethod.resolve(call),
+            next: (call) => ReleaseMethod.next(call),
             deprecate: (call) => ReleaseMethod.deprecate(call),
             yank: (call) => ReleaseMethod.yank(call),
             delete: (call, next) => ReleaseMethod.delete(call, next),

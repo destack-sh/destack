@@ -12,7 +12,7 @@ import { testHost } from "@destack/test/host";
 export const FIXTURE_VERSION = "2026.9.0";
 
 /** The versions of the answer package the setup builds, in release order. */
-export const ANSWER_VERSIONS = [FIXTURE_VERSION, "2026.9.1"];
+export const ANSWER_VERSIONS = [FIXTURE_VERSION, "2026.9.1", "2026.10.0"];
 
 /** The dev prerelease of the answer package after its releases. */
 export const PRERELEASE_VERSION = "2026.9.2-dev.20260912100000.0123456789ab";
