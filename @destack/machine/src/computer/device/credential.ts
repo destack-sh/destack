@@ -1,3 +1,4 @@
+import { StepUp } from "@destack/access";
 import { TokenCache } from "@destack/access/token";
 import type { Login, LoginCredential } from "@destack/account/native";
 import { CallError, PackageMount } from "@destack/object";
@@ -34,11 +35,13 @@ export class MachineCredential implements LoginCredential {
         return tokens;
     }
 
-    /** Ask the machine for a login's account token. */
-    async issue(person: Login): Promise<string> {
+    /** Ask the machine for a login's account token, at the authentication a step-up asks. */
+    async issue(person: Login, stepUp?: StepUp): Promise<string> {
+        // send the step-up as the token's query
+        const path = stepUp === undefined ? "token" : `token?${StepUp.query(stepUp).toString()}`;
         const { token } = schema
             .object({ token: schema.string() })
-            .parse(await this.#read(person.row.id, "token", "GET"));
+            .parse(await this.#read(person.row.id, path, "GET"));
 
         return token;
     }

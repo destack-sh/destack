@@ -1,7 +1,7 @@
 import type { DatabaseConnection } from "@destack/db";
 import type { GrantClaim, PermissionReference } from "@destack/access";
 import { Account, HOME_SPACE, RESIDENCY_SPACE } from "@destack/account/object";
-import { GrantPermission, principal } from "@destack/access";
+import { GrantPermission, principal, StepUp } from "@destack/access";
 import { InstallationOrigin, SpaceAddress } from "@destack/account/address";
 import { AccountError } from "@destack/account/error";
 import {
@@ -53,10 +53,12 @@ import { MachineError } from "../error/index.ts";
 /** The origin of a client before the machine it calls, never resolving (RFC 2606). */
 const UNRESOLVED_ORIGIN = "https://unresolved.invalid";
 
-/** How a launcher's calls answer a grant request: deciding it as the person's consent page does. */
+/** How a launcher's calls answer what a callee asks of the person: a grant, or a step-up. */
 export interface LauncherConsent {
     /** Decide a grant request a call needs, absent to answer the call's consent error. */
     readonly decide?: (request: GrantRequest) => Promise<Decision>;
+    /** Sign the person in again as a step-up asks, and read their launcher. */
+    readonly elevate?: (stepUp: StepUp) => Promise<Launcher>;
 }
 
 /** The machine a launcher acts from: it finds spaces and serves its own to the person. */
@@ -111,7 +113,7 @@ export class Launcher {
         return personal.id;
     }
 
-    /** List the addresses of the spaces of every account the user belongs to. */
+    /** List the addresses of the spaces of the user's accounts, and those shared with the user. */
     async spaces(): Promise<SpaceAddress[]> {
         // list the user's accounts, then each account's spaces
         const accounts = this.session.accounts();
@@ -132,7 +134,11 @@ export class Launcher {
             }),
         );
 
-        return spaces.flat().toSorted();
+        // add the spaces of other accounts the user has a role in
+        const { items } = await accounts.user.shared({ id: this.user.userId });
+        const shared = items.map((address) => SpaceAddress.parse(address));
+
+        return [...new Set([...spaces.flat(), ...shared])].toSorted();
     }
 
     /** Read the endpoint of a package at the issuer or in a space, deciding its grant requests. */
@@ -469,11 +475,18 @@ export class Launcher {
         packageId: PackageId,
         at: "universe" | PlacementEndpoint,
         consent: LauncherConsent = {},
+        stepUp?: StepUp,
     ): Promise<Response> {
-        const { decide } = consent;
-        const send: Fetch = (sent) => this.#route(sent, packageId, at);
+        // send a call nobody answers for as it is
+        const send: Fetch = (sent) => this.#route(sent, packageId, at, stepUp);
+        if (consent.decide === undefined && consent.elevate === undefined) {
+            return send(request);
+        }
 
-        return decide === undefined ? send(request) : this.#deciding(request, send, decide);
+        // send it again through the stepped-up launcher once the person stepped up
+        return this.#answering(request, send, consent, (stepped, again, asked) =>
+            stepped.send(again, packageId, at, {}, asked),
+        );
     }
 
     /** Read the person's unexpiring grant to a delegate, absent without one. */
@@ -517,6 +530,7 @@ export class Launcher {
         request: Request,
         packageId: PackageId,
         at: "universe" | PlacementEndpoint,
+        stepUp?: StepUp,
     ): Promise<Response> {
         const url = new URL(request.url);
         const below = `${PackageMount.path(packageId)}${url.pathname}${url.search}`;
@@ -524,8 +538,7 @@ export class Launcher {
         // send to a universe package at the person's issuer
         if (at === "universe") {
             const target = new URL(below, this.user.issuer.url).href;
-
-            return this.session.fetch(packageId)(new Request(target, request));
+            return this.session.fetch(packageId, {}, stepUp)(new Request(target, request));
         }
         // serve a space of the launcher's own machine there
         else if (at.placement.machine === this.machine.id) {
@@ -536,15 +549,20 @@ export class Launcher {
             const target = new URL(`${SpaceMount.path(at.placement.space)}${below}`, at.url);
             const binding = { partition: at.placement.space };
 
-            return this.session.fetch(packageId, binding)(new Request(target.href, request));
+            return this.session.fetch(
+                packageId,
+                binding,
+                stepUp,
+            )(new Request(target.href, request));
         }
     }
 
-    /** Send a call, granting and sending it again once the person approves what it asks. */
-    async #deciding(
+    /** Send a call, and again once the person approved the grant or took the step-up it asks. */
+    async #answering(
         request: Request,
         send: Fetch,
-        decide: NonNullable<LauncherConsent["decide"]>,
+        consent: LauncherConsent,
+        resend: (stepped: Launcher, request: Request, stepUp: StepUp) => Promise<Response>,
     ): Promise<Response> {
         // send the call, keeping its body to send it again
         const body = await request.arrayBuffer();
@@ -555,14 +573,22 @@ export class Launcher {
                 ...(body.byteLength === 0 ? {} : { body }),
             });
         const response = await send(copy());
+        const refusal = response.ok ? undefined : await Failure.read(response.clone());
+        const { decide, elevate } = consent;
+
+        // sign the person in again as a step-up asks, then send the call with the stepped-up token
+        if (refusal?.reason === "ASSURANCE_UNAUTHENTICATED" && elevate !== undefined) {
+            const stepUp = StepUp.schema.parse(refusal.data);
+
+            return resend(await elevate(stepUp), copy(), stepUp);
+        }
 
         // leave a response asking no consent, and one the person declines
-        const refusal = response.ok ? undefined : await Failure.read(response.clone());
         const [asked] =
             refusal?.reason === "CONSENT_REQUIRED"
                 ? ConsentRequest.parse(refusal.data).authorization_details
                 : [];
-        if (asked === undefined || (await decide(asked)) === "deny") {
+        if (asked === undefined || decide === undefined || (await decide(asked)) === "deny") {
             return response;
         }
 

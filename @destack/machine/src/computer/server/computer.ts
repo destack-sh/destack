@@ -1,5 +1,5 @@
 import type { Environment, OperatingSystem } from "@destack/environment";
-import { principal, type TableMapping } from "@destack/access";
+import { principal, StepUp, type TableMapping } from "@destack/access";
 import { assignment, placement, Platform } from "@destack/account/object";
 import type { Launcher } from "../../launcher/index.ts";
 import {
@@ -288,7 +288,9 @@ export class ComputerServer {
 
         // answer the person's account token for this computer's programs
         if (kind === "token") {
-            return Response.json({ token: await login.user.accountToken() });
+            const stepUp = StepUp.ofQuery(new URL(request.url).searchParams);
+
+            return Response.json({ token: await login.user.accountToken(stepUp) });
         }
         // answer a proof of the person's client
         else if (kind === "proof") {
