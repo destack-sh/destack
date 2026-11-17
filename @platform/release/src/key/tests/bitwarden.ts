@@ -41,5 +41,5 @@ if (arguments_[0] === "status") {
     const items: unknown[] = text === undefined ? [] : [JSON.parse(text)];
     process.stdout.writeSync(JSON.stringify(items) + "\n");
 } else {
-    throw new Error("unexpected fixture operation");
+    throw new Error("fixture operation is not supported");
 }

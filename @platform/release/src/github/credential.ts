@@ -41,7 +41,9 @@ async function removeKeys(environment: Environment<"files" | "process">): Promis
         dirname(resolve(directory)) !== resolve(temporary) ||
         !basename(directory).startsWith("destack-release-keys-")
     ) {
-        throw new Error("refusing to remove an unexpected credential directory");
+        throw new Error(
+            "cannot remove the credential directory: it is outside the runner's temporary directory",
+        );
     }
     await environment.files.remove(directory, { recursive: true, force: true });
 }

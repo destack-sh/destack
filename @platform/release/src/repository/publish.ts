@@ -48,7 +48,9 @@ export async function publish(
     const files = await list(directory, environment);
     const unexpected = files.find((path) => !PUBLIC_PATH.test(path));
     if (unexpected !== undefined) {
-        throw new Error(`unexpected file in public release repository: '${unexpected}'`);
+        throw new Error(
+            `file '${unexpected}' is invalid: it does not belong in the public release repository`,
+        );
     }
     if (!files.includes(TIMESTAMP)) {
         throw new Error("missing signed timestamp");
