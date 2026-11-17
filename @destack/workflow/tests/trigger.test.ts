@@ -176,7 +176,7 @@ test("fire a declared schedule's occurrences once each, skipping one that overla
     const [declared] = await fixture.served.database.select().from(minutely.trigger.table);
 
     // refuse alice changing the declared trigger, which its package's installation manages
-    const changed = fixture.objects(alice).call(minutely.trigger.name, "update", {
+    const changed = fixture.objects(alice).run(minutely.trigger, "update", {
         id: declared?.["id"],
         schedule: EVERY_MINUTE,
     });
@@ -206,7 +206,7 @@ test("fire a schedule a space's manager creates with its stored input, and none 
 
     // create a schedule every minute as alice, and pause it after its first occurrence
     const triggers = fixture.objects(alice);
-    const created = await triggers.call(scheduled.trigger.name, "create", {
+    const created = await triggers.run(scheduled.trigger, "create", {
         name: "mine",
         schedule: EVERY_MINUTE,
         input: { at: 0 },
@@ -214,7 +214,7 @@ test("fire a schedule a space's manager creates with its stored input, and none 
     await fixture.simulation.jump(TEST_START + MINUTE);
     const first = await fixture.waitUntil((rows) => rows.length === 1);
     const { id } = schema.looseObject({ id: schema.string() }).parse(created);
-    await triggers.call(scheduled.trigger.name, "pause", { id });
+    await triggers.run(scheduled.trigger, "pause", { id });
     await fixture.simulation.jump(TEST_START + 3 * MINUTE);
     const paused = await fixture.waitUntil(() => true);
     expect([first.map((row) => row["input"]), paused.length]).toEqual([[{ at: 0 }], 1]);
@@ -225,7 +225,7 @@ test("refuse a created schedule whose input the workflow refuses", async () => {
 
     // create a schedule whose runs' input has no time
     const created = await refusal(
-        fixture.objects(alice).call(scheduled.trigger.name, "create", {
+        fixture.objects(alice).run(scheduled.trigger, "create", {
             name: "broken",
             schedule: EVERY_MINUTE,
             input: {},
@@ -293,7 +293,7 @@ test("start no run while a change trigger is paused, and catch up on its changes
     const [row] = await fixture.served.database.select().from(urgent.trigger.table);
     const { id } = schema.looseObject({ id: schema.string() }).parse(row);
     const triggers = fixture.objects(alice);
-    await triggers.call(urgent.trigger.name, "pause", { id });
+    await triggers.run(urgent.trigger, "pause", { id });
 
     // write two urgent notes while it is paused, then resume it
     const notes = fixture.served.as(alice).client(notesPackage).note;
@@ -305,7 +305,7 @@ test("start no run while a change trigger is paused, and catch up on its changes
         });
     }
     const paused = await fixture.waitUntil(() => true);
-    await triggers.call(urgent.trigger.name, "resume", { id });
+    await triggers.run(urgent.trigger, "resume", { id });
     const resumed = await fixture.waitUntil(
         (rows) => rows.length >= 2 && rows.every((each) => each["state"] === "completed"),
     );
@@ -346,7 +346,7 @@ test("stop a change trigger paused past its slot's retention, and start over fro
     const [row] = await database.select().from(urgent.trigger.table);
     const { id } = schema.looseObject({ id: schema.string() }).parse(row);
     const triggers = fixture.objects(alice);
-    await triggers.call(urgent.trigger.name, "pause", { id });
+    await triggers.run(urgent.trigger, "pause", { id });
     const notes = fixture.served.as(alice).client(notesPackage).note;
     const write = () =>
         notes.create({
@@ -360,12 +360,12 @@ test("stop a change trigger paused past its slot's retention, and start over fro
     await fixture.simulation.jump(TEST_START + 8 * DAY);
     const now = fixture.simulation.clock.now();
     await database.log.compact(now, now);
-    await triggers.call(urgent.trigger.name, "resume", { id });
+    await triggers.run(urgent.trigger, "resume", { id });
     await fixture.served.simulation.idle();
     const [stopped] = await database.select().from(urgent.trigger.table);
 
     // reset the stopped trigger, and write another urgent note
-    await triggers.call(urgent.trigger.name, "reset", { id });
+    await triggers.run(urgent.trigger, "reset", { id });
     await fixture.waitUntil(() => true);
     await write();
     const runs = await fixture.waitUntil((rows) => rows[0]?.["state"] === "completed");

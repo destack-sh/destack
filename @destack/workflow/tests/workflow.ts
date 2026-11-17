@@ -12,12 +12,12 @@ import {
     Package,
     type ObjectType,
 } from "@destack/object";
-import { DynamicObjectClient } from "@destack/object/client";
+import { ProcedureRemote } from "@destack/object/client";
 import objectPackage from "@destack/object/package";
 import { implementPackage } from "@destack/object/server";
 import { TestObjectStore, testServerContext, testSimulation } from "@destack/object/test";
 import { Identifier, schema } from "@destack/schema";
-import { type Call, ObjectReference, RequestId, Scope, type Subject, Uplink } from "@destack/sync";
+import { type Call, ObjectReference, RequestId, Scope, type Subject } from "@destack/sync";
 import { Snapshot, Table } from "@destack/db";
 import { onTestFinished } from "@destack/test";
 import type {
@@ -114,8 +114,8 @@ export interface TestWorkflow {
     readonly environment: Environment;
     /** Send a request to the notes package below its path, as its mounts answer it. */
     readonly fetch: (request: Request) => Promise<Response>;
-    /** Call the space's objects by type name as a subject, such as a workflow's runs. */
-    readonly objects: (subject: Subject) => DynamicObjectClient;
+    /** Call the space's objects as a subject, such as a workflow's runs. */
+    readonly objects: (subject: Subject) => ProcedureRemote;
     /** Let a delegate act for a person, as the person grants at the universe. */
     readonly grant: (
         delegator: Subject,
@@ -216,7 +216,11 @@ export async function openServed<Input, Output>(
             },
         })),
     );
-    const publisher = Uplink.of(() => universal.as(scope).client(objectPackage).store);
+    const publisher = new ProcedureRemote({
+        scope: scope.id,
+        store: universal.as(scope).client(objectPackage).store,
+        environment: universal.environment,
+    });
 
     // serve the space's packages beside its access objects in the space alice owns, running their controllers
     const implementations = [implementation, ...invoked.map((each) => each.served)];
@@ -362,8 +366,7 @@ export async function openServed<Input, Output>(
 
     // call the served types by name as a subject
     const objectsOf = (subject: Subject) =>
-        new DynamicObjectClient({
-            objects: declared,
+        ProcedureRemote.at({
             scope: served.scope,
             endpoint: served.as(subject).endpoint(handle),
             environment: served.environment,

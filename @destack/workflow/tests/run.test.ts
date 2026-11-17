@@ -156,11 +156,11 @@ test("pause, resume and cancel a run as its actor, a resumed run due at its slee
     const [started] = await fixture.waitUntil((rows) => rows[0]?.["state"] === "waiting");
     const runs = fixture.objects(alice);
     const target = { id: String(started?.["id"]) };
-    await runs.call(wait.run.name, "pause", target);
+    await runs.run(wait.run, "pause", target);
     const paused = await fixture.waitUntil(() => true);
-    await runs.call(wait.run.name, "resume", target);
+    await runs.run(wait.run, "resume", target);
     const resumed = await fixture.waitUntil((rows) => rows[0]?.["state"] === "pending");
-    await runs.call(wait.run.name, "cancel", target);
+    await runs.run(wait.run, "cancel", target);
     const cancelled = await fixture.waitUntil(() => true);
     // resume it due at its sleep's end
     expect([
@@ -201,8 +201,8 @@ test("reset a completed run to a step, running that step and the later ones agai
     const [done] = await fixture.waitUntil((rows) => rows[0]?.["state"] === "completed");
     const runs = fixture.objects(alice);
     const id = String(done?.["id"]);
-    const reset = await runs.call(tally.run.name, "reset", { id, step: "second" });
-    const missing = await refusal(runs.call(tally.run.name, "reset", { id, step: "third" }));
+    const reset = await runs.run(tally.run, "reset", { id, step: "second" });
+    const missing = await refusal(runs.run(tally.run, "reset", { id, step: "third" }));
     const [again] = await fixture.waitUntil((rows) => rows[0]?.["state"] === "completed");
     expect({ reset, missing, counted, output: again?.["output"] }).toEqual({
         reset: { forgotten: 1 },
@@ -316,7 +316,7 @@ test("refuse a stranger controlling another's run", async () => {
     await fixture.start(() => idle.start({}, actor()));
     const [started] = await fixture.waitUntil((rows) => rows[0]?.["state"] === "waiting");
     const target = { id: String(started?.["id"]) };
-    expect(await refusal(fixture.objects(bob).call(idle.run.name, "pause", target))).toEqual([
+    expect(await refusal(fixture.objects(bob).run(idle.run, "pause", target))).toEqual([
         "NOT_FOUND",
         "NOT_FOUND",
         `idle-run '${String(started?.["id"])}' not found`,

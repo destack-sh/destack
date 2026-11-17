@@ -87,7 +87,7 @@ test("invoke a child run again once its parent is reset to the child's step, rea
     const started = await fixture.start(() => sum.start({ left: 2, right: 3 }, actor()));
     const { id } = schema.looseObject({ id: schema.string() }).parse(started);
     await fixture.waitUntil((rows) => rows[0]?.["state"] === "completed");
-    const reset = await fixture.objects(alice).call(sum.run.name, "reset", { id, step: "right" });
+    const reset = await fixture.objects(alice).run(sum.run, "reset", { id, step: "right" });
     const [run] = await fixture.waitUntil((rows) => rows[0]?.["state"] === "completed");
 
     // expect the right child run started again under its key, and the sum read from the new run
@@ -165,7 +165,7 @@ test("cancel a child run once its parent is cancelled, and leave an abandoned on
     for (const id of ids) {
         await fixture
             .objects(actor().actor)
-            .call(watch.run.name, "cancel", watch.run.target({ scope: fixture.served.scope, id }));
+            .run(watch.run, "cancel", watch.run.target({ scope: fixture.served.scope, id }));
     }
     await fixture.served.simulation.idle();
 
