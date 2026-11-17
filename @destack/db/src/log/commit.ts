@@ -270,12 +270,7 @@ export class ChangeSet {
                     const locked = transaction.log.serialize();
                     const reading =
                         reads.tables.length === 0 ? undefined : transaction.log.position();
-                    const writing = Promise.all([
-                        records(transaction),
-                        ...ChangeSet.#runs(this.changes, transaction.dialect).map((run) =>
-                            ChangeSet.#apply(transaction, run),
-                        ),
-                    ]);
+                    const writing = Promise.all([records(transaction), this.apply(transaction)]);
                     const settled = await Promise.allSettled([locked, reading, writing]);
                     const [, read, written] = settled;
                     position = read.status === "fulfilled" ? read.value : undefined;
@@ -300,6 +295,15 @@ export class ChangeSet {
             }
             throw error;
         }
+    }
+
+    /** Write the set's changes in batched runs, in a transaction deferring its constraints. */
+    async apply(transaction: DatabaseConnection): Promise<void> {
+        await Promise.all(
+            ChangeSet.#runs(this.changes, transaction.dialect).map((run) =>
+                ChangeSet.#apply(transaction, run),
+            ),
+        );
     }
 
     /** Group consecutive inserts, plain updates or deletes of one table, other updates one each. */
