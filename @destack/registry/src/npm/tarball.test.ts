@@ -41,8 +41,8 @@ test("archive a build's files below package/ in path order, its workspace depend
     const entries = await NpmTarball.entries(build, { "@destack/object": "2026.11.2" });
     const read: [string, string][] = [];
     const { compression } = simulation.environment("test");
-    const zipped = NpmTarball.stream(entries, compression);
-    const archive = Pipe.through(zipped, compression.decompress("gzip"));
+    const zipped = await NpmTarball.archive(entries);
+    const archive = Pipe.through(new Blob([zipped]).stream(), compression.decompress("gzip"));
     for await (const entry of Tarball.read(archive)) {
         read.push([entry.path, new TextDecoder().decode(await TarballEntry.bytes(entry))]);
     }
@@ -53,6 +53,15 @@ test("archive a build's files below package/ in path order, its workspace depend
     expect(read).toEqual([
         ["package/package.json", `${JSON.stringify(released, null, 4)}\n`],
         ["package/src/package.ts", "export {};\n"],
+    ]);
+
+    // archive equal entries to equal bytes, hashed as npm's integrity
+    const again = await NpmTarball.archive(
+        await NpmTarball.entries(build, { "@destack/object": "2026.11.2" }),
+    );
+    expect([again.toHex() === zipped.toHex(), await NpmTarball.integrity(zipped, crypto)]).toEqual([
+        true,
+        `sha512-${new Uint8Array(await crypto.digest("SHA-512", zipped)).toBase64()}`,
     ]);
 
     // refuse a workspace dependency whose release the lock does not link
