@@ -529,8 +529,13 @@ export class DatabaseConnection<
         const states = applied.map((entry) => entry.state);
         const changed = changedTables(states, declared);
 
+        // rebuild the other managers' tables that reference a rebuilt one with it
+        const planning = new Set(applied);
+        const others = read.filter((entry) => !planning.has(entry)).map((entry) => entry.state);
+
         return planTables({
             applied: states,
+            others,
             existing: await readTables(this),
             declared,
             changed,

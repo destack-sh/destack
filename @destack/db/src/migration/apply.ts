@@ -34,23 +34,11 @@ export async function applyPlan(
         insertEpoch(Uuid.v7(environment), namespace),
     ];
 
-    // turn foreign keys off while SQLite rebuilds tables
+    // apply every phase and record the state, checking the references after SQLite rebuilt tables
     const isRebuilt =
         plan.dialect === "sqlite" && plan.steps.some((step) => step.action === "replace");
-    if (isRebuilt) {
-        await database.executeScript("PRAGMA foreign_keys = OFF");
-    }
-
-    // apply every phase and record the state
     const appliedAt = database.state.clock.now();
-    try {
-        await applySteps(database, plan, manager, changes, appliedAt, isRebuilt);
-    } finally {
-        // restore foreign keys
-        if (isRebuilt) {
-            await database.executeScript("PRAGMA foreign_keys = ON");
-        }
-    }
+    await applySteps(database, plan, manager, changes, appliedAt, isRebuilt);
 }
 
 /** Apply a plan's phases and record its state. */

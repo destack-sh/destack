@@ -36,6 +36,8 @@ export interface TableStep extends Step {
     readonly tree?: TreeDescription;
     /** The table and columns a conversion step writes, whose values the apply checks. */
     readonly converted?: { readonly table: string; readonly columns: readonly string[] };
+    /** The table a SQLite replace step rebuilds, written with the plan's other rebuilds. */
+    readonly rebuild?: statement.TableRebuild;
 }
 
 /** The steps from a database's applied state to its declared tables. */
@@ -73,6 +75,8 @@ export interface PlanInput {
     readonly changed: ReadonlySet<string>;
     /** The applied tables with no rows, whose changes convert and fill nothing. */
     readonly empty: ReadonlySet<string>;
+    /** The applied tables of other managers, which rebuild with a declared table they reference. */
+    readonly others?: readonly TableState[];
 }
 
 /** List the applied tables whose declared state differs, by applied name. */
@@ -105,8 +109,45 @@ export function planTables(input: PlanInput): TablePlan {
         detail: conflict.reason,
     }));
 
-    // plan each agreeing table and its aggregates, dependents and foreign keys
-    const { steps, created } = planDeclared(input, remaining, problems);
+    // rebuild each table referencing a rebuilt one with it, as SQLite enforces their foreign keys
+    const others = input.others ?? [];
+    const drafted = planDeclared(input, new Map(remaining), [], new Set());
+    const following = referencingTables(
+        drafted.steps.flatMap((each) => (each.rebuild === undefined ? [] : [each.rebuild.table])),
+        [...declared, ...others].map((state) => state.table),
+    );
+
+    // plan each agreeing table, and rebuild the other managers' tables referencing a rebuilt one
+    const planned = planDeclared(input, remaining, problems, following);
+    const { created } = planned;
+    const followed = others.filter((state) => following.has(state.table.name));
+    const rebuilt = [
+        ...planned.steps.filter((each) => each.rebuild !== undefined),
+        ...followed.map(({ table }): TableStep => {
+            // copy every stored column of a table rebuilt as it is
+            const copied = table.columns.filter((column) => column.generated === undefined);
+            const target = Address.join("table", table.name);
+            const detail = "rebuild table: it references a rebuilt table";
+
+            return {
+                ...step("replace", target, "safe", detail, []),
+                rebuild: { table, copied: copied.map((column) => column.name) },
+            };
+        }),
+    ];
+
+    // keep a plan without rebuilds in its order
+    const rebuilds = rebuilt.flatMap((each) => (each.rebuild === undefined ? [] : [each.rebuild]));
+    const [first, ...rest] = rebuilt;
+    const steps =
+        first === undefined
+            ? planned.steps
+            : rebuildSteps(planned.steps, created, [
+                  { ...first, statements: statement.rebuildTables(rebuilds) },
+                  ...rest,
+              ]);
+
+    // plan the tables' aggregates, dependents and foreign keys
     steps.push(...aggregateSteps(declared, applied, dialect));
     steps.push(...multikeyIndexSteps(declared, applied, dialect));
     steps.push(...dependentSteps(declared, applied));
@@ -134,8 +175,8 @@ export function planTables(input: PlanInput): TablePlan {
 
     // reinstall every generated trigger around the steps
     const triggers = reinstallTriggers(
-        applied,
-        declared,
+        [...applied, ...followed],
+        [...declared, ...followed],
         dialect,
         steps.length > 0,
         input.namespace,
@@ -149,6 +190,7 @@ function planDeclared(
     input: PlanInput,
     remaining: Map<string, TableState>,
     problems: Problem[],
+    following: ReadonlySet<string>,
 ): { readonly steps: TableStep[]; readonly created: TableDescription[] } {
     // collect the steps and the created tables
     const steps: TableStep[] = [];
@@ -181,9 +223,10 @@ function planDeclared(
                 problems.push({ target: Address.join("table", name), detail });
             }
         }
-        // change an applied table whose declared state differs
-        else if (input.changed.has(previous.table.name)) {
-            steps.push(...planChange(state, previous, input.empty.has(name), problems));
+        // change an applied table whose declared state differs, or which follows a rebuilt table
+        else if (input.changed.has(previous.table.name) || following.has(name)) {
+            const isEmpty = input.empty.has(name);
+            steps.push(...planChange(state, previous, isEmpty, problems, following.has(name)));
         }
     }
 
@@ -229,12 +272,56 @@ function planCreate(
     }
 }
 
+/** Order a plan's steps around its rebuilds: the renames and new tables, the rebuilds, the rest. */
+function rebuildSteps(
+    steps: readonly TableStep[],
+    created: readonly TableDescription[],
+    rebuilt: readonly TableStep[],
+): TableStep[] {
+    // rename before the rebuilds copy by the new names, and create the tables they may reference
+    const creating = new Set(created.map((table) => Address.join("table", table.name)));
+    const isEarlier = (each: TableStep) => each.action === "rename" || creating.has(each.target);
+
+    return [
+        ...steps.filter(isEarlier),
+        ...rebuilt,
+        ...steps.filter((each) => !isEarlier(each) && each.rebuild === undefined),
+    ];
+}
+
+/** List the tables referencing some tables by a foreign key, directly or through another. */
+function referencingTables(
+    referenced: readonly TableDescription[],
+    tables: readonly TableDescription[],
+): Set<string> {
+    // follow the references from the tables found so far until none adds one
+    const names = new Set(referenced.map((table) => table.name));
+    const following = new Set<string>();
+    let found = names.size;
+    while (found > 0) {
+        found = 0;
+        for (const table of tables) {
+            const isReferencing = table.constraints.some(
+                (constraint) => constraint.kind === "foreignKey" && names.has(constraint.table),
+            );
+            if (isReferencing && !names.has(table.name)) {
+                names.add(table.name);
+                following.add(table.name);
+                found += 1;
+            }
+        }
+    }
+
+    return following;
+}
+
 /** Plan the changes from a table's applied state to its declared one. */
 function planChange(
     state: TableState,
     previous: TableState,
     isEmpty: boolean,
     problems: Problem[],
+    isFollowing: boolean,
 ): TableStep[] {
     // rename a moved table before changing it
     const name = state.table.name;
@@ -256,6 +343,7 @@ function planChange(
         state.moved?.columns ?? {},
         isEmpty,
         problems,
+        isFollowing,
     );
 
     // convert rows, backfill newly bridged columns and rebuild a changed tree's index
@@ -560,6 +648,7 @@ function changeTable(
     moved: Readonly<Record<string, string>>,
     isEmpty: boolean,
     problems: Problem[],
+    isFollowing: boolean,
 ): TableStep[] {
     // rename moved columns first
     const steps: TableStep[] = [];
@@ -614,7 +703,7 @@ function changeTable(
     return [
         ...steps,
         ...(next.dialect === "sqlite"
-            ? changeSQLiteTable(current, next, added, removed, changed)
+            ? changeSQLiteTable(current, next, added, removed, changed, isFollowing)
             : changePostgresTable(current, next, added, removed, changed)),
     ];
 }
@@ -626,9 +715,11 @@ function changeSQLiteTable(
     added: readonly TableDescription["columns"][number][],
     removed: readonly TableDescription["columns"][number][],
     changed: readonly ColumnChange[],
+    isFollowing: boolean,
 ): TableStep[] {
-    // rebuild for changes beyond additions and indexes, or a new required column only an empty table takes
+    // rebuild to follow a rebuilt table, for changes beyond additions and indexes, or a new required column only an empty table takes
     const isRebuilt =
+        isFollowing ||
         removed.length > 0 ||
         changed.length > 0 ||
         added.some((column) => column.generated?.mode === "stored") ||
@@ -664,14 +755,20 @@ function changeSQLiteTable(
             ...changed.map(({ declared }) => `change ${declared.name}`),
         ].join(", ");
 
+        const isConstrained = canonicalize(previous.constraints) !== canonicalize(next.constraints);
+        const reason = isConstrained ? "constraints" : "it references a rebuilt table";
+
         return [
-            step(
-                "replace",
-                Address.join("table", next.name),
-                isLossy ? "destructive" : isChecked ? "fallible" : "safe",
-                `rebuild table: ${detail || "constraints"}`,
-                statement.rebuildTable(next, copied),
-            ),
+            {
+                ...step(
+                    "replace",
+                    Address.join("table", next.name),
+                    isLossy ? "destructive" : isChecked ? "fallible" : "safe",
+                    `rebuild table: ${detail || reason}`,
+                    [],
+                ),
+                rebuild: { table: next, copied },
+            },
         ];
     }
 

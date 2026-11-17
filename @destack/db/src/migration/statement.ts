@@ -112,18 +112,71 @@ export function dropIndex(name: string): string {
     return `DROP INDEX ${quote(name)}`;
 }
 
-/** Rebuild a SQLite table, copying the shared columns. */
-export function rebuildTable(table: TableDescription, copied: readonly string[]): string[] {
-    // create the new table and copy shared columns
-    const staging = `${table.name}__rebuild`;
-    const columns = copied.map(quote).join(", ");
+/** Name the table a SQLite rebuild fills before it takes a table's place. */
+function staging(name: string): string {
+    return `${name}__rebuild`;
+}
 
+/** A SQLite table to rebuild as described, with the columns its rows keep. */
+export interface TableRebuild {
+    /** The table as it is after the rebuild. */
+    readonly table: TableDescription;
+    /** The columns copied from the table's rows. */
+    readonly copied: readonly string[];
+}
+
+/** Rebuild SQLite tables with every table referencing them, under enforced foreign keys. */
+export function rebuildTables(rebuilds: readonly TableRebuild[]): string[] {
+    // stage every table first, each referencing the staged tables it rebuilds with
+    const rebuilt = new Set(rebuilds.map(({ table }) => table.name));
+    const staged = rebuilds.map(({ table }) => {
+        const constraints = table.constraints.map((constraint) =>
+            constraint.kind === "foreignKey" && rebuilt.has(constraint.table)
+                ? { ...constraint, table: staging(constraint.table) }
+                : constraint,
+        );
+
+        return createTable({ ...table, constraints }, staging(table.name));
+    });
+
+    // copy each table's kept columns once every staged table it references exists
+    const copies = rebuilds.map(({ table, copied }) => {
+        const columns = copied.map(quote).join(", ");
+        const target = quote(staging(table.name));
+
+        return `INSERT INTO ${target} (${columns}) SELECT ${columns} FROM ${quote(table.name)}`;
+    });
+
+    // drop each table after the tables referencing it, so no drop deletes another's rows
+    const pending = new Map(rebuilds.map(({ table }) => [table.name, table]));
+    const dropped: string[] = [];
+    while (pending.size > 0) {
+        const referenced = new Set(
+            [...pending.values()].flatMap((table) =>
+                table.constraints.flatMap((constraint) =>
+                    constraint.kind === "foreignKey" && constraint.table !== table.name
+                        ? [constraint.table]
+                        : [],
+                ),
+            ),
+        );
+        const free = [...pending.keys()].filter((name) => !referenced.has(name));
+        const next = free.length > 0 ? free : [...pending.keys()].slice(0, 1);
+        for (const name of next) {
+            dropped.push(dropTable(name));
+            pending.delete(name);
+        }
+    }
+
+    // rename each staged table, which points the references at it back to its name
     return [
-        createTable(table, staging),
-        `INSERT INTO ${quote(staging)} (${columns}) SELECT ${columns} FROM ${quote(table.name)}`,
-        dropTable(table.name),
-        renameTable(staging, table.name),
-        ...table.indexes.map((index) => createIndex(table.name, index)),
+        ...staged,
+        ...copies,
+        ...dropped,
+        ...rebuilds.map(({ table }) => renameTable(staging(table.name), table.name)),
+        ...rebuilds.flatMap(({ table }) =>
+            table.indexes.map((index) => createIndex(table.name, index)),
+        ),
     ];
 }
 
