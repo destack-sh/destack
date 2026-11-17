@@ -9,6 +9,7 @@
         ".": "./src/index.ts",
         "./object": "./src/object/index.ts",
         "./client": "./src/client/index.ts",
+        "./npm": "./src/npm/index.ts",
         "./package": "./src/package.ts",
         "./error": "./src/error/index.ts"
     },

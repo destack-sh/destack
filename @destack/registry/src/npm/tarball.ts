@@ -23,6 +23,9 @@ const WORKSPACE_RANGE = "workspace:";
 
 /** A release as npm clients install it: its build's files below package/, at released versions. */
 export const NpmTarball = {
+    /** The path of the package file inside the archive. */
+    packageFile: `${ROOT}/${PACKAGE_FILE}`,
+
     /** List a build's files as entries in path order, its package file at the linked versions. */
     async entries(
         reader: BuildReader,
