@@ -33,8 +33,7 @@ export function installCommand(context: Context): Verb {
             const { name: packageName, release: asked } = readSpecifier(
                 present(specifier, "the package argument"),
             );
-            const name =
-                OptionValue.string(options["name"], "name") ?? PackageName.split(packageName).local;
+            const named = OptionValue.string(options["name"], "name");
 
             // resolve the release, stay on a version or follow a tag, and follow it until its space serves it
             const { client, home } = await openForge(packageName, context);
@@ -59,7 +58,8 @@ export function installCommand(context: Context): Verb {
             const follows = isPinned
                 ? release.reference(resolved.scope, resolved.id)
                 : await followedTag(client, home, found.id, asked);
-            const id = await upsert(context, found.id, name, follows);
+            const fallback = PackageName.split(packageName).local;
+            const { id, name } = await upsert(context, found.id, named, fallback, follows);
             await driveInstallation(id, options["yes"] === true, json, context);
 
             // report the release it runs and what it follows
@@ -113,22 +113,31 @@ async function followedTag(
     return tag.reference(tagged.scope, tagged.id);
 }
 
-/** Create an installation of a package by its name, or change what the installed one follows. */
+/** Create a package's installation under a name, or change what its installed one follows. */
 async function upsert(
     context: Context,
     packageId: PackageId,
-    name: string,
+    asked: string | undefined,
+    fallback: string,
     follows: ObjectReference,
-): Promise<Identifier<"installation">> {
-    // read the installation of that name
+): Promise<{ readonly id: Identifier<"installation">; readonly name: string }> {
+    // read the package's installation, of which a space has one, and the one of that name
     const { environment } = await context.native();
     const space = await context.requireSpace();
     const objects = await context.package(objectPackage, await context.locate());
-    const { items } = await objects.installation.list({ scope: space, where: { name }, limit: 1 });
-    const [installed] = items;
+    const find = async (where: { readonly packageId: PackageId } | { readonly name: string }) =>
+        (await objects.installation.list({ scope: space, where, limit: 1 })).items[0];
+    const installed = await find({ packageId });
+    const name = asked ?? installed?.name ?? fallback;
 
-    // create it
+    // create it, refusing a name another package's installation has
     if (installed === undefined) {
+        if ((await find({ name })) !== undefined) {
+            throw CliError.of(
+                "INSTALLATION_NAME_EXISTS",
+                `installation '${name}' already exists: it installs another package, so choose another name with --name`,
+            );
+        }
         const created = await objects.installation.create({
             scope: space,
             requestId: RequestId.create(environment),
@@ -137,13 +146,13 @@ async function upsert(
             name,
         });
 
-        return created.id;
+        return { id: created.id, name };
     }
-    // refuse a name another package's installation has
-    else if (installed.packageId !== packageId) {
+    // refuse another name for the package's one installation
+    else if (installed.name !== name) {
         throw CliError.of(
             "INSTALLATION_NAME_EXISTS",
-            `installation '${name}' already exists: it installs another package, so choose another name with --name`,
+            `installation '${installed.name}' already exists: it is the package's one installation in the space, so leave --name out`,
         );
     }
     // change what it follows
@@ -156,6 +165,6 @@ async function upsert(
             ...ObjectReference.columns("follows", follows),
         });
 
-        return installed.id;
+        return { id: installed.id, name };
     }
 }
