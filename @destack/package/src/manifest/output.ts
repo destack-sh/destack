@@ -57,6 +57,29 @@ export const OutputContent = PackageOutput.omit({ files: true });
 /** An output as a build writes it, before the writer lists the files its runtime loads. */
 export type OutputContent = schema.Input<typeof OutputContent>;
 
+/** A specifier a module resolves against its own path: one starting at a directory or the root. */
+const RELATIVE_SPECIFIER = /^(?:\.{1,2})?\//u;
+
+/** The start of an import expression, which a module may give a computed name. */
+const IMPORT_CALL = /^import\s*\(/u;
+
+/** The characters read at an import to tell an import expression: the word, spaces, a bracket. */
+const IMPORT_CALL_LENGTH = 16;
+
+/** A file a module names by URL against its own, as a worker's script is named. */
+const META_URL = /new URL\(\s*["'`]([^"'`]+)["'`]\s*,\s*import\.meta\.url\s*\)/gu;
+
+/** The origin a module's path resolves a relative specifier under, dropped from the result. */
+const URL_BASE = "file://";
+
+/** What a module imports: the modules it reaches, and whether it imports one by a computed name. */
+export interface ModuleImports {
+    /** The paths of the modules its literal imports resolve to. */
+    readonly modules: readonly string[];
+    /** Whether it imports a module by a computed name, which reaches any module beside it. */
+    readonly isOpen: boolean;
+}
+
 /** An import map, as browsers read it: module specifiers to URLs, with scopes by URL prefix. */
 const importMap = schema.object({
     /** The URL of each specifier the page's own modules import. */
@@ -106,6 +129,41 @@ export const ImportMap = Object.assign(importMap, {
         }
 
         return rewritten.toString();
+    },
+
+    /** List the modules a module imports as the map and its own path resolve them. */
+    async imports(map: ImportMap, code: string, referrer: string): Promise<ModuleImports> {
+        // resolve each literal specifier through the map, a relative one against the module
+        await lexer.init();
+        const [imports] = lexer.parse(code);
+        const chain = chainOf(map, referrer);
+        const modules: string[] = [];
+        let isOpen = false;
+        for (const imported of imports) {
+            const { specifier } = imported;
+            const isLiteral =
+                typeof specifier === "string" && !("glob" in imported && imported.glob);
+            if (!isLiteral) {
+                // leave an import of a computed name open, as no reader can list what it loads
+                isOpen ||= IMPORT_CALL.test(
+                    code.slice(imported.importStart, imported.importStart + IMPORT_CALL_LENGTH),
+                );
+                continue;
+            }
+            const mapped = resolveAlong(chain, specifier);
+            if (mapped !== undefined) {
+                modules.push(mapped);
+            } else if (RELATIVE_SPECIFIER.test(specifier)) {
+                modules.push(new URL(specifier, `${URL_BASE}${referrer}`).pathname);
+            }
+        }
+
+        // add each file the module names by URL beside itself, as a worker's script is
+        for (const [, specifier = ""] of code.matchAll(META_URL)) {
+            modules.push(new URL(specifier, `${URL_BASE}${referrer}`).pathname);
+        }
+
+        return { modules, isOpen };
     },
 });
 /** An import map, as browsers read it: module specifiers to URLs, with scopes by URL prefix. */
