@@ -263,3 +263,4 @@ Spans and logs carry identifiers and metrics do not, so each metric has a bounde
 | metric attribute  | `<scope>.<noun>`, which lists its values    | `destack.controller` of `page`     |
 | span attribute    | `<scope>.<noun>`, any value                 | `destack.key`                      |
 | failure           | `error.type`, the failure's code            | `CONFLICT`                         |
+| failure reason    | `destack.error.reason`, its reason          | `REVISION_STALE`                   |
