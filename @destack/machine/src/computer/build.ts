@@ -6,7 +6,7 @@ import type { PackageVersion } from "@destack/package";
 import type { BuildReader, Lock } from "@destack/package/manifest";
 import { type Controller, eq, type Select, Reconciliation } from "@destack/db";
 import { GitLease } from "@destack/git/local";
-import { Digest, type Identifier, present, schema, Uuid } from "@destack/schema";
+import { Digest, type Identifier, present, schema, Uuid, type Version } from "@destack/schema";
 import { PRIMARY_RUNTIMES } from "@destack/package/runtime";
 import { CallError } from "@destack/object";
 import { RequestId } from "@destack/sync";
@@ -155,7 +155,12 @@ export class BuildRunner {
         });
 
         // compile the outputs with a warm compiler, then index the code for its primary runtime
-        const compiled = await this.#compile(workspacePackage, opened, outputs, signal);
+        const compiled = await this.#compile(
+            workspacePackage,
+            opened,
+            { outputs, version: replicated.version },
+            signal,
+        );
         const runtime = present(
             PRIMARY_RUNTIMES.find((each) =>
                 Object.values(implied).some((output) => output.runtime === each),
@@ -280,12 +285,14 @@ export class BuildRunner {
     async #compile(
         workspacePackage: WorkspacePackage,
         opened: SourceDirectory,
-        outputs: readonly string[],
+        built: { readonly outputs: readonly string[]; readonly version: Version | null },
         signal: AbortSignal,
     ): Promise<BuildReader> {
-        // stamp a build of uncommitted source as a prerelease
+        // release the package at the build's version, and stamp uncommitted source as a prerelease
+        const { name, packageJson } = workspacePackage.root;
         const request = {
-            outputs: outputsOf(workspacePackage.root.packageJson, outputs),
+            outputs: outputsOf(packageJson, built.outputs),
+            ...(built.version === null ? {} : { versions: { [name]: built.version } }),
             isPrerelease: opened.commit === undefined,
             signal,
         };
