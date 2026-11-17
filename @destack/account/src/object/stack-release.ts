@@ -11,7 +11,7 @@ export const StackRelease = schema.object({
     /** The export declaring the space. */
     export: schema.string().min(1),
     /** The setting values the stack places in the space, by `<package>/<name>`. */
-    settings: schema.record(schema.string().min(1), schema.json()),
+    settings: schema.record(schema.string().min(1), schema.json()).default({}),
 });
 /** Where a space's stack comes from. */
 export type StackRelease = schema.Infer<typeof StackRelease>;
