@@ -21,8 +21,11 @@
         "test": "bun --bun run vitest run --config vitest.config.ts"
     },
     "devDependencies": {
+        "@destack/package": "workspace:*",
         "@destack/test": "workspace:*",
-        "@types/bun": "1.4.4"
+        "@types/bun": "1.4.4",
+        "miniflare": "4.20260730.0",
+        "rolldown": "1.2.19"
     },
     "dependencies": {
         "@destack/error": "workspace:*",
