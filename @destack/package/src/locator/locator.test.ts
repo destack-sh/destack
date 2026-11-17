@@ -1,3 +1,4 @@
+import { Version } from "@destack/schema";
 import { testSimulation } from "@destack/test/world";
 import type { FileSystem } from "@destack/environment";
 import { join } from "node:path";
@@ -26,7 +27,7 @@ async function writePackage(
     await files.writeTextFile(join(directory, "src", "index.ts"), "export {};\n");
 }
 
-test("read listed source packages at their given versions and other packages at their declared ones", async () => {
+test("read a source package at the version its build gives it, else the development one, and an installed one at its own", async () => {
     // write a listed and an unlisted source package, and an installation of the listed name
     await using simulation = testSimulation();
     const { files } = simulation.environment("test");
@@ -62,8 +63,8 @@ test("read listed source packages at their given versions and other packages at 
         listed: await read(new PackageLocator(files, versions)),
         declared: await read(new PackageLocator(files)),
     }).toEqual({
-        listed: ["2026.9.0-dev.20260912100004.0123456789ab", "2026.9.0", "2026.9.0"],
-        declared: ["2026.9.0", "2026.9.0", "2026.9.0"],
+        listed: ["2026.9.0-dev.20260912100004.0123456789ab", Version.development, "2026.9.0"],
+        declared: [Version.development, Version.development, "2026.9.0"],
     });
 });
 

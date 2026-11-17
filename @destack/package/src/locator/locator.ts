@@ -9,7 +9,7 @@ import { ModuleMetadata } from "../definition/metadata.ts";
 import { DependencyName } from "../definition/package.ts";
 import { PackageJson, RuntimeRequirements } from "../definition/description.ts";
 import { PackageError } from "../error/error.ts";
-import { present, schema, type Version } from "@destack/schema";
+import { present, schema, Version } from "@destack/schema";
 
 /** The name and version fields of a package.json. */
 const Manifest = schema.looseObject({
@@ -17,8 +17,11 @@ const Manifest = schema.looseObject({
     version: schema.string().exactOptional(),
 });
 
-/** The name and version fields of a Destack package's package.json. */
-const ReleasedManifest = schema.looseObject({ name: schema.string(), version: schema.string() });
+/** The name of a Destack package's package.json, and the version an installed one has. */
+const ReleasedManifest = schema.looseObject({
+    name: schema.string(),
+    version: schema.string().exactOptional(),
+});
 
 /** A function the module transform passes the calling module to, as one import reads it. */
 export interface StampedFunction {
@@ -263,20 +266,26 @@ export class PackageLocator {
         return { directory, metadata };
     }
 
-    /** Read a package's release, the version a build releases its source at or the declared one. */
+    /** Read a package's version: an installation's own, else the one a build releases its source at. */
     static release(
         directory: string,
-        declared: { readonly name: string; readonly version: string },
+        declared: { readonly name: string; readonly version?: string },
         versions: Readonly<Record<string, Version>>,
     ): string {
-        // keep the declared version of an installation or a package the build leaves out
-        const version = versions[declared.name];
-        const isInstalled = directory.split(sep).includes("node_modules");
-        if (isInstalled || version === undefined) {
+        // take the version an installation's package file has, which its release wrote
+        if (directory.split(sep).includes("node_modules")) {
+            if (declared.version === undefined) {
+                throw PackageError.of(
+                    "DEFINITION_INVALID",
+                    `'${join(directory, "package.json")}' is invalid: an installed package has a version`,
+                );
+            }
+
             return declared.version;
         }
 
-        return version;
+        // take the version the build releases the source at, the development one where it releases none
+        return versions[declared.name] ?? Version.development;
     }
 
     /** Read the name in a directory's package.json once, or nothing without one. */
