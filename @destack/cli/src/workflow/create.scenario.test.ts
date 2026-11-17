@@ -52,7 +52,7 @@ test("make a package from a published template in a new checkout, its registries
         entries: entries.map((entry) => entry.name).toSorted(),
         manifest,
         definition,
-        isOwn: [id !== STARTER_ID, Version.isPrerelease(version)],
+        isOwn: [id !== STARTER_ID, Version.release(version)],
         bunfig: await read("bunfig.toml"),
     }).toEqual({
         code: [0, ""],
@@ -70,7 +70,7 @@ test("make a package from a published template in a new checkout, its registries
             language: "typescript",
             runtimes: ["bun"],
         },
-        isOwn: [true, true],
+        isOwn: [true, "2026.10.0"],
         bunfig: [
             'preload = ["@destack/package/bun/preload"]',
             "",
