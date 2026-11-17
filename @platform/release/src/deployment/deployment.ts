@@ -754,10 +754,11 @@ export class Deployment {
             await script.deploy(configuration, secrets, modules);
         }
 
-        // check every deployed origin answers, a tail answering none
+        // check every deployed origin answers once it started, a tail answering none
         for (const [script] of scripts) {
             if (script.target.kind !== "tail") {
-                await script.smoke();
+                const started = await script.smoke();
+                print("deploy", `${script.name} answers after ${started} ms`);
             }
         }
     }

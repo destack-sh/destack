@@ -22,6 +22,13 @@ import {
 import type { Deployment } from "../deployment.ts";
 import { PLATFORM, type PlatformResidency, RESIDENCIES } from "@platform/stack";
 import { CloudflareCredentials } from "./credential.ts";
+import { schema } from "@destack/schema";
+
+/** What a starting server answers: its reason and the pause before asking again. */
+const Starting = schema.looseObject({
+    reason: schema.literal("SERVER_UNAVAILABLE"),
+    data: schema.looseObject({ retryAfter: schema.number().int().positive() }),
+});
 
 /** The package conditions selecting each dependency's workerd build. */
 const CONDITIONS = ["workerd", "worker", "browser"];
@@ -351,23 +358,39 @@ export class WorkerScript {
         return path;
     }
 
-    /** Require the script to answer at its origin without a server failure. */
-    async smoke(): Promise<void> {
+    /** Require the script to answer at its origin without a server failure, once it started. */
+    async smoke(): Promise<number> {
         // request the issuer's discovery document from the universe, and the origin from a cloud machine
         const isUniverse = this.target.kind === "universe";
         const issuer = UniverseOrigin.issuer(this.origin);
         const url = isUniverse
             ? new URL(`${issuer}/.well-known/openid-configuration`)
             : new URL("/", this.origin);
-        const response = await this.deployment.environment.network.fetch(
-            new Request(url, { redirect: "manual" }),
-        );
+        const { network, clock } = this.deployment.environment;
+        const asked = clock.now();
+
+        // ask again while the script answers that its server is starting, after the pause it names
+        const ask = async () => {
+            const answered = await network.fetch(new Request(url, { redirect: "manual" }));
+            const body: unknown = answered.ok ? undefined : await answered.clone().json();
+
+            return { answered, starting: Starting.safeParse(body).data };
+        };
+        let { answered: response, starting } = await ask();
+        while (starting !== undefined) {
+            await clock.sleep(starting.data.retryAfter);
+            ({ answered: response, starting } = await ask());
+        }
+
+        // refuse a server failure, and any failure of the universe
         if (response.status >= 500 || (isUniverse && !response.ok)) {
             const body = await response.text();
             throw new Error(
                 `'${this.name}' answered '${url.href}' with ${response.status}: '${body}'`,
             );
         }
+
+        return clock.now() - asked;
     }
 
     /** Deploy the script with its configuration and its secrets. */
