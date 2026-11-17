@@ -30,6 +30,31 @@ export type StepUp = schema.Infer<typeof stepUpSchema>;
 export const StepUp = {
     /** The schema of a step-up challenge. */
     schema: stepUpSchema,
+
+    /** Write a step-up as a URL's query, as a request for a stepped-up token sends it. */
+    query(stepUp: StepUp): URLSearchParams {
+        const { assurance, maxAge } = stepUp;
+
+        return new URLSearchParams({
+            assurance: String(assurance),
+            ...(maxAge === undefined ? {} : { maxAge: String(maxAge) }),
+        });
+    },
+
+    /** Read the step-up a URL's query asks, or nothing where it asks none. */
+    ofQuery(query: URLSearchParams): StepUp | undefined {
+        // read no step-up from a query without an assurance
+        const assurance = query.get("assurance");
+        const maxAge = query.get("maxAge");
+        if (assurance === null) {
+            return undefined;
+        }
+
+        return stepUpSchema.parse({
+            assurance: Number(assurance),
+            ...(maxAge === null ? {} : { maxAge: Number(maxAge) }),
+        });
+    },
 };
 
 /** The authentication of a sensitive permission, like OpenID Connect `acr_values` and `max_age`. */
