@@ -367,6 +367,9 @@ type SharingConfiguration = {
 type SharingContext = MethodContext<SharingConfiguration>;
 /** The shareable methods' handlers: sharing an object and paging its relationships. */
 export const Shareable = {
+    /** The roles an object is shared through, lowest first. */
+    roles: ROLES,
+
     /** Read a grant through exactly one declared relation or role, refusing both or neither. */
     readGrant(input: unknown): schema.Infer<typeof GrantInput> {
         const grant = GrantInput.safeParse(input);
