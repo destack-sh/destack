@@ -653,9 +653,7 @@ export class DatabaseConnection<
                     );
                     attempt?.commit();
                     if (written.size > 0) {
-                        await this.state.compactIfDue(this.log, (error) =>
-                            this.state.scope.captureException(error),
-                        );
+                        await this.state.compactIfDue(this.log);
                     }
 
                     return committed;
@@ -1004,14 +1002,14 @@ export class ConnectionState {
     }
 
     /** Compact the log after a logged commit once its oldest windowed change left the window. */
-    async compactIfDue(log: Log, report: (error: unknown) => void): Promise<void> {
+    async compactIfDue(log: Log): Promise<void> {
         // leave a log not due, compacting or closing
         const at = this.clock.now();
         if (at <= this.#compactionDue || this.#isCompacting || this.#closing !== undefined) {
             return;
         }
 
-        // compact, recording when it is due again, reporting a failure without failing the commit
+        // compact, recording when it is due again, capturing a failure without failing the commit
         this.#isCompacting = true;
         try {
             this.#compactionDue = await log.compactIfDue(
@@ -1020,7 +1018,7 @@ export class ConnectionState {
                 at,
             );
         } catch (error) {
-            report(error);
+            this.scope.captureException(error);
         } finally {
             this.#isCompacting = false;
         }
