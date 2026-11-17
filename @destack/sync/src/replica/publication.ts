@@ -16,7 +16,6 @@ import {
 } from "@destack/db";
 import { canonicalize, Duration, type JsonObject, JsonValue, schema } from "@destack/schema";
 import { SyncError } from "../error/index.ts";
-import type { Call, Mutation } from "../call/call.ts";
 import { Subject } from "../call/subject.ts";
 import type { Page } from "../query/index.ts";
 import type { Replica } from "./replica.ts";
@@ -290,44 +289,3 @@ export interface Publisher {
     /** Record a subscription's request at its source: its parameters and its ask. */
     readonly request: (subscription: Subscription) => Promise<void>;
 }
-
-/** A publisher that also runs the calls its follower's server sends to the rows' home. */
-export interface Uplink extends Publisher {
-    /** Run a mutation of the rows at their home once however often sent, answering its results. */
-    readonly receive: (mutation: Mutation, signer?: Subject) => Promise<readonly unknown[]>;
-    /** Answer a query of the rows at their home, in the scope it reads. */
-    readonly call: (call: Call, scope: string, signer?: Subject) => Promise<unknown>;
-}
-
-/** A publisher that also runs the calls its follower's server sends to the rows' home. */
-export const Uplink = {
-    /** Replicate and send through a client's replica calls, as follower or change signer. */
-    of(
-        replica: (signer?: Subject) => {
-            readonly stream: (
-                subscription: Subscription,
-                options: { readonly signal: AbortSignal },
-            ) => Promise<AsyncIterable<Page>>;
-            readonly request: (input: { readonly subscription: Subscription }) => Promise<unknown>;
-            readonly receive: (input: {
-                readonly mutation: Mutation;
-            }) => Promise<{ readonly results: readonly unknown[] }>;
-            readonly call: (input: {
-                readonly scope: string;
-                readonly call: Call;
-            }) => Promise<unknown>;
-        },
-    ): Uplink {
-        return {
-            async *stream(subscription, signal) {
-                yield* await replica().stream(subscription, { signal });
-            },
-            request: async (subscription) => {
-                await replica().request({ subscription });
-            },
-            receive: async (mutation, signer) =>
-                (await replica(signer).receive({ mutation })).results,
-            call: (call, scope, signer) => replica(signer).call({ scope, call }),
-        };
-    },
-};

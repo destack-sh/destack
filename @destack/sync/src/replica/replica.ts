@@ -746,7 +746,7 @@ export class Replica {
         // read the replicas including the scope, again at each mark while none does
         let replicas = await Replica.including(database, scope);
 
-        return await Replica.#waitMarked(
+        return await Replica.waitMarked(
             database,
             async () => {
                 if (replicas.length === 0) {
@@ -766,7 +766,7 @@ export class Replica {
         position: LogPosition,
         signal: AbortSignal,
     ): Promise<boolean> {
-        return await Replica.#waitMarked(
+        return await Replica.waitMarked(
             database,
             () => Replica.isAt(database, replicas, position),
             signal,
@@ -774,7 +774,7 @@ export class Replica {
     }
 
     /** Check now and at each mark change, until the check passes or the signal aborts. */
-    static async #waitMarked(
+    static async waitMarked(
         database: DatabaseConnection,
         check: () => Promise<boolean>,
         signal: AbortSignal,
@@ -1043,7 +1043,7 @@ export class Replica {
         signal: AbortSignal,
     ): Promise<string | undefined> {
         let stale: string | undefined;
-        await Replica.#waitMarked(
+        await Replica.waitMarked(
             database,
             async () => {
                 stale = await Replica.stale(database, publication, scopes, lag);
@@ -1758,6 +1758,8 @@ export class Replica {
         options: ApplyOptions<Subscription> & {
             /** Report the replica caught up, once per follow at its first full page. */
             readonly synced: () => void;
+            /** Take each applied page, such as for the events it brings. */
+            readonly received?: (page: Page) => Promise<void>;
             /** End a stream silent for twice this lag, in milliseconds, to resume it. */
             readonly lag?: number;
         },
@@ -1794,6 +1796,7 @@ export class Replica {
                         // report the replica synced at its first complete page
                         isReceived = true;
                         silence();
+                        await options.received?.(page);
                         if (page.complete && !isSynced) {
                             isSynced = true;
                             options.synced();
