@@ -314,7 +314,7 @@ export class Approval {
         }
 
         // describe it waiting
-        const message = `approve plan ${digest} with ${plan.steps.length} steps`;
+        const message = `waiting for approval of plan '${digest}'`;
 
         return {
             conditions: { Ready: { status: "false", reason: AWAITING_APPROVAL, message } },
