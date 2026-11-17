@@ -1,5 +1,5 @@
+import { DeclarationReference } from "@destack/package/declare";
 import { type Accessor, onCleanup, useContext } from "solid-js";
-import { CommandReference } from "@destack/object";
 import type { ObjectReference } from "@destack/sync";
 import { t } from "@destack/locale";
 import { type Action, defineAction } from "../declare/action.ts";
@@ -51,7 +51,7 @@ export class ActionRegistry {
     /** Handle an action while focus and its enablement allow, and return what stops handling it. */
     handle(action: Action, handler: ActionHandler): () => void {
         // add the handler to the action's
-        const key = CommandReference.format(action.reference);
+        const key = DeclarationReference.key(action.reference);
         this.#actions.set(key, action);
         this.#handlers.set(key, [...(this.#handlers.get(key) ?? []), handler]);
 
@@ -67,8 +67,8 @@ export class ActionRegistry {
     }
 
     /** Report whether an action runs now: an enabled handler of it applies to the focus. */
-    has(reference: CommandReference): boolean {
-        return this.#chosen(CommandReference.format(reference)) !== undefined;
+    has(reference: DeclarationReference): boolean {
+        return this.#chosen(DeclarationReference.key(reference)) !== undefined;
     }
 
     /** List the actions that run now. */
@@ -79,9 +79,9 @@ export class ActionRegistry {
     }
 
     /** Run an action by the handler the focus chooses. */
-    async run(reference: CommandReference): Promise<void> {
+    async run(reference: DeclarationReference): Promise<void> {
         // find the handler the focus chooses
-        const key = CommandReference.format(reference);
+        const key = DeclarationReference.key(reference);
         const handler = this.#chosen(key);
         if (handler === undefined) {
             throw new TypeError(`the page runs no action '${key}' now`);

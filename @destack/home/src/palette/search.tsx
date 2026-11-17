@@ -1,3 +1,4 @@
+import { DeclarationReference } from "@destack/package/declare";
 import { t } from "@destack/locale";
 import { type Identifier, present } from "@destack/schema";
 import {
@@ -10,7 +11,6 @@ import {
     CommandShortcut,
     useCommand,
 } from "@destack/ui/command";
-import { CommandReference } from "@destack/object";
 import { createMemo, For, type JSX, Show, useLocale } from "@destack/view";
 import { ObjectReference } from "@destack/sync";
 import {
@@ -215,7 +215,7 @@ function EntryGroup<Entry extends PaletteEntry>(properties: {
 function valueOf(entry: PaletteEntry): string {
     // name a command by its reference
     if (entry.kind === "command") {
-        return `${entry.space}/${CommandReference.format(entry)}`;
+        return `${entry.space}/${DeclarationReference.key(entry)}`;
     }
     // name an action of the page under the palette by its package and name
     else if (entry.kind === "action") {

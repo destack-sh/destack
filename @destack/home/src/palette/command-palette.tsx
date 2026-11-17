@@ -1,5 +1,5 @@
+import { DeclarationReference } from "@destack/package/declare";
 import { Command } from "@destack/ui/command";
-import { CommandReference } from "@destack/object";
 import { SchemaForm } from "@destack/ui/schema-form";
 import { type JSX, Match, Switch } from "@destack/view";
 import type {
@@ -22,7 +22,7 @@ export interface CommandPaletteProperties {
     /** What the window the palette opens over shows. */
     readonly focus: PaletteFocus;
     /** A command to offer first, which runs once the person confirms it. */
-    readonly command?: CommandReference;
+    readonly command?: DeclarationReference;
     /** Open a view, or an object in the view presenting it. */
     readonly onOpen: (entry: ViewEntry | ObjectEntry) => void;
     /** Bring a window of this computer into focus. */
@@ -45,7 +45,7 @@ export function CommandPalette(properties: CommandPaletteProperties): JSX.Elemen
         (entry) =>
             (entry.kind === "command" || entry.kind === "action") &&
             properties.command !== undefined &&
-            CommandReference.format(entry) === CommandReference.format(properties.command),
+            DeclarationReference.key(entry) === DeclarationReference.key(properties.command),
     );
     if (asked?.kind === "command" || asked?.kind === "action") {
         running.offer(asked);

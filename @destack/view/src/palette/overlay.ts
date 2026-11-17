@@ -1,6 +1,7 @@
+import { DeclarationReference } from "@destack/package/declare";
 import { OPEN_PATH } from "@destack/account/address";
 import { present } from "@destack/schema";
-import { CommandReference, Shortcut } from "@destack/object";
+import { Shortcut } from "@destack/object";
 import { type CommandDeclaration, isCommandPlatform, Keybinding } from "./keybinding.ts";
 import type { ActionEntry } from "./entry.ts";
 import { PaletteMessage } from "./message.ts";
@@ -143,11 +144,11 @@ export class PaletteOverlay {
     }
 
     /** Open the palette over the page in a modal dialog framing its space's origin. */
-    open(command?: CommandReference): void {
+    open(command?: DeclarationReference): void {
         // open the palette over this page through the open path, at a command when one is asked for
         const query = new URLSearchParams({ [FOCUS_PARAMETER]: this.#navigation.currentEntry.url });
         if (command !== undefined) {
-            query.set(COMMAND_PARAMETER, CommandReference.format(command));
+            query.set(COMMAND_PARAMETER, DeclarationReference.key(command));
         }
         const url = `${OPEN_PATH}?${query.toString()}`;
 
@@ -259,7 +260,7 @@ export class PaletteOverlay {
         const localization = this.#localization();
         const bound = new Map(
             this.keybindings().map((binding) => [
-                CommandReference.format(binding.command),
+                DeclarationReference.key(binding.command),
                 binding.key,
             ]),
         );
@@ -270,7 +271,7 @@ export class PaletteOverlay {
             name: action.reference.name,
             title: localization.render(action.title),
             category: action.category === undefined ? null : localization.render(action.category),
-            keybinding: bound.get(CommandReference.format(action.reference)) ?? null,
+            keybinding: bound.get(DeclarationReference.key(action.reference)) ?? null,
         }));
     }
 }

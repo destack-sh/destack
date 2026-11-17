@@ -31,6 +31,11 @@ const declarationReferenceSchema = schema.object({
 /** A declaration qualified by its declaring package. */
 export type DeclarationReference = schema.Infer<typeof declarationReferenceSchema>;
 
+/** The key of a declaration: its package and name, as `<packageId>/<name>`. */
+export const DeclarationKey = schema.templateLiteral([PackageId, "/", DeclarationName]);
+/** The key of a declaration. */
+export type DeclarationKey = schema.Infer<typeof DeclarationKey>;
+
 /** A declaration qualified by its package, as bindings, permissions and events store it. */
 export const DeclarationReference = Object.assign(declarationReferenceSchema, {
     /** Reference a declaration by its package identity and name. */
@@ -39,7 +44,7 @@ export const DeclarationReference = Object.assign(declarationReferenceSchema, {
     },
 
     /** Key a reference by its package and name, as `<packageId>/<name>`. */
-    key(reference: DeclarationReference): string {
+    key(reference: DeclarationReference): DeclarationKey {
         return `${reference.packageId}/${reference.name}`;
     },
 

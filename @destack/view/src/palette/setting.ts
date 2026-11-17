@@ -1,6 +1,7 @@
+import { DeclarationKey } from "@destack/package/declare";
 import { schema } from "@destack/schema";
 import { defineSetting } from "@destack/setting/declare";
-import { Shortcut, CommandReference } from "@destack/object";
+import { Shortcut } from "@destack/object";
 import { PaletteSource } from "./entry.ts";
 import { t } from "@destack/locale";
 
@@ -21,7 +22,7 @@ export const keybindings = defineSetting({
     name: "keybindings",
     title: t`Keybindings`,
     description: t`The key combinations running commands, by command; null unbinds a command.`,
-    schema: schema.record(CommandReference.key, Shortcut.nullable()),
+    schema: schema.record(DeclarationKey, Shortcut.nullable()),
     default: {},
     scope: "user",
     overrides: ["device"],

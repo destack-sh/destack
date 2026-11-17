@@ -1,4 +1,4 @@
-import { CommandReference } from "@destack/object";
+import { DeclarationReference } from "@destack/package/declare";
 import { ObjectReference } from "@destack/sync";
 import { schema } from "@destack/schema";
 import { ActionEntry } from "./entry.ts";
@@ -25,7 +25,7 @@ export const PaletteMessage = schema.discriminatedUnion("action", [
         /** Run an action the page handles, from the frame. */
         action: schema.literal("action.run"),
         /** The action. */
-        command: CommandReference,
+        command: DeclarationReference,
     }),
 ]);
 /** A message between a page and the palette framed over it. */
