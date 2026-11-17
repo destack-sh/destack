@@ -3,7 +3,7 @@ import { space } from "@destack/account/object";
 import type { Select } from "@destack/db";
 import { defineObject, field } from "@destack/object";
 import { PackageId } from "@destack/package";
-import { schema } from "@destack/schema";
+import { schema, Version } from "@destack/schema";
 import { Candidate, packageObject, TagName } from "./package.ts";
 import { nested } from "@destack/object";
 import { argument, plural, t } from "@destack/locale";
@@ -78,6 +78,20 @@ export const release = defineObject(
                 parentId: PackageId,
                 /** The version, or a distribution tag pointing at it, such as latest. */
                 release: schema.string().min(1),
+            }),
+        }),
+        /** Read the version a package's next release takes. */
+        next: method.query({
+            title: t`Next`,
+            permission: "read",
+            target: "scope",
+            input: schema.object({
+                /** The package. */
+                parentId: PackageId,
+            }),
+            output: schema.object({
+                /** The version the next release takes. */
+                version: Version,
             }),
         }),
         /** Delete a prerelease, refusing a stable release, which stays immutable and only yanks. */
