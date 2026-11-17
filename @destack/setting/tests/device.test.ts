@@ -1,7 +1,7 @@
 import { principal } from "@destack/access";
 import { RequestId, Scope } from "@destack/sync";
 import { TestObjectStore } from "@destack/object/test";
-import { ObjectClient, Observable } from "@destack/object/client";
+import { ObjectClient, ProcedureRemote, Observable } from "@destack/object/client";
 import { canonicalize, Identifier, schema } from "@destack/schema";
 
 import { expect, onTestFinished, test } from "@destack/test";
@@ -266,10 +266,14 @@ async function follow(
             Scope.universe.id,
             Identifier.create("device", served.environment),
         ),
-        endpoint: served.as(alice).endpoint(settingPackage),
-        reconnect: (cell) => {
-            throw new TypeError(`no scope moves in this test, yet one moved to '${cell}'`);
-        },
+        remote: ProcedureRemote.at({
+            scope,
+            endpoint: served.as(alice).endpoint(settingPackage),
+            reconnect: (cell) => {
+                throw new TypeError(`no scope moves in this test, yet one moved to '${cell}'`);
+            },
+            environment: served.environment,
+        }),
     });
     const controller = new AbortController();
     const failures: unknown[] = [];
