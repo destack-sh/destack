@@ -9,7 +9,7 @@ import {
 import { notification } from "@destack/notification/object";
 import { TestNotification } from "@destack/notification/test";
 import { ObjectType } from "@destack/object";
-import { ObjectClient } from "@destack/object/client";
+import { ObjectClient, ProcedureRemote } from "@destack/object/client";
 import { type TestCaller, testBuild } from "@destack/object/test";
 import { PackageVersion } from "@destack/package";
 import { MemoryBuild } from "@destack/package/test";
@@ -266,10 +266,16 @@ export class TestSocial implements AsyncDisposable {
             objects: { presence },
             scope: ids.space,
             caller: caller.subject,
-            endpoint: caller.endpoint(socialPackage),
-            reconnect: (machine) => {
-                throw new TypeError(`no scope moves in this test, yet one moved to '${machine}'`);
-            },
+            remote: ProcedureRemote.at({
+                scope: ids.space,
+                endpoint: caller.endpoint(socialPackage),
+                reconnect: (machine) => {
+                    throw new TypeError(
+                        `no scope moves in this test, yet one moved to '${machine}'`,
+                    );
+                },
+                environment,
+            }),
         });
 
         // keep the follower until the fixture closes, reading its rows under the simulation
