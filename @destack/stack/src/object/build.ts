@@ -260,17 +260,12 @@ export const build = defineObject(
             fields: [
                 "source",
                 "outputs",
+                "version",
                 "runnerPackageId",
                 "runnerType",
                 "runnerScope",
                 "runnerId",
             ],
-            input: schema.object({
-                /** The package to release and its account, which give the build its version. */
-                release: schema
-                    .object({ account: schema.identifier("account"), package: PackageId })
-                    .exactOptional(),
-            }),
         }),
         cancel: method.update("cancel", { fields: [] }),
         update: method.update("record", { visibility: "package" }),
