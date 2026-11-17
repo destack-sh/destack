@@ -6,11 +6,15 @@ function condition(status: "true" | "false", reason: string, observedGeneration 
     return { status, reason, message: `${reason} said`, observedGeneration, lastTransitionAt: 0 };
 }
 
-/** Read the progress and message of a record at generation 2 with these conditions. */
+/** Read the progress, message and reason of a record at generation 2 with these conditions. */
 function read(conditions: Readonly<Record<string, ReturnType<typeof condition>>>) {
     const record = { generation: 2, conditions };
 
-    return [Observation.progress(record), Observation.message(record)];
+    return [
+        Observation.progress(record),
+        Observation.message(record),
+        Observation.condition(record)?.reason,
+    ];
 }
 
 test("read a record current once ready after a synced pass, failed on a lasting failure, waiting otherwise, with what it reports", () => {
@@ -31,15 +35,15 @@ test("read a record current once ready after a synced pass, failed on a lasting 
         staleReady: read({ Ready: condition("true", "Deployed", 1), Synced: synced }),
         current: read({ Ready: condition("true", "Deployed"), Synced: synced }),
     }).toEqual({
-        unobserved: ["waiting", ""],
+        unobserved: ["waiting", "", undefined],
         // wait on a failure of the earlier change, as no pass for the latest one ended yet
-        earlierFailure: ["waiting", "Deployed said"],
+        earlierFailure: ["waiting", "Deployed said", "Deployed"],
         // fail with the pass's failure while the older ready condition still says the earlier change serves
-        failed: ["failed", "ReconcileError said"],
-        approval: ["approval", "AwaitingApproval said"],
-        waiting: ["waiting", "WaitingForResources said"],
+        failed: ["failed", "ReconcileError said", "ReconcileError"],
+        approval: ["approval", "AwaitingApproval said", "AwaitingApproval"],
+        waiting: ["waiting", "WaitingForResources said", "WaitingForResources"],
         // wait until the pass reports readiness at the latest change
-        staleReady: ["waiting", "Deployed said"],
-        current: ["current", "Deployed said"],
+        staleReady: ["waiting", "Deployed said", "Deployed"],
+        current: ["current", "Deployed said", "Deployed"],
     });
 });
