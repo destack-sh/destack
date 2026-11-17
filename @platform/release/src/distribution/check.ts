@@ -17,46 +17,52 @@ export async function checkDistribution(
     environment: Environment<HostCapability>,
 ): Promise<void> {
     // require every packaged command before running any
-    const { files } = environment;
+    const { files, host } = environment;
     const executable = join(directory, "bin/destack");
     await checkExecutables(directory, target, environment);
 
-    // run the commands over isolated device state, tracking whether cleanup stops the machine
-    const state = await files.makeTemporaryDirectory("destack-distribution-check-");
-    let isRunning = false;
-    try {
-        // require the release's version from the CLI and the machine it starts
-        const identity = await run(
-            executable,
-            state,
-            ["--version"],
-            schema.object({ version: schema.string() }).strip(),
-            environment,
-        );
-        if (identity.version !== version) {
-            throw new Error(`the CLI reports '${identity.version}', not '${version}'`);
-        }
-        await run(executable, state, ["self", "start"], schema.json(), environment);
-        isRunning = true;
-        const started = await Device.inspect(state, environment);
-        if (started.kind !== "running" || started.computer.version !== version) {
-            throw new Error(`the machine does not run '${version}'`);
-        }
+    // leave running another architecture's distribution to its verifier, which this computer cannot
+    if (Platform.of(target).architecture !== host.architecture) {
+        return;
+    }
 
-        // restart the machine, requiring it to keep its host
-        await run(executable, state, ["self", "stop"], schema.json(), environment);
-        isRunning = false;
-        await run(executable, state, ["self", "start"], schema.json(), environment);
-        isRunning = true;
-        const restarted = await Device.inspect(state, environment);
-        if (restarted.kind !== "running" || restarted.computer.id !== started.computer.id) {
-            throw new Error("the machine did not keep its host across a restart");
-        }
-    } finally {
+    // run the commands over isolated device state, removed after, stopping a machine left running
+    const state = await files.makeTemporaryDirectory("destack-distribution-check-");
+    await using cleanup = new AsyncDisposableStack();
+    cleanup.defer(() => files.remove(state, { recursive: true }));
+    let isRunning = false;
+    cleanup.defer(async () => {
         if (isRunning) {
             await run(executable, state, ["self", "stop"], schema.json(), environment);
         }
-        await files.remove(state, { recursive: true });
+    });
+
+    // require the release's version from the CLI and the machine it starts
+    const identity = await run(
+        executable,
+        state,
+        ["--version"],
+        schema.object({ version: schema.string() }).strip(),
+        environment,
+    );
+    if (identity.version !== version) {
+        throw new Error(`the CLI reports '${identity.version}', not '${version}'`);
+    }
+    await run(executable, state, ["self", "start"], schema.json(), environment);
+    isRunning = true;
+    const started = await Device.inspect(state, environment);
+    if (started.kind !== "running" || started.computer.version !== version) {
+        throw new Error(`the machine does not run '${version}'`);
+    }
+
+    // restart the machine, requiring it to keep its host
+    await run(executable, state, ["self", "stop"], schema.json(), environment);
+    isRunning = false;
+    await run(executable, state, ["self", "start"], schema.json(), environment);
+    isRunning = true;
+    const restarted = await Device.inspect(state, environment);
+    if (restarted.kind !== "running" || restarted.computer.id !== started.computer.id) {
+        throw new Error("the machine did not keep its host across a restart");
     }
 }
 
@@ -81,7 +87,8 @@ async function run<Output>(
         new Response(child.stderr).text(),
     ]);
     if (code !== 0) {
-        throw new Error(error);
+        const command = ["destack", ...words].join(" ");
+        throw new Error(`'${command}' exited with ${code}: '${error.trim() || output.trim()}'`);
     }
 
     return response.parse(JSON.parse(output));
