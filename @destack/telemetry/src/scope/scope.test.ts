@@ -126,7 +126,7 @@ const ExportedLogs = schema.looseObject({
     ),
 });
 
-test("capture handled failures and messages as exceptions with their error type, level, tags and fingerprint, each failure once", async () => {
+test("capture handled failures and messages as exceptions with their error type and reason, level, tags and fingerprint, each failure once", async () => {
     // collect the records each export carries, without stack traces
     await using simulation = testSimulation();
     const environment = simulation.environment("test");
@@ -178,6 +178,18 @@ test("capture handled failures and messages as exceptions with their error type,
                 toCallError: () => ({ code: "NOT_FOUND" as const, message: "note is gone" }),
             }),
         );
+
+        // capture a failure wrapping a refusal, which names the refusal's code and reason
+        const refused = Object.assign(new Error("note is locked"), {
+            audience: "caller",
+            toCallError: () => ({
+                code: "CONFLICT" as const,
+                reason: "NOTE_LOCKED",
+                domain: "@acme/notes",
+                message: "note is locked",
+            }),
+        });
+        scope.captureException(new Error("could not save the note", { cause: refused }));
         scope.captureMessage("quota nearly reached", { level: "warning", fingerprint: ["quota"] });
         await telemetry.flush();
     } finally {
@@ -204,6 +216,17 @@ test("capture handled failures and messages as exceptions with their error type,
                 "error.type": "NOT_FOUND",
                 "exception.type": "Error",
                 "exception.message": "note is gone",
+                "exception.escaped": false,
+            },
+        ],
+        [
+            "exception",
+            "ERROR",
+            {
+                "error.type": "CONFLICT",
+                "destack.error.reason": "NOTE_LOCKED",
+                "exception.type": "Error",
+                "exception.message": "could not save the note",
                 "exception.escaped": false,
             },
         ],
