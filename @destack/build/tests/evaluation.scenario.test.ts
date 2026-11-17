@@ -186,7 +186,7 @@ test("refuse a declared kind function its module does not export, by its package
     expect(await refusal(workspacePackage.build({ outputs: OUTPUTS }))).toEqual([
         "BAD_REQUEST",
         "INSPECTION_INVALID",
-        "declaration evaluation is invalid: it failed",
+        "declaration evaluation is invalid: it failed with '@example/owner/inspect#missing is not an exported function'",
     ]);
 });
 
