@@ -567,11 +567,7 @@ test("refuse revealing a secret to a member without reveal", async () => {
     // read the metadata, and refuse the value
     expect([await client.secret.get(key), await refusal(client.secret.read(key))]).toEqual([
         await fixture.owner.client(vaultPackage).secret.get(key),
-        [
-            "FORBIDDEN",
-            "PERMISSION_DENIED",
-            "permission 'read' is forbidden: it is not granted",
-        ],
+        ["FORBIDDEN", "PERMISSION_DENIED", "permission 'read' is forbidden: it is not granted"],
     ]);
 });
 
@@ -587,11 +583,7 @@ test("conceal a missing version from a stranger", async () => {
     await fixture.allow(person, VAULT_PERMISSIONS);
     const told = await refusal(member.client(vaultPackage).secret.read(missing));
     expect([concealed, told]).toEqual([
-        [
-            "FORBIDDEN",
-            "PERMISSION_DENIED",
-            "permission 'read' is forbidden: it is not granted",
-        ],
+        ["FORBIDDEN", "PERMISSION_DENIED", "permission 'read' is forbidden: it is not granted"],
         ["NOT_FOUND", "VERSION_NOT_FOUND", "secret version not found"],
     ]);
 });
