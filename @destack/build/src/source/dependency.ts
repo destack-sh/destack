@@ -24,7 +24,7 @@ type InstalledPackage = schema.Infer<typeof InstalledPackage>;
 /** A package.json release, absent from a subpath manifest that only configures modules. */
 export const ReleasedPackage = schema.looseObject({
     name: schema.string(),
-    version: schema.string(),
+    version: schema.string().exactOptional(),
 });
 
 /** The lockfile format version whose package records dependency resolution reads. */

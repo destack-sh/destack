@@ -175,7 +175,7 @@ test("build a workspace's units once, keep the application's build on a library 
             { name: "world", text: "hi world" },
         ],
         imports: [LIBRARY],
-        requires: { [LIBRARY]: "2026.9.0" },
+        requires: { [LIBRARY]: "workspace:*" },
     });
 });
 
@@ -287,7 +287,7 @@ test("build and lock a package against a release from outside its workspace, ref
             `workspace is invalid: it requires Destack packages '${LIBRARY}' outside it and has no release resolver for them`,
         ],
         asked: [LIBRARY],
-        requires: { [LIBRARY]: "2026.9.0" },
+        requires: { [LIBRARY]: "workspace:*" },
         lock: Lock.of(await built.digest(), {
             [await built.digest()]: { [LIBRARY]: manifest },
             [manifest]: {},
@@ -344,7 +344,7 @@ test("declare a builtin release in a build's requirements, leaving it out of its
         requires: built.manifest.requires,
         lock: await store.lock(await resolving.lock(root)),
     }).toEqual({
-        requires: { [LIBRARY]: "2026.9.0" },
+        requires: { [LIBRARY]: "workspace:*" },
         lock: Lock.of(root),
     });
 });
@@ -366,7 +366,7 @@ test("declare a builtin workspace member in a build's requirements, leaving it o
         requires: built.manifest.requires,
         lock: await store.lock(await opened.lock(root)),
     }).toEqual({
-        requires: { [LIBRARY]: "2026.9.0" },
+        requires: { [LIBRARY]: "workspace:*" },
         lock: Lock.of(root),
     });
 });

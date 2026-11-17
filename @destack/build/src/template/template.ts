@@ -7,12 +7,11 @@ import { PackagePath } from "@destack/package/file";
 import { TemplateInput } from "@destack/package/template";
 import { PackageError } from "@destack/package/error";
 import { type ESTree, parseSync, Visitor } from "rolldown/utils";
-import { schema, Text } from "@destack/schema";
+import { schema, Text, Version } from "@destack/schema";
 
 /** The fields of a template's package.json that an instance reads and rewrites. */
 const TemplateManifest = schema.looseObject({
     name: schema.string(),
-    version: schema.string(),
     dependencies: schema.record(schema.string(), schema.string()).exactOptional(),
 });
 /** The fields of a template's package.json that an instance reads and rewrites. */
@@ -99,7 +98,7 @@ export class Template {
             [manifest.name]: {
                 id: parameters.id,
                 name: parameters.name,
-                version: manifest.version,
+                version: Version.development,
             },
         };
 
@@ -138,7 +137,11 @@ export class Template {
         const definition = PackageDefinition.read(
             decoder.decode(requiredFile(this.files, "destack.json")),
         );
-        PackageVersion.parse({ id: definition.id, name: manifest.name, version: manifest.version });
+        PackageVersion.parse({
+            id: definition.id,
+            name: manifest.name,
+            version: Version.development,
+        });
 
         return { manifest, definition };
     }

@@ -29,8 +29,11 @@ const LOADERS: Readonly<Record<string, "ts" | "tsx" | "js" | "jsx">> = {
     ".jsx": "jsx",
 };
 
-/** The name and version of the package a module belongs to. */
-const ModulePackage = schema.looseObject({ name: schema.string(), version: schema.string() });
+/** The name of the package a module belongs to, and the version a released one has. */
+const ModulePackage = schema.looseObject({
+    name: schema.string(),
+    version: schema.string().exactOptional(),
+});
 
 /** The modules an entry loads, as Bun resolves its imports: workspace sources and npm releases. */
 export class ModuleClosure {
@@ -56,8 +59,8 @@ export class ModuleClosure {
             visited.add(file);
             const owner = await ModuleClosure.#package(file, files);
             const path = relative(owner.directory, file).split(sep).join("/");
-            // identify an npm release by its name and version, without reading its modules
-            if (file.split(sep).includes("node_modules")) {
+            // identify an installed release by its name and version, without reading its modules
+            if (file.split(sep).includes("node_modules") && owner.version !== undefined) {
                 modules.set(`${owner.name}@${owner.version}`, "release");
             }
             // identify a source by its package, path and bytes, and follow its imports
@@ -127,11 +130,11 @@ export class ModuleClosure {
         });
     }
 
-    /** Find the package a module belongs to: its directory, name and version. */
+    /** Find the package a module belongs to: its directory, its name and a release's version. */
     static async #package(
         file: string,
         files: FileSystem,
-    ): Promise<{ readonly directory: string; readonly name: string; readonly version: string }> {
+    ): Promise<{ readonly directory: string; readonly name: string; readonly version?: string }> {
         // take the nearest manifest declaring a package
         for (
             let directory = dirname(file);
