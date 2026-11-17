@@ -1017,17 +1017,22 @@ test("rebuild another manager's table with the table it references, keeping its 
     });
 });
 
-test("report a failing migration statement as a failed migration", async () => {
+test("report a failing migration with the statement that failed", async () => {
     const database = await open([labelPlain]);
     await database.migrate([labelPlain]);
     const name = sql.relation(table(labelPlain));
     await database.run(sql`INSERT INTO ${name} (id, code) VALUES ('a', 'x'), ('b', 'x')`);
 
-    // fail to make duplicate codes unique and leave the state unchanged
+    // fail at the statement making duplicate codes unique, and leave the state unchanged
+    const labels = table(labelUnique);
+    const statement =
+        TestDatabase.target() === "sqlite"
+            ? `INSERT INTO "${labels}__rebuild" ("id", "code") SELECT "id", "code" FROM "${labels}"`
+            : `ALTER TABLE "${labels}" ADD CONSTRAINT "${labels}_code_unique" UNIQUE ("code")`;
     expect(await refusal(database.migrate([labelUnique]))).toEqual([
         "INTERNAL_SERVER_ERROR",
         "MIGRATION_BROKEN",
-        "migration failed: a record with the same unique key already exists",
+        `migration of 'database' failed at '${statement}': a record with the same unique key already exists`,
     ]);
     expect(await database.all(sql`SELECT id FROM ${name} ORDER BY id`)).toEqual([
         { id: "a" },
