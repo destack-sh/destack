@@ -80,3 +80,13 @@ test("tell dev builds from releases", () => {
 
     expect(versions.map((version) => Version.isPrerelease(version))).toEqual([false, true, true]);
 });
+
+test("order the development version after every release, and keep it through a dev build", () => {
+    const dev = Version.dev(Version.development, Date.UTC(2026, 8, 12, 10, 30), "0123456789ab");
+    expect([
+        Version.development,
+        Version.release(dev),
+        Version.compare(Version.development, "2026.12.99"),
+        Version.compare(dev, "2026.12.99"),
+    ]).toEqual(["9999.12.0", "9999.12.0", 1, 1]);
+});

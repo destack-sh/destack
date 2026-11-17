@@ -4,8 +4,17 @@ import { Text } from "../text/text.ts";
 /** A calendar version, and a dev build's UTC time and key, as in Go's pseudo-versions. */
 const VERSION = /^(\d{4})\.([1-9]|1[0-2])\.(0|[1-9]\d*)(?:-dev\.(\d{14})\.([0-9a-f]{12}))?$/u;
 
+/** The digits of a version's year. */
+const YEAR_DIGITS = 4;
+
+/** The version of a package no build released: the highest one, after every release. */
+const DEVELOPMENT = "9999.12.0";
+
 /** A package release version, such as 2026.9.0 or 2026.9.0-dev.20260912103000.0123456789ab. */
 export const Version = Object.assign(z.string().regex(VERSION), {
+    /** The version of code no build released, such as code run from source: after every release. */
+    development: DEVELOPMENT,
+
     /** Order versions by release, dev builds before the release they lead to. */
     compare(left: string, right: string): number {
         // find the first differing component
@@ -32,7 +41,7 @@ export const Version = Object.assign(z.string().regex(VERSION), {
     release(version: string): string {
         const { year, month, release } = components(version);
 
-        return `${year}.${month}.${release}`;
+        return write(year, month, release);
     },
 
     /** Write a dev build's version from its release, UTC time and build key. */
@@ -53,12 +62,17 @@ export const Version = Object.assign(z.string().regex(VERSION), {
     next(version: string): string {
         const { year, month, release } = components(version);
 
-        return `${year}.${month}.${release + 1}`;
+        return write(year, month, release + 1);
     },
 });
 
 /** A package release version. */
 export type Version = z.infer<typeof Version>;
+
+/** Write a release's calendar numbers as a version, its year in four digits. */
+function write(year: number, month: number, release: number): string {
+    return `${String(year).padStart(YEAR_DIGITS, "0")}.${month}.${release}`;
+}
 
 /** The versions from an oldest to a newest, both included. */
 export interface VersionRange {
