@@ -2,6 +2,7 @@ import type { DatabaseConnection } from "@destack/db";
 import { type BuildReader, Lock, PackageManifest } from "@destack/package/manifest";
 import type { Environment } from "@destack/environment";
 import { Digest, Identifier } from "@destack/schema";
+import { NpmTarball } from "@destack/registry/npm";
 import { LATEST_TAG, packageObject, release, tag } from "@destack/registry/object";
 import { ReleaseMethod } from "../server/release.ts";
 
@@ -42,7 +43,8 @@ export async function publishBuild(
                 .onConflictDoNothing(),
     );
 
-    // store the release
+    // store the release, its tarball's digest as a publish records it
+    const packed = await NpmTarball.of(build, {}, environment);
     await database.transaction(
         async (transaction) =>
             await transaction.insert(release.table).values({
@@ -51,6 +53,8 @@ export async function publishBuild(
                 parentId: owner.id,
                 version: owner.version,
                 lock,
+                npm: packed.listed,
+                tarball: await Digest.of(packed.bytes, environment.crypto),
                 commit: TEST_COMMIT,
                 createdAt: now,
                 updatedAt: now,

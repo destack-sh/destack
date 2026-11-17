@@ -51,6 +51,11 @@ export async function createSite(
 A release is created from a pushed lock, at the version its root build has, and refused while a required package has no release in range.
 Prereleases are dev versions, and the forge keeps each package's newest ones and the tagged ones, deleting the rest.
 
+### npm clients
+
+The forge answers npm clients below its `npm` mount, read-only: a package's listing, and each release's sources as a tarball.
+A release keeps its tarball and what a listing says of it from its publish, so neither request packs anything.
+
 ## Examples
 
 ### Install the forge

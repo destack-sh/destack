@@ -9,6 +9,7 @@ import { Snapshot } from "@destack/db";
 import type { ObjectStore } from "@destack/object/server";
 import { SettingValue } from "@destack/setting/object";
 import { buildRetention } from "@destack/stack/setting";
+import { NpmTarball } from "@destack/registry/npm";
 import { Forge } from "./forge.ts";
 import { ForgeError } from "../error/index.ts";
 import {
@@ -97,12 +98,21 @@ export const ReleaseMethod = {
         }));
         await store.copyUp([{ kind: "lock", digest: lock }, ...builds]);
 
-        // read the root's declarations
+        // pack the tarball npm clients download once, and store it for the release to refer to
+        const { bytes, listed } = await NpmTarball.pack(store, lock, context.environment);
+        const tarball = await store.blobs.write(
+            (async function* () {
+                yield bytes;
+            })(),
+        );
+
         return {
             lock: isRepeated ? taken.lock : lock,
             ...(commit === undefined ? {} : { commit }),
             version,
             declarations: await contents.declarations(),
+            npm: listed,
+            tarball,
         };
     },
 

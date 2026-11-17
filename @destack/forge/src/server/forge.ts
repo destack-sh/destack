@@ -22,7 +22,8 @@ import { RequestId, type ObjectReference, Scope, type Subject } from "@destack/s
 import type { ServerContext, PackageContext } from "@destack/object/workload";
 import type { WebhookDelivery } from "@destack/workflow";
 import { GITHUB_API, GitHubApp, GitHubHosting } from "../github/index.ts";
-import { packageObject, reference, release, repository } from "@destack/registry/object";
+import { packageObject, reference, release, repository, tag } from "@destack/registry/object";
+import { NpmPackument } from "@destack/registry/npm";
 import forgePackage from "../package.ts";
 import { github } from "../stack/setting.ts";
 import {
@@ -87,6 +88,9 @@ export interface ClaimReader {
     /** Read the replicated rows. */
     readonly read: Snapshot["read"];
 }
+
+/** The path npm clients ask below the mount: a package, or a release's tarball below `/-/`. */
+const NPM_PATH = /\/@([^/]+)\/([^/]+?)(\/-\/[^/]+?-(\d[^/]*)\.tgz)?$/u;
 
 /** The forge's repositories and packages as objects. */
 export class Forge {
@@ -196,6 +200,7 @@ export class Forge {
             // answer builds, and the GitHub App's deliveries
             mounts: {
                 builds: (request, _caller, context, store) => this.#builds(request, context, store),
+                npm: (request, _caller, context, store) => this.#npm(request, context, store),
                 github:
                     webhook ??
                     (async () => {
@@ -366,6 +371,71 @@ export class Forge {
             },
             push: async (upload, scope) => this.#authorizeUpload(upload, scope, context, objects),
         });
+    }
+
+    /** Answer a package's npm listing, or one release's tarball, to the package's readers. */
+    async #npm(request: Request, context: RequestContext, objects: ObjectStore): Promise<Response> {
+        // read the handle, the name and a tarball's version from the path, as npm clients ask
+        const path = decodeURIComponent(new URL(request.url).pathname);
+        const asked = NPM_PATH.exec(path);
+        const [, handle, name, , version] = asked ?? [];
+        if (handle === undefined || name === undefined) {
+            throw ForgeError.of("PACKAGE_NOT_FOUND", "package not found");
+        }
+
+        // find the package of the name, and read it as the caller, concealing each refusal
+        const snapshot = Snapshot.live(objects.database);
+        const reader: ClaimReader = {
+            acquire: (follow, at) => objects.acquire(follow, at),
+            read: (table) => snapshot.read(table),
+        };
+        const full = `@${handle}/${name}`;
+        const home = schema.identifier("space").parse(objects.scope);
+        const found = (await Forge.find(full, reader, home)).package;
+        if (found === undefined) {
+            throw ForgeError.of("PACKAGE_NOT_FOUND", "package not found");
+        }
+        await Forge.conceal("PACKAGE_NOT_FOUND", "package not found", () =>
+            objects.query(
+                context.access(found.scope),
+                packageObject.call("get", { spaceId: found.scope, id: found.id }),
+            ),
+        );
+        const parentId = schema.identifier("package").parse(found.id);
+
+        // answer one release's tarball, which an exact version reaches even once yanked
+        if (version !== undefined) {
+            const [released] = await snapshot
+                .read(release.table)
+                .findMany({ where: { parentId, version }, limit: 1 });
+            if (released === undefined) {
+                throw ForgeError.of("RELEASE_NOT_FOUND", `release '${version}' not found`);
+            }
+            const stored = await this.store.blobs.bytes(released.tarball);
+
+            return new Response(stored, {
+                headers: { "content-type": "application/octet-stream" },
+            });
+        }
+
+        // answer the listing from what each release new installs take keeps, with each tag
+        const published = await snapshot
+            .read(release.table)
+            .findMany({ where: { parentId, yankedAt: { isNull: true } } });
+        const tags = await snapshot.read(tag.table).findMany({ where: { parentId } });
+        const mount = `${this.#options.endpoint.href}${forgePackage.mounts.npm.path}`;
+        const listing = NpmPackument.of(
+            full,
+            Object.fromEntries(tags.map((each) => [each.name, each.version])),
+            published.map((each) => ({
+                version: each.version,
+                listed: each.npm,
+                tarball: `${mount}/${full}/-/${name}-${each.version}.tgz`,
+                ...(each.deprecation === null ? {} : { deprecation: each.deprecation }),
+            })),
+        );
+
+        return Response.json(listing);
     }
 
     /** Authorize an upload below an account's handle: an enrolled machine's or a publisher's. */
