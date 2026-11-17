@@ -814,7 +814,7 @@ export class ViewOrigin {
         );
         const created = await accounts.client.create({
             id,
-            userId,
+            scope: userId,
             requestId,
             name,
             kind: "browser",
@@ -844,7 +844,7 @@ export class ViewOrigin {
         // prove the key for this request, answering a removed or unknown client as gone (RFC 9110 15.5.11)
         try {
             await accounts.client.prove({
-                userId,
+                scope: userId,
                 id: client,
                 requestId: RequestId.create(this.#space.machine.environment),
                 proof,

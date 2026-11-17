@@ -501,7 +501,7 @@ export class Device<
     async signOut(login: Login): Promise<void> {
         // revoke the client the person's sign-in registered, which ends its sessions there
         await login.session.accounts().client.revoke({
-            userId: schema.identifier("user").parse(login.row.subjectId),
+            scope: schema.identifier("user").parse(login.row.subjectId),
             id: schema.identifier("client").parse(login.row.clientId),
             requestId: RequestId.create(this.environment),
         });

@@ -1127,7 +1127,7 @@ test("end a page's calls once its grant or client is revoked", async () => {
     const revoked = await list(page);
     const regranted = await openPage(home, address);
     await accounts.client.revoke({
-        userId: owner.id,
+        scope: owner.id,
         id: present(regranted.signedIn.row.clientId, "the login's client"),
         requestId: RequestId.create(home.computer.environment),
     });
@@ -1373,7 +1373,7 @@ test("register a browser client and bind pages to it by proof", async () => {
 
     // remove the client as the person, and bind again
     await page.session.session.accounts().client.revoke({
-        userId: home.computer.world.owner.id,
+        scope: home.computer.world.owner.id,
         id: client,
         requestId: RequestId.create(environment),
     });
