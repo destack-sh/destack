@@ -2,7 +2,7 @@ import { Tarball, TarballEntry } from "@destack/package/archive";
 import type { Crypto } from "@destack/environment";
 import type { BuildReader } from "@destack/package/manifest";
 import { schema, Text } from "@destack/schema";
-import { RegistryError } from "../error/index.ts";
+import { LATEST_TAG } from "../object/package.ts";
 
 /** The directory npm clients expect every file of a tarball below. */
 const ROOT = "package";
@@ -74,17 +74,10 @@ export const NpmTarball = {
         return new TextEncoder().encode(`${JSON.stringify(released, null, 4)}\n`);
     },
 
-    /** Read the version a workspace dependency's release has, refusing one the lock lacks. */
+    /** Read the range of a workspace dependency: its linked version, else the default tag. */
     linked(name: string, versions: Readonly<Record<string, string>>): string {
-        const version = versions[name];
-        if (version === undefined) {
-            throw RegistryError.of(
-                "MANIFEST_INVALID",
-                `dependency '${name}' is invalid: its release is not linked`,
-            );
-        }
-
-        return version;
+        // follow the default tag for a package the runtime provides, which a lock does not link
+        return versions[name] ?? LATEST_TAG;
     },
 
     /** Archive some entries as a gzip file of stored blocks, equal entries giving equal bytes. */

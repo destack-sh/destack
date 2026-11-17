@@ -2,6 +2,7 @@ import { Pipe } from "@destack/environment";
 import { Tarball, TarballEntry } from "@destack/package/archive";
 import { MemoryBuild } from "@destack/package/test";
 import { PackageVersion } from "@destack/package";
+import { present } from "@destack/schema";
 import { expect, test } from "@destack/test";
 import { testSimulation } from "@destack/test/world";
 import { NpmTarball } from "./tarball.ts";
@@ -66,8 +67,15 @@ test("archive a build's files below package/ in path order, its workspace depend
         `sha512-${new Uint8Array(await crypto.digest("SHA-512", zipped)).toBase64()}`,
     ]);
 
-    // refuse a workspace dependency whose release the lock does not link
-    await expect(NpmTarball.entries(build, {})).rejects.toThrow(
-        "dependency '@destack/object' is invalid: its release is not linked",
+    // follow the default tag for a workspace dependency the lock does not link
+    const unlinked = (await NpmTarball.entries(build, {})).find(
+        (entry) => entry.path === NpmTarball.packageFile,
     );
+    const followed: unknown = JSON.parse(
+        new TextDecoder().decode(await TarballEntry.bytes(present(unlinked, "the package file"))),
+    );
+    expect(followed).toEqual({
+        ...installed,
+        dependencies: { "@destack/object": "latest", zod: "4.1.0" },
+    });
 });
