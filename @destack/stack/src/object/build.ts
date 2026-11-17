@@ -138,6 +138,8 @@ export const build = defineObject(
             state: field.enum(BUILD_STATES).default("pending"),
             /** The step of a running build. */
             phase: field.enum(BUILD_PHASES).optional(),
+            /** The version the build releases its package at, absent for a development build. */
+            version: field.string(Version).optional(),
             /** The commit built: a commit build's own, or a clean checkout's when built. */
             commit: field.string(Commit).optional(),
             /** The repository, directory and commit of a commit build, absent for a release. */
@@ -263,6 +265,12 @@ export const build = defineObject(
                 "runnerScope",
                 "runnerId",
             ],
+            input: schema.object({
+                /** The package to release and its account, which give the build its version. */
+                release: schema
+                    .object({ account: schema.identifier("account"), package: PackageId })
+                    .exactOptional(),
+            }),
         }),
         cancel: method.update("cancel", { fields: [] }),
         update: method.update("record", { visibility: "package" }),
