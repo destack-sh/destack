@@ -43,7 +43,7 @@ test("register clients with proven keys and revoke them with the sessions linked
 
     // register a computer, the first session staying on the client it signed in on
     const laptop = await owner.client(accountPackage).client.create({
-        userId: owner.id,
+        scope: owner.id,
         requestId: RequestId.create(fixture.store.environment),
         name: "laptop",
         kind: "native",
@@ -71,6 +71,8 @@ test("register clients with proven keys and revoke them with the sessions linked
         machineId: null,
         version: null,
         lastActiveAt: laptop.createdAt,
+        issuer: null,
+        subject: null,
         revokedAt: null,
     });
     const linked = async () =>
@@ -86,7 +88,7 @@ test("register clients with proven keys and revoke them with the sessions linked
 
     // register a browser profile
     const browser = await owner.client(accountPackage).client.create({
-        userId: owner.id,
+        scope: owner.id,
         requestId: RequestId.create(fixture.store.environment),
         name: "Firefox",
         kind: "browser",
@@ -157,7 +159,7 @@ test("register clients with proven keys and revoke them with the sessions linked
     // link the second session with a proof by the registered key
     const link = async (proof: string) =>
         again.client(accountPackage).client.link({
-            userId: owner.id,
+            scope: owner.id,
             id: laptop.id,
             requestId: RequestId.create(fixture.store.environment),
             proof,
@@ -185,7 +187,7 @@ test("register clients with proven keys and revoke them with the sessions linked
     // prove the key again as the owner, linking no session, and refuse the spent proof
     const proveKey = async (signed: string, request?: ProofRequest) =>
         owner.client(accountPackage).client.prove({
-            userId: owner.id,
+            scope: owner.id,
             id: laptop.id,
             requestId: RequestId.create(fixture.store.environment),
             proof: signed,
@@ -224,7 +226,7 @@ test("register clients with proven keys and revoke them with the sessions linked
     const stranger = await fixture.signIn(STRANGER_EMAIL);
     expect(
         await refusal(
-            stranger.client(accountPackage).client.get({ userId: owner.id, id: laptop.id }),
+            stranger.client(accountPackage).client.get({ scope: owner.id, id: laptop.id }),
         ),
     ).toEqual(["NOT_FOUND", "NOT_FOUND", `client '${laptop.id}' not found`]);
 
@@ -241,14 +243,14 @@ test("register clients with proven keys and revoke them with the sessions linked
                 .where(eq(client.table.id, browser.id))
         ).map((row) => row.push);
     const subscribed = await owner.client(accountPackage).client.subscribe({
-        userId: owner.id,
+        scope: owner.id,
         id: browser.id,
         requestId: RequestId.create(fixture.store.environment),
         push,
     });
     const refusedPush = await refusal(
         owner.client(accountPackage).client.subscribe({
-            userId: owner.id,
+            scope: owner.id,
             id: laptop.id,
             requestId: RequestId.create(fixture.store.environment),
             push,
@@ -256,7 +258,7 @@ test("register clients with proven keys and revoke them with the sessions linked
     );
     expect(await stored()).toEqual([push]);
     await owner.client(accountPackage).client.unsubscribe({
-        userId: owner.id,
+        scope: owner.id,
         id: browser.id,
         requestId: RequestId.create(fixture.store.environment),
     });
@@ -272,11 +274,11 @@ test("register clients with proven keys and revoke them with the sessions linked
 
     // revoke the computer, its key and the session linked to it, refusing its proofs after
     const linkedLaptop = await owner.client(accountPackage).client.get({
-        userId: owner.id,
+        scope: owner.id,
         id: laptop.id,
     });
     const revoked = await owner.client(accountPackage).client.revoke({
-        userId: owner.id,
+        scope: owner.id,
         id: laptop.id,
         requestId: RequestId.create(fixture.store.environment),
     });

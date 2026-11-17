@@ -23,13 +23,13 @@ test("let an installation act for a person under the grant the person created, u
     const { spaceId, machine } = await fixture.createSpace(owner);
     await fixture.startIdentity(spaceId, machine);
     const browser = await owner.client(accountPackage).client.create({
-        userId: owner.id,
+        scope: owner.id,
         requestId: RequestId.create(fixture.store.environment),
         name: "Firefox",
         kind: "browser",
     });
     await owner.client(accountPackage).client.subscribe({
-        userId: owner.id,
+        scope: owner.id,
         id: browser.id,
         requestId: RequestId.create(fixture.store.environment),
         push: {
@@ -64,7 +64,7 @@ test("let an installation act for a person under the grant the person created, u
 
     // forget the push subscription for the owner
     await acting.client.unsubscribe({
-        userId: owner.id,
+        scope: owner.id,
         id: browser.id,
         requestId: RequestId.create(fixture.store.environment),
     });

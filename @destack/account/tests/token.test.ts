@@ -51,7 +51,7 @@ test("issue a token client with its grant, act through it, and revoke both", asy
     ];
     const expiresAt = fixture.store.clock.now() + DAY;
     const issuing = {
-        userId: owner.id,
+        scope: owner.id,
         requestId: RequestId.create(fixture.store.environment),
         name: "agent",
         digest: credential.digest,
@@ -89,6 +89,8 @@ test("issue a token client with its grant, act through it, and revoke both", asy
         model: null,
         version: null,
         lastActiveAt: issued.createdAt,
+        issuer: null,
+        subject: null,
         revokedAt: null,
     });
 
@@ -187,7 +189,7 @@ test("issue a token client with its grant, act through it, and revoke both", asy
     const bearer = fixture.issuer.accounts((await exchange()).accessToken);
 
     // find no owner's scope at all, which the grant leaves out
-    expect(await refusal(bearer.client.list({ userId: owner.id }))).toEqual([
+    expect(await refusal(bearer.client.list({ scope: owner.id }))).toEqual([
         "NOT_FOUND",
         "SCOPE_NOT_FOUND",
         `scope '${owner.id}' not found`,
@@ -236,14 +238,12 @@ test("issue a token client with its grant, act through it, and revoke both", asy
 
     // hide the token from another user, who finds the owner's public profile alone
     const other = await fixture.signIn(STRANGER_EMAIL);
-    expect((await other.client(accountPackage).client.list({ userId: owner.id })).items).toEqual(
-        [],
-    );
+    expect((await other.client(accountPackage).client.list({ scope: owner.id })).items).toEqual([]);
     expect(
         await refusal(
             other.client(accountPackage).client.issue({
                 ...issuing,
-                userId: owner.id,
+                scope: owner.id,
                 requestId: RequestId.create(fixture.store.environment),
                 name: "stolen",
                 digest: (await Credential.create("personal-access-token", fixture.environment))
@@ -254,7 +254,7 @@ test("issue a token client with its grant, act through it, and revoke both", asy
     ).toEqual(["NOT_FOUND", "NOT_FOUND", "client not found"]);
 
     // revoke the token with its grant, refusing both at once
-    const revoking = { userId: owner.id, id: issued.id };
+    const revoking = { scope: owner.id, id: issued.id };
     const revoked = await owner.client(accountPackage).client.revoke({
         ...revoking,
         requestId: RequestId.create(fixture.store.environment),
@@ -297,7 +297,7 @@ test("end a personal access token's exchanged tokens at its grant's lapse, and r
     const credential = await Credential.create("personal-access-token", fixture.environment);
     const expiresAt = fixture.store.clock.now() + DAY;
     await owner.client(accountPackage).client.issue({
-        userId: owner.id,
+        scope: owner.id,
         requestId: RequestId.create(fixture.store.environment),
         name: "agent",
         digest: credential.digest,

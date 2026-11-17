@@ -738,7 +738,7 @@ test("refuse refreshing a device's tokens once the person revokes its client", a
 
     // revoke the client, which no longer identifies
     await person.client(accountPackage).client.revoke({
-        userId: person.id,
+        scope: person.id,
         id: clientId,
         requestId: RequestId.create(fixture.environment),
     });

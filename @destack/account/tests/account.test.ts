@@ -233,7 +233,7 @@ test("refuse exchanging a person's token once they revoke the client it was issu
     await using fixture = await TestAccountStore.open();
     const owner = await fixture.signIn(OWNER_EMAIL);
     await owner.client(accountPackage).client.revoke({
-        userId: owner.id,
+        scope: owner.id,
         id: owner.clientId,
         requestId: RequestId.create(fixture.environment),
     });
