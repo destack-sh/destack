@@ -211,7 +211,7 @@ const HOME_OPTIONS = {
     policies: FORGE_HOME_OPTIONS.policies,
     resources: FORGE_HOME_OPTIONS.resources,
     publishers: ["platform"],
-    trustedPublishers: [],
+    clients: [],
 };
 
 /** What the fixture's world shares: the platform's account. */

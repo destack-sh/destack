@@ -309,7 +309,7 @@ export class TestControl implements AsyncDisposable {
                 transfers: {},
                 reserved: [],
                 publishers: options.publishers ?? [],
-                trustedPublishers: [],
+                clients: [],
                 handle: "destack",
                 domains: [],
                 homes: Object.fromEntries(

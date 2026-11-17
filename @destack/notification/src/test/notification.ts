@@ -450,7 +450,7 @@ export class TestNotification implements AsyncDisposable {
     async desktop(person: Person): Promise<Identifier<"client">> {
         const signedIn = this.people[person];
         const created = await signedIn.client(accountPackage).client.create({
-            userId: signedIn.id,
+            scope: signedIn.id,
             requestId: RequestId.create(this.environment),
             name: "Desktop",
             kind: "native",
@@ -473,14 +473,14 @@ export class TestNotification implements AsyncDisposable {
         const clients = signedIn.client(accountPackage).client;
         const browser = await subscribeBrowser(this.environment);
         const created = await clients.create({
-            userId: signedIn.id,
+            scope: signedIn.id,
             requestId: RequestId.create(this.environment),
             name: "Browser",
             kind: "browser",
         });
         const url = `${PUSH_ORIGIN}${path}`;
         await clients.subscribe({
-            userId: signedIn.id,
+            scope: signedIn.id,
             id: created.id,
             requestId: RequestId.create(this.environment),
             push: { url, keys: browser.keys },
@@ -493,7 +493,7 @@ export class TestNotification implements AsyncDisposable {
     async revoke(person: Person, id: Identifier<"client">): Promise<void> {
         const signedIn = this.people[person];
         await signedIn.client(accountPackage).client.revoke({
-            userId: signedIn.id,
+            scope: signedIn.id,
             id,
             requestId: RequestId.create(this.environment),
         });
