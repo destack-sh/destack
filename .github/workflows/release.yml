@@ -407,10 +407,9 @@ jobs:
         runs-on: ubuntu-24.04
         timeout-minutes: 5
         permissions:
-            contents: write
+            contents: read
         env:
             DESTACK_RELEASE_VERSION: ${{ needs.prepare.outputs.version }}
-            GH_TOKEN: ${{ github.token }}
         steps:
             - name: Check out repository
               uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -420,7 +419,18 @@ jobs:
                   ref: ${{ needs.prepare.outputs.commit }}
             - name: Set up
               uses: ./.github/actions/setup
+            # take the release app's token, which may tag a commit whose workflows differ from main's
+            - name: Take the release app's token
+              id: app
+              uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+              with:
+                  client-id: ${{ vars.RELEASE_APP_CLIENT_ID }}
+                  private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+                  permission-contents: write
+                  permission-workflows: write
             - name: Tag the release and publish its notes
+              env:
+                  GH_TOKEN: ${{ steps.app.outputs.token }}
               run: bun run src/main.ts release record
 
     deploy:
