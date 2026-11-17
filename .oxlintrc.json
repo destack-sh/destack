@@ -606,7 +606,6 @@
                 "@platform/site/build/main.ts",
                 "@platform/site/scripts/test-highlighting.ts",
                 "@platform/site/scripts/test-markdown.ts",
-                "@platform/site/scripts/generate-release.ts",
                 "@platform/site/scripts/generate-pricing.ts",
                 "@platform/site/scripts/generate-headword.ts",
                 "@platform/site/scripts/generate-icons.ts",
