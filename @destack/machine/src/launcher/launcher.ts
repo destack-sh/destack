@@ -113,7 +113,7 @@ export class Launcher {
         return personal.id;
     }
 
-    /** List the addresses of the spaces of every account the user belongs to. */
+    /** List the addresses of the spaces of the user's accounts, and those shared with the user. */
     async spaces(): Promise<SpaceAddress[]> {
         // list the user's accounts, then each account's spaces
         const accounts = this.session.accounts();
@@ -134,7 +134,11 @@ export class Launcher {
             }),
         );
 
-        return spaces.flat().toSorted();
+        // add the spaces of other accounts the user has a role in
+        const { items } = await accounts.user.shared({ id: this.user.userId });
+        const shared = items.map((address) => SpaceAddress.parse(address));
+
+        return [...new Set([...spaces.flat(), ...shared])].toSorted();
     }
 
     /** Read the endpoint of a package at the issuer or in a space, deciding its grant requests. */
