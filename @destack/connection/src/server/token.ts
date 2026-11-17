@@ -1,6 +1,6 @@
 import type { Environment } from "@destack/environment";
 import type { Call } from "@destack/sync";
-import { type ClientOf, createClient, DynamicObjectClient } from "@destack/object/client";
+import { type ClientOf, createClient, ProcedureRemote } from "@destack/object/client";
 import { Egress, PackageMount } from "@destack/object";
 import type { ServerContext } from "@destack/object/workload";
 import { Account, account } from "@destack/account/object";
@@ -244,8 +244,7 @@ export class ConnectionCredential {
         // call the issuing installation's object APIs through the egress, as any installation may
         const at = this.options.at(Egress.address(issued.name, issued.issuer.scope));
         const type = Issuer.type(issued.package);
-        const client = new DynamicObjectClient({
-            objects: [type],
+        const remote = ProcedureRemote.at({
             scope: issued.issuer.scope,
             endpoint: {
                 url: `${at.url}${PackageMount.path(issued.package.id)}`,
@@ -255,7 +254,7 @@ export class ConnectionCredential {
         });
         const target = { spaceId: issued.issuer.scope, id: issued.issuer.id };
         const call = (method: string, input: JsonObject) =>
-            client.call(type.name, method, { ...target, ...input });
+            remote.run(type, method, { ...target, ...input });
 
         // read the issuer's answers as another package's, through the template's schemas
         return {

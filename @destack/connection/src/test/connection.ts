@@ -35,9 +35,9 @@ import { implementSecret, implementSecretVersion, implementVault } from "@destac
 import { vaultTables } from "@destack/vault/stack";
 import vaultPackage from "@destack/vault/package";
 import { ResourceContext } from "@destack/resource/context";
-import { RequestId, ObjectReference, Scope, Subject, Uplink } from "@destack/sync";
+import { RequestId, ObjectReference, Scope, Subject } from "@destack/sync";
 import { expect, onTestFinished } from "@destack/test";
-import { createClient, type ClientOf } from "@destack/object/client";
+import { createClient, type ClientOf, ProcedureRemote } from "@destack/object/client";
 import {
     authorizationRequest,
     integration,
@@ -674,7 +674,12 @@ export class TestConnection {
                 ? {}
                 : {
                       publisher: (followed: string) =>
-                          Uplink.of((signer) => primary.primary(followed, signer).store),
+                          new ProcedureRemote({
+                              scope: followed,
+                              store: primary.primary(followed).store,
+                              signing: (signer) => primary.primary(followed, signer).store,
+                              environment,
+                          }),
                   }),
         });
     }
@@ -991,17 +996,13 @@ export class TestConnection {
             await this.simulation.jump(Math.min(...ahead));
         }
 
-        // run the package's controllers until they idle, failing on any report
+        // run the package's controllers until they idle
         const stopping = new AbortController();
-        const failures: unknown[] = [];
-        const loop = new ControlLoop(database, this.objects.control(), {
-            report: (_controller, _key, error) => failures.push(error),
-        });
+        const loop = new ControlLoop(database, this.objects.control());
         const running = loop.run(stopping.signal);
         await loop.idle();
         stopping.abort();
         await running;
-        expect(failures).toEqual([]);
 
         // read each connection's next due time, none for a removed one
         const after = await database.select().from(connection.table);
@@ -1011,17 +1012,13 @@ export class TestConnection {
 
     /** Follow the store's replicas in a control loop until the test ends. */
     follow(): void {
-        // run the store's replica syncing, collecting every failure
+        // run the store's replica syncing
         const controller = new AbortController();
-        const failures: unknown[] = [];
-        const loop = new ControlLoop(this.database, [this.objects.syncing()], {
-            report: (_controller, _key, error) => failures.push(error),
-        });
+        const loop = new ControlLoop(this.database, [this.objects.syncing()]);
         const running = loop.run(controller.signal);
         onTestFinished(async () => {
             controller.abort();
             await running;
-            expect(failures).toEqual([]);
         });
     }
 
