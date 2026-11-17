@@ -1611,18 +1611,21 @@ export class ObjectClient<
 
         // revert and replay after rejections
         if (rejected.length > 0) {
-            await this.database.transaction(async (transaction) => {
-                // note rejections and drop their undo entries
-                for (const { id, error } of rejected) {
-                    await this.prediction.reject(transaction, id, error);
-                }
-                await this.undoStack.forget(
-                    transaction,
-                    rejected.map((entry) => entry.id),
-                );
-                await transaction.log.asReplica(() => this.prediction.revert(transaction));
-                await this.prediction.replay(transaction);
-            });
+            await this.database.transaction(
+                async (transaction) => {
+                    // note rejections and drop their undo entries
+                    for (const { id, error } of rejected) {
+                        await this.prediction.reject(transaction, id, error);
+                    }
+                    await this.undoStack.forget(
+                        transaction,
+                        rejected.map((entry) => entry.id),
+                    );
+                    await transaction.log.asReplica(() => this.prediction.revert(transaction));
+                    await this.prediction.replay(transaction);
+                },
+                { constraints: "deferred" },
+            );
         }
     }
 
