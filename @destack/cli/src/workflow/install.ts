@@ -163,6 +163,7 @@ async function upsert(
             requestId: RequestId.create(environment),
             revision: installed.revision,
             ...ObjectReference.columns("follows", follows),
+            directory: null,
         });
 
         return { id: installed.id, name };

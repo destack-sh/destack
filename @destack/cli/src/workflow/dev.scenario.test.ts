@@ -69,3 +69,47 @@ test("build a checkout's package in the space through each phase, and start a pr
         previews: [[started.id, null]],
     });
 });
+
+test("have a preview take over the package's installation, and an install take it back", async () => {
+    // publish the notebooks as acme and install them in the owner's home
+    const terminal = await TerminalFixture.open({ NO_COLOR: "1" });
+    const run = (words: readonly string[], stdin?: string) =>
+        terminal.printed(["--space", "home", ...words], stdin === undefined ? {} : { stdin });
+    const words = ["organization", "create", "--name", "Acme", "--handle", "acme"];
+    await run([...words, "--residency-id", "eu"]);
+    await run(["publish", NOTEBOOKS, "--json"], "yes\n");
+    const installed = await run(["install", "@acme/notebooks", "--json"]);
+
+    // preview the checkout, then install the release again, reading what the installation follows
+    const follows = async () => {
+        const listed = await run(["installations", "--json"]);
+        const rows = schema
+            .array(
+                schema.looseObject({
+                    name: schema.string(),
+                    followsType: schema.string().nullable(),
+                    directory: schema.string().nullable(),
+                }),
+            )
+            .parse(JSON.parse(listed.output));
+
+        return rows
+            .filter((row) => row.name === "notebooks")
+            .map((row) => [row.followsType, row.directory]);
+    };
+    const released = await follows();
+    const previewed = await run(["dev", NOTEBOOKS, "--json"]);
+    const previewing = await follows();
+    const reinstalled = await run(["install", "@acme/notebooks", "--json"]);
+    expect({
+        codes: [installed.code, previewed.code, previewed.error, reinstalled.code],
+        follows: [released, previewing, await follows()],
+    }).toEqual({
+        codes: [0, 0, "", 0],
+        follows: [
+            [["tag", null]],
+            [["checkout", "@destack/cli/tests/fixture/notebooks"]],
+            [["tag", null]],
+        ],
+    });
+});
