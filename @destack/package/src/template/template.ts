@@ -1,4 +1,4 @@
-import { schema } from "@destack/schema";
+import { schema, Version } from "@destack/schema";
 import { PackagePath } from "../file/file.ts";
 import { PackageVersion, PackageId, PackageName } from "../definition/package.ts";
 
@@ -23,6 +23,8 @@ export const TemplateInput = schema
         name: PackageName,
         /** Replacements keyed by the template's original dependency names. */
         dependencies: schema.record(PackageName, PackageVersion),
+        /** The released version of each package the template depends on in its workspace. */
+        versions: schema.record(PackageName, Version),
     })
     .strict();
 /** The new package name and dependency selections. */

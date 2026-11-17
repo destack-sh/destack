@@ -68,6 +68,21 @@ const DEPENDENCY_FIELDS = [
 
 /** A package's package.json, with its destack.json as its definition. */
 export const PackageJson = Object.assign(packageJson, {
+    /** List the names a package file requires from its own workspace. */
+    workspace(authored: JsonObject): string[] {
+        const names = DEPENDENCY_FIELDS.flatMap((field) => {
+            const ranges = REQUIREMENTS.safeParse(authored[field]);
+
+            return ranges.success
+                ? Object.entries(ranges.data).flatMap(([name, range]) =>
+                      range.startsWith(WORKSPACE_RANGE) ? [name] : [],
+                  )
+                : [];
+        });
+
+        return [...new Set(names)].toSorted();
+    },
+
     /** Write a package file as released: each workspace range at its linked version. */
     release(authored: JsonObject, versions: Readonly<Record<string, string>>): JsonObject {
         const released: { [field: string]: JsonValue | undefined } = { ...authored };
