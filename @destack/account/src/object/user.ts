@@ -102,6 +102,14 @@ export const user = defineObject(
                 items: schema.array(Invitation.schema),
             }),
         }),
+        shared: method.query({
+            title: t`List shared spaces`,
+            permission: "update",
+            output: schema.object({
+                /** The addresses of the spaces of other accounts the user has a role in. */
+                items: schema.array(schema.string().min(1)),
+            }),
+        }),
         /** Read where the person receives notifications beyond an inbox, and in which language. */
         recipient: method.query({
             title: t`Read recipient`,

@@ -217,6 +217,14 @@ export const Account = {
         return claimed.has(key) ? "taken" : "available";
     },
 
+    /** Derive the identifier of a personal account's person from the account's UUID. */
+    person(accountId: string): Identifier<"user"> {
+        return Identifier.derive(
+            "user",
+            Identifier.uuid(schema.identifier("account").parse(accountId)),
+        );
+    },
+
     /** Derive the identifier of a person's personal account from the person's UUID. */
     personal(userId: string): Identifier<"account"> {
         return Identifier.derive(
