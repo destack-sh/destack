@@ -29,8 +29,13 @@ export async function prepareRelease(environment: Environment<HostCapability>): 
     const isPublishingBuild = isPublishing && isBuilding;
     const isRenewing = published !== undefined && !isBuilding;
 
-    // sign every platform with a signer on one runner, as one job notarizes them together
+    // require one runner for the platforms with a signer, as one job notarizes them together
     const signed = PLATFORMS.filter(({ signer }) => signer !== undefined);
+    const runners = [...new Set(signed.map(({ runner }) => runner))];
+    const [signing] = runners;
+    if (signing === undefined || runners.length > 1) {
+        throw new Error(`sign the platforms on one runner, not on '${runners.join(", ")}'`);
+    }
 
     // expose identical public build choices to every job
     const outputs = {
@@ -42,7 +47,7 @@ export async function prepareRelease(environment: Environment<HostCapability>): 
             PLATFORMS.map(({ target, verifier }) => ({ target, runner: verifier })),
         ),
         signed: signed.map(({ target }) => target).join(" "),
-        signer: signed[0]?.runner ?? "",
+        signer: signing,
         unsigned: globTargets(
             PLATFORMS.filter(({ signer }) => signer === undefined).map(({ target }) => target),
         ),

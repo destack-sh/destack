@@ -21,11 +21,11 @@ interface Slice {
     application: string;
 }
 
-/** Build a universal application in a drag-to-Applications disk image, notarized with others. */
+/** Build a universal application in a disk image, from signed applications or the archives. */
 export async function buildMacInstaller(
     installer: Installer,
     environment: Environment<HostCapability>,
-    beside: readonly string[] = [],
+    signed: Readonly<Record<string, string>> = {},
 ): Promise<string> {
     // require macOS, and stage below a private temporary directory
     if (environment.host.os !== "darwin") {
@@ -42,7 +42,7 @@ export async function buildMacInstaller(
     try {
         // start the universal application from the arm64 slice
         await files.mkdir(image);
-        const slices = await unpackSlices(staging, output, version, environment);
+        const slices = await unpackSlices(staging, output, version, signed, environment);
         const [primary] = slices;
         await run("ditto", [primary.application, application], environment);
         const contents = join(application, "Contents");
@@ -60,8 +60,8 @@ export async function buildMacInstaller(
         await signing.sign(application);
         await signing.verify(application);
 
-        // notarize the universal application with the applications beside it in one submission
-        await signing.notarize([application, ...beside]);
+        // notarize the universal application with the signed ones in one submission
+        await signing.notarize([application, ...Object.values(signed)]);
         const name = `destack-${version}-${installer.name}.${installer.format}`;
 
         return await createImage(title, name, image, staging, output, signing);
@@ -75,6 +75,7 @@ async function unpackSlices(
     staging: string,
     output: string,
     version: string,
+    signed: Readonly<Record<string, string>>,
     environment: Environment<"files" | "process">,
 ): Promise<[Slice, Slice]> {
     // unpack both signed native applications without changing their compiled CLI payloads
@@ -91,13 +92,15 @@ async function unpackSlices(
         },
     ];
     for (const slice of slices) {
-        // take a distribution signed in place here, else unpack its archive
+        // take the signed application of a target given one
         const { target } = slice;
-        const signed = join(output, target, "Destack.app");
-        if (await environment.files.exists(signed)) {
-            slice.application = signed;
+        const application = signed[target];
+        if (application !== undefined) {
+            slice.application = application;
             continue;
         }
+
+        // unpack the application of any other target from its archive
         await environment.files.mkdir(join(staging, target));
         await run(
             "tar",

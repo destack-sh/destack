@@ -15,10 +15,19 @@ export async function buildInstaller(
         throw new Error(`select an installer: '${installers.map(({ name }) => name).join(", ")}'`);
     }
 
-    // build the installer with its format's builder
+    // build it from the archives and print where it is
+    print(await buildFormat(installer, environment), environment);
+}
+
+/** Build an installer with its format's builder, from signed applications or the archives. */
+export async function buildFormat(
+    installer: Installer,
+    environment: Environment<HostCapability>,
+    signed: Readonly<Record<string, string>> = {},
+): Promise<string> {
+    // build a disk image on macOS
     switch (installer.format) {
         case "dmg":
-            print(await buildMacInstaller(installer, environment), environment);
-            break;
+            return await buildMacInstaller(installer, environment, signed);
     }
 }

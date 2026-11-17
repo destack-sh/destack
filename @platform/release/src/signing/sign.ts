@@ -6,7 +6,7 @@ import type { Environment, HostCapability } from "@destack/environment";
 import { Signer } from "./signer.ts";
 import { run } from "../distribution/command.ts";
 import { checkDistribution } from "../distribution/check.ts";
-import { buildMacInstaller } from "../installer/apple.ts";
+import { buildFormat } from "../installer/build.ts";
 import { print } from "../distribution/output.ts";
 import { present } from "@destack/schema";
 
@@ -47,26 +47,28 @@ export async function signPlatform(
         }
         const { os } = environment.host;
         const signed = PLATFORMS.filter((each) => each.signer !== undefined && each.system === os);
-        const applications: string[] = [];
+        const applications: Record<string, string> = {};
         for (const each of signed) {
             const signer = present(Signer.of(each, environment), `the signer of ${each.target}`);
             const built = join(CHECKOUT, "dist", version, each.target);
-            applications.push(await Signer.certify(built, each, signer, environment));
+            await Signer.certify(built, each, signer, environment);
+            applications[each.target] = join(built, each.bundle.application);
         }
 
-        // build their installers, each notarizing its application with theirs in one submission
-        const targets = new Set(signed.map((each) => each.target));
-        const installers = Installer.list().filter(({ platforms }) =>
-            platforms.some((each) => targets.has(each.target)),
+        // refuse a signed platform no installer ships, as its installer notarizes it
+        const shipped = Installer.list().filter(({ platforms }) =>
+            platforms.some((each) => signed.includes(each)),
         );
-        for (const { installer } of installers) {
-            print(await buildMacInstaller(installer, environment, applications), environment);
+        const unshipped = signed.find(
+            (each) => !shipped.some(({ platforms }) => platforms.includes(each)),
+        );
+        if (unshipped !== undefined) {
+            throw new Error(`'${unshipped.target}' has a signer and no installer to notarize it`);
         }
 
-        // notarize applications no installer ships
-        const [first] = signed;
-        if (installers.length === 0 && first !== undefined) {
-            await Signer.of(first, environment)?.notarize(applications);
+        // build each installer, notarizing its application with the signed ones in one submission
+        for (const { installer } of shipped) {
+            print(await buildFormat(installer, environment, applications), environment);
         }
 
         // run each signed distribution, as signing and the hardened runtime can stop it from starting

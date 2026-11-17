@@ -30,13 +30,13 @@ export const Signer = {
         }
     },
 
-    /** Sign a distribution's toolchain, then sign and verify its application, which it answers. */
+    /** Sign a distribution's toolchain, then sign and verify its application. */
     async certify(
         directory: string,
         platform: Platform,
         signer: Signer,
         environment: Environment<"files">,
-    ): Promise<string> {
+    ): Promise<void> {
         // sign the toolchain's native code, then list its signed files in the resources the application seals
         const application = join(directory, platform.bundle.application);
         const toolchain = join(directory, TOOLCHAIN_DIRECTORY);
@@ -52,7 +52,5 @@ export const Signer = {
         // sign and verify the application and the commands inside it
         await signer.sign(application);
         await signer.verify(application);
-
-        return application;
     },
 };

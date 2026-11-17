@@ -10,6 +10,7 @@ import { PackageLocator } from "@destack/package/locator";
 import { modulePlugin } from "./module.ts";
 import { toolchainPlugin } from "./toolchain.ts";
 import { Platform } from "./platform.ts";
+import { read, run } from "./command.ts";
 
 /** The directory beside a distribution's launchers with its programs' bundles. */
 export const PROGRAM_DIRECTORY = "program";
@@ -23,7 +24,7 @@ export const CONFIGURATION_FILE = "bunfig.toml";
 /** The oldest macOS the launcher runs on, the application's own minimum. */
 const MACOS_MINIMUM = "11.0";
 
-/** Where Bun publishes each version's runtimes, with their SHA-256 digests beside them. */
+/** Where Bun publishes each version's runtimes, with a listing of their SHA-256 digests. */
 const RUNTIME_RELEASES = "https://github.com/oven-sh/bun/releases/download";
 
 /** The architecture names the C compiler takes for a macOS target, by the platform's own. */
@@ -96,11 +97,17 @@ export async function buildExecutable(
     options: ExecutableOptions,
     environment: Environment<"files" | "process" | "host">,
 ): Promise<void> {
+    // refuse another architecture's target off macOS, where the launcher compiles for this computer
+    const { files, process, host } = environment;
+    const isOwn = options.runtime === `bun-${host.os}-${host.architecture}`;
+    if (!isOwn && host.os !== "darwin") {
+        throw new Error(`build '${options.target}' on a computer of its own architecture`);
+    }
+
     // bundle the program beside the launcher, its directory assets below the bundles
     const parent = dirname(options.outfile);
     const name = basename(options.outfile);
     const programs = join(parent, PROGRAM_DIRECTORY);
-    const { files, process, host } = environment;
     await files.mkdir(programs, { recursive: true });
     const assets = new Set<string>();
     const peers = await optionalPeers(options.root, environment);
@@ -120,10 +127,12 @@ export async function buildExecutable(
     // place the runtime and the empty configuration once, then the launcher named after the program
     const runtime = join(parent, RUNTIME);
     if (!(await files.exists(runtime))) {
-        // ship the building runtime for its own target, and the target's release of its version for another
-        if (options.runtime === `bun-${host.os}-${host.architecture}`) {
+        // ship the building runtime for its own target
+        if (isOwn) {
             await files.copyFile(await files.realPath(process.executable), runtime);
-        } else {
+        }
+        // ship Bun's release of the same version for another architecture
+        else {
             await fetchRuntime(options.runtime, runtime, environment);
         }
         await files.chmod(runtime, 0o755);
@@ -132,24 +141,19 @@ export async function buildExecutable(
     await compileLauncher(options.outfile, Platform.of(options.target), environment);
 }
 
-/** Fetch a target's runtime at the building runtime's version, checked by its listed digest. */
+/** Fetch a runtime of the building runtime's version from Bun's release, which lists its digest. */
 async function fetchRuntime(
-    target: string,
+    runtime: string,
     outfile: string,
     environment: Environment<"files" | "process">,
 ): Promise<void> {
-    // read the building runtime's version, which the target's runtime ships at too
+    // read the building runtime's version, which every runtime of a distribution ships at
     const { files, process, network, crypto } = environment;
-    const asked = process.spawn([process.executable, "--version"], {
-        stdin: "ignore",
-        stdout: "pipe",
-        stderr: "ignore",
-    });
-    const version = (await new Response(asked.stdout).text()).trim();
+    const version = (await read(process.executable, ["--version"], environment)).trim();
     const release = `${RUNTIME_RELEASES}/bun-v${version}`;
 
-    // fetch the runtime's archive, which Bun's releases file under aarch64 for arm64, and the digests listed
-    const asset = target.replace("arm64", "aarch64");
+    // fetch the runtime's archive, which Bun's releases file under aarch64 for arm64
+    const asset = runtime.replace("arm64", "aarch64");
     const archive = `${asset}.zip`;
     const [fetched, listing] = await Promise.all([
         network.fetch(new Request(`${release}/${archive}`)),
@@ -157,18 +161,16 @@ async function fetchRuntime(
     ]);
     if (!fetched.ok || !listing.ok) {
         throw new Error(
-            `could not fetch runtime '${target}' at '${version}': status ${fetched.status} and ${listing.status}`,
+            `could not fetch runtime '${runtime}' at '${version}': status ${fetched.status} and ${listing.status}`,
         );
     }
 
-    // refuse an archive whose digest differs from the listed one
+    // refuse an archive that arrived with other bytes than its release lists
     const bytes = new Uint8Array(await fetched.arrayBuffer());
     const digest = new Uint8Array(await crypto.digest("SHA-256", bytes)).toHex();
-    const lines = (await listing.text()).split("\n");
-    const listed = lines.find((line) => line.endsWith(` ${archive}`))?.split(" ")[0];
-    if (digest !== listed) {
+    if (digest !== readDigest(await listing.text(), archive)) {
         throw new Error(
-            `runtime '${target}' at '${version}' has digest '${digest}', not the listed one`,
+            `runtime '${runtime}' at '${version}' has digest '${digest}', not the listed one`,
         );
     }
 
@@ -177,22 +179,18 @@ async function fetchRuntime(
     try {
         const path = join(directory, archive);
         await files.writeFile(path, bytes);
-        const unpacking = process.spawn(["unzip", "-q", path, "-d", directory], {
-            stdin: "ignore",
-            stdout: "ignore",
-            stderr: "pipe",
-        });
-        const [code, errors] = await Promise.all([
-            unpacking.exited,
-            new Response(unpacking.stderr).text(),
-        ]);
-        if (code !== 0) {
-            throw new Error(`runtime '${target}' did not unpack: '${errors.trim()}'`);
-        }
+        await run("unzip", ["-q", path, "-d", directory], environment);
         await files.copyFile(join(directory, asset, "bun"), outfile);
     } finally {
         await files.remove(directory, { recursive: true, force: true });
     }
+}
+
+/** Read a file's SHA-256 digest from a release's listing, absent for a file it does not list. */
+export function readDigest(listing: string, file: string): string | undefined {
+    const line = listing.split("\n").find((each) => each.split(/\s+/u)[1] === file);
+
+    return line?.split(/\s+/u)[0];
 }
 
 /** Compile the launcher, which runs the bundle named after it on the runtime beside it. */
@@ -201,7 +199,7 @@ async function compileLauncher(
     platform: Platform,
     environment: Environment<"process" | "host">,
 ): Promise<void> {
-    // build launcher.c for the target's architecture and the oldest supported macOS on macOS, else for this computer
+    // build launcher.c for the target's architecture on macOS, with the oldest supported macOS
     const source = fileURLToPath(new URL("./launcher.c", import.meta.url));
     const architecture = COMPILER_ARCHITECTURES[platform.architecture];
     const targeted =
