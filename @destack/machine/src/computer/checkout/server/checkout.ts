@@ -1,6 +1,6 @@
 import type { Environment, FileSystem } from "@destack/environment";
-import { ListPage, type MethodOutput, type Package } from "@destack/object";
-import type { PackageVersion } from "@destack/package";
+import type { MethodOutput, Package } from "@destack/object";
+import { PackageName, type PackageVersion } from "@destack/package";
 import { preview, type Preview } from "../object/index.ts";
 import type { CommandHost } from "../../process/command.ts";
 import { join } from "node:path";
@@ -8,10 +8,16 @@ import * as check from "@destack/check/workspace";
 import { and, eq } from "@destack/db";
 import { nth, present, schema } from "@destack/schema";
 import type { Select } from "@destack/db";
-import type { Digest, Identifier } from "@destack/schema";
-import { checkout, type CheckoutStack, WorkingTree } from "../object/index.ts";
+import { type Digest, Identifier } from "@destack/schema";
+import {
+    checkout,
+    type CheckoutStack,
+    WorkingTree,
+    type WorkingTreeSource,
+} from "../object/index.ts";
 import { Git } from "./git.ts";
 import { type CompilerPool, outputsOf, Workspace } from "@destack/build";
+import { Template } from "@destack/build/template";
 import { PackageInspection } from "@destack/package/code";
 import { ObjectReference, RequestId } from "@destack/sync";
 import { build, Build } from "@destack/stack/object";
@@ -21,9 +27,15 @@ import stackPackage from "@destack/stack/package";
 import objectPackage from "@destack/object/package";
 import type { ClientOf } from "@destack/object/client";
 import type { Machine } from "../../../machine/index.ts";
-import { PackageManifest, ViewDescription } from "@destack/package/manifest";
+import { Lock, PackageManifest, ViewDescription } from "@destack/package/manifest";
 import type {} from "@destack/package/import-meta";
 import { MachineError } from "../../../error/index.ts";
+
+/** The file Bun reads a package's registries from. */
+const BUNFIG_FILE = "bunfig.toml";
+
+/** The bunfig table giving each scope its registry. */
+const SCOPES_TABLE = "[install.scopes]";
 
 /** How long a checkout's build caller waits. */
 const BUILD_WAIT_MILLISECONDS = 5 * 60_000;
@@ -80,8 +92,15 @@ export class CheckoutServer {
         return checkout.implement({
             methods: {
                 create: {
-                    prepare: (context) =>
-                        new Git(host).open(context.input.directory, context.input.source),
+                    prepare: async (context) => {
+                        // write a template's package before its repository is initialized
+                        const { directory, source } = context.input;
+                        if (source.kind === "template") {
+                            await this.#instantiate(directory, source);
+                        }
+
+                        return new Git(host).open(directory, source);
+                    },
                     handle: (context, next) =>
                         next(
                             context.with({
@@ -190,15 +209,8 @@ export class CheckoutServer {
         spaceId: Identifier<"space">,
         source: CheckoutSource,
     ): Promise<{ readonly id: Identifier<"build">; readonly lock: Digest }> {
-        // require the space here, noting its log position before the build
-        const { volumes } = this.machine;
-        if (!(await volumes.list()).includes(spaceId)) {
-            throw MachineError.of(
-                "CHECKOUT_SPACE_ELSEWHERE_NOT_FOUND",
-                "space not found: it is not served on this machine, which has the working tree",
-            );
-        }
-        const { database } = await this.machine.space(spaceId);
+        // note the machine's log position before the build, whose replica it follows as its runner
+        const { database } = this.machine;
         const { sequence } = await database.log.position();
 
         // create the build for the machine to run
@@ -232,6 +244,56 @@ export class CheckoutServer {
         }
 
         return { id: created.id, lock: Build.lock(current) };
+    }
+
+    /** Write a package made from a template's published release into a new directory. */
+    async #instantiate(
+        directory: string,
+        source: Extract<WorkingTreeSource, { readonly kind: "template" }>,
+    ): Promise<void> {
+        // pull the template's release whole, its source files among them
+        const { machine, compilers, host } = this;
+        const lock = await machine.releases.find(source.template, source.release);
+        await machine.releases.pull(machine.builds, source.template, lock, "all");
+        const locked = await machine.builds.lock(lock);
+
+        // read the packages the release links, each at the version it released with
+        const links = Object.entries(Lock.links(locked, locked.root));
+        const linked = await Promise.all(
+            links.map(async ([name, digest]) => {
+                const manifest = await machine.builds.get(digest);
+
+                return [name, PackageManifest.package(manifest)] as const;
+            }),
+        );
+
+        // read the template's files
+        const reader = await machine.builds.contents(locked.root);
+        const files = await Promise.all(
+            (await reader.files()).map(
+                async (file) => [file.path, await reader.load(file.path)] as const,
+            ),
+        );
+        const template = new Template(new Map(files));
+
+        // make the package, selecting the template's own dependencies at their released versions
+        const selected = linked.filter(([name]) => template.dependencies.includes(name));
+        const parameters = {
+            id: Identifier.create("package", machine.environment),
+            name: source.name,
+            dependencies: Object.fromEntries(selected),
+            versions: Object.fromEntries(linked.map(([name, each]) => [name, each.version])),
+        };
+        await template.write(directory, parameters, await compilers.toolchain(), host.files);
+
+        // add the universe's npm address for the scopes of the package and its Destack dependencies
+        const { universe } = await machine.enrolled("making a package");
+        const names = [source.name, ...template.workspace, ...linked.map(([name]) => name)];
+        const scopes = [...new Set(names.map((name) => `@${PackageName.split(name).handle}`))];
+        const path = join(directory, BUNFIG_FILE);
+        const existing = (await host.files.exists(path)) ? await host.files.readTextFile(path) : "";
+        const registries = withScopes(existing, scopes.toSorted(), `${universe}/npm/`);
+        await host.files.writeFile(path, new TextEncoder().encode(registries));
     }
 
     /** Inspect a checkout's package directory for one output, on its dependencies' builds. */
@@ -330,7 +392,7 @@ export class CheckoutServer {
         // build every output the package implies, then read the build
         const client = await this.connect(stackPackage, login, spaceId);
         const built = await this.build(client, spaceId, selection);
-        const { builds } = await this.machine.space(spaceId);
+        const { builds } = this.machine;
         const reader = await builds.root(built.lock);
 
         return { selection, built, client, builds, reader };
@@ -371,21 +433,49 @@ export class CheckoutServer {
         built: PackageVersion,
         submitted: { readonly build: Identifier<"build">; readonly environment: Environment },
     ): Promise<void> {
-        // install the package following the checkout once, its checkout directory naming the package
-        const items = await Array.fromAsync(
-            ListPage.all(objects.installation.list, { scope: spaceId }),
-        );
-        const follows = checkout.reference(selection.machine, selection.checkout);
-        const installed =
-            items.find((item) => CheckoutServer.#isFollowing(item, selection)) ??
-            (await objects.installation.create({
+        // read the package's installation, of which the space has one
+        const { items } = await objects.installation.list({
+            scope: spaceId,
+            where: { packageId: built.id },
+            limit: 1,
+        });
+        const [existing] = items;
+        const follows = {
+            ...ObjectReference.columns(
+                "follows",
+                checkout.reference(selection.machine, selection.checkout),
+            ),
+            directory: selection.directory,
+        };
+
+        // take a request for the write
+        const requestId = RequestId.create(submitted.environment);
+        let installed: typeof existing;
+
+        // install the package following the checkout's package directory
+        if (existing === undefined) {
+            installed = await objects.installation.create({
                 scope: spaceId,
-                requestId: RequestId.create(submitted.environment),
+                requestId,
                 packageId: built.id,
-                ...ObjectReference.columns("follows", follows),
-                directory: selection.directory,
-                name: built.name.slice(built.name.lastIndexOf("/") + 1),
-            }));
+                ...follows,
+                name: PackageName.split(built.name).local,
+            });
+        }
+        // keep an installation following it already
+        else if (CheckoutServer.#isFollowing(existing, selection)) {
+            installed = existing;
+        }
+        // have the package's installation follow it
+        else {
+            installed = await objects.installation.update({
+                scope: spaceId,
+                id: existing.id,
+                requestId,
+                revision: existing.revision,
+                ...follows,
+            });
+        }
 
         // apply the installation at the build
         await spaces.rollout.deploy({
@@ -411,4 +501,21 @@ export class CheckoutServer {
             installed.directory === selection.directory
         );
     }
+}
+
+/** Write scopes' registry into a bunfig's text, keeping the scopes it sets and its other tables. */
+function withScopes(bunfig: string, scopes: readonly string[], url: string): string {
+    // leave out the scopes the text sets already
+    const lines = bunfig.split("\n");
+    const added = scopes
+        .filter((scope) => !lines.some((line) => line.trimStart().startsWith(`"${scope}"`)))
+        .map((scope) => `"${scope}" = { url = "${url}" }`);
+
+    // add them below the text's scopes table, or in a table of their own at its end
+    const header = lines.findIndex((line) => line.trim() === SCOPES_TABLE);
+    if (header === -1) {
+        return [...lines, SCOPES_TABLE, ...added, ""].join("\n");
+    }
+
+    return lines.toSpliced(header + 1, 0, ...added).join("\n");
 }

@@ -47,13 +47,13 @@ export class Git {
         if (source.kind === "existing") {
             return this.root(directory);
         }
-        // initialize a new repository
-        else if (source.kind === "empty") {
-            return this.initialize(directory);
-        }
         // clone the remote
-        else {
+        else if (source.kind === "clone") {
             return this.clone(directory, source.remote, source.ref);
+        }
+        // initialize a new repository, around the package a template made
+        else {
+            return this.initialize(directory);
         }
     }
 

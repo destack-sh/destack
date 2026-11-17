@@ -691,6 +691,79 @@ test("build a checkout as a prerelease until committed", async () => {
     );
 });
 
+test("build a checkout in a space another computer serves, following the build as its runner", async () => {
+    // enroll two computers of the owner: one with the working tree, one serving the space
+    const world = await TestComputer.world({ bundled: [await TestDistribution.fixture("board")] });
+    const relay = await TestComputer.relay(world);
+    const [opened, serving] = [
+        await TestComputer.open({ world }),
+        await TestComputer.open({ world, relay: relay.url }),
+    ];
+    const { owner } = world;
+    const signedIn = await opened.signIn(OWNER_EMAIL);
+    await opened.enroll(signedIn, owner.account);
+    const host = await serving.signIn(OWNER_EMAIL);
+    await serving.enroll(host, owner.account);
+    const space = await serving.space(host.id, owner.account, "work");
+
+    // wait until the relay publishes the serving computer's tunnel, which the other calls it at
+    const universe = world.universe.storage.database;
+    await serving.waitUntil(universe, async () => {
+        const published = await Snapshot.live(universe)
+            .read(accountObject.endpoint.table)
+            .findFirst({ where: { parentId: serving.machine.id } });
+
+        return published?.relay !== undefined;
+    });
+    const service = await stackOf(opened, signedIn.id, space);
+    const client = opened.connect(machinePackage);
+    const machineId = opened.machine.id;
+
+    // lay out a working tree of one stack package, its stack package installed as a release
+    const { files } = opened.environment;
+    const root = await files.realPath(await files.makeTemporaryDirectory("destack-checkout-"));
+    onTestFinished(() => files.remove(root, { recursive: true }));
+    for (const [path, text] of Object.entries(STACK_CHECKOUT)) {
+        await files.mkdir(dirname(join(root, path)), { recursive: true });
+        await files.writeTextFile(join(root, path), text);
+    }
+    await files.mkdir(join(root, "stack", "node_modules", "@destack"), { recursive: true });
+    await files.symlink(INSTALLED_STACK, join(root, "stack", "node_modules", "@destack", "stack"));
+    expect(await testHost().process.spawn(["git", "init", "--quiet", root]).exited).toBe(0);
+    const registered = await client.checkout.create({
+        machineId,
+        requestId: RequestId.create(opened.environment),
+        directory: join(root, "stack"),
+        source: { kind: "existing" },
+    });
+
+    // build and evaluate its personal export in the space the other computer serves
+    const { submission } = await client.checkout.submit({
+        machineId,
+        id: registered.id,
+        requestId: RequestId.create(opened.environment),
+        space,
+        login: signedIn.id,
+        directory: "./stack/",
+        export: "personal",
+        parameters: {},
+    });
+    const built = await service.build.get({ spaceId: space, id: submission.build });
+    const reader = await opened.machine.builds.root(present(built.lock, "the lock"));
+    expect({
+        served: [
+            (await opened.machine.volumes.list()).includes(space),
+            (await serving.machine.volumes.list()).includes(space),
+        ],
+        built: [built.state, built.failure],
+        stored: PackageManifest.package(reader.manifest).id,
+    }).toEqual({
+        served: [false, true],
+        built: ["succeeded", null],
+        stored: STACK_CHECKOUT_PACKAGE,
+    });
+});
+
 test("start a preview's next generation once sources settle", async () => {
     // enroll the owner's computer, which stores checkouts and previews once enrolled
     const computer = await TestComputer.open();

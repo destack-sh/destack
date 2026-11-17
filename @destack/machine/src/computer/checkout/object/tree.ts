@@ -1,4 +1,5 @@
 import { isAbsolute, relative, resolve, sep } from "node:path";
+import { PackageId, PackageName } from "@destack/package";
 import { schema } from "@destack/schema";
 import type {} from "@destack/package/import-meta";
 import { MachineError } from "../../../error/index.ts";
@@ -20,6 +21,16 @@ export const WorkingTreeSource = schema.discriminatedUnion("kind", [
         remote: schema.string().min(1),
         /** The branch, tag or commit to check out, else the remote's default branch. */
         ref: schema.string().min(1).exactOptional(),
+    }),
+    schema.object({
+        /** Initialize a Git repository with a package made from a published template. */
+        kind: schema.literal("template"),
+        /** The template package. */
+        template: PackageId,
+        /** The template's release: a version or a tag. */
+        release: schema.string().min(1),
+        /** The name of the package made. */
+        name: PackageName,
     }),
 ]);
 /** Where a checkout's working tree comes from. */
