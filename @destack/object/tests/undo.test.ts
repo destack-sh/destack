@@ -1,7 +1,7 @@
 import { testSimulation, testIdentity } from "../src/test/index.ts";
 import { users } from "./fixture/user.ts";
 import { PackageVersion } from "@destack/package";
-import { expect, onTestFinished, test } from "@destack/test";
+import { expect, onTestFinished, Recording, test } from "@destack/test";
 import { defineDatabase, eq, type DatabaseConnection } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
 import { definePackage } from "@destack/object";
@@ -430,6 +430,41 @@ test("compose a party's queued updates into one mutation per undo group, apart a
     await device.client.undoStack.undo().confirmed;
     expect((await alice.note.get({ spaceId, id })).title).toBe("a");
     expect(device.errors).toEqual([]);
+});
+
+test("compose a drag's updates in as many replica statements as its second", async () => {
+    const simulation = testSimulation();
+    const { openDevice } = await serveNotes({ simulation });
+    const device = await openDevice(users.alice);
+    const notes = device.client.mutate(note);
+    const { id } = await notes.create({ title: "0" }).predicted;
+    await device.client.undoStack.close();
+
+    // count the device's statements for one update of the note
+    const counted = async (title: string) => {
+        const before = await Recording.read(simulation.telemetry);
+        await notes.update({ id, title }).predicted;
+
+        return (await Recording.read(simulation.telemetry))
+            .since(before)
+            .count(TestDatabase.statements(device.storage.database));
+    };
+
+    // start the drag, then count its second and its six hundredth update, ten seconds at 60 Hz
+    await counted("1");
+    const second = await counted("2");
+    for (let index = 3; index < 600; index += 1) {
+        await notes.update({ id, title: String(index) }).predicted;
+    }
+    const last = await counted("600");
+
+    // compose every update into the one queued mutation, at a constant cost
+    const queued = await device.client.prediction.pending(device.client.database);
+    expect(queued.map((mutation) => mutation.calls.map((call) => call.input["title"]))).toEqual([
+        ["0"],
+        ["600"],
+    ]);
+    expect({ second, last }).toEqual({ second: 25, last: 25 });
 });
 
 test("follow whether a party can undo and redo as its stacks change", async () => {
