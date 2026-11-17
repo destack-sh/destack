@@ -1,13 +1,16 @@
 import { CHECKOUT } from "../distribution/distribution.ts";
 import { join } from "node:path";
 import { Release } from "@destack/update/release";
-import { Platform, releaseVersion } from "../distribution/index.ts";
+import { Installer, PLATFORMS, releaseVersion } from "../distribution/index.ts";
 import type { Environment, HostCapability } from "@destack/environment";
 import { Signer } from "./signer.ts";
 import { run } from "../distribution/command.ts";
 import { checkDistribution } from "../distribution/check.ts";
+import { buildMacInstaller } from "../installer/apple.ts";
+import { print } from "../distribution/output.ts";
+import { present } from "@destack/schema";
 
-/** Unpack a built distribution, or sign it on its target operating system. */
+/** Unpack a built distribution, or sign this system's distributions with their installers. */
 export async function signPlatform(
     environment: Environment<HostCapability>,
     arguments_: readonly string[],
@@ -20,9 +23,8 @@ export async function signPlatform(
         selected ?? Release.target(environment.host.os, environment.host.architecture),
     );
 
-    // select the compiled distribution and its platform
+    // select the compiled distribution
     const directory = join(CHECKOUT, "dist", release.version, release.target);
-    const platform = Platform.of(release.target);
 
     // unpack the archive a build job produced
     if (operation === "unpack") {
@@ -38,22 +40,43 @@ export async function signPlatform(
             environment,
         );
     }
-    // sign and notarize the exact application used by both the archive and the installers
-    else if (operation === "sign" && environment.host.os === platform.system) {
+    // sign the exact applications the archives and the installers ship
+    else if (operation === "sign" && selected === undefined) {
         if (environment.process.variables["DESTACK_SIGNING"] !== "release") {
             throw new Error("platform signing requires DESTACK_SIGNING=release");
         }
-        const signer = Signer.of(platform, environment);
-        if (signer === undefined) {
-            throw new Error(`'${release.target}' has no platform signer`);
+        const { os } = environment.host;
+        const signed = PLATFORMS.filter((each) => each.signer !== undefined && each.system === os);
+        const applications: string[] = [];
+        for (const each of signed) {
+            const signer = present(Signer.of(each, environment), `the signer of ${each.target}`);
+            const built = join(CHECKOUT, "dist", version, each.target);
+            applications.push(await Signer.certify(built, each, signer, environment));
         }
-        await Signer.certify(directory, platform, signer, environment);
 
-        // run the signed distribution, as signing and the hardened runtime can stop it from starting
-        await checkDistribution(directory, release.target, release.version, environment);
+        // build their installers, each notarizing its application with theirs in one submission
+        const targets = new Set(signed.map((each) => each.target));
+        const installers = Installer.list().filter(({ platforms }) =>
+            platforms.some((each) => targets.has(each.target)),
+        );
+        for (const { installer } of installers) {
+            print(await buildMacInstaller(installer, environment, applications), environment);
+        }
+
+        // notarize applications no installer ships
+        const [first] = signed;
+        if (installers.length === 0 && first !== undefined) {
+            await Signer.of(first, environment)?.notarize(applications);
+        }
+
+        // run each signed distribution, as signing and the hardened runtime can stop it from starting
+        for (const each of signed) {
+            const built = join(CHECKOUT, "dist", version, each.target);
+            await checkDistribution(built, each.target, version, environment);
+        }
     }
     // refuse every other operation
     else {
-        throw new Error("select unpack, or sign on the target operating system");
+        throw new Error("select unpack with a target, or sign without one");
     }
 }

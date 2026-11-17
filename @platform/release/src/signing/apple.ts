@@ -1,4 +1,4 @@
-import { dirname, join } from "node:path";
+import { basename, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { Environment } from "@destack/environment";
 import { run } from "../distribution/command.ts";
@@ -102,21 +102,36 @@ export class MacSigning implements Signer {
         }
     }
 
-    /** Notarize an application and staple its ticket before packaging the update archive. */
-    async notarize(path: string): Promise<void> {
+    /** Notarize applications in one submission and staple each one's ticket. */
+    async notarize(applications: readonly string[]): Promise<void> {
         if (this.profile === undefined) {
             return;
         }
         const { environment } = this;
-        const directory = await environment.files.makeTemporaryDirectory("destack-notarize-");
+        const { files } = environment;
+        const directory = await files.makeTemporaryDirectory("destack-notarize-");
         try {
-            const archive = join(directory, "application.zip");
-            await run("ditto", ["-c", "-k", "--keepParent", path, archive], environment);
+            // copy each application into the submission, numbered apart as several share a name
+            const submission = join(directory, "submission");
+            for (const [index, application] of applications.entries()) {
+                const copy = join(submission, String(index), basename(application));
+                await files.mkdir(dirname(copy), { recursive: true });
+                await run("ditto", [application, copy], environment);
+            }
+
+            // wait for Apple's verdict on all of them at once
+            const archive = join(directory, "applications.zip");
+            await run("ditto", ["-c", "-k", submission, archive], environment);
             await this.submit(archive);
-            await this.staple(path);
-            await run("spctl", ["--assess", "--type", "execute", "--verbose", path], environment);
+
+            // staple and assess each application where it is
+            for (const application of applications) {
+                await this.staple(application);
+                const assessed = ["--assess", "--type", "execute", "--verbose", application];
+                await run("spctl", assessed, environment);
+            }
         } finally {
-            await environment.files.remove(directory, { recursive: true, force: true });
+            await files.remove(directory, { recursive: true, force: true });
         }
     }
 

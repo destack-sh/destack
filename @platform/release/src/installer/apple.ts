@@ -21,10 +21,11 @@ interface Slice {
     application: string;
 }
 
-/** Build a universal application in a drag-to-Applications disk image. */
+/** Build a universal application in a drag-to-Applications disk image, notarized with others. */
 export async function buildMacInstaller(
     installer: Installer,
     environment: Environment<HostCapability>,
+    beside: readonly string[] = [],
 ): Promise<string> {
     // require macOS, and stage below a private temporary directory
     if (environment.host.os !== "darwin") {
@@ -58,7 +59,9 @@ export async function buildMacInstaller(
         await mergeResources(contents, slices, environment);
         await signing.sign(application);
         await signing.verify(application);
-        await signing.notarize(application);
+
+        // notarize the universal application with the applications beside it in one submission
+        await signing.notarize([application, ...beside]);
         const name = `destack-${version}-${installer.name}.${installer.format}`;
 
         return await createImage(title, name, image, staging, output, signing);
@@ -87,7 +90,14 @@ async function unpackSlices(
             application: join(staging, "x86_64-apple-darwin", "Destack.app"),
         },
     ];
-    for (const { target } of slices) {
+    for (const slice of slices) {
+        // take a distribution signed in place here, else unpack its archive
+        const { target } = slice;
+        const signed = join(output, target, "Destack.app");
+        if (await environment.files.exists(signed)) {
+            slice.application = signed;
+            continue;
+        }
         await environment.files.mkdir(join(staging, target));
         await run(
             "tar",

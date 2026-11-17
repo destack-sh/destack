@@ -11,8 +11,8 @@ export interface Signer {
     readonly sign: (application: string) => Promise<void>;
     /** Sign the native code below a directory, such as a toolchain's. */
     readonly signNative: (directory: string) => Promise<void>;
-    /** Notarize or timestamp a signed application. */
-    readonly notarize: (application: string) => Promise<void>;
+    /** Notarize or timestamp signed applications in one submission. */
+    readonly notarize: (applications: readonly string[]) => Promise<void>;
     /** Verify the signatures of an application. */
     readonly verify: (application: string) => Promise<void>;
 }
@@ -30,13 +30,13 @@ export const Signer = {
         }
     },
 
-    /** Sign a distribution's toolchain, then sign, verify and notarize its application. */
+    /** Sign a distribution's toolchain, then sign and verify its application, which it answers. */
     async certify(
         directory: string,
         platform: Platform,
         signer: Signer,
         environment: Environment<"files">,
-    ): Promise<void> {
+    ): Promise<string> {
         // sign the toolchain's native code, then list its signed files in the resources the application seals
         const application = join(directory, platform.bundle.application);
         const toolchain = join(directory, TOOLCHAIN_DIRECTORY);
@@ -53,7 +53,6 @@ export const Signer = {
         await signer.sign(application);
         await signer.verify(application);
 
-        // notarize the exact application the archive and installers ship
-        await signer.notarize(application);
+        return application;
     },
 };
