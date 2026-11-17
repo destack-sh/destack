@@ -1,3 +1,5 @@
+import { TelemetryScope } from "@destack/telemetry";
+import type {} from "@destack/package/import-meta";
 import { AccessContext, Caller } from "@destack/access";
 import { found, schema } from "@destack/schema";
 import {
@@ -45,10 +47,8 @@ const EphemeralMessage = schema.discriminatedUnion("kind", [
 /** A message between the ephemeral storages of a database's instances. */
 type EphemeralMessage = schema.Infer<typeof EphemeralMessage>;
 
-/** How ephemeral storage replicates: its failure report and the linger. */
+/** How ephemeral storage replicates: the linger of an untracked owner's rows. */
 export interface EphemeralStorageOptions {
-    /** Report a failure no call answers. */
-    readonly report: (error: unknown) => void;
     /** How long an untracked owner's rows stay, in milliseconds, 10 s by default. */
     readonly linger?: number;
 }
@@ -75,8 +75,8 @@ export class EphemeralStorage implements AsyncDisposable {
     readonly #owners = new Map<string, { instance: string; keys: Set<string> }>();
     /** The owner of each row, by row name. */
     readonly #rows = new Map<string, string>();
-    /** Report a failure to apply or end rows. */
-    readonly #report: (error: unknown) => void;
+    /** The captures of failures to apply or end rows, on the database's telemetry. */
+    readonly #instruments: TelemetryScope;
     /** Stops the pending ends of owners no instance tracks, by owner. */
     readonly #leaving = new Map<string, AbortController>();
     /** Stop listening to the tracker. */
@@ -88,12 +88,17 @@ export class EphemeralStorage implements AsyncDisposable {
     /** The memory database this store opened and closes, absent if its caller has one. */
     #memory: { readonly close: () => Promise<void> } | undefined;
 
+    /** Capture a failure no call answers, such as applying another instance's rows. */
+    #capture(error: unknown): void {
+        this.#instruments.captureException(error, { isEscaped: true });
+    }
+
     /** Store ephemeral object types in memory, replicated over a tracker of live instances. */
     constructor(
         database: DatabaseConnection,
         objects: readonly ObjectType[],
         tracker: Tracker,
-        options: EphemeralStorageOptions,
+        options: EphemeralStorageOptions = {},
     ) {
         // require ephemeral objects logging every column and referencing only each other
         EphemeralStorage.#require(objects, database);
@@ -105,20 +110,27 @@ export class EphemeralStorage implements AsyncDisposable {
         this.tracker = tracker;
         this.#tables = new Map(tables.map((table) => [table[TABLE].sqlName, table]));
         this.#byTable = new Map(objects.map((object) => [object.table, object]));
-        this.#report = options.report;
+        this.#instruments = TelemetryScope.of(
+            import.meta.destack.package,
+            database.state.environment.telemetry,
+        );
         this.#linger = options.linger ?? LINGER_MILLISECONDS;
         this.feed = new sync.Feed(database, tables);
 
         // apply the other instances' rows in order, end their owners' rows, and drop stopped instances' rows
         this.#unwatch = [
             tracker.listen(ROWS_TOPIC, (event) => {
-                this.#applied = this.#applied.then(() => this.#receive(event)).catch(this.#report);
+                this.#applied = this.#applied
+                    .then(() => this.#receive(event))
+                    .catch((error: unknown) => this.#capture(error));
             }),
             tracker.watchTracked((owner, isTracked) =>
                 isTracked ? this.#stay(owner) : this.#leave(owner),
             ),
             tracker.watchStopped((instance) => {
-                this.#applied = this.#applied.then(() => this.#drop(instance)).catch(this.#report);
+                this.#applied = this.#applied
+                    .then(() => this.#drop(instance))
+                    .catch((error: unknown) => this.#capture(error));
             }),
         ];
 
@@ -133,7 +145,7 @@ export class EphemeralStorage implements AsyncDisposable {
         open: (
             tables: readonly Table[],
         ) => Promise<DatabaseConnection & { readonly close: () => Promise<void> }>,
-        options: EphemeralStorageOptions,
+        options: EphemeralStorageOptions = {},
     ): Promise<EphemeralStorage | undefined> {
         // store nothing for objects without ephemeral types
         const ephemeral = objects.filter((object) => object.storage === "ephemeral");
@@ -446,7 +458,7 @@ export class EphemeralStorage implements AsyncDisposable {
                 this.#leaving.delete(owner);
                 if (!this.tracker.isTracked(owner)) {
                     this.#send({ kind: "end", owner });
-                    this.#end(owner).catch(this.#report);
+                    this.#end(owner).catch((error: unknown) => this.#capture(error));
                 }
             },
             () => {},

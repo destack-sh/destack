@@ -1,3 +1,4 @@
+import { worldTelemetry } from "../src/test/world.ts";
 import { testSimulation } from "../src/test/index.ts";
 import { CONTAINED, none, principal, through } from "@destack/access";
 import { asc, defineDatabase, ControlLoop } from "@destack/db";
@@ -16,6 +17,7 @@ import { tablesOf } from "../src/stack/db.ts";
 import objectPackage from "../src/package.ts";
 import { TestObjectStore } from "../src/test/index.ts";
 import { argument, plural, t } from "@destack/locale";
+import { TestRemote } from "../src/test/publisher.ts";
 
 /** How long a test waits for a replica: 5 s, far above its milliseconds. */
 const REPLICA_MILLISECONDS = 5000;
@@ -143,13 +145,11 @@ async function openStores(): Promise<{
 
     // follow the cards by title from the home as the follower's space, and run its replicas
     const decided = { subject: spacePrincipal(followerId), parent: Scope.universe.id };
-    const publisher = {
+    const publisher = TestRemote.of({
         request: (asked: Subscription) => home.source.request(asked),
-        receive: () => Promise.reject(new Error("the follower sends no changes")),
-        call: () => Promise.reject(new Error("the follower sends no queries")),
         stream: (asked: Subscription, signal: AbortSignal) =>
             home.source.replicate(asked, asked.after, decided, signal),
-    };
+    });
     const follower = TestObjectStore.of({
         chain: async () => ({ kind: "follower", parent: Scope.universe.id }),
         environment: world,
@@ -163,18 +163,15 @@ async function openStores(): Promise<{
         database: followerTest.database,
         origin: { package: card.package },
         publisher: () => publisher,
-        uplink: publisher,
+        remote: publisher,
     });
     const controller = new AbortController();
-    const loop = new ControlLoop(followerTest.database, [follower.syncing()], {
-        report: (_controller, _key, error) => {
-            throw error;
-        },
-    });
+    const loop = new ControlLoop(followerTest.database, [follower.syncing()]);
     const running = loop.run(controller.signal);
     onTestFinished(async () => {
         controller.abort();
         await running;
+        expect(worldTelemetry(follower.environment).exceptions()).toEqual([]);
     });
 
     // read the replicated titles and the followed keys
@@ -196,7 +193,7 @@ async function openStores(): Promise<{
     return { follower, simulation, titles, keys, machineId };
 }
 
-test("follow a shape's keys on demand: replicate only the acquired keys, renew a key past half its time, and evict lapsed keys on the next acquisition", async () => {
+test("follow a shape's keys on demand: replicate only the acquired keys, renew a key past half its time, and drop lapsed keys once they lapse", async () => {
     const { follower, simulation, titles, keys } = await openStores();
     const { clock } = simulation;
     const signal = () => clock.timeout(REPLICA_MILLISECONDS);
@@ -210,7 +207,7 @@ test("follow a shape's keys on demand: replicate only the acquired keys, renew a
     // leave a key acquired again within half its time unchanged
     const expiry = async () =>
         (await follower.database.select({ expiresAt: followKey.expiresAt }).from(followKey))
-            .map((row) => row.expiresAt)
+            .flatMap((row) => (row.expiresAt === null ? [] : [row.expiresAt]))
             .toSorted((left, right) => left - right);
     const before = await expiry();
     await simulation.jump(clock.now() + 60_000);
@@ -222,8 +219,10 @@ test("follow a shape's keys on demand: replicate only the acquired keys, renew a
     await follower.acquire(byTitle, { key: { scope: spaceId, title: "Milk" } }, signal());
     const renewed = (await expiry()).map((at) => at - clock.now());
 
-    // let both lapse, then acquire a third title, evicting the lapsed ones and their cards
+    // let both lapse, dropping them and their cards, then acquire a third title
     await simulation.jump(clock.now() + TTL_MINUTES * 60_000);
+    await follower.database.log.waitUntil(async () => (await titles()).length === 0, signal());
+    const lapsed = { keys: await keys(), titles: await titles() };
     await follower.acquire(byTitle, { key: { scope: spaceId, title: "Eggs" } }, signal());
     await follower.database.log.waitUntil(async () => (await titles()).length === 1, signal());
 
@@ -233,6 +232,7 @@ test("follow a shape's keys on demand: replicate only the acquired keys, renew a
         both,
         isUnchanged: renewedEarly.join() === before.join(),
         renewed,
+        lapsed,
         keys: await keys(),
         titles: await titles(),
     }).toEqual({
@@ -240,6 +240,7 @@ test("follow a shape's keys on demand: replicate only the acquired keys, renew a
         both: ["Bread", "Milk"],
         isUnchanged: true,
         renewed: [(TTL_MINUTES - 6) * 60_000, TTL_MINUTES * 60_000],
+        lapsed: { keys: [], titles: [] },
         keys: ['{"title":"Eggs"}'],
         titles: ["Eggs"],
     });

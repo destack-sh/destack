@@ -12,7 +12,7 @@ import { Snapshot } from "@destack/db";
 import type { Environment } from "@destack/environment";
 import { PackageVersion } from "@destack/package";
 import { Identifier, schema } from "@destack/schema";
-import { RequestId, Scope, type Subject, Uplink } from "@destack/sync";
+import { RequestId, Scope, type Subject } from "@destack/sync";
 import { onTestFinished } from "@destack/test";
 import {
     approval,
@@ -28,6 +28,7 @@ import { implementPackage } from "../../src/server/index.ts";
 import { TestObjectStore, testSimulation } from "../../src/test/index.ts";
 import { shareable } from "../../src/index.ts";
 import { argument, plural, t } from "@destack/locale";
+import { ProcedureRemote } from "../../src/replica/remote.ts";
 
 /** The longest a grant takes to reach the space's replica, in milliseconds. */
 const REPLICA_MILLISECONDS = 2000;
@@ -170,7 +171,12 @@ export async function openApprovals(): Promise<TestApproval> {
             },
         })),
     );
-    const publisher = Uplink.of(() => universal.as(scope).client(objectPackage).store);
+    const granting = universal.as(scope).client(objectPackage).store;
+    const publisher = new ProcedureRemote({
+        scope: scope.id,
+        store: granting,
+        environment: universal.environment,
+    });
 
     // serve the space's notes beside its access and change requests in the space alice owns
     const served = await TestObjectStore.open({

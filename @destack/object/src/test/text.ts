@@ -3,7 +3,7 @@ import type { Simulation, SimulatedTelemetry } from "@destack/environment/simula
 import type { SetStep } from "@destack/package/declare";
 import { type JsonValue, nth } from "@destack/schema";
 import type { Driver } from "@destack/test";
-import { testSimulation } from "@destack/test/world";
+import { testSimulation } from "./world.ts";
 import { type TextObservation, type TextStep, textInteraction } from "../scenario/text.ts";
 import {
     RICH_TEXT,

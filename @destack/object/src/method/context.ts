@@ -16,7 +16,6 @@ import {
 import {
     and,
     eq,
-    type DatabaseConnection,
     type Insert,
     type InsertValue,
     Key,
@@ -67,8 +66,6 @@ import { Execution, type StoreExecution } from "./execution.ts";
 import { BranchWrite } from "../branch/write.ts";
 import { Numbered } from "../trait/numbered.ts";
 import { Replay } from "../audit/replay.ts";
-
-import type {} from "@destack/package/import-meta";
 
 /** The values of a draw: the integers a double represents exactly, 2^53. */
 const RANDOM_RANGE = 2 ** 53;
@@ -205,15 +202,13 @@ export class MethodContext<
         return MethodContext.results([...this.objects, ...this.replicas], calls, results);
     }
 
-    /** The environment the call runs in: its store's, its client's or its installation's. */
+    /** The environment the call runs in: its store's or its installation's. */
     get environment(): Environment {
         const location = this.#location;
 
         return location.kind === "sandbox"
             ? location.server.environment
-            : location.kind === "store"
-              ? location.store.environment
-              : location.environment;
+            : location.store.environment;
     }
 
     /** Generate a new identifier from the call's request, stable across attempts in order. */
@@ -237,8 +232,8 @@ export class MethodContext<
     /** The store running the call with its transaction, refusing a prediction or a hook. */
     get execution(): StoreExecution {
         const location = this.#location;
-        if (location.kind !== "store") {
-            throw new TypeError(`'${this.object.name}.${this.name}' can only run in its store`);
+        if (location.kind !== "store" || location.isPredicted) {
+            throw new TypeError(`'${this.object.name}.${this.name}' can only run at its home`);
         }
 
         return location;
@@ -385,20 +380,20 @@ export class MethodContext<
         return new MethodContext({ ...this.#fields, id: RecordedRow.parse(row).id, target: row });
     }
 
-    /** The client replica a prediction reads and writes, refusing a store's or a sandbox's call. */
-    get #replica(): DatabaseConnection {
-        if (this.#location.kind !== "client") {
+    /** The store executing the call, refusing a sandbox's, whose writes go through its session. */
+    get #store(): Execution {
+        if (this.#location.kind !== "store") {
             throw new TypeError(
-                `'${this.object.name}.${this.name}' must read through context.read`,
+                `'${this.object.name}.${this.name}' writes its target only in its store`,
             );
         }
 
-        return this.#location.database;
+        return this.#location;
     }
 
-    /** Whether a client predicts the call, which it runs without the server's authorization. */
+    /** Whether the store predicts the call, recording its writes in its outbox for its home. */
     get isPredicted(): boolean {
-        return this.#location.kind === "client";
+        return this.#location.kind === "store" && this.#location.isPredicted;
     }
 
     /** The object types served together. */
@@ -475,9 +470,9 @@ export class MethodContext<
     events<Fields extends EventKeyFields, Data extends JsonValue>(
         kind: EventKind<Fields, Data>,
     ): EventView<Fields, Data> {
-        // read through the store's event log, else through the hook's session
+        // read through the home store's event log, else through the hook's session
         const location = this.#location;
-        if (location.kind === "store") {
+        if (location.kind === "store" && !location.isPredicted) {
             return new EventView(kind, location.store.events);
         } else if (location.kind === "sandbox") {
             return new EventView(kind, location.session);
@@ -489,9 +484,9 @@ export class MethodContext<
 
     /** The authorizer of the store serving the call, refusing outside a store. */
     get authorizer(): Authorizer {
-        // read the store's authorizer
+        // read the home store's authorizer
         const location = this.#location;
-        if (location.kind !== "store") {
+        if (location.kind !== "store" || location.isPredicted) {
             throw new TypeError(
                 `'${this.object.name}.${this.name}' can only read the authorizer in its store`,
             );
@@ -502,7 +497,7 @@ export class MethodContext<
 
     /** The declaration managing the call's writes, null for a call no stack declaration makes. */
     get manager(): Manager | null {
-        // read the manager of the store's authorization
+        // read the manager of the store's authorization, none in a prediction
         const location = this.#location;
         if (location.kind !== "store") {
             throw new TypeError(
@@ -510,7 +505,7 @@ export class MethodContext<
             );
         }
 
-        return location.authorization.manager;
+        return Execution.manager(location);
     }
 
     /** List a page of the subjects of a type with a permission on an object. */
@@ -522,9 +517,9 @@ export class MethodContext<
             readonly page: { readonly after?: string; readonly limit: number };
         },
     ): Promise<readonly Subject[]> {
-        // list through the store's authorizer, else through the hook's session
+        // list through the home store's authorizer, else through the hook's session
         const location = this.#location;
-        if (location.kind === "store") {
+        if (location.kind === "store" && !location.isPredicted) {
             const { authorizer } = location.authorization;
 
             return authorizer.subjects(
@@ -559,9 +554,9 @@ export class MethodContext<
         const location = this.#location;
         if (location.kind === "sandbox") {
             return location.session.rehearse(over, calls);
-        } else if (location.kind === "client") {
+        } else if (location.isPredicted) {
             throw new TypeError(
-                `'${this.object.name}.${this.name}' can only rehearse calls in its store`,
+                `'${this.object.name}.${this.name}' can only rehearse calls at its home`,
             );
         }
 
@@ -610,9 +605,9 @@ export class MethodContext<
 
     /** Decide whether the caller has a permission on an object, refusing a prediction. */
     check(permission: PermissionReference, target: ObjectReference): Promise<Decision> {
-        // decide through the store's authorization, else through the hook's session
+        // decide through the home store's authorization, else through the hook's session
         const location = this.#location;
-        if (location.kind === "store") {
+        if (location.kind === "store" && !location.isPredicted) {
             return location.authorization.check(permission, target);
         } else if (location.kind === "sandbox") {
             return location.session.check(permission, target);
@@ -627,9 +622,9 @@ export class MethodContext<
         permission: PermissionReference,
         target: ObjectReference,
     ): Promise<boolean> {
-        // decide through the store's authorizer for the subject alone
+        // decide through the home store's authorizer for the subject alone
         const location = this.#location;
-        if (location.kind !== "store") {
+        if (location.kind !== "store" || location.isPredicted) {
             throw new TypeError(
                 `'${this.object.name}.${this.name}' decides for another subject only in its store`,
             );
@@ -647,9 +642,9 @@ export class MethodContext<
 
     /** Require the caller to have a permission on an object, refusing a prediction. */
     require(permission: PermissionReference, target: ObjectReference): Promise<void> {
-        // decide through the store's authorization, else through the hook's session
+        // decide through the home store's authorization, else through the hook's session
         const location = this.#location;
-        if (location.kind === "store") {
+        if (location.kind === "store" && !location.isPredicted) {
             return location.authorization.require(permission, target);
         } else if (location.kind === "sandbox") {
             return location.session.require(permission, target);
@@ -731,7 +726,7 @@ export class MethodContext<
     ): Promise<void> {
         // acquire through the executing store, refusing a sandbox's hook and a prediction
         const location = this.#location;
-        if (location.kind !== "store") {
+        if (location.kind !== "store" || location.isPredicted) {
             throw new TypeError(
                 `'${this.object.name}.${this.name}' can only acquire replicas in its store`,
             );
@@ -752,8 +747,8 @@ export class MethodContext<
                 "INSERT_DENIED",
                 `type ${type.name} is forbidden: '${this.object.package.name}' cannot insert it, as only the declaring package can`,
             );
-        } else if (location.kind !== "store") {
-            throw new TypeError(`'${this.object.name}.${this.name}' can only insert in its store`);
+        } else if (location.kind !== "store" || location.isPredicted) {
+            throw new TypeError(`'${this.object.name}.${this.name}' can only insert at its home`);
         }
 
         // create as the type's create method, its parent given by the parent columns
@@ -798,8 +793,13 @@ export class MethodContext<
                 ? {}
                 : await Numbered.changed(this.object, this.target, changes, this, this.#location);
         const row = await this.#write(this.revised({ ...changes, ...numbered }));
-        if (numbered["number"] !== undefined && this.#location.kind === "store") {
-            await Numbered.raise(this.object, row, this, this.#location);
+        const location = this.#location;
+        if (
+            numbered["number"] !== undefined &&
+            location.kind === "store" &&
+            !location.isPredicted
+        ) {
+            await Numbered.raise(this.object, row, this, location);
         }
 
         return Table.complete(this.object.table, row);
@@ -850,29 +850,12 @@ export class MethodContext<
     async remove(this: MethodContext<{ readonly table: Table }, unknown>): Promise<void> {
         // remove the loaded target through the mutation, whose commit refuses a target changed since
         const table: Table = this.object.table;
-        const target = RecordedRow.parse(this.target);
-        const location = this.#location;
-        if (location.kind === "store") {
-            await Execution.write(location, this, {
-                table,
-                before: await this.#current(location.transaction),
-                after: null,
-            });
-
-            return;
-        }
-
-        // delete only the revision a prediction loaded
-        const deleted = await this.#replica
-            .delete(table)
-            .where(RecordedRow.at(table, target))
-            .returning();
-        if (deleted.length === 0) {
-            throw ObjectError.of(
-                "REVISION_CONFLICT",
-                `cannot update ${this.object.name}: its revision changed`,
-            );
-        }
+        const location = this.#store;
+        await Execution.write(location, this, {
+            table,
+            before: await this.#current(location.transaction),
+            after: null,
+        });
     }
 
     /** Read the target's row after the call's writes, refusing a target removed since. */
@@ -904,35 +887,18 @@ export class MethodContext<
         const target = RecordedRow.parse(this.target);
 
         // write over the target as the transaction has it, whose commit refuses a target changed since
-        if (this.#location.kind === "store") {
-            const transaction = this.#location.transaction;
-            const current = await this.#current(transaction);
-            await transaction.write({
-                table,
-                before: current,
-                after: Table.values(table, Row.parse({ ...current, ...stamped })),
-            });
+        const { transaction } = this.#store;
+        const current = await this.#current(transaction);
+        await transaction.write({
+            table,
+            before: current,
+            after: Table.values(table, Row.parse({ ...current, ...stamped })),
+        });
 
-            return present(
-                await transaction.read(table).findFirst({ where: { id: target.id } }),
-                `the written ${this.object.name} ${target.id}`,
-            );
-        }
-
-        // update at the revision a prediction loaded
-        const [row] = await this.#replica
-            .update(table)
-            .set(Table.values(table, stamped))
-            .where(RecordedRow.at(table, target))
-            .returning();
-        if (!row) {
-            throw ObjectError.of(
-                "REVISION_CONFLICT",
-                `cannot update ${this.object.name}: its revision changed`,
-            );
-        }
-
-        return row;
+        return present(
+            await transaction.read(table).findFirst({ where: { id: target.id } }),
+            `the written ${this.object.name} ${target.id}`,
+        );
     }
 
     /** The time of the call in UTC epoch milliseconds: its caller's. */
@@ -987,9 +953,9 @@ export class MethodContext<
 
     /** The principal the call's code runs as: the installation serving its type. */
     get self(): AccessContext {
-        // act as the installation serving the type in the store
+        // act as the installation serving the type in its home store
         const location = this.#location;
-        if (location.kind === "store") {
+        if (location.kind === "store" && !location.isPredicted) {
             return location.store.as(this.object, this.now);
         }
         // act as the sandbox's installation
@@ -1020,7 +986,7 @@ export class MethodContext<
         // read the capabilities of the installation serving the type, in its store or its sandbox
         const location = this.#location;
         const capabilities =
-            location.kind === "store"
+            location.kind === "store" && !location.isPredicted
                 ? location.store.implementation(this.object).capabilities
                 : location.kind === "sandbox"
                   ? location.server.capabilities
@@ -1056,9 +1022,9 @@ export class MethodContext<
 
     /** The log position the call's mutation started at, absent for a prediction and a query. */
     get started(): LogPosition | undefined {
-        // read the transaction's start, else the start the hook's call record has
+        // read the home transaction's start, else the start the hook's call record has
         const location = this.#location;
-        if (location.kind === "store") {
+        if (location.kind === "store" && !location.isPredicted) {
             return location.transaction.isReading ? undefined : location.transaction.base;
         } else if (location.kind === "sandbox") {
             return location.base;

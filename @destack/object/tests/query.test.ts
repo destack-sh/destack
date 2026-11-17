@@ -1,3 +1,4 @@
+import { worldTelemetry } from "../src/test/world.ts";
 import { users } from "./fixture/user.ts";
 import { expect, test, onTestFinished } from "@destack/test";
 import { Expression } from "@destack/db";
@@ -483,7 +484,7 @@ test("go on following a closed query for a while, receiving the server's changes
 });
 
 test("let go of followed queries beyond the storage budget, following forever-followed ones until released", async () => {
-    const { connect, openDevice, environment } = await serveNotes();
+    const { connect, openDevice, environment, simulation } = await serveNotes();
     const alice = connect(users.alice);
     for (const name of ["Home", "Work", "Travel"]) {
         await alice.notebook.create({
@@ -500,11 +501,16 @@ test("let go of followed queries beyond the storage budget, following forever-fo
     const names = async () =>
         (await database.select().from(notebook.table)).map((row) => row.name).toSorted();
 
-    // follow home forever and every notebook for a minute, and close both
+    // follow home forever and every notebook for a minute, refused past the budget while both stay open
     const home = { where: { name: "Home" } };
     const always = device.client.query.notebook.findMany(home).subscribe({ ttl: "forever" });
     const minute = device.client.query.notebook.findMany({}).subscribe({ ttl: { minutes: 1 } });
     await Promise.all([always.ready, minute.ready]);
+    const telemetry = worldTelemetry(environment);
+    await simulation.waitUntil(() => telemetry.exceptions().length > 0);
+    const refused = telemetry.take();
+
+    // close both
     await Promise.all([always.close(), minute.close()]);
 
     // evict notebooks beyond the budget, and home once released
@@ -520,7 +526,19 @@ test("let go of followed queries beyond the storage budget, following forever-fo
         async () => (await names()).length === 0,
         waiting.signal,
     );
-    expect([isEvicted, remaining, isReleased]).toEqual([true, ["Home"], true]);
+    expect([refused, isEvicted, remaining, isReleased]).toEqual([
+        [
+            {
+                scope: "@destack/db",
+                name: "FamilyError",
+                message:
+                    "local replica has 3 rows, more than 2, for open and forever followed queries",
+            },
+        ],
+        true,
+        ["Home"],
+        true,
+    ]);
 });
 
 test("describe what a client's replica has, the queries it follows and what waits for the server", async () => {
@@ -546,7 +564,7 @@ test("describe what a client's replica has, the queries it follows and what wait
     expect([
         inspection.rows,
         inspection.storage,
-        inspection.subscriptions.map((entry) => entry.ttl),
+        inspection.followed.map((entry) => entry.expiresAt),
         inspection.replica.isLaidOut,
         Object.keys(
             QueriesParameters.parse(
@@ -557,7 +575,7 @@ test("describe what a client's replica has, the queries it follows and what wait
     ]).toEqual([
         { notebook: 1, note: 0 },
         { rows: 10 },
-        ["forever"],
+        [null],
         true,
         1,
         { pending: 0, executed: 0, rejected: 0 },

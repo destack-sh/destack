@@ -138,7 +138,7 @@ export class AuditStorage {
             test,
             test.database,
             files,
-            new TestTelemetry(simulation.telemetry),
+            TestTelemetry.of(simulation.telemetry),
             simulation,
             lifetime,
         );

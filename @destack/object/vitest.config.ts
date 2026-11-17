@@ -5,6 +5,9 @@ import { fileURLToPath } from "node:url";
 /** The driver of the package's object scenarios, over the notes fixture. */
 const NOTES_DRIVER = fileURLToPath(new URL("src/test/driver.ts", import.meta.url));
 
+/** The driver of the package's client scenarios, each person over a client of their own. */
+const CLIENT_DRIVER = fileURLToPath(new URL("src/test/client.ts", import.meta.url));
+
 /** The driver of the package's text scenarios, over one sequence in memory. */
 const TEXT_DRIVER = fileURLToPath(new URL("src/test/text.ts", import.meta.url));
 
@@ -13,6 +16,7 @@ export default defineConfiguration(
         plugins: [
             scenarioPlugin([
                 { module: NOTES_DRIVER, name: "ObjectDriver" },
+                { module: CLIENT_DRIVER, name: "ClientDriver" },
                 { module: TEXT_DRIVER, name: "TextDriver" },
             ]),
         ],

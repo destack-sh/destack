@@ -1,6 +1,9 @@
 import { defineTable, index, integer, text } from "@destack/db";
 
-/** The keys a store follows a shape at on demand, each until it lapses. */
+/** The follower of the keys a store acquires for itself. */
+export const STORE_FOLLOWER = "store";
+
+/** The keys a store follows a shape at on demand, each for a follower, open or until it lapses. */
 export const followKey = defineTable(
     "follow_key",
     {
@@ -12,8 +15,10 @@ export const followKey = defineTable(
         parameters: text("parameters").primaryKey(),
         /** The principal the replica is decided for, as canonical JSON. */
         subject: text("subject").primaryKey(),
-        /** The lapse time, in UTC epoch milliseconds. */
-        expiresAt: integer("expires_at").notNull(),
+        /** The follower following the key: the store itself, a client, or a follower's stream. */
+        follower: text("follower").primaryKey(),
+        /** The lapse time in UTC epoch milliseconds, absent while the follower follows the key. */
+        expiresAt: integer("expires_at"),
     },
     { constraints: (key) => [index("follow_key_expiry").on(key.expiresAt)] },
 );

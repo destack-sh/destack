@@ -56,7 +56,7 @@ export interface CatalogExclusion {
 /** The stores a catalog's types need beside its database, and the principal owning local ones. */
 type CatalogStores = Pick<
     CatalogOptions,
-    "database" | "claims" | "ephemeral" | "events" | "principal"
+    "database" | "claims" | "ephemeral" | "events" | "principal" | "device"
 > & {
     /** The files of the external types. */
     readonly external: readonly ExternalStorage[];
@@ -72,6 +72,8 @@ export interface CatalogOptions {
     readonly server?: ServerContext;
     /** The principal of the store's work. */
     readonly principal: Subject;
+    /** The device the store runs on, whose partition stores device-scoped local objects. */
+    readonly device?: Subject;
     /** The partition the store's database is home to, which its policies decide below. */
     readonly partition?: string;
     /** Further policies and table mappings to authorize. */
@@ -135,11 +137,11 @@ export class Catalog {
     readonly decided: readonly ObjectType[];
     /** The served or authorized durable types whose rows the database replicates from home. */
     readonly replicated: readonly ObjectType[];
-    /** The types follower replicas compile against: the followed shapes' and the decided. */
+    /** The types follower replicas compile against: followed, decided and served local ones. */
     readonly followed: RelationGraph;
     /** The relations between the object types served, which the served queries compile against. */
     readonly relations: RelationGraph;
-    /** The tables the store's feed follows: the decided types' and the decisions'. */
+    /** The tables the store's feed follows: decided, served local and decision tables. */
     readonly tables: readonly Table[];
     /** The served kinds' resources, each controlled by the loop its trait builds. */
     readonly provisioned: readonly ObjectType[];
@@ -158,7 +160,10 @@ export class Catalog {
 
     /** Hold a compiled catalog. */
     private constructor(
-        fields: Omit<{ readonly [Key in keyof Catalog]: Catalog[Key] }, "isServing" | "relations">,
+        fields: Omit<
+            { readonly [Key in keyof Catalog]: Catalog[Key] },
+            "isServing" | "hasMethods" | "relations"
+        >,
     ) {
         // keep each compiled field
         this.servers = fields.servers;
@@ -189,8 +194,13 @@ export class Catalog {
         this.waiting = fields.waiting;
     }
 
-    /** Whether the store serves methods, which its journal records. */
+    /** Whether the store serves methods its journal records, beside its local objects. */
     get isServing(): boolean {
+        return this.declared.some((type) => type.storage !== "local");
+    }
+
+    /** Whether the store runs methods at all, its own local objects' among them. */
+    get hasMethods(): boolean {
         return this.declared.length > 0;
     }
 
@@ -353,8 +363,13 @@ export class Catalog {
                 database.replicates(object.table) &&
                 !installed.has(ObjectTypeReference.key(object.typeReference)),
         );
+        const local = objects.filter((object) => object.storage === "local");
         const tables = [
-            ...new Set([...decided.flatMap((object) => object.tables), ...decisionTables]),
+            ...new Set([
+                ...decided.flatMap((object) => object.tables),
+                ...local.flatMap((object) => object.tables),
+                ...decisionTables,
+            ]),
         ];
 
         return new Catalog({
@@ -374,7 +389,7 @@ export class Catalog {
             authorizer,
             decided,
             replicated,
-            followed: new RelationGraph([...shapes, ...decided]),
+            followed: new RelationGraph([...shapes, ...decided, ...local]),
             tables,
             provisioned: Catalog.#control(
                 objects,
@@ -540,10 +555,14 @@ export class Catalog {
                 `object ${type.name} has the same name as the shared '${type.key}' procedures`,
             );
         }
-        // refuse a local type outside the scope of the store's principal
+        // refuse a local type outside the scope of the store's principal and device
         else if (
             type.storage === "local" &&
-            !type.scopes.some((scope) => scope.policy.is(options.principal))
+            !type.scopes.some(
+                (scope) =>
+                    scope.policy.is(options.principal) ||
+                    (options.device !== undefined && scope.policy.is(options.device)),
+            )
         ) {
             return new TypeError(`local object ${type.name} only exists in its scope's store`);
         }

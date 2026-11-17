@@ -1,7 +1,7 @@
 import { Simulation } from "@destack/environment/simulation";
 import { PackageVersion, type PackageId } from "@destack/package";
 import { MemoryBuild } from "@destack/package/test";
-import { type Uplink } from "@destack/sync";
+import {} from "@destack/sync";
 import { afterAll, expect, onTestFinished, test } from "@destack/test";
 import { Caller, principal } from "@destack/access";
 import { schema } from "@destack/schema";
@@ -15,6 +15,7 @@ import type { WorkloadStart } from "./start.ts";
 import { defineWorkload, type EphemeralHost } from "./workload.ts";
 import { SOCKET_HEADER, SOCKET_PATH } from "./socket.ts";
 import { testWorldOptions } from "@destack/test/world";
+import { TestRemote } from "../test/publisher.ts";
 
 /** The OTLP logs or traces export the observability service receives. */
 const OtlpExport = schema
@@ -184,14 +185,12 @@ test("start the workload with its installation's settings, serve a forwarded cal
 
     // start a workload with packages that answer with the path and the caller, reading its installation's settings
     let settings: unknown;
-    const publisher: Uplink = {
+    const publisher = TestRemote.of({
         request: async () => {},
         stream: () => {
             throw new Error("the fixture publisher streams no replicas");
         },
-        receive: () => Promise.reject(new Error("the fixture publisher receives no changes")),
-        call: () => Promise.reject(new Error("the fixture publisher answers no queries")),
-    };
+    });
     const runner = await WorkloadRunner.start(
         {
             environment,
@@ -219,7 +218,7 @@ test("start the workload with its installation's settings, serve a forwarded cal
                 { package: NOTES },
             ),
             resources: {},
-            publisher: () => publisher,
+            remote: () => publisher,
         },
         start,
         await MemoryBuild.write(new Map(), { role: "app", package: NOTES }, environment.crypto),
@@ -375,15 +374,13 @@ test("accept a hibernated socket, hand its messages and close to the workload, a
                 { package: NOTES },
             ),
             resources: {},
-            publisher: () => ({
-                request: async () => {},
-                stream: () => {
-                    throw new Error("the fixture publisher streams no replicas");
-                },
-                receive: () =>
-                    Promise.reject(new Error("the fixture publisher receives no changes")),
-                call: () => Promise.reject(new Error("the fixture publisher answers no queries")),
-            }),
+            remote: () =>
+                TestRemote.of({
+                    request: async () => {},
+                    stream: () => {
+                        throw new Error("the fixture publisher streams no replicas");
+                    },
+                }),
             socketHost: host,
         },
         start,

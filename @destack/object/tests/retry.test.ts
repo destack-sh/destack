@@ -1,10 +1,11 @@
+import { worldTelemetry } from "../src/test/world.ts";
 import { users } from "./fixture/user.ts";
 import { expect, onTestFinished, test } from "@destack/test";
 import { principal } from "@destack/access";
 import { TestDatabase } from "@destack/db/test";
 import { Simulation } from "@destack/environment/simulation";
 import { nth } from "@destack/schema";
-import { ObjectClient } from "../src/client/index.ts";
+import { ObjectClient, ProcedureRemote } from "../src/client/index.ts";
 import { serveNotes, spaceId } from "./fixture/device.ts";
 import { note, notebook } from "../src/test/note.ts";
 import { unmoved } from "../src/test/space.ts";
@@ -45,25 +46,30 @@ test("push again after transient failures, waiting twice as long after each", as
         objects: { notebook, note },
         scope: spaceId,
         caller: principal.user.reference("universe", users.alice),
-        endpoint: { ...alice, fetch },
-        reconnect: unmoved,
         retry: { initialInterval: 20 },
+        remote: ProcedureRemote.at({
+            scope: spaceId,
+            endpoint: { ...alice, fetch },
+            reconnect: unmoved,
+            environment: environment,
+        }),
     });
     client.query.note.findMany().subscribe();
-    const reported: unknown[] = [];
     const stopping = new AbortController();
-    const running = client.run(stopping.signal, (error) => reported.push(error));
+    const running = client.run(stopping.signal);
     onTestFinished(async () => {
         stopping.abort();
         await running;
     });
 
-    // confirm the note after two reported failures with doubling retry waits, moving time for them
+    // confirm the note after two captured failures with doubling retry waits, moving time for them
     const created = client.mutate(note).create({ title: "Ideas" });
     await simulation.wait(created.confirmed);
     const waits = attempts.slice(1).map((at, position) => at - nth(attempts, position));
     expect([
-        reported.map((error) => (error instanceof Error ? error.message : error)),
+        worldTelemetry(environment)
+            .take()
+            .map((captured) => captured.message),
         attempts.length,
         nth(waits, 0) >= 20 && nth(waits, 1) >= 40,
     ]).toEqual([["fetch failed", "fetch failed"], 3, true]);

@@ -19,6 +19,7 @@ import { notebook, note, notesDatabase, notesPackage } from "../src/test/note.ts
 import { openSpace } from "../src/test/space.ts";
 import { Environment } from "@destack/environment";
 import { TestObjectStore } from "../src/test/index.ts";
+import { TestRemote } from "../src/test/publisher.ts";
 
 /** Build a call's space and a new request. */
 function request(world: Environment) {
@@ -61,14 +62,12 @@ async function serveInstalledNotes(world: Environment) {
         resources: new ResourceContext(),
         fetch: (sent) => Promise.reject(new Error(`the notes reach no '${sent.url}'`)),
         url: "https://notes--home.test",
-        publisher: {
+        remote: TestRemote.of({
             request: async () => {},
             stream: () => {
                 throw new TypeError("the fixture streams no replicas");
             },
-            receive: () => Promise.reject(new TypeError("the fixture receives no changes")),
-            call: () => Promise.reject(new TypeError("the fixture answers no queries")),
-        },
+        }),
         distribution: BuildLayer.empty(),
         settings: {},
         capabilities: [],

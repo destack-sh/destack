@@ -1,14 +1,22 @@
 import { CHAIN_PUBLICATION, type ChainOptions } from "@destack/access";
+import { TelemetryScope } from "@destack/telemetry";
+import type {} from "@destack/package/import-meta";
 import { Scope, type ObjectTypeReference } from "@destack/sync";
 import {
+    asc,
     type Change,
     type Cursor,
+    type DatabaseConnection,
     type Controller,
     DatabaseError,
     eq,
+    isNotNull,
     Key,
     type Following,
+    lte,
+    now,
     Snapshot,
+    sql,
     TABLE,
     type Table,
 } from "@destack/db";
@@ -17,9 +25,17 @@ import * as sync from "@destack/sync";
 import { waitAborted } from "@destack/environment";
 import type { ObjectStore, Subscriber } from "./store.ts";
 import { replicaRequest } from "../replica/request.ts";
+import { followKey } from "../replica/key.ts";
+import { ObjectRemote } from "../replica/remote.ts";
 
 /** The cursor deciding the replicas a store follows, whose checkpoint each decision moves. */
 const SUBSCRIPTIONS_CURSOR = "destack.replica.request";
+
+/** How each change moves the count of replicated rows. */
+const ROW_DELTAS = { insert: 1, update: 0, delete: -1 } as const;
+
+/** The cursor keeping the replicated rows within the store's budget. */
+const BUDGET_CURSOR = "destack.replica.budget";
 
 /** One requested replica as its row stores it. */
 type ReplicaRequest = typeof replicaRequest.$inferSelect;
@@ -28,6 +44,12 @@ type ReplicaRequest = typeof replicaRequest.$inferSelect;
 export class ObjectSink {
     /** The store whose database stores the replicas. */
     readonly store: ObjectStore;
+    /** The replicated rows at a log sequence, absent before the first count. */
+    #counted: { readonly sequence: number; readonly rows: number } | undefined;
+    /** The keys the budget evicted in this process, which a listing must start after. */
+    #evictions = 0;
+    /** The evictions a finished listing started after. */
+    #listedEvictions = 0;
     /** The log position the requests were listed at, absent before this process listed them. */
     #listed: number | undefined;
 
@@ -54,9 +76,10 @@ export class ObjectSink {
             sync.Replica.late(homes, watermark).map((home) => ObjectSink.#key(home)),
         );
 
-        // request each late one at the store's position now, with the position it waits for
+        // request each late one at the store's position now, as this follower's log, with the position it waits for
         const followed = late.size === 0 ? [] : await this.followed();
         const revision = await database.log.position();
+        const origin = revision.log;
         const { log, epoch, sequence } = watermark;
         await Promise.all(
             followed
@@ -65,12 +88,36 @@ export class ObjectSink {
                     entry.publisher.request({
                         ...entry.subscription,
                         revision,
+                        origin,
                         waiting: { log, epoch, sequence },
                     }),
                 ),
         );
 
-        return await sync.Replica.waitAt(database, replicas, watermark, signal);
+        // wait, recording a wait that gives up with the late replicas' positions and how long it waited
+        const started = this.store.clock.now();
+        const isReached = await sync.Replica.waitAt(database, replicas, watermark, signal);
+        if (!isReached) {
+            const waited = this.store.clock.now() - started;
+            const { log: telemetry } = TelemetryScope.of(
+                import.meta.destack.package,
+                this.store.environment.telemetry,
+            );
+            const positions = await sync.Replica.homes(database, replicas);
+            for (const { name, scope, home } of sync.Replica.late(positions, watermark)) {
+                telemetry.warn("destack.replica.waited", {
+                    "destack.replica.name": name,
+                    "destack.replica.scope": scope,
+                    ...(home === undefined ? {} : { "destack.replica.sequence": home.sequence }),
+                    "destack.watermark.log": log,
+                    "destack.watermark.epoch": epoch,
+                    "destack.watermark.sequence": sequence,
+                    "destack.wait.duration": waited,
+                });
+            }
+        }
+
+        return isReached;
     }
 
     /** Build the cursor listing the requested replicas at each start and as their tables change. */
@@ -79,6 +126,183 @@ export class ObjectSink {
             name: SUBSCRIPTIONS_CURSOR,
             tables: this.#replicaWatches(),
             take: async () => this.#request(subscriber),
+        };
+    }
+
+    /** Build the cursor dropping the earliest lapsing key while the rows exceed a budget. */
+    budget(rows: number): Cursor {
+        const cursor = { name: BUDGET_CURSOR, tables: this.#budgeted() };
+
+        return {
+            ...cursor,
+            take: async () => {
+                // evict past the budget once the replicas follow their requests, then move past the changes
+                const { database } = this.store;
+                const position = await database.log.position();
+                await this.#evict(rows);
+                await database.log.advance(cursor, position.sequence, this.store.clock.now());
+            },
+        };
+    }
+
+    /** Drop the earliest lapsing key past a budget, refusing an overflow. */
+    async #evict(budget: number): Promise<void> {
+        // count once the requests are listed past the last eviction and the replicas follow them, so a dropped key's rows left first
+        const { database } = this.store;
+        const view = Snapshot.live(database);
+        const isListed = this.#listedEvictions === this.#evictions;
+        if (!isListed || !(await this.#isSettled(view))) {
+            return;
+        }
+        const rows = await this.#count();
+        if (rows <= budget) {
+            return;
+        }
+
+        // drop the earliest lapsing key, refusing a budget the open keys exceed
+        const [earliest] = await database
+            .select()
+            .from(followKey)
+            .where(isNotNull(followKey.expiresAt))
+            .orderBy(asc(followKey.expiresAt))
+            .limit(1);
+        if (earliest === undefined) {
+            throw sync.SyncError.of(
+                "CAPACITY_EXHAUSTED",
+                `local replica has ${rows} rows, more than ${budget}, for open and forever followed queries`,
+            );
+        }
+        await database.delete(followKey).where(Key.match(followKey, earliest));
+        this.#evictions += 1;
+    }
+
+    /** Report whether each followed replica follows its request as it stands. */
+    async #isSettled(view: Snapshot): Promise<boolean> {
+        const requested = await view.read(replicaRequest).findMany({ where: { action: "follow" } });
+        const held = new Map(
+            (await sync.Replica.subscriptions(view)).map((replica) => [
+                ObjectSink.#key(replica),
+                canonicalize(replica.parameters),
+            ]),
+        );
+
+        return requested.every(
+            (request) => held.get(request.key) === canonicalize(request.subscription.parameters),
+        );
+    }
+
+    /** Count the replicated object rows. */
+    async #count(): Promise<number> {
+        // count on from the last count through the log, recounting once the log dropped its changes
+        const { database } = this.store;
+        const tables = this.#budgeted().filter((table) => table !== followKey);
+        if (this.#counted !== undefined) {
+            try {
+                let { sequence, rows } = this.#counted;
+                for (let after = sequence; ; after = sequence) {
+                    const page = await database.log.read({ tables, after });
+                    for (const change of page.changes) {
+                        rows += ROW_DELTAS[change.operation];
+                    }
+                    sequence = Math.max(sequence, page.sequence);
+                    if (page.sequence <= after) {
+                        break;
+                    }
+                }
+                this.#counted = { sequence, rows };
+
+                return rows;
+            } catch (error) {
+                if (!DatabaseError.is(error, "CHANGES_NOT_FOUND")) {
+                    throw error;
+                }
+            }
+        }
+
+        // count every table at one log position
+        this.#counted = await database.transaction(
+            async (transaction) => {
+                // read the position and the counts together
+                const sequence = (await transaction.log.position()).sequence;
+                const counts = tables.map((table) => sql`(SELECT count(*) FROM ${table})`);
+                const [total] = await transaction.execute(
+                    sql`SELECT ${sql.join(counts, sql` + `)} AS rows`,
+                    schema.object({
+                        rows: schema.union([schema.number(), schema.string(), schema.bigint()]),
+                    }),
+                );
+
+                return { sequence, rows: Number(present(total, "the replicated row count").rows) };
+            },
+            { isReadOnly: true },
+        );
+
+        return this.#counted.rows;
+    }
+
+    /** List the tables whose changes may push the replicas past their budget. */
+    #budgeted(): Table[] {
+        const replicated = this.store.replicated.filter((object) => object.storage !== "local");
+
+        return [...new Set([...replicated.map((object) => object.table), followKey])];
+    }
+
+    /** List the tables the store follows at a scope, whose replicas confirm their changes. */
+    async followedTables(scope: string): Promise<ReadonlySet<Table>> {
+        // read the replicas requested at the scope, and the keys followed on demand there before their request
+        const view = Snapshot.live(this.store.database);
+        const requested = await view
+            .read(replicaRequest)
+            .findMany({ where: { action: "follow", scope } });
+        const keys = await view.read(followKey).findMany({ where: { scope } });
+
+        // read the replicas whose chain reads the scope, such as an enclosed room's of its home
+        const chained: sync.Replica[] = [];
+        for (const subscription of await sync.Replica.subscriptions(view)) {
+            const replica = this.store.source.buildReplica(subscription);
+            if ((await replica.chain(this.store.database)).includes(scope)) {
+                chained.push(replica);
+            }
+        }
+
+        return new Set([
+            ...requested.flatMap(
+                (request) => this.store.source.buildReplica(request.subscription).tables,
+            ),
+            ...keys.flatMap((key) => this.#keyTables(key.shape, key.parameters)),
+            ...chained.flatMap((replica) => replica.tables),
+        ]);
+    }
+
+    /** List the tables a followed key's queries read. */
+    #keyTables(shape: string, parameters: string): Table[] {
+        // read the key's queries through the on-demand follow of its shape
+        const follow = this.store.queriesFollow;
+        if (follow?.shape.name !== shape) {
+            return [];
+        }
+        const queries = follow.shape.queries(follow.shape.parameters.parse(JSON.parse(parameters)));
+
+        return queries.flatMap((query) =>
+            this.store.followed.objects
+                .filter(
+                    (object) => object.name === query.object && object.package.id === query.package,
+                )
+                .map((object) => object.table),
+        );
+    }
+
+    /** Build the controller removing the keys whose followers let them lapse, once they lapse. */
+    lapse(): Controller<typeof followKey> {
+        return {
+            name: "destack.follow_key.lapse",
+            table: followKey,
+            pending: { expiresAt: { lte: now } },
+            key: [],
+            reconcile: async () => {
+                const { database, clock } = this.store;
+                await database.delete(followKey).where(lte(followKey.expiresAt, clock.now()));
+            },
         };
     }
 
@@ -140,6 +364,7 @@ export class ObjectSink {
     async #request(subscriber: Subscriber): Promise<void> {
         // read the changes since the last listing, listing every key afresh at the first or once the log dropped them
         const { database } = this.store;
+        const evictions = this.#evictions;
         const position = await database.log.position();
         const changes = await this.#changes(position.sequence);
 
@@ -156,13 +381,11 @@ export class ObjectSink {
                         action: "drop" as const,
                         subscription: replica,
                         home: null,
-                        isAcquired: false,
                     })),
-                ...entries.map(({ subscription, home, isAcquired }) => ({
+                ...entries.map(({ subscription, home }) => ({
                     action: "follow" as const,
                     subscription,
                     home,
-                    isAcquired,
                 })),
             ].map(async (request) => ({
                 ...request,
@@ -196,6 +419,7 @@ export class ObjectSink {
             });
         }
         this.#listed = position.sequence;
+        this.#listedEvictions = evictions;
         await database.log.advance(
             { name: SUBSCRIPTIONS_CURSOR, tables: this.#replicaWatches() },
             position.sequence,
@@ -256,8 +480,13 @@ export class ObjectSink {
             // revise the follow once the request changes, requesting it at the log's position now
             const revised = new AbortController();
             const revision = await this.store.database.log.position();
+            const { refresh } = this.store;
             const current: Request = {
-                subscription: { ...request.subscription, revision },
+                subscription: {
+                    ...request.subscription,
+                    revision,
+                    ...(refresh === undefined ? {} : { refresh }),
+                },
                 waking: new AbortController(),
             };
             const watching = this.#watch(key, request, current, revised, following);
@@ -317,7 +546,12 @@ export class ObjectSink {
                 this.#isReshape(watched.subscription, next.subscription)
             ) {
                 const revision = await this.store.database.log.position();
-                current.subscription = { ...next.subscription, revision };
+                const { refresh } = this.store;
+                current.subscription = {
+                    ...next.subscription,
+                    revision,
+                    ...(refresh === undefined ? {} : { refresh }),
+                };
                 current.waking.abort();
                 current.waking = new AbortController();
                 watched = next;
@@ -337,34 +571,60 @@ export class ObjectSink {
         until: AbortSignal,
         following: Following,
     ): Promise<void> {
-        try {
-            const publisher = subscriber.publisher(
-                present(request.home, `the home of ${request.key}`),
-            );
-            const replica = this.store.source.buildReplica(request.subscription);
-            const { audience } = this.store.source.publication(request.subscription);
-            const { synced } = following;
-            const follow = replica.follow(
-                this.store.database,
-                (from, stream, subscription) =>
-                    publisher.stream(
-                        { ...present(subscription, "the followed subscription"), ...from },
-                        stream,
-                    ),
-                until,
-                {
-                    get subscription() {
-                        return current.subscription;
+        // read the replica, its publisher, and the remote whose moves redirect it
+        const publisher = subscriber.publisher(present(request.home, `the home of ${request.key}`));
+        const remote = ObjectRemote.is(publisher) ? publisher : undefined;
+        const replica = this.store.source.buildReplica(request.subscription);
+        const publication = this.store.source.publication(request.subscription);
+        const { audience } = publication;
+
+        // rebase the outbox's predictions onto the pages of a replica of the store's queries
+        const isQueries = publication === this.store.source.queriesPublication;
+        const prediction = isQueries ? this.store.outbox?.prediction : undefined;
+        const { synced } = following;
+        while (!until.aborted) {
+            const moves = remote?.moves;
+            const streaming = moves === undefined ? until : AbortSignal.any([until, moves]);
+            try {
+                // follow the replica until stopped or its scope moves
+                const follow = replica.follow(
+                    this.store.database,
+                    (from, stream, subscription) =>
+                        publisher.stream(
+                            { ...present(subscription, "the followed subscription"), ...from },
+                            stream,
+                        ),
+                    streaming,
+                    {
+                        get subscription() {
+                            return current.subscription;
+                        },
+                        audience,
+                        synced,
+                        lag: this.store.authorizer.lag,
+                        received: (page) => this.store.receive(page),
+                        ...(prediction === undefined ? {} : { prediction }),
                     },
-                    audience,
-                    synced,
-                    lag: this.store.authorizer.lag,
-                },
-            );
-            await Promise.all([follow, ObjectSink.#forward(current, publisher, until)]);
-        } catch (error) {
-            // fail a refused follow unless its request changed meanwhile
-            if (!until.aborted) {
+                );
+                await Promise.all([
+                    follow,
+                    ObjectSink.#forward(current, publisher, this.store.database, streaming),
+                ]);
+            } catch (error) {
+                // end quietly on the follow's own abort, follow a moved scope at its new machine, and fail on any other error
+                const isAbort =
+                    until.aborted &&
+                    (error === until.reason ||
+                        (error instanceof Error && error.name === "AbortError"));
+                if (isAbort) {
+                    return;
+                } else if (
+                    moves !== undefined &&
+                    (moves.aborted || remote?.redirect(error, moves) === true)
+                ) {
+                    continue;
+                }
+                this.store.refuse(error);
                 throw error;
             }
         }
@@ -374,6 +634,7 @@ export class ObjectSink {
     static async #forward(
         current: Request,
         publisher: sync.Publisher,
+        database: DatabaseConnection,
         signal: AbortSignal,
     ): Promise<void> {
         let waking = current.waking;
@@ -382,9 +643,10 @@ export class ObjectSink {
             await waitAborted(AbortSignal.any([signal, waking.signal]));
             waking = current.waking;
 
-            // request the moved subscription, failing the follow on a refusal
+            // request the moved subscription as this follower's log, failing the follow on a refusal
             if (!signal.aborted) {
-                await publisher.request(current.subscription);
+                const origin = (await database.log.position()).log;
+                await publisher.request({ ...current.subscription, origin });
             }
         }
     }

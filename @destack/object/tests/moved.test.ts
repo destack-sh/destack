@@ -1,3 +1,4 @@
+import { worldTelemetry } from "../src/test/world.ts";
 import { testSimulation } from "../src/test/index.ts";
 import { users } from "./fixture/user.ts";
 import { Transaction } from "@destack/db";
@@ -8,7 +9,7 @@ import type { DatabaseConnection } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
 import { Identifier, schema } from "@destack/schema";
 import { testCallKey } from "@destack/object/test";
-import { ObjectClient } from "../src/client/index.ts";
+import { ObjectClient, ProcedureRemote } from "../src/client/index.ts";
 import { defineObject, field } from "../src/index.ts";
 import { testEvents, serversOf } from "../src/test/index.ts";
 import { serveNotes, spaceId } from "./fixture/device.ts";
@@ -70,26 +71,29 @@ test("send a client's writes on to the machine serving a moved scope", async () 
         objects: { notebook, note },
         scope: spaceId,
         caller: principal.user.reference("universe", users.alice),
-        endpoint: source.endpoint(users.alice),
-        reconnect: (machine) => {
-            machines.push(machine);
+        remote: ProcedureRemote.at({
+            scope: spaceId,
+            endpoint: source.endpoint(users.alice),
+            reconnect: (machine) => {
+                machines.push(machine);
 
-            return target.endpoint(users.alice);
-        },
+                return target.endpoint(users.alice);
+            },
+            environment: environment,
+        }),
     });
     const stopping = new AbortController();
-    const errors: unknown[] = [];
-    const running = client.run(stopping.signal, (error) => errors.push(error));
+    const running = client.run(stopping.signal);
     onTestFinished(async () => {
         stopping.abort();
         await running;
     });
 
-    // confirm the note only on the new machine, without a reported failure
+    // confirm the note only on the new machine, without a captured failure
     await client.mutate(note).create({ title: "Ideas" }).confirmed;
     expect([
         machines,
-        errors,
+        worldTelemetry(environment).exceptions(),
         await titles(source.database),
         await titles(target.database),
     ]).toEqual([[moved], [], [], ["Ideas"]]);

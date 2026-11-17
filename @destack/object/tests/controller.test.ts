@@ -1,3 +1,4 @@
+import { worldTelemetry } from "../src/test/world.ts";
 import { TestObjectStore } from "../src/test/index.ts";
 import { testSimulation } from "../src/test/index.ts";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
@@ -342,7 +343,7 @@ test("reconcile a pending object again as a gate naming its topic changes", asyn
         events: await testEvents(database, world),
         origin: { package: reminder.package },
     });
-    const loop = new ControlLoop(database, store.control(), { report: () => {} });
+    const loop = new ControlLoop(database, store.control());
     const stopping = new AbortController();
     const running = loop.run(stopping.signal);
     onTestFinished(async () => {
@@ -449,10 +450,7 @@ test("record a lasting reconcile failure on a controlled object as its synced co
         events: await testEvents(database, world),
         origin: { package: gate.package },
     });
-    const reported: unknown[] = [];
-    const loop = new ControlLoop(database, store.control(), {
-        report: (_controller, _key, error) => reported.push(error),
-    });
+    const loop = new ControlLoop(database, store.control());
     const stopping = new AbortController();
     const running = loop.run(stopping.signal);
     onTestFinished(async () => {
@@ -544,10 +542,7 @@ test("reconcile a controlled object changed during its pass again, syncing it at
         events: await testEvents(database, world),
         origin: { package: gate.package },
     });
-    const reported: unknown[] = [];
-    const loop = new ControlLoop(database, store.control(), {
-        report: (_controller, _key, error) => reported.push(error),
-    });
+    const loop = new ControlLoop(database, store.control());
     const stopping = new AbortController();
     const running = loop.run(stopping.signal);
     onTestFinished(async () => {
@@ -587,7 +582,7 @@ test("reconcile a controlled object changed during its pass again, syncing it at
             row.syncedGeneration,
             row.conditions,
         ]),
-        reported,
+        reported: worldTelemetry(world).exceptions(),
     }).toEqual({
         outcomes: ["held", "open"],
         gates: [
@@ -630,7 +625,7 @@ test("record a lasting projection failure on a controlled object as its synced c
         events: await testEvents(database, world),
         origin: { package: latch.package },
     });
-    const loop = new ControlLoop(database, store.control(), { report: () => {} });
+    const loop = new ControlLoop(database, store.control());
     const stopping = new AbortController();
     const running = loop.run(stopping.signal);
     onTestFinished(async () => {
@@ -713,7 +708,7 @@ test("record a projection's lasting failure and its sync on the controlled objec
         events: await testEvents(database, world),
         origin: { package: lever.package },
     });
-    const loop = new ControlLoop(database, store.control(), { report: () => {} });
+    const loop = new ControlLoop(database, store.control());
     const stopping = new AbortController();
     const running = loop.run(stopping.signal);
     onTestFinished(async () => {

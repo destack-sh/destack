@@ -231,9 +231,9 @@ export const ObjectRecord = {
 
     /** Create one object per item as a separate creation does, returning their identifiers. */
     async createItems(context: MethodContext, execution: Execution): Promise<{ ids: string[] }> {
-        // append an events type's items to the event log in a store
+        // append an events type's items to the event log at the home
         const { object } = context;
-        if (object.storage === "events" && execution.kind === "store") {
+        if (object.storage === "events" && !execution.isPredicted) {
             const rows = await ObjectRecord.eachItem(context, async (item) =>
                 ObjectRecord.createdRow(
                     object.table,
@@ -245,9 +245,9 @@ export const ObjectRecord = {
             return { ids: rows.map((row) => schema.string().parse(row["id"])) };
         }
 
-        // create independent items in one write in a store and require each to be writable
+        // create independent items in one write at the home and require each to be writable
         const isSequential = object.ordering !== undefined || object.numbering !== undefined;
-        if (!isSequential && execution.kind === "store") {
+        if (!isSequential && !execution.isPredicted) {
             const ids = await ObjectRecord.createTogether(context, execution);
             await ObjectRecord.eachItem(context, (item, itemIndex) =>
                 execution.authorization.requireWritable(item, nth(ids, itemIndex), execution),
@@ -258,19 +258,14 @@ export const ObjectRecord = {
 
         // create one item at a time otherwise
         const ids = await ObjectRecord.eachItem(context, async (item) => {
-            // insert a prediction under the client's identifier
-            if (execution.kind === "client") {
-                const { id } = item;
-                if (id === undefined) {
-                    throw new TypeError(
-                        `predicted ${item.object.name} creations need an identifier`,
-                    );
-                }
+            // insert a prediction under the identifier its call carries, whose home records the access
+            if (execution.isPredicted) {
+                const id = present(item.id, `the identifier of a predicted ${item.object.name}`);
                 await ObjectRecord.createObject(item.identify(id), execution);
 
                 return id;
             }
-            // insert under an unused identifier and record its access
+            // insert under an unused identifier and record its access at the home
             else {
                 const { id } = await ObjectRecord.insertAuthorized(item, execution, (created) =>
                     ObjectRecord.createObject(created, execution),
@@ -525,16 +520,12 @@ export const ObjectRecord = {
             scope: context.scope,
             id: { in: named.map((item) => item.id) },
         };
-        const rows =
-            execution.kind === "client"
-                ? await context.read(table).findMany({ where: listed })
-                : (
-                      await execution.authorization.filter(
-                          context.object,
-                          context.permission(),
-                          await execution.transaction.read(table).findMany({ where: listed }),
-                      )
-                  ).rows;
+        const rows = await Execution.permitted(
+            execution,
+            context.object,
+            context.permission(),
+            await execution.transaction.read(table).findMany({ where: listed }),
+        );
         const targets = new Map(rows.map((row) => [RecordedRow.parse(row).id, row]));
 
         // stamp each item's written fields at its revision, as an update of one object does
@@ -595,21 +586,13 @@ export const ObjectRecord = {
             ObjectRecord.requireUnmanaged(target, execution);
         }
 
-        // delete each match on a device as a separate deletion
-        if (execution.kind === "client") {
-            for (const target of targets) {
-                await ObjectRecord.deleteObject(target);
-            }
-        }
         // delete or trash the read matches in one write
-        else {
-            const table = context.object.table;
-            await Execution.write(
-                execution,
-                context,
-                ...targets.map((target) => ({ table, ...ObjectRecord.deletion(target) })),
-            );
-        }
+        const table = context.object.table;
+        await Execution.write(
+            execution,
+            context,
+            ...targets.map((target) => ({ table, ...ObjectRecord.deletion(target) })),
+        );
 
         return { count: rows.length };
     },
@@ -656,17 +639,13 @@ export const ObjectRecord = {
             scope: context.scope,
         });
 
-        // read the matches, filtering the permitted ones on the server
-        const rows =
-            execution.kind === "client"
-                ? await context.read(table).findMany({ where })
-                : (
-                      await execution.authorization.filter(
-                          context.object,
-                          context.permission(),
-                          await execution.transaction.read(table).findMany({ where }),
-                      )
-                  ).rows;
+        // read the matches, filtering the permitted ones at the home
+        const rows = await Execution.permitted(
+            execution,
+            context.object,
+            context.permission(),
+            await execution.transaction.read(table).findMany({ where }),
+        );
 
         // refuse matching a predefined row
         rows.forEach((row) => context.object.refusePredefined(RecordedRow.parse(row).id));
@@ -689,7 +668,7 @@ export const ObjectRecord = {
             before: null,
             after: row,
         });
-        if (context.object.numbering !== undefined && execution.kind === "store") {
+        if (context.object.numbering !== undefined && !execution.isPredicted) {
             await Numbered.raise(context.object, row, context, execution);
         }
         await ObjectRecord.recordCreation(context, context.id, execution);
@@ -701,7 +680,7 @@ export const ObjectRecord = {
     async recordCreation(context: MethodContext, id: string, execution: Execution): Promise<void> {
         const creating = ObjectRecord.readCreation(context);
         const isScope = context.object.policy.definition.scope === true;
-        if (execution.kind === "store" && (isScope || creating !== undefined)) {
+        if (!execution.isPredicted && (isScope || creating !== undefined)) {
             const object = context.object.reference(context.scope, id);
             await execution.authorization.create(object, (await creating?.(context, object)) ?? {});
         }
@@ -760,7 +739,7 @@ export const ObjectRecord = {
         const columns = object.table[TABLE].columns;
         const isTimed = Object.hasOwn(columns, "createdAt");
         const isAuthored = Object.hasOwn(columns, "createdById");
-        const manager = execution.kind === "store" ? execution.authorization.manager : null;
+        const manager = Execution.manager(execution);
         const managed = manager === null || !object.isDeclarable() ? {} : Manager.values(manager);
 
         // number a numbered object, unless its creator assigned the number or a later method issues it
@@ -1117,7 +1096,7 @@ export const ObjectRecord = {
     /** Refuse changing a managed object as a whole, such as deleting it, but as its manager. */
     requireUnmanaged(context: MethodContext, execution: Execution): void {
         // let the record's manager through
-        const manager = execution.kind === "store" ? execution.authorization.manager : null;
+        const manager = Execution.manager(execution);
         if (context.isDeclarable() && context.target !== undefined) {
             Manager.requireChangeable(context.target, manager, context.object.name);
         }

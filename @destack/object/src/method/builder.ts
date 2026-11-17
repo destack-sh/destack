@@ -1,3 +1,4 @@
+import { present } from "@destack/schema";
 import { type Expression, Row, Table } from "@destack/db";
 import { type JsonObject, schema } from "@destack/schema";
 
@@ -497,13 +498,9 @@ export class MethodBuilder<
                 return call === undefined ? undefined : [call];
             },
             async execute(context, execution) {
-                // predict under the client's identifier
-                if (execution.kind === "client") {
-                    if (context.id === undefined) {
-                        throw new TypeError(
-                            `predicted ${context.object.name} creations need an identifier`,
-                        );
-                    }
+                // predict the creation under the identifier its call carries, its home recording its access
+                if (execution.isPredicted) {
+                    present(context.id, `the identifier of a predicted ${context.object.name}`);
 
                     return Method.handle(this, context, execution);
                 }
@@ -638,7 +635,7 @@ export class MethodBuilder<
                     Object.hasOwn(context.object.fields, name),
                 );
                 ObjectRecord.requireUnmanagedFields(context, execution, changed);
-                if (execution.kind === "store") {
+                if (!execution.isPredicted) {
                     await execution.authorization.requireWritable(context, context.id, execution);
                 }
 

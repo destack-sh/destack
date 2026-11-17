@@ -3,10 +3,10 @@ import type { Clock } from "@destack/environment";
 import type { SimulatedTelemetry, Simulation } from "@destack/environment/simulation";
 import { Identifier, type JsonValue, present, schema } from "@destack/schema";
 import type { Driver } from "@destack/test";
-import { testSimulation } from "@destack/test/world";
+import { testSimulation } from "./world.ts";
 import { principal } from "@destack/access";
 import { Scope } from "@destack/sync";
-import { DynamicObjectClient } from "../client/index.ts";
+import { ProcedureRemote } from "../client/index.ts";
 import type { ObjectPackage } from "../server/index.ts";
 import { ObjectType } from "../object/index.ts";
 import { ObjectStep, objectInteraction, type ObjectObservation } from "../scenario/interaction.ts";
@@ -32,8 +32,8 @@ export class ObjectDriver implements Driver<ObjectStep, ObjectObservation> {
     readonly #people = new Map<string, Identifier<"user">>();
     /** The identifiers each call bound, by name, in call order. */
     readonly #bound = new Map<string, string[]>();
-    /** The client calling each type as each person, by type and person. */
-    readonly #clients = new Map<string, DynamicObjectClient>();
+    /** The remote calling each type as each person, by type and person. */
+    readonly #remotes = new Map<string, ProcedureRemote>();
 
     /** Take a started world and the store serving the given packages. */
     constructor(
@@ -66,7 +66,7 @@ export class ObjectDriver implements Driver<ObjectStep, ObjectObservation> {
         const store = await TestObjectStore.open({
             packages,
             simulation,
-            ...ObjectDriver.#scope(packages, simulation),
+            ...ObjectDriver.scope(packages, simulation),
         });
 
         return new ObjectDriver(simulation, store, packages);
@@ -81,11 +81,11 @@ export class ObjectDriver implements Driver<ObjectStep, ObjectObservation> {
 
         // call the method as the person on the resolved input
         const { type, method } = ObjectStep.target(step);
-        const client = this.#client(type, step.as);
+        const remote = this.#remote(type, step.as);
         const input = ObjectStep.input(step.input, this.#bound, (person) =>
             principal.user.reference(Scope.universe.id, this.#person(person)),
         );
-        const output = await client.call(type, method, input);
+        const output = await remote.run(this.#type(type), method, input);
 
         // bind the object it returns, and settle the work it woke
         if (step.bind !== undefined) {
@@ -113,7 +113,7 @@ export class ObjectDriver implements Driver<ObjectStep, ObjectObservation> {
     }
 
     /** Serve a new scope of the type the packages' objects live in, none when they declare none. */
-    static #scope(packages: readonly ObjectPackage[], simulation: Simulation) {
+    static scope(packages: readonly ObjectPackage[], simulation: Simulation) {
         // find the first scope type the served types declare
         const scopeType = packages
             .flatMap((served) => Object.values(served.objects))
@@ -153,11 +153,11 @@ export class ObjectDriver implements Driver<ObjectStep, ObjectObservation> {
         );
     }
 
-    /** Read the client calling a type as a person, one per type and person as an app has one. */
-    #client(name: string, person: string): DynamicObjectClient {
-        // reuse the client, else open one at the package serving the type as the person
+    /** Read the remote calling a type as a person, one per type and person as an app has one. */
+    #remote(name: string, person: string): ProcedureRemote {
+        // reuse the remote, else reach the package serving the type as the person
         const key = `${name} ${person}`;
-        const known = this.#clients.get(key);
+        const known = this.#remotes.get(key);
         if (known !== undefined) {
             return known;
         }
@@ -166,14 +166,13 @@ export class ObjectDriver implements Driver<ObjectStep, ObjectObservation> {
             this.#packages.find((each) => Object.values(each.objects).includes(type)),
             `the package serving ${name}`,
         );
-        const client = new DynamicObjectClient({
-            objects: [type],
+        const remote = ProcedureRemote.at({
             scope: this.#store.scope,
             endpoint: this.#store.as(this.#person(person)).endpoint(served),
             environment: this.#store.environment,
         });
-        this.#clients.set(key, client);
+        this.#remotes.set(key, remote);
 
-        return client;
+        return remote;
     }
 }

@@ -2,14 +2,15 @@ import { isDeepStrictEqual } from "node:util";
 import { onTestFinished } from "@destack/test";
 import { isNull } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
-import { ObjectClient } from "../../src/client/index.ts";
+import { ObjectClient, ProcedureRemote } from "../../src/client/index.ts";
 import { schema, type Identifier } from "@destack/schema";
 import { type ClientOptions } from "@destack/object/client";
 import { note, notebook, notesPackage } from "../../src/test/note.ts";
 import { principal } from "@destack/access";
 import { Scope, type Subject } from "@destack/sync";
 import { space, unmoved } from "../../src/test/space.ts";
-import { TestObjectStore } from "../../src/test/index.ts";
+import { TestObjectStore, worldTelemetry } from "../../src/test/index.ts";
+import type { CapturedException } from "@destack/telemetry/test";
 import type { Environment } from "@destack/environment";
 import { Simulation } from "@destack/environment/simulation";
 
@@ -70,6 +71,7 @@ export async function serveNotes(
         database: objects.database,
         relations: objects.store.relations,
         environment: objects.environment,
+        simulation: objects.simulation,
         clock: objects.clock,
     };
 }
@@ -80,8 +82,10 @@ export class Device {
     readonly storage: TestDatabase;
     /** The objects the device replicates. */
     readonly client: ObjectClient<typeof DEVICE_OBJECTS>;
-    /** The failures pushing and following reported. */
-    readonly errors: unknown[] = [];
+    /** The failures the world captured, such as pushing and following. */
+    get errors(): CapturedException[] {
+        return worldTelemetry(this.client.environment).exceptions();
+    }
     /** Stop pushing and following. */
     #controller = new AbortController();
     /** The running push and follow loops. */
@@ -102,8 +106,7 @@ export class Device {
     ) {
         // create the local database in the device's world and replicate the space's notebooks and notes in it
         const { environment, ...rest } = options;
-        const tables = ObjectClient.tables({ notebook, note });
-        const storage = await TestDatabase.create(tables, {
+        const storage = await TestDatabase.create([], {
             environment: environment,
             dialect: "sqlite",
             storage: "file",
@@ -113,10 +116,14 @@ export class Device {
             objects: DEVICE_OBJECTS,
             scope: spaceId,
             caller: principal.user.reference("universe", user),
-            endpoint,
-            reconnect: unmoved,
             ...rest,
             environment,
+            remote: ProcedureRemote.at({
+                scope: spaceId,
+                endpoint,
+                reconnect: unmoved,
+                environment: environment,
+            }),
         });
         for (const object of queried) {
             client.queryType(object).findMany().subscribe();
@@ -135,16 +142,12 @@ export class Device {
 
     /** Start following the space, rebasing predictions onto what arrives. */
     follow(): void {
-        this.#loops.push(
-            this.client.follow(this.#controller.signal, (error) => this.errors.push(error)),
-        );
+        this.#loops.push(this.client.follow(this.#controller.signal));
     }
 
     /** Start pushing queued mutations. */
     push(): void {
-        this.#loops.push(
-            this.client.push(this.#controller.signal, (error) => this.errors.push(error)),
-        );
+        this.#loops.push(this.client.push(this.#controller.signal));
     }
 
     /** Stop pushing and following and retain the queue and the replica. */

@@ -4,7 +4,8 @@ import type { ControllerSet } from "@destack/db";
 import type { Environment } from "@destack/environment";
 import { type BlobStore, type DatabaseConnection, type Table } from "@destack/db";
 import type { Identifier, JsonValue } from "@destack/schema";
-import type { Publisher, Uplink } from "@destack/sync";
+import type { Publisher } from "@destack/sync";
+import type { ObjectRemote } from "../replica/remote.ts";
 import {
     type SandboxName,
     type ComputeDefinition,
@@ -84,8 +85,6 @@ export interface WorkloadContext {
     readonly reload: () => Promise<void>;
     /** Serve another set of packages in this start, the replaced servers draining beside it. */
     readonly serve: (packages: readonly PackageHandler[]) => void;
-    /** Report a failure of the workload's background work to its host. */
-    readonly report: (error: unknown) => void;
     /** Register cleanup, run in reverse order after draining. */
     readonly defer: (dispose: () => void | PromiseLike<void>) => void;
 }
@@ -128,8 +127,8 @@ export interface ServerContext {
     readonly resources: ResourceContext;
     /** Derive the installation's keys and secrets from its root, rooted in its space's identity. */
     readonly keys: Deriver;
-    /** The publisher of the replicas of the space's chain and the universe's rows it reads. */
-    readonly publisher: Uplink;
+    /** The remote toward the homes of the space's chain and the universe's rows it reads. */
+    readonly remote: ObjectRemote;
     /** Connect to the replicas an installation at `<installation>--<space>` publishes. */
     readonly publisherAt: (address: string, packageId: PackageId) => Publisher;
     /** Call the packages at an address through the host's egress as the installation. */

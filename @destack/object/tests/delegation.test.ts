@@ -21,6 +21,7 @@ import { openSpace, space } from "../src/test/space.ts";
 import { tablesOf } from "../src/index.ts";
 import objectPackage from "../src/package.ts";
 import { argument, plural, t } from "@destack/locale";
+import { TestRemote } from "../src/test/publisher.ts";
 
 /** The installation serving the probes in the space. */
 const INSTALLATION = schema
@@ -107,14 +108,12 @@ test("act with the space's delegation to its installation, refusing without one,
         resources: new ResourceContext(),
         fetch: (sent) => Promise.reject(new Error(`the probes reach no '${sent.url}'`)),
         url: "https://probes--home.test",
-        publisher: {
+        remote: TestRemote.of({
             request: async () => {},
             stream: () => {
                 throw new TypeError("the fixture streams no replicas");
             },
-            receive: () => Promise.reject(new TypeError("the fixture receives no changes")),
-            call: () => Promise.reject(new TypeError("the fixture answers no queries")),
-        },
+        }),
         distribution: BuildLayer.empty(),
         settings: {},
         capabilities: ["push"],

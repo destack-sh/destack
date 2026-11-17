@@ -96,7 +96,6 @@ export class Server implements AsyncDisposable {
                 return;
             }
             reportError(error, options.environment.telemetry);
-            options.report?.(error);
             if (!server.#starting.signal.aborted) {
                 const message = error instanceof Error ? error.message : String(error);
                 server.health.set("down", `the server failed: ${message}`);
@@ -550,8 +549,6 @@ export interface ServerOptions extends PackageHandler {
     readonly authorizeMachine: (call: ProcedureContext<RequestContext>) => Promise<void>;
     /** The longest drain, in milliseconds. */
     drainTimeout: number;
-    /** Report a failure to the host beside its telemetry. */
-    readonly report?: (error: unknown) => void;
 }
 
 /** The procedures and enforcement of a package. */

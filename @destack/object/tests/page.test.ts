@@ -1,10 +1,11 @@
+import { worldTelemetry } from "../src/test/world.ts";
 import { testSimulation } from "../src/test/index.ts";
 import { users } from "./fixture/user.ts";
 import { implementPackage } from "../src/server/index.ts";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { isNull } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
-import { ObjectClient } from "../src/client/index.ts";
+import { ObjectClient, ProcedureRemote } from "../src/client/index.ts";
 import { PackageVersion } from "@destack/package";
 import { present, schema, type Identifier } from "@destack/schema";
 import { createClient, type ClientOptions } from "@destack/object/client";
@@ -75,18 +76,18 @@ async function openDevice(world: Environment, user: Identifier<"user">, endpoint
         objects: { page },
         scope: spaceId,
         caller: principal.user.reference("universe", user),
-        endpoint,
-        reconnect: unmoved,
+        remote: ProcedureRemote.at({
+            scope: spaceId,
+            endpoint,
+            reconnect: unmoved,
+            environment: world,
+        }),
     });
 
     // replicate every page of the space, pushing and following until the test finishes
     client.query.page.findMany({ deleted: "include" }).subscribe();
     const controller = new AbortController();
-    const errors: unknown[] = [];
-    const loops = [
-        client.push(controller.signal, (error) => errors.push(error)),
-        client.follow(controller.signal, (error) => errors.push(error)),
-    ];
+    const loops = [client.push(controller.signal), client.follow(controller.signal)];
     onTestFinished(async () => {
         controller.abort();
         await Promise.all(loops);
@@ -106,7 +107,13 @@ async function openDevice(world: Environment, user: Identifier<"user">, endpoint
             .toSorted();
     };
 
-    return { client, errors, titles };
+    return {
+        client,
+        titles,
+        get errors() {
+            return worldTelemetry(world).exceptions();
+        },
+    };
 }
 
 test("share page trees with members and links, and move pages within them", async () => {

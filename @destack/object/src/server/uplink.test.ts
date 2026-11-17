@@ -8,7 +8,7 @@ import { TestAccess } from "@destack/access/test";
 import { type DatabaseConnection, defineDatabase, eq } from "@destack/db";
 import { RequestId, Replica, Scope } from "@destack/sync";
 import { present, schema } from "@destack/schema";
-import { defineObject, defineShape, field, Shape } from "../index.ts";
+import { defineObject, defineShape, field, QUERIES_PUBLICATION, Shape } from "../index.ts";
 import { followReplicas, serversOf, testEvents } from "../test/index.ts";
 import { ObjectStore } from "./index.ts";
 import { tablesOf } from "../stack/db.ts";
@@ -165,8 +165,8 @@ async function serveHome(world: Environment) {
         servers: serversOf([label], { follows: [PEOPLE] }),
         policies: [person],
         database: replicating.database,
-        uplink: {
-            ...universe.uplink,
+        remote: {
+            ...universe.remote,
             stream: (asked, signal) =>
                 universe.source.replicate(asked, asked.after, { subject: space }, signal),
         },
@@ -176,10 +176,9 @@ async function serveHome(world: Environment) {
     });
 
     // follow the universe's rows until the test ends
-    const universeKey = `${Shape.replicaName(Scope.universe.id)} ${Scope.universe.id}`;
+    const universeKey = `${Shape.replicaName(QUERIES_PUBLICATION, Scope.universe.id)} ${Scope.universe.id}`;
     const { keys, controller, running } = await followReplicas(store, {
         isFollowed: (key) => key === universeKey,
-        report: () => {},
     });
     onTestFinished(async () => {
         controller.abort();

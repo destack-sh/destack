@@ -1,6 +1,6 @@
 import type { Message } from "@destack/locale";
 import { AuditTarget } from "../audit/execution.ts";
-import { ObjectError } from "../error/error.ts";
+import { ObjectError, refuseInput } from "../error/error.ts";
 import { Issues } from "../error/detail.ts";
 import {
     Policy,
@@ -14,7 +14,15 @@ import {
     type Permission,
     type TableMapping,
 } from "@destack/access";
-import { Scope, ObjectReference, ObjectTypeReference, type Subject, Call } from "@destack/sync";
+import {
+    Scope,
+    ObjectReference,
+    ObjectTypeReference,
+    type Subject,
+    Call,
+    type Mutation,
+    RequestId,
+} from "@destack/sync";
 import {
     Expression,
     Condition,
@@ -205,6 +213,9 @@ interface Derived {
 
 /** The scope and identifier of an object's row, read from a row of any object table. */
 export const ObjectKey = schema.looseObject({ scope: schema.string(), id: schema.string() });
+
+/** The input field naming a change's request, which a mutation's identifier takes. */
+const REQUEST_FIELD = "requestId";
 
 /** The methods an object in the trash still takes. */
 const TRASH_METHODS: ReadonlySet<MethodKind> = new Set([
@@ -1388,6 +1399,47 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
         input: Input & ExtraFields<Input, CallInput<Self, Name>>,
     ): ObjectCall<Self, MethodOutput<Self, Name>> {
         return ObjectType.#record(this, name, input);
+    }
+
+    /** Build a routed method's call from JSON input in a scope: a query or a mutation. */
+    callFrom(
+        name: string,
+        input: JsonObject,
+        scope: string,
+        environment: UuidEnvironment,
+    ):
+        | { readonly kind: "query"; readonly call: Call }
+        | { readonly kind: "mutation"; readonly mutation: Mutation } {
+        // find the method, refusing one the type does not declare or keeps from clients
+        const declared = this.methods[name];
+        const procedures: ObjectType["procedures"] = this.procedures;
+        const procedure = procedures[name]?.["~orpc"];
+        if (declared === undefined || !Method.isRouted(declared) || procedure === undefined) {
+            throw ObjectError.of(
+                "METHOD_INVALID",
+                `method '${name}' is invalid: '${this.name}' has no such method`,
+            );
+        }
+
+        // set the scope and a change's request, and validate the input
+        const field = this.route.field;
+        const scoped = {
+            ...(field === undefined ? {} : { [field]: scope }),
+            ...(declared.mutates ? { [REQUEST_FIELD]: RequestId.create(environment) } : {}),
+            ...input,
+        };
+        const validated = present(procedure.inputSchema, `the input of ${name}`).safeParse(scoped);
+        if (!validated.success) {
+            throw refuseInput(scoped, validated.error.issues);
+        }
+
+        // record a query as it is, and a change under its request
+        const { [REQUEST_FIELD]: request, ...fields } = schema.jsonObject().parse(validated.data);
+        const call = ObjectType.#record(this, name, fields);
+
+        return declared.mutates
+            ? { kind: "mutation", mutation: { id: schema.string().parse(request), calls: [call] } }
+            : { kind: "query", call };
     }
 
     /** Convert a recorded call's input to the method's edition, dropping undeclared fields. */

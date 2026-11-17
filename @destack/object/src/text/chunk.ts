@@ -218,10 +218,10 @@ export const Chunk = {
         };
         const rows = await readTouched(context, parent, edits);
 
-        // order the marks on the store
+        // order the marks at the home, a prediction leaving them last until it does
         const marked = edits.filter((edit) => "mark" in edit).length;
         const first =
-            execution.kind === "store" && marked > 0
+            !execution.isPredicted && marked > 0
                 ? await issueOrders(context, execution, parent, marked)
                 : undefined;
         let issued = 0;

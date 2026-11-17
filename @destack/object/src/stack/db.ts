@@ -56,18 +56,23 @@ export const journal = defineTable(
     },
 );
 
-/** Each object store's system tables, from access to follow keys. */
-export const SYSTEM_TABLES: readonly Table[] = [
+/** The tables of every store: access, blobs, its control loop, and the replicas it follows. */
+export const STORE_TABLES: readonly Table[] = [
     ...accessTables,
     ...BLOB_TABLES,
+    ...ControlLoop.tables,
+    followKey,
+    replicaRequest,
+];
+
+/** A method store's tables: its own, the journal, settlements, claims and rate limits. */
+export const SYSTEM_TABLES: readonly Table[] = [
+    ...STORE_TABLES,
     journal,
     settlement,
     claimReservation,
     lease,
-    ...ControlLoop.tables,
     bucket,
-    followKey,
-    replicaRequest,
 ];
 
 /** List a store's tables: system tables, what it serves, follows and needs, and its host's. */

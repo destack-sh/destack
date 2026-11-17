@@ -28,10 +28,10 @@ export class CallAudience implements Audience {
 
     /** Match a superset of the rows the caller may list, which `visible` decides. */
     async candidates(table: Table, permission?: string): Promise<SQL> {
-        // list every row of a prediction
+        // list every row of a prediction, whose home decides the caller's access
         const { object, permission: listing } = this.#objects.listed(table);
         const execution = this.#execution;
-        if (execution.kind === "client") {
+        if (execution.isPredicted) {
             return sql`true`;
         }
 
@@ -44,10 +44,10 @@ export class CallAudience implements Audience {
 
     /** Match exactly the rows the caller may list, for reads of related rows. */
     async readable(table: Table, permission?: string): Promise<SQL> {
-        // read every related row of a prediction
+        // read every related row of a prediction, whose home decides the caller's access
         const { object, permission: listing } = this.#objects.listed(table);
         const execution = this.#execution;
-        if (execution.kind === "client") {
+        if (execution.isPredicted) {
             return sql`true`;
         }
 
@@ -65,10 +65,10 @@ export class CallAudience implements Audience {
         _position: LogPosition,
         permission?: string,
     ): Promise<ReadonlySet<number>> {
-        // show every row of a prediction
+        // show every row of a prediction, whose home decides the caller's access
         const { object, permission: listing } = this.#objects.listed(table);
         const execution = this.#execution;
-        if (execution.kind === "client") {
+        if (execution.isPredicted) {
             return new Set(rows.keys());
         }
         const required = this.#required(object, permission);
@@ -88,10 +88,10 @@ export class CallAudience implements Audience {
 
     /** List the guarded fields the caller may not read on each row. */
     async conceals(table: Table, rows: readonly Row[]): Promise<readonly (readonly string[])[]> {
-        // conceal nothing from a prediction
+        // conceal nothing from a prediction, whose home decides the caller's access
         const { object } = this.#objects.listed(table);
         const execution = this.#execution;
-        if (execution.kind === "client") {
+        if (execution.isPredicted) {
             return rows.map(() => []);
         }
         const concealed = await execution.authorization.concealed(object, rows);

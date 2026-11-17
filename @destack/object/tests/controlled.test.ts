@@ -9,7 +9,7 @@ import { TestDatabase } from "@destack/db/test";
 import { Identifier, present, schema } from "@destack/schema";
 
 import { defineObject, device, field } from "../src/index.ts";
-import { ObjectClient } from "../src/client/index.ts";
+import { ObjectClient, ProcedureRemote } from "../src/client/index.ts";
 import { connectBunSqlite } from "@destack/db/bun";
 import { openSpace, space, spacePrincipal } from "../src/test/space.ts";
 import { testCallKey } from "@destack/object/test";
@@ -442,15 +442,19 @@ test("control a device's local object as a durable one: observe it at its genera
         scope: owner.id,
         caller: owner,
         device: owner,
-        endpoint: {
-            url: "http://local.invalid/",
-            fetch: async () => {
-                throw new TypeError("local lamps call no server");
+        remote: ProcedureRemote.at({
+            scope: owner.id,
+            endpoint: {
+                url: "http://local.invalid/",
+                fetch: async () => {
+                    throw new TypeError("local lamps call no server");
+                },
             },
-        },
-        reconnect: () => {
-            throw new TypeError("local lamps move to no machine");
-        },
+            reconnect: () => {
+                throw new TypeError("local lamps move to no machine");
+            },
+            environment: environment,
+        }),
     });
     onTestFinished(() => client.close());
     const read = async (id: Identifier<"lamp">) => {

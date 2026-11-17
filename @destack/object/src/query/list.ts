@@ -21,9 +21,9 @@ export type ListInput = schema.Infer<typeof LIST_INPUT>;
 
 /** Read a page of a list call's query rows or its aggregate groups. */
 export async function list(call: MethodContext, execution: Execution) {
-    // read an events type's rows from the event log on a server, hot and flushed alike
+    // read an events type's rows from the event log at the home, hot and flushed alike
     const input = LIST_INPUT.parse(call.input);
-    if (call.object.storage === "events" && execution.kind === "store") {
+    if (call.object.storage === "events" && !execution.isPredicted) {
         return EventLog.page(call, execution, input);
     }
 
@@ -106,7 +106,7 @@ async function readableAt(
 ): Promise<readonly sync.Item[]> {
     // take every item at the latest position
     const snapshot = requestedView(execution);
-    if (snapshot?.position === undefined || execution.kind !== "store") {
+    if (snapshot?.position === undefined || execution.isPredicted) {
         return read;
     }
 
@@ -125,9 +125,7 @@ async function readableAt(
 
 /** Read the snapshot a store's call asked to read at a position or over a branch. */
 function requestedView(execution: Execution): Snapshot | undefined {
-    return execution.kind === "store" && !(execution.view instanceof Transaction)
-        ? execution.view
-        : undefined;
+    return execution.view instanceof Transaction ? undefined : execution.view;
 }
 
 /** Split listed items into their rows, their included rows and their computed values. */

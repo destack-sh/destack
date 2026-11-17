@@ -1,4 +1,4 @@
-import { testSimulation } from "@destack/test/world";
+import { testSimulation } from "./world.ts";
 import { MemoryBlobStorage } from "@destack/resource";
 import { type DatabaseConnection, defineDatabase, type Table, Transaction } from "@destack/db";
 import {
@@ -36,6 +36,8 @@ import {
     type ObjectPackage,
 } from "../server/implementation.ts";
 import { EphemeralStorage } from "../server/ephemeral.ts";
+import type { TestTelemetry } from "@destack/telemetry/test";
+import { worldTelemetry } from "./world.ts";
 import { ObjectStore, type ObjectStoreOptions } from "../server/store.ts";
 import { tablesOf } from "../stack/db.ts";
 import objectPackage from "../package.ts";
@@ -125,8 +127,8 @@ export class TestObjectStore implements TestScope, AsyncDisposable {
     readonly #disposables: AsyncDisposableStack;
     /** The scopes the servers serve, every scope when absent, as the universe's store does. */
     readonly #scopes: readonly string[] | undefined;
-    /** Take what the servers report. */
-    readonly #report: (error: unknown) => void;
+    /** The world's captured failures, which disposal refuses untaken. */
+    readonly telemetry: TestTelemetry;
     /** Aborts the store's loop. */
     readonly #stopping = new AbortController();
     /** The store's running loop. */
@@ -149,7 +151,6 @@ export class TestObjectStore implements TestScope, AsyncDisposable {
         run: {
             readonly disposables: AsyncDisposableStack;
             readonly scopes: readonly string[] | undefined;
-            readonly report: (error: unknown) => void;
         },
     ) {
         // store the store, its scope, its callers' credential, how its servers serve and what disposal closes
@@ -158,17 +159,25 @@ export class TestObjectStore implements TestScope, AsyncDisposable {
         this.#credential = credential;
         this.#disposables = run.disposables;
         this.#scopes = run.scopes;
-        this.#report = run.report;
+        this.telemetry = worldTelemetry(store.environment);
 
-        // run the store's jobs
-        this.#running = store.run(this.#stopping.signal).catch(run.report);
+        // run the store's jobs, failing the world once the loop fails
+        this.#running = store
+            .run(this.#stopping.signal)
+            .catch((error: unknown) => this.#fail(error));
 
-        // stop the loop and close the servers first on disposal, and wait for the replaced ones to drain
+        // refuse the failures no test took last, after closing the servers and the loop first on disposal
+        this.#disposables.defer(() => this.telemetry[Symbol.dispose]());
         this.#disposables.defer(async () => {
             await this.stopControllers();
             await Promise.all([...this.#servers.values()].map((server) => server.close()));
             await Promise.all(this.#draining);
         });
+    }
+
+    /** Fail the world on a failure of the store's own loop or servers. */
+    #fail(error: unknown): void {
+        SimulatedScheduler.of(this.environment).fail(error);
     }
 
     /** Serve installed package servers as a host applies them, closing the dropped ones. */
@@ -193,7 +202,7 @@ export class TestObjectStore implements TestScope, AsyncDisposable {
 
         // drain the replaced servers beside the call, which may run the caller's own controller
         for (const [, server] of replaced) {
-            const draining = server.close().catch((error: unknown) => this.#report(error));
+            const draining = server.close().catch((error: unknown) => this.#fail(error));
             this.#draining.add(draining);
             void draining.then(() => this.#draining.delete(draining));
         }
@@ -209,7 +218,6 @@ export class TestObjectStore implements TestScope, AsyncDisposable {
             resources: new ResourceContext(),
             health: new Health(handler.package.name),
             drainTimeout: DRAIN_MILLISECONDS,
-            report: this.#report,
             // add no host requirement, as a host serving no machines or installations
             authorizeMachine: async () => {},
             authenticate: (request) => this.#credential.authenticate(request, handler.package.id),
@@ -336,9 +344,6 @@ export class TestObjectStore implements TestScope, AsyncDisposable {
             implementations.flatMap((each) => Object.values(each.package.objects)),
             storage.database.tracker,
             (tables) => connectBunSqlite(":memory:", tables, { environment }),
-            {
-                report: (error) => SimulatedScheduler.of(environment).fail(error),
-            },
         );
 
         // serve the packages through one store as the scope, or as the universe a user's scope lives at, the scope's row written
@@ -396,8 +401,6 @@ export class TestObjectStore implements TestScope, AsyncDisposable {
             readonly credential?: TestCredential;
             /** The scopes the servers serve, its own first, the store's alone by default. */
             readonly scopes?: readonly string[];
-            /** Take what the servers report, failing the world by default. */
-            readonly report?: (error: unknown) => void;
         } = {},
     ): TestObjectStore {
         const groups = options.groups ?? new Map();
@@ -409,7 +412,6 @@ export class TestObjectStore implements TestScope, AsyncDisposable {
             {
                 disposables: new AsyncDisposableStack(),
                 ...(options.scopes === undefined ? {} : { scopes: options.scopes }),
-                ...(options.report === undefined ? {} : { report: options.report }),
             },
         );
     }
@@ -422,14 +424,12 @@ export class TestObjectStore implements TestScope, AsyncDisposable {
         run: {
             readonly disposables: AsyncDisposableStack;
             readonly scopes?: readonly string[];
-            readonly report?: (error: unknown) => void;
         },
     ): TestObjectStore {
-        // start one server per package, closed first on disposal, failing the world on what they report
+        // start one server per package, closed first on disposal
         const served = new TestObjectStore(store, credential, {
             disposables: run.disposables,
             scopes: run.scopes ?? (store.scope === Scope.universe.id ? undefined : [store.scope]),
-            report: run.report ?? ((error) => SimulatedScheduler.of(store.environment).fail(error)),
         });
         for (const handler of packages) {
             served.#start(handler);

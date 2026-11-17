@@ -5,20 +5,18 @@ import { ResourceContext } from "@destack/resource/context";
 import { InstallationRoot } from "../workload/root.ts";
 import { MemoryBuild } from "@destack/package/test";
 import type { PackageVersion } from "@destack/package";
-import type { Uplink } from "@destack/sync";
+import { TestRemote } from "./publisher.ts";
 import type { ServerContext } from "../workload/workload.ts";
 import { waitAborted, type Environment } from "@destack/environment";
 
-/** An uplink that streams nothing until stopped and refuses changes. */
-const IDLE: Uplink = {
+/** A remote that streams nothing until stopped and refuses writes. */
+const IDLE = TestRemote.of({
     async *stream(_subscription, signal) {
         await waitAborted(signal);
         yield* [];
     },
     request: async () => {},
-    receive: () => Promise.reject(new Error("the idle machine cannot receive changes")),
-    call: () => Promise.reject(new Error("the idle machine answers no queries")),
-};
+});
 
 /** The bytes of a test installation's root. */
 const ROOT_BYTES = 32;
@@ -54,7 +52,7 @@ export async function testServerContext(
         fetch: (request) =>
             Promise.reject(new Error(`the fixture sends no request to '${request.url}'`)),
         url: `https://fixture--${space}.test`,
-        publisher: IDLE,
+        remote: IDLE,
         publisherAt: () => IDLE,
         at: (address) => ({
             url: address,

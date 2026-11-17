@@ -139,7 +139,7 @@ export class RequestHandler<State extends RequestState> extends OpenAPIHandler<S
         options: HandlerOptions<State>,
         metas: ReadonlyMap<string, ProcedureMetadata>,
     ): NonNullable<OpenAPIHandlerOptions<State>["clientInterceptors"]> {
-        const traced = traceCalls("server", options.environment);
+        const traced = traceCalls("server", "orpc", options.environment);
 
         return [
             (call) =>

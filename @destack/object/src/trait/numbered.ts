@@ -196,7 +196,7 @@ export const Numbered = {
         object: ObjectType,
         values: Readonly<Record<string, unknown>>,
         context: MethodContext,
-        location: Pick<CallLocation, "kind">,
+        location: CallLocation,
     ): Promise<Readonly<Record<string, unknown>>> {
         // keep an assigned number, and leave one a later method issues unset
         const assigned = values["number"];
@@ -214,14 +214,14 @@ export const Numbered = {
         object: ObjectType,
         values: Readonly<Record<string, unknown>>,
         context: MethodContext,
-        location: Pick<CallLocation, "kind">,
+        location: CallLocation,
     ): Promise<Readonly<Record<string, unknown>>> {
-        // leave a prediction's number to the store, and refuse a sandbox, which cannot read its counter
+        // refuse a sandbox, which cannot read its counter, and leave a prediction's number to its home
         const numbering = Numbered.numbering(object);
-        if (location.kind === "client") {
-            return { number: null };
-        } else if (location.kind === "sandbox") {
+        if (location.kind === "sandbox") {
             throw new TypeError(`${object.name} numbers only in its store, not in a hook`);
+        } else if (location.isPredicted) {
+            return { number: null };
         }
 
         // take the next number, fixing the identifier it reads as now when frozen
@@ -240,7 +240,7 @@ export const Numbered = {
         target: Readonly<Record<string, unknown>>,
         changes: Readonly<Record<string, unknown>>,
         context: MethodContext,
-        location: Pick<CallLocation, "kind">,
+        location: CallLocation,
     ): Promise<Readonly<Record<string, unknown>>> {
         // issue a number at the method issuing it, once
         const numbering = Numbered.numbering(object);

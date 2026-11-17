@@ -18,18 +18,14 @@ import { TestAccess } from "@destack/access/test";
 import { asc, type DatabaseConnection, defineDatabase, eq } from "@destack/db";
 import { schema, type Identifier } from "@destack/schema";
 
-import { Replica, Scope, type Uplink } from "@destack/sync";
+import { Replica, Scope } from "@destack/sync";
 import { ObjectStore } from "./index.ts";
 import { tablesOf } from "../stack/db.ts";
 import objectPackage from "../package.ts";
 import { TestObjectStore } from "../test/index.ts";
 import { argument, plural, t } from "@destack/locale";
-
-/** Refuse a change sent over the uplink, as these replicas receive none. */
-const refuseChanges = () => Promise.reject(new Error("the fixture receives no changes"));
-
-/** Refuse a query sent over the uplink, as these replicas send none. */
-const refuseQueries = () => Promise.reject(new Error("the fixture answers no queries"));
+import { TestRemote } from "../test/publisher.ts";
+import type { ObjectRemote } from "../replica/remote.ts";
 
 /** The space the replicas are stored for. */
 const spaceId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000002");
@@ -145,16 +141,16 @@ const MEMBERS = defineShape({
     queries: () => [person.query({})],
 }).at({ key: { scope: Scope.universe.id } });
 
-/** Serve people and profiles over a database, following them at the universe with an uplink. */
-async function serve(world: Environment, database: DatabaseConnection, uplink?: Uplink) {
+/** Serve people and profiles over a database, following them at the universe through a remote. */
+async function serve(world: Environment, database: DatabaseConnection, remote?: ObjectRemote) {
     return TestObjectStore.of({
         chain: async () =>
-            uplink === undefined ? undefined : { kind: "follower", parent: Scope.universe.id },
+            remote === undefined ? undefined : { kind: "follower", parent: Scope.universe.id },
         environment: world,
         principal: principal.space.reference(Scope.universe.id, spaceId),
-        servers: serversOf([person, profile], uplink === undefined ? {} : { follows: [PEOPLE] }),
+        servers: serversOf([person, profile], remote === undefined ? {} : { follows: [PEOPLE] }),
         database,
-        ...(uplink === undefined ? {} : { uplink }),
+        ...(remote === undefined ? {} : { remote }),
         callKey: testCallKey,
         events: await testEvents(database, world),
         origin: {
@@ -229,23 +225,24 @@ test("replicate the profiles in the scopes of the people a space reads, each dec
     await join(cy);
 
     // store the space's replica of the universe in its database, decided at home for the space
-    const replicating: ObjectStore = await serve(world, space.database, {
-        receive: refuseChanges,
-        call: refuseQueries,
-        request: async () => {},
-        stream: (asked, signal) =>
-            served.source.replicate(
-                asked,
-                asked.after,
-                {
-                    subject: principal.space.reference(Scope.universe.id, asked.target),
-                },
-                signal,
-            ),
-    });
+    const replicating: ObjectStore = await serve(
+        world,
+        space.database,
+        TestRemote.of({
+            request: async () => {},
+            stream: (asked, signal) =>
+                served.source.replicate(
+                    asked,
+                    asked.after,
+                    {
+                        subject: principal.space.reference(Scope.universe.id, asked.target),
+                    },
+                    signal,
+                ),
+        }),
+    );
     const { controller, running } = await followReplicas(replicating, {
         isFollowed: isUniverseKey,
-        report: () => {},
     });
     onTestFinished(async () => {
         controller.abort();
@@ -384,9 +381,7 @@ test("replicate the badges a space is shown from the scopes of teams without rep
         principal: principal.space.reference(Scope.universe.id, spaceId),
         servers: serversOf([person, badge], { follows: [SHOWN] }),
         database: space.database,
-        uplink: {
-            receive: refuseChanges,
-            call: refuseQueries,
+        remote: TestRemote.of({
             request: async () => {},
             stream: (asked, signal) =>
                 served.source.replicate(
@@ -397,7 +392,7 @@ test("replicate the badges a space is shown from the scopes of teams without rep
                     },
                     signal,
                 ),
-        },
+        }),
         callKey: testCallKey,
         events: await testEvents(space.database, world),
         origin: { package: person.package },
@@ -474,9 +469,7 @@ test("replicate a guarded type's rows whole to a space that reads them past the 
         principal: spaceSubject,
         servers: serversOf([card], { follows: [CARDS] }),
         database: space.database,
-        uplink: {
-            receive: refuseChanges,
-            call: refuseQueries,
+        remote: TestRemote.of({
             request: async () => {},
             stream: (asked, signal) =>
                 served.source.replicate(
@@ -485,7 +478,7 @@ test("replicate a guarded type's rows whole to a space that reads them past the 
                     { subject: principal.space.reference(Scope.universe.id, asked.target) },
                     signal,
                 ),
-        },
+        }),
         callKey: testCallKey,
         events: await testEvents(space.database, world),
         origin: { package: card.package },
@@ -561,9 +554,7 @@ test("replicate each person once the space may read them at the change's positio
         principal: spaceSubject,
         servers: serversOf([person], { follows: [MEMBERS] }),
         database: space.database,
-        uplink: {
-            receive: refuseChanges,
-            call: refuseQueries,
+        remote: TestRemote.of({
             request: async () => {},
             stream: (asked, signal) =>
                 served.source.replicate(
@@ -574,7 +565,7 @@ test("replicate each person once the space may read them at the change's positio
                     },
                     signal,
                 ),
-        },
+        }),
         callKey: testCallKey,
         events: await testEvents(space.database, world),
         origin: { package: person.package },
@@ -622,7 +613,6 @@ async function follow(
     // run the replica controller's key of the universe's rows
     const { controller, running } = await followReplicas(replicating, {
         isFollowed: isUniverseKey,
-        report: () => {},
     });
     onTestFinished(async () => {
         controller.abort();

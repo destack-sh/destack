@@ -2,7 +2,6 @@ import { BuildLayer } from "@destack/package/manifest";
 import { schema } from "@destack/schema";
 import { ResourceContext } from "@destack/resource/context";
 import { MemoryBuild } from "@destack/package/test";
-import { type Uplink } from "@destack/sync";
 import { ControlLoop, defineTable, text } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
 import { expect, onTestFinished, test } from "@destack/test";
@@ -16,6 +15,7 @@ import { testCallKey } from "../test/context.ts";
 import { Environment, waitAborted } from "@destack/environment";
 import { tablesOf } from "../index.ts";
 import { testSimulation } from "../test/world.ts";
+import { TestRemote } from "../test/publisher.ts";
 
 /** The first fixture package. */
 const first = Package.of(
@@ -42,15 +42,13 @@ const marker = defineTable(
     { log: {} },
 );
 
-/** A publisher streaming no replicas. */
-const publisher = {
+/** A remote streaming no replicas and taking no writes. */
+const remote = TestRemote.of({
     request: async () => {},
     stream: () => {
-        throw new Error("the fixture publisher streams no replicas");
+        throw new Error("the fixture remote streams no replicas");
     },
-    receive: () => Promise.reject(new Error("the fixture publisher receives no changes")),
-    call: () => Promise.reject(new Error("the fixture publisher answers no queries")),
-} satisfies Uplink;
+});
 
 /** Read the fixture installation's server context in a test's world, with its empty build. */
 const serverIn = async (world: Environment): Promise<ServerContext> => ({
@@ -72,8 +70,8 @@ const serverIn = async (world: Environment): Promise<ServerContext> => ({
     fetch: (request) =>
         Promise.reject(new Error(`the fixture sends no request to '${request.url}'`)),
     url: "https://notes--home.test",
-    publisher,
-    publisherAt: () => publisher,
+    remote,
+    publisherAt: () => remote,
     at: (address) => ({
         url: address,
         fetch: () => Promise.reject(new Error("the fixture installation cannot call an address")),
@@ -103,9 +101,6 @@ test("release startup resources when the workload shuts down during startup", as
             {
                 environment: world,
                 callKey: testCallKey,
-                report: (error) => {
-                    throw error;
-                },
                 resources: hosting.resources,
                 server: await serverIn(world),
                 serverOptions: (handle) => ({
@@ -156,9 +151,6 @@ test("start two packages and drain accepted requests before shared cleanup", asy
         {
             environment: world,
             callKey: testCallKey,
-            report: (error) => {
-                throw error;
-            },
             resources: hosting.resources,
             server: await serverIn(world),
             serverOptions: (handle) => ({
@@ -225,9 +217,6 @@ test("retain shared resources until an overdue request observes cancellation", a
         {
             environment: world,
             callKey: testCallKey,
-            report: (error) => {
-                throw error;
-            },
             resources: hosting.resources,
             server: await serverIn(world),
             serverOptions: (handle) => ({
@@ -288,9 +277,6 @@ test("reject a package served twice and release startup resources", async () => 
             {
                 environment: world,
                 callKey: testCallKey,
-                report: (error) => {
-                    throw error;
-                },
                 resources: hosting.resources,
                 server: await serverIn(world),
                 serverOptions: (handle) => ({
@@ -324,9 +310,6 @@ test("give a starting workload its server context", async () => {
         {
             environment: world,
             callKey: testCallKey,
-            report: (error) => {
-                throw error;
-            },
             resources: hosting.resources,
             server,
             serverOptions: (handle) => ({
@@ -362,9 +345,6 @@ test("serve the next start once a reload starts it, drain the previous start bes
         {
             environment: world,
             callKey: testCallKey,
-            report: (error) => {
-                throw error;
-            },
             resources: hosting.resources,
             server: await serverIn(world),
             serverOptions: (handle) => ({
@@ -408,9 +388,6 @@ test("fold the reloads requested during a start into one start after it", async 
         {
             environment: world,
             callKey: testCallKey,
-            report: (error) => {
-                throw error;
-            },
             resources: hosting.resources,
             server: await serverIn(world),
             serverOptions: (handle) => ({
@@ -459,9 +436,6 @@ test("close the instance while a reload starts, never running the unfinished sta
         {
             environment: world,
             callKey: testCallKey,
-            report: (error) => {
-                throw error;
-            },
             resources: hosting.resources,
             server: await serverIn(world),
             serverOptions: (handle) => ({
@@ -518,11 +492,9 @@ test("run one start's controllers at a time, stopping the previous start's befor
                 };
 
                 // run the controller in the start's store loop
-                const loop = new ControlLoop(
-                    storage.database,
-                    [{ controllers: [controller], projections: [], cursors: [] }],
-                    { report: (_job, _key, error) => events.push(String(error)) },
-                );
+                const loop = new ControlLoop(storage.database, [
+                    { controllers: [controller], projections: [], cursors: [] },
+                ]);
 
                 return {
                     packages: [{ package: first, router: {} }],
@@ -533,9 +505,6 @@ test("run one start's controllers at a time, stopping the previous start's befor
         {
             environment: world,
             callKey: testCallKey,
-            report: (error) => {
-                throw error;
-            },
             resources: hosting.resources,
             server: await serverIn(world),
             serverOptions: (handle) => ({

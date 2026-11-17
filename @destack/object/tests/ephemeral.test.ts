@@ -1,3 +1,4 @@
+import { worldTelemetry } from "../src/test/world.ts";
 import { FOLLOWER_REVISION } from "@destack/sync/test";
 import type { Simulation } from "@destack/environment/simulation";
 import { testSimulation, testIdentity } from "../src/test/index.ts";
@@ -22,7 +23,7 @@ import {
     type ObjectType,
 } from "../src/index.ts";
 import { implementPackage, EphemeralStorage } from "../src/server/index.ts";
-import { type LiveQuery, ObjectClient } from "../src/client/index.ts";
+import { type LiveQuery, ObjectClient, ProcedureRemote } from "../src/client/index.ts";
 import type { ClientOptions } from "@destack/object/client";
 import { definePackage } from "@destack/object";
 import { user } from "./schema.ts";
@@ -502,12 +503,7 @@ async function serveBoards(world: Environment) {
                 [presence, board, profile],
                 durable.tracker,
                 (tables) => sqlite.connectBunSqlite(":memory:", tables, { environment: world }),
-                {
-                    linger: 50,
-                    report: (error) => {
-                        throw error;
-                    },
-                },
+                { linger: 50 },
             ),
             "the ephemeral storage",
         );
@@ -612,20 +608,23 @@ async function openClient(
         objects: { board, profile, presence },
         scope: spaceId,
         caller: principal.user.reference("universe", as),
-        endpoint: instance.endpoint(as),
-        reconnect: unmoved,
+        remote: ProcedureRemote.at({
+            scope: spaceId,
+            endpoint: instance.endpoint(as),
+            reconnect: unmoved,
+            environment: world,
+        }),
     });
 
-    // run until stopped, failing on any reported failure
+    // run until stopped, failing on any captured failure
     const controller = new AbortController();
-    const errors: unknown[] = [];
-    const running = client.run(controller.signal, (error) => errors.push(error));
+    const running = client.run(controller.signal);
     onTestFinished(async () => {
         controller.abort();
         await running;
         await client.close();
         await storage.close();
-        expect(errors).toEqual([]);
+        expect(worldTelemetry(world).exceptions()).toEqual([]);
     });
 
     return { client, stop: () => controller.abort() };

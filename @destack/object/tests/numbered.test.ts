@@ -7,7 +7,7 @@ import { Snapshot } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
 import type { ClientOptions } from "@destack/object/client";
 import type { Identifier } from "@destack/schema";
-import { ObjectClient } from "../src/client/index.ts";
+import { ObjectClient, ProcedureRemote } from "../src/client/index.ts";
 import { unmoved } from "../src/test/space.ts";
 import { onTestFinished } from "@destack/test";
 import { present, schema } from "@destack/schema";
@@ -451,8 +451,12 @@ async function openDevice(
         objects: { order },
         scope,
         caller: principal.user.reference("universe", user),
-        endpoint,
-        reconnect: unmoved,
+        remote: ProcedureRemote.at({
+            scope: scope,
+            endpoint,
+            reconnect: unmoved,
+            environment: world,
+        }),
     });
     client.query.order.findMany().subscribe();
     const controller = new AbortController();
@@ -477,10 +481,7 @@ async function openDevice(
         client,
         numbers,
         online: () => {
-            loops.push(
-                client.push(controller.signal, () => {}),
-                client.follow(controller.signal, () => {}),
-            );
+            loops.push(client.push(controller.signal), client.follow(controller.signal));
         },
         waitFor: async (expected: readonly (readonly [number, number | null])[]) => {
             const isReached = async () => isDeepStrictEqual(await numbers(), expected);

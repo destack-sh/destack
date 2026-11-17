@@ -1,3 +1,4 @@
+import { worldTelemetry } from "../src/test/world.ts";
 import { TestObjectStore } from "../src/test/index.ts";
 import type { Simulation } from "@destack/environment/simulation";
 import type { Environment } from "@destack/environment";
@@ -1054,7 +1055,6 @@ test("authorize a creation before its external work, and confirm committed work 
             },
         },
     });
-    const reported: unknown[] = [];
     const store = await TestObjectStore.receive(space.reference(Scope.universe.id, spaceId), {
         chain: async () => undefined,
         environment: world,
@@ -1066,7 +1066,6 @@ test("authorize a creation before its external work, and confirm committed work 
         origin: {
             package: task.package,
         },
-        report: (error) => reported.push(error),
     });
     let context = userContext(users.frank, spaceId, { environment: world });
     const created = await store
@@ -1100,10 +1099,14 @@ test("authorize a creation before its external work, and confirm committed work 
         })
         .then(([written]) => written);
     const settled = await storage.database.select().from(settlement);
-    expect([external, settled.map((row) => [row.method, row.target]), reported]).toEqual([
+    expect([
+        external,
+        settled.map((row) => [row.method, row.target]),
+        worldTelemetry(world).take(),
+    ]).toEqual([
         ["copy Draft"],
         [["create", drafted.id]],
-        [new Error("confirmation failed")],
+        [{ scope: "@destack/object", name: "Error", message: "confirmation failed" }],
     ]);
 
     // confirm it through the controller once its claim's grace passes

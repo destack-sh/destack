@@ -4,7 +4,7 @@ import type { Deriver } from "@destack/identity";
 import { InstallationRoot } from "./root.ts";
 import { Symbolicator } from "@destack/package/stack";
 import { copyRequest, Environment } from "@destack/environment";
-import type { Uplink } from "@destack/sync";
+import type { ObjectRemote } from "../replica/remote.ts";
 import type { Connector, ResourceDeclaration } from "@destack/resource";
 import { ResourceContext } from "@destack/resource/context";
 import { TelemetryScope } from "@destack/telemetry";
@@ -42,8 +42,8 @@ export interface RunnerOptions {
     readonly workload: Workload;
     /** The package's resource declarations by name. */
     readonly resources: Readonly<Record<string, ResourceDeclaration<unknown>>>;
-    /** Connect to a publisher of an installation's replicas. */
-    readonly publisher: (url: string, secret: string) => Uplink;
+    /** Reach the remote publishing an installation's replicas. */
+    readonly remote: (url: string, secret: string) => ObjectRemote;
     /** Set a wake-up for the workload's earliest due controller key. */
     readonly alarm?: Alarm;
     /** Where the instance connects to the sockets its host hibernates. */
@@ -75,7 +75,7 @@ export class WorkloadRunner implements AsyncDisposable {
     readonly #telemetry: RunnerTelemetry;
     /** The scheduler each export runs under as tracked work. */
     readonly #scheduler: Environment["scheduler"];
-    /** Report a failure no caller sees, such as a failed export. */
+    /** Report a failed export of the runner's telemetry, which it cannot record itself. */
     readonly #report: (error: unknown) => void;
     /** Whether the runner stops, its telemetry exporting what remains as it shuts down. */
     #isClosing = false;
@@ -133,15 +133,7 @@ export class WorkloadRunner implements AsyncDisposable {
             const { instance, hibernation } = await scope.span(
                 "destack.workload.start",
                 attributes,
-                () =>
-                    WorkloadRunner.#instance(
-                        runner,
-                        start,
-                        build,
-                        environment,
-                        connections,
-                        report,
-                    ),
+                () => WorkloadRunner.#instance(runner, start, build, environment, connections),
                 { duration: { attributes } },
             );
 
@@ -180,7 +172,6 @@ export class WorkloadRunner implements AsyncDisposable {
         build: BuildReader,
         environment: Environment,
         connections: AsyncDisposableStack,
-        report: (error: unknown) => void,
     ): Promise<{ readonly instance: WorkloadInstance; readonly hibernation: Hibernation }> {
         // connect the resources, open the keys, and start the instance
         const resources = await WorkloadRunner.#connect(runner, start, connections);
@@ -194,13 +185,12 @@ export class WorkloadRunner implements AsyncDisposable {
             url: Egress.beside(start.egress, SOCKET_PATH),
             fetch: (request: Request) => runner.environment.network.fetch(request),
         };
-        const hibernation = new Hibernation(host, start.secret, report);
+        const hibernation = new Hibernation(host, start.secret, environment.telemetry);
         const instance = await WorkloadInstance.start(runner.workload, {
             resources,
             server: WorkloadRunner.#server(runner, start, { build, stack, resources, keys }),
             callKey: () => callKey,
             environment,
-            report,
             ...(runner.alarm === undefined ? {} : { alarm: runner.alarm }),
             ephemeral: runner.ephemeral,
             hibernation,
@@ -255,9 +245,9 @@ export class WorkloadRunner implements AsyncDisposable {
             resources,
             keys,
             environment: runner.environment,
-            publisher: runner.publisher(stack, start.secret),
+            remote: runner.remote(stack, start.secret),
             publisherAt: (address, packageId) =>
-                runner.publisher(
+                runner.remote(
                     `${Egress.url(start.egress, address)}${PackageMount.path(packageId)}`,
                     start.secret,
                 ),

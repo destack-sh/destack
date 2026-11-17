@@ -66,6 +66,34 @@ export const objectInteraction: Interaction<
     globals: schema.object({}),
 });
 
+/** A step of a person's client: a call it predicts and pushes, or a query of its local replica. */
+export const ClientStep = schema.union([
+    ObjectStep.extend({
+        /** What the step waits for: the client's prediction, or the home's confirmation. */
+        until: schema.enum(["predicted", "confirmed"]),
+    }),
+    schema.object({
+        /** The type whose objects the query reads, such as `notebook`. */
+        query: schema.string().min(1),
+        /** The person whose client reads, by name, such as `alice`. */
+        as: schema.string().min(1),
+    }),
+]);
+/** A step of a person's client. */
+export type ClientStep = schema.Infer<typeof ClientStep>;
+
+/** The interaction of clients: people calling and reading objects through their own replicas. */
+export const clientInteraction: Interaction<
+    ClientStep,
+    ObjectObservation,
+    Record<string, never>
+> = Object.freeze({
+    name: "client",
+    step: ClientStep,
+    observation: ObjectObservation,
+    globals: schema.object({}),
+});
+
 /** Resolve a value's references to bound objects and people, refusing a reference to none. */
 function resolve(
     value: unknown,

@@ -6,8 +6,8 @@ import { PackageVersion, PackageId } from "@destack/package";
 import { Identifier, schema } from "@destack/schema";
 import { Scope } from "@destack/sync";
 import { expect, expectTypeOf, onTestFinished, refusal, test } from "@destack/test";
-import { ObjectClient } from "../client/index.ts";
-import { testSimulation } from "@destack/test/world";
+import { ObjectClient, ProcedureRemote } from "../client/index.ts";
+import { testSimulation } from "../test/world.ts";
 import { field } from "../field/index.ts";
 import { defineObject, device } from "../object/index.ts";
 import type { ShortcutText } from "./shortcut.ts";
@@ -247,15 +247,19 @@ test("query the targets a command applies to and write its call's input from the
         scope: owner.id,
         caller: owner,
         device: owner,
-        endpoint: {
-            url: "http://local.invalid/",
-            fetch: async () => {
-                throw new TypeError("local tasks call no server");
+        remote: ProcedureRemote.at({
+            scope: owner.id,
+            endpoint: {
+                url: "http://local.invalid/",
+                fetch: async () => {
+                    throw new TypeError("local tasks call no server");
+                },
             },
-        },
-        reconnect: () => {
-            throw new TypeError("local tasks move to no machine");
-        },
+            reconnect: () => {
+                throw new TypeError("local tasks move to no machine");
+            },
+            environment: environment,
+        }),
     });
     onTestFinished(() => client.close());
     const open = await client.mutate(task).create({ status: "open" }).predicted;

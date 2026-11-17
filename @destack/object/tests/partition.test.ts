@@ -11,7 +11,7 @@ import { present, schema } from "@destack/schema";
 import { definePackage } from "@destack/object";
 import { testServerContext } from "@destack/object/test";
 import { testEvents, serversOf } from "../src/test/index.ts";
-import { Scope, type Uplink } from "@destack/sync";
+import { Scope } from "@destack/sync";
 import { testCallKey } from "@destack/object/test";
 import { QUERIES_PUBLICATION } from "../src/replica/replica.ts";
 import { ObjectStore, implementPackage } from "../src/server/index.ts";
@@ -24,6 +24,8 @@ import { installedPackage } from "@destack/access";
 import { TestObjectStore } from "../src/test/index.ts";
 import { shareable, Shareable } from "../src/index.ts";
 import { argument, plural, t } from "@destack/locale";
+import { TestRemote } from "../src/test/publisher.ts";
+import type { ObjectRemote } from "../src/replica/remote.ts";
 
 /** The space whose partition the cards live in. */
 const spaceId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-0000000000a1");
@@ -75,16 +77,14 @@ const roomsDatabase = defineDatabase({
     }),
 });
 
-/** An uplink streaming and receiving nothing, named by who it stands for. */
-function idle(name: string): Uplink {
-    return {
+/** A remote streaming and taking nothing, named by who it stands for. */
+function idle(name: string): ObjectRemote {
+    return TestRemote.of({
         request: async () => {},
         stream: () => {
             throw new TypeError(`'${name}' streams no replicas`);
         },
-        receive: () => Promise.reject(new TypeError(`'${name}' receives no changes`)),
-        call: () => Promise.reject(new TypeError("the fixture answers no queries")),
-    };
+    });
 }
 
 /** The database of the space's cards. */
@@ -185,7 +185,7 @@ test("follow an installation's root chain from its machine, and a partition's ch
             server: {
                 ...(await testServerContext(PackageVersion.of(roomsPackage), spaceId, world)),
                 partition,
-                publisher: machine,
+                remote: machine,
                 publisherAt: (address, packageId) => {
                     called.push(`${address} ${packageId}`);
 
@@ -254,7 +254,7 @@ test("list the types a home and a follower decide in the chain subscription, add
             database: storage.database,
             server: {
                 ...(await testServerContext(card.package, spaceId, world)),
-                publisher: idles.machine,
+                remote: idles.machine,
                 publisherAt: () => idles.root,
             },
         });

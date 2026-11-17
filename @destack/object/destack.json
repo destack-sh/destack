@@ -4,7 +4,6 @@
     "role": "builtin",
     "language": "typescript",
     "runtimes": ["browser", "bun", "workerd"],
-    "entrypoints": ["src/browser/database.worker.ts"],
     "exports": {
         "./browser": {
             "runtimes": ["browser"]

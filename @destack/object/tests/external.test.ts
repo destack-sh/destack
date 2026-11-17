@@ -1,3 +1,4 @@
+import { worldTelemetry } from "../src/test/world.ts";
 import { testSimulation, testIdentity } from "../src/test/index.ts";
 import { defineObject, field, ObjectDescription } from "../src/index.ts";
 import { users } from "./fixture/user.ts";
@@ -11,7 +12,7 @@ import { subjectContext, testCallKey } from "@destack/object/test";
 import { testEvents, serversOf } from "../src/test/index.ts";
 import { expect, onTestFinished, test } from "@destack/test";
 import { implementPackage } from "../src/server/index.ts";
-import { ObjectClient } from "../src/client/index.ts";
+import { ObjectClient, ProcedureRemote } from "../src/client/index.ts";
 import { definePackage, type MethodVisibility } from "@destack/object";
 import { notebook, notesPackage } from "../src/test/note.ts";
 import objectPackage from "../src/package.ts";
@@ -210,12 +211,15 @@ test("read external objects named by their key from the database their files ope
         objects: { notebook, entry },
         scope: spaceId,
         caller: principal.user.reference("universe", users.alice),
-        endpoint: served.as(users.alice).endpoint(notebooks),
-        reconnect: unmoved,
+        remote: ProcedureRemote.at({
+            scope: spaceId,
+            endpoint: served.as(users.alice).endpoint(notebooks),
+            reconnect: unmoved,
+            environment: world,
+        }),
     });
     const stopping = new AbortController();
-    const failures: unknown[] = [];
-    const running = client.run(stopping.signal, (error) => failures.push(error));
+    const running = client.run(stopping.signal);
     onTestFinished(async () => {
         stopping.abort();
         await running;
@@ -224,7 +228,7 @@ test("read external objects named by their key from the database their files ope
     const entries = client.query.entry.findMany().subscribe();
     await entries.ready;
     await expect.poll(async () => (await entries.read()).map((row) => row.term)).toEqual([term]);
-    expect(failures).toEqual([]);
+    expect(worldTelemetry(world).exceptions()).toEqual([]);
 });
 
 /** Declare an external type whose one write its package's code or clients call. */

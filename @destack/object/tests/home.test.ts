@@ -1,3 +1,4 @@
+import { worldTelemetry } from "../src/test/world.ts";
 import { testSimulation, testIdentity } from "../src/test/index.ts";
 import { testCallKey } from "@destack/object/test";
 import { TestDatabase } from "@destack/db/test";
@@ -11,7 +12,7 @@ import { definePackage } from "@destack/object";
 import { type ClientOptions, createClient } from "@destack/object/client";
 import { RequestId, Feed, Replica, Scope } from "@destack/sync";
 import { defineObject, defineShape, field } from "../src/index.ts";
-import { ObjectClient } from "../src/client/index.ts";
+import { ObjectClient, ProcedureRemote } from "../src/client/index.ts";
 import { ObjectStore } from "../src/server/index.ts";
 import { Bookmark } from "../src/procedure/bookmark.ts";
 import { TestBearer, TestObjectStore } from "../src/test/index.ts";
@@ -22,6 +23,7 @@ import { tablesOf } from "../src/stack/db.ts";
 import objectPackage from "../src/package.ts";
 import { propagated } from "../src/index.ts";
 import { argument, plural, t } from "@destack/locale";
+import { TestRemote } from "../src/test/publisher.ts";
 
 /** How long a commit may take to arrive at a replica: 5 s, far above the milliseconds it takes. */
 const REPLICA_MILLISECONDS = 5000;
@@ -91,12 +93,6 @@ const preferences = definePackage({
     ...testIdentity,
     objects: [preference],
 });
-
-/** Refuse a change sent over the uplink, as the client sends its changes home itself. */
-const refuseChanges = () => Promise.reject(new Error("the replica receives no changes"));
-
-/** Refuse a query sent over the uplink, as the replica sends none. */
-const refuseQueries = () => Promise.reject(new Error("the replica answers no queries"));
 
 /** Serve alice's preferences at their home and a replica at her room's machine. */
 async function serveHomes(world: Environment, options: { readonly isFollowing?: boolean } = {}) {
@@ -173,14 +169,12 @@ async function serveHomes(world: Environment, options: { readonly isFollowing?: 
         }),
         policies: [person, room],
         database: replicateStorage.database,
-        uplink: {
-            ...FeedPublisher.of(
+        remote: TestRemote.of(
+            FeedPublisher.of(
                 feed,
                 (subscription) => replica.source.buildReplica(subscription).queries,
             ),
-            receive: refuseChanges,
-            call: refuseQueries,
-        },
+        ),
         callKey: testCallKey,
         events: await testEvents(replicateStorage.database, world),
         origin: { package: preference.package },
@@ -234,7 +228,7 @@ async function followChain(
 ): Promise<void> {
     // run the store's replicas until the test ends: its consumer lists them, its controller follows each
     const controller = new AbortController();
-    const loop = new ControlLoop(database, [replica.syncing()], { report: () => {} });
+    const loop = new ControlLoop(database, [replica.syncing()]);
     const running = loop.run(controller.signal);
     onTestFinished(async () => {
         controller.abort();
@@ -272,17 +266,21 @@ async function openRoom(world: Environment, served: Awaited<ReturnType<typeof se
         objects: { preference },
         scope: roomId,
         caller: principal.user.reference(Scope.universe.id, users.alice),
-        endpoint: served.replicateEndpoint,
-        reconnect: unmoved,
-        homes: () => served.homeEndpoint,
         environment: world,
+        remote: ProcedureRemote.at({
+            scope: roomId,
+            endpoint: served.replicateEndpoint,
+            reconnect: unmoved,
+            homes: () => served.homeEndpoint,
+            environment: world,
+        }),
     });
     const live = client.query.preference.findMany().subscribe();
 
     // follow and push until the test ends
     const controller = new AbortController();
-    const failures: unknown[] = [];
-    const loops = client.run(controller.signal, (error) => failures.push(error));
+    const loops = client.run(controller.signal);
+    const failures = () => worldTelemetry(world).exceptions();
     onTestFinished(async () => {
         controller.abort();
         await loops;
@@ -387,7 +385,7 @@ test("send a write of an enclosing scope's row to its home, predicted on the roo
         replicated,
         home: await homeTheme(served.homeDatabase, id),
         writes: served.writes.filter((write) => !write.endsWith("/store/stream")),
-        failures,
+        failures: failures(),
     }).toEqual({
         predicted: "dark",
         replicated: "dark",
@@ -410,7 +408,7 @@ test("push a row the room's replica writes after a client subscribed to the clie
     await replicatedTo(client, id);
     expect({
         value: Valued.parse(await client.row(client.database, preference, id)).value,
-        failures,
+        failures: failures(),
     }).toEqual({ value: "light", failures: [] });
 });
 
@@ -429,16 +427,20 @@ test("read a universe row the room's replica holds through a client of the room,
         objects: { person, preference },
         scope: roomId,
         caller: principal.user.reference(Scope.universe.id, users.alice),
-        endpoint: served.replicateEndpoint,
-        reconnect: unmoved,
-        homes: () => served.homeEndpoint,
         environment: world,
+        remote: ProcedureRemote.at({
+            scope: roomId,
+            endpoint: served.replicateEndpoint,
+            reconnect: unmoved,
+            homes: () => served.homeEndpoint,
+            environment: world,
+        }),
     });
 
     // follow her person through the room until it arrives
     const controller = new AbortController();
-    const failures: unknown[] = [];
-    const loops = client.run(controller.signal, (error) => failures.push(error));
+    const loops = client.run(controller.signal);
+    const failures = () => worldTelemetry(world).exceptions();
     onTestFinished(async () => {
         controller.abort();
         await loops;
@@ -451,7 +453,10 @@ test("read a universe row the room's replica holds through a client of the room,
 
     // read the person row the room's replica holds
     const rows = await live.read();
-    expect({ ids: rows.map((row) => row.id), failures }).toEqual({ ids: [personId], failures: [] });
+    expect({ ids: rows.map((row) => row.id), failures: failures() }).toEqual({
+        ids: [personId],
+        failures: [],
+    });
 });
 
 test("read a person's own universe row through a client of their scope at their home, reading every scope", async () => {
@@ -469,25 +474,25 @@ test("read a person's own universe row through a client of their scope at their 
         objects: { person, preference },
         scope: personId,
         caller: principal.user.reference(Scope.universe.id, users.alice),
-        endpoint: served.homeEndpoint,
-        reconnect: unmoved,
-        homes: () => served.homeEndpoint,
         environment: world,
+        remote: ProcedureRemote.at({
+            scope: personId,
+            endpoint: served.homeEndpoint,
+            reconnect: unmoved,
+            homes: () => served.homeEndpoint,
+            environment: world,
+        }),
     });
 
-    // replicate her scope without queries first, then follow her person until it arrives
+    // follow her person until it arrives
     const controller = new AbortController();
-    const failures: unknown[] = [];
-    const loops = client.run(controller.signal, (error) => failures.push(error));
+    const loops = client.run(controller.signal);
+    const failures = () => worldTelemetry(world).exceptions();
     onTestFinished(async () => {
         controller.abort();
         await loops;
         await client.close();
     });
-    await waitFor(
-        client,
-        async () => (await client.replica.position(client.database)) !== undefined,
-    );
     const live = client.query.person
         .findMany({ scopes: "every", where: { id: personId } })
         .subscribe();
@@ -495,7 +500,10 @@ test("read a person's own universe row through a client of their scope at their 
 
     // read the person row her home stores
     const rows = await live.read();
-    expect({ ids: rows.map((row) => row.id), failures }).toEqual({ ids: [personId], failures: [] });
+    expect({ ids: rows.map((row) => row.id), failures: failures() }).toEqual({
+        ids: [personId],
+        failures: [],
+    });
 });
 
 test("push a row of the room's ancestor to a client that subscribed before the room knew its chain", async () => {
@@ -515,7 +523,7 @@ test("push a row of the room's ancestor to a client that subscribed before the r
     await replicatedTo(client, id);
     expect({
         value: Valued.parse(await client.row(client.database, preference, id)).value,
-        failures,
+        failures: failures(),
     }).toEqual({ value: "light", failures: [] });
 });
 
@@ -700,7 +708,7 @@ test("send the undo of a write of an enclosing scope's row to its home", async (
         home: await homeTheme(served.homeDatabase, id),
         replicated: Valued.parse(await client.row(client.database, preference, id)).value,
         writes: served.writes.filter((write) => !write.endsWith("/store/stream")),
-        failures,
+        failures: failures(),
     }).toEqual({
         home: "light",
         replicated: "light",

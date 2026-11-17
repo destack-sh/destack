@@ -329,7 +329,7 @@ export const Nested = {
 
         // require a receiving parent outside the subtree
         if (parent !== undefined) {
-            if (execution.kind === "store") {
+            if (!execution.isPredicted) {
                 await ObjectRecord.requireReceiving(context, execution, parent);
             }
             await Nested.requireOutside(context, parent.id);

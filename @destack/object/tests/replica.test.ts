@@ -332,12 +332,10 @@ test("follow a person's mentions on their behalf as the home they relate, and re
     );
 
     // read the first page of alice's mentions as a space, for the readers below it
-    const subscription = Shape.subscription(
-        spaceId,
-        [{ shape: mentionShape, keys: [{}] }],
-        home,
-        alice,
-    );
+    const subscription = Shape.subscription(spaceId, [{ shape: mentionShape, keys: [{}] }], {
+        target: home,
+        subject: alice,
+    });
     const first = async (context: RequestContext) => {
         const pages = store.source.relayed(
             { ...subscription, revision: FOLLOWER_REVISION },
@@ -412,12 +410,10 @@ test("allow a home's follow on its person's behalf with a token bound to the fol
 
     // follow alice's mentions as her home with a token bound to the followed space, stating its sets
     const home = spacePrincipal(Identifier.create("space", world));
-    const subscription = Shape.subscription(
-        spaceId,
-        [{ shape: mentionShape, keys: [{}] }],
-        home.id,
-        alice,
-    );
+    const subscription = Shape.subscription(spaceId, [{ shape: mentionShape, keys: [{}] }], {
+        target: home.id,
+        subject: alice,
+    });
     const following = new AbortController();
     onTestFinished(() => following.abort());
     const bound = (sets: readonly Subject[]) => {
@@ -494,12 +490,10 @@ test("refuse an anonymous follower of a subject's shape as unauthenticated, and 
 
     // follow alice's mentions without a credential, then as a space she does not relate
     const alice = principal.user.reference("universe", Identifier.create("user", world));
-    const subscription = Shape.subscription(
-        spaceId,
-        [{ shape: mentionShape, keys: [{}] }],
-        spaceId,
-        alice,
-    );
+    const subscription = Shape.subscription(spaceId, [{ shape: mentionShape, keys: [{}] }], {
+        target: spaceId,
+        subject: alice,
+    });
     const first = (context: RequestContext) =>
         store.source.relayed({ ...subscription, revision: FOLLOWER_REVISION }, context).next();
     const anonymous = new RequestContext(new Request("https://test.local"), {

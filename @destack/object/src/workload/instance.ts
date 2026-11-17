@@ -1,3 +1,4 @@
+import { TelemetryScope } from "@destack/telemetry";
 import { waitAborted } from "@destack/environment";
 import { Failure } from "@destack/error";
 import { present, Uuid } from "@destack/schema";
@@ -43,6 +44,8 @@ export class WorkloadInstance implements AsyncDisposable {
     readonly #draining = new Set<Promise<void>>();
     /** The shutdown. */
     #closing?: Promise<void>;
+    /** The instance's captures of failures no caller awaits, on its environment's telemetry. */
+    readonly #instruments: TelemetryScope;
 
     /** Create the instance with its workload, hosting, shutdown, clock and first start. */
     private constructor(
@@ -58,6 +61,10 @@ export class WorkloadInstance implements AsyncDisposable {
         this.#options = options;
         this.#clock = clock;
         this.#current = current;
+        this.#instruments = TelemetryScope.of(
+            import.meta.destack.package,
+            options.environment.telemetry,
+        );
     }
 
     /** Start a workload. */
@@ -129,10 +136,12 @@ export class WorkloadInstance implements AsyncDisposable {
             await previous.stopControllers();
             activation.resolve();
 
-            // drain the previous start, reporting one that fails to drain
+            // drain the previous start, capturing one that fails to drain
             const draining = previous
                 .close()
-                .catch((error: unknown) => this.#options.report(error));
+                .catch((error: unknown) =>
+                    this.#instruments.captureException(error, { isEscaped: true }),
+                );
             this.#draining.add(draining);
             void draining.then(() => this.#draining.delete(draining));
         })();
@@ -252,6 +261,8 @@ class WorkloadStart {
     #hooks: HookHandler | undefined;
     /** The shutdown. */
     #closing?: Promise<void>;
+    /** The start's captures of failures no caller awaits, on its environment's telemetry. */
+    readonly #instruments: TelemetryScope;
 
     /** Prepare a start serving packages with its instance's options, alarm clock and activation. */
     private constructor(serving: {
@@ -260,6 +271,10 @@ class WorkloadStart {
         readonly activation: Promise<void>;
     }) {
         this.#serving = serving;
+        this.#instruments = TelemetryScope.of(
+            import.meta.destack.package,
+            serving.options.environment.telemetry,
+        );
     }
 
     /** Start a workload once, closing what it opened when the start fails. */
@@ -289,7 +304,6 @@ class WorkloadStart {
                 shutdown: () => host.shutdown(),
                 reload: () => host.reload(),
                 serve: (packages) => start.serve(packages),
-                report: (error) => options.report(error),
                 defer: (dispose) => start.#cleanup.defer(dispose),
             });
 
@@ -332,12 +346,12 @@ class WorkloadStart {
             return;
         }
 
-        // run the loop, reporting its failure and marking every server down
+        // run the loop, capturing its failure and marking every server down
         const alarm = clock?.alarm(`store/${Uuid.v4(options.environment.random)}`);
         try {
             await store.run(signal, { sets, ...(alarm === undefined ? {} : { alarm }) });
         } catch (error) {
-            options.report(error);
+            this.#instruments.captureException(error, { isEscaped: true });
 
             // say why with the failure's causes, which a caller of a down server reads
             const causes = Failure.causes(error);
@@ -359,14 +373,13 @@ class WorkloadStart {
             throw new TypeError(`duplicate workload package: '${handle.name}'`);
         }
 
-        // start the server, reporting its failures to the host
+        // start the server, which captures its own failures
         const server = Server.start({
             ...options.serverOptions(handle),
             ...served,
             health: new Health(handle.name),
             resources: options.resources,
             environment: options.environment,
-            report: (error) => options.report(error),
         });
 
         // match each protocol route's path and the paths below it, each parameter one segment
@@ -401,7 +414,9 @@ class WorkloadStart {
         for (const [, served] of replaced) {
             const draining = served.server
                 .close()
-                .catch((error: unknown) => this.#serving.options.report(error));
+                .catch((error: unknown) =>
+                    this.#instruments.captureException(error, { isEscaped: true }),
+                );
             this.#draining.add(draining);
             void draining.then(() => this.#draining.delete(draining));
         }
@@ -528,15 +543,10 @@ export interface WorkloadInstanceOptions {
     readonly ephemeral?: EphemeralHost;
     /** The WebSockets the host hibernates for the instance, absent where it hibernates none. */
     readonly hibernation?: Hibernation;
-    /** Report a failure of the workload's background work to its host. */
-    readonly report: (error: unknown) => void;
     /** The environment the workload runs in: its clock, randomness, crypto and network. */
     readonly environment: Environment;
     /** Select the server options of one served package. */
     readonly serverOptions: (
         handle: Package,
-    ) => Omit<
-        ServerOptions,
-        keyof PackageHandler | "health" | "resources" | "environment" | "report"
-    >;
+    ) => Omit<ServerOptions, keyof PackageHandler | "health" | "resources" | "environment">;
 }

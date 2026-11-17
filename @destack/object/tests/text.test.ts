@@ -1,3 +1,4 @@
+import { worldTelemetry } from "../src/test/world.ts";
 import { testSimulation, testIdentity } from "../src/test/index.ts";
 import { users, userContext } from "./fixture/user.ts";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
@@ -8,7 +9,7 @@ import { PackageVersion } from "@destack/package";
 import { type ClientOptions } from "@destack/object/client";
 import { definePackage } from "@destack/object";
 import { RequestId, Scope } from "@destack/sync";
-import { ObjectClient } from "../src/client/index.ts";
+import { ObjectClient, ProcedureRemote } from "../src/client/index.ts";
 import {
     chunk,
     CHUNK_CHARACTERS,
@@ -131,22 +132,31 @@ async function openClient(world: Environment, name: Identifier<"user">, endpoint
         objects: { document },
         scope: spaceId,
         caller: principal.user.reference("universe", name),
-        endpoint,
-        reconnect: unmoved,
+        remote: ProcedureRemote.at({
+            scope: spaceId,
+            endpoint,
+            reconnect: unmoved,
+            environment: world,
+        }),
     });
     const live = client.query.document.findMany().subscribe();
 
-    // push and follow until the test finishes
-    const errors: unknown[] = [];
+    // push and follow until the test finishes, reading the world's captured failures
     const stop = new AbortController();
-    const running = client.run(stop.signal, (error) => errors.push(error));
+    const running = client.run(stop.signal);
     onTestFinished(async () => {
         stop.abort();
         await running;
         await client.close();
     });
 
-    return { client, live, errors };
+    return {
+        client,
+        live,
+        get errors() {
+            return worldTelemetry(world).exceptions();
+        },
+    };
 }
 
 /** Read each chunk's field, position and characters, in position order. */

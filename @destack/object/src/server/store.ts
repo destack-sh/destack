@@ -23,6 +23,7 @@ import {
     principal,
     Manager,
     universe,
+    decisionTables,
 } from "@destack/access";
 import {
     type ObjectReference,
@@ -45,7 +46,8 @@ import {
     eq,
     Key,
     LogPosition,
-    lte,
+    type Select,
+    type SQL,
     ReadSet,
     Row,
     Snapshot,
@@ -93,8 +95,16 @@ import { Egress } from "../declare/egress.ts";
 import { type MountDeclaration, Package } from "../declare/package.ts";
 import { type ProcedureRouter } from "../procedure/index.ts";
 import * as sync from "@destack/sync";
-import { type Follow, type FollowKey, type RowFollow, Shape } from "../replica/shape.ts";
-import { followKey } from "../replica/key.ts";
+import {
+    defineShape,
+    type OnDemandFollow,
+    type Follow,
+    type FollowKey,
+    type RowFollow,
+    Shape,
+} from "../replica/shape.ts";
+import { followKey, STORE_FOLLOWER } from "../replica/key.ts";
+import { ACCESS_PUBLICATION, QUERIES_PUBLICATION } from "../replica/replica.ts";
 import {
     WriterId,
     storeProcedures,
@@ -132,15 +142,18 @@ import {
     type ResourceControllerOptions,
 } from "./provisioned.ts";
 import type { Resource, ResourceType } from "../trait/provisioned.ts";
+import { ObjectRemote } from "../replica/remote.ts";
+import { Outbox, type OutboxOptions } from "./outbox.ts";
 import { TrackedHistory } from "./tracked.ts";
 import { Settlement } from "./settlement.ts";
 import { TelemetryScope } from "@destack/telemetry";
-import type { StoreExecution } from "../method/execution.ts";
+import type { Execution, StoreExecution } from "../method/execution.ts";
 import type { HookSandbox } from "../hook/sandbox.ts";
 import type { MountFetch, PackageImplementation } from "./implementation.ts";
 import type { Clock, Environment } from "@destack/environment";
 
-import type {} from "@destack/package/import-meta";
+/** How long a scope's access rows stay followed after their last follower: five minutes. */
+const ACCESS_TTL = { minutes: 5 } as const;
 
 /** The prefix of the positions of the store loop's sets in the log. */
 const POSITION_PREFIX = "control:";
@@ -177,18 +190,10 @@ export interface SubscriberEntry {
     readonly subscription: sync.SubscriptionRecord;
     /** The scope whose publisher streams the replica's pages, one step closer to its rows' home. */
     readonly home: string;
-    /** Whether a use acquired the replica's key, as on-demand follows do, not a declaration. */
-    readonly isAcquired: boolean;
 }
 
-/** How a store follows its replicas: the tables relisting them, and the uplink taking changes. */
-export interface SubscriberOptions {
-    /** The link to the replicas' store, receiving this store's changes to them, if it sends any. */
-    readonly uplink?: sync.Uplink;
-}
-
-/** The subscriptions a database follows for its replicas, each from its publisher. */
-export interface Subscriber extends SubscriberOptions {
+/** The subscriptions a database follows for its replicas, each through its home's remote. */
+export interface Subscriber {
     /** List the subscriptions of the store's chains and follows, reusing keys no change touched. */
     readonly subscriptions: (
         view: Snapshot,
@@ -196,6 +201,8 @@ export interface Subscriber extends SubscriberOptions {
     ) => Promise<readonly SubscriberEntry[]>;
     /** Open the publisher streaming a home's replicas. */
     readonly publisher: (home: string) => sync.Publisher;
+    /** The remote taking the store's changes to replicated rows, absent for none. */
+    readonly remote: ObjectRemote | undefined;
 }
 
 /** Where a watermark's history is in a store: the local log, a lost one, its replicas, or none. */
@@ -351,29 +358,17 @@ export interface PendingChain {
 /** The options of an object store: its package servers over one database, and its call log. */
 export type ObjectStoreOptions = Omit<
     StoreComposition,
-    | "objects"
-    | "replicas"
-    | "installed"
-    | "external"
-    | "subscriber"
-    | "provisioned"
-    | "follows"
-    | "principal"
-    | "publisher"
+    "objects" | "replicas" | "installed" | "external" | "provisioned" | "follows" | "principal"
 > &
     CallLog & {
         /** The package servers, the first one running the store's controllers. */
         readonly servers: readonly PackageImplementation[];
         /** The sandboxes of the installations whose packages run here without a workload. */
         readonly sandboxes?: readonly HookSandbox[];
-        /** The followed installation's link for replicated rows' changes, else the publisher. */
-        readonly uplink?: sync.Uplink;
         /** Open a package's release a scope runs, or a given version, absent for none. */
         readonly release?: ObjectStore["release"];
         /** The machine running the servers' provisioned resources, which providers require. */
         readonly machine?: Identifier<"machine">;
-        /** Open the publisher toward a followed scope's home, else the store's uplink. */
-        readonly publisher?: (scope: string) => sync.Publisher;
     } & (
         | {
               /** The principal the store's work runs as. */
@@ -434,18 +429,26 @@ interface StoreComposition {
     readonly connect?: (subject: Subject) => Promise<() => Promise<void>>;
     /** The files with the served external objects, each storing some of their types. */
     readonly external?: readonly ExternalStorage[];
-    /** The subscriptions the database follows to maintain its replicas. */
-    readonly subscriber?: SubscriberOptions;
     /** Read how the store has its scope's chain: home, follower, pending, or absent with none. */
     readonly chain: (view: Snapshot) => Promise<ChainOptions | PendingChain | undefined>;
     /** The shapes the served code reads replicated, with the keys it follows them at. */
     readonly follows?: readonly Follow[];
-    /** Open the publisher toward the home of a scope a follow reads. */
-    readonly publisher?: (scope: string) => sync.Publisher;
+    /** Open the publisher toward a followed scope's home. */
+    readonly publisher?: (home: string) => sync.Publisher;
+    /** The followed installation's remote, taking changes to replicated rows. */
+    readonly remote?: ObjectRemote;
+    /** The outbox of the node's writes of rows homed elsewhere, absent for none. */
+    readonly outbox?: OutboxOptions;
+    /** The device the store runs on, partitioning device-scoped local objects. */
+    readonly device?: Subject;
+    /** The most replicated object rows in the store, absent for no limit. */
+    readonly storage?: { readonly rows: number };
+    /** How often merged changes arrive, such as for a background tab. */
+    readonly refresh?: { readonly every: Duration };
+    /** How long the log retains followed changes, absent for the database's own. */
+    readonly log?: { readonly retention: Duration };
     /** The publications served and followed beside the objects' and policies' ones. */
     readonly publications?: readonly sync.Publication[];
-    /** Report failed settlements, thrown when absent. */
-    readonly report?: (error: unknown) => void;
     /** Whether reads of the objects record access events, as the space's audit setting asks. */
     readonly isAccessAudited?: boolean;
     /** The environment calls run and controllers reconcile in: its clock and randomness. */
@@ -498,16 +501,34 @@ export class ObjectStore {
     readonly chain: (view: Snapshot) => Promise<ChainOptions | PendingChain | undefined>;
     /** The publications the store serves and follows beside its objects' and policies' ones. */
     readonly publications: readonly sync.Publication[];
-    /** Stream served row replicas to an in-process follower, running its changes as principal. */
-    readonly uplink: sync.Uplink;
+    /** The store as an in-process follower's remote, running calls as their signer. */
+    readonly remote: ObjectRemote;
+    /** The store's writer of ephemeral rows at the homes it follows, one per process. */
+    readonly writerId: string;
+    /** The device the store runs on, partitioning device-scoped local objects. */
+    readonly device: Subject | undefined;
+    /** The most replicated object rows in the store, absent for no limit. */
+    readonly storage: { readonly rows: number } | undefined;
+    /** How often the followed replicas' merged changes arrive, absent for each change. */
+    readonly refresh: { readonly every: Duration } | undefined;
+    /** How long the log retains followed changes in milliseconds, absent for none. */
+    readonly #retention: number | undefined;
+    /** The moment after which compacting the log is due, at once on start. */
+    #compactionDue = 0;
+    /** The listeners of the events the followed replicas bring, by topic. */
+    readonly #listeners = new Map<string, Set<(event: JsonValue) => void>>();
+    /** The listeners of the followed replicas' refusals. */
+    readonly #refusals = new Set<(error: unknown) => void>();
+    /** The relays of every event the followed replicas bring. */
+    readonly #relays = new Set<(broadcasts: readonly sync.Broadcast[]) => void>();
+    /** The node's writes of rows homed elsewhere, absent for a store writing none. */
+    readonly outbox: Outbox | undefined;
     /** Open an audit recorder for a scope and caller, with its calls' request and component. */
     readonly audit: (
         scope: string,
         caller: AccessContext,
         options: AuditRecorderOptions,
     ) => AuditRecorder;
-    /** Report failed settlements. */
-    readonly #report: (error: unknown) => void;
     /** The object call spans, on the environment's telemetry. */
     readonly #instruments: TelemetryScope;
     /** The environment calls run and controllers reconcile in: its clock and randomness. */
@@ -565,10 +586,10 @@ export class ObjectStore {
             environment: given.environment,
         });
 
-        // run as the installation serving the store, else as the given principal, refusing a second uplink
-        const { server, uplink } = given;
-        if (server !== undefined && uplink !== undefined) {
-            throw new TypeError("an installation's replicas must leave through its publisher");
+        // run as the installation serving the store, else as the given principal, refusing a second remote
+        const { server } = given;
+        if (server !== undefined && given.remote !== undefined) {
+            throw new TypeError("an installation's replicated rows must change through its remote");
         }
         this.principal =
             server === undefined
@@ -588,7 +609,6 @@ export class ObjectStore {
         this.isAccessAudited = given.isAccessAudited ?? false;
         this.origin = { ...given.origin, package: PackageVersion.of(given.origin.package) };
         this.#configuration = given.configuration ?? null;
-        this.#report = given.report ?? ((error) => ObjectStore.#rethrow(error));
         this.#instruments = TelemetryScope.of(
             import.meta.destack.package,
             given.environment.telemetry,
@@ -610,6 +630,14 @@ export class ObjectStore {
         this.feed = new sync.Feed(given.database, this.#catalog.tables, {});
         this.#declare();
 
+        // place the follows' replicas, write ephemeral rows as one writer, and bound the replicas by the budget
+        this.writerId = RequestId.create(this.environment);
+        this.device = given.device;
+        this.storage = given.storage;
+        this.refresh = given.refresh;
+        this.#retention =
+            given.log === undefined ? undefined : Duration.milliseconds(given.log.retention);
+
         // follow the replicas, publishing a partition through its installation's root
         const isPartition = server?.partition !== undefined && server.partition !== server.scope;
         const publisher =
@@ -617,13 +645,14 @@ export class ObjectStore {
                 ? ObjectStore.#partitionPublisher(server, () => this, given.publisher)
                 : given.publisher;
         this.subscriber = this.#following(
-            server === undefined ? uplink : server.publisher,
+            server === undefined ? given.remote : server.remote,
             publisher,
         );
-        this.uplink = this.#uplink();
+        this.remote = this.#remote();
+        this.outbox = given.outbox === undefined ? undefined : new Outbox(this, given.outbox);
 
         // record the calls, the audit and the replicas
-        this.#journal = ObjectStore.#journalOf(this.#catalog.isServing, given);
+        this.#journal = ObjectStore.#journalOf(this.#catalog, given);
         this.audit = (scope, caller, recording) =>
             AuditRecorder.scoped(this.journal, this.origin)(scope, caller, recording);
         this.source = new ObjectSource(this);
@@ -677,17 +706,23 @@ export class ObjectStore {
 
     /** The tables whose changes relist the replicas: the chains', the follows' and their keys. */
     get watched(): readonly Table[] {
-        // relist when chained or followed rows change, and when the store acquires or evicts a key
+        // relist when chained rows or declared follows' rows change, which a host's chain may read, and when the store acquires or evicts a key
         const { follows, chained } = this.#catalog;
+        const declared = follows.filter((each) => !("onDemand" in each));
 
         return this.subscriber === undefined
             ? []
             : [
                   ...chained,
-                  ...follows.flatMap((each) => each.shape.objects.map((type) => type.table)),
+                  ...declared.flatMap((each) => each.shape.objects.map((type) => type.table)),
                   ...follows.flatMap((each) => ("from" in each ? [each.from.table] : [])),
-                  ...(follows.some((each) => "onDemand" in each) ? [followKey] : []),
+                  ...(this.#isFollowingOnDemand ? [followKey] : []),
               ];
+    }
+
+    /** Whether the store follows some shapes on demand, by keys it acquires and lets lapse. */
+    get #isFollowingOnDemand(): boolean {
+        return this.#catalog.follows.some((each) => "onDemand" in each);
     }
 
     /** The served packages' implementations, in the order of their servers. */
@@ -762,8 +797,24 @@ export class ObjectStore {
     }
 
     /** The on-demand follows of the rows standing for callers, acquired where they are missing. */
-    get standing(): readonly Extract<Follow, { readonly onDemand: unknown }>[] {
+    get standing(): readonly OnDemandFollow[] {
         return this.#catalog.standing;
+    }
+
+    /** The on-demand follow of a scope's access rows, keyed by scope alone. */
+    static readonly ACCESS_FOLLOW: OnDemandFollow<Record<string, never>> = defineShape({
+        name: ACCESS_PUBLICATION,
+        parameters: schema.object({}),
+        objects: [],
+        queries: () => [],
+    }).onDemand(ACCESS_TTL);
+
+    /** The on-demand follow of followers' queries, absent at their home. */
+    get queriesFollow(): OnDemandFollow | undefined {
+        return this.#catalog.follows.find(
+            (follow): follow is OnDemandFollow =>
+                "onDemand" in follow && follow.shape.name === QUERIES_PUBLICATION,
+        );
     }
 
     /** The types follower replicas compile against: the followed shapes' and the decided. */
@@ -833,23 +884,21 @@ export class ObjectStore {
 
     /** Follow the catalog's follows and the chains, absent for a root store following nothing. */
     #following(
-        uplink: sync.Uplink | undefined,
-        publisher: ((scope: string) => sync.Publisher) | undefined,
+        remote: ObjectRemote | undefined,
+        publisher: ((home: string) => sync.Publisher) | undefined,
     ): Subscriber | undefined {
         // leave a root store, which follows nothing, without a subscriber
-        if (this.#catalog.follows.length === 0 && uplink === undefined && publisher === undefined) {
+        if (this.#catalog.follows.length === 0 && remote === undefined && publisher === undefined) {
             return undefined;
         }
 
-        // place the replicas below the store's scope or partition, toward each scope's home
+        // place the replicas in the store's scope, toward each scope's home
         const target = this.scope;
-        const publisherOf = (scope: string) =>
-            publisher?.(scope) ?? present(uplink, `the publisher of ${scope}`);
 
         // follow the current catalog's follows' keys and the chains
         return {
-            ...(uplink === undefined ? {} : { uplink }),
-            publisher: publisherOf,
+            remote,
+            publisher: (home) => publisher?.(home) ?? present(remote, `the publisher of ${home}`),
             subscriptions: async (view, changes) => {
                 // follow the follows' keys, then the chains
                 const followed = await ObjectStore.#followSubscriptions(
@@ -858,10 +907,13 @@ export class ObjectStore {
                     { target, view, ...(changes === undefined ? {} : { changes }) },
                 );
                 const chainedEntries = (await this.sink.chains(target, view)).map(
-                    ({ subscription, home }) => ({ subscription, home, isAcquired: false }),
+                    ({ subscription, home }) => ({ subscription, home }),
                 );
 
-                return [...chainedEntries, ...followed];
+                // follow the principal's access rows in each scope a predicting store follows anything at
+                const access = this.outbox === undefined ? [] : await this.#accessEntries(view);
+
+                return [...chainedEntries, ...access, ...followed];
             },
         };
     }
@@ -967,28 +1019,121 @@ export class ObjectStore {
         return [...described.values()];
     }
 
-    /** Stream served row replicas to in-process followers, and run the changes they send. */
-    #uplink(): sync.Uplink {
+    /** The replica of the principal's access rows in a scope, which a predicting store follows. */
+    accessReplica(scope: string): sync.Replica {
+        return new sync.Replica({
+            name: `${ACCESS_PUBLICATION}:${scope}`,
+            scope,
+            tables: decisionTables,
+        });
+    }
+
+    /** Report whether a scope's rows live here: the principal's, the device's or the store's. */
+    isOwn(scope: string): boolean {
+        return scope === this.principal.id || scope === this.device?.id || scope === this.scope;
+    }
+
+    /** List the access replicas a predicting store follows: one per scope of replicated rows. */
+    async #accessEntries(view: Snapshot): Promise<SubscriberEntry[]> {
+        // read the scopes of the keys followed open or not yet lapsed in one read, but local objects' keys
+        const rows = await view.read(followKey).findMany({
+            where: {
+                OR: [{ expiresAt: { isNull: true } }, { expiresAt: { gt: this.clock.now() } }],
+            },
+        });
+        const scopes = [
+            ...new Set(rows.filter((row) => this.#isReplicatedKey(row)).map((row) => row.scope)),
+        ].toSorted();
+
+        // follow each scope's access rows at its home, placed in the store's scope
+        return scopes.map((scope) => ({
+            subscription: this.source.accessPublication.subscription({
+                name: this.accessReplica(scope).name,
+                scope,
+                target: this.scope,
+                parameters: {},
+            }),
+            home: scope,
+        }));
+    }
+
+    /** Report whether a followed key's queries read replicated rows, not only local objects. */
+    #isReplicatedKey(row: { readonly shape: string; readonly parameters: string }): boolean {
+        // count a key of a shape the catalog does not follow on demand, such as access rows, as replicated
+        const follow = this.#catalog.follows.find(
+            (each) => "onDemand" in each && each.shape.name === row.shape,
+        );
+        if (follow === undefined) {
+            return true;
+        }
+
+        // read the types the key's queries read, replicated when any is not local
+        const { shape } = follow;
+        const queries = shape.queries(shape.parameters.parse(JSON.parse(row.parameters)));
+
+        return queries.some((query) =>
+            shape.objects.some(
+                (type) =>
+                    type.name === query.object &&
+                    type.package.id === query.package &&
+                    type.storage !== "local",
+            ),
+        );
+    }
+
+    /** Read the principal's access in a scope with the groups its access replica vouches for. */
+    async callerContext(
+        scope: string,
+        database: DatabaseConnection = this.database,
+    ): Promise<AccessContext> {
+        const subjects = await this.accessReplica(scope).subjects(database);
+        const groups = subjects.filter((subject) => !Subject.same(subject, this.principal));
+
+        return AccessContext.of({ ...Caller.of(this.principal), groups }, this.clock.now());
+    }
+
+    /** Serve in-process followers: stream its replicas, and run their calls as the signer. */
+    #remote(): ObjectRemote {
+        const moves = new AbortController().signal;
+        const callerOf = (signer: Subject | undefined) =>
+            AccessContext.of(
+                Caller.of(present(signer, "the signer of an in-process follower's call")),
+                this.clock.now(),
+            );
+
         return {
             stream: (subscription, signal) => this.source.publish(subscription, signal),
             request: (subscription) => this.source.request(subscription),
-            receive: (mutation, signer) => {
-                // run the changes as the follower's principal
-                if (signer === undefined) {
-                    throw new TypeError("an in-process change has no sending principal");
+            push: (home, push) =>
+                this.#pushAs(home, push.mutations, callerOf(push.signer), {
+                    ...(push.writerId === undefined ? {} : { writerId: push.writerId }),
+                    ...(push.origin === undefined ? {} : { origin: push.origin }),
+                }),
+            call: async (scope, call, signer) =>
+                schema.json().parse(await this.query(callerOf(signer), this.#place(call, scope))),
+            broadcast: async (scope, object, event, signer) => {
+                // send an event of a type served here to its readers, else through the remote toward its home
+                const served = this.objects.some(
+                    (type) =>
+                        type.name === object.type &&
+                        type.policy.definition.packageId === object.packageId,
+                );
+                if (served) {
+                    await this.source.broadcast(scope, object, event, callerOf(signer));
+                } else {
+                    const publisher = present(
+                        this.subscriber,
+                        `the home of '${object.type}'`,
+                    ).publisher(scope);
+                    const remote = present(
+                        ObjectRemote.is(publisher) ? publisher : undefined,
+                        `the remote toward the home of '${object.type}'`,
+                    );
+                    await remote.broadcast(scope, object, event);
                 }
-
-                return this.receive(mutation, signer);
             },
-            call: (call, scope, signer) => {
-                // answer the query as the follower's principal in the scope it reads
-                if (signer === undefined) {
-                    throw new TypeError("an in-process query has no sending principal");
-                }
-                const caller = AccessContext.of(Caller.of(signer), this.clock.now());
-
-                return this.query(caller, this.#place(call, scope));
-            },
+            moves,
+            redirect: () => false,
         };
     }
 
@@ -1014,16 +1159,17 @@ export class ObjectStore {
 
     /** Open a method store's journal with its call key, refusing a call key without methods. */
     static #journalOf(
-        isServing: boolean,
+        catalog: Pick<Catalog, "isServing" | "hasMethods">,
         options: Pick<ObjectStoreOptions, "database" | "callKey" | "environment" | "events">,
     ): Journal | undefined {
-        // require the call key and the event log recording the calls of a store serving methods
+        // require the call key and the event log recording the calls of a store serving methods, refusing them without any
         const { callKey, events } = options;
+        const { isServing } = catalog;
         if (isServing && callKey === undefined) {
             throw new TypeError("a store with methods needs the call key of its journal");
         } else if (isServing && (events === undefined || !events.has(Journal.kind))) {
             throw new TypeError("a store with methods needs an event log for its calls");
-        } else if (!isServing && callKey !== undefined) {
+        } else if (!catalog.hasMethods && callKey !== undefined) {
             throw new TypeError("a store without methods has no journal and no call key");
         }
 
@@ -1112,51 +1258,25 @@ export class ObjectStore {
 
     /** Follow a shape's key on demand until it lapses, waiting a bounded time for the replica. */
     async acquire<Parameters extends object>(
-        follow: Extract<Follow<Parameters>, { readonly onDemand: unknown }>,
+        follow: OnDemandFollow<Parameters>,
         at: FollowKey<Parameters>,
         signal?: AbortSignal,
     ): Promise<void> {
-        // read the key's parameters and the principal its replica is decided for
+        // read when the store's own follow of the key lapses
         const { shape, onDemand } = follow;
-        const { scope, ...rest } = at.key;
-        const parameters = shape.parameters.parse(rest);
-        const followed = {
-            shape: shape.name,
-            scope,
-            parameters: canonicalize(parameters),
-            subject: canonicalize(at.subject ?? this.principal),
-        };
-
-        // renew a key past half its time, evicting the lapsed ones as the store writes
-        const now = this.clock.now();
-        const ttl = Duration.milliseconds(onDemand.ttl);
+        const { scope } = at.key;
+        const key = this.#followKey(STORE_FOLLOWER, follow, at);
         const [current] = await this.database
             .select({ expiresAt: followKey.expiresAt })
             .from(followKey)
-            .where(
-                and(
-                    eq(followKey.shape, followed.shape),
-                    eq(followKey.scope, followed.scope),
-                    eq(followKey.parameters, followed.parameters),
-                    eq(followKey.subject, followed.subject),
-                ),
-            );
-        if (current === undefined || current.expiresAt - now < ttl / 2) {
-            await this.database.transaction(async (transaction) => {
-                await transaction.delete(followKey).where(lte(followKey.expiresAt, now));
-                await transaction
-                    .insert(followKey)
-                    .values({ ...followed, expiresAt: now + ttl })
-                    .onConflictDoUpdate({
-                        target: [
-                            followKey.shape,
-                            followKey.scope,
-                            followKey.parameters,
-                            followKey.subject,
-                        ],
-                        set: { expiresAt: now + ttl },
-                    });
-            });
+            .where(ObjectStore.#isFollowKey(key));
+
+        // renew it past half its time
+        const now = this.clock.now();
+        const ttl = Duration.milliseconds(onDemand.ttl);
+        const lapses = current?.expiresAt ?? undefined;
+        if (lapses === undefined || lapses - now < ttl / 2) {
+            await this.#writeFollowKeys([key], now + ttl);
         }
 
         // wait on commits until the synced replica follows the key's queries, refusing a late one
@@ -1175,6 +1295,178 @@ export class ObjectStore {
                 "REPLICA_UNAVAILABLE",
                 `replica '${shape.name}' of '${scope}' is unavailable: it is still syncing`,
                 { data: { retryAfter: REPLICA_RETRY_MILLISECONDS } },
+            );
+        }
+    }
+
+    /** Follow some keys on demand for a follower until it unfollows them, in one transaction. */
+    async follow<Parameters extends object>(
+        follower: string,
+        follow: OnDemandFollow<Parameters>,
+        keys: readonly FollowKey<Parameters>[],
+    ): Promise<void> {
+        const rows = keys.map((at) => this.#followKey(follower, follow, at));
+        await this.#writeFollowKeys(rows, null);
+    }
+
+    /** Stop following some keys for a follower, now or after a time to live, in one transaction. */
+    async unfollow<Parameters extends object>(
+        follower: string,
+        follow: OnDemandFollow<Parameters>,
+        keys: readonly FollowKey<Parameters>[],
+        ttl?: Duration,
+    ): Promise<void> {
+        // drop the keys at once, or let them lapse after their time to live
+        const rows = keys.map((at) => this.#followKey(follower, follow, at));
+        if (rows.length === 0) {
+            return;
+        } else if (ttl === undefined) {
+            await this.database.transaction(async (transaction) => {
+                for (const row of rows) {
+                    await transaction.delete(followKey).where(ObjectStore.#isFollowKey(row));
+                }
+            });
+        } else {
+            await this.#writeFollowKeys(rows, this.clock.now() + Duration.milliseconds(ttl));
+        }
+    }
+
+    /** List the keys the store follows on demand, with their followers and lapses. */
+    async followKeys(): Promise<
+        {
+            readonly shape: string;
+            readonly scope: string;
+            readonly parameters: JsonObject;
+            readonly follower: string;
+            readonly expiresAt: number | null;
+        }[]
+    > {
+        const rows = await Snapshot.live(this.database)
+            .read(followKey)
+            .findMany({ orderBy: { follower: "asc" } });
+
+        return rows.map((row) => ({
+            shape: row.shape,
+            scope: row.scope,
+            parameters: schema.jsonObject().parse(JSON.parse(row.parameters)),
+            follower: row.follower,
+            expiresAt: row.expiresAt,
+        }));
+    }
+
+    /** Read a follower's row key of a follow's key. */
+    #followKey<Parameters extends object>(
+        follower: string,
+        follow: OnDemandFollow<Parameters>,
+        at: FollowKey<Parameters>,
+    ): Omit<Select<typeof followKey>, "expiresAt"> {
+        const { scope, ...rest } = at.key;
+
+        return {
+            shape: follow.shape.name,
+            scope,
+            parameters: canonicalize(follow.shape.parameters.parse(rest)),
+            subject: canonicalize(at.subject ?? this.principal),
+            follower,
+        };
+    }
+
+    /** Write followed keys' lapse or open them in one transaction, evicting lapsed keys. */
+    async #writeFollowKeys(
+        keys: readonly Omit<Select<typeof followKey>, "expiresAt">[],
+        expiresAt: number | null,
+    ): Promise<void> {
+        if (keys.length === 0) {
+            return;
+        }
+        await this.database
+            .insert(followKey)
+            .values(keys.map((key) => ({ ...key, expiresAt })))
+            .onConflictDoUpdate({
+                target: [
+                    followKey.shape,
+                    followKey.scope,
+                    followKey.parameters,
+                    followKey.subject,
+                    followKey.follower,
+                ],
+                set: { expiresAt },
+            });
+    }
+
+    /** Match a follower's row of a key. */
+    static #isFollowKey(key: Omit<Select<typeof followKey>, "expiresAt">): SQL<boolean> {
+        return and(
+            eq(followKey.shape, key.shape),
+            eq(followKey.scope, key.scope),
+            eq(followKey.parameters, key.parameters),
+            eq(followKey.subject, key.subject),
+            eq(followKey.follower, key.follower),
+        );
+    }
+
+    /** Listen to the refusals of the followed replicas' sources, until the returned stop. */
+    listenRefusals(listener: (error: unknown) => void): () => void {
+        this.#refusals.add(listener);
+
+        return () => this.#refusals.delete(listener);
+    }
+
+    /** Hand a followed replica's refusal to the listeners. */
+    refuse(error: unknown): void {
+        for (const listener of this.#refusals) {
+            listener(error);
+        }
+    }
+
+    /** Relay every event the followed replicas bring to a listener until stopped. */
+    relay(listener: (broadcasts: readonly sync.Broadcast[]) => void): () => void {
+        this.#relays.add(listener);
+
+        return () => this.#relays.delete(listener);
+    }
+
+    /** Listen to the events a followed replica brings for a topic, until the returned stop. */
+    listen(topic: string, listener: (event: JsonValue) => void): () => void {
+        // add the listener to the topic's, removing the topic with its last one
+        const listeners = this.#listeners.get(topic) ?? new Set();
+        listeners.add(listener);
+        this.#listeners.set(topic, listeners);
+
+        return () => {
+            listeners.delete(listener);
+            if (listeners.size === 0) {
+                this.#listeners.delete(topic);
+            }
+        };
+    }
+
+    /** Take a followed page: its mutation outcomes and events, compacting the log when due. */
+    async receive(page: sync.Page): Promise<void> {
+        // end this node's mutations its source queued and its homes ran
+        if (page.outcomes !== undefined && page.outcomes.length > 0) {
+            await this.outbox?.receive(page.outcomes);
+        }
+
+        // deliver the events to their topics' listeners and the relays
+        const broadcasts = page.broadcasts ?? [];
+        for (const { topic, event } of broadcasts) {
+            for (const listener of this.#listeners.get(topic) ?? []) {
+                listener(event);
+            }
+        }
+        if (broadcasts.length > 0) {
+            for (const relay of this.#relays) {
+                relay(broadcasts);
+            }
+        }
+
+        // compact the log by its retention
+        if (this.#retention !== undefined) {
+            this.#compactionDue = await this.database.log.compactIfDue(
+                this.#retention,
+                this.#compactionDue,
+                this.clock.now(),
             );
         }
     }
@@ -1324,9 +1616,15 @@ export class ObjectStore {
         const store = implement(storeProcedures).$context<RequestContext>();
 
         return store.router({
-            push: store.push.handler(({ input, context }) =>
-                this.#push(input.scope, input.mutations, context, input.writerId),
-            ),
+            push: store.push.handler(async ({ input, context }) => {
+                // enter the pushed scope as the request's caller, and run the mutations as it
+                await this.enter(context, input.scope, true);
+
+                return this.#pushAs(input.scope, input.mutations, context.access(input.scope), {
+                    ...(input.writerId === undefined ? {} : { writerId: input.writerId }),
+                    ...(input.origin === undefined ? {} : { origin: input.origin }),
+                });
+            }),
             watermark: store.watermark.handler(async ({ input, context }) => {
                 // read the scope's watermark once its replicas have the homes' commits
                 await this.enter(context, input.scope, false);
@@ -1350,14 +1648,15 @@ export class ObjectStore {
 
                 return await this.#answer(object, name, called, context);
             }),
-            receive: store.receive.handler(async ({ input, context }) => {
-                // run the follower's mutation as the caller the route's identity verified
-                const results = await this.receiveFrom(input.mutation, context.access());
-
-                return { results: results.map((result) => schema.json().parse(result ?? null)) };
-            }),
             broadcast: store.broadcast.handler(async ({ input, context }) => {
-                await this.source.broadcast(input.scope, input.object, input.event, context);
+                // send as the request's caller, in the scope it entered
+                await this.enter(context, input.scope, false);
+                await this.source.broadcast(
+                    input.scope,
+                    input.object,
+                    input.event,
+                    context.access(input.scope),
+                );
 
                 return {};
             }),
@@ -1578,15 +1877,29 @@ export class ObjectStore {
             return this.#mutateInside(options.transaction, mutation, caller, options);
         }
 
-        // run a change of rows replicated here at their home as the caller's subject, within its grant
-        if (this.#isForwarded(mutation)) {
+        // write a change of the store's own local objects without a journal, as their device writes them for its tabs
+        if (this.#journal === undefined && mutation.calls.every((call) => this.#isLocal(call))) {
+            return this.database.transaction((transaction) =>
+                this.predict(transaction, mutation, caller),
+            );
+        }
+
+        // write a change of rows homed elsewhere through its route within the caller's grant: queued and
+        //  predicted at a node answering before its home, else run at the home as the caller's subject
+        const home = this.#isForwarded(mutation) ? await this.#homeOf(mutation) : undefined;
+        if (home !== undefined) {
             for (const call of mutation.calls) {
                 await this.#requireForwardable(caller, call);
             }
-            const forwarded = await this.#forward(mutation, caller.subject);
-            if (forwarded !== undefined) {
-                return forwarded;
+            const sent = sync.Mutation.parse(mutation);
+
+            if (this.outbox === undefined) {
+                return ObjectRemote.run(home.remote, home.home, sent, caller.subject);
             }
+            const origin = Outbox.origin(caller.subject);
+            await this.outbox.queue(sent, origin);
+
+            return this.outbox.results(sent.id, origin);
         }
 
         // resolve each call in one scope, of methods the caller's grant allows
@@ -1633,6 +1946,53 @@ export class ObjectStore {
         return zip(results, calls)
             .filter(([, call]) => call.as === undefined)
             .map(([result]) => result);
+    }
+
+    /** Predict a mutation of rows homed elsewhere, writing its calls' changes. */
+    async predict(
+        database: DatabaseConnection,
+        mutation: { readonly id: string; readonly calls: readonly sync.Call[] },
+        caller: AccessContext,
+    ): Promise<unknown[]> {
+        // run each predicted call in one transaction over the replica, as the caller
+        const transaction = await Transaction.open(database);
+        const results: unknown[] = [];
+        for (const entry of mutation.calls) {
+            const { object, name, input } = ObjectType.resolve(
+                [...this.objects, ...this.replicas],
+                entry,
+                true,
+                CallSite.store,
+            );
+            const method = object.method(name);
+
+            // leave an unpredicted call to its home
+            if (!method.isPredicted) {
+                results.push(undefined);
+            }
+            // execute a predicted one over the replica, leaving the caller's access to its home
+            else {
+                const { context, execution } = await this.#predictedContext(
+                    transaction,
+                    this.served(object),
+                    name,
+                    input,
+                    caller,
+                    mutation.id,
+                );
+                results.push(await method.execute(context, execution));
+            }
+        }
+
+        // write the predicted changes into the database
+        await transaction.changes.apply(database);
+
+        return results;
+    }
+
+    /** Report whether a call changes a local object this store serves. */
+    #isLocal(call: sync.Call): boolean {
+        return ObjectType.find(this.objects, call)?.storage === "local";
     }
 
     /** Place a call without a scope in one, by its served or replicated type's route field. */
@@ -2004,44 +2364,53 @@ export class ObjectStore {
     }
 
     /** Run a client's pushed mutations in order as its caller, returning the scope's watermark. */
-    async #push(
+    async #pushAs(
         scope: string,
         mutations: readonly sync.Mutation[],
-        context: RequestContext,
-        writerId?: string,
+        caller: AccessContext,
+        pusher: { readonly writerId?: string; readonly origin?: string } = {},
     ): Promise<PushResult> {
-        // enter the pushed scope as the request's caller
-        await this.enter(context, scope, true);
-        const caller = context.access(scope);
-
-        // run each mutation in a separate transaction
+        // run each mutation in a separate transaction, or queue it, answering this store's watermark
+        const { writerId, origin } = pusher;
         const outcomes: PushResult["outcomes"][number][] = [];
+        const queued: string[] = [];
         for (const pushed of mutations) {
             const mutation = {
                 ...pushed,
                 calls: pushed.calls.map((call) => this.#place(call, scope)),
             };
             try {
-                // refuse a mutation of replicated rows, which only their home writes
-                this.#requireServed(mutation);
-
-                // require the pushed scope to be the home running the mutation
-                const first = this.#resolve(nth(mutation.calls, 0), true, CallSite.of(caller));
+                // require the pushed scope to be the home running the mutation, a replicated type's for a forwarded one
+                const leading = nth(mutation.calls, 0);
+                const site = CallSite.of(caller);
+                const first = this.#isUplinked(leading)
+                    ? ObjectType.resolve(this.replicated, leading, true, site)
+                    : this.#resolve(leading, true, site);
                 if (first.object.readScope(first.name, first.input) !== scope) {
                     throw ObjectError.of(
                         "SCOPE_INVALID",
                         `mutation pushed to '${scope}' is invalid: it acts in another scope`,
                     );
                 }
-                const written = await this.mutate(
-                    caller,
-                    mutation,
-                    writerId === undefined ? {} : { writerId },
-                );
-                outcomes.push({
-                    id: mutation.id,
-                    outcome: { value: schema.json().parse(written) },
-                });
+                // queue a change of rows homed elsewhere for the pushing party, answering at once, else run it here
+                const home =
+                    this.outbox !== undefined && this.#isForwarded(mutation)
+                        ? await this.#homeOf(mutation)
+                        : undefined;
+                if (this.outbox !== undefined && home !== undefined) {
+                    await this.outbox.queue(mutation, origin ?? Outbox.origin(caller.subject));
+                    queued.push(mutation.id);
+                } else {
+                    const written = await this.mutate(
+                        caller,
+                        mutation,
+                        writerId === undefined ? {} : { writerId },
+                    );
+                    outcomes.push({
+                        id: mutation.id,
+                        outcome: { value: schema.json().parse(written) },
+                    });
+                }
             } catch (error) {
                 // record final failures, rethrow transient ones
                 const failure = Replay.failure(error);
@@ -2052,7 +2421,7 @@ export class ObjectStore {
             }
         }
 
-        return { outcomes, watermark: await this.watermark(scope) };
+        return { outcomes, queued, watermark: await this.watermark(scope) };
     }
 
     /** Find the served replica of an object type with the store's handlers. */
@@ -2097,35 +2466,7 @@ export class ObjectStore {
         );
     }
 
-    /** Run a mutation another in-process store sent once, as its principal, answering results. */
-    async receive(mutation: sync.Mutation, as: Subject): Promise<readonly unknown[]> {
-        // pass changes of replicated rows to their home, else run them here under the sent request
-        const forwarded = await this.#forward(mutation, this.principal);
-
-        return (
-            forwarded ??
-            this.#mutate(AccessContext.of(Caller.of(as), this.clock.now()), mutation, {})
-        );
-    }
-
-    /** Run a follower's mutation of the served rows as the caller, answering its results. */
-    async receiveFrom(
-        transaction: sync.Mutation,
-        caller: AccessContext,
-    ): Promise<readonly unknown[]> {
-        // pass an installation's change of replicated rows toward their home
-        if (principal.installation.is(caller.subject) && this.#isForwarded(transaction)) {
-            return (await this.#readHomeAll(transaction)).receive(transaction, caller.subject);
-        }
-        // run the served rows' change as the caller, refusing anyone else's change of replicated rows
-        else {
-            this.#requireServed(transaction);
-
-            return this.#mutate(caller, transaction, {});
-        }
-    }
-
-    /** Report whether every call of a mutation changes rows replicated over the uplink. */
+    /** Report whether every call of a mutation changes rows replicated here from their home. */
     #isForwarded(transaction: { readonly calls: readonly sync.Call[] }): boolean {
         return (
             this.subscriber !== undefined &&
@@ -2185,7 +2526,7 @@ export class ObjectStore {
             release: object.package.version,
             edition: Edition.of(object.conversions(name)),
         };
-        const home = await this.#readHome(call);
+        const home = await this.remoteOf(call);
         if (home === undefined) {
             throw ObjectError.of(
                 "HOME_HANDLER_REQUIRED",
@@ -2193,55 +2534,19 @@ export class ObjectStore {
             );
         }
 
-        return home.call(call, scope, caller.subject);
+        return home.call(scope, call, caller.subject);
     }
 
-    /** Report whether a call's type's rows replicate over the uplink instead of living here. */
+    /** Report whether a call's type's rows replicate from their home instead of living here. */
     #isUplinked(call: sync.Call): boolean {
         const object = ObjectType.find(this.replicated, call);
 
         return object !== undefined && !this.objects.some((served) => served.same(object));
     }
 
-    /** Find the one publisher receiving a replicated rows mutation, refusing one spanning homes. */
-    async #readHomeAll(transaction: sync.Mutation): Promise<sync.Uplink> {
-        // require one home for every call, refusing calls nothing here receives
-        const homes = await Promise.all(transaction.calls.map((call) => this.#readHome(call)));
-        const [home] = homes;
-        if (homes.includes(undefined)) {
-            throw ObjectError.of(
-                "REPLICA_RECEIVER_REQUIRED",
-                "receiver of replicated row changes is required",
-            );
-        } else if (home === undefined || homes.some((each) => each !== home)) {
-            throw ObjectError.of(
-                "HOMES_INVALID",
-                "mutation is invalid: a mutation of replicated rows must change rows of one home",
-            );
-        }
-
-        return home;
-    }
-
-    /** Refuse a mutation changing rows this store only replicates, since their home writes them. */
-    #requireServed(transaction: { readonly calls: readonly sync.Call[] }): void {
-        // find each call's type that no served object has
-        const replicas = transaction.calls
-            .filter((call) => ObjectType.find(this.objects, call) === undefined)
-            .map((call) => call.type.type);
-        if (replicas.length === 0) {
-            return;
-        }
-
-        throw ObjectError.of(
-            "REPLICA_BLOCKED",
-            `cannot change rows '${[...new Set(replicas)].join(", ")}': they are replicas here, so change them at their home`,
-        );
-    }
-
-    /** Find the publisher receiving a change of replicated rows. */
-    async #readHome(call: sync.Call): Promise<sync.Uplink | undefined> {
-        // find the replica of the call's table in its scope whose publisher receives changes
+    /** Find the remote taking a change of replicated rows, else the store's remote. */
+    async remoteOf(call: sync.Call): Promise<ObjectRemote | undefined> {
+        // find the replica of the call's table in its scope
         const object = ObjectType.find(this.replicated, call);
         const scope = object?.readScope(call.method, call.input);
         const entries = await this.sink.followed();
@@ -2249,51 +2554,69 @@ export class ObjectStore {
             const replica = this.source.buildReplica(subscription);
 
             return (
-                ObjectStore.#isUplink(publisher) &&
+                ObjectRemote.is(publisher) &&
                 replica.scope === scope &&
                 object !== undefined &&
                 replica.tables.includes(object.table)
             );
         });
 
-        // fall back to the subscriber's uplink
+        // fall back to the store's remote
         const publisher = home?.publisher;
 
-        return publisher !== undefined && ObjectStore.#isUplink(publisher)
+        return publisher !== undefined && ObjectRemote.is(publisher)
             ? publisher
-            : this.subscriber?.uplink;
+            : this.subscriber?.remote;
     }
 
-    /** Pass a mutation of replicated rows to their one home once per request, answering results. */
-    async #forward(
-        mutation: { readonly id: string; readonly calls: readonly sync.Call[] },
-        signer: Subject,
-    ): Promise<readonly unknown[] | undefined> {
-        // leave a mutation of rows the database stores itself, and refuse one mixing both
+    /** Find a mutation's one home and the remote reaching it, absent for rows stored here. */
+    async #homeOf(mutation: {
+        readonly calls: readonly sync.Call[];
+    }): Promise<{ readonly home: string; readonly remote: ObjectRemote } | undefined> {
+        // read each call's replicated type and scope, leaving a mutation of rows the database stores itself
         const view = Snapshot.live(this.database);
-        const replicated = await Promise.all(
+        const routed = await Promise.all(
             mutation.calls.map(async (call) => {
+                // read the call's replicated type and scope, a home only for rows replicated here
                 const object = ObjectType.find(this.replicated, call);
-
-                return (
+                const scope = object?.readScope(call.method, call.input);
+                const isReplica =
                     object !== undefined &&
-                    (await this.isReplica(object, view, object.readScope(call.method, call.input)))
-                );
+                    scope !== undefined &&
+                    (await this.isReplica(object, view, scope));
+
+                return isReplica ? scope : undefined;
             }),
         );
-        if (replicated.every((isReplicated) => !isReplicated)) {
+        const homes = new Set(routed);
+        if (homes.size === 1 && homes.has(undefined)) {
             return undefined;
-        } else if (replicated.some((isReplicated) => !isReplicated)) {
+        }
+
+        // refuse a mutation mixing rows stored here, or rows of several homes
+        const [home, other] = homes;
+        if (homes.has(undefined)) {
             throw ObjectError.of(
                 "HOMES_INVALID",
                 "mutation is invalid: it must change rows of one home, local or replicated",
             );
+        } else if (home === undefined || other !== undefined) {
+            throw ObjectError.of(
+                "HOMES_INVALID",
+                `mutation is invalid: a mutation must change rows of one home, but its calls change rows of '${String(home)}' and '${String(other)}'`,
+            );
         }
 
-        // pass it to the publisher the replicas follow, signed as the given principal
-        const sent = sync.Mutation.parse(mutation);
+        // reach the home through the remote of its replica
+        const remote = await this.remoteOf(nth(mutation.calls, 0));
+        if (remote === undefined) {
+            throw ObjectError.of(
+                "REPLICA_RECEIVER_REQUIRED",
+                "receiver of replicated row changes is required",
+            );
+        }
 
-        return (await this.#readHomeAll(sent)).receive(sent, signer);
+        return { home, remote };
     }
 
     /** List the store's job sets: the replicas' sync, then the store's and each package's. */
@@ -2359,8 +2682,6 @@ export class ObjectStore {
         options: {
             /** Set a wake-up for the earliest due key, so an evicted instance runs it. */
             readonly alarm?: Alarm;
-            /** Report a failed reconciliation, the store's report by default. */
-            readonly report?: ConstructorParameters<typeof ControlLoop>[2]["report"];
             /** Read the process's own job sets, run beside the store's, again at each restart. */
             readonly sets?: () => readonly ControllerSet[];
         } = {},
@@ -2389,13 +2710,6 @@ export class ObjectStore {
 
             // run the loop until stopped or reloaded
             const loop = new ControlLoop(this.database, sets, {
-                report:
-                    options.report ??
-                    ((job, key, error) => {
-                        this.#report(
-                            new Error(`'${job.name}' did not reconcile '${key}'`, { cause: error }),
-                        );
-                    }),
                 ...(previous === undefined ? {} : { previous }),
                 ...(options.alarm === undefined ? {} : { alarm: options.alarm }),
             });
@@ -2454,9 +2768,15 @@ export class ObjectStore {
         return subscriber === undefined
             ? { controllers: [], projections: [], cursors: [] }
             : {
-                  controllers: [this.sink.controller(subscriber)],
+                  controllers: [
+                      this.sink.controller(subscriber),
+                      ...(this.#isFollowingOnDemand ? [this.sink.lapse()] : []),
+                  ],
                   projections: [],
-                  cursors: [this.sink.cursor(subscriber)],
+                  cursors: [
+                      this.sink.cursor(subscriber),
+                      ...(this.storage === undefined ? [] : [this.sink.budget(this.storage.rows)]),
+                  ],
               };
     }
 
@@ -2990,7 +3310,7 @@ export class ObjectStore {
         scope: string;
         targetId: string | undefined;
     }> {
-        // refuse row changes to replicas from their home, leaving access writes to the authorization
+        // refuse executing row changes to replicas, which their home writes and this store predicts
         const method = object.method(name);
         const scope = object.readScope(name, input);
         const isRowChange = method.mutates && !ACCESS_KINDS.has(method.kind);
@@ -3020,6 +3340,7 @@ export class ObjectStore {
             view: snapshot ?? transaction,
             callId: Identifier.create("call", this.environment),
             ...(options.parentId === undefined ? {} : { parentId: options.parentId }),
+            isPredicted: false,
         };
         const { now } = authorization.access.context;
         const acting =
@@ -3044,26 +3365,13 @@ export class ObjectStore {
             replicas: this.replicas,
         });
 
-        // refuse writing a predefined row, then load the permitted target at the given revision
-        if (method.mutates && targetId !== undefined) {
-            object.refusePredefined(targetId);
-        }
-        const target = await ObjectStore.#target(context, execution, targetId, snapshot).catch(
-            (error: unknown) => {
-                throw ObjectStore.#addressed(object, id, targetId, error);
-            },
+        // load the permitted target at the given revision
+        const target = await ObjectStore.#loaded(
+            context,
+            execution,
+            { id, targetId, revision },
+            snapshot,
         );
-        if (revision !== undefined && target?.["revision"] !== revision) {
-            throw ObjectError.of(
-                "REVISION_CONFLICT",
-                `cannot update ${object.name}: its revision changed`,
-            );
-        }
-
-        // refuse a method a trashed or archived target no longer takes
-        if (target !== undefined) {
-            object.refuseBlocked(method, target);
-        }
 
         return {
             context: target === undefined ? context : context.with({ target }),
@@ -3072,6 +3380,58 @@ export class ObjectStore {
             scope,
             targetId,
         };
+    }
+
+    /** Build a predicted call's context over the replica. */
+    async #predictedContext(
+        transaction: Transaction,
+        object: ObjectType,
+        name: string,
+        input: JsonObject,
+        caller: AccessContext,
+        requestId: string,
+    ): Promise<{ readonly context: MethodContext; readonly execution: Execution }> {
+        // parse the input, resolving the target's key, as the home does
+        const method = object.method(name);
+        const scope = object.readScope(name, input);
+        const { fields, id, revision } = ObjectStore.#fields(object, name, input);
+        const view = transaction.view();
+        const resolved = await object.resolve(fields, scope, view);
+        const targetId =
+            id === undefined
+                ? undefined
+                : await ObjectStore.#identifier(object, schema.string().parse(id), scope, view);
+
+        // build the call in the scope's chain the store follows, writing through the transaction
+        const execution: Execution = {
+            kind: "store",
+            store: this,
+            transaction,
+            view: transaction,
+            callId: Identifier.create("call", this.environment),
+            isPredicted: true,
+        };
+        const context: MethodContext = new MethodContext({
+            object,
+            name,
+            method,
+            scope,
+            chain: [...(await this.sink.ancestry(scope, view))],
+            input: resolved,
+            id: targetId,
+            target: undefined,
+            prepared: undefined,
+            caller,
+            requestId,
+            location: execution,
+            relations: this.relations,
+            replicas: this.replicas,
+        });
+
+        // load the target at the given revision, as the transaction has it
+        const target = await ObjectStore.#loaded(context, execution, { id, targetId, revision });
+
+        return { context: target === undefined ? context : context.with({ target }), execution };
     }
 
     /** Parse a call's input by schema, splitting off routing fields and the requested view. */
@@ -3143,22 +3503,72 @@ export class ObjectStore {
     /** Load a call's permitted target through its requested view, absent without a target. */
     static async #target(
         context: MethodContext,
-        execution: StoreExecution,
+        execution: Execution,
         targetId: string | undefined,
         snapshot: Snapshot | undefined,
     ): Promise<Row | undefined> {
         // skip a call without a target
-        const { method } = context;
+        const { method, object } = context;
         if (!Method.loads(method) || targetId === undefined) {
             return undefined;
         }
 
-        // read the live target, or the target in the view
-        if (snapshot === undefined) {
+        // read a prediction's target as its transaction has it, refusing a missing one
+        if (execution.isPredicted) {
+            const row = await execution.transaction
+                .read(object.table)
+                .findFirst({ where: { id: targetId } });
+            if (row === undefined) {
+                throw CallError.http("NOT_FOUND", {
+                    message: `${object.name} '${targetId}' not found`,
+                });
+            }
+
+            return row;
+        }
+        // read the live permitted target, or the target in the view
+        else if (snapshot === undefined) {
             return execution.authorization.read(context, targetId, execution);
         } else {
             return execution.authorization.readIn(context, targetId, snapshot);
         }
+    }
+
+    /** Load a call's target, refusing predefined, changed and blocked targets. */
+    static async #loaded(
+        context: MethodContext,
+        execution: Execution,
+        address: {
+            readonly id: unknown;
+            readonly targetId: string | undefined;
+            readonly revision: unknown;
+        },
+        snapshot?: Snapshot,
+    ): Promise<Row | undefined> {
+        // refuse writing a predefined row, then load the target
+        const { object, method } = context;
+        const { id, targetId, revision } = address;
+        if (method.mutates && targetId !== undefined) {
+            object.refusePredefined(targetId);
+        }
+        const target = await ObjectStore.#target(context, execution, targetId, snapshot).catch(
+            (error: unknown) => {
+                throw ObjectStore.#addressed(object, id, targetId, error);
+            },
+        );
+
+        // refuse a changed revision, and a method a trashed or archived target no longer takes
+        if (revision !== undefined && target?.["revision"] !== revision) {
+            throw ObjectError.of(
+                "REVISION_CONFLICT",
+                `cannot update ${object.name}: its revision changed`,
+            );
+        }
+        if (target !== undefined) {
+            object.refuseBlocked(method, target);
+        }
+
+        return target;
     }
 
     /** Build a read's view: the database at a position, a branch, or none for the main line. */
@@ -3368,8 +3778,8 @@ export class ObjectStore {
                     await Settlement.settle(this, claimed, now);
                 }
             } catch (error) {
-                // report a failure
-                this.#report(error);
+                // capture a failure, leaving the settlement to its next claim
+                this.#instruments.captureException(error, { isEscaped: true });
             }
         }
     }
@@ -3737,10 +4147,6 @@ export class ObjectStore {
     }
 
     /** Throw a failed settlement. */
-    static #rethrow(error: unknown): never {
-        throw error;
-    }
-
     /** Read where a resumed sync continues. */
     static #resumed(
         after: LogPosition | undefined,
@@ -3825,11 +4231,6 @@ export class ObjectStore {
         return prepared.map((work) => work?.settlement);
     }
 
-    /** Report whether a publisher also receives the changes sent to the rows it publishes. */
-    static #isUplink(publisher: sync.Publisher): publisher is sync.Uplink {
-        return "receive" in publisher;
-    }
-
     /** Publish a partition at its installation's root, and other scopes as given. */
     static #partitionPublisher(
         server: ServerContext,
@@ -3842,7 +4243,7 @@ export class ObjectStore {
         return (scope) => {
             // publish other scopes as given
             if (scope !== server.partition) {
-                return publisher?.(scope) ?? server.publisher;
+                return publisher?.(scope) ?? server.remote;
             }
 
             // publish the partition through its installation's root
@@ -4010,14 +4411,13 @@ export class ObjectStore {
                     return follow.keys.map((key) => ({
                         shape: follow.shape,
                         key,
-                        isAcquired: false,
                     }));
                 }
                 // read a follow's keys from the store's rows
                 else {
                     const keys = await store.#readKeys(follow, options.view, options.changes);
 
-                    return keys.map((key) => ({ shape: follow.shape, key, isAcquired: false }));
+                    return keys.map((key) => ({ shape: follow.shape, key }));
                 }
             }),
         );
@@ -4026,59 +4426,66 @@ export class ObjectStore {
         const groups = new Map<
             string,
             {
+                readonly publication: string;
                 readonly scope: string;
                 readonly subject: Subject | undefined;
                 readonly shapes: Map<Shape, Map<string, object>>;
-                isAcquired: boolean;
             }
         >();
-        for (const { shape, key, isAcquired } of keyed.flat()) {
+        for (const { shape, key } of keyed.flat()) {
             const { scope, ...parameters } = key.key;
             const subject = store.#follower(key.subject);
-            const name = Shape.replicaName(scope, subject);
+            const { publication } = shape;
+            const name = Shape.replicaName(publication, scope, subject);
             const group = groups.get(name) ?? {
+                publication,
                 scope,
                 subject,
                 shapes: new Map<Shape, Map<string, object>>(),
-                isAcquired,
             };
             const keys = group.shapes.get(shape) ?? new Map<string, object>();
             keys.set(canonicalize(parameters), parameters);
             group.shapes.set(shape, keys);
-            group.isAcquired &&= isAcquired;
             groups.set(name, group);
         }
 
         // subscribe to each group toward its scope's home, as one replica
-        return [...groups.values()].map(({ scope, subject, shapes, isAcquired }) => ({
+        return [...groups.values()].map(({ scope, subject, shapes }) => ({
             subscription: Shape.subscription(
                 scope,
                 [...shapes].map(([shape, keys]) => ({ shape, keys: [...keys.values()] })),
-                options.target,
-                subject,
+                {
+                    target: options.target,
+                    writerId: store.writerId,
+                    ...(subject === undefined ? {} : { subject }),
+                },
             ),
             home: scope,
-            isAcquired,
         }));
     }
 
     /** List an on-demand follow's acquired keys that have not lapsed. */
     static async #acquiredKeys(
         store: ObjectStore,
-        follow: Extract<Follow, { readonly onDemand: unknown }>,
+        follow: OnDemandFollow,
         view: Snapshot,
-    ): Promise<{ readonly shape: Shape; readonly key: FollowKey; readonly isAcquired: true }[]> {
+    ): Promise<{ readonly shape: Shape; readonly key: FollowKey }[]> {
         const rows = await view.read(followKey).findMany({
-            where: { shape: follow.shape.name, expiresAt: { gt: store.clock.now() } },
+            where: {
+                shape: follow.shape.name,
+                OR: [{ expiresAt: { isNull: true } }, { expiresAt: { gt: store.clock.now() } }],
+            },
         });
+        const keys = new Map(
+            rows.map((row) => [canonicalize([row.scope, row.parameters, row.subject]), row]),
+        );
 
-        return rows.map((row) => ({
+        return [...keys.values()].map((row) => ({
             shape: follow.shape,
             key: {
                 key: { ...schema.jsonObject().parse(JSON.parse(row.parameters)), scope: row.scope },
                 subject: Subject.parse(JSON.parse(row.subject)),
             },
-            isAcquired: true,
         }));
     }
 

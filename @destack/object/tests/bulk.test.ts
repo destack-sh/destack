@@ -1,3 +1,4 @@
+import { worldTelemetry } from "../src/test/world.ts";
 import { testSimulation, testIdentity } from "../src/test/index.ts";
 import { PackageVersion } from "@destack/package";
 import type { CallableName } from "../src/index.ts";
@@ -11,7 +12,7 @@ import { schema, nth, type Identifier } from "@destack/schema";
 import { RequestId, ObjectReference, Scope } from "@destack/sync";
 import { testCallKey } from "@destack/object/test";
 import { testEvents, serversOf } from "../src/test/index.ts";
-import { ObjectClient } from "../src/client/index.ts";
+import { ObjectClient, ProcedureRemote } from "../src/client/index.ts";
 import { defineObject, field } from "../src/index.ts";
 import { implementPackage } from "../src/server/index.ts";
 import { openSpace, space, spacePrincipal, unmoved } from "../src/test/space.ts";
@@ -23,6 +24,7 @@ import objectPackage from "../src/package.ts";
 import { TestObjectStore } from "../src/test/index.ts";
 import { recoverable } from "../src/index.ts";
 import { argument, plural, t } from "@destack/locale";
+import { ObjectRemote } from "../src/replica/remote.ts";
 
 /** The space containing the labels. */
 const spaceId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000005");
@@ -275,16 +277,16 @@ test("undo a bulk creation by deleting each created object on the device and the
         objects: { label },
         scope: spaceId,
         caller: principal.user.reference("universe", users.alice),
-        endpoint: served.as(users.alice).endpoint(labels),
-        reconnect: unmoved,
+        remote: ProcedureRemote.at({
+            scope: spaceId,
+            endpoint: served.as(users.alice).endpoint(labels),
+            reconnect: unmoved,
+            environment: world,
+        }),
     });
     client.queryType(label).findMany().subscribe();
     const stopping = new AbortController();
-    const errors: unknown[] = [];
-    const loops = [
-        client.follow(stopping.signal, (error) => errors.push(error)),
-        client.push(stopping.signal, (error) => errors.push(error)),
-    ];
+    const loops = [client.follow(stopping.signal), client.push(stopping.signal)];
 
     // create two labels under the identifiers the device predicted
     const created = client.mutate(label).createMany({
@@ -307,7 +309,7 @@ test("undo a bulk creation by deleting each created object on the device and the
         before,
         await labelsIn(client.database),
         await labelsIn(storage.database),
-        errors,
+        worldTelemetry(client.environment).exceptions(),
     ]).toEqual([
         [
             [
@@ -348,8 +350,8 @@ test("run a sent createMany once though it arrives twice, replaying its request"
         ],
     };
     const user = principal.user.reference("universe", users.frank);
-    await store.receive(sent, user);
-    await store.receive(sent, user);
+    await ObjectRemote.run(store.remote, spaceId, sent, user);
+    await ObjectRemote.run(store.remote, spaceId, sent, user);
 
     expect(await read()).toEqual(["frank blue blue live", "frank red red live"]);
 });

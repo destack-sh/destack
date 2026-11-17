@@ -88,16 +88,16 @@ export class Hibernation {
     readonly #host: SocketHost;
     /** The secret the host and the instance prove each other's requests with. */
     readonly #secret: string;
-    /** Report a failed send or close that no caller awaits. */
-    readonly #report: (error: unknown) => void;
+    /** The instruments capturing a failed send or close that no caller awaits. */
+    readonly #instruments: TelemetryScope;
     /** The last send or close of each socket, which the next one follows. */
     readonly #pending = new Map<string, Promise<void>>();
 
-    /** Connect to the sockets at a host with an instance's secret. */
-    constructor(host: SocketHost, secret: string, report: (error: unknown) => void) {
+    /** Connect to the sockets at a host with an instance's secret, captures on a telemetry. */
+    constructor(host: SocketHost, secret: string, telemetry: Environment["telemetry"]) {
         this.#host = host;
         this.#secret = secret;
-        this.#report = report;
+        this.#instruments = TelemetryScope.of(import.meta.destack.package, telemetry);
     }
 
     /** Answer a WebSocket upgrade by accepting it. */
@@ -167,8 +167,10 @@ export class Hibernation {
             }
         });
 
-        // store it as the socket's last, reporting its failure
-        const settled = next.catch((error: unknown) => this.#report(error));
+        // store it as the socket's last, capturing its failure
+        const settled = next.catch((error: unknown) =>
+            this.#instruments.captureException(error, { isEscaped: true }),
+        );
         this.#pending.set(id, settled);
 
         // forget a socket's queue once its last send or close settled

@@ -1,7 +1,8 @@
-import type { Environment } from "@destack/environment";
 import { type Identifier, schema } from "@destack/schema";
-import { Snapshot, TABLE, Transaction, type DatabaseConnection, Key } from "@destack/db";
-import type { RowChange } from "@destack/db";
+import { Snapshot, Transaction } from "@destack/db";
+import type { Row, RowChange } from "@destack/db";
+import type { Manager, Permission } from "@destack/access";
+import type { ObjectType } from "../object/object.ts";
 import type { Authorization } from "../server/authorization.ts";
 import type { ObjectStore } from "../server/store.ts";
 import type { MethodResult, MethodContext } from "./context.ts";
@@ -10,99 +11,101 @@ import { Method, type MethodConfiguration, type MethodDeclaration } from "./meth
 /** The scope and identifier of a removed object's row. */
 const REMOVED = schema.looseObject({ scope: schema.string(), id: schema.string() });
 
-/** Where a call executes: the store with its transaction and authorization, or a client. */
-export type Execution =
+/** Where a call executes: a store's transaction at the home, or predicting the home. */
+export type Execution = {
+    /** The store executing the call. */
+    readonly kind: "store";
+    /** The store, which runs further calls and writes the event log. */
+    readonly store: ObjectStore;
+    /** The transaction of the call's writes, committed or recorded as a prediction. */
+    readonly transaction: Transaction;
+    /** The call's reads: its transaction, or a snapshot at a requested position or branch. */
+    readonly view: Transaction | Snapshot;
+    /** The identifier the call's record takes. */
+    readonly callId: Identifier<"call">;
+    /** The call that ran this one inside its transaction, absent for a sent call. */
+    readonly parentId?: Identifier<"call">;
+} & (
     | {
-          /** The store executing the call. */
-          readonly kind: "store";
-          /** The store, which runs further calls and writes the event log. */
-          readonly store: ObjectStore;
+          /** The home executes the call. */
+          readonly isPredicted: false;
           /** The authorization of the call's caller. */
           readonly authorization: Authorization;
-          /** The transaction of the call's writes, committed after its calls ran. */
-          readonly transaction: Transaction;
-          /** The call's reads: its transaction, or a snapshot at a requested position or branch. */
-          readonly view: Transaction | Snapshot;
-          /** The identifier the call's record takes. */
-          readonly callId: Identifier<"call">;
-          /** The call that ran this one inside its transaction, absent for a sent call. */
-          readonly parentId?: Identifier<"call">;
       }
     | {
-          /** A client predicting the call. */
-          readonly kind: "client";
-          /** The client's replica the prediction reads and writes. */
-          readonly database: DatabaseConnection;
-          /** The client's environment. */
-          readonly environment: Environment;
-      };
+          /** The store predicts its home's execution, whose authorization decides the call. */
+          readonly isPredicted: true;
+      }
+);
 
-/** A store executing a call, with its transaction and the caller's authorization. */
-export type StoreExecution = Extract<Execution, { readonly kind: "store" }>;
+/** A store executing a call at the home, with the caller's authorization. */
+export type StoreExecution = Extract<Execution, { readonly isPredicted: false }>;
 
 /** Where a call executes: its view and its writes. */
 export const Execution = {
-    /** Read the store executing a method only a store executes, refusing a client's prediction. */
+    /** Read the store executing a method only its home executes, refusing a prediction. */
     store(execution: Execution, context: Pick<MethodContext, "object" | "name">): StoreExecution {
-        if (execution.kind !== "store") {
+        if (execution.isPredicted) {
             throw new TypeError(
-                `'${context.object.name}.${context.name}' can only execute in its store`,
+                `'${context.object.name}.${context.name}' can only execute at its home`,
             );
         }
 
         return execution;
     },
 
-    /** Read the snapshot an execution's reads see: the store's view, or the client's replica. */
+    /** Read the snapshot an execution's reads see: its transaction's, or the requested view. */
     snapshot(execution: Execution): Snapshot {
-        // read the store's view as a snapshot, else the client's live replica
-        if (execution.kind === "client") {
-            return Snapshot.live(execution.database);
-        }
         const { view } = execution;
 
         return view instanceof Transaction ? view.view() : view;
     },
 
-    /** Write rows of any tables: through the store's transaction, or into the client's replica. */
+    /** Write rows through the store's transaction, clearing removed access at the home. */
     async write(
         execution: Execution,
         context: Pick<MethodContext, "objects" | "now">,
         ...changes: readonly RowChange[]
     ): Promise<void> {
-        // write through the transaction in a store
-        if (execution.kind === "store") {
-            const { transaction, authorization } = execution;
-            await transaction.write(...changes);
-            for (const change of changes) {
-                const type = context.objects.find((object) => object.table === change.table);
-
-                // delete a removed scope's access and a removed principal's standing
-                if (type !== undefined && change.before !== null && change.after === null) {
-                    const { scope, id } = REMOVED.parse(change.before);
-                    const removed = type.reference(scope, id);
-                    if (type.policy.definition.scope === true) {
-                        await authorization.remove(removed);
-                    }
-                    if (type.represents !== undefined) {
-                        await authorization.authorizer.cascade(transaction, removed);
-                    }
-                }
-            }
-
+        // write through the transaction, leaving removed access to the home a prediction's changes reach
+        const { transaction } = execution;
+        await transaction.write(...changes);
+        if (execution.isPredicted) {
             return;
         }
+        const { authorization } = execution;
+        for (const change of changes) {
+            const type = context.objects.find((object) => object.table === change.table);
 
-        // remove and put each row in the client's replica, refusing a change of no row
-        for (const { table, before, after } of changes) {
-            if (after !== null) {
-                await execution.database.upsert(table, [after]);
-            } else if (before !== null) {
-                await execution.database.delete(table).where(Key.match(table, before));
-            } else {
-                throw new TypeError(`a write to '${table[TABLE].name}' has no row before or after`);
+            // delete a removed scope's access and a removed principal's standing
+            if (type !== undefined && change.before !== null && change.after === null) {
+                const { scope, id } = REMOVED.parse(change.before);
+                const removed = type.reference(scope, id);
+                if (type.policy.definition.scope === true) {
+                    await authorization.remove(removed);
+                }
+                if (type.represents !== undefined) {
+                    await authorization.authorizer.cascade(transaction, removed);
+                }
             }
         }
+    },
+
+    /** Keep the rows the caller holds a permission on, every row in a prediction. */
+    async permitted(
+        execution: Execution,
+        object: ObjectType,
+        permission: Permission,
+        rows: readonly Row[],
+    ): Promise<readonly Row[]> {
+        return execution.isPredicted
+            ? rows
+            : (await execution.authorization.filter(object, permission, rows)).rows;
+    },
+
+    /** Read the manager the call writes for at the home, none in a prediction. */
+    manager(execution: Execution): Manager | null {
+        return execution.isPredicted ? null : execution.authorization.manager;
     },
 
     /** Replace a method's behaviour by object's code, which reads where a call executes. */

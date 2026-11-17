@@ -44,7 +44,7 @@ export function createClient<
     environment: Environment,
 ): Client<Definition, Context> {
     // create the client telemetry, and read each called procedure's release once
-    const traced = traceCalls("client", environment);
+    const traced = traceCalls("client", "orpc", environment);
     const releases = new Map<string, string>();
     const releaseOf = (path: readonly string[]) => {
         // read a path's release the first time it is called
