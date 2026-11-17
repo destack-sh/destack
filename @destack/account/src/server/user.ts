@@ -12,7 +12,7 @@ import { AccountHandle, type HandleAvailability } from "../address/handle.ts";
 import { user } from "../object/user.ts";
 import { client } from "../object/client.ts";
 import { Recipient } from "../object/recipient.ts";
-import { invited } from "./invitation.ts";
+import { invited, shared } from "./invitation.ts";
 import type {} from "@destack/package/import-meta";
 import { AccountError } from "../error/error.ts";
 
@@ -39,6 +39,7 @@ export function implementUser(): typeof user {
             suggestHandle,
             checkHandle,
             invited,
+            shared,
             recipient: async (call) => {
                 // read the person's guarded profile and unrevoked clients, which only account reveals
                 const { id } = call.target;
