@@ -86,6 +86,8 @@ export interface WorkspaceOptions {
     readonly selection?: WorkspaceSelection;
     /** The locks of the builtins the host provides, none by default. */
     readonly host?: readonly Lock[];
+    /** The version every unit releases at, as a release of the whole workspace gives one. */
+    readonly version?: Version;
 }
 
 /** A checkout's Destack workspace as read once: its members, files, npm releases and toolchain. */
@@ -104,6 +106,8 @@ export class Workspace {
     readonly resolver: ReleaseResolver | undefined;
     /** The locks of the builtins the host provides. */
     readonly host: readonly Lock[];
+    /** The version every unit releases at, absent where each build gives its own. */
+    readonly version: Version | undefined;
     /** The real directories of the workspace's members. */
     readonly #members: ReadonlySet<string>;
     /** Which members compile as units: all of them, or those of each package's account. */
@@ -140,6 +144,7 @@ export class Workspace {
         // store how packages resolve outside releases and select their units
         this.resolver = options.resolver;
         this.host = options.host ?? [];
+        this.version = options.version;
         this.#selection = options.selection ?? "all";
     }
 
@@ -830,8 +835,8 @@ export class WorkspacePackage {
             const given = WorkspacePackage.#versionsOf(options);
             const release = given[unit.name] ?? unit.packageJson.package.version;
             const version = Version.dev(release, at, key);
-            const versions = { ...given, [unit.name]: version };
-            const stamped = isPrerelease ? { ...options, versions } : options;
+            const versions = isPrerelease ? { ...given, [unit.name]: version } : given;
+            const stamped = { ...options, versions };
 
             // evaluate its declarations and compile it on them, in one request
             const build = await this.#use(unit, (compiler) => compiler.build(stamped));
@@ -925,8 +930,16 @@ export class WorkspacePackage {
         request: WorkspaceBuildOptions,
         dependencies: Record<string, DependencyRelease>,
     ): Promise<PackageBuildOptions> {
+        // release the unit at the workspace's version, which a version given for it replaces
+        const { version } = this.workspace;
+        const versions = {
+            ...(version === undefined ? {} : { [unit.name]: version }),
+            ...request.versions,
+        };
+
         return {
             ...request,
+            versions,
             directory: unit.directory,
             dependencies,
             links: await this.#releaseLinks(),
