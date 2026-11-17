@@ -202,8 +202,8 @@ async function resolve(context: Context, declared: Setting): Promise<SettingReso
     await using stack = new AsyncDisposableStack();
     const settings = await context.objects({ deviceSetting }, stack);
     const rows = await settings.query.deviceSetting.findMany({ where: declared.reference });
-    const device = rows.map(({ id, revision, packageId, name, value, release }) =>
-        DeviceValue.parse({ id, revision, packageId, name, value, release }),
+    const device = rows.map(({ id, revision, packageId, name, value, release, edition }) =>
+        DeviceValue.parse({ id, revision, packageId, name, value, release, edition }),
     );
 
     // resolve a device's setting here, from the device's values and the default
@@ -445,7 +445,8 @@ class StoreSettingValues implements SettingValues {
 
     /** Set a value against the release declaring the setting, replacing the one before. */
     async set(declared: Setting, value: JsonValue, current: Row | undefined): Promise<void> {
-        const written = { mode: "set", value, release: declared.package.version };
+        const { edition } = declared;
+        const written = { mode: "set", value, release: declared.package.version, edition };
         await (current === undefined
             ? this.#remote.call(setting.name, "create", { ...declared.reference, ...written })
             : this.#remote.call(setting.name, "update", {
@@ -499,7 +500,7 @@ class DeviceSettingValues implements SettingValues {
         }
 
         // write against the release declaring the setting
-        const written = { value, release: declared.package.version };
+        const written = { value, release: declared.package.version, edition: declared.edition };
         const submitted =
             current === undefined
                 ? this.#settings.mutate(deviceSetting).create({ ...declared.reference, ...written })
