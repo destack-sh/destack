@@ -1522,7 +1522,7 @@ test("convert narrowed values after stopping the draining release", async () => 
         {
             version: "2026.10.0",
             convert: {
-                "2026.10.0": {
+                2: {
                     mode: Expression.case(
                         Expression.column("mode"),
                         [{ when: "emacs", then: Expression.literal("standard") }],

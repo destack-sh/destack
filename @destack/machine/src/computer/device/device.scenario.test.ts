@@ -129,6 +129,7 @@ test("push a person's mutation through a scope the session opens, confirmed once
         ...focus.reference,
         value,
         release: focus.package.version,
+        edition: 1,
         mode: "set",
     }).confirmed;
 

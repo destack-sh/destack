@@ -625,7 +625,11 @@ export class Device<
     ): Promise<void> {
         // read the setting's scope and the value as it is written
         const { scope } = declared.definition;
-        const written = { value: schema.json().parse(value), release: declared.package.version };
+        const written = {
+            value: schema.json().parse(value),
+            release: declared.package.version,
+            edition: declared.edition,
+        };
 
         // store a device setting's value in this device
         if (scope === "device") {

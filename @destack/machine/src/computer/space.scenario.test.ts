@@ -922,6 +922,7 @@ test("serve a space whose installation fails to start", async () => {
         mode: "set",
         value: "eu",
         release: released.version,
+        edition: 1,
         requestId: RequestId.create(computer.environment),
     });
     await computer.install(login.id, space, build, "regional");

@@ -17,6 +17,7 @@ import {
     definePackage,
     PACKAGE_PATH,
     PackageMount,
+    EDITION_HEADER,
     VERSION_HEADER,
     Bookmark,
 } from "@destack/object";
@@ -1003,7 +1004,7 @@ test("call a page's package and declared services under its grant", async () => 
     const call = (packageId: string, path: string) =>
         page.fetch(
             new Request(`${page.origin}${PLATFORM_PATH}${PackageMount.path(packageId)}${path}`, {
-                headers: { [VERSION_HEADER]: stackPackage.version },
+                headers: { [VERSION_HEADER]: stackPackage.version, [EDITION_HEADER]: "1" },
             }),
         );
     const declared = await call(
@@ -1255,7 +1256,7 @@ test("call a scope's home path within the start page's grant only", async () => 
     const response = await page.fetch(
         new Request(`${page.origin}${HOME_PATH}/${owner.id}/store/push`, {
             method: "POST",
-            headers: { [VERSION_HEADER]: accountPackage.version },
+            headers: { [VERSION_HEADER]: accountPackage.version, [EDITION_HEADER]: "1" },
             body: JSON.stringify({
                 scope: owner.id,
                 mutations: [{ id: RequestId.create(home.computer.environment), calls: [call] }],
