@@ -296,8 +296,7 @@ export const ReleaseMethod = {
             .toSorted((left, right) => Version.compare(right, left));
 
         // start this month at its first release, and follow a release of this month or a later one
-        const now = new Date(context.now);
-        const first = `${now.getUTCFullYear()}.${now.getUTCMonth() + 1}.0`;
+        const first = Version.first(context.now);
         const version =
             newest === undefined || Version.compare(newest, first) < 0
                 ? first
