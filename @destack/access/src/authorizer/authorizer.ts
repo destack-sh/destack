@@ -2010,10 +2010,7 @@ export class Authorizer {
         );
         throw (
             refused ??
-            AccessError.of(
-                "PERMISSION_DENIED",
-                `permission '${permission.name}' is forbidden: the caller lacks it`,
-            )
+            AccessError.of("PERMISSION_DENIED", PermissionReference.forbidden(permission))
         );
     }
 

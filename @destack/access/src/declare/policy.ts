@@ -321,6 +321,11 @@ export type PermissionReference = schema.Infer<typeof permissionReference>;
 
 /** A permission of an object type, and its key. */
 export const PermissionReference = Object.assign(permissionReference, {
+    /** Write the refusal of a caller without a permission. */
+    forbidden(permission: Pick<PermissionReference, "name">): string {
+        return `permission '${permission.name}' is forbidden: the caller lacks it`;
+    },
+
     /** Key a permission without collisions. */
     key(permission: Pick<PermissionReference, "packageId" | "type" | "name">): string {
         return JSON.stringify([permission.packageId, permission.type, permission.name]);

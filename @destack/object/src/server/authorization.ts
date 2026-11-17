@@ -375,7 +375,7 @@ export class Authorization extends access.Authorization {
             (await this.#permits(context, id, object.reading, execution));
         const denial = ObjectError.of(
             "PERMISSION_DENIED",
-            `permission '${permission.name}' is forbidden: the caller lacks it`,
+            access.PermissionReference.forbidden(permission),
         );
         if (!isReadable) {
             throw conceal(denial, `${object.name} '${id}' not found`);

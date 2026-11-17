@@ -1,4 +1,11 @@
-import { type Access, type Creation, isPrincipal, Manager, type Reader } from "@destack/access";
+import {
+    type Access,
+    type Creation,
+    isPrincipal,
+    Manager,
+    PermissionReference,
+    type Reader,
+} from "@destack/access";
 import {
     Condition,
     DatabaseError,
@@ -966,7 +973,7 @@ export const ObjectRecord = {
                 (await authorizer.checkRows(snapshot, reading, access, [row])).permitted.has(0));
         const denial = ObjectError.of(
             "PERMISSION_DENIED",
-            `permission '${permission.name}' is forbidden: the caller lacks it`,
+            PermissionReference.forbidden(permission),
         );
         if (!isReadable) {
             throw conceal(denial, `${context.object.name} not found`);
