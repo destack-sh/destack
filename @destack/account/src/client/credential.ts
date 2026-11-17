@@ -1,3 +1,4 @@
+import type { StepUp } from "@destack/access";
 import type { Fetch } from "@destack/object";
 import { PackageId } from "@destack/package";
 import { copyRequest, type Environment } from "@destack/environment";
@@ -11,11 +12,12 @@ import { JWT_BEARER } from "../oauth/bearer.ts";
 
 /** What a session calls packages with: a principal's tokens. */
 export interface Credential {
-    /** Add the principal's token for a package to a request, bound as asked. */
+    /** Add the principal's token for a package to a request, bound and stepped up as asked. */
     readonly authorize: (
         request: Request,
         audience: PackageId,
         binding: TokenBinding,
+        stepUp?: StepUp,
     ) => Promise<Request>;
 }
 

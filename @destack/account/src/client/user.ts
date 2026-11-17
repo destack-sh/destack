@@ -14,7 +14,7 @@ export interface TokenSource {
     /** The cache of the user's access tokens, by package and binding. */
     readonly cache: TokenCache;
     /** Issue the user's account access token anew. */
-    readonly issue: () => Promise<string>;
+    readonly issue: (stepUp?: StepUp) => Promise<string>;
 }
 
 /** A signed-in user's tokens: their account token, exchanged at their issuer for each package. */
@@ -52,8 +52,9 @@ export class UserIdentity implements Credential {
         request: Request,
         audience: PackageId,
         binding: TokenBinding,
+        stepUp?: StepUp,
     ): Promise<Request> {
-        return bearer(request, await this.token(audience, binding));
+        return bearer(request, await this.token(audience, binding, stepUp));
     }
 
     /** Read the user's token for a package under a binding, answering a step-up. */
@@ -87,7 +88,7 @@ export class UserIdentity implements Credential {
         return this.#tokens.cache.token(
             accountPackage.id,
             this.#environment.clock.now(),
-            () => this.#tokens.issue(),
+            () => this.#tokens.issue(stepUp),
             stepUp,
         );
     }

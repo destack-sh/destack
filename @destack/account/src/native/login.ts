@@ -1,4 +1,4 @@
-import { principal, through } from "@destack/access";
+import { principal, type StepUp, through } from "@destack/access";
 import { type Select } from "@destack/db";
 import type { Environment } from "@destack/environment";
 import { defineObject, device, field, type Fetch } from "@destack/object";
@@ -44,7 +44,7 @@ export interface LoginCredential {
     /** Read the cache of a login's access tokens, by package and binding. */
     readonly tokens: (row: Login["row"]) => TokenCache;
     /** Issue a login's account access token anew. */
-    readonly issue: (signedIn: Login) => Promise<string>;
+    readonly issue: (signedIn: Login, stepUp?: StepUp) => Promise<string>;
     /** Prove the login's client to this computer's machine. */
     readonly prove: (signedIn: Login) => Promise<string>;
     /** Forget a signed-out login: its refresh token and its login here. */
@@ -82,7 +82,10 @@ export class Login {
         const user = new UserIdentity(
             schema.identifier("user").parse(row.subjectId),
             new Issuer(row.issuer, fetch, environment, bookmark),
-            { cache: credential.tokens(row), issue: () => credential.issue(this) },
+            {
+                cache: credential.tokens(row),
+                issue: (stepUp) => credential.issue(this, stepUp),
+            },
             environment,
         );
         this.session = new Session(user, {

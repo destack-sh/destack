@@ -2,6 +2,7 @@ import type { Environment } from "@destack/environment";
 import { CallError, type Fetch, PackageMount, type Package } from "@destack/object";
 import { type Bookmark, type ClientOptions, createClient } from "@destack/object/client";
 import objectPackage from "@destack/object/package";
+import type { StepUp } from "@destack/access";
 import type { PackageId } from "@destack/package";
 import { present } from "@destack/schema";
 import accountPackage from "../package.ts";
@@ -41,8 +42,8 @@ export class Session<Principal extends Credential = Credential> {
     }
 
     /** Create a fetch calling a package with the principal's tokens, bound as asked. */
-    fetch(audience: PackageId, binding: TokenBinding = {}): Fetch {
-        return (request) => this.#authorized(request, audience, binding);
+    fetch(audience: PackageId, binding: TokenBinding = {}, stepUp?: StepUp): Fetch {
+        return (request) => this.#authorized(request, audience, binding, stepUp);
     }
 
     /** Connect to a package the universe serves. */
@@ -78,9 +79,14 @@ export class Session<Principal extends Credential = Credential> {
     }
 
     /** Send a call with the principal's token, answering a consent it lacks as the callee would. */
-    async #authorized(request: Request, audience: PackageId, binding: TokenBinding) {
+    async #authorized(
+        request: Request,
+        audience: PackageId,
+        binding: TokenBinding,
+        stepUp?: StepUp,
+    ) {
         // add the token, answering a consent its exchange asks with the call error a callee sends
-        const authorized = await this.credential.authorize(request, audience, binding).then(
+        const authorized = await this.credential.authorize(request, audience, binding, stepUp).then(
             (added) => ({ added }),
             (error: unknown) => {
                 if (!OAuthError.is(error, "CONSENT_REQUIRED")) {
