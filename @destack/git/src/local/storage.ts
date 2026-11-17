@@ -254,7 +254,9 @@ export class LocalGitStorage implements GitStorage {
             tagged === undefined ||
             taggedType === undefined
         ) {
-            throw new TypeError(`unexpected git for-each-ref output: ${line}`);
+            throw new TypeError(
+                `git for-each-ref line '${line}' is invalid: it has fewer than five fields`,
+            );
         }
 
         return { name, object, type, tagged, taggedType };
