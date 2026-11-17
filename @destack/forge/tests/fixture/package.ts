@@ -74,32 +74,28 @@ export class FixtureSource {
             ),
         );
 
-        // build each version
+        // build each version, which a build gives the package
+        const name = schema.string().parse(declaration["name"]);
         const builds: BuildReader[] = [];
         for (const version of versions) {
-            await testHost().files.writeTextFile(
-                join(this.directory, "package.json"),
-                JSON.stringify({ ...declaration, version }),
-            );
-            builds.push(await this.#build({ outputs, dependencies, links: {} }));
+            const given = { [name]: Version.parse(version) };
+            builds.push(await this.#build({ outputs, dependencies, links: {}, versions: given }));
         }
         this.#compiled = { outputs, dependencies };
 
         return builds;
     }
 
-    /** Build a prerelease of the next version. */
+    /** Build the package at a prerelease. */
     async prerelease(prerelease: Version): Promise<BuildReader> {
         if (this.#compiled === undefined) {
             throw new TypeError(`fixture '${this.name}' has not been built`);
         }
 
-        // author the next version, and build its prerelease
+        // build the package at the prerelease
         const { outputs, dependencies } = this.#compiled;
         const path = join(this.directory, "package.json");
         const declaration = schema.jsonObject().parse(await readJson(path));
-        const version = Version.next(Version.parse(declaration["version"]));
-        await testHost().files.writeTextFile(path, JSON.stringify({ ...declaration, version }));
         const name = schema.string().parse(declaration["name"]);
 
         return await this.#build({
