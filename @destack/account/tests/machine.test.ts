@@ -176,7 +176,7 @@ test("let a tenant read, drain and enable a machine and read its keys, and refus
         "done",
         "draining",
         "done",
-        ["FORBIDDEN", "PERMISSION_DENIED", "permission 'rename' is forbidden: the caller lacks it"],
+        ["FORBIDDEN", "PERMISSION_DENIED", "permission 'rename' is forbidden: it is not granted"],
         ["NOT_FOUND", "NOT_FOUND", `machine '${enrolled.machineId}' not found`],
     ]);
 });
@@ -278,12 +278,12 @@ test("refuse a machine sharing, unmasking or relaying its own row, which no role
         shared: [
             "FORBIDDEN",
             "PERMISSION_DENIED",
-            "permission 'share' is forbidden: the caller lacks it",
+            "permission 'share' is forbidden: it is not granted",
         ],
         relayed: [
             "FORBIDDEN",
             "PERMISSION_DENIED",
-            "permission 'relay' is forbidden: the caller lacks it",
+            "permission 'relay' is forbidden: it is not granted",
         ],
         unmasked: { isAllowed: false },
     });

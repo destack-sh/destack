@@ -478,7 +478,7 @@ class PartitionVerification {
         if (!isLent && !isAdministered) {
             throw AccountError.of(
                 "IMPERSONATION_DENIED",
-                "impersonation is forbidden: acting as another user is not allowed",
+                "impersonation is forbidden: it needs permission 'impersonate'",
             );
         }
 

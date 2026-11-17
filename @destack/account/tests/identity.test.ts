@@ -269,7 +269,7 @@ test("enroll a machine as its account's owner, authenticate it across a key rota
     ).toEqual([
         "FORBIDDEN",
         "PERMISSION_DENIED",
-        "permission 'rotate' is forbidden: the caller lacks it",
+        "permission 'rotate' is forbidden: it is not granted",
     ]);
 
     // delete the machine as the owner

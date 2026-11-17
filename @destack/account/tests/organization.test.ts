@@ -132,7 +132,7 @@ test("grant an organization's members the access of their relations", async () =
             [
                 "FORBIDDEN",
                 "PERMISSION_DENIED",
-                `permission 'update' is forbidden: the caller lacks it`,
+                `permission 'update' is forbidden: it is not granted`,
             ],
         ],
         ["done", hidden, hidden],
@@ -200,17 +200,17 @@ test("change an organization's owners only as an owner, keeping at least one", a
             [
                 "FORBIDDEN",
                 "PERMISSION_DENIED",
-                "permission 'administer' is forbidden: the caller lacks it",
+                "permission 'administer' is forbidden: it is not granted",
             ],
             [
                 "FORBIDDEN",
                 "PERMISSION_DENIED",
-                "permission 'administer' is forbidden: the caller lacks it",
+                "permission 'administer' is forbidden: it is not granted",
             ],
             [
                 "FORBIDDEN",
                 "PERMISSION_DENIED",
-                "permission 'delete' is forbidden: the caller lacks it",
+                "permission 'delete' is forbidden: it is not granted",
             ],
         ],
         [

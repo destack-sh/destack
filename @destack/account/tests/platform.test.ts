@@ -506,11 +506,7 @@ test("enroll a cloud machine serving a residency as an owner of the platform org
         await refusal(fixture.enroll(accountId, stranger)),
     ]).toEqual([
         "done",
-        [
-            "FORBIDDEN",
-            "PERMISSION_DENIED",
-            "permission 'operate' is forbidden: the caller lacks it",
-        ],
+        ["FORBIDDEN", "PERMISSION_DENIED", "permission 'operate' is forbidden: it is not granted"],
         "done",
     ]);
 });

@@ -301,9 +301,9 @@ test("place a created space again only as the machine serving it, and let the ac
         await locate(peer, accountId, laptop),
     ]).toEqual([
         "done",
-        ["FORBIDDEN", "PERMISSION_DENIED", "permission 'place' is forbidden: the caller lacks it"],
+        ["FORBIDDEN", "PERMISSION_DENIED", "permission 'place' is forbidden: it is not granted"],
         ["NOT_FOUND", "NOT_FOUND", `placement '${foreign}' not found`],
-        ["FORBIDDEN", "PERMISSION_DENIED", "permission 'place' is forbidden: the caller lacks it"],
+        ["FORBIDDEN", "PERMISSION_DENIED", "permission 'place' is forbidden: it is not granted"],
         placedOn,
     ]);
 });
@@ -326,8 +326,8 @@ test("read who pays for a placed space only as the machine serving it", async ()
         await refusal(payer(outsider)),
     ]).toEqual([
         accountId,
-        ["FORBIDDEN", "PERMISSION_DENIED", "permission 'serve' is forbidden: the caller lacks it"],
-        ["FORBIDDEN", "PERMISSION_DENIED", "permission 'serve' is forbidden: the caller lacks it"],
+        ["FORBIDDEN", "PERMISSION_DENIED", "permission 'serve' is forbidden: it is not granted"],
+        ["FORBIDDEN", "PERMISSION_DENIED", "permission 'serve' is forbidden: it is not granted"],
     ]);
 });
 
@@ -348,7 +348,7 @@ test("reserve and confirm a space's names only as the machine serving it", async
         await reserve(local),
         await Claim.lookup(place, claims(outsider), "name", ["notes"], accountId),
     ]).toEqual([
-        ["FORBIDDEN", "PERMISSION_DENIED", "permission 'claim' is forbidden: the caller lacks it"],
+        ["FORBIDDEN", "PERMISSION_DENIED", "permission 'claim' is forbidden: it is not granted"],
         "done",
         { scope: accountId, id: laptop, state: "active" },
     ]);
@@ -524,7 +524,7 @@ test("follow a machine's chain via the universe as a machine of its account, and
         [
             "FORBIDDEN",
             "PERMISSION_DENIED",
-            "permission 'replicate' is forbidden: the caller lacks it",
+            "permission 'replicate' is forbidden: it is not granted",
         ],
     ]);
 });
@@ -597,7 +597,7 @@ test("move a space only to a standing machine of its account, which serves it fr
             unknownMachine(deleted),
         ],
         "done",
-        ["FORBIDDEN", "PERMISSION_DENIED", "permission 'place' is forbidden: the caller lacks it"],
+        ["FORBIDDEN", "PERMISSION_DENIED", "permission 'place' is forbidden: it is not granted"],
         { space: laptop, scope: accountId, machine: cloud.subject.id, epoch: 2 },
     ]);
 });
@@ -661,19 +661,15 @@ test("publish a personal machine's tunnel only as its residency's relay, and rea
             [
                 "FORBIDDEN",
                 "PERMISSION_DENIED",
-                "permission 'relay' is forbidden: the caller lacks it",
+                "permission 'relay' is forbidden: it is not granted",
             ],
             [
                 "FORBIDDEN",
                 "PERMISSION_DENIED",
-                "permission 'relay' is forbidden: the caller lacks it",
+                "permission 'relay' is forbidden: it is not granted",
             ],
         ],
-        [
-            "FORBIDDEN",
-            "PERMISSION_DENIED",
-            "permission 'operate' is forbidden: the caller lacks it",
-        ],
+        ["FORBIDDEN", "PERMISSION_DENIED", "permission 'operate' is forbidden: it is not granted"],
         address,
         address,
         {
@@ -738,11 +734,7 @@ test("move and withdraw a space only as the machine serving it, at the epoch it 
         await refusal(locate(local, accountId, laptop)),
     ]).toEqual([
         [
-            [
-                "FORBIDDEN",
-                "PERMISSION_DENIED",
-                "permission 'move' is forbidden: the caller lacks it",
-            ],
+            ["FORBIDDEN", "PERMISSION_DENIED", "permission 'move' is forbidden: it is not granted"],
             [
                 "CONFLICT",
                 "EPOCH_CONFLICT",
@@ -751,7 +743,7 @@ test("move and withdraw a space only as the machine serving it, at the epoch it 
             "done",
         ],
         [local.subject.id, peer.subject.id],
-        ["FORBIDDEN", "PERMISSION_DENIED", "permission 'move' is forbidden: the caller lacks it"],
+        ["FORBIDDEN", "PERMISSION_DENIED", "permission 'move' is forbidden: it is not granted"],
         "done",
         ["NOT_FOUND", "NOT_FOUND", `placement '${laptop}' not found`],
     ]);

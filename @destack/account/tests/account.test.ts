@@ -280,7 +280,7 @@ test("exchange tokens acting as a user through lent authority or account adminis
     const refused = [
         "BAD_REQUEST",
         "GRANT_INVALID",
-        "the token endpoint refused the request: invalid_grant: impersonation is forbidden: acting as another user is not allowed",
+        "the token endpoint refused the request: invalid_grant: impersonation is forbidden: it needs permission 'impersonate'",
     ];
     expect(await refusal(exchange(administrator))).toEqual(refused);
     administrator = await fixture.elevate(administrator);
@@ -550,12 +550,12 @@ test("refuse where a person receives notifications to another person's home and 
         stranger: [
             "FORBIDDEN",
             "PERMISSION_DENIED",
-            "permission 'recipient' is forbidden: the caller lacks it",
+            "permission 'recipient' is forbidden: it is not granted",
         ],
         other: [
             "FORBIDDEN",
             "PERMISSION_DENIED",
-            "permission 'recipient' is forbidden: the caller lacks it",
+            "permission 'recipient' is forbidden: it is not granted",
         ],
     });
 });

@@ -152,18 +152,18 @@ test("replicate the chains of a residency's accounts as its home, and refuse ano
         [
             "FORBIDDEN",
             "PERMISSION_DENIED",
-            "permission 'replicate' is forbidden: the caller lacks it",
+            "permission 'replicate' is forbidden: it is not granted",
         ],
         [
             "FORBIDDEN",
             "PERMISSION_DENIED",
-            "permission 'replicate' is forbidden: the caller lacks it",
+            "permission 'replicate' is forbidden: it is not granted",
         ],
         "done",
         [
             "FORBIDDEN",
             "PERMISSION_DENIED",
-            "permission 'replicate' is forbidden: the caller lacks it",
+            "permission 'replicate' is forbidden: it is not granted",
         ],
         [
             ids.other,
@@ -209,9 +209,9 @@ test("claim names of objects in its residency's accounts as a residency home or 
         await reserve(cloud, americanId, "notes"),
     ]).toEqual([
         "done",
-        ["FORBIDDEN", "PERMISSION_DENIED", "permission 'claim' is forbidden: the caller lacks it"],
+        ["FORBIDDEN", "PERMISSION_DENIED", "permission 'claim' is forbidden: it is not granted"],
         "done",
-        ["FORBIDDEN", "PERMISSION_DENIED", "permission 'claim' is forbidden: the caller lacks it"],
+        ["FORBIDDEN", "PERMISSION_DENIED", "permission 'claim' is forbidden: it is not granted"],
     ]);
 });
 
@@ -326,7 +326,7 @@ test("relate a cloud machine as a server of its residency when declared or enrol
             [
                 "FORBIDDEN",
                 "PERMISSION_DENIED",
-                "permission 'replicate' is forbidden: the caller lacks it",
+                "permission 'replicate' is forbidden: it is not granted",
             ],
             "done",
         ],
@@ -556,7 +556,7 @@ test("relate an installation its residency's space declares once its release ask
             [
                 "FORBIDDEN",
                 "PERMISSION_DENIED",
-                "permission 'install' is forbidden: the caller lacks it",
+                "permission 'install' is forbidden: it is not granted",
             ],
             [
                 "FORBIDDEN",
