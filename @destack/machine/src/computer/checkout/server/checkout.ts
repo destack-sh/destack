@@ -1,6 +1,6 @@
 import type { Environment, FileSystem } from "@destack/environment";
 import { ListPage, type MethodOutput, type Package } from "@destack/object";
-import type { PackageVersion } from "@destack/package";
+import { PackageName, type PackageVersion } from "@destack/package";
 import { preview, type Preview } from "../object/index.ts";
 import type { CommandHost } from "../../process/command.ts";
 import { join } from "node:path";
@@ -8,10 +8,16 @@ import * as check from "@destack/check/workspace";
 import { and, eq } from "@destack/db";
 import { nth, present, schema } from "@destack/schema";
 import type { Select } from "@destack/db";
-import type { Digest, Identifier } from "@destack/schema";
-import { checkout, type CheckoutStack, WorkingTree } from "../object/index.ts";
+import { type Digest, Identifier } from "@destack/schema";
+import {
+    checkout,
+    type CheckoutStack,
+    WorkingTree,
+    type WorkingTreeSource,
+} from "../object/index.ts";
 import { Git } from "./git.ts";
 import { type CompilerPool, outputsOf, Workspace } from "@destack/build";
+import { Template } from "@destack/build/template";
 import { PackageInspection } from "@destack/package/code";
 import { ObjectReference, RequestId } from "@destack/sync";
 import { build, Build } from "@destack/stack/object";
@@ -21,9 +27,12 @@ import stackPackage from "@destack/stack/package";
 import objectPackage from "@destack/object/package";
 import type { ClientOf } from "@destack/object/client";
 import type { Machine } from "../../../machine/index.ts";
-import { PackageManifest, ViewDescription } from "@destack/package/manifest";
+import { Lock, PackageManifest, ViewDescription } from "@destack/package/manifest";
 import type {} from "@destack/package/import-meta";
 import { MachineError } from "../../../error/index.ts";
+
+/** The file Bun reads a package's registries from. */
+const BUNFIG_FILE = "bunfig.toml";
 
 /** How long a checkout's build caller waits. */
 const BUILD_WAIT_MILLISECONDS = 5 * 60_000;
@@ -80,8 +89,15 @@ export class CheckoutServer {
         return checkout.implement({
             methods: {
                 create: {
-                    prepare: (context) =>
-                        new Git(host).open(context.input.directory, context.input.source),
+                    prepare: async (context) => {
+                        // write a template's package before its repository is initialized
+                        const { directory, source } = context.input;
+                        if (source.kind === "template") {
+                            await this.#instantiate(directory, source);
+                        }
+
+                        return new Git(host).open(directory, source);
+                    },
                     handle: (context, next) =>
                         next(
                             context.with({
@@ -134,6 +150,61 @@ export class CheckoutServer {
                 },
             },
         });
+    }
+
+    /** Write a package made from a template's published release into a new directory. */
+    async #instantiate(
+        directory: string,
+        source: Extract<WorkingTreeSource, { readonly kind: "template" }>,
+    ): Promise<void> {
+        // pull the template's release whole, its source files among them
+        const { machine, compilers, host } = this;
+        const lock = await machine.releases.find(source.template, source.release);
+        await machine.releases.pull(machine.builds, source.template, lock, "all");
+        const locked = await machine.builds.lock(lock);
+
+        // read the packages the release links, each at the version it released with
+        const links = Object.entries(Lock.links(locked, locked.root));
+        const linked = await Promise.all(
+            links.map(async ([name, digest]) => {
+                const manifest = await machine.builds.get(digest);
+
+                return [name, PackageManifest.package(manifest)] as const;
+            }),
+        );
+
+        // read the template's files
+        const reader = await machine.builds.contents(locked.root);
+        const files = await Promise.all(
+            (await reader.files()).map(
+                async (file) => [file.path, await reader.load(file.path)] as const,
+            ),
+        );
+        const template = new Template(new Map(files));
+
+        // make the package, selecting the template's own dependencies at their released versions
+        const selected = linked.filter(([name]) => template.dependencies.includes(name));
+        const parameters = {
+            id: Identifier.create("package", machine.environment),
+            name: source.name,
+            dependencies: Object.fromEntries(selected),
+            versions: Object.fromEntries(linked.map(([name, each]) => [name, each.version])),
+        };
+        await template.write(directory, parameters, await compilers.toolchain(), host.files);
+
+        // point the package's and its dependencies' scopes at the universe's npm address
+        const { universe } = await machine.enrolled("making a package");
+        const names = [source.name, ...linked.map(([name]) => name)];
+        const scopes = [...new Set(names.map((name) => `@${PackageName.split(name).handle}`))];
+        const registry = [
+            "",
+            "[install.scopes]",
+            ...scopes.toSorted().map((scope) => `"${scope}" = { url = "${universe}/npm/" }`),
+            "",
+        ].join("\n");
+        const path = join(directory, BUNFIG_FILE);
+        const existing = (await host.files.exists(path)) ? await host.files.readTextFile(path) : "";
+        await host.files.writeFile(path, new TextEncoder().encode(`${existing}${registry}`));
     }
 
     /** Implement previews: build each checkout package and submit the build to its installation. */

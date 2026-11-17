@@ -33,6 +33,7 @@ import {
 } from "@destack/db";
 import type { Environment, FetchOptions } from "@destack/environment";
 import { Registry } from "@destack/registry/client";
+import { RegistryError } from "@destack/registry/error";
 import type { Keyring } from "@destack/identity";
 import {
     CallError,
@@ -91,6 +92,9 @@ const MACHINE_CALL_MILLISECONDS = 60_000;
 
 /** The prefix of the root retaining a space's builds in its machine's builds. */
 const SPACE_ROOT_PREFIX = "space:";
+
+/** The path npm clients ask for a handle's packages, which lie at the handle's forge. */
+const NPM_PATH = /^\/npm(\/@([^/%]+)(?:\/|%2[fF]).+)$/u;
 
 /** The oldest Destack version whose releases a machine runs. */
 export const OLDEST_DESTACK = "2026.11.0";
@@ -840,7 +844,35 @@ export class Machine {
 
     /** Serve a request at the machine's own hosts, in the space it names. */
     async serve(request: Request, authentication?: Authentication): Promise<Response> {
-        return this.#refusal() ?? this.#serve(await this.#route(request), authentication);
+        return (
+            this.#refusal() ??
+            (await this.#npm(request)) ??
+            this.#serve(await this.#route(request), authentication)
+        );
+    }
+
+    /** Send an npm client to the forge of the handle it asks for, answering no other request. */
+    async #npm(request: Request): Promise<Response | undefined> {
+        // take a request below the npm path
+        const url = new URL(request.url);
+        const [, path, handle] = NPM_PATH.exec(url.pathname) ?? [];
+        if (path === undefined || handle === undefined) {
+            return undefined;
+        }
+
+        // find the handle's forge
+        const forge = await this.releases.npm(handle).catch((error: unknown) => {
+            if (!RegistryError.is(error, "PUBLISHER_NOT_FOUND")) {
+                throw error;
+            }
+
+            return undefined;
+        });
+
+        // answer 404 for a handle no account holds, as npm clients expect
+        return forge === undefined
+            ? new Response(null, { status: 404 })
+            : Response.redirect(`${forge}${path}${url.search}`, 307);
     }
 
     /** Serve a request to a name the machine takes: an installation origin's or a route's. */
@@ -849,6 +881,12 @@ export class Machine {
         const refused = this.#refusal();
         if (refused !== undefined) {
             return refused;
+        }
+
+        // send an npm client on, whose encoded package names no route's path takes
+        const sent = await this.#npm(request);
+        if (sent !== undefined) {
+            return sent;
         }
 
         // find the space of the name's installation origin, S3 origin or route

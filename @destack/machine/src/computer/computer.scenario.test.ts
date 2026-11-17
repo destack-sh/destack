@@ -1,8 +1,9 @@
 import { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { CLIENT_KEYS, SESSIONS } from "@destack/account/native";
-import { endpoint } from "@destack/account/object";
+import { account, endpoint } from "@destack/account/object";
 import { Snapshot } from "@destack/db";
+import { present } from "@destack/schema";
 import { RequestId } from "@destack/sync";
 import { expect, test } from "@destack/test";
 import machinePackage from "../package.ts";
@@ -118,4 +119,42 @@ test("list a relayed computer's checkouts as its account's owner on another comp
     });
     const { items } = await client.checkout.list({ machineId: relayed.machine.id });
     expect(items.map((item) => item.id)).toEqual([registered.id]);
+});
+
+test("send an npm client to the forge of the handle it asks for, and answer 404 for a handle no account holds", async () => {
+    // enroll a computer of the owner, whose handle the universe's directory lists
+    const world = await TestComputer.world();
+    const computer = await TestComputer.open({ world });
+    const login = await computer.signIn(OWNER_EMAIL);
+    await computer.enroll(login, world.owner.account);
+    const universe = world.universe.storage.database;
+    const owner = await Snapshot.live(universe)
+        .read(account.table)
+        .findFirst({ where: { id: world.owner.account } });
+    const handle = present(owner, "the owner's account").handle;
+
+    // ask for a package below the owner's handle, its tarball, and one below a handle nobody holds
+    const ask = async (path: string) => {
+        const answered = await computer.machine.serve(new Request(`http://127.0.0.1/npm/${path}`));
+
+        return [answered.status, answered.headers.get("location")];
+    };
+    const named = async (path: string) => {
+        const request = new Request(`https://universe.test/npm/${path}`);
+        const answered = await computer.machine.serveName(request);
+
+        return [answered.status, answered.headers.get("location")];
+    };
+    const forge = await computer.machine.releases.npm(handle);
+    expect([
+        await ask(`@${handle}%2fnotes?write=true`),
+        await ask(`@${handle}/notes/-/notes-2026.10.0.tgz`),
+        await ask("@nobody%2fnotes"),
+        await named(`@${handle}%2fnotes`),
+    ]).toEqual([
+        [307, `${forge}/@${handle}%2fnotes?write=true`],
+        [307, `${forge}/@${handle}/notes/-/notes-2026.10.0.tgz`],
+        [404, null],
+        [307, `${forge}/@${handle}%2fnotes`],
+    ]);
 });

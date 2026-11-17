@@ -145,6 +145,11 @@ export class TestRegistry implements Registry, ReleaseRegistry {
         this.#fixture = fixture;
     }
 
+    /** Refuse npm clients, which the fixture registry serves no packages to. */
+    async npm(handle: string): Promise<string> {
+        throw new Error(`fixture registry serves no npm packages of '@${handle}'`);
+    }
+
     /** Read the version after the newest one pushed of a package, else the fixtures' first. */
     async next(_account: Identifier<"account">, packageId: PackageId): Promise<Version> {
         const pushed = [...this.#pushed.keys()]

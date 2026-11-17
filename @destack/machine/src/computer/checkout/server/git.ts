@@ -52,8 +52,12 @@ export class Git {
             return this.initialize(directory);
         }
         // clone the remote
-        else {
+        else if (source.kind === "clone") {
             return this.clone(directory, source.remote, source.ref);
+        }
+        // initialize a repository around the package a template made
+        else {
+            return this.initialize(directory);
         }
     }
 
