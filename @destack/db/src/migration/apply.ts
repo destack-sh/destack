@@ -51,15 +51,15 @@ async function applySteps(
     isRebuilt: boolean,
 ): Promise<void> {
     await database.transaction(async (transaction) => {
-        // change the tables in one script
-        await runScript(transaction, changes);
+        // change the tables
+        await runStatements(transaction, changes, manager);
 
         // convert rows and rebuild trees after the triggers
         let pending: string[] = [];
         for (const step of plan.steps.filter(isLogged)) {
             // flush the batch and rebuild the tree
             if (step.tree !== undefined) {
-                await runScript(transaction, pending);
+                await runStatements(transaction, pending, manager);
                 pending = [];
                 await rebuildTree(transaction, step.tree).catch((cause: unknown) => {
                     throw DatabaseError.of(
@@ -78,12 +78,10 @@ async function applySteps(
         }
 
         // record the declared state
-        await runScript(transaction, [
-            ...pending,
-            ...plan.state.map((state) =>
-                writeState(state, manager, appliedAt, database.state.namespace),
-            ),
-        ]);
+        const recorded = plan.state.map((state) =>
+            writeState(state, manager, appliedAt, database.state.namespace),
+        );
+        await runStatements(transaction, [...pending, ...recorded], manager);
 
         // require every converted value to pass its column's schema, since reads trust stored values
         for (const step of plan.steps) {
@@ -109,22 +107,25 @@ async function applySteps(
     });
 }
 
-/** Run statements as one script. */
-async function runScript(
+/** Run a manager's statements in order, reporting the one that fails. */
+async function runStatements(
     database: DatabaseConnection,
     statements: readonly string[],
+    manager: string,
 ): Promise<void> {
-    // skip empty phases
-    if (statements.length === 0) {
-        return;
-    }
-
-    // wrap the failure in a migration error
-    try {
-        await database.executeScript(statements.map((statement) => `${statement};`).join("\n"));
-    } catch (cause) {
-        const message = cause instanceof Error ? cause.message : String(cause);
-        throw DatabaseError.of("MIGRATION_BROKEN", `migration failed: ${message}`, { cause });
+    for (const statement of statements) {
+        // wrap the failure in a migration error with the statement's first line
+        try {
+            await database.executeScript(`${statement};`);
+        } catch (cause) {
+            const message = cause instanceof Error ? cause.message : String(cause);
+            const [line] = statement.split("\n");
+            throw DatabaseError.of(
+                "MIGRATION_BROKEN",
+                `migration of '${manager}' failed at '${line}': ${message}`,
+                { cause },
+            );
+        }
     }
 }
 
