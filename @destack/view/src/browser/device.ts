@@ -11,6 +11,8 @@ import { deviceSetting, setting } from "@destack/setting/object";
 import { HOME_PATH } from "../declare/context.ts";
 import type { View } from "../declare/view.ts";
 
+export { BrowserEnvironment } from "@destack/environment/browser";
+
 /** Every part a scope plays for a page, whose object types the person's device stores together. */
 const DEVICE_ROLES = ["user", "account", "space"] as const;
 

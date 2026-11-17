@@ -449,8 +449,7 @@ export function entryPlugin(views: readonly LocatedView[], compilation: ViewPack
 /** Write a client view's device worker module, serving the person's device to the tabs. */
 function deviceModule(view: LocatedView): string {
     return [
-        `import { BrowserEnvironment } from "@destack/environment/browser";`,
-        `import { serveDevice } from "${VIEW_PACKAGE}/device";`,
+        `import { BrowserEnvironment, serveDevice } from "${VIEW_PACKAGE}/device";`,
         `import { ${view.export} as view } from ${JSON.stringify(view.file)};`,
         ``,
         `serveDevice(view, self, BrowserEnvironment.system);`,
