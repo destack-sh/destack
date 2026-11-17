@@ -175,6 +175,7 @@ export class Device {
     /** Stop and remove the device. */
     async close(): Promise<void> {
         await this.offline();
+        await this.client.close();
         await this.storage.close();
     }
 }
