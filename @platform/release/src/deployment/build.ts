@@ -89,10 +89,11 @@ export class PlatformBuild implements AsyncDisposable {
         locks: ReadonlyMap<string, Digest>,
         version: string,
     ) {
-        this.version = version;
+        // keep the store, the releases, their locks and their version
         this.store = store;
         this.releases = releases;
         this.locks = locks;
+        this.version = version;
     }
 
     /** Build the stacks' closure and a checkout's published packages into its store. */
