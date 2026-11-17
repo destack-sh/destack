@@ -5,6 +5,9 @@ import type { SimulatedTelemetry } from "@destack/environment/simulation";
 import { schema } from "@destack/schema";
 import { Telemetry, type TelemetryOptions } from "../sdk/index.ts";
 
+/** The one reader of each world's telemetry, which every part of a test world shares. */
+const READERS = new WeakMap<Pick<SimulatedTelemetry, "logs">, TestTelemetry>();
+
 /** An exception a package captured, as a test reads it back. */
 export interface CapturedException {
     /** The capturing package's name, its records' instrumentation scope. */
@@ -38,6 +41,19 @@ export class TestTelemetry implements Disposable {
     constructor(recorded: Pick<SimulatedTelemetry, "logs">) {
         this.#recorded = recorded;
         this.#taken = recorded.logs.length;
+    }
+
+    /** Read a world's one reader, which reads its records from the first one. */
+    static of(recorded: Pick<SimulatedTelemetry, "logs">): TestTelemetry {
+        // open the reader on first use, reading from the world's first record
+        let reader = READERS.get(recorded);
+        if (reader === undefined) {
+            reader = new TestTelemetry(recorded);
+            reader.#taken = 0;
+            READERS.set(recorded, reader);
+        }
+
+        return reader;
     }
 
     /** List the exceptions packages captured, oldest first. */
