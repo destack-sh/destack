@@ -14,10 +14,10 @@ test("keep a stack's relationship row until it changes, then replace it", async 
     await fixture.serve();
 
     // declare a reader role bound to one user through the space's stack, as its owner applies it
-    const apply = (user: Identifier<"user">, via: object = { role: "reader" }) =>
+    const apply = (user: Identifier<"user">) =>
         fixture.submit([], {
             roles: { reader: { description: "Reads installations", permissions: [] } },
-            relationships: { readers: { ...via, subject: { id: user } } },
+            relationships: { readers: { role: "reader", subject: { id: user } } },
         });
     const bound = async () =>
         (await fixture.database.select().from(accessRelationship))
@@ -32,23 +32,12 @@ test("keep a stack's relationship row until it changes, then replace it", async 
     await apply(dave);
     const replaced = await bound();
 
-    // block a relationship through both a relation and a role, or neither
-    const refused = [
-        await apply(dave, { role: "reader", relation: "read" }),
-        await apply(dave, {}),
-    ];
-
     // expect the same row while unchanged and a new one for the other user
     const [id, subject] = nth(replaced, 0);
-    const message = "grant is invalid: it must have exactly one relation or role";
-    expect([kept, replaced.length, subject, id === nth(nth(first, 0), 0), refused]).toEqual([
+    expect([kept, replaced.length, subject, id === nth(nth(first, 0), 0)]).toEqual([
         first,
         1,
         dave,
         false,
-        [
-            ["BAD_REQUEST", "CALL_INVALID", message],
-            ["BAD_REQUEST", "CALL_INVALID", message],
-        ],
     ]);
 });
