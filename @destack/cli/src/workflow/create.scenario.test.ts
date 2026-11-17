@@ -52,7 +52,7 @@ test("make a package from a published template in a new checkout, its registries
         entries: entries.map((entry) => entry.name).toSorted(),
         manifest,
         definition,
-        isOwn: [id !== STARTER_ID, Version.release(version)],
+        isOwn: [id !== STARTER_ID, version],
         bunfig: await read("bunfig.toml"),
     }).toEqual({
         code: [0, ""],
