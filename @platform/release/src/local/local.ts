@@ -19,6 +19,7 @@ import {
 import { Device, type MachineEnrollment } from "@destack/machine/device";
 import { PrintTransport } from "@destack/mail/print";
 import { present } from "@destack/schema";
+import { LATEST_TAG } from "@destack/registry/object";
 import { Stage } from "@destack/update/release";
 import { Toolchain } from "@destack/check/toolchain";
 import { BunUniverse } from "./universe.ts";
@@ -237,6 +238,9 @@ export class LocalUniverse implements AsyncDisposable {
             const { name, version } = PackageManifest.package(reader.manifest);
             print(`${name}@${version}`);
         });
+
+        // point latest at them too, which an install follows by default: this registry is the local universe's own
+        await build.release(LATEST_TAG, local.forges(custody, build, operator), async () => {});
 
         return new LocalUniverse(endpoints, local, options, stack.move());
     }
