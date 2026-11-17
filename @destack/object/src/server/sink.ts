@@ -41,6 +41,38 @@ export class ObjectSink {
         return `${subscription.name} ${subscription.scope}`;
     }
 
+    /** Wait until some followed replicas have a watermark, which the late ones request. */
+    async wait(
+        watermark: sync.Watermark,
+        replicas: readonly sync.SubscriptionRecord[],
+        signal: AbortSignal,
+    ): Promise<boolean> {
+        // list the replicas yet to have the watermark, none for replicas caught up
+        const { database } = this.store;
+        const homes = await sync.Replica.homes(database, replicas);
+        const late = new Set(
+            sync.Replica.late(homes, watermark).map((home) => ObjectSink.#key(home)),
+        );
+
+        // request each late one at the store's position now, with the position it waits for
+        const followed = late.size === 0 ? [] : await this.followed();
+        const revision = await database.log.position();
+        const { log, epoch, sequence } = watermark;
+        await Promise.all(
+            followed
+                .filter((entry) => late.has(ObjectSink.#key(entry.subscription)))
+                .map((entry) =>
+                    entry.publisher.request({
+                        ...entry.subscription,
+                        revision,
+                        waiting: { log, epoch, sequence },
+                    }),
+                ),
+        );
+
+        return await sync.Replica.waitAt(database, replicas, watermark, signal);
+    }
+
     /** Build the cursor listing the requested replicas at each start and as their tables change. */
     cursor(subscriber: Subscriber): Cursor {
         return {

@@ -2724,7 +2724,7 @@ export class ObjectStore {
 
         // find the first late replica among those the wait reads
         const replicas = history.followed.length > 0 ? history.followed : history.including;
-        const late = sync.Replica.late(
+        const [late] = sync.Replica.late(
             await sync.Replica.homes(this.database, replicas),
             watermark,
         );
@@ -2789,9 +2789,9 @@ export class ObjectStore {
                 `cannot read '${watermark.scope}' at the watermark: it no longer has the watermark's history`,
             );
         }
-        // wait until the followed replicas reading the scope reach it, as only a followed replica moves
+        // wait until the followed replicas reading the scope have it, as only a followed replica moves
         else if (history.kind === "replicated" && history.followed.length > 0) {
-            return await sync.Replica.waitAt(this.database, history.followed, watermark, signal);
+            return await this.sink.wait(watermark, history.followed, signal);
         }
         // wait until the replicas including the scope reach it, for a store following none yet
         else {
