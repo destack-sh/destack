@@ -52,19 +52,18 @@ export function implementVault(): typeof vault {
                 if (found !== undefined && found.parentId !== target.id) {
                     throw VaultError.of("SECRET_NOT_FOUND", `secret '${id}' not found`);
                 }
-                // refuse a secret of this vault under another name
-                else if (found !== undefined && found.name !== name) {
-                    throw VaultError.of(
-                        "SECRET_BLOCKED",
-                        `cannot update secret '${id}' as '${name}': it is '${found.name}' in this vault`,
-                    );
-                }
-                // require updating a secret it has
+                // require updating a secret it has, before telling its caller its name
                 else if (found !== undefined) {
                     await call.require(
                         secret.permission("update"),
                         secret.reference(target.scope, id),
                     );
+                    if (found.name !== name) {
+                        throw VaultError.of(
+                            "SECRET_BLOCKED",
+                            `cannot update secret '${id}' as '${name}': it is '${found.name}' in this vault`,
+                        );
+                    }
                 }
                 const creation =
                     found === undefined

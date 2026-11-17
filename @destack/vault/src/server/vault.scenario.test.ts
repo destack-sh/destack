@@ -218,8 +218,19 @@ test("refuse another consumer replacing a put secret", async () => {
     await put(fixture, fixture.installation, target, "first");
     await put(fixture, fixture.installation, target, "second");
 
-    // refuse the consumer replacing or removing the application's secret
+    // refuse the consumer replacing or removing the application's secret, and renaming it without its name
     const replaced = await refusal(put(fixture, other, target, "stolen"));
+    const renamed = await refusal(
+        fixture.mutate(
+            other,
+            vault.call("put", {
+                ...vault.target({ scope: ids.space, id: credentials }),
+                secret: target.secret,
+                name: "other",
+                value: { encoding: "text", value: "stolen" },
+            }),
+        ),
+    );
     const removed = await refusal(
         fixture.mutate(
             other,
@@ -235,12 +246,14 @@ test("refuse another consumer replacing a put secret", async () => {
         .installed(fixture.installation)
         .client(vaultPackage)
         .secret.read({ scope: ids.space, id: target.secret });
-    expect({ replaced, removed, after }).toEqual({
-        replaced: [
-            "FORBIDDEN",
-            "PERMISSION_DENIED",
-            "permission 'update' is forbidden: the caller lacks it",
-        ],
+    const forbidden = [
+        "FORBIDDEN",
+        "PERMISSION_DENIED",
+        "permission 'update' is forbidden: the caller lacks it",
+    ];
+    expect({ replaced, renamed, removed, after }).toEqual({
+        replaced: forbidden,
+        renamed: forbidden,
         removed: ["NOT_FOUND", "NOT_FOUND", `secret '${target.secret}' not found`],
         after: { version: 2, value: { encoding: "text", value: "second" } },
     });
