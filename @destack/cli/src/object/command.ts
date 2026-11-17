@@ -10,7 +10,7 @@ import type { Terminal } from "../output/index.ts";
 import { FlagSet, INPUT_OPTION, LIST_OPTIONS } from "./flag.ts";
 import { Noun, Catalog } from "./catalog.ts";
 import { Localization, SOURCE_LOCALE } from "@destack/locale";
-import type { Command } from "@destack/object";
+import { Command } from "@destack/object";
 import { Render } from "./render.ts";
 import { CliError } from "../error/index.ts";
 
@@ -19,6 +19,11 @@ const NEW = "new";
 
 /** The usual name of a create method, which the word new stands for in help. */
 const CREATE = "create";
+
+/** The option confirming an action that cannot be undone. */
+const YES_OPTION = {
+    yes: { type: "boolean", description: "Run without asking" },
+} as const;
 
 /** The method kinds the singular noun's commands run: getting one object and listing them. */
 const NOUN_KINDS = new Set(["get", "list"]);
@@ -229,11 +234,20 @@ function methodCommand(context: Context, noun: Noun, method: string, id: string 
         description: `Call ${noun.name}.${method}`,
         json: true,
         get options() {
-            return { ...FlagSet.input(noun.type, method).options(), ...INPUT_OPTION };
+            return {
+                ...FlagSet.input(noun.type, method).options(),
+                ...INPUT_OPTION,
+                ...(Command.isDestructive(noun.type, method) ? YES_OPTION : {}),
+            };
         },
         async run(call) {
-            // read the flags, whose references the method resolves by key
+            // ask before a method that removes its target for good
             const { json, options } = call;
+            if (Command.isDestructive(noun.type, method)) {
+                await requireConfirmation(method, noun, id, options, context);
+            }
+
+            // read the flags, whose references the method resolves by key
             const flags = FlagSet.input(noun.type, method);
 
             // build the input from the JSON option, the flags and the object
@@ -248,6 +262,30 @@ function methodCommand(context: Context, noun: Noun, method: string, id: string 
             );
         },
     };
+}
+
+/** Ask a person on a terminal before a verb that cannot be undone, unless they passed --yes. */
+async function requireConfirmation(
+    verb: string,
+    noun: Noun,
+    id: string | undefined,
+    options: Readonly<Record<string, unknown>>,
+    context: Context,
+): Promise<void> {
+    // take --yes, else the person's answer on a terminal
+    const target = id ?? noun.plural;
+    const isConfirmed =
+        options["yes"] === true ||
+        (context.environment.process.stdin.isTerminal &&
+            (await context.terminal.prompt.confirm(
+                `Run ${verb} on ${target}? This cannot be undone.`,
+            )));
+    if (!isConfirmed) {
+        throw CliError.of(
+            "COMMAND_BLOCKED",
+            `cannot run '${verb}' on '${target}': it cannot be undone, so confirm it with --yes`,
+        );
+    }
 }
 
 /** Build the command running a declared command on a matching object, or on its scope. */
@@ -266,6 +304,7 @@ function declaredCommand(
             return {
                 ...FlagSet.input(noun.type, command.method).without(fields).options(),
                 ...INPUT_OPTION,
+                ...(command.isDestructive ? YES_OPTION : {}),
             };
         },
         async run(call) {
@@ -283,6 +322,11 @@ function declaredCommand(
                         `cannot run '${command.name}' on ${noun.name} '${id}': it does not apply`,
                     );
                 }
+            }
+
+            // ask before a command that removes its target for good
+            if (command.isDestructive) {
+                await requireConfirmation(command.name, noun, id, call.options, context);
             }
 
             // build the input from the JSON option, the flags and the object, beside the preset fields
