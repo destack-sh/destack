@@ -624,6 +624,27 @@ test("plan a setting's value change between releases: safe widenings, converted 
     ]);
 });
 
+test("refuse a release changing a setting's conversion an earlier release has", () => {
+    // describe the keymap converted to edition 2, and a later release rewriting that conversion
+    const narrowed = defineSetting(
+        { ...editor.definition, schema: schema.enum(["vim"]), default: "vim" },
+        { package: notes },
+    );
+    const describe = (convert: Record<number, Expression>) =>
+        describeSetting(defineSetting({ ...narrowed.definition, convert }, { package: notes }));
+    const earlier = describe({ 2: Expression.literal("vim") });
+    const rewritten = describe({ 2: Expression.literal("other") });
+    const extended = describe({ 2: Expression.literal("vim"), 3: Expression.literal("vim") });
+
+    // keep a release adding an edition, and refuse the rewritten one
+    expect(compareSetting(entry(earlier, "2026.9.0"), entry(extended, "2026.10.0")).steps).toEqual(
+        [],
+    );
+    expect(() => compareSetting(entry(earlier, "2026.9.0"), entry(rewritten, "2026.10.0"))).toThrow(
+        "cannot reach the desired state: setting/editor.mode: changes the conversion to edition 2 that release 2026.9.0 has: add a new edition",
+    );
+});
+
 test("read a setting's value among an installation's resolved settings, refusing an invalid or unresolved one", async () => {
     // read the resolved value by the setting's key
     const key = DeclarationReference.key(editor.reference);
