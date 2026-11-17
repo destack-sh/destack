@@ -21,7 +21,7 @@ export const BrowserEnvironment = {
     get system(): Environment<"workers" | BrowserCapability> {
         system ??= {
             ...Environment.system,
-            network: Network.browser,
+            network: { ...Network.browser, origin: location.origin },
             workers: WorkerHost.system,
             storage: Storage.system,
             locks: LockManager.system,

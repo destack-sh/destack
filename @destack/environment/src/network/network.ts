@@ -60,6 +60,8 @@ export interface ClientSocket {
 
 /** The network an environment reaches other origins through. */
 export interface Network {
+    /** The origin a page sends its requests from, absent outside a page. */
+    readonly origin: string | undefined;
     /** Send a request and answer its response. */
     readonly fetch: (request: Request, options?: FetchOptions) => Promise<Response>;
     /** Open a connection to a host and port, such as an SMTP server's, or to a Unix socket. */
@@ -171,6 +173,7 @@ export const Network: {
 
     /** The web's network on every target: fetch and WebSockets, refusing what only hosts have. */
     system: {
+        origin: undefined,
         fetch: async (request, options) => {
             // refuse a client certificate or a Unix socket, which only a host network sends with
             if (options?.certificate !== undefined || options?.unix !== undefined) {
@@ -222,6 +225,7 @@ export const Network: {
 
     /** The web's network in a browser, holding a request's signal until its body ends. */
     browser: {
+        origin: undefined,
         fetch: async (request, options) => {
             // answer a response without a body as it is
             const response = await Network.system.fetch(request, options);

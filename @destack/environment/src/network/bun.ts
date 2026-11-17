@@ -5,6 +5,7 @@ import { connectSocket, resolveHostname } from "./socket/bun.ts";
 
 /** Bun's network: the web's, with client certificates, Unix sockets and TCP connections. */
 export const BunNetwork: Network = {
+    origin: undefined,
     fetch: async (request, options) => {
         // present the certificate, send through the socket, and keep the encoding the options give
         const { certificate, unix, decompress, isPublicOnly } = options ?? {};

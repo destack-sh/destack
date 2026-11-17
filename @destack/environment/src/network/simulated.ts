@@ -315,6 +315,7 @@ export class SimulatedNetwork {
     /** Read the network a node reaches other origins through, without TLS. */
     of(node: string): Network {
         return {
+            origin: undefined,
             fetch: async (request, options) => {
                 // send through a Unix socket on the host to a host process, which may call back in
                 if (options?.unix !== undefined) {
