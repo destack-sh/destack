@@ -10,6 +10,9 @@ export default definePackage({
     icon: "package",
     color: "green",
     objects: [repository, reference, packageObject, release, tag],
-    mounts: [defineMount({ name: "builds", path: "/builds" })],
+    mounts: [
+        defineMount({ name: "builds", path: "/builds" }),
+        defineMount({ name: "npm", path: "/npm" }),
+    ],
     errors: RegistryError,
 });

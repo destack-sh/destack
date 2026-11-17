@@ -7,6 +7,7 @@ import { ObjectReference } from "@destack/sync";
 import { graph, PackageId, PackageName } from "@destack/package";
 import { Vocabulary } from "@destack/resource";
 import { RegistryError } from "../error/index.ts";
+import { NpmRelease } from "../npm/packument.ts";
 import { validRange } from "semver";
 import { argument, plural, t } from "@destack/locale";
 
@@ -51,6 +52,10 @@ export const Candidate = schema.object({
     version: schema.string(),
     /** Its root build's declarations, with their terms. */
     declarations: schema.array(graph.Declaration).readonly(),
+    /** What an npm client lists of the release: install fields and tarball hash. */
+    npm: NpmRelease,
+    /** The digest of the stored tarball npm clients download. */
+    tarball: Digest,
 });
 /** A pushed lock checked for its release, before the release's transaction. */
 export type Candidate = schema.Infer<typeof Candidate>;

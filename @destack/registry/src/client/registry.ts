@@ -46,6 +46,7 @@ type ForgeOwner =
     | { readonly package: PackageId }
     | { readonly repository: Identifier<"repository"> }
     | { readonly account: Identifier<"account"> }
+    | { readonly handle: string }
     | { readonly home: Identifier<"space"> };
 
 /** The forges of published releases and repositories, called as one caller. */
@@ -91,7 +92,7 @@ export class Registry {
                 const spaceId =
                     "home" in owner
                         ? owner.home
-                        : await home(await Registry.#account(claims, owner));
+                        : await home(await Registry.#account(directory, claims, owner));
                 const now = environment.clock.now();
                 const url = await directory.mount(spaceId, installation, registryPackage.id, now);
 
@@ -104,12 +105,25 @@ export class Registry {
 
     /** Read the account owning a forge: an account itself, or the one publishing a package. */
     static async #account(
+        directory: Directory,
         claims: ClaimLookup,
         owner: Exclude<ForgeOwner, { readonly home: unknown }>,
     ): Promise<Identifier<"account">> {
         // take an account itself
         if ("account" in owner) {
             return owner.account;
+        }
+        // find the account claiming a handle
+        else if ("handle" in owner) {
+            const claimed = await directory.account(owner.handle);
+            if (claimed === undefined) {
+                throw RegistryError.of(
+                    "PUBLISHER_NOT_FOUND",
+                    `owning account for '@${owner.handle}' not found`,
+                );
+            }
+
+            return claimed;
         }
 
         // find the account claiming the repository's or the package's identifier
@@ -125,6 +139,13 @@ export class Registry {
         }
 
         return schema.identifier("account").parse(found.scope);
+    }
+
+    /** Read the address npm clients ask for a handle's packages: its forge's npm mount. */
+    async npm(handle: string): Promise<string> {
+        const forge = await this.#find({ handle });
+
+        return `${forge.url}${registryPackage.mounts.npm.path}`;
     }
 
     /** Resolve a package's published release of a version, or of the version a tag points at. */

@@ -4,6 +4,7 @@ import type { Select } from "@destack/db";
 import { defineObject, field } from "@destack/object";
 import { PackageId } from "@destack/package";
 import { schema } from "@destack/schema";
+import { NpmRelease } from "../npm/packument.ts";
 import { Candidate, packageObject, TagName } from "./package.ts";
 import { nested } from "@destack/object";
 import { argument, plural, t } from "@destack/locale";
@@ -26,6 +27,10 @@ export const release = defineObject(
             version: field.string(),
             /** The published lock's digest: the package's build and every build it runs with. */
             lock: field.blob(),
+            /** What an npm client lists of the release: install fields and tarball hash. */
+            npm: field.json(NpmRelease),
+            /** The stored tarball npm clients download: the release's sources. */
+            tarball: field.blob(),
             /** The full Git SHA-1 or SHA-256 commit identifier, absent for some prereleases. */
             commit: field.string().optional(),
             /** The warning installers show for the release, absent while it is not deprecated. */

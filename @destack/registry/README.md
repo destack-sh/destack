@@ -97,3 +97,4 @@ Packages, versions and dist-tags follow the npm registry.
 | one registry          | each publisher's      | Any package can implement it, in the publisher's residency. |
 | dist-tags             | `tag`                 | The same.                                                   |
 | `npm deprecate`       | `release.deprecate`   | Deprecated releases still resolve, with a message.          |
+| `npm install`         | the `npm` mount       | Read-only: a listing and each release's source tarball.     |
