@@ -357,8 +357,11 @@
         "@opentelemetry/sdk-trace": "3.0.0",
       },
       "devDependencies": {
+        "@destack/package": "workspace:*",
         "@destack/test": "workspace:*",
         "@types/bun": "1.4.4",
+        "miniflare": "4.20260730.0",
+        "rolldown": "1.2.19",
       },
     },
     "@destack/error": {
