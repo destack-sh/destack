@@ -52,6 +52,11 @@ export class HttpTransport implements Network {
         );
     }
 
+    /** The origin the network below sends its requests from. */
+    get origin(): string | undefined {
+        return this.source.origin;
+    }
+
     /** Read the untraced network below a network, itself when untraced. */
     static sourceOf(network: Network): Network {
         return network instanceof HttpTransport ? network.source : network;
@@ -99,9 +104,12 @@ export class HttpTransport implements Network {
             method,
             attributes,
             async (span) => {
-                // send the request with the trace in a copy of its headers
+                // write the trace into a copy of its headers, in a browser for its own origin alone
                 const headers = new Headers(request.headers);
-                Telemetry.inject(headers, this.#telemetry);
+                const { origin } = this.source;
+                if (origin === undefined || origin === url.origin) {
+                    Telemetry.inject(headers, this.#telemetry);
+                }
                 const copy = copyRequest(request, { headers });
                 const response = await this.source.fetch(copy, options);
                 outcome = HttpTransport.answered(span, response.status, CLIENT_ERROR_STATUS);

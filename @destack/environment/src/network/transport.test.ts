@@ -2,6 +2,8 @@ import { expect, test } from "@destack/test";
 import { SpanKind } from "@opentelemetry/api";
 import { Simulation } from "../simulation/simulation.ts";
 import { testWorldOptions } from "@destack/test/world";
+import { Network } from "./network.ts";
+import { HttpTransport } from "./transport.ts";
 
 /** Name a span's end of a call. */
 function kindOf(kind: SpanKind): string {
@@ -88,4 +90,32 @@ test("report a method HTTP does not define as _OTHER at both ends, keeping each 
         ["_OTHER", "_OTHER"],
         ["_OTHER", "_OTHER"],
     ]);
+});
+
+test("write the trace into a browser's requests to its own origin alone, and into every request outside one", async () => {
+    // trace a page's network and a server's, each noting the trace header it sends
+    await using simulation = Simulation.of(
+        { seed: 1, start: Date.UTC(2026, 0, 1), steps: [] },
+        { world: testWorldOptions() },
+    );
+    const { telemetry } = simulation.environment("client");
+    const sent: boolean[] = [];
+    const fetch = (request: Request) => {
+        sent.push(request.headers.has("traceparent"));
+
+        return Promise.resolve(new Response("ok"));
+    };
+    const page = new HttpTransport(
+        { ...Network.system, origin: "https://page.test", fetch },
+        telemetry,
+    );
+    const server = new HttpTransport({ ...Network.system, fetch }, telemetry);
+
+    // fetch the page's origin and another from the page, then the other from the server
+    await page.fetch(new Request("https://page.test/own"));
+    await page.fetch(new Request("https://other.test/catalog.json"));
+    await server.fetch(new Request("https://other.test/catalog.json"));
+
+    // expect the page to keep its trace from the other origin, which a preflight would refuse
+    expect(sent).toEqual([true, false, true]);
 });
