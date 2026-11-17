@@ -330,7 +330,6 @@ export class Control implements AsyncDisposable {
                     authorizeMachine: async () => {},
                     drainTimeout: DRAIN_MILLISECONDS,
                     ready,
-                    report: (error) => options.report(error),
                 }),
             ]),
         );
