@@ -5,7 +5,7 @@ import { relative, sep } from "node:path";
 import type { DeclarationSite } from "../definition/declaration.ts";
 import { ModuleMetadata } from "../definition/metadata.ts";
 import type { Environment } from "@destack/environment";
-import { Digest, nth, schema, type Version } from "@destack/schema";
+import { Digest, nth, schema, Version } from "@destack/schema";
 import type { TransformCache } from "../build/build.ts";
 import { type ModulePackage, PackageLocator, type StampedFunction } from "../locator/index.ts";
 
@@ -70,6 +70,8 @@ export class ModuleTransformer {
     readonly environment: Environment<"files">;
     /** The cache of transforms shared across processes, absent for none. */
     readonly #cache: TransformCache | undefined;
+    /** The version the process runs its source at. */
+    readonly #source: Version;
     /** The digest of the transformer's own code, which every cache key includes. */
     #transformer: Promise<Digest> | undefined;
     /** Each module's text and its transform, by path. */
@@ -84,13 +86,17 @@ export class ModuleTransformer {
         options: {
             /** The versions a build releases its packages at. */
             readonly versions?: Readonly<Record<string, Version>>;
+            /** The version the process runs its source at, the development one by default. */
+            readonly source?: Version;
             /** The cache of transforms shared across processes. */
             readonly cache?: TransformCache;
         } = {},
     ) {
+        // keep the environment, the cache and the source's version, and find packages at them
         this.environment = environment;
         this.#cache = options.cache;
-        this.packages = new PackageLocator(environment.files, options.versions ?? {});
+        this.#source = options.source ?? Version.development;
+        this.packages = new PackageLocator(environment.files, options.versions ?? {}, this.#source);
     }
 
     /** Stamp a module of a Destack package, once per text, absent for one that needs no stamps. */
@@ -122,7 +128,8 @@ export class ModuleTransformer {
 
         // take the module's cache entry while what it read stays the same, one entry per transformer and path
         this.#transformer ??= this.#identify();
-        const slot = await Digest.json([await this.#transformer, path], this.environment.crypto);
+        const key = [await this.#transformer, path, this.#source];
+        const slot = await Digest.json(key, this.environment.crypto);
         const inputs = await this.#inputs(code, path, owner);
         const stored = await cache.read(slot);
         const entry =

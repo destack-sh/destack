@@ -57,13 +57,20 @@ export class PackageLocator {
     readonly #imported = new Map<string, ReadonlyMap<string, StampedFunction>>();
     /** The versions the build releases its source packages at, by package name. */
     readonly #versions: Readonly<Record<string, Version>>;
+    /** The version of the source packages the build gives none: the process's own. */
+    readonly #source: Version;
     /** The files the packages are read from. */
     readonly #files: FileSystem;
 
     /** Find packages in files, the sources at the versions the build releases them at. */
-    constructor(files: FileSystem, versions: Readonly<Record<string, Version>> = {}) {
+    constructor(
+        files: FileSystem,
+        versions: Readonly<Record<string, Version>> = {},
+        source: Version = Version.development,
+    ) {
         this.#files = files;
         this.#versions = versions;
+        this.#source = source;
     }
 
     /** Find the Destack package containing a module, or nothing outside Destack packages. */
@@ -258,7 +265,7 @@ export class PackageLocator {
             );
         }
         const manifest = ReleasedManifest.parse(JSON.parse(manifestText));
-        const version = PackageLocator.release(directory, manifest, this.#versions);
+        const version = PackageLocator.release(directory, manifest, this.#versions, this.#source);
         const metadata = ModuleMetadata.parse({
             package: { id: definition.id, name: manifest.name, version },
         });
@@ -266,11 +273,12 @@ export class PackageLocator {
         return { directory, metadata };
     }
 
-    /** Read a package's version: an installation's own, else the one a build releases its source at. */
+    /** Read a package's version: an installation's own, else the one the build gives its source. */
     static release(
         directory: string,
         declared: { readonly name: string; readonly version?: string },
         versions: Readonly<Record<string, Version>>,
+        source: Version = Version.development,
     ): string {
         // take the version an installation's package file has, which its release wrote
         if (directory.split(sep).includes("node_modules")) {
@@ -284,8 +292,8 @@ export class PackageLocator {
             return declared.version;
         }
 
-        // take the version the build releases the source at, the development one where it releases none
-        return versions[declared.name] ?? Version.development;
+        // take the version the build releases the source at, else the one the process runs its source at
+        return versions[declared.name] ?? source;
     }
 
     /** Read the name in a directory's package.json once, or nothing without one. */
