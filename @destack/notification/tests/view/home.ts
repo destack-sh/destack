@@ -1,6 +1,6 @@
 import { Caller } from "@destack/access";
 import { TestDatabase } from "@destack/db/test";
-import { ObjectClient } from "@destack/object/client";
+import { ObjectClient, ProcedureRemote } from "@destack/object/client";
 import type { ObjectStore } from "@destack/object/server";
 import { ResourceContext } from "@destack/resource/context";
 import type { ClientOptions } from "@destack/object/client";
@@ -90,8 +90,12 @@ export async function openHome(): Promise<Home> {
         objects,
         scope: home.space.id,
         caller: scenario.subject("bob"),
-        endpoint,
-        reconnect: () => endpoint,
+        remote: ProcedureRemote.at({
+            scope: home.space.id,
+            endpoint,
+            reconnect: () => endpoint,
+            environment: scenario.environment,
+        }),
     });
     const following = new AbortController();
     const failures: unknown[] = [];

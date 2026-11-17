@@ -46,8 +46,7 @@ test("replicate a person's activities from a space as the person, and none of th
         const subscription = Shape.subscription(
             fixture.scope.spaceId,
             [{ shape: activityShape, keys: [{ recipient: fixture.subject("alice").id }] }],
-            "space-019f5530-8000-7000-8000-0000000000aa",
-            person,
+            { target: "space-019f5530-8000-7000-8000-0000000000aa", subject: person },
         );
         const { environment } = fixture;
         const signal = environment.clock.timeout(RELAY_TIMEOUT);
