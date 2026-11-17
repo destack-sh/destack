@@ -36,6 +36,8 @@ export class BuildRunner {
     readonly #machine: Machine;
     /** The warm compilers compiling the builds into the machine's local store. */
     readonly #compilers: CompilerPool;
+    /** The linked builtins' locks, pulled once with all their files. */
+    #linked: Promise<readonly Lock[]> | undefined;
     /** The directory of the working trees of the commits being built. */
     readonly #commits: string;
     /** The host the working trees are checked out on, by git. */
@@ -200,9 +202,24 @@ export class BuildRunner {
         });
     }
 
-    /** Read the locks of the builtins the machine links. */
-    async #builtins(): Promise<readonly Lock[]> {
-        return [...(await this.#machine.linkedLocks()).values()];
+    /** Pull the linked builtins' locks once with all their files, which a compile reads. */
+    #builtins(): Promise<readonly Lock[]> {
+        // take the locks pulled or pulling already
+        if (this.#linked !== undefined) {
+            return this.#linked;
+        }
+
+        // pull every build each lock lists with all its files, which the shipped layer lacks
+        const { builds, releases, linked } = this.#machine;
+        const pulling = Promise.all(
+            [...linked.values()].map((release) =>
+                releases.pull(builds, release.package.id, release.lock, "all"),
+            ),
+        );
+        this.#linked = pulling;
+        pulling.catch(() => (this.#linked = undefined));
+
+        return pulling;
     }
 
     /** Pull a required release's lock from its publisher's forge, with every build it lists. */
