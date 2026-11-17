@@ -1,4 +1,5 @@
 export * from "./space.ts";
+export * from "./refusal.ts";
 export * from "./build.ts";
 export * from "./gateway.ts";
 export * from "./runtime.ts";

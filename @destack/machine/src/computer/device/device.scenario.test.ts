@@ -1,6 +1,6 @@
 import { currentLogin, currentSpace } from "@destack/account/native";
 import { PackageMount } from "@destack/object";
-import { DynamicObjectClient } from "@destack/object/client";
+import { ProcedureRemote } from "@destack/object/client";
 import { rollout } from "@destack/stack/object";
 import stackPackage from "@destack/stack/package";
 import { setting } from "@destack/setting/object";
@@ -86,8 +86,7 @@ test("route a describe call without a scope in its body to the stack package of 
     // call the stack package of the owner's home at its machine, whose describe body has no scope
     const { home, login } = await TestComputer.home();
     const { device, world } = home;
-    const stack = new DynamicObjectClient({
-        objects: [rollout],
+    const stack = ProcedureRemote.at({
         scope: world.owner.home,
         endpoint: (await device.launcher(login)).endpoint(
             stackPackage.id,
@@ -143,8 +142,7 @@ test("forward the owner's calls as a signed-in person to a space's package, refu
     const { device, world } = home;
     const machine = device.loopback.options(machinePackage.id);
     const people = `http://127.0.0.1${PackageMount.path(machinePackage.id)}${PEOPLE_PATH}/${login}`;
-    const stack = new DynamicObjectClient({
-        objects: [rollout],
+    const stack = ProcedureRemote.at({
         scope: world.owner.home,
         endpoint: { ...machine, url: `${people}/space/${world.owner.home}/${stackPackage.id}` },
         environment: device.environment,
@@ -152,8 +150,7 @@ test("forward the owner's calls as a signed-in person to a space's package, refu
 
     // describe the rollouts there, and through a target of no kind
     const described = await stack.describe([rollout.typeReference]);
-    const nowhere = new DynamicObjectClient({
-        objects: [rollout],
+    const nowhere = ProcedureRemote.at({
         scope: world.owner.home,
         endpoint: { ...machine, url: `${people}/elsewhere/${stackPackage.id}` },
         environment: device.environment,

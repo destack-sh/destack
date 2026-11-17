@@ -30,7 +30,7 @@ import { call, device, type ObjectType, tablesOf } from "@destack/object";
 import objectPackage from "@destack/object/package";
 import { distribution } from "@destack/update/object";
 import { implementPackage, ObjectStore, type PackageImplementation } from "@destack/object/server";
-import { ObjectClient } from "@destack/object/client";
+import { ObjectClient, ProcedureRemote } from "@destack/object/client";
 import { PackageVersion, PackageId } from "@destack/package";
 import { Identifier, nth, present, schema } from "@destack/schema";
 import { type Fetch, Package, PackageMount, SpaceMount } from "@destack/object";
@@ -329,21 +329,25 @@ export class Device<
             caller: subject,
             device: subject,
             isMigrated: true,
-            endpoint: {
-                url: "http://local.invalid/",
-                fetch: async () => {
+            remote: ProcedureRemote.at({
+                scope: subject.id,
+                endpoint: {
+                    url: "http://local.invalid/",
+                    fetch: async () => {
+                        throw MachineError.of(
+                            "METHOD_UNSUPPORTED",
+                            "calling a server from local objects is not supported",
+                        );
+                    },
+                },
+                reconnect: () => {
                     throw MachineError.of(
                         "METHOD_UNSUPPORTED",
-                        "calling a server from local objects is not supported",
+                        "moving local objects to a machine is not supported",
                     );
                 },
-            },
-            reconnect: () => {
-                throw MachineError.of(
-                    "METHOD_UNSUPPORTED",
-                    "moving local objects to a machine is not supported",
-                );
-            },
+                environment: environment,
+            }),
         });
     }
 
@@ -379,7 +383,6 @@ export class Device<
         servers: readonly PackageImplementation[],
         callKey: CallKey,
         events: EventStore,
-        report: (error: unknown) => void,
     ): Promise<ObjectStore> {
         // serve each package as the device's own, acting as the device
         const { clock } = this;
@@ -395,7 +398,6 @@ export class Device<
             events,
             environment: this.environment,
             origin: { package: PackageVersion.of(machinePackage) },
-            report,
         });
 
         // receive the device's scope once, a root no other home knows
@@ -697,7 +699,7 @@ export class Device<
         }
     }
 
-    /** Follow some of the machine's own objects, such as its checkouts, as its owner. */
+    /** Follow some of the computer's own objects, such as its checkouts, as their owner. */
     async follow<const Objects extends Readonly<Record<string, ObjectType>>>(
         objects: Objects,
         stack: AsyncDisposableStack,
@@ -719,21 +721,27 @@ export class Device<
         });
         stack.defer(() => database.close());
 
-        // follow them as the machine until the stack closes
+        // follow them as their owner until the stack closes: the device's own as the device, else as the machine
         return ObjectClient.start(
             {
                 environment: this.environment,
                 database,
                 objects,
                 scope: isLocal ? this.id : machineId,
-                caller: principal.machine.reference(Scope.universe.id, machineId),
-                endpoint: this.loopback.options(first.package.id),
-                reconnect: (machine) => {
-                    throw MachineError.of(
-                        "OBJECTS_MOVED",
-                        `this computer's objects moved to '${machine}'`,
-                    );
-                },
+                caller: isLocal
+                    ? principal.device.reference(Scope.universe.id, this.id)
+                    : principal.machine.reference(Scope.universe.id, machineId),
+                remote: ProcedureRemote.at({
+                    scope: isLocal ? this.id : machineId,
+                    endpoint: this.loopback.options(first.package.id),
+                    reconnect: (machine) => {
+                        throw MachineError.of(
+                            "OBJECTS_MOVED",
+                            `this computer's objects moved to '${machine}'`,
+                        );
+                    },
+                    environment: this.environment,
+                }),
             },
             stack,
         );

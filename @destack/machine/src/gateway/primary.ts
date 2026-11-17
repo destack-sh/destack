@@ -10,7 +10,7 @@ import {
 } from "@destack/object";
 import { present, schema } from "@destack/schema";
 import * as sync from "@destack/sync";
-import { DynamicObjectClient } from "@destack/object/client";
+import { ProcedureRemote } from "@destack/object/client";
 import { HOME_PATH } from "@destack/view/declare";
 import type { Environment } from "@destack/environment";
 import type {} from "@destack/package/import-meta";
@@ -145,8 +145,7 @@ export class ScopePrimary {
         }
 
         // refuse a call to another scope, by the types the primary describes, leaving the grant to it
-        const remote = new DynamicObjectClient({
-            objects: [],
+        const remote = ProcedureRemote.at({
             scope: this.scope,
             endpoint: {
                 url: this.url,

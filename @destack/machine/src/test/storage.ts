@@ -83,13 +83,11 @@ export class TestSpaceStorage implements SpaceStorage {
             [],
             SettingValue.retention(database),
         );
-        const failures: unknown[] = [];
         const sockets = await SocketRegistry.open({
             objects,
             environment,
             tracker: database.tracker,
             memory: (tables) => connectBunSqlite(":memory:", tables, { environment }),
-            report: (error) => failures.push(error),
         });
         const blobs = await LocalBlobStorage.open(
             join(files.directory, "blobs", space),
@@ -114,13 +112,10 @@ export class TestSpaceStorage implements SpaceStorage {
                 return opened.graphs;
             },
             measure: async () => [],
-            // close the sockets and graphs, failing on what the sockets reported
+            // close the sockets and graphs
             close: async () => {
                 await opened.graphs?.[Symbol.asyncDispose]();
                 await sockets[Symbol.asyncDispose]();
-                if (failures.length > 0) {
-                    throw new AggregateError(failures, "the space's sockets reported failures");
-                }
             },
         };
     }

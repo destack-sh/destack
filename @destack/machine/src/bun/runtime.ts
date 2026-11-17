@@ -105,8 +105,6 @@ export class BunRuntime implements Runtime {
     ) => Promise<string>;
     /** Record a line a runner writes to standard error. */
     readonly #output: (spec: InstanceSpec, line: string) => void;
-    /** Report a failure of the runtime's own work around a runner. */
-    readonly #report: (error: unknown) => void;
     /** Read the identity of an instance's space, which its installation's root derives from. */
     readonly #identity: (scope: Identifier<"space">) => Promise<Pick<Deriver, "derive">>;
     /** The runners starting and running. */
@@ -143,8 +141,6 @@ export class BunRuntime implements Runtime {
         ) => Promise<string>;
         /** Record a line a runner writes to standard error. */
         readonly output: (spec: InstanceSpec, line: string) => void;
-        /** Report a failure of the runtime's own work around a runner, such as a stop. */
-        readonly report: (error: unknown) => void;
         /** Read the identity of an instance's space, which its installation's root derives from. */
         readonly identity: (scope: Identifier<"space">) => Promise<Pick<Deriver, "derive">>;
         /** The host the runners run on: its files, processes and clock. */
@@ -159,7 +155,6 @@ export class BunRuntime implements Runtime {
         this.#egress = options.egress;
         this.#sampling = options.sampling;
         this.#url = options.url;
-        this.#report = options.report;
         this.#output = options.output;
         this.#identity = options.identity;
         this.#environment = options.environment;
@@ -406,7 +401,12 @@ export class BunRuntime implements Runtime {
         await writer.close();
         const deadline = new AbortController();
         void clock.sleep(CALL_TIMEOUT_MILLISECONDS, deadline.signal).then(
-            () => sandbox.stop(0).catch((error: unknown) => this.#report(error)),
+            () =>
+                sandbox
+                    .stop(0)
+                    .catch((error: unknown) =>
+                        this.#scope.captureException(error, { isEscaped: true }),
+                    ),
             () => undefined,
         );
         const [output, errors, exit] = await Promise.all([
@@ -520,7 +520,7 @@ export class BunRuntime implements Runtime {
                     ),
                 (error: unknown) => removed({ failure: Failure.of(error).message }),
             )
-            .catch((error: unknown) => this.#report(error));
+            .catch((error: unknown) => this.#scope.captureException(error, { isEscaped: true }));
 
         return child;
     }
@@ -555,7 +555,7 @@ export class BunRuntime implements Runtime {
             "abort",
             () =>
                 void this.#exited(child, { code: 0 }).catch((error: unknown) =>
-                    this.#report(error),
+                    this.#scope.captureException(error, { isEscaped: true }),
                 ),
             { once: true },
         );
@@ -598,7 +598,9 @@ export class BunRuntime implements Runtime {
     ): Promise<Sandbox> {
         // start the sandbox, write the start to its input and record what it reports
         const sandbox = await Sandbox.start(options, this.#environment);
-        void this.#capture(spec, sandbox.stderr).catch((error: unknown) => this.#report(error));
+        void this.#capture(spec, sandbox.stderr).catch((error: unknown) =>
+            this.#scope.captureException(error, { isEscaped: true }),
+        );
         const input = sandbox.stdin.getWriter();
         await input.write(new TextEncoder().encode(`${JSON.stringify(start)}\n`));
         input.releaseLock();

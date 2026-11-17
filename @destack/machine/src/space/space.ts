@@ -1,3 +1,4 @@
+import { TelemetryScope } from "@destack/telemetry";
 import { reference } from "@destack/registry/object";
 import type * as packageRuntime from "@destack/package/runtime";
 import type { defineDatabase } from "@destack/db";
@@ -90,7 +91,13 @@ import {
     type PackageImplementation,
     RemoteStore,
 } from "@destack/object/server";
-import { Bookmark, type ClientOf, createClient } from "@destack/object/client";
+import {
+    Bookmark,
+    type ClientOf,
+    createClient,
+    ObjectRemote,
+    ProcedureRemote,
+} from "@destack/object/client";
 import { type Credential, Session } from "@destack/account/client";
 import objectPackage from "@destack/object/package";
 import { type graph, PackageId, PackageRelease, Sandbox } from "@destack/package";
@@ -103,7 +110,6 @@ import {
     Scope,
     Subject,
     type Subscription,
-    Uplink,
 } from "@destack/sync";
 import {
     ACTIVE_BUILD_STATES,
@@ -257,8 +263,8 @@ export interface SpaceStart {
     readonly s3: Pick<S3Server, "fetch" | "serve">;
     /** The forge whose references and tags installations select, null on a machine not building. */
     readonly forge: Forge | null;
-    /** The account package's uplink of this start, signed as the space or its installations. */
-    readonly uplink: Uplink;
+    /** The account package's remote of this start, signed as the space or its installations. */
+    readonly remote: ObjectRemote;
     /** The claim type of unique index names, and the universe that serves it. */
     readonly claims: ClaimPrimary;
     /** The graphs of the space's builds, served as external objects. */
@@ -396,7 +402,6 @@ export class Space {
                     resources: new ResourceContext().bind(machineSpace, space),
                     callKey: () => space.callKey(),
                     ...(machine.alarm === undefined ? {} : { alarm: machine.alarm }),
-                    report: (error) => machine.report(error),
                     serverOptions: (handle) => ({
                         environment,
                         authenticate: (request) => machine.authenticate(request, handle.id, id),
@@ -416,7 +421,7 @@ export class Space {
         });
     }
 
-    /** Prepare a start of the space's workload: its role, buckets, forge, uplink and jobs. */
+    /** Prepare a start of the space's workload: its role, buckets, forge, remote and jobs. */
     prepare(context: WorkloadContext): Promise<SpaceStart> {
         return this.machine.scope.span(
             "destack.space.prepare",
@@ -451,7 +456,7 @@ export class Space {
                     buckets,
                     s3: serveS3(buckets, this.database, machine.environment),
                     forge,
-                    uplink: this.uplink(),
+                    remote: this.remote(),
                     claims: {
                         object: accountObject.claim,
                         home: RemoteStore.of(accounts.store, Scope.universe.id),
@@ -795,8 +800,12 @@ export class Space {
 
         // report it with its cause
         const name = row.installation.name ?? row.installationId;
-        this.#current().context.report(
+        TelemetryScope.of(
+            import.meta.destack.package,
+            this.machine.environment.telemetry,
+        ).captureException(
             new Error(`installation '${name}' serves nothing: ${description}`, { cause: error }),
+            { isEscaped: true },
         );
     }
 
@@ -950,7 +959,7 @@ export class Space {
     }
 
     /** Replicate account rows: the machine's own as the machine, the rest as the space. */
-    uplink(): Uplink {
+    remote(): ObjectRemote {
         // open the account store as the space or a signer, and as the machine
         const signed = (signer?: Subject) => this.accounts(signer ?? this.principal).store;
         const machine = this.accounts().store;
@@ -976,18 +985,33 @@ export class Space {
             request: async (subscription) => {
                 await (await followerOf(subscription)).request({ subscription });
             },
-            receive: async (mutation, signer) => {
+            push: (home, push, signal) => {
                 // send the machine's universe writes as the machine, and the space's changes as their signer
+                const { mutations, writerId, signer } = push;
                 const sender = signer === undefined ? machine : signed(signer);
 
-                return (await sender.receive({ mutation })).results;
+                return sender.push(
+                    {
+                        scope: home,
+                        mutations: [...mutations],
+                        ...(writerId === undefined ? {} : { writerId }),
+                    },
+                    signal === undefined ? {} : { signal },
+                );
             },
-            call: (call, scope, signer) => {
+            call: (scope, call, signer) => {
                 // ask the universe as the machine, and for the space as the query's signer
                 const sender = signer === undefined ? machine : signed(signer);
 
                 return sender.call({ scope, call });
             },
+            broadcast: async (scope, object, event, signer) => {
+                // send as the machine, or as the event's signer
+                const sender = signer === undefined ? machine : signed(signer);
+                await sender.broadcast({ scope, object, event });
+            },
+            moves: new AbortController().signal,
+            redirect: () => false,
         };
     }
 
@@ -1746,7 +1770,11 @@ export class Space {
                 scope,
                 installation: id,
             }),
-            publisher: Uplink.of(() => stack.store),
+            remote: new ProcedureRemote({
+                scope,
+                store: stack.store,
+                environment: machine.environment,
+            }),
             publisherAt: (address, packageId) => {
                 // follow the stack package at the address
                 const published = createClient(
@@ -1758,7 +1786,11 @@ export class Space {
                     machine.environment,
                 );
 
-                return Uplink.of(() => published.store);
+                return new ProcedureRemote({
+                    scope: address,
+                    store: published.store,
+                    environment: machine.environment,
+                });
             },
             at,
         };
@@ -1947,7 +1979,7 @@ export class Space {
     }
 
     /** Declare the projection assigning the space's work to the other machines doing it. */
-    assignment(publisher: Uplink): Projection {
+    assignment(remote: ObjectRemote): Projection {
         return {
             name: "destack.space.assign",
             key: "id",
@@ -1965,7 +1997,7 @@ export class Space {
                 { table: build.table, fields: ["state"], on: { id: "scope" } },
                 { table: deployment.table, fields: ["status"], on: { id: "scope" } },
             ],
-            project: async (key) => this.#assign(key, publisher),
+            project: async (key) => this.#assign(key, remote),
         };
     }
 
@@ -2206,7 +2238,7 @@ export class Space {
     }
 
     /** Assign the machines with work in a space this machine serves and withdraw the others. */
-    async #assign(key: string, publisher: Uplink): Promise<void> {
+    async #assign(key: string, remote: ObjectRemote): Promise<void> {
         // act only for a space the replicated placement places on this machine
         const spaceId = accountObject.space.identifier(key);
         const [placed] = await this.database
@@ -2240,7 +2272,7 @@ export class Space {
             ...[...assigned.difference(working)].map((machine) => work("unassign", machine)),
         ];
         if (calls.length > 0) {
-            await publisher.receive({
+            await ObjectRemote.run(remote, placed.scope, {
                 id: RequestId.create(this.machine.environment),
                 calls,
             });

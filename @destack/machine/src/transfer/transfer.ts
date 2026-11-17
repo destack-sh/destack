@@ -25,15 +25,7 @@ import {
 } from "@destack/db";
 import { appliedDigests, type ProviderIndex } from "../resource/resource.ts";
 import { type SpaceProvider } from "@destack/stack/object";
-import {
-    RequestId,
-    Replica,
-    type Call,
-    ObjectReference,
-    Scope,
-    type Subject,
-    type Uplink,
-} from "@destack/sync";
+import { RequestId, Replica, type Call, ObjectReference, Scope, type Subject } from "@destack/sync";
 import { placement, Placement, type space } from "@destack/account/object";
 import { SpaceReplica } from "./replica.ts";
 import { machineBound, type HandoffOptions, type Handoff, SourceHandoff } from "./handoff.ts";
@@ -68,6 +60,7 @@ import type { BuildStore } from "@destack/build/store";
 import type {} from "@destack/package/import-meta";
 import { TelemetryScope } from "@destack/telemetry";
 import { StackError } from "@destack/stack/error";
+import { ObjectRemote } from "@destack/object/client";
 
 /** The spaces a machine receives at once. */
 const TRANSFER_CONCURRENCY = 4;
@@ -78,8 +71,8 @@ export interface TransferOptions {
     readonly machine: Identifier<"machine">;
     /** The space's database, which a move fences and copies. */
     readonly database: DatabaseConnection;
-    /** The universe's uplink, which places the spaces as this machine. */
-    readonly publisher: Uplink;
+    /** The remote toward the universe, which places the spaces as this machine. */
+    readonly remote: ObjectRemote;
     /** Connect to a source's handoff by its machine. */
     readonly source: (
         machine: Identifier<"machine">,
@@ -174,7 +167,7 @@ export function implementTransfer(options: TransferOptions) {
                     // place the space at the next epoch
                     const moving = await SpaceTransfer.plan(options, record);
                     const next = { ...moving.placement, epoch: moving.placement.epoch + 1 };
-                    await options.publisher.receive({
+                    await ObjectRemote.run(options.remote, next.scope, {
                         id: RequestId.create(context.environment),
                         calls: [SpaceTransfer.placing(next)],
                     });
@@ -249,7 +242,7 @@ async function mark(
     // mark the move at the epoch this machine serves the space at
     const move = { accountId: located.scope, id: located.space, epoch: located.epoch };
     const transferId = schema.identifier("transfer").parse(call.id);
-    await options.publisher.receive({
+    await ObjectRemote.run(options.remote, located.scope, {
         id: RequestId.create(call.environment),
         calls: [
             placement.call("move", {
@@ -283,7 +276,7 @@ async function unmark(context: SettlementContext, options: TransferOptions): Pro
 
     // serve the space at its epoch again, which clears the move
     const placed = { accountId: located.scope, id: spaceId, epoch: located.epoch };
-    await options.publisher.receive({
+    await ObjectRemote.run(options.remote, located.scope, {
         id: RequestId.create(context.environment),
         calls: [placement.call("place", placed)],
     });
@@ -861,7 +854,7 @@ export class SpaceTransfer {
 
     /** Place the space on its target at the next epoch, rekeyed, and serve its replica there. */
     place(
-        options: Pick<TransferOptions, "publisher" | "keystore">,
+        options: Pick<TransferOptions, "remote" | "keystore">,
         database: DatabaseConnection,
         environment: UuidEnvironment,
     ): Promise<Placement> {
@@ -876,7 +869,7 @@ export class SpaceTransfer {
                     machine: this.target,
                     epoch: this.placement.epoch + 1,
                 };
-                await options.publisher.receive({
+                await ObjectRemote.run(options.remote, placed.scope, {
                     id: RequestId.create(environment),
                     calls: [SpaceTransfer.placing(placed)],
                 });

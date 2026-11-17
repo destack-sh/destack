@@ -46,8 +46,6 @@ export interface LocalSpaceStorageOptions {
     readonly environment: Environment<"files" | "process" | "host" | "server">;
     /** The transport the spaces' mail goes out through, such as printing it. */
     readonly mail: Connector<MailTransport>;
-    /** Report a failure of the spaces' sockets. */
-    readonly report: (error: unknown) => void;
 }
 
 /** The spaces' storage on a computer: SQLite files, local buckets and Git, under one directory. */
@@ -116,7 +114,6 @@ export class LocalSpaceStorage implements SpaceStorage, AsyncDisposable {
             tracker: new Tracker(options.environment, undefined),
             memory: (tables) =>
                 connectBunSqlite(":memory:", tables, { environment: options.environment }),
-            report: options.report,
         });
 
         return new LocalSpaceStorage(options, { ...declared, databases, sockets, providers });

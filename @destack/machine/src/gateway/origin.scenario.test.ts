@@ -22,7 +22,7 @@ import {
     Bookmark,
 } from "@destack/object";
 import objectPackage from "@destack/object/package";
-import { DynamicObjectClient, createClient } from "@destack/object/client";
+import { createClient, ProcedureRemote } from "@destack/object/client";
 import { describeObject, describePackage } from "@destack/object/inspect";
 import observabilityPackage from "@destack/observability/package";
 import { PackageVersion, PackageId, Sandbox } from "@destack/package";
@@ -851,19 +851,18 @@ test("serve a link-shared article to holders of its secret", async () => {
     };
     const page = await openPage(home, address);
     const client = (fetch: (request: Request) => Promise<Response>) =>
-        new DynamicObjectClient({
-            objects: [article],
+        ProcedureRemote.at({
             scope: home.spaceId,
             endpoint: { url: `${page.origin}${PACKAGE_PATH}`, fetch, bookmark: new Bookmark() },
             environment,
         });
     const owner = client(page.fetch);
-    const created = Identified.parse(await owner.call("article", "create", { title: "Roadmap" }));
+    const created = Identified.parse(await owner.run(article, "create", { title: "Roadmap" }));
 
     // publish it to anyone holding a link's secret
     const { secret, digest } = await LinkSecret.create(environment);
     const granted = schema.looseObject({ id: schema.string() }).parse(
-        await owner.call("article", "grant", {
+        await owner.run(article, "grant", {
             id: created.id,
             relation: "viewer",
             subject: anyone.reference("*", "*"),
@@ -886,9 +885,9 @@ test("serve a link-shared article to holders of its secret", async () => {
             return listener.fetch(new Request(request, { headers }));
         });
     const read = (visitor: ReturnType<typeof visit>) =>
-        refusal(visitor.call("article", "get", { id: created.id }));
+        refusal(visitor.run(article, "get", { id: created.id }));
     const withLink = Titled.parse(
-        await visit(cookie).call("article", "get", { id: created.id }),
+        await visit(cookie).run(article, "get", { id: created.id }),
     ).title;
     const without = await read(visit(undefined));
 
@@ -899,7 +898,7 @@ test("serve a link-shared article to holders of its secret", async () => {
     );
 
     // revoke the link, then read by it again
-    await owner.call("article", "revoke", { id: created.id, relationshipId: granted.id });
+    await owner.run(article, "revoke", { id: created.id, relationshipId: granted.id });
     const revoked = await read(visit(cookie));
     expect({
         linked: [linked.status, header(linked, "location"), header(linked, "set-cookie")],
@@ -936,15 +935,14 @@ test("rate-limit anonymous writes by the first proxy's address", async () => {
         path: "/",
     });
     const client = (fetch: (request: Request) => Promise<Response>) =>
-        new DynamicObjectClient({
-            objects: [article],
+        ProcedureRemote.at({
             scope: home.spaceId,
             endpoint: { url: `${page.origin}${PACKAGE_PATH}`, fetch, bookmark: new Bookmark() },
             environment,
         });
     const owner = client(page.fetch);
-    const created = Identified.parse(await owner.call("article", "create", { title: "Roadmap" }));
-    await owner.call("article", "grant", {
+    const created = Identified.parse(await owner.run(article, "create", { title: "Roadmap" }));
+    await owner.run(article, "grant", {
         id: created.id,
         relation: "editor",
         subject: anyone.reference("*", "*"),
@@ -961,7 +959,7 @@ test("rate-limit anonymous writes by the first proxy's address", async () => {
             return listener.fetch(new Request(request, { headers }));
         });
     const edit = (address: string, title: string) =>
-        refusal(visitor(address).call("article", "update", { id: created.id, title }));
+        refusal(visitor(address).run(article, "update", { id: created.id, title }));
     const first = await edit("192.0.2.1", "Plan");
     const again = await edit("192.0.2.1", "Plans");
     const other = await edit("192.0.2.2", "Plans");
@@ -990,15 +988,14 @@ test("call a page's package and declared services under its grant", async () => 
     });
 
     // create a task, complete it and list it through the page's own package
-    const remote = new DynamicObjectClient({
-        objects: [task],
+    const remote = ProcedureRemote.at({
         scope: home.spaceId,
         endpoint: { url: `${page.origin}${PACKAGE_PATH}`, fetch: page.fetch },
         environment: home.computer.device.environment,
     });
-    const created = Identified.parse(await remote.call("task", "create", { title: "Water" }));
-    await remote.call("task", "complete", { id: created.id });
-    const listed = await remote.list("task");
+    const created = Identified.parse(await remote.run(task, "create", { title: "Water" }));
+    await remote.run(task, "complete", { id: created.id });
+    const listed = await remote.list(task);
 
     // read the installation through the declared stack service, which the grant does not give
     const call = (packageId: string, path: string) =>
@@ -1026,8 +1023,7 @@ test("call a page's package and declared services under its grant", async () => 
             headers: { cookie: page.cookie, origin: "https://foreign.test" },
         }),
     );
-    const visitor = new DynamicObjectClient({
-        objects: [task],
+    const visitor = ProcedureRemote.at({
         scope: home.spaceId,
         endpoint: {
             url: `${page.origin}${PACKAGE_PATH}`,
@@ -1040,7 +1036,7 @@ test("call a page's package and declared services under its grant", async () => 
         },
         environment: home.computer.device.environment,
     });
-    const unshared = await refusal(visitor.list("task"));
+    const unshared = await refusal(visitor.list(task));
 
     expect({
         listed: listed.map((row) => [row["title"], row["status"]]),
@@ -1092,8 +1088,7 @@ test("end a page's calls once its grant or client is revoked", async () => {
     const bookmark = new Bookmark();
     const list = (opened: typeof page) =>
         refusal(
-            new DynamicObjectClient({
-                objects: [task],
+            ProcedureRemote.at({
                 scope: home.spaceId,
                 endpoint: {
                     url: `${opened.origin}${PACKAGE_PATH}`,
@@ -1101,7 +1096,7 @@ test("end a page's calls once its grant or client is revoked", async () => {
                     bookmark,
                 },
                 environment: home.computer.device.environment,
-            }).list("task"),
+            }).list(task),
         );
     const before = await list(page);
 
@@ -1435,14 +1430,13 @@ test("launch and call a space another machine serves", async () => {
     await Promise.all([traded.body?.cancel(), document.body?.cancel()]);
 
     // create and list tasks in the work space through the route the CLI's platform calls take
-    const remote = new DynamicObjectClient({
-        objects: [task],
+    const remote = ProcedureRemote.at({
         scope: work.spaceId,
         endpoint: await login.installation(work.spaceId, "tasks", tasks.id),
         environment: home.computer.device.environment,
     });
-    await remote.call("task", "create", { title: "Write the report" });
-    const listed = await remote.list("task");
+    await remote.run(task, "create", { title: "Write the report" });
+    const listed = await remote.list(task);
 
     expect({
         host: new URL(launched.url).host,

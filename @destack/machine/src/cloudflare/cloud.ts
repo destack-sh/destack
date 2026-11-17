@@ -32,7 +32,6 @@ import { Bookmark, createClient } from "@destack/object/client";
 import { WorkloadInstance } from "@destack/object/workload";
 import { ResourceContext } from "@destack/resource/context";
 import type { Publisher } from "@destack/sync";
-import { TelemetryScope } from "@destack/telemetry";
 import type {} from "@destack/package/import-meta";
 import { MachineError } from "../error/index.ts";
 import type { MachineEnrollment } from "../computer/device/object/index.ts";
@@ -339,11 +338,6 @@ export class CloudMachine {
             }),
             callKey: () => this.callKey(),
             alarm,
-            report: (error) =>
-                TelemetryScope.of(
-                    import.meta.destack.package,
-                    this.environment.telemetry,
-                ).captureException(error, { isEscaped: true }),
             serverOptions: () => ({
                 environment: this.environment,
                 authenticate: () => Promise.reject(CloudMachine.#refusal()),

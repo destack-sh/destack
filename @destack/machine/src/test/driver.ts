@@ -7,7 +7,7 @@ import type { DatabaseConnection } from "@destack/db";
 import { connectBunSqlite } from "@destack/db/bun";
 import { type Clock, type Environment, World } from "@destack/environment";
 import { ObjectType, PackageMount, role, SpaceMount } from "@destack/object";
-import { DynamicObjectClient, ObjectClient, type TextDocument } from "@destack/object/client";
+import { ObjectClient, ProcedureRemote, type TextDocument } from "@destack/object/client";
 import { PackageManifest } from "@destack/package/manifest";
 import type { PackageId } from "@destack/package";
 import type { Given, SetStep } from "@destack/package/declare";
@@ -108,8 +108,8 @@ export class MachineDriver implements Driver<MachineStep, MachineObservation> {
     ]);
     /** The identifiers each call bound, by name, in call order. */
     readonly #bound = new Map<string, string[]>();
-    /** The client calling each object type's package, by type and person. */
-    readonly #callers = new Map<string, DynamicObjectClient>();
+    /** The remote calling each object type's package, by type and person. */
+    readonly #callers = new Map<string, ProcedureRemote>();
     /** The texts the devices follow, by device, object and field. */
     readonly #texts = new Map<string, TextDocument>();
     /** The characters typed into each text so far, by object and field. */
@@ -367,8 +367,12 @@ export class MachineDriver implements Driver<MachineStep, MachineObservation> {
             objects,
             scope: world.owner.home,
             caller: principal.user.reference(Scope.universe.id, signedIn.subjectId),
-            endpoint,
-            reconnect: () => endpoint,
+            remote: ProcedureRemote.at({
+                scope: world.owner.home,
+                endpoint,
+                reconnect: () => endpoint,
+                environment: environment,
+            }),
         });
 
         // follow every object type and run the client's loops until the world ends
@@ -380,9 +384,8 @@ export class MachineDriver implements Driver<MachineStep, MachineObservation> {
             }),
         );
         const following = new AbortController();
-        const report = (error: unknown) => this.#failures.push(error);
-        void client.follow(following.signal, report);
-        void client.push(following.signal, report);
+        void client.follow(following.signal);
+        void client.push(following.signal);
 
         // end once the replica has every followed query
         await Promise.all([...queries.values()].map((live) => live.ready));
@@ -430,9 +433,9 @@ export class MachineDriver implements Driver<MachineStep, MachineObservation> {
         }
 
         // call other types through the package's client
-        const client = await this.#caller(object, person);
+        const remote = await this.#caller(object, person);
 
-        return (input) => client.call(object, method, input);
+        return (input) => remote.run(type, method, input);
     }
 
     /** Wait until every member device's replica reflects the owner's home up to its last commit. */
@@ -595,9 +598,9 @@ export class MachineDriver implements Driver<MachineStep, MachineObservation> {
         return principal.user.reference(Scope.universe.id, subjectId);
     }
 
-    /** Read the client calling a type's package as a person, one per type and person. */
-    async #caller(object: string, person: string): Promise<DynamicObjectClient> {
-        // reuse the client
+    /** Read the remote calling a type's package as a person, one per type and person. */
+    async #caller(object: string, person: string): Promise<ProcedureRemote> {
+        // reuse the remote
         const key = `${object} ${person}`;
         const known = this.#callers.get(key);
         if (known !== undefined) {
@@ -606,9 +609,8 @@ export class MachineDriver implements Driver<MachineStep, MachineObservation> {
 
         // sign in as the person, at the object's package in the owner's home
         const { device, world } = this.home;
-        const { type, packageId } = present(this.#objects.get(object), `an object type ${object}`);
-        const client = new DynamicObjectClient({
-            objects: [type],
+        const { packageId } = present(this.#objects.get(object), `an object type ${object}`);
+        const remote = ProcedureRemote.at({
             scope: world.owner.home,
             endpoint: (await device.launcher(this.#login(person))).endpoint(
                 packageId,
@@ -616,9 +618,9 @@ export class MachineDriver implements Driver<MachineStep, MachineObservation> {
             ),
             environment: device.environment,
         });
-        this.#callers.set(key, client);
+        this.#callers.set(key, remote);
 
-        return client;
+        return remote;
     }
 
     /** Launch a view of the owner's home as the owner, then load it with its traded session. */

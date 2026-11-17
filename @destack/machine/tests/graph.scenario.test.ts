@@ -3,7 +3,7 @@ import { AccessContext, Caller, principal } from "@destack/access";
 import { eq } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
 import { testSimulation } from "@destack/object/test";
-import { ObjectClient } from "@destack/object/client";
+import { ObjectClient, ProcedureRemote } from "@destack/object/client";
 import { graph, PackageId } from "@destack/package";
 import { BuildReader } from "@destack/package/manifest";
 import { MemoryBuild } from "@destack/package/test";
@@ -142,14 +142,17 @@ test("serve a build's modules, declarations and symbols to its readers", async (
         objects: { module, declaration },
         scope: buildId,
         caller: fixture.owner.subject,
-        endpoint,
-        reconnect: (holder) => {
-            throw new TypeError(`no build moves, yet one moved to '${holder}'`);
-        },
+        remote: ProcedureRemote.at({
+            scope: buildId,
+            endpoint,
+            reconnect: (holder) => {
+                throw new TypeError(`no build moves, yet one moved to '${holder}'`);
+            },
+            environment: browser,
+        }),
     });
     const stopping = new AbortController();
-    const failures: unknown[] = [];
-    const running = client.run(stopping.signal, (error) => failures.push(error));
+    const running = client.run(stopping.signal);
     onTestFinished(async () => {
         stopping.abort();
         await running;
@@ -160,12 +163,9 @@ test("serve a build's modules, declarations and symbols to its readers", async (
         .findMany({ where: { kind: "procedure" }, orderBy: { moniker: "asc" } })
         .subscribe();
     await procedures.ready;
-    expect([(await procedures.read()).map((row) => [row.enclosing, row.name]), failures]).toEqual([
-        [
-            [service, "notebook.get"],
-            [service, "notebook.list"],
-        ],
-        [],
+    expect((await procedures.read()).map((row) => [row.enclosing, row.name])).toEqual([
+        [service, "notebook.get"],
+        [service, "notebook.list"],
     ]);
 });
 

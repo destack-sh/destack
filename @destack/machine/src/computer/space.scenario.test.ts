@@ -1,5 +1,4 @@
 import { testIdentity } from "@destack/object/test";
-import { Failure } from "@destack/error";
 import type { ResourceDeclaration } from "@destack/resource";
 import { log, LogData } from "@destack/observability/object";
 import { BunWorkload } from "@destack/stack/bun";
@@ -627,12 +626,7 @@ test("move a space with its files to its caller's computer", async () => {
         cancelled,
         moved,
         file: await stored?.text(),
-        reports: [
-            ...source.computer.reports,
-            ...source.failures,
-            ...caller.computer.reports,
-            ...caller.failures,
-        ],
+        reports: [...source.computer.captured(), ...source.failures, ...caller.failures],
     }).toEqual({
         first: [200, { path: "/first", caller: calling.id, scope: source.space }],
         whileCut: [
@@ -706,7 +700,7 @@ test("stamp a sandboxed instance's telemetry with its installation", async () =>
 
     // record it under the board's installation, its running instance and its build
     await computer.waitUntil(sourced, async () => (await started()).length > 0);
-    expect([await started(), computer.reports]).toEqual([[[boardId, instance, lock]], []]);
+    expect([await started(), computer.captured()]).toEqual([[[boardId, instance, lock]], []]);
 });
 
 test("authorize a move by step-up and its fence by a bound token", async () => {
@@ -860,7 +854,7 @@ test("publish a renamed machine's relay name without a restart", async () => {
 
         return published?.url === `https://renamed--${world.owner.handle}.${DOMAINS.machine}`;
     });
-    expect(computer.reports).toEqual([]);
+    expect(computer.captured()).toEqual([]);
 });
 
 test("close a space before its open bucket without a failure", async () => {
@@ -873,7 +867,7 @@ test("close a space before its open bucket without a failure", async () => {
 
     // close the computer with the buckets
     await served.computer.close();
-    expect(served.computer.reports).toEqual([]);
+    expect(served.computer.captured()).toEqual([]);
 });
 
 test("refuse a host installation of an untrusted release", async () => {
@@ -979,7 +973,7 @@ test("serve a space whose installation fails to start", async () => {
         status: settled.status,
         reason: settled.reason,
         serving: [condition.status, condition.reason],
-        reported: Failure.of(await restarted.reported).message,
+        reported: (await restarted.refused()).attributes["exception.message"],
         answered: [answered.status, answered.headers.get("retry-after")],
         captured: world.telemetry.take().map((captured) => captured.message),
     }).toEqual({

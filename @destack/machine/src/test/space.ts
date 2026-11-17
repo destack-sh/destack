@@ -5,6 +5,8 @@ import { FORGE_INSTALLATION } from "@destack/forge/package";
 import { pathToFileURL } from "node:url";
 import { KNOWN_TYPES } from "@destack/stack/stack";
 import { Crypto } from "@destack/environment";
+import { TestTelemetry } from "@destack/telemetry/test";
+import { Refusal } from "./refusal.ts";
 import { InstallationDefinition, STACK_KIND, StackDefinition } from "@destack/stack/declare";
 import type { Environment, HostCapability, Scheduler } from "@destack/environment";
 import type { Connector, Plan } from "@destack/resource";
@@ -301,8 +303,8 @@ export class TestSpace implements AsyncDisposable, TestScope {
             >,
         ) => Promise<Machine>
     >;
-    /** The failures each of the world's machines reported, by machine. */
-    readonly failures: Map<Identifier<"machine">, unknown[]>;
+    /** The failures the world captured, which its disposal refuses untaken. */
+    readonly telemetry: TestTelemetry;
     /** The servers the world's spaces run in process, which its machines load by linked lock. */
     readonly servers: PackageImplementation[];
     /** The function stopping each running machine's follow of its directory, by machine. */
@@ -343,7 +345,7 @@ export class TestSpace implements AsyncDisposable, TestScope {
                 >,
             ) => Promise<Machine>
         >;
-        readonly failures: Map<Identifier<"machine">, unknown[]>;
+        readonly telemetry: TestTelemetry;
         readonly servers: PackageImplementation[];
         readonly stops: Map<Identifier<"machine">, () => Promise<void>>;
         readonly releases: StackReleases;
@@ -360,7 +362,7 @@ export class TestSpace implements AsyncDisposable, TestScope {
         this.gateway = fields.gateway;
         this.machines = fields.machines;
         this.starts = fields.starts;
-        this.failures = fields.failures;
+        this.telemetry = fields.telemetry;
         this.servers = fields.servers;
         this.stops = fields.stops;
         this.releases = fields.releases;
@@ -941,6 +943,8 @@ export class TestSpace implements AsyncDisposable, TestScope {
         defer(() => universe[Symbol.asyncDispose]());
         const gateway = new TestGateway(simulation);
         defer(() => gateway[Symbol.asyncDispose]());
+        const telemetry = TestTelemetry.of(simulation.telemetry);
+        defer(() => telemetry[Symbol.dispose]());
 
         return {
             simulation,
@@ -949,7 +953,7 @@ export class TestSpace implements AsyncDisposable, TestScope {
             gateway,
             machines: new Map(),
             starts: new Map(),
-            failures: new Map(),
+            telemetry,
             servers: [],
             stops: new Map(),
         };
@@ -1054,9 +1058,7 @@ export class TestSpace implements AsyncDisposable, TestScope {
             connectors: [...(options.connectors ?? []), ...(local?.connectors ?? [])],
         });
 
-        // build the machine as the residency's cloud machine, recording what it reports
-        const failures: unknown[] = [];
-        world.failures.set(test.id, failures);
+        // build the machine as the residency's cloud machine
         const stack = await TestSpace.releases(environment.crypto);
 
         // link the stack package, the restored servers' releases and the builds the test ships, before any start
@@ -1158,7 +1160,6 @@ export class TestSpace implements AsyncDisposable, TestScope {
                 authenticate: (request, audience, partition) =>
                     TestSpace.#authenticate(machine, request, audience, partition),
                 authorizeSpace: async () => {},
-                report: (error) => failures.push(error),
             });
 
             // run it as the world's machine
@@ -1321,7 +1322,7 @@ export class TestSpace implements AsyncDisposable, TestScope {
             gateway,
             machines: world.machines,
             starts: world.starts,
-            failures: world.failures,
+            telemetry: world.telemetry,
             servers: world.servers,
             stops: world.stops,
             releases: await TestSpace.releases(test.environment.crypto),
@@ -1405,24 +1406,22 @@ export class TestSpace implements AsyncDisposable, TestScope {
     }
 
     /** Take the distinct refusals the machine's servers reported since the last take. */
-    takeRefusals(): (readonly [string, string, string])[] {
+    takeRefusals(): Refusal[] {
         return TestSpace.#distinct(this.#takeFailures());
     }
 
     /** Take what the machine's servers reported, requiring exactly these refusals, each once. */
-    expectRefusals(refusals: readonly (readonly [string, string, string])[]): void {
+    expectRefusals(refusals: readonly Refusal[]): void {
         expect(this.takeRefusals()).toEqual(refusals);
     }
 
-    /** Take what the machine's servers reported since the last take. */
-    #takeFailures(): unknown[] {
-        return this.failures.get(this.machine.id)?.splice(0) ?? [];
+    /** Take the failures the world captured since the last take, as their refusals. */
+    #takeFailures(): Refusal[] {
+        return Refusal.take(this.telemetry);
     }
 
     /** Read the distinct refusals an opening or apply failed with, none when it succeeds. */
-    static async refusals(
-        applying: Promise<unknown>,
-    ): Promise<readonly (readonly [string, string, string])[]> {
+    static async refusals(applying: Promise<unknown>): Promise<readonly Refusal[]> {
         // take a settled call, the refusal it answers itself, or the servers' reports
         return await applying.then(
             () => [],
@@ -1447,12 +1446,14 @@ export class TestSpace implements AsyncDisposable, TestScope {
         );
     }
 
-    /** Read each reported failure's cause once, as the stack retries a refused apply. */
-    static #distinct(failures: readonly unknown[]): (readonly [string, string, string])[] {
-        const refusals = new Map<string, readonly [string, string, string]>();
+    /** Read each captured refusal once, as the stack retries a refused apply. */
+    static #distinct(failures: readonly unknown[]): Refusal[] {
+        const refusals = new Map<string, Refusal>();
         for (const each of failures) {
-            const { code, reason, message } = Failure.of(each instanceof Error ? each.cause : each);
-            refusals.set(`${code} ${reason} ${message}`, [code, reason, message]);
+            const refusal = schema
+                .tuple([schema.string(), schema.string(), schema.string()])
+                .parse(each);
+            refusals.set(refusal.join(" "), refusal);
         }
 
         return [...refusals.values()];
@@ -1975,7 +1976,7 @@ export type TestSpaceWorld = Pick<
     | "gateway"
     | "machines"
     | "starts"
-    | "failures"
+    | "telemetry"
     | "servers"
     | "stops"
 >;
@@ -2155,21 +2156,13 @@ export async function reconcile(
     }
 }
 
-/** Run some controllers and cursors until they idle, failing on any report. */
+/** Run some controllers and cursors until they idle. */
 export async function settle(database: DatabaseConnection, control: ControllerSet): Promise<void> {
-    // run the loop until it idles, collecting its reports
+    // run the loop until it idles
     const stopping = new AbortController();
-    const failures: unknown[] = [];
-    const loop = new ControlLoop(database, [control], {
-        report: (_controller, _key, error) => failures.push(error),
-    });
+    const loop = new ControlLoop(database, [control]);
     const running = loop.run(stopping.signal);
     await loop.idle();
     stopping.abort();
     await running;
-
-    // fail on any report
-    if (failures.length > 0) {
-        throw new AggregateError(failures, "the controllers failed");
-    }
 }

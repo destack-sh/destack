@@ -6,7 +6,8 @@ import {
     type Observation,
 } from "@destack/object";
 import { present, type UuidEnvironment, type JsonObject } from "@destack/schema";
-import { RequestId, Scope, type Uplink } from "@destack/sync";
+import { RequestId, Scope } from "@destack/sync";
+import { ObjectRemote } from "@destack/object/client";
 import { AccessContext, Authorization, Caller, principal } from "@destack/access";
 import { installation } from "@destack/object";
 import { Failure } from "@destack/error";
@@ -21,8 +22,8 @@ export type SpaceRole = "primary" | "standby" | "leaving";
 
 /** Control the replicas of the spaces this machine serves: place, limit and delete each. */
 export function implementSpace(options: {
-    /** The universe's uplink, receiving the space's status as the space. */
-    readonly publisher: Uplink;
+    /** The remote toward the universe, receiving the space's status as the space. */
+    readonly remote: ObjectRemote;
     /** Whether the machine checks its spaces' use against their accounts' entitlements. */
     readonly isEnforcingEntitlements: boolean;
 }) {
@@ -72,7 +73,7 @@ function project(options: Parameters<typeof implementSpace>[0]): ObjectProjectio
             // report the conditions the space lacks to the universe, as the space itself
             if (!isObserved(row, conditions)) {
                 await report(
-                    options.publisher,
+                    options.remote,
                     row,
                     "observe",
                     { observedGeneration: row.generation, conditions },
@@ -115,7 +116,7 @@ async function mirrorSuspension(
 async function remove(
     row: Space,
     reconciliation: Pick<ObjectReconciliation<typeof space>, "database" | "store" | "now">,
-    options: Pick<Parameters<typeof implementSpace>[0], "publisher">,
+    options: Pick<Parameters<typeof implementSpace>[0], "remote">,
 ): Promise<void> {
     // request the uninstall of the unmanaged rollouts not deleting yet as the space itself, the stack deleting what it manages
     const { database, store, now } = reconciliation;
@@ -162,9 +163,7 @@ async function remove(
     }
 
     // remove its row at the universe as the space
-    await report(options.publisher, row, "finalize", {}, store.environment).catch(
-        refuseUnlessRemoved,
-    );
+    await report(options.remote, row, "finalize", {}, store.environment).catch(refuseUnlessRemoved);
 }
 
 /** Rethrow a call's failure unless the universe already removed the row the call targets. */
@@ -177,14 +176,16 @@ function refuseUnlessRemoved(error: unknown): void {
 
 /** Run a method of a space's row at its home, the universe, as the space itself. */
 async function report(
-    publisher: Uplink,
+    remote: ObjectRemote,
     row: Pick<Space, "id" | "scope">,
     name: "observe" | "finalize",
     input: JsonObject,
     environment: UuidEnvironment,
 ): Promise<void> {
     const call = space.call(name, { accountId: row.scope, id: row.id, ...input });
-    await publisher.receive(
+    await ObjectRemote.run(
+        remote,
+        row.scope,
         { id: RequestId.create(environment), calls: [call] },
         principal.space.reference(Scope.universe.id, row.id),
     );

@@ -1,4 +1,4 @@
-import { Failure } from "@destack/error";
+import { Refusal } from "../test/refusal.ts";
 import { MACHINE_KEYS } from "./computer.ts";
 import { expect, refusal, test } from "@destack/test";
 import { SpaceMount } from "@destack/object";
@@ -16,7 +16,7 @@ test("report a restarted machine's missing key as the failure of its start", asy
     const opened = await TestComputer.open({ world, directory, keychains });
 
     // receive the failure its start met for want of the machine's key, captured as the machine reports it
-    const { code, reason, message } = Failure.of(await opened.reported);
+    const [code, reason, message] = Refusal.of(await opened.refused());
     const missing = "key of this machine not found";
     await opened.close();
     expect({

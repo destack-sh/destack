@@ -1,7 +1,8 @@
 import { Observation } from "@destack/object";
 import { FORGE_INSTALLATION } from "@destack/forge/package";
 import { type Environment, type FileSystem, FileSystemError } from "@destack/environment";
-import { TestTelemetry } from "@destack/telemetry/test";
+import { type CapturedRecord, TestTelemetry } from "@destack/telemetry/test";
+import { Refusal } from "../../test/refusal.ts";
 import { basename, dirname, join } from "node:path";
 import { Account, type ResidencyCode } from "@destack/account/object";
 import { DOMAINS } from "@destack/account/address";
@@ -15,7 +16,7 @@ import { reference, repository } from "@destack/registry/object";
 import { MemoryKeychain } from "@destack/identity";
 import { installation, type ObjectType, type Package, PackageMount } from "@destack/object";
 import { createClient } from "@destack/object/client";
-import { type Digest, Identifier, schema, present } from "@destack/schema";
+import { type Digest, Identifier, nth, schema, present } from "@destack/schema";
 import { type BuildReader, PackageManifest } from "@destack/package/manifest";
 import { rollout, Rollout } from "@destack/stack/object";
 import type { Installation } from "@destack/object";
@@ -189,10 +190,6 @@ export class TestComputer implements AsyncDisposable {
     readonly endpoint: string;
     /** The computer's keychains, by service. */
     readonly keychains: Map<string, MemoryKeychain>;
-    /** The failures the computer reported to no caller. */
-    readonly reports: unknown[];
-    /** The first failure the computer reported to no caller, once it does. */
-    readonly reported: Promise<unknown>;
     /** Stop the computer and its listener. */
     readonly #stack: AsyncDisposableStack;
 
@@ -205,8 +202,6 @@ export class TestComputer implements AsyncDisposable {
         readonly directory: string;
         readonly endpoint: string;
         readonly keychains: Map<string, MemoryKeychain>;
-        readonly reports: unknown[];
-        readonly reported: Promise<unknown>;
         readonly stack: AsyncDisposableStack;
     }) {
         // set the computer, its world and its state
@@ -217,9 +212,24 @@ export class TestComputer implements AsyncDisposable {
         this.directory = fields.directory;
         this.endpoint = fields.endpoint;
         this.keychains = fields.keychains;
-        this.reports = fields.reports;
-        this.reported = fields.reported;
         this.#stack = fields.stack;
+    }
+
+    /** List the failures the world captured since the last take, but the tunnel's retried dials. */
+    captured(): CapturedRecord[] {
+        return Refusal.captured(this.world.telemetry, (record) => TestComputer.#isDial(record));
+    }
+
+    /** Wait until the world captures a failure, but the tunnel's dials, answering the first. */
+    async refused(): Promise<CapturedRecord> {
+        await this.world.simulation.waitUntil(() => this.captured().length > 0);
+
+        return nth(this.captured(), 0);
+    }
+
+    /** Report whether a captured failure is a tunnel's dial, which the tunnel retries. */
+    static #isDial(record: CapturedRecord): boolean {
+        return record.attributes["tag.event"] === "tunnel.failed";
     }
 
     /** The machine the computer runs. */
@@ -279,7 +289,7 @@ export class TestComputer implements AsyncDisposable {
     ): Promise<TestWorld> {
         // refuse untaken exceptions
         defer(() => distribution[Symbol.asyncDispose]());
-        const telemetry = new TestTelemetry(simulation.telemetry);
+        const telemetry = TestTelemetry.of(simulation.telemetry);
         defer(() => telemetry[Symbol.dispose]());
 
         // start the universe on the simulation, answering at its origin on the network
@@ -443,9 +453,7 @@ export class TestComputer implements AsyncDisposable {
             stack.defer(() => published.stop(true));
         }
 
-        // start the computer, recording the failures it reports but the tunnel's dials, which it retries
-        const reports: unknown[] = [];
-        const reported = Promise.withResolvers<unknown>();
+        // start the computer, which captures the failures no caller sees in the world's telemetry
         const enrollment: MachineEnrollment | undefined =
             options.residency === undefined
                 ? undefined
@@ -479,14 +487,6 @@ export class TestComputer implements AsyncDisposable {
             layer: distribution.layer,
             ...(options.distribution === undefined ? {} : { distribution: options.distribution }),
             ...(enrollment === undefined ? {} : { enrollment }),
-            report: (event, error) => {
-                // capture and record each failure as the process does, but the tunnel's dials
-                if (event !== "tunnel.failed") {
-                    Computer.capture(environment.telemetry, event, error);
-                    reports.push(error);
-                    reported.resolve(error);
-                }
-            },
             shutdown: () => {},
         });
         stack.defer(() => computer[Symbol.asyncDispose]());
@@ -516,8 +516,6 @@ export class TestComputer implements AsyncDisposable {
             directory,
             endpoint: declared ?? `http://127.0.0.1:${port}`,
             keychains,
-            reports,
-            reported: reported.promise,
             stack: stack.move(),
         });
         defer(() => started[Symbol.asyncDispose]());
@@ -928,17 +926,15 @@ export class TestComputer implements AsyncDisposable {
                     .map((row) => ({ name: row.name, ready: row.conditions["Ready"] }))
                     .filter(({ ready }) => ready?.status !== "true")
                     .map(({ name, ready }) => `${name}: ${ready?.reason} ${ready?.message}`);
-                const reports = this.reports.map((report) =>
-                    report instanceof Error
-                        ? `${report.message} (${String(report.cause)})`
-                        : String(report),
+                const reports = this.captured().map((record) =>
+                    String(record.attributes["exception.message"]),
                 );
 
                 // fail with both, the wait's error and the reports as causes
                 const reason = space.health.reason;
                 throw this.#failure(
                     `space ${spaceId} did not get ready: ${reason}; not ready: ${unready.join("; ")}; reports: ${reports.join("; ")}`,
-                    [error, ...this.reports],
+                    [error, ...reports],
                 );
             });
     }
@@ -953,7 +949,7 @@ export class TestComputer implements AsyncDisposable {
         if (!(await this.world.simulation.wait(database.log.waitUntil(check, deadline)))) {
             throw this.#failure(`the check did not pass within ${limit} ms`, [
                 deadline.reason,
-                ...this.reports,
+                ...this.captured().map((record) => String(record.attributes["exception.message"])),
             ]);
         }
     }

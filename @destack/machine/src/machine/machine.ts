@@ -122,7 +122,6 @@ export type MachineOptions = Pick<
     | "endpoint"
     | "authenticate"
     | "authorizeSpace"
-    | "report"
 > & {
     /** The releases of the packages the machine links, by package. */
     readonly linked: ReadonlyMap<PackageId, PackageRelease>;
@@ -238,8 +237,6 @@ export class Machine {
     ) => Promise<Authentication | undefined>;
     /** Enforce the host's requirements on a call to a space's packages. */
     readonly authorizeSpace: (call: ProcedureContext<RequestContext>) => Promise<void>;
-    /** Report a failure no request answers. */
-    readonly report: (error: unknown) => void;
     /** The Destack versions whose releases the machine runs: the oldest it supports and its own. */
     readonly destack: VersionRange;
     /** The relay a personal machine tunnels through, absent when peers call its origin. */
@@ -306,7 +303,6 @@ export class Machine {
         this.domain = options.domain;
         this.authenticate = options.authenticate;
         this.authorizeSpace = options.authorizeSpace;
-        this.report = options.report;
         this.destack = options.destack;
         this.#tunnel = options.tunnel;
         this.#readEnrollment = options.enrollment;
@@ -327,6 +323,11 @@ export class Machine {
                 options.registry,
                 options.shipped,
             );
+    }
+
+    /** Capture a failure no request answers, as escaping the machine's background work. */
+    #capture(error: unknown): void {
+        this.scope.captureException(error, { isEscaped: true });
     }
 
     /** Pull a published lock with its closures once, from its package's forge. */
@@ -1098,7 +1099,7 @@ export class Machine {
         const spaces = new Set([...stored, ...rows.map((row) => row.spaceId)]);
         await Promise.all(
             [...spaces].map((space) =>
-                this.space(space).catch((error: unknown) => this.report(error)),
+                this.space(space).catch((error: unknown) => this.#capture(error)),
             ),
         );
 
@@ -1124,7 +1125,7 @@ export class Machine {
                             }
                         }
                     })
-                    .catch((error: unknown) => this.report(error)),
+                    .catch((error: unknown) => this.#capture(error)),
             ),
         );
     }
@@ -1181,7 +1182,7 @@ export class Machine {
 
     /** Announce what this machine runs once it serves, reporting a failed announcement. */
     async #announceServing(): Promise<void> {
-        await this.announce().catch((error: unknown) => this.report(error));
+        await this.announce().catch((error: unknown) => this.#capture(error));
     }
 
     /** Read the replicas of this machine's status, absent before it arrives, and its placements. */

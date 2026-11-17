@@ -43,7 +43,7 @@ test("assign the machine of an unfinished checkout build in the space, and withd
     await record(fixture.machine.id);
 
     // assign only the laptop through the machine's uplink, reading the assignments from the universe's rows
-    const projection = (await fixture.space).assignment((await fixture.space).uplink());
+    const projection = (await fixture.space).assignment((await fixture.space).remote());
     const reconciliation = { signal: new AbortController().signal, changed: async () => {} };
     const assignments = async () => {
         // wait for the space's replica of the universe's assignments, which the fixture follows

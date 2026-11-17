@@ -18,8 +18,7 @@ test("follow a space's own rows as its machine serves it", async () => {
     const expected = Shape.subscription(
         Scope.universe.id,
         [{ shape: spaceShape, keys: [{ space: ids.space, machine: machineId }] }],
-        ids.space,
-        principal.machine.reference(Scope.universe.id, machineId),
+        { target: ids.space, subject: principal.machine.reference(Scope.universe.id, machineId) },
     );
     const listed = await present(store.subscriber, "the space's subscriber").subscriptions(
         Snapshot.live(store.database),

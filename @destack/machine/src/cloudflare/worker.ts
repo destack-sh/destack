@@ -24,7 +24,6 @@ import { CloudMachine, CONNECTING_IP_HEADER, type MachineBindings } from "./clou
 import { type Identifier, present, schema } from "@destack/schema";
 import { SettingValue } from "@destack/setting/object";
 import { Route } from "@destack/stack/object";
-import { TelemetryScope } from "@destack/telemetry";
 import {
     type HibernatingSocket,
     FacetHost,
@@ -283,11 +282,6 @@ export class PartitionObject {
         const space = schema.identifier("space").parse(spaceId);
         const bindings = this.#bindings;
         const cloud = await this.#machine();
-        const instruments = TelemetryScope.of(
-            import.meta.destack.package,
-            cloud.environment.telemetry,
-        );
-        const report = (error: unknown) => instruments.captureException(error, { isEscaped: true });
         const rates = RateCard.parse(JSON.parse(bindings.DESTACK_RATES));
         const host = await DurableObjectSpaceStorage.open({
             space,
@@ -304,7 +298,6 @@ export class PartitionObject {
             keyring: cloud.keyring,
             send: (request) => cloud.environment.network.fetch(request),
             mail: cloud.mail(),
-            report,
         });
 
         // run the space's instances in the object's facets, rooted in the space's identity
@@ -422,7 +415,6 @@ export class PartitionObject {
                     );
                 }
             },
-            report,
         });
         // read the machine's health from its directory copy, then start the space, which refuses unless it serves
         await machine.updateHealth();

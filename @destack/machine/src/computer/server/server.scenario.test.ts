@@ -558,7 +558,7 @@ test("decide checkout permissions for the owner, the machine and a stranger", as
         local: await permissions(local),
         stranger: await permissions(stranger),
     };
-    expect([stored, decided, opened.reports]).toEqual([
+    expect([stored, decided, opened.captured()]).toEqual([
         {
             // store no role, as the base packages request nothing there and act on their own types by their policies
             partition: { roles: [], bindings: [] },

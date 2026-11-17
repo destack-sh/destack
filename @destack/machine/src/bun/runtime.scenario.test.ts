@@ -89,9 +89,6 @@ test("run an instance as a Bun process bound at the egress, serving forwarded ca
         sampling: async () => 1,
         url: async () => "http://127.0.0.1:7470/installation",
         output: () => {},
-        report: (error) => {
-            throw error;
-        },
     });
     onTestFinished(() => runtime.close());
 
@@ -347,9 +344,6 @@ test("keep an instance's data in the runtime's own directory when it runs its bu
         sampling: async () => 1,
         url: async () => "http://127.0.0.1:7470/installation",
         output: () => {},
-        report: (error) => {
-            throw error;
-        },
     });
     onTestFinished(() => runtime.close());
 
@@ -476,9 +470,6 @@ test("deny a sandboxed workload's calls to hosts its capabilities omit", async (
         sampling: async () => 1,
         url: async () => "http://127.0.0.1:7470/installation",
         output: () => {},
-        report: (error) => {
-            throw error;
-        },
     });
     onTestFinished(() => runtime.close());
 
@@ -616,9 +607,6 @@ test("import and call a shared package's export as the machine's own instance, a
         sampling: async () => 1,
         url: async () => "http://127.0.0.1:7470/installation",
         output: () => {},
-        report: (error) => {
-            throw error;
-        },
     });
     onTestFinished(() => runtime.close());
     const stored = async (name: string, index: number) => {
@@ -725,9 +713,6 @@ test("refuse a sandboxed call of a release running a native addon, and load it f
         sampling: async () => 1,
         url: async () => "http://127.0.0.1:7470/installation",
         output: () => {},
-        report: (error) => {
-            throw error;
-        },
     });
     onTestFinished(() => runtime.close());
     const sandboxed = await refusal(runtime.call(lock, "bun/server.js", "describe", []));

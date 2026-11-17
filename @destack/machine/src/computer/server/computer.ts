@@ -128,7 +128,7 @@ export class ComputerServer {
     }
 
     /** Serve the device's partition: the computer's record, local objects and distribution. */
-    async serveDevice(context: WorkloadContext): Promise<WorkloadImplementation> {
+    async serveDevice(): Promise<WorkloadImplementation> {
         // serve the device's own objects, the computer's record and the distribution over the device's store
         const { device } = this;
         const machine = this.machine.id;
@@ -143,7 +143,6 @@ export class ComputerServer {
             ],
             this.callKey,
             this.deviceEvents,
-            context.report,
         );
 
         // write the computer's record and an installed distribution's as the machine
@@ -200,7 +199,6 @@ export class ComputerServer {
             // follow the machine's chain above it once enrolled
             chain: () => this.machine.chain(),
             publisher: (scope) => this.machine.publisher(scope),
-            report: (error) => context.report(error),
         });
         this.receive.machine(store);
 

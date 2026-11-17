@@ -55,8 +55,6 @@ export class SocketRegistry implements AsyncDisposable {
         readonly memory: (
             tables: readonly Table[],
         ) => Promise<DatabaseConnection & { readonly close: () => Promise<void> }>;
-        /** Report a failure to end a closed socket's rows. */
-        readonly report: (error: unknown) => void;
         /** The environment the sockets run in. */
         readonly environment: Environment;
     }): Promise<SocketRegistry> {
@@ -64,7 +62,6 @@ export class SocketRegistry implements AsyncDisposable {
             [...Object.values(stackPackage.objects), ...options.objects],
             options.tracker,
             (tables) => options.memory(tables),
-            { report: (error) => options.report(error) },
         );
 
         return new SocketRegistry(

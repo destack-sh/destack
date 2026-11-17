@@ -9,7 +9,8 @@ import {
     type Table,
 } from "@destack/db";
 import { Failure } from "@destack/error";
-import { RequestId, Page, Scope, type Uplink } from "@destack/sync";
+import { RequestId, Page, Scope } from "@destack/sync";
+import type { ObjectRemote } from "@destack/object/client";
 import { AccessContext, Caller, principal } from "@destack/access";
 import { Digest, type Identifier, present, schema } from "@destack/schema";
 import { createClient } from "@destack/object/client";
@@ -258,8 +259,8 @@ async function* linesOf(pages: AsyncIterable<Page>): AsyncGenerator<Uint8Array> 
 export interface HandoffOptions {
     /** The space's database. */
     readonly database: DatabaseConnection;
-    /** The account package's uplink, which places the spaces as this machine. */
-    readonly publisher: Uplink;
+    /** The remote toward the universe, which places the spaces as this machine. */
+    readonly remote: ObjectRemote;
     /** The providers that store the spaces' resources. */
     readonly providers: ProviderIndex;
     /** The keystore of the spaces, wrapping their keys under the machine's keyring. */

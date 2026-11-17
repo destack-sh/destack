@@ -262,12 +262,8 @@ test("hand a space's database to another machine and send its clients there", as
     );
     await keystore.generate(target.database, spaceId);
     const carried = present(await registry.find(spaceId), "the carried identity");
-    const publisher = await TestDirectory.uplink(universe.database, ids.machineB, world);
-    const completed = await transfer(arriving).place(
-        { publisher, keystore },
-        target.database,
-        world,
-    );
+    const remote = await TestDirectory.remote(universe.database, ids.machineB, world);
+    const completed = await transfer(arriving).place({ remote, keystore }, target.database, world);
     const rekeyed = present(await registry.find(spaceId), "the rekeyed identity");
     await create(target.database, "after");
     expect([

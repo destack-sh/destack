@@ -573,7 +573,7 @@ test("move a space afresh after a cancelled takeover", async () => {
         targetId,
     });
     const paused = target.simulation.network.pause(targetId, UNIVERSE_NODE, (sent) =>
-        sent.endsWith("/store/receive"),
+        sent.endsWith("/store/push"),
     );
     const cancelling = paused.waiting.then(async () => {
         // cancel as the owner before the target's first call to the universe, and let the target's machine see the placement no longer moves here

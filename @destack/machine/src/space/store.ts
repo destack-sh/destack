@@ -86,7 +86,7 @@ function stackServer(
         mounts: {
             handoff: handoffMount({
                 database: space.database,
-                publisher: start.uplink,
+                remote: start.remote,
                 providers,
                 keystore: space.keystore,
                 runtimes: space.machine.runtimes,
@@ -108,7 +108,6 @@ export function openStore(
     sandboxes: readonly HookSandbox[],
 ): ObjectStore {
     const store: ObjectStore = new ObjectStore({
-        report: space.machine.report,
         servers,
         principal: space.principal,
         partitions: start.partitions,
@@ -160,11 +159,11 @@ export function openStore(
 
             return undefined;
         },
-        // send through the uplink and the homes' publishers, apart from a leaving space
+        // send through the remote and the homes' publishers, apart from a leaving space
         ...(start.role === "leaving"
             ? {}
             : {
-                  uplink: start.uplink,
+                  remote: start.remote,
                   publisher: (scope: string) => homePublisher(space, start, scope),
               }),
         machine: space.machine.id,
@@ -245,7 +244,7 @@ function spaceControl(
             ? [
                   SpaceTransfer.projection(transfers, store),
                   space.placement(store, space.machine.volumes.main),
-                  space.assignment(start.uplink),
+                  space.assignment(start.remote),
                   ...binder.specifications(store),
               ]
             : [],
@@ -266,7 +265,7 @@ function ownObjects(
         implementSnapshot(transfers),
         implementRestore(transfers),
         implementSpace({
-            publisher: start.uplink,
+            remote: start.remote,
             isEnforcingEntitlements: space.machine.isEnforcingEntitlements,
         }),
         ...providers.provided(),
@@ -360,7 +359,7 @@ function configureTransfers(
     return {
         machine: space.machine.id,
         database: space.database,
-        publisher: start.uplink,
+        remote: start.remote,
         source: (source, spaceId) => space.machine.handoff.bind(space.machine)(source, spaceId),
         providers,
         blobs: space.blobs,
@@ -429,11 +428,11 @@ function spaceFollows(space: Space, start: SpaceStart): readonly Follow[] {
     ];
 }
 
-/** Open a scope's publisher: the uplink for the universe, space and machine, else its home. */
+/** Open a scope's publisher: the remote for the universe, space and machine, else its home. */
 function homePublisher(space: Space, start: SpaceStart, scope: string): Publisher {
-    // follow the universe, and the chains of the served space and its machine, through the uplink
+    // follow the universe, and the chains of the served space and its machine, through the remote
     if ([Scope.universe.id, space.principal.id, space.machine.id].includes(scope)) {
-        return start.uplink;
+        return start.remote;
     }
 
     // follow a space at itself, and another scope in its account's partition at the account's home

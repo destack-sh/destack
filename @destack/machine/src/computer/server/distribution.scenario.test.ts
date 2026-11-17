@@ -48,10 +48,10 @@ test("record this machine's distribution, stage the published release and hand i
                 activate: () => activations.push("activate"),
             },
         });
-        const { reports, device } = opened;
+        const { device } = opened;
         const { objects } = opened.computer;
         const isStaged = async () =>
-            reports.length > 0 ||
+            opened.captured().length > 0 ||
             (await objects.database.select().from(distribution.table)).some(
                 (recorded) => recorded.status === "staged",
             );
@@ -68,7 +68,7 @@ test("record this machine's distribution, stage the published release and hand i
 
         // expect the staged release recorded and its activation handed over once
         expect({
-            reports,
+            reports: opened.captured(),
             staged: [row?.installed, row?.staged, row?.status],
             activated: [activated.staged, activated.status],
             activations,
@@ -110,27 +110,30 @@ test("report a stage its repository refuses as the controller's failure", async 
         });
 
         // let the controller try to stage and read the failure it reports first
-        const { reported, device } = await TestComputer.open({
+        const computer = await TestComputer.open({
             world,
             distribution: { distribution: installed, activate: () => {} },
         });
-        const first = await reported;
+        const { device } = computer;
+        const first = await computer.refused();
         const [recorded] = await device.database.select().from(distribution.table);
         const key = JSON.stringify({ id: recorded?.id });
 
-        // expect the refused download reported with the controller and its distribution's key, and captured once
+        // expect the refused download captured once, with the controller and its distribution's key
         expect({
-            reported:
-                first instanceof Error && first.cause instanceof Error
-                    ? [first.message, first.cause.message]
-                    : first,
-            captured: world.telemetry.take().map((captured) => captured.message),
+            captured: [
+                first.attributes["tag.controller"],
+                first.attributes["destack.key"],
+                first.attributes["exception.message"],
+            ],
+            taken: world.telemetry.take().map((captured) => captured.message),
         }).toEqual({
-            reported: [
-                `'destack.distribution.stage' did not reconcile '${key}'`,
+            captured: [
+                "destack.distribution.stage",
+                key,
                 "metadata not found: metadata request failed: HTTP 404",
             ],
-            captured: ["metadata not found: metadata request failed: HTTP 404"],
+            taken: ["metadata not found: metadata request failed: HTTP 404"],
         });
     } finally {
         await refusing.stop(true);

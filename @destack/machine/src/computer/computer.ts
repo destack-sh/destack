@@ -169,8 +169,6 @@ export interface ComputerOptions {
     readonly distribution?: DistributionHost;
     /** Read the toolchain the compilers run, once they first need it. */
     readonly toolchain: () => Promise<Toolchain>;
-    /** Report a failure no request answers, by the event it ended. */
-    readonly report: (event: string, error: unknown) => void;
     /** Stop the machine at a client's request. */
     readonly shutdown: () => void;
 }
@@ -333,7 +331,6 @@ export class Computer implements AsyncDisposable {
                             ),
                         ),
                         environment: options.environment,
-                        report: (error) => options.report("spaces.failed", error),
                     }),
                 );
 
@@ -419,7 +416,11 @@ export class Computer implements AsyncDisposable {
                                   fetch: async (request: Request) =>
                                       (await started.promise).relay(request),
                                   report: (error: unknown) =>
-                                      options.report("tunnel.failed", error),
+                                      Computer.capture(
+                                          options.environment.telemetry,
+                                          "tunnel.failed",
+                                          error,
+                                      ),
                                   changed: (status: TunnelStatus) => {
                                       recorded = recorded
                                           .then(async () => {
@@ -427,7 +428,11 @@ export class Computer implements AsyncDisposable {
                                               await ComputerServer.link(objects, machineId, status);
                                           })
                                           .catch((error: unknown) =>
-                                              options.report("computer.failed", error),
+                                              Computer.capture(
+                                                  options.environment.telemetry,
+                                                  "computer.failed",
+                                                  error,
+                                              ),
                                           );
                                   },
                               },
@@ -435,7 +440,6 @@ export class Computer implements AsyncDisposable {
                     authenticate: (request, audience, partition) =>
                         authenticator.authenticate(request, audience, partition),
                     authorizeSpace: (served) => authenticator.authorizeSpace(served),
-                    report: (error) => options.report("spaces.failed", error),
                 });
 
                 // serve this machine's objects and origins through the gateway
@@ -475,7 +479,9 @@ export class Computer implements AsyncDisposable {
                         announcing.signal,
                         device.database.state.commits.generation,
                     )
-                    .catch((error: unknown) => options.report("machine.failed", error));
+                    .catch((error: unknown) =>
+                        Computer.capture(options.environment.telemetry, "machine.failed", error),
+                    );
                 stack.defer(async () => {
                     announcing.abort();
                     await announced;
@@ -710,7 +716,6 @@ export class Computer implements AsyncDisposable {
         return new BunRuntime({
             program,
             environment: options.environment,
-            report: (error) => options.report("runtime.failed", error),
             isolation: options.isolation,
             identity,
             directory: join(options.directory, "workers"),
@@ -741,7 +746,13 @@ export class Computer implements AsyncDisposable {
                 machine()
                     .space(running.scope)
                     .then((space) => space.telemetry(running, "logs", exported))
-                    .catch((error: unknown) => options.report("runtime.output.failed", error));
+                    .catch((error: unknown) =>
+                        Computer.capture(
+                            options.environment.telemetry,
+                            "runtime.output.failed",
+                            error,
+                        ),
+                    );
             },
         });
     }
@@ -889,7 +900,6 @@ export class Computer implements AsyncDisposable {
             environment: options.environment,
             resources: new ResourceContext().bind(computerServer, server),
             callKey: () => Computer.#callKey(machine),
-            report: (error) => options.report("machine.failed", error),
             serverOptions: (handle) => ({
                 environment: options.environment,
                 scope: workload === deviceWorkload ? device.id : machine.id,
@@ -1111,7 +1121,6 @@ export class Computer implements AsyncDisposable {
             },
             ...(home.stage.name === "local" ? {} : { distribution: installed }),
             toolchain,
-            report: (event, error) => Computer.capture(telemetry, event, error),
             shutdown: () => stopping.abort(),
         });
         running = started;

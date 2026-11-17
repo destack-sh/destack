@@ -87,8 +87,6 @@ export interface DurableObjectSpaceStorageOptions {
     readonly send: (request: Request) => Promise<Response>;
     /** The transport the space's mail goes out through. */
     readonly mail: Connector<MailTransport>;
-    /** Report a failure of the space's background work. */
-    readonly report: (error: unknown) => void;
     /** The environment the spaces run in: its clock, randomness, crypto and network. */
     readonly environment: Environment;
 }
@@ -219,7 +217,6 @@ export class DurableObjectSpaceStorage implements SpaceStorage {
 
                         return host.connect(tables, { namespace: SOCKETS_NAMESPACE });
                     },
-                    report: (error) => this.#options.report(error),
                 });
 
                 return new DurableObjectVolume({

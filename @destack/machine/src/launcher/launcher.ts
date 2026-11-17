@@ -30,6 +30,7 @@ import {
     createClient,
     ObjectClient,
     ObjectStoreDescription,
+    ProcedureRemote,
 } from "@destack/object/client";
 import { PackageVersion, PackageId } from "@destack/package";
 import {
@@ -314,9 +315,13 @@ export class Launcher {
                 objects,
                 scope: scopeId,
                 caller: this.user.subject,
-                endpoint,
-                reconnect,
-                homes: (scope) => this.store(scope),
+                remote: ProcedureRemote.at({
+                    scope: scopeId,
+                    endpoint,
+                    reconnect,
+                    homes: (scope) => this.store(scope),
+                    environment: this.machine.environment,
+                }),
             },
             stack,
         );
@@ -607,7 +612,7 @@ export class Launcher {
         });
 
         return {
-            store: ObjectClient.store(endpoint(stackPackage.id), this.machine.environment),
+            store: ProcedureRemote.procedures(endpoint(stackPackage.id), this.machine.environment),
             stack: createClient(stackPackage, endpoint(stackPackage.id), this.machine.environment),
             objects: createClient(
                 objectPackage,
@@ -757,7 +762,9 @@ export class Launcher {
     }
 
     /** Read the views a space's named installations serve, as its store describes them. */
-    static async #views(store: ReturnType<typeof ObjectClient.store>): Promise<SpaceView[]> {
+    static async #views(
+        store: ReturnType<typeof ProcedureRemote.procedures>,
+    ): Promise<SpaceView[]> {
         const description = await ObjectStoreDescription.read(store);
 
         return description.packages.flatMap((served) => {
