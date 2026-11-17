@@ -1,12 +1,39 @@
+import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Snapshot } from "@destack/db";
 import { preview } from "@destack/machine/checkout";
 import { schema, Version } from "@destack/schema";
-import { expect, test } from "@destack/test";
+import { expect, onTestFinished, test } from "@destack/test";
+import { testHost } from "@destack/test/host";
 import { TerminalFixture } from "../test/terminal.ts";
 
 /** The checkout the owner builds and previews the notebooks package from. */
 const NOTEBOOKS = fileURLToPath(new URL("../../tests/fixture/notebooks/", import.meta.url));
+
+/** A second, the step of a dev build's time, after which a build orders after an earlier one. */
+const SECOND = 1000;
+
+/** The directory of the fixtures, where a test lays out a checkout that resolves the workspace. */
+const FIXTURES = fileURLToPath(new URL("../../tests/fixture/", import.meta.url));
+
+/** Write a setting of the content's language taking the given values. */
+function languageSetting(values: readonly string[]): string {
+    return `import { defineSetting } from "@destack/setting/declare";
+import { schema } from "@destack/schema";
+import { t } from "@destack/locale";
+
+/** The language of generated content. */
+export const language = defineSetting({
+    name: "language",
+    title: t\`Content language\`,
+    description: t\`Choose the language of generated content.\`,
+    schema: schema.enum(${JSON.stringify(values)}),
+    default: "en",
+    scope: "user",
+    overrides: ["space", "installation"],
+});
+`;
+}
 
 /** The notebooks package as a build of its checkout that leads to no release has it. */
 const PACKAGE = {
@@ -67,5 +94,95 @@ test("build a checkout's package in the space through each phase, and start a pr
         ],
         previewed: [0, "", home, "@destack/cli/tests/fixture/notebooks"],
         previews: [[started.id, null]],
+    });
+});
+
+test("have a preview take over the package's installation, and an install take it back", async () => {
+    // publish the notebooks as acme and install them in the owner's home
+    const terminal = await TerminalFixture.open({ NO_COLOR: "1" });
+    const run = (words: readonly string[], stdin?: string) =>
+        terminal.printed(["--space", "home", ...words], stdin === undefined ? {} : { stdin });
+    const words = ["organization", "create", "--name", "Acme", "--handle", "acme"];
+    await run([...words, "--residency-id", "eu"]);
+    await run(["publish", NOTEBOOKS, "--json"], "yes\n");
+    const installed = await run(["install", "@acme/notebooks", "--json"]);
+
+    // preview the checkout, then install the release again, reading what the installation follows
+    const follows = async () => {
+        const listed = await run(["installations", "--json"]);
+        const rows = schema
+            .array(
+                schema.looseObject({
+                    name: schema.string(),
+                    followsType: schema.string().nullable(),
+                    directory: schema.string().nullable(),
+                }),
+            )
+            .parse(JSON.parse(listed.output));
+
+        return rows
+            .filter((row) => row.name === "notebooks")
+            .map((row) => [row.followsType, row.directory]);
+    };
+    const released = await follows();
+    const previewed = await run(["dev", NOTEBOOKS, "--json"]);
+    const previewing = await follows();
+    const reinstalled = await run(["install", "@acme/notebooks", "--json"]);
+    expect({
+        codes: [installed.code, previewed.code, previewed.error, reinstalled.code],
+        follows: [released, previewing, await follows()],
+    }).toEqual({
+        codes: [0, 0, "", 0],
+        follows: [
+            [["tag", null]],
+            [["checkout", "@destack/cli/tests/fixture/notebooks"]],
+            [["tag", null]],
+        ],
+    });
+});
+
+test("refuse a preview whose setting takes fewer values without a conversion, with the reason", async () => {
+    // lay out the notebooks with a setting beside the fixtures, where the workspace resolves
+    const { files } = testHost();
+    const directory = await files.makeTemporaryDirectory("notebooks-", { directory: FIXTURES });
+    onTestFinished(() => files.remove(directory, { recursive: true }));
+    for (const file of ["destack.json", "bunfig.toml", "tsconfig.json", "src/package.ts"]) {
+        await files.mkdir(join(directory, "src"), { recursive: true });
+        await files.copyFile(join(NOTEBOOKS, file), join(directory, file));
+    }
+    const manifest = schema
+        .looseObject({
+            exports: schema.record(schema.string(), schema.string()),
+            dependencies: schema.record(schema.string(), schema.string()),
+        })
+        .parse(JSON.parse(await files.readTextFile(join(NOTEBOOKS, "package.json"))));
+    manifest.exports["./setting"] = "./src/setting.ts";
+    manifest.dependencies["@destack/setting"] = "workspace:*";
+    await files.writeTextFile(join(directory, "package.json"), JSON.stringify(manifest));
+    const setting = join(directory, "src/setting.ts");
+    await files.writeTextFile(setting, languageSetting(["en", "de", "fr"]));
+
+    // preview it, then a second later take a value away without a conversion and preview it again
+    const terminal = await TerminalFixture.open({ NO_COLOR: "1" });
+    const first = await terminal.printed(["--space", "home", "dev", directory, "--json"]);
+    await terminal.computer.world.simulation.sleep(SECOND);
+    await files.writeTextFile(setting, languageSetting(["en", "de"]));
+    const second = await terminal.printed(["--space", "home", "dev", directory]);
+
+    // refuse the second preview with the setting's problem, which the machine captured, its dev build's version aside
+    const version = /9999\.12\.0-dev\.\d{14}\.[0-9a-f]{12}/gu;
+    const problem =
+        "cannot upgrade installation 'notebooks' to '<version>': setting/language: declare a conversion for <version>";
+    const captured = terminal.computer.world.telemetry
+        .take()
+        .map((exception) => exception.message.replaceAll(version, "<version>"));
+    expect({
+        first: [first.code, first.error],
+        second: [second.code, second.output, second.error.replaceAll(version, "<version>")],
+        captured: [...new Set(captured)],
+    }).toEqual({
+        first: [0, ""],
+        second: [1, "", `destack: preview of '${directory}' is broken: ${problem}\n`],
+        captured: [problem],
     });
 });
