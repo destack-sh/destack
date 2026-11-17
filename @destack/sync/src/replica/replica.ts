@@ -803,26 +803,38 @@ export class Replica {
         replicas: readonly { readonly name: string; readonly scope: string }[],
         position: LogPosition,
     ): Promise<boolean> {
-        // take each replica's mark, or the home position it recorded before any mark
-        const homes = await Promise.all(
-            replicas.map(
-                async ({ name, scope }) =>
-                    [
-                        scope,
-                        Replica.marked(database, name, scope)?.position ??
-                            (await Replica.origin(database, name, scope)),
-                    ] as const,
-            ),
-        );
-
         // require each replica following the position's log to have reached it, and one at least
-        const reached = homes.flatMap(([scope, home]) =>
-            home === undefined || home.log === position.log
-                ? [Replica.#isReached(home, scope, position)]
-                : [],
+        const homes = await Replica.homes(database, replicas);
+        const following = homes.filter(
+            ({ home }) => home === undefined || home.log === position.log,
         );
 
-        return reached.length > 0 && reached.every(Boolean);
+        return following.length > 0 && Replica.late(homes, position) === undefined;
+    }
+
+    /** Read each replica's home position: its mark, or the one it recorded before any mark. */
+    static async homes(
+        database: DatabaseConnection,
+        replicas: readonly { readonly name: string; readonly scope: string }[],
+    ): Promise<ReplicaHome[]> {
+        return await Promise.all(
+            replicas.map(async ({ name, scope }) => ({
+                name,
+                scope,
+                home:
+                    Replica.marked(database, name, scope)?.position ??
+                    (await Replica.origin(database, name, scope)),
+            })),
+        );
+    }
+
+    /** Find the first replica yet to reach a position of the log it follows, or of none yet. */
+    static late(homes: readonly ReplicaHome[], position: LogPosition): ReplicaHome | undefined {
+        return homes.find(
+            ({ scope, home }) =>
+                (home === undefined || home.log === position.log) &&
+                !Replica.#isReached(home, scope, position),
+        );
     }
 
     /** List the replicas including a scope's rows, by name and the scope each replicates. */
@@ -2998,6 +3010,16 @@ export type ApplyOptions<Followed extends SubscriptionRecord = SubscriptionRecor
         /** Open the machine-bound values a fenced source sealed to this replica. */
         readonly open?: (table: Table, row: Row) => Promise<Row>;
     };
+
+/** A replica with the position of its home's log it has applied. */
+export interface ReplicaHome {
+    /** The replica's name. */
+    readonly name: string;
+    /** The scope the replica replicates. */
+    readonly scope: string;
+    /** The position of its home's log, absent before the replica recorded one. */
+    readonly home: LogPosition | undefined;
+}
 
 /** The inspection of a replica. */
 export interface ReplicaInspection {
