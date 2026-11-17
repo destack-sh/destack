@@ -25,7 +25,11 @@ export default definePackage({
     tables: BUILD_STORE_TABLES,
     // serve the registry's repositories, references, packages and tags
     protocols: [registryPackage],
-    mounts: [defineMount({ name: "builds", path: "/builds" }), githubWebhook],
+    mounts: [
+        defineMount({ name: "builds", path: "/builds" }),
+        defineMount({ name: "npm", path: "/npm" }),
+        githubWebhook,
+    ],
     resources: [repositoryStorage, credentialVault, githubWebhookSecret, githubPrivateKey],
     capabilities: [
         {

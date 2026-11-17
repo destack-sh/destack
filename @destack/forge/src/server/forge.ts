@@ -17,12 +17,15 @@ import {
 } from "@destack/object";
 import type { ObjectStore, ImplementationInput, RequestContext } from "@destack/object/server";
 import { PackageName } from "@destack/package";
-import { type Digest, type Identifier, present, schema } from "@destack/schema";
+import { type Digest, type Identifier, type JsonObject, present, schema } from "@destack/schema";
 import { RequestId, type ObjectReference, Scope, type Subject } from "@destack/sync";
 import type { ServerContext, PackageContext } from "@destack/object/workload";
 import type { WebhookDelivery } from "@destack/workflow";
 import { GITHUB_API, GitHubApp, GitHubHosting } from "../github/index.ts";
-import { packageObject, reference, release, repository } from "@destack/registry/object";
+import { packageObject, reference, release, repository, tag } from "@destack/registry/object";
+import { NpmPackument, NpmTarball } from "@destack/registry/npm";
+import { Lock } from "@destack/package/manifest";
+import { TarballEntry } from "@destack/package/archive";
 import forgePackage from "../package.ts";
 import { github } from "../stack/setting.ts";
 import {
@@ -87,6 +90,9 @@ export interface ClaimReader {
     /** Read the replicated rows. */
     readonly read: Snapshot["read"];
 }
+
+/** The path npm clients ask below the mount: a package, or a release's tarball below `/-/`. */
+const NPM_PATH = /\/@([^/]+)\/([^/]+?)(\/-\/[^/]+?-(\d[^/]*)\.tgz)?$/u;
 
 /** The forge's repositories and packages as objects. */
 export class Forge {
@@ -196,6 +202,7 @@ export class Forge {
             // answer builds, and the GitHub App's deliveries
             mounts: {
                 builds: (request, _caller, context, store) => this.#builds(request, context, store),
+                npm: (request, _caller, context, store) => this.#npm(request, context, store),
                 github:
                     webhook ??
                     (async () => {
@@ -366,6 +373,122 @@ export class Forge {
             },
             push: async (upload, scope) => this.#authorizeUpload(upload, scope, context, objects),
         });
+    }
+
+    /** Answer a package's npm listing, or one release's tarball, to the package's readers. */
+    async #npm(request: Request, context: RequestContext, objects: ObjectStore): Promise<Response> {
+        // read the handle, the name and a tarball's version from the path, as npm clients ask
+        const path = decodeURIComponent(new URL(request.url).pathname);
+        const asked = NPM_PATH.exec(path);
+        const [, handle, name, , version] = asked ?? [];
+        if (handle === undefined || name === undefined) {
+            throw ForgeError.of("PACKAGE_NOT_FOUND", "package not found");
+        }
+
+        // find the handle's account and its package of the name, concealing each refusal
+        const keyed = Claim.key(account, "handle", [handle]);
+        const snapshot = Snapshot.live(objects.database);
+        const reader: ClaimReader = {
+            acquire: (follow, at) => objects.acquire(follow, at),
+            read: (table) => snapshot.read(table),
+        };
+        await Forge.#acquire(reader, keyed);
+        const owner = await Claim.owner(reader.read(claimTable), keyed);
+        const [owned] =
+            owner === undefined
+                ? []
+                : await snapshot.read(packageObject.table).findMany({
+                      where: {
+                          accountId: schema.identifier("account").parse(owner.objectId),
+                          name,
+                      },
+                  });
+        if (owned === undefined) {
+            throw ForgeError.of("PACKAGE_NOT_FOUND", "package not found");
+        }
+        await Forge.conceal("PACKAGE_NOT_FOUND", "package not found", () =>
+            objects.query(
+                context.access(owned.scope),
+                packageObject.call("get", { spaceId: owned.scope, id: owned.id }),
+            ),
+        );
+
+        // describe each release new installs take, its tarball below the forge's own address
+        const published = await snapshot
+            .read(release.table)
+            .findMany({ where: { parentId: owned.id, yankedAt: { isNull: true } } });
+        const full = `@${handle}/${name}`;
+        const mount = `${this.#options.endpoint.href}${forgePackage.mounts.npm.path}`;
+        const base = `${mount}/${full}/-/${name}-`;
+        const described = await Promise.all(
+            published.map(async (each) => ({
+                version: each.version,
+                archive: await this.#archive(each.lock),
+                ...(each.deprecation === null ? {} : { deprecation: each.deprecation }),
+            })),
+        );
+
+        // answer the asked release's tarball
+        if (version !== undefined) {
+            const found = described.find((each) => each.version === version);
+            if (found === undefined) {
+                throw ForgeError.of("RELEASE_NOT_FOUND", `release '${version}' not found`);
+            }
+
+            return new Response(found.archive.bytes, {
+                headers: { "content-type": "application/octet-stream" },
+            });
+        }
+
+        // answer the listing, with each tag at the release it points at
+        const tags = await snapshot.read(tag.table).findMany({ where: { parentId: owned.id } });
+        const listing = NpmPackument.of(
+            full,
+            Object.fromEntries(tags.map((each) => [each.name, each.version])),
+            described.map(({ version: listed, archive, deprecation }) => ({
+                manifest: archive.manifest,
+                tarball: `${base}${listed}.tgz`,
+                integrity: archive.integrity,
+                ...(deprecation === undefined ? {} : { deprecation }),
+            })),
+        );
+
+        return Response.json(listing);
+    }
+
+    /** Archive a lock's root build as its npm tarball, with the package file and integrity. */
+    async #archive(lock: Digest): Promise<{
+        readonly bytes: Uint8Array<ArrayBuffer>;
+        readonly manifest: JsonObject;
+        readonly integrity: string;
+    }> {
+        // read the version each of the root's requirements links
+        const locked = await this.store.lock(lock);
+        const links = Object.entries(Lock.links(locked, locked.root));
+        const versions = Object.fromEntries(
+            await Promise.all(
+                links.map(async ([linked, build]) => {
+                    const { version } = (await this.store.get(build)).package;
+
+                    return [linked, version] as const;
+                }),
+            ),
+        );
+
+        // archive the root's files, reading back the released package file
+        const entries = await NpmTarball.entries(await this.store.contents(locked.root), versions);
+        const released = present(
+            entries.find((entry) => entry.path === NpmTarball.packageFile),
+            "the build's package file",
+        );
+        const manifest = schema
+            .jsonObject()
+            .parse(JSON.parse(new TextDecoder().decode(await TarballEntry.bytes(released))));
+        const reread = await NpmTarball.entries(await this.store.contents(locked.root), versions);
+        const bytes = await NpmTarball.archive(reread);
+        const integrity = await NpmTarball.integrity(bytes, this.#options.environment.crypto);
+
+        return { bytes, manifest, integrity };
     }
 
     /** Authorize an upload below an account's handle: an enrolled machine's or a publisher's. */
