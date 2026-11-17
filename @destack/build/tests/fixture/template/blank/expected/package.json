@@ -13,15 +13,15 @@
         "typecheck": "tsc --project tsconfig.json && destack-check readme"
     },
     "devDependencies": {
-        "@destack/check": "2026.11.0",
+        "@destack/check": "workspace:*",
         "@types/bun": "1.4.4"
     },
     "dependencies": {
         "@destack/locale": "workspace:*",
-        "@destack/object": "2026.11.0",
-        "@destack/package": "2026.11.0",
-        "@destack/schema": "2026.11.0",
-        "@destack/setting": "2026.11.0",
+        "@destack/object": "workspace:*",
+        "@destack/package": "workspace:*",
+        "@destack/schema": "workspace:*",
+        "@destack/setting": "workspace:*",
         "@example/stack": "2026.9.0"
     }
 }

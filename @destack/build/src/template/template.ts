@@ -9,11 +9,28 @@ import { PackageError } from "@destack/package/error";
 import { type ESTree, parseSync, Visitor } from "rolldown/utils";
 import { schema, Text } from "@destack/schema";
 
+/** The range of a dependency on a package of the same workspace. */
+const WORKSPACE_RANGE = "workspace:";
+
+/** The tag npm clients install by default, taken for a dependency a release does not link. */
+const DEFAULT_TAG = "latest";
+
+/** The fields of a package.json listing dependencies with ranges. */
+const DEPENDENCY_FIELDS = [
+    "dependencies",
+    "devDependencies",
+    "peerDependencies",
+    "optionalDependencies",
+] as const;
+
 /** The fields of a template's package.json that an instance reads and rewrites. */
 const TemplateManifest = schema.looseObject({
     name: schema.string(),
     version: schema.string(),
     dependencies: schema.record(schema.string(), schema.string()).exactOptional(),
+    devDependencies: schema.record(schema.string(), schema.string()).exactOptional(),
+    peerDependencies: schema.record(schema.string(), schema.string()).exactOptional(),
+    optionalDependencies: schema.record(schema.string(), schema.string()).exactOptional(),
 });
 /** The fields of a template's package.json that an instance reads and rewrites. */
 type TemplateManifest = schema.Infer<typeof TemplateManifest>;
@@ -61,6 +78,11 @@ export class Template {
         return new Template(contents);
     }
 
+    /** Read the dependencies an instance selects packages for. */
+    get dependencies(): readonly string[] {
+        return this.#readDeclarations().definition.template?.dependencies ?? [];
+    }
+
     /** Copy source and replace declared dependencies without executing package code. */
     async instantiate(
         parameters: TemplateInput,
@@ -94,6 +116,9 @@ export class Template {
             );
         }
         replaceDependencies(manifest, template.dependencies ?? [], parameters);
+        if (parameters.versions !== undefined) {
+            releaseDependencies(manifest, parameters.versions);
+        }
         const imports = {
             ...parameters.dependencies,
             [manifest.name]: {
@@ -258,6 +283,21 @@ function replaceDependencies(
             );
         }
         dependencies[replacement.name] = replacement.version;
+    }
+}
+
+/** Replace a manifest's workspace ranges with released versions, the default tag where none. */
+function releaseDependencies(
+    manifest: TemplateManifest,
+    versions: Readonly<Record<string, string>>,
+): void {
+    for (const field of DEPENDENCY_FIELDS) {
+        const ranges = manifest[field] ?? {};
+        for (const [name, range] of Object.entries(ranges)) {
+            if (range.startsWith(WORKSPACE_RANGE)) {
+                ranges[name] = versions[name] ?? DEFAULT_TAG;
+            }
+        }
     }
 }
 
