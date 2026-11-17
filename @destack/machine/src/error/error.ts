@@ -10,7 +10,6 @@ const machineError = defineErrorFamily({
         ACCOUNT_NOT_FOUND: {},
         CALLS_NOT_FOUND: {},
         CHECKOUT_NOT_FOUND: {},
-        CHECKOUT_SPACE_ELSEWHERE_NOT_FOUND: {},
         CLIENT_PATH_NOT_FOUND: {},
         DIRECTORY_NOT_FOUND: {},
         EGRESS_ADDRESS_NOT_FOUND: {},

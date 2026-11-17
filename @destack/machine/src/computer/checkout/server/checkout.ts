@@ -261,15 +261,8 @@ export class CheckoutServer {
         spaceId: Identifier<"space">,
         source: CheckoutSource,
     ): Promise<{ readonly id: Identifier<"build">; readonly lock: Digest }> {
-        // require the space here, noting its log position before the build
-        const { volumes } = this.machine;
-        if (!(await volumes.list()).includes(spaceId)) {
-            throw MachineError.of(
-                "CHECKOUT_SPACE_ELSEWHERE_NOT_FOUND",
-                "space not found: it is not served on this machine, which has the working tree",
-            );
-        }
-        const { database } = await this.machine.space(spaceId);
+        // note the machine's log position before the build, whose replica it follows as its runner
+        const { database } = this.machine;
         const { sequence } = await database.log.position();
 
         // create the build for the machine to run
@@ -401,7 +394,7 @@ export class CheckoutServer {
         // build every output the package implies, then read the build
         const client = await this.connect(stackPackage, login, spaceId);
         const built = await this.build(client, spaceId, selection);
-        const { builds } = await this.machine.space(spaceId);
+        const { builds } = this.machine;
         const reader = await builds.root(built.lock);
 
         return { selection, built, client, builds, reader };
