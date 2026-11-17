@@ -30,5 +30,13 @@
         "types": ["bun"]
     },
     "include": ["**/*"],
-    "exclude": ["node_modules", "dist", "target", "coverage", "out", "tests/fixture/notebooks"]
+    "exclude": [
+        "node_modules",
+        "dist",
+        "target",
+        "coverage",
+        "out",
+        "tests/fixture/notebooks",
+        "tests/fixture/starter"
+    ]
 }
