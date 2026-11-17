@@ -186,15 +186,6 @@ export const lattice = style.create({
         minWidth: 0,
     },
 
-    /** A band along the right edge of a block, dividing it from the block beside it. */
-    bandRight: {
-        backgroundImage: rule.band,
-        backgroundPosition: "right top",
-        backgroundRepeat: "no-repeat",
-        backgroundSize: `${rule.bandHeight} 100%`,
-        paddingInlineEnd: rule.bandHeight,
-    },
-
     /** A figure cell of a ruled band, dotted behind its figure and unrendered off screen. */
     figureCell: {
         backgroundImage: `${DOTS}, ${GRAIN}`,

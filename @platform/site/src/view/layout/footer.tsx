@@ -1,6 +1,6 @@
 import { measure } from "./measure.stylex";
 import { media } from "@destack/style/media.stylex";
-import { color, font, weight } from "@destack/theme/tokens.stylex";
+import { color, font, stroke, weight } from "@destack/theme/tokens.stylex";
 import * as style from "@destack/style";
 
 import { Sky } from "../effect/sky";
@@ -184,23 +184,23 @@ const styles = style.create({
         rowGap: "0.75rem",
     },
     column: {
-        // band the column's top, and its left where a column stands beside it
-        backgroundImage: `${rule.band}, ${rule.band}`,
-        backgroundPosition: "left top, left top",
+        // band the column's top, and rule its left where a column stands beside it
+        backgroundImage: rule.band,
+        backgroundPosition: "left top",
         backgroundRepeat: "no-repeat",
-        backgroundSize: `100% ${rule.bandHeight}, ${rule.bandHeight} 100%`,
+        backgroundSize: `100% ${rule.bandHeight}`,
+        borderLeftColor: rule.color,
+        borderLeftStyle: "solid",
+        borderLeftWidth: stroke.border,
         gridColumn: "span 2",
         justifyItems: "start",
         paddingBlock: { default: "2.5rem 3.5rem", [media.maxMd]: "2rem" },
     },
     firstColumn: {
-        backgroundSize: `100% ${rule.bandHeight}, 0 0`,
+        borderLeftWidth: 0,
     },
     lastColumn: {
-        backgroundSize: {
-            default: `100% ${rule.bandHeight}, ${rule.bandHeight} 100%`,
-            [media.maxMd]: `100% ${rule.bandHeight}, 0 0`,
-        },
+        borderLeftWidth: { default: stroke.border, [media.maxMd]: 0 },
         gridColumn: { default: "span 2", [media.maxMd]: "1 / -1" },
     },
     install: {
