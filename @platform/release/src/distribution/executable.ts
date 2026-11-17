@@ -23,6 +23,12 @@ export const CONFIGURATION_FILE = "bunfig.toml";
 /** The oldest macOS the launcher runs on, the application's own minimum. */
 const MACOS_MINIMUM = "11.0";
 
+/** Where Bun publishes each version's runtimes, with their SHA-256 digests beside them. */
+const RUNTIME_RELEASES = "https://github.com/oven-sh/bun/releases/download";
+
+/** The architecture names the C compiler takes for a macOS target, by the platform's own. */
+const COMPILER_ARCHITECTURES = { arm64: "arm64", x64: "x86_64" } as const;
+
 /** The module whose table of shared modules a compiled program's build generates. */
 const SHARED_MODULE = /[\\/]@destack[\\/]package[\\/]src[\\/]bun[\\/]shared\.ts$/u;
 
@@ -90,16 +96,11 @@ export async function buildExecutable(
     options: ExecutableOptions,
     environment: Environment<"files" | "process" | "host">,
 ): Promise<void> {
-    // refuse a target the building runtime cannot run, as the runtime ships as itself
-    const { files, process, host } = environment;
-    if (options.runtime !== `bun-${host.os}-${host.architecture}`) {
-        throw new Error(`build '${options.target}' on a computer of its own architecture`);
-    }
-
     // bundle the program beside the launcher, its directory assets below the bundles
     const parent = dirname(options.outfile);
     const name = basename(options.outfile);
     const programs = join(parent, PROGRAM_DIRECTORY);
+    const { files, process, host } = environment;
     await files.mkdir(programs, { recursive: true });
     const assets = new Set<string>();
     const peers = await optionalPeers(options.root, environment);
@@ -119,23 +120,95 @@ export async function buildExecutable(
     // place the runtime and the empty configuration once, then the launcher named after the program
     const runtime = join(parent, RUNTIME);
     if (!(await files.exists(runtime))) {
-        await files.copyFile(await files.realPath(process.executable), runtime);
+        // ship the building runtime for its own target, and the target's release of its version for another
+        if (options.runtime === `bun-${host.os}-${host.architecture}`) {
+            await files.copyFile(await files.realPath(process.executable), runtime);
+        } else {
+            await fetchRuntime(options.runtime, runtime, environment);
+        }
         await files.chmod(runtime, 0o755);
         await files.writeTextFile(join(parent, CONFIGURATION_FILE), "");
     }
-    await compileLauncher(options.outfile, environment);
+    await compileLauncher(options.outfile, Platform.of(options.target), environment);
+}
+
+/** Fetch a target's runtime at the building runtime's version, checked by its listed digest. */
+async function fetchRuntime(
+    target: string,
+    outfile: string,
+    environment: Environment<"files" | "process">,
+): Promise<void> {
+    // read the building runtime's version, which the target's runtime ships at too
+    const { files, process, network, crypto } = environment;
+    const asked = process.spawn([process.executable, "--version"], {
+        stdin: "ignore",
+        stdout: "pipe",
+        stderr: "ignore",
+    });
+    const version = (await new Response(asked.stdout).text()).trim();
+    const release = `${RUNTIME_RELEASES}/bun-v${version}`;
+
+    // fetch the runtime's archive, which Bun's releases file under aarch64 for arm64, and the digests listed
+    const asset = target.replace("arm64", "aarch64");
+    const archive = `${asset}.zip`;
+    const [fetched, listing] = await Promise.all([
+        network.fetch(new Request(`${release}/${archive}`)),
+        network.fetch(new Request(`${release}/SHASUMS256.txt`)),
+    ]);
+    if (!fetched.ok || !listing.ok) {
+        throw new Error(
+            `could not fetch runtime '${target}' at '${version}': status ${fetched.status} and ${listing.status}`,
+        );
+    }
+
+    // refuse an archive whose digest differs from the listed one
+    const bytes = new Uint8Array(await fetched.arrayBuffer());
+    const digest = new Uint8Array(await crypto.digest("SHA-256", bytes)).toHex();
+    const lines = (await listing.text()).split("\n");
+    const listed = lines.find((line) => line.endsWith(` ${archive}`))?.split(" ")[0];
+    if (digest !== listed) {
+        throw new Error(
+            `runtime '${target}' at '${version}' has digest '${digest}', not the listed one`,
+        );
+    }
+
+    // unpack the archive and take the runtime in it
+    const directory = await files.makeTemporaryDirectory("destack-runtime-");
+    try {
+        const path = join(directory, archive);
+        await files.writeFile(path, bytes);
+        const unpacking = process.spawn(["unzip", "-q", path, "-d", directory], {
+            stdin: "ignore",
+            stdout: "ignore",
+            stderr: "pipe",
+        });
+        const [code, errors] = await Promise.all([
+            unpacking.exited,
+            new Response(unpacking.stderr).text(),
+        ]);
+        if (code !== 0) {
+            throw new Error(`runtime '${target}' did not unpack: '${errors.trim()}'`);
+        }
+        await files.copyFile(join(directory, asset, "bun"), outfile);
+    } finally {
+        await files.remove(directory, { recursive: true, force: true });
+    }
 }
 
 /** Compile the launcher, which runs the bundle named after it on the runtime beside it. */
 async function compileLauncher(
     outfile: string,
+    platform: Platform,
     environment: Environment<"process" | "host">,
 ): Promise<void> {
-    // build launcher.c for this computer, the oldest supported macOS on macOS
+    // build launcher.c for the target's architecture and the oldest supported macOS on macOS, else for this computer
     const source = fileURLToPath(new URL("./launcher.c", import.meta.url));
-    const minimum =
-        environment.host.os === "darwin" ? [`-mmacosx-version-min=${MACOS_MINIMUM}`] : [];
-    const child = environment.process.spawn(["cc", "-Os", ...minimum, source, "-o", outfile], {
+    const architecture = COMPILER_ARCHITECTURES[platform.architecture];
+    const targeted =
+        environment.host.os === "darwin"
+            ? ["-arch", architecture, `-mmacosx-version-min=${MACOS_MINIMUM}`]
+            : [];
+    const child = environment.process.spawn(["cc", "-Os", ...targeted, source, "-o", outfile], {
         stdin: "ignore",
         stdout: "pipe",
         stderr: "pipe",

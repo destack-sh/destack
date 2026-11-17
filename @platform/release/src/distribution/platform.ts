@@ -42,7 +42,7 @@ export const PLATFORMS: readonly Platform[] = [
     },
     {
         target: "x86_64-apple-darwin",
-        runner: "macos-15-intel",
+        runner: "macos-15",
         runtime: "bun-darwin-x64",
         system: "darwin",
         architecture: "x64",
