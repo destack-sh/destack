@@ -12,6 +12,7 @@ const CALL = {
     },
     method: "create",
     release: "2026.10.0",
+    edition: 1,
     input: {},
 };
 

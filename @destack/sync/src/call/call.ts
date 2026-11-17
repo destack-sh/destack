@@ -1,4 +1,4 @@
-import { schema, Version } from "@destack/schema";
+import { Edition, schema, Version } from "@destack/schema";
 import { ObjectTypeReference } from "../scope/reference.ts";
 
 /** A UUID of version 7 or 8, whose leading 48 bits a request identifier fills with its time. */
@@ -15,6 +15,8 @@ export const Call = Object.assign(
         input: schema.jsonObject(),
         /** The release of the method's package the call was made against. */
         release: Version,
+        /** The edition of the method's input the call was made against. */
+        edition: Edition,
     }),
     {
         /** Label a call's method for messages and telemetry, such as note.create. */

@@ -20,6 +20,7 @@ function noteCall(method: string): Call {
         type: { packageId: PACKAGE_ID, type: "note" },
         method,
         release: "2026.10.0",
+        edition: 1,
         input: { id: "a" },
     };
 }

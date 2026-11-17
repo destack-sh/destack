@@ -116,7 +116,9 @@ test("rebase predicted mutations onto source pages until the source executes or 
     for (const [id, created] of zip(IDS, NOTES)) {
         const input = { id: created, title: "Local" };
         await prediction.add(client, id, "tab-1", async (transaction) => {
-            const calls = [{ type: NOTE_TYPE, method: "create", release: RELEASE, input }];
+            const calls = [
+                { type: NOTE_TYPE, method: "create", release: RELEASE, edition: 1, input },
+            ];
             await predict(transaction, { id, calls });
 
             return { calls, result: undefined };
@@ -208,7 +210,15 @@ test("drop a group every predicted row left, without a count measuring it", asyn
         await transaction.update(note).set({ title: "Local" }).where(eq(note.id, "a"));
 
         return {
-            calls: [{ type: NOTE_TYPE, method: "update", release: RELEASE, input: { id: "a" } }],
+            calls: [
+                {
+                    type: NOTE_TYPE,
+                    method: "update",
+                    release: RELEASE,
+                    edition: 1,
+                    input: { id: "a" },
+                },
+            ],
             result: undefined,
         };
     });
@@ -234,7 +244,9 @@ test("push again on a snapshot the mutations of a log and epoch no replica follo
     for (const [id, created] of zip(IDS, NOTES)) {
         await prediction.add(client, id, "tab-1", async (transaction) => {
             const input = { id: created, title: "Local" };
-            const calls = [{ type: NOTE_TYPE, method: "create", release: RELEASE, input }];
+            const calls = [
+                { type: NOTE_TYPE, method: "create", release: RELEASE, edition: 1, input },
+            ];
             await predict(transaction, { id, calls });
 
             return { calls, result: undefined };
@@ -286,6 +298,7 @@ test("read pending mutations up to a limit, and count each state with branch edi
                     type: NOTE_TYPE,
                     method: "create",
                     release: RELEASE,
+                    edition: 1,
                     input: { id: key, title: "Local" },
                 },
             ];
@@ -343,6 +356,7 @@ test("predict a checked-out branch's rows under its edits, and push the edits to
         type: NOTE_TYPE,
         method: "create",
         release: RELEASE,
+        edition: 1,
         input: { id: key, title: key },
     });
     const add = (id: string, key: string, isMainLine?: boolean) =>
