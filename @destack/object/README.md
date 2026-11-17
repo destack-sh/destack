@@ -281,7 +281,8 @@ An `ObjectClient` follows a scope into a local replica, predicts its own writes 
 
 ```text
 client.mutate(...)  ─► predicted on the replica at once ─► sent ─► the store's change replaces the prediction
-                                                         └ refused: the prediction is rolled back
+                     │                                   └ refused: the prediction is rolled back
+                     └ joins the latest unsent mutation when it composes into it, as OT clients buffer
 ```
 
 `prepare`, `confirm` and `cancel` run on the server only, so a method with outside work is never predicted.
@@ -298,14 +299,14 @@ client.mutate(...)  ─► predicted on the replica at once ─► sent ─► t
 
 ### Undo groups
 
-A change joins the open group when it continues it within 500 ms, so one undo takes back a burst of typing.
+A change joins the open group when it composes into it within 500 ms, so one undo takes back a burst of typing.
 
-| Method                | Joins the previous change when                             |
-| --------------------- | ---------------------------------------------------------- |
-| `update`, `move`      | it changes the same object                                 |
-| text `edit`           | it types or deletes one character next to the previous one |
-| `mutation({ merge })` | `merge(previous, next)` returns one step doing both        |
-| any other method      | never                                                      |
+| Method                  | Composes into the previous change when                   |
+| ----------------------- | -------------------------------------------------------- |
+| `update`, `move`        | it changes the same object, keeping the first revision   |
+| text `edit`             | it types or deletes characters next to the previous ones |
+| `mutation({ compose })` | `compose(previous, next)` returns one step doing both    |
+| any other method        | never                                                    |
 
 ### Calls in a sandbox
 

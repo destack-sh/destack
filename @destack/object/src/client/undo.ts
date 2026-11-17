@@ -152,12 +152,13 @@ export class UndoStack {
         }
     }
 
-    /** Push an undoable mutation, joining the open group while every step merges into it. */
+    /** Push an undoable mutation, returning composed steps when it composes into the latest. */
     async remember(
         database: DatabaseConnection,
         id: string,
         steps: readonly StoredStep[],
-    ): Promise<void> {
+        composable: string | undefined,
+    ): Promise<readonly StoredStep[] | undefined> {
         // clear the redo stack
         const mine = eq(undoEntry.origin, this.client.origin);
         await database.delete(undoEntry).where(and(mine, eq(undoEntry.state, "undone")));
@@ -185,16 +186,28 @@ export class UndoStack {
                     undefined,
             );
         if (!isUndoable) {
-            return;
+            return undefined;
         }
 
-        // join the latest entry's group while open, within the delay, when every step merges into its steps
+        // join the latest entry's group while open, within the delay, when every step composes into its steps
         const time = this.client.environment.clock.now();
-        const isJoining =
-            latest !== undefined &&
-            latest.isOpen &&
-            time - latest.time < UNDO_DELAY &&
-            this.#joins(latest.steps, steps);
+        const composed =
+            latest !== undefined && latest.isOpen && time - latest.time < UNDO_DELAY
+                ? this.#composeStored(latest.steps, steps)
+                : undefined;
+
+        // compose into the latest entry while its mutation is the composable one
+        if (latest !== undefined && composed !== undefined && latest.mutationId === composable) {
+            await database
+                .update(undoEntry)
+                .set({ steps: schema.json().parse(composed), isOpen: true, time })
+                .where(eq(undoEntry.id, latest.id));
+
+            return composed;
+        }
+
+        // push a new entry, in the latest group when joining
+        const isJoining = latest !== undefined && composed !== undefined;
         await database.insert(undoEntry).values({
             id,
             origin: this.client.origin,
@@ -211,6 +224,8 @@ export class UndoStack {
         if (!isJoining) {
             await this.#trim(database);
         }
+
+        return undefined;
     }
 
     /** Fill an executed mutation's missing step results from the server. */
@@ -334,21 +349,21 @@ export class UndoStack {
             .orderBy(asc(undoEntry.sequence));
     }
 
-    /** Invert a group's merged steps in reverse order, none once a step's type changed release. */
+    /** Invert a group's composed steps in reverse order, none once a type changed release. */
     async #inverseCalls(entries: readonly Select<typeof undoEntry>[]): Promise<sync.Call[]> {
-        // merge the entries' steps, keeping apart steps that stay apart
-        let merged: Step[] = [];
+        // compose the entries' steps, keeping apart steps that stay apart
+        let composed: Step[] = [];
         for (const entry of entries) {
             const steps = this.#steps(entry.steps);
             if (steps === undefined) {
                 return [];
             }
-            merged = this.#merge(merged, steps) ?? [...merged, ...steps];
+            composed = this.#compose(composed, steps) ?? [...composed, ...steps];
         }
 
         // invert each step against the object's current row
         const calls: sync.Call[] = [];
-        for (const step of merged.toReversed()) {
+        for (const step of composed.toReversed()) {
             const id = step.after?.["id"] ?? step.input["id"];
             const row =
                 typeof id === "string"
@@ -364,39 +379,46 @@ export class UndoStack {
         return calls;
     }
 
-    /** Report whether stored steps merge pairwise into an entry's, each of its type's release. */
-    #joins(previous: unknown, next: readonly StoredStep[]): boolean {
+    /** Compose stored steps pairwise into an entry's, absent when any pair stays apart. */
+    #composeStored(previous: unknown, next: readonly StoredStep[]): StoredStep[] | undefined {
+        // read both with their object types
         const [earlier, later] = [this.#steps(previous), this.#steps(next)];
+        if (earlier === undefined || later === undefined) {
+            return undefined;
+        }
 
-        return (
-            earlier !== undefined &&
-            later !== undefined &&
-            this.#merge(earlier, later) !== undefined
-        );
+        // store the composed steps by their types' references and releases
+        const composed = this.#compose(earlier, later);
+
+        return composed?.map(({ object, current: _current, ...step }) => ({
+            ...step,
+            object: object.typeReference,
+            release: object.package.version,
+        }));
     }
 
-    /** Merge steps pairwise into the steps before them, absent when any pair stays apart. */
-    #merge(previous: readonly Step[], next: readonly Step[]): Step[] | undefined {
-        // merge only steps of the same shape
+    /** Compose steps pairwise into the steps before them, absent when any pair stays apart. */
+    #compose(previous: readonly Step[], next: readonly Step[]): Step[] | undefined {
+        // compose only steps of the same shape
         if (previous.length === 0 || previous.length !== next.length) {
             return undefined;
         }
 
-        // merge each pair on one method of one object type
-        const merged: Step[] = [];
+        // compose each pair on one method of one object type
+        const composed: Step[] = [];
         for (const [position, step] of next.entries()) {
             const before = previous[position];
             const joined =
                 before !== undefined && before.object.same(step.object) && before.name === step.name
-                    ? step.object.method(step.name).merge?.(before, step)
+                    ? step.object.method(step.name).compose?.(before, step)
                     : undefined;
             if (joined === undefined) {
                 return undefined;
             }
-            merged.push(joined);
+            composed.push(joined);
         }
 
-        return merged;
+        return composed;
     }
 
     /** Read stored steps with their object types, absent once a type changed release. */
@@ -450,7 +472,7 @@ export class UndoStack {
                     })
                     .where(eq(undoEntry.id, first.id));
 
-                return { calls, result: undefined };
+                return { kind: "add", calls, result: undefined };
             },
         );
     }

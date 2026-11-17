@@ -399,6 +399,39 @@ test("group a party's updates of one note into one undo, apart across notes, clo
     expect(device.errors).toEqual([]);
 });
 
+test("compose a party's queued updates into one mutation per undo group, apart across groups", async () => {
+    const { connect, openDevice } = await serveNotes();
+    const alice = connect(users.alice);
+    const device = await openDevice(users.alice);
+    const notes = device.client.mutate(note);
+    const queued = async () =>
+        (await device.client.prediction.pending(device.client.database)).map((mutation) =>
+            mutation.calls.map((call) => [call.method, call.input["title"]]),
+        );
+
+    // create a note, retitle it three times, then once more after a close, all offline
+    const created = notes.create({ title: "a" });
+    const { id } = await created.predicted;
+    await device.client.undoStack.close();
+    const retitles = ["a1", "a2", "a3"].map((title) => notes.update({ id, title }));
+    await Promise.all(retitles.map((retitled) => retitled.predicted));
+    await device.client.undoStack.close();
+    const closed = notes.update({ id, title: "a4" });
+    await closed.predicted;
+    expect(await queued()).toEqual([[["create", "a"]], [["update", "a3"]], [["update", "a4"]]]);
+
+    // execute each composed mutation once, confirming every call in it
+    device.online();
+    await Promise.all([created, ...retitles, closed].map((submitted) => submitted.confirmed));
+    expect((await alice.note.get({ spaceId, id })).title).toBe("a4");
+
+    // undo the closed update, then the three composed ones at once
+    await device.client.undoStack.undo().confirmed;
+    await device.client.undoStack.undo().confirmed;
+    expect((await alice.note.get({ spaceId, id })).title).toBe("a");
+    expect(device.errors).toEqual([]);
+});
+
 test("follow whether a party can undo and redo as its stacks change", async () => {
     const { openDevice } = await serveNotes();
     const device = await openDevice(users.alice);

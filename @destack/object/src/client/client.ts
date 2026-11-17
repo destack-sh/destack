@@ -401,13 +401,13 @@ export class ObjectClient<
     #generation = 0;
     /** The queued evictions, run one at a time. */
     #evictions: Promise<void> = Promise.resolve();
-    /** The mutations waiting for their outcome, by identifier. */
+    /** The calls waiting for their mutation's outcome, by the mutation's identifier. */
     readonly #waiting = new Map<
         string,
         {
             readonly resolve: (outcome: sync.MutationState) => void;
             readonly reject: (error: Error) => void;
-        }
+        }[]
     >();
     /** The running settle loop, absent while none wait. */
     #settling: Promise<void> | undefined;
@@ -806,13 +806,13 @@ export class ObjectClient<
         run: (mutation: ReplayContext) => Promise<Value>,
         isMainLine: boolean,
     ): Submission<Value> {
-        // predict every call
+        // predict every call, as a new mutation or composed into the latest one
         const id = RequestId.create(this.environment);
-        const predicted = this.prediction.add(
+        const queued = this.prediction.add(
             this.database,
             id,
             this.origin,
-            async (database) => {
+            async (database, latest) => {
                 // collect calls and steps
                 const calls: sync.Call[] = [];
                 const steps: StoredStep[] = [];
@@ -850,16 +850,28 @@ export class ObjectClient<
                     invoke,
                 });
 
-                // remember for undo
-                await this.undoStack.remember(database, id, steps);
+                // remember for undo, composing into the latest mutation when every call is predicted
+                const isPredicted = calls.every((call) => this.method(call).method.isPredicted);
+                const composable = isPredicted ? latest?.id : undefined;
+                const composed = await this.undoStack.remember(database, id, steps, composable);
 
-                return { calls, result };
+                // queue the calls, or replace the latest mutation's with the composed ones
+                if (composed === undefined || latest === undefined) {
+                    return { kind: "add", calls, result };
+                }
+                const replaced = latest.calls.map((call, position) => ({
+                    ...call,
+                    input: nth(composed, position).input,
+                }));
+
+                return { kind: "compose", calls: replaced, result };
             },
             { isMainLine },
         );
 
-        // confirm with the server's outcome
-        const confirmed = predicted.then(() => this.outcome(id));
+        // confirm with the server's outcome of the mutation holding the calls
+        const predicted = queued.then((entry) => entry.result);
+        const confirmed = queued.then((entry) => this.outcome(entry.id));
 
         // mark the confirmation handled, and answer its failure in the returned submission
         confirmed.catch(() => {});
@@ -1020,7 +1032,7 @@ export class ObjectClient<
             if (!(await this.prediction.wait(this.database, signal))) {
                 return;
             }
-            const pending = await this.prediction.pending(this.database, {
+            const pending = await this.prediction.send(this.database, {
                 limit: this.#pushMutations,
             });
 
@@ -1618,7 +1630,7 @@ export class ObjectClient<
     async outcome(id: string): Promise<void> {
         // wait for the settle loop
         const outcome = await new Promise<sync.MutationState>((resolve, reject) => {
-            this.#waiting.set(id, { resolve, reject });
+            this.#waiting.set(id, [...(this.#waiting.get(id) ?? []), { resolve, reject }]);
             if (this.#settling === undefined) {
                 this.#settling = this.#settle();
             }
@@ -1641,8 +1653,10 @@ export class ObjectClient<
                     ...this.#waiting.keys(),
                 ]);
                 for (const [id, outcome] of outcomes) {
-                    if (outcome.kind !== "pending") {
-                        found(this.#waiting, id).resolve(outcome);
+                    if (outcome.kind === "settled" || outcome.kind === "rejected") {
+                        for (const waiter of found(this.#waiting, id)) {
+                            waiter.resolve(outcome);
+                        }
                         this.#waiting.delete(id);
                     }
                 }
@@ -1659,7 +1673,7 @@ export class ObjectClient<
         // fail the rest, or restart for late waiters
         this.#settling = undefined;
         if (failure !== undefined) {
-            for (const { reject } of this.#waiting.values()) {
+            for (const { reject } of [...this.#waiting.values()].flat()) {
                 reject(failure);
             }
             this.#waiting.clear();
