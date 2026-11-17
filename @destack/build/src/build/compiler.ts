@@ -167,6 +167,14 @@ export class Compiler implements AsyncDisposable {
     /** The spans and durations of the compiler's verbs. */
     readonly #scope: TelemetryScope;
 
+    /** Refuse a response of another kind than its request's. */
+    static mismatched(request: string, response: string): Error {
+        return BuildError.of(
+            "COMPILER_BROKEN",
+            `compiler returned '${response}' for a '${request}' request`,
+        );
+    }
+
     /** Retain the workspace, store, files, read paths, command and compiler. */
     private constructor(
         workspace: string,
@@ -346,7 +354,7 @@ export class Compiler implements AsyncDisposable {
             // refuse a message no request awaits
             const pending = this.#pending;
             if (pending === undefined) {
-                throw BuildError.of("COMPILER_BROKEN", "unexpected compiler message");
+                throw BuildError.of("COMPILER_BROKEN", "compiler sent a message without a request");
             }
             // deliver the response to its request
             else if (message.kind === "result") {
@@ -414,7 +422,7 @@ export class Compiler implements AsyncDisposable {
             } as const;
             const response = await this.#request(request, signal, timeout);
             if (response.kind !== "check") {
-                throw BuildError.of("COMPILER_BROKEN", "unexpected compiler result");
+                throw Compiler.mismatched(request.kind, response.kind);
             }
         });
 
@@ -475,13 +483,10 @@ export class Compiler implements AsyncDisposable {
     ): Promise<void> {
         // compile into the directory
         await this.store.environment.files.mkdir(destination, { recursive: true });
-        const response = await this.#request(
-            { kind: "build", destination, options },
-            signal,
-            timeout,
-        );
+        const request = { kind: "build", destination, options } as const;
+        const response = await this.#request(request, signal, timeout);
         if (response.kind !== "build") {
-            throw BuildError.of("COMPILER_BROKEN", "unexpected compiler result");
+            throw Compiler.mismatched(request.kind, response.kind);
         }
     }
 
@@ -499,7 +504,7 @@ export class Compiler implements AsyncDisposable {
                 } as const;
                 const response = await this.#request(request, signal);
                 if (response.kind !== "inspect") {
-                    throw BuildError.of("COMPILER_BROKEN", "unexpected compiler result");
+                    throw Compiler.mismatched(request.kind, response.kind);
                 }
 
                 return response.inspection;
@@ -518,7 +523,7 @@ export class Compiler implements AsyncDisposable {
                 const request = { kind: "index", options: await this.#inspected(options) } as const;
                 const response = await this.#request(request, signal);
                 if (response.kind !== "index") {
-                    throw BuildError.of("COMPILER_BROKEN", "unexpected compiler result");
+                    throw Compiler.mismatched(request.kind, response.kind);
                 }
 
                 return { code: response.code, modules: response.modules };

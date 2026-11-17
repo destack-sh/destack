@@ -807,7 +807,7 @@ function nodeList<Item extends Node>(
     } else if (!isNodeList(list) || !list.every(guard)) {
         throw BuildError.of(
             "INSPECTION_INVALID",
-            "declaration is invalid: it has an unexpected node list",
+            "declaration is invalid: its node list has the wrong kind of node",
         );
     }
 
