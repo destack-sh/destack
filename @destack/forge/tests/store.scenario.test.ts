@@ -15,15 +15,17 @@ import { MemoryBuild } from "@destack/package/test";
 import { PackageName, PackageVersion } from "@destack/package";
 import { Tarball, TarballEntry } from "@destack/package/archive";
 
-/** The forge's body for a build a caller cannot read or that does not exist. */
-const BUILD_NOT_FOUND = {
-    code: "NOT_FOUND",
-    defined: true,
-    domain: "@destack/forge",
-    message: "build not found",
-    reason: "BUILD_NOT_FOUND",
-    status: 404,
-};
+/** Write the forge's body for a build a caller cannot read or that does not exist. */
+function notFound(digest: Digest) {
+    return {
+        code: "NOT_FOUND",
+        defined: true,
+        domain: "@destack/forge",
+        message: `build '${digest}' not found`,
+        reason: "BUILD_NOT_FOUND",
+        status: 404,
+    };
+}
 
 /** How long an unreferenced blob stays before deletion: a blob store's hour of grace. */
 const GRACE_MILLISECONDS = 60 * 60_000;
@@ -79,9 +81,9 @@ test("serve a release's build by digest to its readers alone, also once yanked",
     }).toEqual({
         copied: published.reader.manifest,
         refused: [
-            [404, BUILD_NOT_FOUND],
-            [404, BUILD_NOT_FOUND],
-            [404, BUILD_NOT_FOUND],
+            [404, notFound(published.manifest)],
+            [404, notFound(published.manifest)],
+            [404, notFound(unknown)],
         ],
         yanked: 200,
     });
@@ -335,7 +337,7 @@ test("serve and retain a release's npm units and Bun output", async () => {
         kept: [await store.contains(unitManifest), await store.contains(buildManifest)],
     }).toEqual({
         copied: [true, true],
-        refused: [404, BUILD_NOT_FOUND],
+        refused: [404, notFound(buildManifest)],
         kept: [true, true],
     });
 });
