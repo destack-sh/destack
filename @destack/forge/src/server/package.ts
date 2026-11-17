@@ -1,4 +1,4 @@
-import { present, schema } from "@destack/schema";
+import { present, schema, Version } from "@destack/schema";
 import type { MethodContextOf, ResultOf } from "@destack/object";
 import type { ObjectReference } from "@destack/sync";
 import { packageObject, release, tag } from "@destack/registry/object";
@@ -30,6 +30,36 @@ const PackageMethod = {
                 packageObject.call("get", packageObject.target(context.prepared)),
             ),
         );
+    },
+
+    /** Read the version the next release of a package name takes, published yet or not. */
+    async next(
+        context: MethodContextOf<typeof packageObject, "next">,
+    ): Promise<ResultOf<typeof packageObject, "next">> {
+        // find the name's package, none before its first release, and its releases the caller reads
+        const home = schema.identifier("space").parse(context.scope);
+        const found = (await Forge.find(context.input.name, context, home)).package;
+        const published =
+            found === undefined
+                ? []
+                : await context.read(release).findMany({
+                      where: { parentId: schema.identifier("package").parse(found.id) },
+                  });
+
+        // take its newest release, leaving its dev builds
+        const [newest] = published
+            .map((each) => each.version)
+            .filter((version) => !Version.isPrerelease(version))
+            .toSorted((left, right) => Version.compare(right, left));
+
+        // start this month at its first release, and follow a release of this month or a later one
+        const first = Version.first(context.now);
+        const version =
+            newest === undefined || Version.compare(newest, first) < 0
+                ? first
+                : Version.next(newest);
+
+        return { version: Version.parse(version) };
     },
 
     /** Create the package the first time, then insert the checked lock's release as the package. */
@@ -98,6 +128,7 @@ export function implementPackageObject(options: ReleaseOptions): typeof packageO
                 prepare: (context) => PackageMethod.find(context),
                 handle: (context) => PackageMethod.resolve(context),
             },
+            next: (context) => PackageMethod.next(context),
             point: (context) => PackageMethod.point(context),
         },
         projections: [
