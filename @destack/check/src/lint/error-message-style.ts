@@ -66,7 +66,7 @@ const CONDITION_SHAPES: readonly (readonly [condition: string, shape: RegExp, wo
 ];
 
 /** Words an error message never uses, as they hide what is wrong. */
-const BANNED_WORDS = /\b(?:illegal|bad|unable|please|failed to)\b/iu;
+const BANNED_WORDS = /\b(?:illegal|bad|unable|please|failed to|unexpected)\b/iu;
 
 /** Read the name an expression reads: an identifier, or a member's property. */
 function nameOf(expression: ESTree.Node): string | undefined {
