@@ -20,7 +20,7 @@ import { PackageFile } from "@destack/package/file";
 import {
     BuildLayer,
     BuildReader,
-    type ImportMap,
+    ImportMap,
     Lock,
     MANIFEST_PATH,
     PackageManifest,
@@ -1967,6 +1967,141 @@ export interface ImportClosure {
     /** The builds the map's URLs point into: the build itself and its dependencies'. */
     readonly builds: ReadonlySet<Digest>;
 }
+
+/** The runtimes that load a build's modules by import from the store. */
+export const LOADED_RUNTIMES: ReadonlySet<Runtime> = new Set<Runtime>(["workerd", "browser"]);
+
+/** The URL prefix a layer's closure names its builds' modules below. */
+export const CLOSURE_BASE = "/";
+
+/** The suffix of a module's source map beside it. */
+const MAP_SUFFIX = ".map";
+
+/** The path of a JavaScript module. */
+const MODULE_PATH = /\.m?js$/u;
+
+/** The media type of a JavaScript module, which a runtime loads by import. */
+const MODULE_MEDIA_TYPE = "text/javascript";
+
+/** What a closure's modules are read from: a build's manifest, its files and a file's bytes. */
+export type ModuleReader = Pick<BuildReader, "manifest" | "files" | "load">;
+
+/** The verbs of an import closure: the modules its entries import, and the files none does. */
+export const ImportClosure = {
+    /** Read each module some entries import, directly or through others, by digest and path. */
+    async modules(
+        entries: readonly string[],
+        runtime: Runtime,
+        closure: ImportClosure,
+        base: string,
+        contents: (build: Digest) => Promise<ModuleReader>,
+    ): Promise<Map<string, string>> {
+        // start at the entries, and follow what each module imports
+        const read = new Map<string, string>();
+        const listed = new Map<Digest, ReadonlySet<string>>();
+        const pending = [...entries];
+        for (let name = pending.pop(); name !== undefined; name = pending.pop()) {
+            // read a module once
+            if (read.has(name)) {
+                continue;
+            }
+
+            // leave a path that is no module of its build on the runtime
+            const [digest = "", ...path] = name.split("/");
+            const build = Digest.parse(digest);
+            const reader = await contents(build);
+            const names = await ImportClosure.listed(build, runtime, reader, listed);
+            if (!names.has(name)) {
+                continue;
+            }
+
+            // reach each module it imports, or its whole build where it imports by a computed name
+            const code = new TextDecoder().decode(await reader.load(path.join("/")));
+            read.set(name, code);
+            const imported = await ImportMap.imports(closure.map, code, `${base}${name}`);
+            pending.push(
+                ...imported.modules.map((module) => module.slice(base.length)),
+                ...(imported.isOpen ? names : []),
+            );
+        }
+
+        return read;
+    },
+
+    /** Name the modules a build runs by itself: all of an output with workloads or views. */
+    async entries(build: Digest, reader: ModuleReader, runtime: Runtime): Promise<string[]> {
+        // take every module of an output that starts workloads or mounts views, as documents name them by URL
+        const running = outputsOn(reader.manifest, runtime)
+            .filter(
+                (output) =>
+                    Object.keys(output.workloads).length > 0 ||
+                    Object.keys(output.views).length > 0,
+            )
+            .map((output) => `${output.directory}/`);
+        const listed = await ImportClosure.listed(build, runtime, reader, new Map());
+
+        return [...listed].filter((name) =>
+            running.some((directory) => name.startsWith(`${build}/${directory}`)),
+        );
+    },
+
+    /** List the files of a build no entry imports: its unused modules and their source maps. */
+    unused(
+        build: Digest,
+        reader: Pick<ModuleReader, "manifest">,
+        files: readonly PackageFile[],
+        modules: ReadonlySet<string>,
+    ): Set<Digest> {
+        // take the build's output directories on the runtimes loading modules by import
+        const directories = Object.values(reader.manifest.outputs)
+            .filter((output) => LOADED_RUNTIMES.has(output.runtime))
+            .map((output) => `${output.directory}/`);
+
+        // leave out each module below them that no root reaches, with the source map beside it
+        const left = files.filter((file) => {
+            const module = file.path.endsWith(MAP_SUFFIX)
+                ? file.path.slice(0, -MAP_SUFFIX.length)
+                : file.path;
+            const isModule =
+                MODULE_PATH.test(module) &&
+                directories.some((directory) => module.startsWith(directory));
+
+            return isModule && !modules.has(`${build}/${module}`);
+        });
+
+        return new Set(left.map((file) => file.digest));
+    },
+
+    /** Name every module of a build's output on a runtime, below the build's digest. */
+    async listed(
+        build: Digest,
+        runtime: Runtime,
+        reader: ModuleReader,
+        listed: Map<Digest, ReadonlySet<string>>,
+    ): Promise<ReadonlySet<string>> {
+        // answer a build listed before
+        const known = listed.get(build);
+        if (known !== undefined) {
+            return known;
+        }
+
+        // name each JavaScript module below the build's output directories on the runtime
+        const directories = outputsOn(reader.manifest, runtime).map(
+            (output) => `${output.directory}/`,
+        );
+        const names = (await reader.files())
+            .filter(
+                (file) =>
+                    file.mediaType === MODULE_MEDIA_TYPE &&
+                    directories.some((directory) => file.path.startsWith(directory)),
+            )
+            .map((file) => `${build}/${file.path}`);
+        const named = new Set(names);
+        listed.set(build, named);
+
+        return named;
+    },
+};
 
 /** List a build's outputs on a runtime. */
 function outputsOn(manifest: PackageManifest, runtime: Runtime): PackageOutput[] {

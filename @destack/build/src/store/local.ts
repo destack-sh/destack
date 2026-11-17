@@ -4,7 +4,15 @@ import { BlobStore, eq } from "@destack/db";
 import { connectBunSqlite } from "@destack/db/bun";
 import { type Environment, type FileSystem, FileSystemError } from "@destack/environment";
 import { type PackageFile, PackagePath } from "@destack/package/file";
-import { BuildObject, BuildStore, CACHE_MILLISECONDS, USE_MILLISECONDS } from "./store.ts";
+import {
+    BuildObject,
+    BuildStore,
+    CACHE_MILLISECONDS,
+    LOADED_RUNTIMES,
+    ImportClosure,
+    CLOSURE_BASE,
+    USE_MILLISECONDS,
+} from "./store.ts";
 import { BuildError } from "../error/index.ts";
 import { BuildReader, Lock, MANIFEST_PATH, PackageManifest } from "@destack/package/manifest";
 import {
@@ -427,7 +435,26 @@ export class LocalBuildStore
             objects.filter((object) => object.kind === "file").map((object) => object.digest),
         );
 
-        // write each build's manifest at its digest, and list the wanted files of it
+        // read the modules each lock's root reaches on the runtimes loading modules by import
+        const reached = new Set<string>();
+        for (const lock of locks.values()) {
+            for (const runtime of runtimes.filter((each) => LOADED_RUNTIMES.has(each))) {
+                const closure = await this.imports(lock, runtime, CLOSURE_BASE, new Map());
+                const root = await this.contents(lock.root);
+                const modules = await ImportClosure.modules(
+                    await ImportClosure.entries(lock.root, root, runtime),
+                    runtime,
+                    closure,
+                    CLOSURE_BASE,
+                    (build) => this.contents(build),
+                );
+                for (const name of modules.keys()) {
+                    reached.add(name);
+                }
+            }
+        }
+
+        // write each build's manifest at its digest, and list the wanted files of it that run
         const sizes: LayerIndex["builds"] = {};
         const placed: LayerIndex["files"] = {};
         const placements: FilePlacement[] = [];
@@ -436,8 +463,11 @@ export class LocalBuildStore
             const manifest = PackageManifest.serialize(reader.manifest);
             await files.writeFile(join(blobs, digest), manifest);
             sizes[digest] = manifest.byteLength;
-            for (const file of await reader.distributed()) {
-                if (wanted.has(file.digest) && placed[file.digest] === undefined) {
+            const distributed = await reader.distributed();
+            const unreached = ImportClosure.unused(digest, reader, distributed, reached);
+            for (const file of distributed) {
+                const isWanted = wanted.has(file.digest) && !unreached.has(file.digest);
+                if (isWanted && placed[file.digest] === undefined) {
                     placements.push({ file, destination: join(blobs, file.digest) });
                     placed[file.digest] = {
                         path: `${LAYER_BLOBS}/${file.digest}`,
