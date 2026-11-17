@@ -150,6 +150,7 @@ class SystemSocket implements ClientSocket {
 export const Network: {
     readonly system: Network;
     readonly browser: Network;
+    readonly workerd: Network;
     readonly requirePublic: (
         network: Pick<Network, "resolve">,
         hostname: string,
@@ -175,14 +176,6 @@ export const Network: {
     system: {
         origin: undefined,
         fetch: async (request, options) => {
-            // refuse a client certificate or a Unix socket, which only a host network sends with
-            if (options?.certificate !== undefined || options?.unix !== undefined) {
-                throw NetworkError.of(
-                    "OPERATION_UNSUPPORTED",
-                    "a client certificate or a Unix socket outside a host network is not supported",
-                );
-            }
-
             // refuse keeping a response's encoding, which the web's fetch always decodes
             if (options?.decompress === false) {
                 throw NetworkError.of(
@@ -190,15 +183,7 @@ export const Network: {
                     "keeping a response's encoding outside a host network is not supported",
                 );
             }
-
-            // refuse a private host by its name, as a worker's fetch reaches the public internet alone
-            const { hostname } = new URL(request.url);
-            if (options?.isPublicOnly === true && !HostAddress.isPublic(hostname)) {
-                throw NetworkError.of(
-                    "ADDRESS_PRIVATE_DENIED",
-                    `host '${hostname}' is forbidden: it is outside the public network`,
-                );
-            }
+            refuseUnsendable(request, options);
 
             return fetch(request);
         },
@@ -259,4 +244,51 @@ export const Network: {
         websocket: (url, protocols) => Network.system.websocket(url, protocols),
         resolve: (hostname) => Network.system.resolve(hostname),
     },
+
+    /** The web's network on workerd, whose fetch reads a response as stored when asked. */
+    workerd: {
+        origin: undefined,
+        fetch: async (request, options) => {
+            // send every other request as the web's network does
+            const { decompress, ...rest } = options ?? {};
+            if (decompress !== false) {
+                return Network.system.fetch(request, rest);
+            }
+
+            // hold the request to the web's limits, then read its response's body as stored
+            const stored: WorkerdFetchOptions = { encodeResponseBody: "manual" };
+            refuseUnsendable(request, rest);
+
+            return fetch(request, stored);
+        },
+        connect: (address, options) => Network.system.connect(address, options),
+        websocket: (url, protocols) => Network.system.websocket(url, protocols),
+        resolve: (hostname) => Network.system.resolve(hostname),
+    },
 };
+
+/** Refuse a request the web's fetch cannot send as its options ask. */
+function refuseUnsendable(request: Request, options: FetchOptions | undefined): void {
+    // refuse a client certificate or a Unix socket, which only a host network sends with
+    if (options?.certificate !== undefined || options?.unix !== undefined) {
+        throw NetworkError.of(
+            "OPERATION_UNSUPPORTED",
+            "a client certificate or a Unix socket outside a host network is not supported",
+        );
+    }
+
+    // refuse a private host by its name, as a worker's fetch reaches the public internet alone
+    const { hostname } = new URL(request.url);
+    if (options?.isPublicOnly === true && !HostAddress.isPublic(hostname)) {
+        throw NetworkError.of(
+            "ADDRESS_PRIVATE_DENIED",
+            `host '${hostname}' is forbidden: it is outside the public network`,
+        );
+    }
+}
+
+/** The options of workerd's fetch beside the web's. */
+interface WorkerdFetchOptions extends RequestInit {
+    /** Whether workerd decodes a response's body by its content encoding, or reads it as stored. */
+    readonly encodeResponseBody?: "automatic" | "manual";
+}

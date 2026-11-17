@@ -2,6 +2,7 @@ import { SeverityNumber } from "@opentelemetry/api";
 import { AsyncLocalStorageContextManager } from "@opentelemetry/context-async-hooks";
 import { Clock } from "../clock/clock.ts";
 import { Environment } from "../environment/environment.ts";
+import { Network } from "../network/network.ts";
 import { Telemetry } from "../telemetry/telemetry.ts";
 
 /** The system's environment on workerd, built on its first read. */
@@ -28,7 +29,8 @@ export const WorkerdEnvironment = {
                 },
                 new AsyncLocalStorageContextManager().enable(),
             );
-            system = Environment.instrument(Environment.system, telemetry);
+            const base = { ...Environment.system, network: Network.workerd };
+            system = Environment.instrument(base, telemetry);
         }
 
         return system;
