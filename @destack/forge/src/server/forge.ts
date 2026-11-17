@@ -507,6 +507,7 @@ export class Forge {
     /** Require the caller to read a package with a release whose lock is the digest or lists it. */
     async #readable(digest: Digest, context: RequestContext, objects: ObjectStore): Promise<void> {
         // find the packages of the releases of the lock
+        const missing = `build '${digest}' not found`;
         const table = release.table;
         const locks = [digest, ...(await this.store.referencing(digest))];
         const rows = await objects.database
@@ -516,7 +517,7 @@ export class Forge {
 
         // pass at the first package the caller reads, concealing every refusal
         for (const owner of rows) {
-            const isReadable = await Forge.conceal("BUILD_NOT_FOUND", "build not found", () =>
+            const isReadable = await Forge.conceal("BUILD_NOT_FOUND", missing, () =>
                 objects.query(
                     context.access(owner.scope),
                     packageObject.call("get", { spaceId: owner.scope, id: owner.id }),
@@ -535,6 +536,6 @@ export class Forge {
                 return;
             }
         }
-        throw ForgeError.of("BUILD_NOT_FOUND", "build not found");
+        throw ForgeError.of("BUILD_NOT_FOUND", missing);
     }
 }
