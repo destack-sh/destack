@@ -2,7 +2,7 @@ import type { FileSystem } from "@destack/environment";
 import { formatSource } from "@destack/check";
 import type { Toolchain } from "@destack/check/toolchain";
 import { dirname, join, resolve } from "node:path";
-import { DependencyName, PackageVersion, PackageDefinition } from "@destack/package";
+import { DependencyName, PackageJson, PackageVersion, PackageDefinition } from "@destack/package";
 import { PackagePath } from "@destack/package/file";
 import { TemplateInput } from "@destack/package/template";
 import { PackageError } from "@destack/package/error";
@@ -60,6 +60,16 @@ export class Template {
         return new Template(contents);
     }
 
+    /** Read the dependencies an instance selects packages for. */
+    get dependencies(): readonly string[] {
+        return this.#readDeclarations().definition.template?.dependencies ?? [];
+    }
+
+    /** Read the dependencies the template requires from its own workspace. */
+    get workspace(): readonly string[] {
+        return PackageJson.workspace(schema.jsonObject().parse(this.#readDeclarations().manifest));
+    }
+
     /** Copy source and replace declared dependencies without executing package code. */
     async instantiate(
         parameters: TemplateInput,
@@ -105,12 +115,17 @@ export class Template {
         // copy declared bytes and edit only parsed module specifiers
         const files = copyFiles(source, template.files, imports);
 
-        // generate an ordinary package without retaining template classification
+        // generate an ordinary source package: no template classification, no release's version, released ranges
         const encoder = new TextEncoder();
         manifest.name = parameters.name;
+        delete manifest["version"];
         definition.id = parameters.id;
         delete definition.template;
-        files.set("package.json", encoder.encode(JSON.stringify(manifest, null, 4) + "\n"));
+        const released = PackageJson.release(
+            schema.jsonObject().parse(manifest),
+            parameters.versions,
+        );
+        files.set("package.json", encoder.encode(JSON.stringify(released, null, 4) + "\n"));
         files.set("destack.json", encoder.encode(JSON.stringify(definition, null, 4) + "\n"));
 
         // format generated and copied text so new packages start formatted
@@ -160,6 +175,7 @@ export class Template {
             PackagePath.parse(path);
         }
         const root = resolve(directory);
+        await files.mkdir(dirname(root), { recursive: true });
         await files.mkdir(root);
 
         // preserve binary contents and refuse existing files

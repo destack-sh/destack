@@ -8,6 +8,9 @@ import { Template } from "./template.ts";
 import { PackageId } from "@destack/package";
 import { expectDirectory } from "../../tests/fixture.ts";
 
+/** The packages the instances depend on at a released version, the others at the default tag. */
+const RELEASED = ["@destack/object", "@destack/setting"];
+
 test.each(["stack", "blank"])("instantiate the %s package template", async (name) => {
     await using simulation = testSimulation();
     const environment = simulation.environment("test");
@@ -30,6 +33,7 @@ test.each(["stack", "blank"])("instantiate the %s package template", async (name
                       },
                   }
                 : {},
+        versions: Object.fromEntries(RELEASED.map((each) => [each, "2026.9.0"])),
     };
 
     try {
