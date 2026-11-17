@@ -2695,20 +2695,49 @@ export class ObjectStore {
                 this.clock.timeout(BOOKMARK_TIMEOUT_MILLISECONDS),
             ]);
             if (!(await this.wait(watermark, signal))) {
-                // refuse a scope still without a home or replica here, else the late position
+                // refuse a scope still without a home or replica here
                 const history = await this.history(watermark);
-                throw history.kind === "unknown"
-                    ? ObjectError.of(
-                          "HOME_OR_REPLICA_NOT_FOUND",
-                          `home or replica of '${watermark.scope}' here not found`,
-                      )
-                    : ObjectError.of(
-                          "REPLICA_UNAVAILABLE",
-                          `replica of '${watermark.scope}' is unavailable: it has not reached the required sequence`,
-                          { data: { retryAfter: REPLICA_RETRY_MILLISECONDS } },
-                      );
+                if (history.kind === "unknown") {
+                    throw ObjectError.of(
+                        "HOME_OR_REPLICA_NOT_FOUND",
+                        `home or replica of '${watermark.scope}' here not found`,
+                    );
+                }
+
+                // refuse the late position, with where the log or the first late replica is
+                throw ObjectError.of("REPLICA_UNAVAILABLE", await this.#late(watermark, history), {
+                    data: { retryAfter: REPLICA_RETRY_MILLISECONDS },
+                });
             }
         }
+    }
+
+    /** Write why a watermark is late here: where the store's log or its first late replica is. */
+    async #late(watermark: Watermark, history: WatermarkHistory): Promise<string> {
+        // read the store's own log for a watermark it wrote
+        const { scope, sequence } = watermark;
+        if (history.kind !== "replicated") {
+            const head = await this.database.log.position();
+
+            return `log of '${scope}' is unavailable: it is at sequence ${head.sequence} and the call needs sequence ${sequence}`;
+        }
+
+        // find the first late replica among those the wait reads
+        const replicas = history.followed.length > 0 ? history.followed : history.including;
+        const late = sync.Replica.late(
+            await sync.Replica.homes(this.database, replicas),
+            watermark,
+        );
+
+        // report a replica without a position yet
+        if (late?.home === undefined) {
+            return late === undefined
+                ? `replica of '${scope}' is unavailable: it follows another log than the call's`
+                : `replica '${late.name}' of '${scope}' is unavailable: it has no position yet and the call needs sequence ${sequence}`;
+        }
+
+        // report where the late replica is
+        return `replica '${late.name}' of '${scope}' is unavailable: it is at sequence ${late.home.sequence} and the call needs sequence ${sequence}`;
     }
 
     /** Read the position of the latest change in a scope's chain, which its readers see. */
