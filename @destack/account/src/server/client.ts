@@ -10,12 +10,13 @@ import {
 import { Identifier, schema } from "@destack/schema";
 import { ObjectReference, Scope } from "@destack/sync";
 import { Placement } from "../object/placement.ts";
-import { account } from "../object/account.ts";
+import { Account, account } from "../object/account.ts";
+import { type RelatedFields, StoreRelationship } from "./relationship.ts";
 import { organization } from "../object/organization.ts";
 import { OAuthConsent } from "../object/oauth-consent.ts";
 import { Revocation } from "../credential/revocation.ts";
 import { Proof, type ProofRequest } from "@destack/identity";
-import { client } from "../object/client.ts";
+import { type Client, client } from "../object/client.ts";
 import { key, Key } from "../object/key.ts";
 import { session, type Session } from "../object/session.ts";
 import type {} from "@destack/package/import-meta";
@@ -26,7 +27,9 @@ const LIFETIME_MILLISECONDS = 366 * 24 * 60 * 60 * 1000;
 
 /** Implement clients. */
 export function implementClient(): typeof client {
-    return client.implement({ methods: { create, issue, prove, link, subscribe, revoke } });
+    return client.implement({
+        methods: { create, trust, declare: trust, issue, prove, link, subscribe, revoke },
+    });
 }
 
 /** Register a client as active now, linking a calling session that runs on no client yet. */
@@ -54,6 +57,31 @@ async function create(
     }
 
     return created;
+}
+
+/** Add a federated client of an account, a publisher of the account while it stands. */
+async function trust(
+    context: MethodContext,
+    next: (context: MethodContext) => Promise<Client>,
+): Promise<Client> {
+    // add it as a federated client
+    const created = await next(context.with({ input: { ...context.input, kind: "federated" } }));
+
+    // let it publish under its account's name
+    await StoreRelationship.touch(context, await publishing(context, created));
+
+    return created;
+}
+
+/** Read the relationship letting an account's client publish under the account's name. */
+async function publishing(context: MethodContext, row: Client): Promise<RelatedFields> {
+    const owner = await Account.of(context, row.scope);
+
+    return {
+        object: account.reference(owner.scope, owner.id),
+        relation: "publisher",
+        subject: principal.client.reference(Scope.universe.id, row.id),
+    };
 }
 
 /** Issue a token client with the person's grant of its permissions to it, until its expiry. */
@@ -181,6 +209,11 @@ async function revoke(
         ...sessions.map((row) => session.call("revoke", session.target(row))),
         ...grants.map((row) => grant.call("revoke", grant.target(row))),
     ]);
+
+    // end a federated client's publishing under its account's name
+    if (target.kind === "federated") {
+        await StoreRelationship.delete(context, await publishing(context, target));
+    }
 
     return context.update({ revokedAt: context.now });
 }

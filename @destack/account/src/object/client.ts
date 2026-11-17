@@ -9,6 +9,7 @@ import { key } from "./key.ts";
 import { machine } from "./machine.ts";
 import { Platform, PLATFORMS } from "./platform.ts";
 import { user } from "./user.ts";
+import { account } from "./account.ts";
 import { DisplayName } from "./display-name.ts";
 import { sudo } from "../authentication/sudo.ts";
 import { PushSubscription } from "./recipient.ts";
@@ -23,8 +24,11 @@ export const DEVICE_CLIENT_NAME = "Destack app";
 /** The longest operating system version, in characters, such as 14.5.0. */
 const VERSION_LENGTH = 64;
 
-/** The kinds of clients: programs with keys, and bearer tokens acting through their secret. */
-export const CLIENT_KINDS = ["native", "browser", "mobile", "token"] as const;
+/** The kinds of clients: programs with keys, tokens, and programs an issuer vouches for. */
+export const CLIENT_KINDS = ["native", "browser", "mobile", "token", "federated"] as const;
+
+/** The managers of the account a client acts for, none for a person's client. */
+const MANAGERS = through("account", "manage");
 
 /** The most permissions a token's grant gives, 32 of 150 bytes below 8 KiB headers. */
 const MAX_PERMISSIONS = 32;
@@ -41,16 +45,16 @@ export const ClientRegistration = schema.object({
 /** A browser profile a machine registers for the person signed in on it. */
 export type ClientRegistration = schema.Infer<typeof ClientRegistration>;
 
-/** A program acting for a person: one with keys like OAuth's client instances, or a token. */
+/** A program acting for a person or an account, proven by keys, a secret or its issuer. */
 export const client = defineObject(
     {
         name: "client",
         plural: "clients",
         title: t`${plural(argument("count"), { one: "Client", other: "Clients" })}`,
-        scope: user,
+        scope: [user, account],
         attachments: [key.attach({ by: "rotate" })],
         fields: {
-            /** The person's name for the client. */
+            /** The owner's name for the client. */
             name: field.string(DisplayName),
             /** What the client is. */
             kind: field.enum(CLIENT_KINDS),
@@ -68,6 +72,10 @@ export const client = defineObject(
             version: field.string().optional(),
             /** The SHA-256 digest of a token's secret, absent for a client with keys. */
             digest: field.string(Digest).sensitive("deterministic").optional(),
+            /** The OIDC issuer vouching for a federated client, such as GitHub Actions'. */
+            issuer: field.string(schema.url()).optional(),
+            /** A federated client's subject at its issuer, such as a repository's environment. */
+            subject: field.string(schema.string().min(1)).optional(),
             /** The Web Push subscription of a browser client, absent until it subscribes. */
             push: field.json(PushSubscription).sensitive().optional(),
             /** The last time the client proved itself. */
@@ -91,21 +99,47 @@ export const client = defineObject(
                 kind: "check",
                 condition: { OR: [{ push: { isNull: true } }, { kind: "browser" }] },
             },
+            // let each issuer's subject act for one owner alone, while its client stands
+            workflow: {
+                kind: "index",
+                on: ["issuer", "subject"],
+                unique: true,
+                where: { revokedAt: { isNull: true } },
+            },
+            federated: {
+                kind: "check",
+                condition: {
+                    OR: [
+                        {
+                            kind: "federated",
+                            issuer: { isNotNull: true },
+                            subject: { isNotNull: true },
+                        },
+                        {
+                            kind: { ne: "federated" },
+                            issuer: { isNull: true },
+                            subject: { isNull: true },
+                        },
+                    ],
+                },
+            },
         },
         access: {
             represents: principal.client,
             permissions: {
-                // the person's clients, through roles on their scope
-                read: none(),
-                list: none(),
+                // the person's clients, through roles on their scope, and an account's through its managers
+                read: MANAGERS,
+                list: MANAGERS,
+                trust: MANAGERS,
+                declare: none(),
                 create: none(),
                 issue: none(),
                 update: none(),
                 verify: none(),
                 rotate: none(),
                 // the person's home too, dropping a browser its push service forgot (RFC 8030 410 Gone)
-                unsubscribe: through("scope", "recipient"),
-                revoke: none(),
+                unsubscribe: through("user", "recipient"),
+                revoke: MANAGERS,
                 report: none(),
             },
             elevated: { issue: sudo },
@@ -129,6 +163,17 @@ export const client = defineObject(
                 "version",
             ],
             isPredicted: false,
+        }),
+        /** Trust a program to act for the account by its issuer's tokens, such as a CI workflow. */
+        trust: method.create("trust", {
+            fields: ["name", "issuer", "subject"],
+            isPredicted: false,
+        }),
+        /** Declare a federated client of the account, keeping one its issuer and subject have. */
+        declare: method.create("declare", {
+            visibility: "package",
+            fields: ["name", "issuer", "subject"],
+            onConflict: "workflow",
         }),
         /** Issue a bearer token acting for the person under their grant of its permissions. */
         issue: method.create("issue", {

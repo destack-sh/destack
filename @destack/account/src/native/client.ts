@@ -339,7 +339,7 @@ export class NativeClient implements LoginCredential {
     ): Promise<void> {
         const { client: described, environment } = this.#options;
         await accounts.client.update({
-            userId,
+            scope: userId,
             id: clientId,
             requestId: RequestId.create(environment),
             name: described.name,
@@ -355,10 +355,10 @@ export class NativeClient implements LoginCredential {
         userId: Identifier<"user">,
         clientId: Identifier<"client">,
     ): Promise<void> {
-        const registered = await accounts.client.get({ userId, id: clientId });
+        const registered = await accounts.client.get({ scope: userId, id: clientId });
         if (registered.revokedAt === null) {
             await accounts.client.revoke({
-                userId,
+                scope: userId,
                 id: clientId,
                 requestId: RequestId.create(this.#options.environment),
             });
