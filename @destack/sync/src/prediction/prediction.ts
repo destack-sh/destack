@@ -189,8 +189,13 @@ export class Prediction {
     ): Promise<{ readonly id: string; readonly result: Result }> {
         return database.transaction(
             async (transaction) => {
-                // place the layer on top, or after the main line's below a checked-out branch
+                // place the layer on top of the main line with no branch shown, reading only the top
                 const checkedOut = await this.checkedOut(transaction);
+                if (checkedOut === undefined) {
+                    return await this.#addOnTop(transaction, id, origin, predict);
+                }
+
+                // place it on top, or after the main line's below a checked-out branch
                 const branch = options.isMainLine === true ? undefined : checkedOut;
                 const stack = await this.#stack(transaction);
                 const index =
@@ -237,11 +242,73 @@ export class Prediction {
         );
     }
 
-    /** Read the checked-out branch, absent on the main line. */
+    /** Read the checked-out branch, absent on the main line and for a client without branches. */
     async checkedOut(database: DatabaseConnection): Promise<string | undefined> {
+        if (this.#branches === undefined) {
+            return undefined;
+        }
         const [row] = await database.select({ branch: checkout.branch }).from(checkout);
 
         return row?.branch;
+    }
+
+    /** Predict a mutation on top of the main line, composed into the top one or queued after it. */
+    async #addOnTop<Result>(
+        transaction: DatabaseConnection,
+        id: string,
+        origin: string,
+        predict: (
+            transaction: DatabaseConnection,
+            latest: Mutation | undefined,
+        ) => Promise<Predicted<Result>>,
+    ): Promise<{ readonly id: string; readonly result: Result }> {
+        // read the top mutation the server has not rejected, offered to compose into while unsent and the origin's
+        const [top] = await transaction
+            .select({
+                id: mutation.id,
+                calls: mutation.calls,
+                branch: mutation.branch,
+                origin: mutation.origin,
+                state: mutation.state,
+            })
+            .from(mutation)
+            .where(ne(mutation.state, "rejected"))
+            .orderBy(desc(mutation.position))
+            .limit(1);
+        const isComposable =
+            top !== undefined &&
+            top.state === "queued" &&
+            top.origin === origin &&
+            top.branch === null;
+        const latest = isComposable ? { id: top.id, calls: top.calls, branch: null } : undefined;
+
+        // predict it over every layer
+        const recorded = await this.#record(transaction, async (nested) => {
+            const predicted = await predict(nested, latest);
+
+            return { calls: predicted.calls, result: predicted };
+        });
+        const { kind, result } = recorded.value;
+
+        // compose it into the top mutation, extending its layer
+        if (kind === "compose") {
+            const composed = present(latest, "the mutation a prediction composes into");
+            await this.#compose(transaction, composed.id, recorded.calls, recorded.changes);
+
+            return { id: composed.id, result };
+        }
+
+        // queue it as a new mutation, its layer on top
+        await this.#append(transaction, { id, origin, calls: recorded.calls, branch: undefined });
+        const [layered] = await transaction.select({ position: max(layer.position) }).from(layer);
+        await transaction.insert(layer).values({
+            key: id,
+            position: (layered?.position ?? 0) + 1,
+            changes: this.#encode(recorded.changes),
+            tables: this.#tables(recorded.calls, recorded.changes),
+        });
+
+        return { id, result };
     }
 
     /** Show a branch over the main line, or only the main line. */
@@ -559,9 +626,14 @@ export class Prediction {
             /** The most mutations to read, every pending one when absent. */
             readonly limit?: number;
         } = {},
-    ): Promise<(Mutation & { readonly branch?: string })[]> {
+    ): Promise<(Mutation & { readonly origin: string; readonly branch?: string })[]> {
         const query = database
-            .select({ id: mutation.id, calls: mutation.calls, branch: mutation.branch })
+            .select({
+                id: mutation.id,
+                origin: mutation.origin,
+                calls: mutation.calls,
+                branch: mutation.branch,
+            })
             .from(mutation)
             .where(Prediction.#pending())
             .orderBy(asc(mutation.position));
@@ -569,6 +641,7 @@ export class Prediction {
 
         return rows.map((row) => ({
             id: row.id,
+            origin: row.origin,
             calls: row.calls,
             ...(row.branch === null ? {} : { branch: row.branch }),
         }));
@@ -581,7 +654,7 @@ export class Prediction {
             /** The most mutations to send, every pending one when absent. */
             readonly limit?: number;
         } = {},
-    ): Promise<(Mutation & { readonly branch?: string })[]> {
+    ): Promise<(Mutation & { readonly origin: string; readonly branch?: string })[]> {
         return database.transaction(async (transaction) => {
             // read them and mark them sent in one transaction, so no prediction composes into them
             const pending = await this.pending(transaction, options);
@@ -627,49 +700,55 @@ export class Prediction {
         );
     }
 
-    /** Record the log position of an executed mutation, settling it once a replica reflects it. */
+    /** Record an executed mutation's home position, settling it once a replica reflects it. */
     async acknowledge(
-        database: DatabaseConnection,
+        transaction: DatabaseConnection,
         id: string,
         position: LogPosition,
     ): Promise<void> {
-        await database.transaction(
-            async (transaction) => {
-                // record the position for a replica's later page to settle
-                await transaction
-                    .update(mutation)
-                    .set({
-                        state: "executed",
-                        log: position.log,
-                        epoch: position.epoch,
-                        sequence: position.sequence,
-                    })
-                    .where(eq(mutation.id, id));
+        // record the position for a replica's later page to settle
+        await transaction
+            .update(mutation)
+            .set({
+                state: "executed",
+                log: position.log,
+                epoch: position.epoch,
+                sequence: position.sequence,
+            })
+            .where(eq(mutation.id, id));
 
-                // find a replica of the predicted tables whose confirming page arrived first
-                const [predicted] = await transaction
-                    .select({ tables: layer.tables })
-                    .from(layer)
-                    .where(eq(layer.key, id));
-                const tables =
-                    predicted === undefined ? [] : LayerTables.parse(JSON.parse(predicted.tables));
-                const reflections = await Replica.reflections(transaction);
-                const reflecting = reflections.find(
-                    (reflection) =>
-                        reflection.position.log === position.log &&
-                        reflection.position.epoch === position.epoch &&
-                        reflection.position.sequence >= position.sequence &&
-                        reflection.tables.some((table) => tables.includes(table)),
-                );
-
-                // settle at its position
-                if (reflecting !== undefined) {
-                    await transaction.log.asReplica(() => this.revert(transaction));
-                    await this.replay(transaction, reflecting.position);
-                }
-            },
-            { constraints: "deferred" },
+        // find a replica of the predicted tables whose confirming page arrived first
+        const [predicted] = await transaction
+            .select({ tables: layer.tables })
+            .from(layer)
+            .where(eq(layer.key, id));
+        const tables =
+            predicted === undefined ? [] : LayerTables.parse(JSON.parse(predicted.tables));
+        const reflections = await Replica.reflections(transaction);
+        const reflecting = reflections.find(
+            (reflection) =>
+                reflection.position.log === position.log &&
+                reflection.position.epoch === position.epoch &&
+                reflection.position.sequence >= position.sequence &&
+                reflection.tables.some((table) => tables.includes(table)),
         );
+
+        // settle at its position
+        if (reflecting !== undefined) {
+            await transaction.log.asReplica(() => this.revert(transaction));
+            await this.replay(transaction, reflecting.position);
+        }
+    }
+
+    /** Settle executed mutations at once, as no replica would confirm their changes. */
+    async settle(transaction: DatabaseConnection, ids: readonly string[]): Promise<void> {
+        // revert every layer once, drop the mutations, and predict the rest again once
+        if (ids.length === 0) {
+            return;
+        }
+        await transaction.log.asReplica(() => this.revert(transaction));
+        await transaction.delete(mutation).where(inArray(mutation.id, [...ids]));
+        await this.replay(transaction);
     }
 
     /** Record the server's rejection of a mutation. */

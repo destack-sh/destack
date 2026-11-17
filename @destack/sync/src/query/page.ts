@@ -1,3 +1,4 @@
+import { MutationOutcome } from "../call/call.ts";
 import { Scalar, LogPosition } from "@destack/db";
 import { schema } from "@destack/schema";
 import { Subject } from "../call/subject.ts";
@@ -66,6 +67,8 @@ export const Page = schema.object({
     parameters: schema.jsonObject().exactOptional(),
     /** The home position a relaying source's rows reflect at its head. */
     origin: LogPosition.exactOptional(),
+    /** How the homes ended the mutations the subscriber queued at its source. */
+    outcomes: schema.array(MutationOutcome).exactOptional(),
 });
 /** A page of query rows and aggregates. */
 export type Page = schema.Infer<typeof Page>;

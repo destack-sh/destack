@@ -1,3 +1,4 @@
+import { Failure } from "@destack/error";
 import { Edition, schema, Version } from "@destack/schema";
 import { ObjectTypeReference } from "../scope/reference.ts";
 
@@ -40,3 +41,22 @@ export const Mutation = schema.object({
 });
 /** Calls a client makes atomically. */
 export type Mutation = schema.Infer<typeof Mutation>;
+
+/** How a mutation's home ended it: the results of its calls in order, or its final failure. */
+export const MutationOutcome = schema.object({
+    /** The mutation's request identifier. */
+    id: schema.string(),
+    /** The results of the calls in order, or the final failure. */
+    outcome: schema.union([
+        schema.object({
+            /** The results of the calls in order. */
+            value: schema.json(),
+        }),
+        schema.object({
+            /** The final failure. */
+            error: Failure,
+        }),
+    ]),
+});
+/** How a mutation's home ended it. */
+export type MutationOutcome = schema.Infer<typeof MutationOutcome>;

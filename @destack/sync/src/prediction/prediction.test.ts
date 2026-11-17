@@ -86,7 +86,11 @@ async function pushed(
     prediction: Prediction,
     sequence: number,
 ): Promise<void> {
-    await prediction.acknowledge(client, IDS[0], { log: LOG, epoch: EPOCH, sequence });
+    await client.transaction(
+        (transaction) =>
+            prediction.acknowledge(transaction, IDS[0], { log: LOG, epoch: EPOCH, sequence }),
+        { constraints: "deferred" },
+    );
     await client.transaction(async (transaction) => {
         await prediction.reject(transaction, IDS[1], FORBIDDEN);
         await transaction.log.asReplica(() => prediction.revert(transaction));
@@ -146,7 +150,11 @@ test("rebase predicted mutations onto source pages until the source executes or 
     expect((await prediction.pending(client)).map((entry) => entry.id)).toEqual([IDS[2]]);
 
     // acknowledge a mutation and drop it once a snapshot has it
-    await prediction.acknowledge(client, IDS[2], { log: LOG, epoch: EPOCH, sequence: 3 });
+    await client.transaction(
+        (transaction) =>
+            prediction.acknowledge(transaction, IDS[2], { log: LOG, epoch: EPOCH, sequence: 3 }),
+        { constraints: "deferred" },
+    );
     expect(await prediction.pending(client)).toEqual([]);
     await replicate(
         notes,
@@ -255,17 +263,29 @@ test("push again on a snapshot the mutations of a log and epoch no replica follo
     }
 
     // acknowledge them on the source's log, on another log, and at an older epoch
-    await prediction.acknowledge(client, IDS[0], { log: LOG, epoch: EPOCH, sequence: 2 });
-    await prediction.acknowledge(client, IDS[1], {
-        log: OTHER_LOG,
-        epoch: EPOCH,
-        sequence: 2,
-    });
-    await prediction.acknowledge(client, IDS[2], {
-        log: LOG,
-        epoch: "01996ab0-0000-7000-8000-000000000000",
-        sequence: 2,
-    });
+    await client.transaction(
+        (transaction) =>
+            prediction.acknowledge(transaction, IDS[0], { log: LOG, epoch: EPOCH, sequence: 2 }),
+        { constraints: "deferred" },
+    );
+    await client.transaction(
+        (transaction) =>
+            prediction.acknowledge(transaction, IDS[1], {
+                log: OTHER_LOG,
+                epoch: EPOCH,
+                sequence: 2,
+            }),
+        { constraints: "deferred" },
+    );
+    await client.transaction(
+        (transaction) =>
+            prediction.acknowledge(transaction, IDS[2], {
+                log: LOG,
+                epoch: "01996ab0-0000-7000-8000-000000000000",
+                sequence: 2,
+            }),
+        { constraints: "deferred" },
+    );
 
     // follow the other log in another replica, then push the older epoch's again on a snapshot
     const other = new Replica({ name: "notes", scope: "elsewhere", tables: [note] });
@@ -321,7 +341,9 @@ test("compose predictions into the origin's latest queued mutation until a push 
         });
     await write(IDS[0], "tab-1", "a", "one");
     await write(IDS[1], "tab-1", "a", "two");
-    expect(await prediction.pending(client)).toEqual([{ id: IDS[0], calls: [create("a", "two")] }]);
+    expect(await prediction.pending(client)).toEqual([
+        { id: IDS[0], origin: "tab-1", calls: [create("a", "two")] },
+    ]);
     expect(await titles()).toEqual([["a", "two"]]);
 
     // predict the composed calls again the same way
@@ -384,7 +406,11 @@ test("read pending mutations up to a limit, and count each state with branch edi
     // drop the first once its page has it, reject the second, and acknowledge the third
     await pushed(client, prediction, 2);
     await replicate(notes, client, [page(2, [{ id: "a", title: "Server" }])], prediction);
-    await prediction.acknowledge(client, IDS[2], { log: LOG, epoch: EPOCH, sequence: 3 });
+    await client.transaction(
+        (transaction) =>
+            prediction.acknowledge(transaction, IDS[2], { log: LOG, epoch: EPOCH, sequence: 3 }),
+        { constraints: "deferred" },
+    );
 
     // read the first pending ones up to the limit, and count the branch edit as pending
     expect({ limited, before, after: await prediction.inspect(client) }).toEqual({
@@ -481,9 +507,9 @@ test("predict a checked-out branch's rows under its edits, and push the edits to
         below: ["a", "c", "m", "n", "x"],
         main: ["m", "n"],
         pending: [
-            { id: IDS[0], calls: [call("m")] },
-            { id: IDS[1], calls: [call("c")], branch: "branch-1" },
-            { id: IDS[2], calls: [call("n")] },
+            { id: IDS[0], origin: "tab-1", calls: [call("m")] },
+            { id: IDS[1], origin: "tab-1", calls: [call("c")], branch: "branch-1" },
+            { id: IDS[2], origin: "tab-1", calls: [call("n")] },
         ],
     });
 });
