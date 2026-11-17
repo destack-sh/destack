@@ -59,7 +59,7 @@ import {
 } from "@destack/access";
 import { space } from "@destack/account/object";
 import type { ServerRuntime } from "@destack/package/runtime";
-import type { BuildReader } from "@destack/package/manifest";
+import { BuildReader } from "@destack/package/manifest";
 import * as object from "@destack/stack/object";
 import * as accountObject from "@destack/account/object";
 import { Approval } from "../src/index.ts";
@@ -916,15 +916,19 @@ test("redeploy once a captured binding targets another resource", async () => {
 });
 
 test("refuse a release built with an unsupported Destack", async () => {
-    // deploy notes on a machine running only a later Destack, then on one running only an earlier one
+    // deploy notes built with a released Destack on a machine running only a later one, then only an earlier one
+    const built = "2026.9.0";
     const deploy = async (destack: VersionRange) => {
         const fixture = await TestSpace.open();
         await serveControllers(fixture, { destack });
-        const notes = await installNotes(
-            fixture,
-            ids.notes,
-            await fixtureBuild(ids.package, "2026.9.0", fixture.environment.crypto),
+        const { crypto } = fixture.environment;
+        const build = await fixtureBuild(ids.package, "2026.9.0", crypto);
+        const released = new BuildReader(
+            { ...build.manifest, destack: built },
+            build.stream,
+            crypto,
         );
+        const notes = await installNotes(fixture, ids.notes, released);
         await fixture.simulation.idle();
         const refused = single(fixture.takeRefusals());
         const installed = await readInstalled(fixture.database, notes.installationId);
@@ -935,7 +939,6 @@ test("refuse a release built with an unsupported Destack", async () => {
     };
 
     // refuse each, the release too old for the later machine and too new for the earlier one
-    const built = import.meta.destack.package.version;
     const older = `@test/package is built with Destack ${built}, older than this machine supports (2099.1.0)`;
     const newer = `@test/package is built with Destack ${built}, newer than this machine's 2001.1.0`;
     expect({
