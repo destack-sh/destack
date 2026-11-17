@@ -54,6 +54,7 @@ import {
 import { RequestId, Scope } from "@destack/sync";
 import type { FamilyError } from "@destack/error";
 import { StackError, type StackReason } from "@destack/stack/error";
+import { ResourceError, UnreachablePlan } from "@destack/resource/error";
 import type { Runtime } from "../runtime/runtime.ts";
 import {
     Build,
@@ -1130,21 +1131,33 @@ export class ApplicationInstallation {
             declarations,
             vocabulary: Vocabulary.advance({}, declarations, from),
         };
-        const compared = await this.#compare(
-            declarations,
-            from,
-            next,
-            await this.#options.space.builds.lock(lock),
-        );
+        const { name } = this.#target.installation;
         const owner = PackageManifest.package(next.manifest);
-        const upgrade = Upgrade.plan(history, owner, await next.declarations(), (declaration) => {
-            const plan = compared.get(Address.join(declaration.kind, declaration.name));
+        const locked = await this.#options.space.builds.lock(lock);
+        let upgrade: Upgrade;
+        try {
+            const compared = await this.#compare(declarations, from, next, locked);
+            upgrade = Upgrade.plan(history, owner, await next.declarations(), (declaration) => {
+                const plan = compared.get(Address.join(declaration.kind, declaration.name));
 
-            return plan === undefined ? undefined : () => plan;
-        });
+                return plan === undefined ? undefined : () => plan;
+            });
+        } catch (cause) {
+            // tell the caller why no plan reaches the release, whose author changes its declarations
+            if (!ResourceError.is(cause, "PLAN_BLOCKED")) {
+                throw cause;
+            }
+            const detail = UnreachablePlan.parse(cause.data)
+                .problems.map((problem) => `${problem.target}: ${problem.detail}`)
+                .join("; ");
+            throw StackError.of(
+                "PLAN_BLOCKED",
+                `cannot upgrade installation '${name}' to '${release}': ${detail}`,
+                { cause },
+            );
+        }
 
         // address each step below the installation's release
-        const { name } = this.#target.installation;
         const prefix = Address.join("installation", name, "release", release);
         const steps: Step[] = upgrade.steps.map((step) => ({
             ...step,
