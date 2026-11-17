@@ -63,18 +63,27 @@ test("keep the rows referencing a rebuilt table in a Durable Object, whose stora
     ]);
 });
 
-test("store two databases of one declaration in a Durable Object's storage, each namespace with separate rows, log and plan", async () => {
+test("store two databases of one declaration in a Durable Object's storage, each namespace with separate rows, index entries, log and plan", async () => {
     const worker = await start();
 
-    // read each namespace's row and logged insert, and a plan dropping only its table
+    // read each namespace's row, its playlist's indexed track, its logged insert, and a plan dropping only its tables
     const response = await worker.dispatchFetch("https://notes.test/namespaces");
     expect([response.status, await response.json()]).toEqual([
         200,
-        [1, 2].map((index) => ({
-            rows: [{ id: "a", title: `Entry ${index}` }],
-            changes: [["insert", `space-${index}`, { id: "a", title: `Entry ${index}` }]],
-            steps: [`table/${index === 1 ? "first" : "second"}.destack__durable_scenario__entry`],
-        })),
+        [1, 2].map((index) => {
+            const namespace = index === 1 ? "first" : "second";
+
+            return {
+                rows: [{ id: "a", title: `Entry ${index}` }],
+                tracks: [{ row: "p", position: 0, title: `Track ${index}` }],
+                changes: [["insert", `space-${index}`, { id: "a", title: `Entry ${index}` }]],
+                steps: [
+                    `table/${namespace}.destack__db__playlist`,
+                    `table/${namespace}.destack__db__playlist_track_entry`,
+                    `table/${namespace}.destack__durable_scenario__entry`,
+                ],
+            };
+        }),
     ]);
 });
 

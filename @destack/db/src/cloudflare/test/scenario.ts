@@ -11,6 +11,7 @@ import { durableObjectConnector } from "../connector.ts";
 import { DATABASE_PATH, DurableObjectDatabaseHost, DurableObjectMeasurement } from "../host.ts";
 import { defineTable, TABLE } from "../../table/table.ts";
 import { bigint, binary, text } from "../../table/column.ts";
+import { playlist } from "../../multikey/test/fixture.ts";
 import type { DurableObjectStorage } from "../client.ts";
 import { DurableObjectReader } from "../reader.ts";
 import { Snapshot } from "../../log/snapshot.ts";
@@ -493,24 +494,26 @@ export class NoteStore {
     async namespaces(): Promise<Response> {
         // migrate the same table in two namespaces, each logged in its scope
         const databases = [
-            this.databases.connect([entry], { namespace: "first" }),
-            this.databases.connect([entry], { namespace: "second" }),
+            this.databases.connect([entry, playlist], { namespace: "first" }),
+            this.databases.connect([entry, playlist], { namespace: "second" }),
         ];
         for (const [index, database] of databases.entries()) {
             await database.log.create(`space-${index + 1}`);
-            await database.migrate([entry]);
-            await database.transaction(
-                async (transaction) =>
-                    await transaction
-                        .insert(entry)
-                        .values({ id: "a", title: `Entry ${index + 1}` }),
-            );
+            await database.migrate([entry, playlist]);
+            await database.transaction(async (transaction) => {
+                await transaction.insert(entry).values({ id: "a", title: `Entry ${index + 1}` });
+                await transaction
+                    .insert(playlist)
+                    .values({ id: "p", tracks: [{ title: `Track ${index + 1}` }] });
+            });
         }
 
-        // read each database's rows, logged changes and plan
+        // read each database's rows, index entries, logged changes and plan
+        const tracks = playlist[TABLE].entryTable("playlist_track");
         const read = await Promise.all(
             databases.map(async (database) => ({
                 rows: await database.select().from(entry),
+                tracks: await database.select().from(tracks),
                 changes: (await database.log.read({ tables: [entry], after: 0 })).changes.map(
                     (change) => [change.operation, change.scope, Change.image(change)],
                 ),

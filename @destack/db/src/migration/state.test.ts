@@ -1,10 +1,11 @@
-import { expect, test } from "@destack/test";
+import { expect, single, test } from "@destack/test";
 import { PackageId } from "@destack/package";
 import { archive, item, list } from "../aggregate/test/fixture.ts";
 import { post, remark } from "../dependent/test/fixture.ts";
 import { TABLE } from "../table/index.ts";
+import { playlist } from "../multikey/test/fixture.ts";
 import { mergeStates } from "./merge.ts";
-import { declareState } from "./state.ts";
+import { declareState, localState, namespaceState } from "./state.ts";
 
 /** A package that declares none of the fixture's tables. */
 const OTHER = PackageId.parse("package-01996ab0-0000-7000-8000-0000000000e1");
@@ -81,4 +82,24 @@ test("merge a table one declaration replicates and another owns into the owned t
         [[owned], []],
         [[owned], []],
     ]);
+});
+
+test("prefix a multikey index's source and entry tables with the state's namespace, and read them back without it", () => {
+    // put the playlist's state in a namespace, as a database sharing a storage does
+    const declared = single(
+        declareState([playlist], "sqlite").filter((state) => state.multikeyIndexes !== undefined),
+    );
+    const state = namespaceState(declared, "space");
+
+    // prefix both tables, which the index's triggers are written on
+    expect(
+        (state.multikeyIndexes ?? []).map((each) => [each.name, each.table, each.entryTable]),
+    ).toEqual([
+        [
+            "playlist_track",
+            "space.destack__db__playlist",
+            "space.destack__db__playlist_track_entry",
+        ],
+    ]);
+    expect(localState(state, "space")).toEqual(declared);
 });
