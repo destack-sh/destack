@@ -1,7 +1,8 @@
 import { outputsOf } from "@destack/build";
 import { readPackageJson } from "@destack/build/local";
 import { type PackageJson, PackageName } from "@destack/package";
-import { type Identifier, present } from "@destack/schema";
+import { type Identifier, present, type Version } from "@destack/schema";
+import { openForge } from "./forge.ts";
 import { RequestId } from "@destack/sync";
 import * as stackObject from "@destack/stack/object";
 import { type Verb, OptionValue, type Options } from "../command/command.ts";
@@ -74,6 +75,7 @@ export function publishCommand(context: Context): Verb {
                 description: "The distribution tag pointing at the release, latest by default",
                 argument: "name",
             },
+            yes: { type: "boolean", description: "Allow the space's stack to publish as you" },
         },
         async run({ arguments: { package: directory }, options, json }) {
             await publish(context, present(directory, "the package argument"), json, options);
@@ -90,11 +92,12 @@ async function publish(
 ): Promise<void> {
     // build the package, and read the account of its name's handle
     const native = await context.native();
-    const built = await build(context, directory, json, values);
+    const built = await build(context, directory, json, values, "release");
     const accountId = await native.resolve(PackageName.split(built.package.name).handle);
 
     // publish the build and the account's builds it pins that the forge lacks, as the person
-    const stack = await context.package(stackPackage, await context.locate());
+    const consent = values["yes"] === true ? "approve" : "ask";
+    const stack = await context.package(stackPackage, await context.locate(), consent);
     const tag = OptionValue.string(values["tag"], "tag");
     const published = await stack.build.publish({
         spaceId: built.space,
@@ -111,12 +114,21 @@ async function publish(
     await context.terminal.print(json ? JSON.stringify(published) : lines.join("\n"));
 }
 
+/** Ask the forge of a package name's account for the version its next release takes. */
+async function nextRelease(context: Context, name: string): Promise<Version> {
+    const { client, home } = await openForge(name, context);
+    const { version } = await client.package.next({ spaceId: home, name });
+
+    return version;
+}
+
 /** Build the checkout containing a directory in a space. */
 async function build(
     context: Context,
     directory: string,
     json: boolean,
     values: Options,
+    version: "development" | "release" = "development",
 ): Promise<{
     readonly space: string;
     readonly id: Identifier<"build">;
@@ -150,6 +162,9 @@ async function build(
             directory: registered.path,
         },
         outputs,
+        ...(version === "release"
+            ? { version: await nextRelease(context, read.package.name) }
+            : {}),
     });
 
     // follow it until it finishes
