@@ -175,3 +175,40 @@ test("create a space on this computer's machine, switch to it, and list the inst
         installations: ["inbox", "message", "observability", "social", "stack", "vault"],
     });
 });
+
+test("delete a space once the person takes the step-up its delete asks, in the browser", async () => {
+    // create a desk beside the owner's home
+    const terminal = await TerminalFixture.open({ NO_COLOR: "1" });
+    const desk = await terminal.space("desk");
+    const { world } = terminal.computer;
+
+    // delete it, which opens the browser for a second factor, and approve that at the universe
+    const deleting = terminal.start(["space", desk, "delete", "--json"]);
+    await world.simulation.waitUntil(
+        () => terminal.opened().length > 0,
+        world.simulation.clock.now() + 60_000,
+    );
+    const [page] = terminal.opened();
+    const back = await world.universe.approve(page ?? "", world.owner);
+    // return the browser to the device's redirect, whose answer the simulated network may drop as it closes
+    await terminal.computer.browse(new Request(back)).then(
+        (answered) => answered.body?.cancel(),
+        () => undefined,
+    );
+    const deleted = await deleting.printed;
+
+    // refuse the delete at first, then move the space to the trash with the stepped-up sign-in
+    const read = await terminal.printed(["space", desk, "--json"]);
+    const trashed = schema
+        .looseObject({ id: schema.string(), deletedAt: schema.number().nullable() })
+        .parse(JSON.parse(read.output));
+    expect({
+        deleted: [deleted.code, deleted.output, deleted.error],
+        opened: terminal.opened().length,
+        trashed: [trashed.id, trashed.deletedAt !== null],
+    }).toEqual({
+        deleted: [0, "{}\n", `This needs you to confirm it is you.\nOpening ${page ?? ""}\n`],
+        opened: 1,
+        trashed: [desk, true],
+    });
+});

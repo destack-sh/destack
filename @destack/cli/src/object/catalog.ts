@@ -257,8 +257,9 @@ export class Noun {
 
         // call the universe at the person's issuer
         const launcher = await context.launcher();
+        const { elevate } = context.consent();
         if (store === "universe") {
-            return launcher.endpoint(packageId, "universe");
+            return launcher.endpoint(packageId, "universe", { elevate });
         }
         // call a named installation of the space at its origin
         else if (name !== undefined) {
@@ -266,7 +267,7 @@ export class Noun {
         }
         // call the space's own package at the machine serving it
         else {
-            return launcher.endpoint(packageId, await context.locate());
+            return launcher.endpoint(packageId, await context.locate(), { elevate });
         }
     }
 
