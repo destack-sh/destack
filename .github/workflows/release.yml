@@ -30,6 +30,8 @@ jobs:
             publish: ${{ steps.release.outputs.publish }}
             targets: ${{ steps.release.outputs.targets }}
             signed: ${{ steps.release.outputs.signed }}
+            signer: ${{ steps.release.outputs.signer }}
+            verified: ${{ steps.release.outputs.verified }}
             unsigned: ${{ steps.release.outputs.unsigned }}
             installers: ${{ steps.release.outputs.installers }}
             names: ${{ steps.release.outputs.names }}
@@ -194,21 +196,19 @@ jobs:
                   if-no-files-found: error
 
     sign:
-        name: Sign distribution (${{ matrix.target }})
+        name: Sign distributions and installers
         needs: [prepare, build]
         if: needs.prepare.outputs.publish == 'true'
-        runs-on: ${{ matrix.runner }}
-        timeout-minutes: 40
+        runs-on: ${{ needs.prepare.outputs.signer }}
+        timeout-minutes: 60
         environment: release
         permissions:
             contents: read
-        strategy:
-            fail-fast: false
-            matrix:
-                include: ${{ fromJSON(needs.prepare.outputs.signed) }}
         env:
             DESTACK_SIGNING: release
             DESTACK_RELEASE_VERSION: ${{ needs.prepare.outputs.version }}
+            TARGETS: ${{ needs.prepare.outputs.signed }}
+            DIST: ${{ github.workspace }}/dist/${{ needs.prepare.outputs.version }}
         steps:
             - name: Check out repository
               uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -217,24 +217,34 @@ jobs:
                   ref: ${{ needs.prepare.outputs.commit }}
             - name: Set up
               uses: ./.github/actions/setup
-            - name: Download unsigned distribution
+            - name: Install Rosetta
+              # run the other architecture's distribution once it is signed
+              run: arch -x86_64 /usr/bin/true || softwareupdate --install-rosetta --agree-to-license
+            - name: Download unsigned distributions
               uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
               with:
-                  name: unsigned-${{ matrix.target }}
+                  pattern: unsigned-*-apple-darwin
+                  merge-multiple: true
                   path: dist/${{ needs.prepare.outputs.version }}
-            - name: Unpack distribution
-              run: bun run src/main.ts signing sign unpack ${{ matrix.target }}
-            - name: Download unsigned toolchain
+            - name: Unpack distributions
+              run: |
+                  for target in $TARGETS; do
+                      bun run src/main.ts signing sign unpack "$target"
+                  done
+            - name: Download unsigned toolchains
               uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
               with:
-                  name: toolchain-unsigned-${{ matrix.target }}
-                  path: ${{ runner.temp }}
-            - name: Unpack toolchain
-              env:
-                  TOOLCHAIN: ${{ github.workspace }}/dist/${{ needs.prepare.outputs.version }}/${{ matrix.target }}/toolchain
-              run: mkdir -p "$TOOLCHAIN" && tar -xf "$RUNNER_TEMP/toolchain.tar" -C "$TOOLCHAIN" && rm "$RUNNER_TEMP/toolchain.tar"
+                  pattern: toolchain-unsigned-*-apple-darwin
+                  path: ${{ runner.temp }}/toolchains
+            - name: Unpack toolchains
+              working-directory: ${{ github.workspace }}
+              run: |
+                  for target in $TARGETS; do
+                      mkdir -p "$DIST/$target/toolchain"
+                      tar -xf "$RUNNER_TEMP/toolchains/toolchain-unsigned-$target/toolchain.tar" -C "$DIST/$target/toolchain"
+                  done
+                  rm -r "$RUNNER_TEMP/toolchains"
             - name: Prepare Apple signing credentials
-              if: matrix.signer == 'apple'
               uses: ./.github/actions/setup-apple
               with:
                   certificate: ${{ secrets.APPLE_CERTIFICATE }}
@@ -243,42 +253,54 @@ jobs:
                   key: ${{ secrets.APPLE_NOTARY_KEY }}
                   key-id: ${{ vars.APPLE_NOTARY_KEY_ID }}
                   issuer: ${{ vars.APPLE_NOTARY_ISSUER }}
-            - name: Sign and notarize distribution
-              run: bun run src/main.ts signing sign sign ${{ matrix.target }}
-            - name: Pack distribution
-              run: bun run src/main.ts distribution pack ${{ matrix.target }}
-            - name: Upload signed distribution
+            - name: Sign and notarize the distributions and their installers
+              run: bun run src/main.ts signing sign sign
+            - name: Pack distributions
+              run: |
+                  for target in $TARGETS; do
+                      bun run src/main.ts distribution pack "$target"
+                  done
+            - name: Upload signed distributions
               uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
               with:
-                  name: signed-${{ matrix.target }}
+                  name: signed-apple-darwin
                   retention-days: 14
                   path: dist/${{ needs.prepare.outputs.version }}/*.tar.gz
                   if-no-files-found: error
-            - name: Pack toolchain
-              # a tarball keeps every file the manifest lists, dotfiles included, which directory artifacts drop
-              env:
-                  TOOLCHAIN: ${{ github.workspace }}/dist/${{ needs.prepare.outputs.version }}/${{ matrix.target }}/toolchain
-              run: tar -cf "$RUNNER_TEMP/toolchain.tar" -C "$TOOLCHAIN" .
-            - name: Upload signed toolchain
+            - name: Upload installers
               uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
               with:
-                  name: toolchain-signed-${{ matrix.target }}
+                  name: installer-apple-darwin
                   retention-days: 14
-                  path: ${{ runner.temp }}/toolchain.tar
+                  path: dist/${{ needs.prepare.outputs.version }}/destack-*.dmg
+                  if-no-files-found: error
+            - name: Pack toolchains
+              # a tarball keeps every file the manifest lists, dotfiles included, which directory artifacts drop
+              working-directory: ${{ github.workspace }}
+              run: |
+                  for target in $TARGETS; do
+                      mkdir -p "$RUNNER_TEMP/signed/toolchain-signed-$target"
+                      tar -cf "$RUNNER_TEMP/signed/toolchain-signed-$target/toolchain.tar" -C "$DIST/$target/toolchain" .
+                  done
+            - name: Upload signed toolchains
+              uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+              with:
+                  name: toolchain-signed
+                  retention-days: 14
+                  path: ${{ runner.temp }}/signed
                   if-no-files-found: error
             - name: Remove Apple signing credentials
-              if: always() && matrix.signer == 'apple'
+              if: always()
               run: bun run src/main.ts signing credential remove
 
     installers:
         name: Build installer (${{ matrix.name }})
-        needs: [prepare, build, sign]
-        if: >-
-            !cancelled() && needs.build.result == 'success' && needs.prepare.outputs.installers != '[]' &&
-            (needs.sign.result == 'success' || (needs.prepare.outputs.publish != 'true' && needs.sign.result == 'skipped'))
+        needs: [prepare, build]
+        # build a branch's installers unsigned; a release's are built where its distributions are signed
+        if: needs.prepare.outputs.publish != 'true' && needs.prepare.outputs.installers != '[]'
         runs-on: ${{ matrix.runner }}
         timeout-minutes: 40
-        environment: ${{ needs.prepare.outputs.publish == 'true' && 'release' || 'build' }}
+        environment: build
         permissions:
             contents: read
         strategy:
@@ -286,7 +308,7 @@ jobs:
             matrix:
                 include: ${{ fromJSON(needs.prepare.outputs.installers) }}
         env:
-            DESTACK_SIGNING: ${{ needs.prepare.outputs.publish == 'true' && 'release' || 'development' }}
+            DESTACK_SIGNING: development
             DESTACK_RELEASE_VERSION: ${{ needs.prepare.outputs.version }}
         steps:
             - name: Check out repository
@@ -299,19 +321,9 @@ jobs:
             - name: Download the installer's distributions
               uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
               with:
-                  pattern: ${{ needs.prepare.outputs.publish == 'true' && 'signed' || 'unsigned' }}-${{ matrix.targets }}
+                  pattern: unsigned-${{ matrix.targets }}
                   merge-multiple: true
                   path: dist/${{ needs.prepare.outputs.version }}
-            - name: Prepare Apple signing credentials
-              if: needs.prepare.outputs.publish == 'true' && matrix.signer == 'apple'
-              uses: ./.github/actions/setup-apple
-              with:
-                  certificate: ${{ secrets.APPLE_CERTIFICATE }}
-                  password: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
-                  identity: ${{ vars.APPLE_SIGNING_IDENTITY }}
-                  key: ${{ secrets.APPLE_NOTARY_KEY }}
-                  key-id: ${{ vars.APPLE_NOTARY_KEY_ID }}
-                  issuer: ${{ vars.APPLE_NOTARY_ISSUER }}
             - name: Build installer
               run: bun run src/main.ts installer build ${{ matrix.name }}
             - name: Upload installer
@@ -321,13 +333,10 @@ jobs:
                   retention-days: 14
                   path: dist/${{ needs.prepare.outputs.version }}/destack-*-${{ matrix.name }}.${{ matrix.format }}
                   if-no-files-found: error
-            - name: Remove Apple signing credentials
-              if: always() && needs.prepare.outputs.publish == 'true' && matrix.signer == 'apple'
-              run: bun run src/main.ts signing credential remove
 
     publish:
         name: Publish release
-        needs: [prepare, sign, installers]
+        needs: [prepare, sign]
         if: needs.prepare.outputs.publish == 'true'
         runs-on: ubuntu-24.04
         timeout-minutes: 20
@@ -370,7 +379,7 @@ jobs:
             - name: Download signed toolchains
               uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
               with:
-                  pattern: toolchain-signed-*
+                  name: toolchain-signed
                   path: dist/${{ needs.prepare.outputs.version }}/toolchain
             - name: Download toolchains without a platform signer
               uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
@@ -540,7 +549,7 @@ jobs:
         strategy:
             fail-fast: false
             matrix:
-                include: ${{ fromJSON(needs.prepare.outputs.targets) }}
+                include: ${{ fromJSON(needs.prepare.outputs.verified) }}
         env:
             DESTACK_RELEASE_VERSION: ${{ needs.prepare.outputs.version }}
         steps:
