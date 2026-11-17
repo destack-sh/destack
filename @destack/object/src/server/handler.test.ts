@@ -1,7 +1,7 @@
 import { PackageVersion } from "@destack/package";
 import { AccessError, none, Policy, principal } from "@destack/access";
 import { DatabaseError } from "@destack/db";
-import { schema } from "@destack/schema";
+import { schema, present } from "@destack/schema";
 import { expect, test } from "@destack/test";
 import { createClient } from "../client/index.ts";
 import { conceal, CallError } from "../error/index.ts";
@@ -403,7 +403,8 @@ test("answer a failure thrown by a handler with the status its code declares", a
 });
 
 test("answer a lower package's failure with the call error it names, and an unknown failure as internal", async () => {
-    const world = testSimulation().environment("test");
+    const simulation = testSimulation();
+    const world = simulation.environment("test");
     // throw a database failure, an access challenge and an unknown failure from handlers
     const procedures = {
         read: Procedure.of({
@@ -469,6 +470,10 @@ test("answer a lower package's failure with the call error it names, and an unkn
             ),
         ),
     );
+
+    // return the unknown failure with the trace its exception is captured in
+    const captured = simulation.telemetry.logs.find((record) => record.eventName === "exception");
+    const { traceId } = present(captured?.spanContext, "the captured exception's span");
     expect(received).toEqual([
         ["CONFLICT", 409, "a record with the same unique key already exists", null],
         [
@@ -477,6 +482,6 @@ test("answer a lower package's failure with the call error it names, and an unkn
             "authentication required: authenticate again",
             { assurance: 2, maxAge: 300_000 },
         ],
-        ["INTERNAL_SERVER_ERROR", 500, "internal server error", undefined],
+        ["INTERNAL_SERVER_ERROR", 500, "internal server error", { traceId }],
     ]);
 });
