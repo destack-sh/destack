@@ -366,8 +366,6 @@ export class ControlLoop {
     readonly #jobs: readonly Job[];
     /** Each controller compiled, by controller. */
     readonly #compiled: Map<Job, Compiled>;
-    /** Report a failed reconciliation. */
-    readonly #report: (controller: Job, key: string, error: unknown) => void;
     /** The loop's spans and captures, on the database's telemetry. */
     readonly #instruments: TelemetryScope;
     /** The wait of each pass for its key's lock, by job and kind. */
@@ -462,23 +460,17 @@ export class ControlLoop {
         database: DatabaseConnection,
         sets: readonly ControllerSet[],
         options: {
-            /** Report a failed reconciliation, beside the loop recording it. */
-            readonly report: (
-                controller: Controller | Projection | Cursor,
-                key: string,
-                error: unknown,
-            ) => void;
             /** How a transiently failed key retries. */
             readonly retry?: Partial<RetryPolicy>;
             /** Set a wake-up for the earliest due key, so an evicted instance runs it. */
             readonly alarm?: Alarm;
-            /** How long a key may fail transiently before reporting. */
+            /** How long a key may fail transiently before its failure is captured. */
             readonly transientFor?: number;
             /** The stopped loop of this process whose sets it continues. */
             readonly previous?: ControlLoop;
             /** How often it saves a set's position at most, in milliseconds. */
             readonly positionInterval?: number;
-        },
+        } = {},
     ) {
         // start idle
         this.database = database;
@@ -550,15 +542,6 @@ export class ControlLoop {
                 "destack.wake.kind": ["start", "activation", "watch", "time"],
             },
         });
-        this.#report = (controller, key, error) => {
-            // record the failure with the controller and the failed key, then report it
-            instruments.captureException(error, {
-                isEscaped: true,
-                tags: { controller: controller.name },
-                attributes: { "destack.key": key },
-            });
-            options.report(controller, key, error);
-        };
         this.#retry = { ...RETRY, ...options.retry };
         this.#clock = database.state.environment.clock;
         this.#transientFor = options.transientFor ?? TRANSIENT_REPORT_MILLISECONDS;
@@ -2103,7 +2086,7 @@ export class ControlLoop {
                 previous.failure.message === failure.message;
             const isReported = !isRepeated && this.#recordFailure(work, failure, failed);
             if (isReported) {
-                this.#report(controller, key, error);
+                this.#capture(controller, key, error);
             }
             failures.set(key, { count: failed, failure, isReported: isRepeated || isReported });
 
@@ -2150,6 +2133,15 @@ export class ControlLoop {
         } else {
             waiter.resolve();
         }
+    }
+
+    /** Capture a failed reconciliation with its controller and key, as escaping the loop. */
+    #capture(controller: Job, key: string, error: unknown): void {
+        this.#instruments.captureException(error, {
+            isEscaped: true,
+            tags: { controller: controller.name },
+            attributes: { "destack.key": key },
+        });
     }
 
     /** Record when a key's transient failures began, answering whether one is due a report. */
