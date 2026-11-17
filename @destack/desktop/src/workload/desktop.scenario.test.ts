@@ -101,8 +101,8 @@ test("show a person another program signs in after the desktop started, once the
         ],
         actions: [
             "menu.title",
-            "autostart.set",
             "menu.set",
+            "autostart.set",
             "menu.set",
             "window.open",
             "menu.set",
