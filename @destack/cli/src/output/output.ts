@@ -12,7 +12,42 @@ export type Style = (format: Format, text: string) => string;
 export type TerminalProcess = Environment<"process">["process"];
 
 /** Leave text unformatted. */
-export const plain: Style = (_, text) => text;
+const plain: Style = (_, text) => text;
+
+/** The colours a terminal paints in: the brand mark's orange, the theme's green and red. */
+const TONES = {
+    accent: [255, 121, 46],
+    done: [48, 164, 108],
+    failed: [229, 72, 77],
+} as const;
+
+/** A colour a terminal paints in. */
+export type Tone = keyof typeof TONES;
+
+/** The width of the gutter an event and a hint put their one word in, in characters. */
+const GUTTER_WIDTH = 10;
+
+/** How an event stands: under way, done, failed, or a step without a state of its own. */
+export type EventState = "running" | "done" | "failed" | "step";
+
+/** How a listed thing stands: ready, changing, off or failed. */
+export type Standing = "ready" | "busy" | "off" | "failed";
+
+/** The dot of each standing, which a list shows before a row. */
+const DOTS: Readonly<Record<Standing, { readonly glyph: string; readonly tone?: Tone }>> = {
+    ready: { glyph: "●", tone: "done" },
+    busy: { glyph: "◐", tone: "accent" },
+    off: { glyph: "○" },
+    failed: { glyph: "✕", tone: "failed" },
+};
+
+/** The colour of each state's word, none for a step. */
+const STATE_TONES: Readonly<Record<EventState, Tone | undefined>> = {
+    running: "accent",
+    done: "done",
+    failed: "failed",
+    step: undefined,
+};
 
 /** The terminal a command line writes its output and diagnostics to. */
 export class Terminal implements AsyncDisposable {
@@ -20,6 +55,8 @@ export class Terminal implements AsyncDisposable {
     readonly process: TerminalProcess;
     /** Format text only when standard output is a terminal accepting colour. */
     readonly style: Style;
+    /** Paint text in a colour only when standard output is a terminal accepting colour. */
+    readonly tone: (tone: Tone, text: string) => string;
     /** Whether standard output is a terminal, which tables align for, else tab-separated. */
     readonly isTerminal: boolean;
     /** The answers a person types or a script pipes on standard input, read by one reader. */
@@ -32,12 +69,53 @@ export class Terminal implements AsyncDisposable {
         // set the process, and colour output only on a terminal without NO_COLOR
         this.process = running;
         this.isTerminal = running.stdout.isTerminal;
-        this.prompt = new Prompt(running);
         this.timeZone = timeZone;
         const isColored = this.isTerminal && running.variables["NO_COLOR"] === undefined;
         this.style = isColored
             ? (format, text) => styleText(format, text, { validateStream: false })
             : plain;
+        this.tone = isColored
+            ? (tone, text) => `\x1b[38;2;${TONES[tone].join(";")}m${text}\x1b[39m`
+            : (_, text) => text;
+        this.prompt = new Prompt(running, (text) => this.question(text));
+    }
+
+    /** Write that something happened: one word in the gutter, what it is about, a dim detail. */
+    event(word: string, state: EventState, text: string, detail?: string): string {
+        // paint the word by its state, and dim the detail
+        const tone = STATE_TONES[state];
+        const painted =
+            tone === undefined ? this.#gutter(word) : this.tone(tone, this.#gutter(word));
+        const detailed = detail === undefined ? "" : ` ${this.style("dim", detail)}`;
+
+        return `${painted}  ${text}${detailed}`;
+    }
+
+    /** Write a question a person answers with yes or no, marked in the gutter. */
+    question(text: string): string {
+        return `${this.tone("accent", this.#gutter("?"))}  ${text} ${this.style("dim", "yes/no")}`;
+    }
+
+    /** Write the dot a list shows before a row, by how the row's thing stands. */
+    dot(standing: Standing): string {
+        const { glyph, tone } = DOTS[standing];
+
+        return tone === undefined ? this.style("dim", glyph) : this.tone(tone, glyph);
+    }
+
+    /** Write what a person may do or read next, dim under a fixed word such as next or trace. */
+    hint(word: string, text: string): string {
+        return this.style("dim", `${this.#gutter(word)}  ${text}`);
+    }
+
+    /** Write the heading of one object: its title, then its identifier dim. */
+    heading(title: string, id: string): string {
+        return `${this.style("bold", title)}  ${this.style("dim", id)}`;
+    }
+
+    /** Pad a line's one word into the gutter on a terminal, and leave it as it is for a program. */
+    #gutter(word: string): string {
+        return this.isTerminal ? word.padStart(GUTTER_WIDTH) : word;
     }
 
     /** Write a line of a command's output to standard output. */

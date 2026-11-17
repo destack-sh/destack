@@ -10,10 +10,16 @@ export class Prompt implements AsyncDisposable {
     #reader: Pick<ReadableStreamDefaultReader<Uint8Array>, "cancel"> | undefined;
     /** The lines of standard input, read on the first question. */
     #lines: AsyncIterator<string> | undefined;
+    /** Write a yes or no question as the terminal shows it. */
+    readonly #question: (text: string) => string;
 
-    /** Read answers from a process's standard input. */
-    constructor(process: Pick<TerminalProcess, "stdin" | "stderr">) {
+    /** Read answers from a process's standard input, writing yes or no questions in a format. */
+    constructor(
+        process: Pick<TerminalProcess, "stdin" | "stderr">,
+        question: (text: string) => string = (text) => `${text} (yes/no)`,
+    ) {
         this.#process = process;
+        this.#question = question;
     }
 
     /** Ask a question on a terminal, or read the next piped line, refusing the end of input. */
@@ -37,7 +43,7 @@ export class Prompt implements AsyncDisposable {
 
     /** Ask a yes or no question, refusing anything but yes. */
     async confirm(question: string): Promise<boolean> {
-        return (await this.ask(`${question} (yes/no)`)).toLowerCase() === "yes";
+        return (await this.ask(this.#question(question))).toLowerCase() === "yes";
     }
 
     /** Read the rest of standard input as text. */
