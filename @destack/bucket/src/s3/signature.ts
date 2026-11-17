@@ -223,10 +223,7 @@ export class S3Signature {
         }
         // refuse anonymous requests
         else {
-            throw BucketError.of(
-                "ACCESS_DENIED",
-                "request is forbidden: anonymous requests are not allowed",
-            );
+            throw BucketError.of("ACCESS_DENIED", "request is forbidden: it has no signature");
         }
     }
 
@@ -313,7 +310,10 @@ export class S3Signature {
             throw BucketError.of("ACCESS_DENIED", "request is forbidden: it has expired");
         }
         if (now < time - MAX_CLOCK_SKEW) {
-            throw BucketError.of("ACCESS_DENIED", "request is forbidden: it is not valid yet");
+            throw BucketError.of(
+                "ACCESS_DENIED",
+                "request is forbidden: its date is in the future",
+            );
         }
         const credential = presigned.credential;
         const code = "AUTHORIZATION_QUERY_INVALID";

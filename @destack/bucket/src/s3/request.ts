@@ -290,13 +290,9 @@ export class S3Request {
             if (BucketError.is(cause)) {
                 throw cause;
             }
-            throw BucketError.of(
-                "XML_INVALID",
-                "request document is invalid: it is not valid UTF-8",
-                {
-                    cause,
-                },
-            );
+            throw BucketError.of("XML_INVALID", "request document is invalid: it is not UTF-8", {
+                cause,
+            });
         }
     }
 }

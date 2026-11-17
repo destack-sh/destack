@@ -18,7 +18,7 @@ export function decodeUri(value: string): string {
     } catch (cause) {
         throw BucketError.of(
             "URI_INVALID",
-            "request URI is invalid: it is not valid percent-encoded UTF-8",
+            "request URI is invalid: it is not percent-encoded UTF-8",
             {
                 cause,
             },

@@ -417,11 +417,9 @@ function readBase64(value: string, length: number, name: string): string {
             return bytes.toBase64();
         }
     } catch (cause) {
-        throw BucketError.of(
-            "DIGEST_INVALID",
-            `'${name}' header is invalid: it is not valid base64`,
-            { cause },
-        );
+        throw BucketError.of("DIGEST_INVALID", `'${name}' header is invalid: it is not base64`, {
+            cause,
+        });
     }
     throw BucketError.of(
         "DIGEST_INVALID",
