@@ -809,7 +809,7 @@ export class Replica {
             ({ home }) => home === undefined || home.log === position.log,
         );
 
-        return following.length > 0 && Replica.late(homes, position) === undefined;
+        return following.length > 0 && Replica.late(homes, position).length === 0;
     }
 
     /** Read each replica's home position: its mark, or the one it recorded before any mark. */
@@ -828,9 +828,9 @@ export class Replica {
         );
     }
 
-    /** Find the first replica yet to reach a position of the log it follows, or of none yet. */
-    static late(homes: readonly ReplicaHome[], position: LogPosition): ReplicaHome | undefined {
-        return homes.find(
+    /** List the replicas yet to reach a position of the log they follow, or of none yet. */
+    static late(homes: readonly ReplicaHome[], position: LogPosition): ReplicaHome[] {
+        return homes.filter(
             ({ scope, home }) =>
                 (home === undefined || home.log === position.log) &&
                 !Replica.#isReached(home, scope, position),

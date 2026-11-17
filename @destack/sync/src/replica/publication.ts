@@ -4,6 +4,7 @@ import {
     defineTable,
     eq,
     integer,
+    isNull,
     json,
     lt,
     ne,
@@ -47,6 +48,8 @@ const subscriptionSchema = schema.object({
     refresh: schema.object({ every: Duration.schema }).exactOptional(),
     /** The follower's log as a replication origin, which the source never publishes back to. */
     origin: schema.string().min(1).exactOptional(),
+    /** The position of the source's log the follower waits for. */
+    waiting: LogPosition.exactOptional(),
 });
 /** A follower's subscription to a publication over one scope, from the position it arrived at. */
 export type Subscription = schema.Infer<typeof subscriptionSchema>;
@@ -58,6 +61,7 @@ export const SubscriptionRecord = subscriptionSchema.omit({
     previous: true,
     refresh: true,
     origin: true,
+    waiting: true,
 });
 /** A subscription as a listing decides it and a replica records it. */
 export type SubscriptionRecord = schema.Infer<typeof SubscriptionRecord>;
@@ -80,6 +84,12 @@ export const subscriptionTable = defineTable("subscription", {
     revisionSequence: integer("revision_sequence").notNull(),
     /** The key of the principal requesting the subscription. */
     caller: text("caller").primaryKey(),
+    /** The source's log the follower last waited for, absent before any wait. */
+    waitingLog: text("waiting_log"),
+    /** The source's log epoch the follower last waited for. */
+    waitingEpoch: text("waiting_epoch"),
+    /** The source's log sequence the follower last waited for. */
+    waitingSequence: integer("waiting_sequence"),
 });
 
 /** A follower's request as its source records it. */
@@ -125,7 +135,35 @@ export const Subscription = Object.assign(subscriptionSchema, {
             })
             .returning({ name: subscriptionTable.name });
 
-        return written.length > 0;
+        // record a later position the follower waits for, which its streams publish at once
+        const { waiting } = subscription;
+        const waited =
+            waiting === undefined
+                ? []
+                : await database
+                      .update(subscriptionTable)
+                      .set({
+                          waitingLog: waiting.log,
+                          waitingEpoch: waiting.epoch,
+                          waitingSequence: waiting.sequence,
+                      })
+                      .where(
+                          and(
+                              eq(subscriptionTable.name, name),
+                              eq(subscriptionTable.scope, scope),
+                              eq(subscriptionTable.target, target),
+                              eq(subscriptionTable.caller, caller),
+                              or(
+                                  isNull(subscriptionTable.waitingSequence),
+                                  ne(subscriptionTable.waitingLog, waiting.log),
+                                  ne(subscriptionTable.waitingEpoch, waiting.epoch),
+                                  lt(subscriptionTable.waitingSequence, waiting.sequence),
+                              ),
+                          ),
+                      )
+                      .returning({ name: subscriptionTable.name });
+
+        return written.length > 0 || waited.length > 0;
     },
 
     /** Read parameters with their keys in canonical order, so equal ones store as equal text. */

@@ -39,6 +39,8 @@ export class Stream {
     #lastBeat: number;
     /** Whether the stream was beaten alone since it last published, making it publish again. */
     #isBeaten = false;
+    /** The position the request last waited for, as its row holds it, absent before any row. */
+    #waiting: string | undefined;
     /** The scopes whose commits the stream publishes its position past, beside its queries'. */
     readonly #scopes: readonly string[];
 
@@ -238,6 +240,13 @@ export class Stream {
         if (row === undefined) {
             return;
         }
+
+        // publish the position once the follower waits for a position it did not wait for before
+        const waiting = canonicalize([row.waitingLog, row.waitingEpoch, row.waitingSequence]);
+        if (row.waitingSequence !== null && waiting !== this.#waiting) {
+            this.beat();
+        }
+        this.#waiting = waiting;
 
         // move in place to the queries of changed parameters over the same tables
         if (canonicalize(row.parameters) !== canonicalize(this.#parameters ?? null)) {
