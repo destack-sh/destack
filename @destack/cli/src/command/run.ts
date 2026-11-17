@@ -13,6 +13,7 @@ import { buildCommand, devCommand, publishCommand } from "../workflow/dev.ts";
 import { tagCommand } from "../workflow/tag.ts";
 import { createCommand } from "../workflow/create.ts";
 import { installCommand } from "../workflow/install.ts";
+import { acceptCommand, shareCommand } from "../workflow/share.ts";
 import { openCommand } from "../workflow/open.ts";
 import { CommandTree, GLOBAL_OPTIONS, type Group, SEPARATOR } from "./command.ts";
 import { CommandFailure } from "./error.ts";
@@ -108,6 +109,8 @@ export class CommandLine {
 
             // the space's packages, and its stack
             install: installCommand(context),
+            share: shareCommand(context),
+            accept: acceptCommand(context),
             apply: applyCommand(context),
             plan: planCommand(context),
             approve: approveCommand(context),

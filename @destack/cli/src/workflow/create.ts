@@ -16,7 +16,7 @@ export function createCommand(context: Context): Verb {
         description: "Make a package from a template in a new directory, as a checkout",
         arguments: [
             { name: "package", usage: "@handle/name" },
-            { name: "directory", isDirectory: true },
+            { name: "directory", default: "", isDirectory: true },
         ],
         options: {
             template: {
@@ -29,7 +29,11 @@ export function createCommand(context: Context): Verb {
         async run({ arguments: { package: named, directory }, options, json }) {
             // read the package's name, its directory and the template's release
             const name = PackageName.parse(present(named, "the package argument"));
-            const target = resolve(directory ?? PackageName.split(name).local);
+            const target = resolve(
+                directory === undefined || directory === ""
+                    ? PackageName.split(name).local
+                    : directory,
+            );
             const template = readSpecifier(
                 OptionValue.string(options["template"], "template") ?? DEFAULT_TEMPLATE,
             );
