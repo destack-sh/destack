@@ -92,9 +92,25 @@ test("render a stack's readiness with aligned resources and the plan it waits on
         conditions: { Ready: condition("false", "WaitingForResources") },
     };
     const resources: InstallationStatus["resources"] = [
-        { name: "main", conditions: { Ready: condition("true", "Applied") } },
-        { name: "credentials", conditions: {} },
-        { name: "notes", conditions: { Ready: condition("false", "AwaitingApproval") } },
+        {
+            name: "main",
+            generation: 1,
+            conditions: {
+                Ready: condition("true", "Applied"),
+                Synced: condition("true", "ReconcileSuccess"),
+            },
+        },
+        { name: "credentials", generation: 1, conditions: {} },
+        {
+            name: "notes",
+            generation: 1,
+            conditions: {
+                Ready: {
+                    ...condition("false", "AwaitingApproval"),
+                    message: "waiting for approval of plan '9a2e'",
+                },
+            },
+        },
     ];
     const waiting: Plan = {
         steps: [
@@ -118,13 +134,13 @@ test("render a stack's readiness with aligned resources and the plan it waits on
         }).render(TerminalFixture.terminal(true)),
     ).toBe(
         [
-            "   Waiting  installation 'stack' WaitingForResources",
+            "   Pending  installation 'stack' WaitingForResources",
             "  follows   release 2026.10.0",
             "  revision  -",
             "",
             "  ● main         Applied",
-            "  ◐ credentials  Pending",
-            "  ◐ notes        AwaitingApproval",
+            "  ◐ credentials",
+            "  ◐ notes        waiting for approval of plan '9a2e'  AwaitingApproval",
             "",
             "  - resource/notes/table/notes__draft  destructive           drop table",
             `  1 to delete, destructive, plan ${digest}`,
@@ -162,7 +178,7 @@ test("render an application waiting to be granted more access, approved by its n
                 Ready: {
                     ...condition("false", "AwaitingApproval"),
                     observedGeneration: 2,
-                    message: `approve plan ${digest} with 1 steps`,
+                    message: `waiting for approval of plan '${digest}'`,
                 },
                 Synced: { ...condition("true", "ReconcileSuccess"), observedGeneration: 2 },
             },
@@ -180,10 +196,9 @@ test("render an application waiting to be granted more access, approved by its n
     }).toEqual({
         progress: "approval",
         rendered: [
-            "   Waiting  installation 'notes' AwaitingApproval",
+            `   Pending  installation 'notes': waiting for approval of plan '${digest}' AwaitingApproval`,
             "  follows   tag latest",
             `  revision  ${revisionId}`,
-            `       why  approve plan ${digest} with 1 steps`,
             "",
             "  ! installation/notes/access/space/package-01996ab0-0000-7000-8000-000000000005/space/read  privileged            request read on space",
             `  1 to grant, privileged, plan ${digest}`,
