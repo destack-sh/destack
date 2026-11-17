@@ -1,18 +1,18 @@
 import { fileURLToPath } from "node:url";
 import { Snapshot } from "@destack/db";
 import { preview } from "@destack/machine/checkout";
-import { schema } from "@destack/schema";
+import { schema, Version } from "@destack/schema";
 import { expect, test } from "@destack/test";
 import { TerminalFixture } from "../test/terminal.ts";
 
 /** The checkout the owner builds and previews the notebooks package from. */
 const NOTEBOOKS = fileURLToPath(new URL("../../tests/fixture/notebooks/", import.meta.url));
 
-/** The notebooks package as its checkout declares it. */
+/** The notebooks package as a build of its checkout that leads to no release has it. */
 const PACKAGE = {
     id: "package-01996ab0-0000-7000-8000-0000000000d4",
     name: "@acme/notebooks",
-    version: "2026.11.0",
+    version: Version.development,
 } as const;
 
 /** A printed build's state and phase. */

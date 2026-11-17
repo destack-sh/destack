@@ -1,6 +1,6 @@
+import { Version } from "@destack/schema";
 import { expect, test } from "@destack/test";
 import { CommandFailure, Interrupted } from "./error.ts";
-import manifest from "../../package.json" with { type: "json" };
 import { TerminalFixture } from "../test/terminal.ts";
 import { CliError } from "../error/index.ts";
 import { Terminal } from "../output/index.ts";
@@ -16,13 +16,13 @@ test("print the version, and refuse invalid usage as text or JSON", async () => 
         {
             arguments: ["--version", "--json"],
             code: 0,
-            output: [JSON.stringify({ version: manifest.version })],
+            output: [JSON.stringify({ version: Version.development })],
             error: [],
         },
         {
             arguments: ["--version"],
             code: 0,
-            output: [manifest.version],
+            output: [Version.development],
             error: [],
         },
         {
