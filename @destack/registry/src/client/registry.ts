@@ -9,7 +9,7 @@ import {
     type PackageLocation,
     PackageManifest,
 } from "@destack/package/manifest";
-import { Commit, Digest, type Identifier, nth, present, schema } from "@destack/schema";
+import { Commit, Digest, type Identifier, nth, present, schema, Version } from "@destack/schema";
 import type { Fetch } from "@destack/object";
 import { type ClientOf, createClient } from "@destack/object/client";
 import { Failure } from "@destack/error";
@@ -231,6 +231,34 @@ export class Registry {
         const client = createClient(registryPackage, forge, this.#environment);
 
         return client.repository.open({ spaceId: forge.space, id: repositoryId, mode: "read" });
+    }
+
+    /** Read the version the next release of an account's package takes at the account's forge. */
+    async next(account: Identifier<"account">, packageId: PackageId): Promise<Version> {
+        // start a package no account published yet at this month's first release
+        const isPublished = await this.#find({ package: packageId }).then(
+            () => true,
+            (error: unknown) => {
+                if (!RegistryError.is(error, "PUBLISHER_NOT_FOUND")) {
+                    throw error;
+                }
+
+                return false;
+            },
+        );
+        if (!isPublished) {
+            return Version.parse(Version.first(this.#environment.clock.now()));
+        }
+
+        // ask the account's forge for the release after the package's newest
+        const forge = await this.#find({ account });
+        const client = createClient(registryPackage, forge, this.#environment);
+        const { version } = await client.release.next({
+            spaceId: forge.space,
+            parentId: packageId,
+        });
+
+        return version;
     }
 
     /** Find the digest of the lock of a shipped release, or of a package's published one. */
