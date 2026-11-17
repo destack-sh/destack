@@ -1,7 +1,7 @@
 import { fileURLToPath } from "node:url";
 import { present, schema, Version } from "@destack/schema";
 import { expect, test } from "@destack/test";
-import { jsonLines, TerminalFixture } from "../test/terminal.ts";
+import { jsonLines, TerminalFixture, type TerminalInput } from "../test/terminal.ts";
 
 /** The checkout Acme publishes the notebooks package from. */
 const NOTEBOOKS = fileURLToPath(new URL("../../tests/fixture/notebooks/", import.meta.url));
@@ -131,6 +131,36 @@ test("install a published app, returning once the space serves its revision", as
                 fields: ["ownerPackageId", "ownerType", "ownerScope", "ownerId", "title"],
                 changes: 1,
             },
+        ],
+    });
+});
+
+test("keep a package's one installation on a second install, and refuse another name for it", async () => {
+    // publish the notebooks as acme and install them in the owner's home
+    const terminal = await TerminalFixture.open({ NO_COLOR: "1" });
+    const run = (words: readonly string[], input: TerminalInput = {}) =>
+        terminal.printed(["--space", "home", ...words], input);
+    const words = ["organization", "create", "--name", "Acme", "--handle", "acme"];
+    await run([...words, "--residency-id", "eu"]);
+    await run(["publish", NOTEBOOKS, "--json"], { stdin: "yes\n" });
+    const first = await run(["install", "@acme/notebooks", "--json"]);
+
+    // install them again, under no name and under another
+    const again = await run(["install", "@acme/notebooks", "--json"]);
+    const renamed = await run(["install", "@acme/notebooks", "--name", "journal"]);
+    const identify = (printed: { readonly output: string }) => {
+        const { id, name } = Installed.parse(jsonLines(printed.output).at(-1));
+
+        return [id, name];
+    };
+    expect({
+        installed: [first.code, again.code, identify(again)],
+        renamed: [renamed.code, renamed.error],
+    }).toEqual({
+        installed: [0, 0, identify(first)],
+        renamed: [
+            1,
+            "destack: installation 'notebooks' already exists: it is the package's one installation in the space, so leave --name out\n",
         ],
     });
 });
