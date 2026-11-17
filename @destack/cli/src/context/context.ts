@@ -7,7 +7,13 @@ import { type ObjectType, type Package } from "@destack/object";
 import { type ObjectClient, createClient } from "@destack/object/client";
 import { Setting } from "@destack/setting";
 import type { PlacementEndpoint } from "@destack/account/object";
-import { type Launcher, type Device, type MachineCredential } from "@destack/machine/device";
+import {
+    type Launcher,
+    type LauncherConsent,
+    type Device,
+    type MachineCredential,
+} from "@destack/machine/device";
+import type { StepUp } from "@destack/access";
 import { checkout, type Checkout } from "@destack/machine/checkout";
 import { RequestId } from "@destack/sync";
 import { type Identifier, schema, Version } from "@destack/schema";
@@ -198,17 +204,42 @@ export class Context {
         location: PlacementEndpoint,
         consent: "ask" | "approve" = "ask",
     ) {
-        // send as the person, asking them at the terminal for a consent a call needs unless they gave it
+        // send as the person, answering at the terminal what a call asks of them
         const client = await this.native();
         const session = await this.launcher();
-        const decide = async (request: GrantRequest): Promise<Decision> =>
-            consent === "approve" ? "approve" : this.#decide(request);
 
         return createClient<Handle["router"]>(
             handle,
-            session.endpoint(handle.id, location, { decide }),
+            session.endpoint(handle.id, location, this.consent(consent)),
             client.environment,
         );
+    }
+
+    /** Answer what a call asks of the person: a grant at the terminal, a step-up in the browser. */
+    consent(grant: "ask" | "approve" = "ask"): Required<LauncherConsent> {
+        return {
+            decide: async (request) => (grant === "approve" ? "approve" : this.#decide(request)),
+            elevate: (stepUp) => this.#elevate(stepUp),
+        };
+    }
+
+    /** Sign the person in again in the browser as a step-up asks, and read their launcher. */
+    async #elevate(stepUp: StepUp): Promise<Launcher> {
+        // tell the person why the browser opens, then sign them in again there
+        const { terminal, environment } = this;
+        await terminal.printDiagnostic("This needs you to confirm it is you.");
+        const native = await this.native();
+        const elevated = await native.signIn({ kind: "browser", stepUp }, async (state) => {
+            if (state.kind === "open") {
+                await terminal.printDiagnostic(`Opening ${state.url}`);
+                await environment.opener.openUrl(state.url);
+            }
+        });
+
+        // act through the launcher of the stepped-up sign-in from here on
+        this.#launcher = native.launcher(elevated.id);
+
+        return this.#launcher;
     }
 
     /** Ask the person at the terminal whether to grant what an installation asks. */
