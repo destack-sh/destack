@@ -100,6 +100,17 @@ export class WasmClient extends WasmQuery implements SqliteConnectionClient {
         return new WasmClient(database, environment);
     }
 
+    /** Open a file of the origin's private file system, which one worker holds at a time. */
+    static async opfs(name: string, environment: DatabaseEnvironment): Promise<WasmClient> {
+        // open the file through the database's own pool of synchronous access handles
+        const sqlite = await environment.scheduler.run(() => init());
+        const pool = await sqlite.installOpfsSAHPoolVfs({ name: `destack-${name}` });
+        const database = new pool.OpfsSAHPoolDb(`/${name}`);
+        database.exec("PRAGMA foreign_keys = ON; PRAGMA journal_mode = WAL;");
+
+        return new WasmClient(database, environment);
+    }
+
     /** Close the database after its work. */
     async close(): Promise<void> {
         await this.#queue.run(async () => this.database.close(), this.#environment);
