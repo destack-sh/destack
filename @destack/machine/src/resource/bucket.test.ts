@@ -736,6 +736,6 @@ test("refuse writes into a space whose bucket exceeds its entitlement, allowing 
         refused: ["TOO_MANY_REQUESTS", "ENTITLEMENT_EXHAUSTED", message],
         multipart: ["TOO_MANY_REQUESTS", "ENTITLEMENT_EXHAUSTED", message],
         listed: [],
-        removed,
+        removed: {},
     });
 });
