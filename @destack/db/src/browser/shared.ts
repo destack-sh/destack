@@ -339,7 +339,7 @@ export class SharedQuery implements SqliteQueryClient {
             parameters: parameters.map(sharedValue),
         });
         if (!Array.isArray(rows) || !rows.every((row) => Array.isArray(row))) {
-            throw new TypeError("the shared owner returned an unexpected value for rows as arrays");
+            throw new TypeError("the shared owner returned rows that are not arrays");
         }
 
         return rows;
@@ -354,7 +354,7 @@ export class SharedQuery implements SqliteQueryClient {
             parameters: parameters.map(sharedValue),
         });
         if (!Array.isArray(rows)) {
-            throw new TypeError("the shared owner returned an unexpected value for rows");
+            throw new TypeError("the shared owner returned rows that are not a list");
         }
         const answered: unknown[] = rows;
 
@@ -505,7 +505,7 @@ export class Party {
     async begin(mode: "deferred" | "immediate" | "exclusive"): Promise<SharedTransaction> {
         const { value, owner } = await this.#ask({ type: "begin", mode }, undefined);
         if (typeof value !== "number") {
-            throw new TypeError("the shared owner returned an unexpected value for a transaction");
+            throw new TypeError("the shared owner returned a transaction without a number");
         }
 
         return { owner, id: value };
