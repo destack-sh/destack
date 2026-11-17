@@ -436,6 +436,7 @@ export class TestNotification implements AsyncDisposable {
             mode: "set",
             value: schema.json().parse(value),
             release: declared.package.version,
+            edition: 1,
             requestId: RequestId.create(this.environment),
         });
     }
