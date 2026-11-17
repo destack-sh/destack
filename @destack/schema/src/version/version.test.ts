@@ -49,6 +49,14 @@ test("accept only calendar versions", () => {
     ]);
 });
 
+test("write the first release of a time's UTC month", () => {
+    expect([
+        Version.first(Date.UTC(2026, 10, 17, 3)),
+        Version.first(Date.UTC(2026, 11, 31, 23, 59)),
+        Version.first(Date.UTC(2027, 0, 1)),
+    ]).toEqual(["2026.11.0", "2026.12.0", "2027.1.0"]);
+});
+
 test("name the release after a version's release in its year and month", () => {
     expect(
         ["2026.9.0", "2026.12.4", "2026.9.0-dev.20260903090000.0a0b0c0d0e0f"].map((version) =>
