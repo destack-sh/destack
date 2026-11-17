@@ -2,6 +2,7 @@ import { DeclarationReference } from "@destack/package/declare";
 import type { ProviderClients } from "@destack/account/better-auth";
 import { FORGE_INSTALLATION } from "@destack/forge/package";
 import { WORKERD_COMPATIBILITY_DATE } from "@destack/package/runtime";
+import { builtinModules } from "node:module";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { type Plugin, rolldown } from "rolldown";
@@ -317,7 +318,8 @@ export class WorkerScript {
             resolve: { conditionNames: CONDITIONS },
             // define the production mode as wrangler's bundler does
             transform: { define: { "process.env.NODE_ENV": JSON.stringify("production") } },
-            external: [/^cloudflare:/u, /^node:/u, /^bun(?::|$)/u],
+            // leave the runtime's modules as imports, Node's with and without their prefix
+            external: [/^cloudflare:/u, /^node:/u, /^bun(?::|$)/u, ...builtinModules],
             plugins: [modulePlugin(new ModuleTransformer(environment)), supplyPlugin(modules)],
         });
         const { output } = await bundle.generate({
@@ -371,8 +373,13 @@ export class WorkerScript {
 
         // ask again while the script answers that its server is starting, after the pause it names
         const ask = async () => {
+            // request the address
             const answered = await network.fetch(new Request(url, { redirect: "manual" }));
-            const body: unknown = answered.ok ? undefined : await answered.clone().json();
+
+            // read a failure's body when it is JSON, as a starting server's is
+            const type = answered.headers.get("content-type") ?? "";
+            const isJson = !answered.ok && type.startsWith("application/json");
+            const body: unknown = isJson ? await answered.clone().json() : undefined;
 
             return { answered, starting: Starting.safeParse(body).data };
         };
