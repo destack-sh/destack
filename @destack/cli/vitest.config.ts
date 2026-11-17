@@ -34,7 +34,7 @@ export default defineConfiguration(
                     test: {
                         name: "scenario",
                         include: SCENARIO_TESTS,
-                        globalSetup: ["node_modules/@destack/machine/src/computer/test/setup.ts"],
+                        globalSetup: ["src/test/setup.ts"],
                         // load the builds a machine places as Bun loads them, so its links answer their kernel imports
                         server: {
                             deps: { external: [/\/destack-machine-[^/]+\/(?:builds|workers)\//u] },

@@ -1,3 +1,4 @@
+import { PUBLISHER } from "@destack/machine/computer/test";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Snapshot } from "@destack/db";
@@ -98,13 +99,11 @@ test("build a checkout's package in the space through each phase, and start a pr
 });
 
 test("have a preview take over the package's installation, and an install take it back", async () => {
-    // publish the notebooks as acme and install them in the owner's home
-    const terminal = await TerminalFixture.open({ NO_COLOR: "1" });
+    // install acme's published notebooks in the owner's home
+    const published = { organizations: [PUBLISHER], published: ["notebooks"] };
+    const terminal = await TerminalFixture.open({ NO_COLOR: "1" }, [], published);
     const run = (words: readonly string[], stdin?: string) =>
         terminal.printed(["--space", "home", ...words], stdin === undefined ? {} : { stdin });
-    const words = ["organization", "create", "--name", "Acme", "--handle", "acme"];
-    await run([...words, "--residency-id", "eu"]);
-    await run(["publish", NOTEBOOKS, "--json"], "yes\n");
     const installed = await run(["install", "@acme/notebooks", "--json"]);
 
     // preview the checkout, then install the release again, reading what the installation follows

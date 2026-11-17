@@ -1,13 +1,10 @@
-import { fileURLToPath } from "node:url";
-import { present, schema, Version } from "@destack/schema";
+import { PUBLISHER } from "@destack/machine/computer/test";
+import { schema, Version } from "@destack/schema";
 import { expect, test } from "@destack/test";
 import { jsonLines, TerminalFixture, type TerminalInput } from "../test/terminal.ts";
 
-/** The checkout Acme publishes the notebooks package from. */
-const NOTEBOOKS = fileURLToPath(new URL("../../tests/fixture/notebooks/", import.meta.url));
-
-/** The release a published dev build leads to: the first of the fixture clock's month. */
-const RELEASE = "2026.10.0";
+/** The home's world: Acme with its notebooks published. */
+const ACME = { organizations: [PUBLISHER], published: ["notebooks"] };
 
 /** A printed installation. */
 const Installed = schema.object({
@@ -16,13 +13,6 @@ const Installed = schema.object({
     package: schema.string(),
     version: schema.string(),
     tag: schema.string().nullable(),
-});
-
-/** The printed releases a publish made, by version. */
-const Published = schema.looseObject({
-    releases: schema.array(
-        schema.looseObject({ package: schema.looseObject({ version: schema.string() }) }),
-    ),
 });
 
 /** The printed statuses of an installation's rollout, as far as the scenario reads them. */
@@ -49,20 +39,9 @@ const Calls = schema.array(
 );
 
 test("install a published app, returning once the space serves its revision", async () => {
-    // publish the notebooks as the owner's acme organization
-    const terminal = await TerminalFixture.open({ NO_COLOR: "1" });
+    // open the owner's home, the notebooks published by their acme organization
+    const terminal = await TerminalFixture.open({ NO_COLOR: "1" }, [], ACME);
     const run = (words: readonly string[]) => terminal.printed(["--space", "home", ...words]);
-    const organization = ["--name", "Acme", "--handle", "acme", "--residency-id", "eu"];
-    const organized = await terminal.printed(["organization", "create", ...organization]);
-    const published = await terminal.printed(
-        ["--space", "home", "publish", NOTEBOOKS, "--tag", "latest", "--json"],
-        { stdin: "yes\n" },
-    );
-
-    // read the release publishing made of the checkout
-    const last = present(published.output.trim().split("\n").at(-1), "the publish's output");
-    const { releases } = Published.parse(JSON.parse(last));
-    const released = present(releases.at(-1), "the published checkout");
 
     // install the latest release in the owner's home, which returns once the home serves it
     const installing = await run(["install", "@acme/notebooks", "--json"]);
@@ -85,8 +64,6 @@ test("install a published app, returning once the space serves its revision", as
 
     // install once the home serves the revision, show no notebooks then the created one, and log its call and its history
     expect({
-        organized: organized.code,
-        published: [published.code, published.error],
         installing: [installing.code, installing.error],
         followed: [
             installed.tag,
@@ -107,8 +84,6 @@ test("install a published app, returning once the space serves its revision", as
             changes,
         })),
     }).toEqual({
-        organized: 0,
-        published: [0, ""],
         installing: [0, ""],
         // follow the latest tag, showing its rollout until the space serves its revision
         followed: ["latest", "tag latest", served.targetRevisionId],
@@ -118,9 +93,10 @@ test("install a published app, returning once the space serves its revision", as
             tag: "latest",
             name: "notebooks",
             package: "@acme/notebooks",
-            version: released.package.version,
+            version: installed.version,
         },
-        version: RELEASE,
+        // install the release as the run built it, unreleased
+        version: Version.development,
         watched: [130, [[], [JSON.parse(created.output)]], ""],
         calls: ["notebook.create"],
         // record the creation as one activity on the notebook, with the fields it wrote
@@ -136,13 +112,10 @@ test("install a published app, returning once the space serves its revision", as
 });
 
 test("keep a package's one installation on a second install, and refuse another name for it", async () => {
-    // publish the notebooks as acme and install them in the owner's home
-    const terminal = await TerminalFixture.open({ NO_COLOR: "1" });
+    // install acme's published notebooks in the owner's home
+    const terminal = await TerminalFixture.open({ NO_COLOR: "1" }, [], ACME);
     const run = (words: readonly string[], input: TerminalInput = {}) =>
         terminal.printed(["--space", "home", ...words], input);
-    const words = ["organization", "create", "--name", "Acme", "--handle", "acme"];
-    await run([...words, "--residency-id", "eu"]);
-    await run(["publish", NOTEBOOKS, "--json"], { stdin: "yes\n" });
     const first = await run(["install", "@acme/notebooks", "--json"]);
 
     // install them again, under no name and under another

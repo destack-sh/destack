@@ -1,7 +1,12 @@
 import { SpaceAddress } from "@destack/account/address";
 import type { Login } from "@destack/account/native";
 import { Device, type MachineCredential } from "@destack/machine/device";
-import { type TestInstall, TestComputer, TestDistribution } from "@destack/machine/computer/test";
+import {
+    type TestHomeOptions,
+    type TestInstall,
+    TestComputer,
+    TestDistribution,
+} from "@destack/machine/computer/test";
 import { type DatabaseConnection, Snapshot } from "@destack/db";
 import type { ObjectType } from "@destack/object";
 import { type InstallationRollout, Rollout, rollout } from "@destack/stack/object";
@@ -76,11 +81,13 @@ export class TerminalFixture {
     static async open(
         variables: Readonly<Record<string, string>> = {},
         installs: readonly TestInstall[] = [],
+        prepared: Pick<TestHomeOptions, "organizations" | "published"> = {},
     ): Promise<TerminalFixture> {
         // start the owner's home with the desktop's local objects, then open its device as command lines do
         const { home, login } = await TestComputer.home({
             localObjects: DESKTOP_OBJECTS,
             installs,
+            ...prepared,
         });
         const { world } = home;
         const native = await Device.open({

@@ -1,12 +1,9 @@
+import { PUBLISHER } from "@destack/machine/computer/test";
 import { join } from "node:path";
-import { fileURLToPath } from "node:url";
 import { PackageId } from "@destack/package";
 import { schema } from "@destack/schema";
 import { expect, test } from "@destack/test";
 import { TerminalFixture } from "../test/terminal.ts";
-
-/** The checkout Acme publishes its template from. */
-const STARTER = fileURLToPath(new URL("../../tests/fixture/starter/", import.meta.url));
 
 /** The identifier of Acme's template, which a package made from it replaces. */
 const STARTER_ID = "package-01996ab0-0000-7000-8000-0000000000d5";
@@ -19,14 +16,9 @@ const Created = schema.object({
 });
 
 test("make a package from a published template in a new checkout, its registries at the universe", async () => {
-    // create the acme organization as the owner, and publish its template
-    const terminal = await TerminalFixture.open({ NO_COLOR: "1" });
-    const words = ["organization", "create", "--name", "Acme", "--handle", "acme"];
-    await terminal.printed([...words, "--residency-id", "eu"]);
-    const published = await terminal.printed(["--space", "home", "publish", STARTER, "--json"], {
-        stdin: "yes\n",
-    });
-    expect([published.code, published.error]).toEqual([0, ""]);
+    // open the owner's home, the template published by their acme organization
+    const published = { organizations: [PUBLISHER], published: ["starter"] };
+    const terminal = await TerminalFixture.open({ NO_COLOR: "1" }, [], published);
 
     // make a package from the template in a new directory
     const directory = join(terminal.native.home, "notes");
