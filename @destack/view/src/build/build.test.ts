@@ -26,7 +26,7 @@ function flatten(options: readonly PluginOption[]): Plugin[] {
         }
         // refuse plugins still loading
         else if (option instanceof Promise) {
-            throw new TypeError("unexpected pending plugin");
+            throw new TypeError("plugin is still loading");
         }
         // keep plugins, skipping disabled ones
         else if (option !== false && option !== null && option !== undefined) {
