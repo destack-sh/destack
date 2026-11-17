@@ -20,6 +20,20 @@ const NEW = "new";
 /** The usual name of a create method, which the word new stands for in help. */
 const CREATE = "create";
 
+/** The word for what a method of a kind did to its object, absent for kinds returning data. */
+const RESULT_WORDS: Readonly<Record<string, string | undefined>> = {
+    create: "Created",
+    update: "Updated",
+    delete: "Deleted",
+    purge: "Purged",
+    restore: "Restored",
+    archive: "Archived",
+    unarchive: "Unarchived",
+    move: "Moved",
+    revert: "Reverted",
+    edit: "Edited",
+};
+
 /** The option confirming an action that cannot be undone. */
 const YES_OPTION = {
     yes: { type: "boolean", description: "Run without asking" },
@@ -258,7 +272,9 @@ function methodCommand(context: Context, noun: Noun, method: string, id: string 
             const remote = await noun.client(context);
             const result = await remote.call(noun.type.name, method, input);
             await context.terminal.print(
-                json ? JSON.stringify(result) : renderResult(noun, result, context.terminal),
+                json
+                    ? JSON.stringify(result)
+                    : renderResult(noun, method, result, context.terminal),
             );
         },
     };
@@ -274,12 +290,12 @@ async function requireConfirmation(
 ): Promise<void> {
     // take --yes, else the person's answer on a terminal
     const target = id ?? noun.plural;
+    const word = `${verb.charAt(0).toUpperCase()}${verb.slice(1)}`;
+    const subject = id === undefined ? `'${noun.plural}'` : `${noun.name} '${id}'`;
     const isConfirmed =
         options["yes"] === true ||
         (context.environment.process.stdin.isTerminal &&
-            (await context.terminal.prompt.confirm(
-                `Run ${verb} on ${target}? This cannot be undone.`,
-            )));
+            (await context.terminal.prompt.confirm(`${word} ${subject}? This cannot be undone.`)));
     if (!isConfirmed) {
         throw CliError.of(
             "COMMAND_BLOCKED",
@@ -340,7 +356,9 @@ function declaredCommand(
                 command.input(target === undefined ? input : { ...input, id: target }),
             );
             await context.terminal.print(
-                call.json ? JSON.stringify(result) : renderResult(noun, result, context.terminal),
+                call.json
+                    ? JSON.stringify(result)
+                    : renderResult(noun, command.method, result, context.terminal),
             );
         },
     };
@@ -383,11 +401,24 @@ async function methodInput(
     return flags.input(options, given, filter);
 }
 
-/** Render a method's result: an object as its fields, anything else as JSON. */
-function renderResult(noun: Noun, result: JsonValue, terminal: Terminal): string {
+/** Render a method's result: a changed object as one event, any other result as it is. */
+function renderResult(noun: Noun, method: string, result: JsonValue, terminal: Terminal): string {
+    // show what a method without a changed object returned
     const row = schema.jsonObject().safeParse(result);
+    const word = RESULT_WORDS[noun.type.method(method).kind];
+    if (!row.success) {
+        return JSON.stringify(result);
+    } else if (word === undefined) {
+        return Render.object(row.data, noun.type, terminal);
+    }
 
-    return row.success ? Render.object(row.data, noun.type, terminal) : JSON.stringify(result);
+    // say what happened to the object, by its title, with its identifier beside it
+    const { id } = schema.looseObject({ id: schema.string().exactOptional() }).parse(row.data);
+    const title = noun.type.presentation?.title;
+    const named = title === undefined ? undefined : row.data[title];
+    const subject = typeof named === "string" ? `${noun.name} '${named}'` : noun.name;
+
+    return terminal.event(word, "done", subject, id);
 }
 
 /** Follow a query's rows through an in-memory replica until the signal aborts. */

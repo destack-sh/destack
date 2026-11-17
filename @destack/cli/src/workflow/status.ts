@@ -19,7 +19,7 @@ import { schema } from "@destack/schema";
 import { ObjectReference, RequestId } from "@destack/sync";
 import { bucket, database, type Rollout, rollout } from "@destack/stack/object";
 import { vault } from "@destack/vault/object";
-import type { Format, Style } from "../output/index.ts";
+import type { EventState, Terminal, Tone } from "../output/index.ts";
 import type { Context } from "../context/context.ts";
 import stackPackage from "@destack/stack/package";
 import type {} from "@destack/package/import-meta";
@@ -31,28 +31,27 @@ const STATUS_RESOURCES = 100;
 /** The widest step risk, backward-incompatible, a plan line pads to. */
 const RISK_WIDTH = 21;
 
-/** The colour of each step risk. */
-const RISK_COLOURS = {
-    safe: "green",
-    fallible: "yellow",
-    "backward-incompatible": "yellow",
-    destructive: "red",
-    privileged: "magenta",
-} as const satisfies Record<Risk, Format>;
+/** The word and state of the event for each progress of an installation. */
+const PROGRESS_EVENTS: Readonly<Record<Progress, readonly [string, EventState]>> = {
+    current: ["Ready", "done"],
+    waiting: ["Waiting", "running"],
+    approval: ["Waiting", "running"],
+    failed: ["Failed", "failed"],
+};
 
-/** The sign, colour and totals phrase of each step action. */
+/** The sign, colour and totals phrase of each step action, coloured as a diff's lines. */
 const ACTIONS = {
-    create: { sign: "+", format: "green", phrase: "to create" },
-    update: { sign: "~", format: "yellow", phrase: "to update" },
-    delete: { sign: "-", format: "red", phrase: "to delete" },
-    replace: { sign: "±", format: "red", phrase: "to replace" },
-    rename: { sign: "→", format: "yellow", phrase: "to rename" },
-    convert: { sign: "~", format: "yellow", phrase: "to convert" },
-    restore: { sign: "+", format: "yellow", phrase: "to restore" },
-    grant: { sign: "!", format: "magenta", phrase: "to grant" },
+    create: { sign: "+", tone: "done", phrase: "to create" },
+    update: { sign: "~", tone: "accent", phrase: "to update" },
+    delete: { sign: "-", tone: "failed", phrase: "to delete" },
+    replace: { sign: "±", tone: "failed", phrase: "to replace" },
+    rename: { sign: "→", tone: "accent", phrase: "to rename" },
+    convert: { sign: "~", tone: "accent", phrase: "to convert" },
+    restore: { sign: "+", tone: "accent", phrase: "to restore" },
+    grant: { sign: "!", tone: "accent", phrase: "to grant" },
 } as const satisfies Record<
     Action,
-    { readonly sign: string; readonly format: Format; readonly phrase: string }
+    { readonly sign: string; readonly tone: Tone; readonly phrase: string }
 >;
 
 /** Follow an installation of the space with its resources, and the plan it waits on. */
@@ -288,25 +287,27 @@ export class InstallationStatus {
     }
 
     /** Render the installation's progress, its resources' readiness and the plan it waits on. */
-    render(format: Style): string {
-        // show where the installation stands, what it follows, and its failure or wait
+    render(terminal: Terminal): string {
+        // say where the installation stands, what it follows, and its failure or wait
         const { resources, waiting, installation: installed, progress, message } = this;
-        const colour = progress === "current" ? "green" : progress === "failed" ? "red" : "yellow";
+        const [word, state] = PROGRESS_EVENTS[progress];
+        const named = `installation '${installed.name ?? installed.scope}'`;
         const lines = [
-            `${format("bold", installed.name ?? installed.scope)}  ${format(colour, this.reason)}`,
-            `  follows   ${this.follows}`,
-            `  revision  ${this.rollout.appliedRevisionId ?? format("dim", "none applied")}`,
-            ...(progress === "current" || message === "" ? [] : [`  ${format("dim", message)}`]),
+            terminal.event(word, state, named, this.reason),
+            `  ${terminal.style("dim", "follows ")}  ${this.follows}`,
+            `  ${terminal.style("dim", "revision")}  ${this.rollout.appliedRevisionId ?? "-"}`,
+            ...(progress === "current" || message === "" ? [] : [terminal.hint("why", message)]),
         ];
 
-        // list each resource's readiness
+        // list each resource with its dot and its readiness
         if (resources.length > 0) {
             const width = Math.max(...resources.map((resource) => resource.name.length));
-            lines.push("", format("bold", "resources"));
+            lines.push("");
             for (const resource of resources) {
-                const resourceReady = resource.conditions["Ready"]?.reason ?? "Pending";
+                const ready = resource.conditions["Ready"]?.reason ?? "Pending";
+                const dot = terminal.dot(ready === "Applied" ? "ready" : "busy");
                 lines.push(
-                    `  ${resource.name.padEnd(width)}  ${format(resourceReady === "Applied" ? "green" : "yellow", resourceReady)}`,
+                    `  ${dot} ${resource.name.padEnd(width)}  ${terminal.style("dim", ready)}`,
                 );
             }
         }
@@ -315,12 +316,8 @@ export class InstallationStatus {
         if (waiting !== undefined && waiting.plan.steps.length > 0) {
             lines.push(
                 "",
-                format("bold", "waiting for approval"),
-                ...InstallationStatus.renderPlan(waiting.plan, waiting.digest, format),
-                format(
-                    "dim",
-                    `approve with: ${InstallationStatus.approval(installed, waiting.digest)}`,
-                ),
+                ...InstallationStatus.renderPlan(waiting.plan, waiting.digest, terminal),
+                terminal.hint("next", InstallationStatus.approval(installed, waiting.digest)),
             );
         }
 
@@ -335,19 +332,19 @@ export class InstallationStatus {
     }
 
     /** Render a plan: each step with its risk and changed fields, then its totals. */
-    static renderPlan(plan: Plan, digest: string, format: Style): string[] {
-        // list each step under its address
+    static renderPlan(plan: Plan, digest: string, terminal: Terminal): string[] {
+        // list each step under its address, its sign coloured as a diff's
         const lines: string[] = [];
         const width = Math.max(0, ...plan.steps.map((step) => step.target.length));
         for (const step of plan.steps) {
             const action = ACTIONS[step.action];
-            lines.push(
-                `  ${format(action.format, `${action.sign} ${step.target.padEnd(width)}`)}  ${format(RISK_COLOURS[step.risk], step.risk.padEnd(RISK_WIDTH))} ${step.detail}`,
-            );
+            const sign = terminal.tone(action.tone, action.sign);
+            const padding = " ".repeat(RISK_WIDTH - step.risk.length);
+            const risk = `${InstallationStatus.#risk(step.risk, terminal)}${padding}`;
+            lines.push(`  ${sign} ${step.target.padEnd(width)}  ${risk} ${step.detail}`);
             for (const [field, { before, after }] of Object.entries(step.fields ?? {})) {
-                lines.push(
-                    `      ${field}: ${format("red", InstallationStatus.#value(before))} ${format("dim", "→")} ${format("green", InstallationStatus.#value(after))}`,
-                );
+                const was = terminal.style("dim", `${InstallationStatus.#value(before)} →`);
+                lines.push(`      ${field}: ${was} ${InstallationStatus.#value(after)}`);
             }
         }
 
@@ -360,11 +357,9 @@ export class InstallationStatus {
         });
         lines.push(
             plan.steps.length === 0
-                ? "No changes."
-                : `${totals.join(", ")}, ${format(RISK_COLOURS[risk], risk)}, ${format("dim", `plan ${digest}`)}`,
-            ...(plan.deferred === undefined
-                ? []
-                : [format("yellow", `Deferred: ${plan.deferred}`)]),
+                ? terminal.style("dim", "  no changes")
+                : `  ${terminal.style("dim", `${totals.join(", ")},`)} ${InstallationStatus.#risk(risk, terminal)}${terminal.style("dim", `, plan ${digest}`)}`,
+            ...(plan.deferred === undefined ? [] : [terminal.hint("deferred", plan.deferred)]),
         );
 
         return lines;
@@ -372,7 +367,19 @@ export class InstallationStatus {
 
     /** Show the status as JSON or rendered text. */
     show(json: boolean, context: Context): string {
-        return json ? JSON.stringify(this) : this.render(context.terminal.style);
+        return json ? JSON.stringify(this) : this.render(context.terminal);
+    }
+
+    /** Write a risk: a safe one dim, one that removes or grants in the accent, any other plain. */
+    static #risk(risk: Risk, terminal: Terminal): string {
+        // dim what needs no look, and mark what a person must read before approving
+        if (risk === "safe") {
+            return terminal.style("dim", risk);
+        } else if (risk === "destructive" || risk === "privileged") {
+            return terminal.tone("accent", risk);
+        } else {
+            return risk;
+        }
     }
 
     /** Show a field value compactly. */

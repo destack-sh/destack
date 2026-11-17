@@ -1,4 +1,5 @@
 import { CallError } from "@destack/object";
+import { schema } from "@destack/schema";
 import type { Terminal } from "../output/index.ts";
 import { CliError } from "../error/error.ts";
 import type { CliEnvironment } from "../context/context.ts";
@@ -106,6 +107,15 @@ export class CommandFailure {
         return causes;
     }
 
+    /** Read the trace a service captured its internal failure in. */
+    get trace(): string | undefined {
+        const traced = schema
+            .looseObject({ traceId: schema.string() })
+            .safeParse(CallError.of(this.cause)?.data);
+
+        return traced.success ? traced.data.traceId : undefined;
+    }
+
     /** Read the exit status: misuse, a missing sign-in, an interrupt, or any other failure. */
     get status(): number {
         // exit as interrupted
@@ -136,9 +146,11 @@ export class CommandFailure {
     async report(json: boolean, terminal: Terminal): Promise<number> {
         if (!(this.error instanceof Interrupted)) {
             const reported = { code: this.code, message: this.message, causes: this.causes };
+            const { trace } = this;
             const lines = [
-                `destack: ${reported.message}`,
-                ...reported.causes.map((cause) => `  caused by: ${cause}`),
+                terminal.event("error", "failed", reported.message),
+                ...reported.causes.map((cause) => terminal.hint("cause", cause)),
+                ...(trace === undefined ? [] : [terminal.hint("trace", trace)]),
             ];
             await terminal.printDiagnostic(
                 json ? JSON.stringify({ error: reported }) : lines.join("\n"),

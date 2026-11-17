@@ -6,6 +6,9 @@ import type { Terminal } from "../output/index.ts";
 import { CliError } from "../error/index.ts";
 import { WallTime } from "./time.ts";
 
+/** The margin a person's records, tables and headings start at, beside the gutter's words. */
+const MARGIN = "  ";
+
 /** The most columns a table shows without --fields, beside the identifier. */
 const DEFAULT_COLUMNS = 6;
 
@@ -33,7 +36,7 @@ export const Render = {
             return named;
         }
 
-        // take the identifier, the title and the first other declared fields that fit a cell
+        // take the title, the first other declared fields that fit a cell, and the identifier last
         const referenceColumns = new Set(
             Object.values(type.fields).flatMap((field) => {
                 const columns =
@@ -59,7 +62,7 @@ export const Render = {
                 ? declared
                 : [title, ...declared.filter((property) => property !== title)];
 
-        return ["id", ...ordered.slice(0, DEFAULT_COLUMNS)];
+        return [...ordered.slice(0, DEFAULT_COLUMNS), "id"];
     },
 
     /** Read --sort, fields separated by commas with a minus for descending, into an order. */
@@ -87,7 +90,9 @@ export const Render = {
     ): string {
         // tell a person there are none, and a program nothing
         if (rows.length === 0) {
-            return terminal.isTerminal ? `No ${type.plural}.` : "";
+            return terminal.isTerminal
+                ? `${MARGIN}${terminal.style("dim", `no ${type.plural}`)}`
+                : "";
         }
 
         // write each cell under its column's header
@@ -95,47 +100,69 @@ export const Render = {
             columns.map((column) => cell(type, column, row[column], terminal)),
         );
 
-        return Render.grid(
+        // count the rows below a person's table, the identifiers dimmed beside what people read
+        const grid = Render.grid(
             columns.map((column) => heading(type, column)),
             cells,
             terminal,
+            columns.indexOf("id"),
         );
+        const counted = `${rows.length} ${rows.length === 1 ? type.name : type.plural}`;
+
+        return terminal.isTerminal ? `${grid}\n\n${MARGIN}${terminal.style("dim", counted)}` : grid;
     },
 
-    /** Render padded columns under a bold header on a terminal, else tab-separated rows. */
+    /** Render padded columns under a dim header on a terminal, else tab-separated rows. */
     grid(
         header: readonly string[],
         cells: readonly (readonly string[])[],
         terminal: Pick<Terminal, "style" | "isTerminal" | "timeZone">,
+        dimmed = -1,
     ): string {
         // separate each cell with a tab for a program, with no header
         if (!terminal.isTerminal) {
             return cells.map((line) => line.map(flatten).join("\t")).join("\n");
         }
 
-        // pad each column to its widest cell under a bold header
+        // pad each column to its widest cell under a dim header, dimming one column's cells
         const widths = header.map((_, index) =>
             Math.max(...[header, ...cells].map((line) => line[index]?.length ?? 0)),
         );
+        const pad = (value: string, index: number) =>
+            index === header.length - 1 ? value : value.padEnd(widths[index] ?? 0);
         const line = (values: readonly string[]) =>
             values
-                .map((value, index) => value.padEnd(widths[index] ?? 0))
-                .join("  ")
-                .trimEnd();
+                .map((value, index) =>
+                    index === dimmed ? terminal.style("dim", pad(value, index)) : pad(value, index),
+                )
+                .join("  ");
 
-        return [terminal.style("bold", line(header)), ...cells.map(line)].join("\n");
+        return [terminal.style("dim", header.map(pad).join("  ")), ...cells.map(line)]
+            .map((row) => `${MARGIN}${row}`)
+            .join("\n");
     },
 
     /** Render one object as its fields, one a line, padded on a terminal, else tab-separated. */
     object(
         row: JsonObject,
         type: ObjectType,
-        terminal: Pick<Terminal, "style" | "isTerminal" | "timeZone">,
+        terminal: Pick<Terminal, "style" | "heading" | "isTerminal" | "timeZone">,
     ): string {
-        const width = Math.max(...Object.keys(row).map((field) => field.length));
+        // head a person's view with the object's title and identifier, its other fields below
+        const title = type.presentation?.title;
+        const headed = terminal.isTerminal && title !== undefined && typeof row[title] === "string";
+        const fields = Object.entries(row).filter(
+            ([field]) => !headed || (field !== title && field !== "id"),
+        );
+        const width = Math.max(...fields.map(([field]) => field.length));
+        const margin = terminal.isTerminal ? MARGIN : "";
+        const head = headed
+            ? [`${margin}${terminal.heading(text(row[title]), text(row["id"]))}`, ""]
+            : [];
 
-        return Object.entries(row)
-            .map(([field, value]) => {
+        return [
+            ...head,
+            ...fields.map(([field, value]) => {
                 // write structure as JSON, any other value as its cell
                 const shown =
                     typeof value === "object" && value !== null
@@ -144,10 +171,10 @@ export const Render = {
 
                 // pad the field's name for a person, and separate it with a tab for a program
                 return terminal.isTerminal
-                    ? `${terminal.style("dim", field.padEnd(width))}  ${shown}`
+                    ? `${margin}${terminal.style("dim", field.padEnd(width))}  ${shown}`
                     : `${field}\t${flatten(shown)}`;
-            })
-            .join("\n");
+            }),
+        ].join("\n");
     },
 };
 
