@@ -605,7 +605,11 @@ export class BuildStore<
         if ((await this.#head(root.digest)) !== undefined) {
             const builds =
                 root.kind === "lock" ? Lock.builds(await this.lock(root.digest)) : [root.digest];
-            const stored = builds.filter((build) => this.layer.head(build) === undefined);
+
+            // trust the layer for what runtimes run, which is all it ships of a build
+            const isShipped = (build: Digest) =>
+                runtimes !== "all" && this.layer.head(build) !== undefined;
+            const stored = builds.filter((build) => !isShipped(build));
             const complete = await this.#complete(
                 stored,
                 this.#isLayerMounted(buildManifest.layer),
