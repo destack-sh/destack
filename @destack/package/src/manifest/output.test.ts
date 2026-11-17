@@ -36,3 +36,35 @@ test("rewrite the mapped specifiers of static, re-exporting and dynamic imports,
         'import "/view-2/index.js";',
     ]);
 });
+
+test("list the modules a module imports or names by URL, and whether it imports one by a computed name", async () => {
+    // import a mapped package, a mapped subpath, a platform module, relative modules and a computed name
+    const code = [
+        'import { view } from "@example/view";',
+        'export * from "@example/kit/button.js";',
+        'import { env } from "cloudflare:workers";',
+        'import "./local.js";',
+        'const later = import("../shared/chunk.js");',
+        "const here = import.meta.url;",
+        'const worker = new Worker(new URL("./worker.js", import.meta.url));',
+    ].join("\n");
+    const computed = "const pattern = import(`./languages/${name}.js`);";
+
+    // list each literal import where it resolves, and mark the module with a computed import open
+    expect([
+        await ImportMap.imports(MAP, code, "/app/src/index.js"),
+        await ImportMap.imports(MAP, computed, "/app/src/index.js"),
+    ]).toEqual([
+        {
+            modules: [
+                "/view-1/index.js",
+                "/kit/src/button.js",
+                "/app/src/local.js",
+                "/app/shared/chunk.js",
+                "/app/src/worker.js",
+            ],
+            isOpen: false,
+        },
+        { modules: [], isOpen: true },
+    ]);
+});
