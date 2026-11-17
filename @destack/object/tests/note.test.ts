@@ -1,3 +1,4 @@
+import { worldTelemetry } from "../src/test/world.ts";
 import { FOLLOWER_REVISION } from "@destack/sync/test";
 import { testSimulation } from "../src/test/index.ts";
 import { users, userName } from "./fixture/user.ts";
@@ -5,11 +6,11 @@ import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { TestDatabase } from "@destack/db/test";
 import { journal, ViewSubscriber } from "../src/index.ts";
 import { eq, Snapshot } from "@destack/db";
-import { BrowserTab, type BrowserTabWorker } from "../src/browser/index.ts";
+import { type BrowserDevice, BrowserTab } from "../src/browser/index.ts";
+import { deviceDatabase, deviceWorker } from "./fixture/browser.ts";
 import { BrowserSimulation } from "@destack/environment/browser/simulation";
-import { ObjectClient, RelationalQuery } from "../src/client/index.ts";
-import { broadcastChannel, serveDatabase, WasmClient } from "@destack/db/browser";
-import { schema, present } from "@destack/schema";
+import { ObjectClient, ProcedureRemote, RelationalQuery } from "../src/client/index.ts";
+import { nth, schema, present } from "@destack/schema";
 import { RequestId, ObjectReference, type Page } from "@destack/sync";
 import { getEventMeta } from "@destack/object";
 import { note, notebook } from "../src/test/note.ts";
@@ -211,8 +212,12 @@ test("queue notes offline, write batches atomically, drop rejected predictions a
         objects: { notebook, note },
         scope: spaceId,
         caller: principal.user.reference("universe", users.alice),
-        endpoint: endpoint(users.alice),
-        reconnect: unmoved,
+        remote: ProcedureRemote.at({
+            scope: spaceId,
+            endpoint: endpoint(users.alice),
+            reconnect: unmoved,
+            environment: environment,
+        }),
     });
     expect(await restarted.prediction.pending(restarted.database)).toEqual(queued);
     expect(queued.map((mutation) => mutation.calls)).toEqual([
@@ -437,37 +442,40 @@ test("count a notebook's notes outside the trash, predicted on a device before t
     expect(device.errors).toEqual([]);
 });
 
-test("share one browser database between tabs, handing it over when the leading tab closes", async () => {
+test("share one device between tabs, letting a closed tab's queries lapse and handing it over when the leading tab closes", async () => {
     const simulation = testSimulation();
     const { connect, endpoint } = await serveNotes({ simulation, node: "browser" });
     const alice = connect(users.alice);
 
-    // share one browser's locks, channel and database worker between tabs
+    // share one browser's locks, channel and device worker between tabs
     const environment = new BrowserSimulation(simulation).environment("browser");
-    const database = await WasmClient.memory(environment);
-    const worker: BrowserTabWorker = async () => {
-        const channel = broadcastChannel("destack:notes", environment);
-        const stop = serveDatabase(database, channel, environment);
-
-        return async () => stop();
-    };
+    const objects = { notebook, note };
+    const caller = principal.user.reference("universe", users.alice);
+    const device = principal.device.reference("universe", "device-browser");
+    let served: BrowserDevice | undefined;
+    const worker = deviceWorker({
+        database: await deviceDatabase(objects, environment),
+        objects,
+        caller,
+        device,
+        endpoint: endpoint(users.alice),
+        environment,
+        served: (opened) => {
+            served = opened;
+        },
+    });
     const open = () =>
         BrowserTab.open({
             environment,
             name: "notes",
-            objects: { notebook, note },
+            objects,
             scope: spaceId,
-            caller: principal.user.reference("universe", users.alice),
-            device: principal.device.reference("universe", "device-browser"),
-            endpoint: endpoint(users.alice),
-            reconnect: unmoved,
+            caller,
+            device,
             worker,
-            report: (error) => {
-                throw error;
-            },
         });
 
-    // lead the database in the first tab, and share it with the second
+    // lead the device in the first tab, and share it with the second
     const first = await open();
     await first.ready;
     const second = await open();
@@ -481,20 +489,28 @@ test("share one browser database between tabs, handing it over when the leading 
     await travel.confirmed;
     expect((await alice.notebook.get({ spaceId, id })).name).toBe("Travel");
 
-    // forget a tab's subscriptions after it closes and frees its presence lock
+    // follow a tab's access rows and queries at the device while it streams, and let them lapse once it closes
+    const held = async () =>
+        (await present(served, "the served device").client.store.followKeys()).filter(
+            (key) => key.expiresAt === null,
+        );
+    const before = await held();
     const third = await open();
     await third.ready;
     await third.client.query.note.findMany().subscribe().ready;
-    const isPresent = async () => (await first.client.origins()).has(third.client.origin);
-    const before = await isPresent();
+    const during = await held();
     await third.close();
-    await first.client.database.log.waitUntil(
-        async () => !(await isPresent()),
+    await present(served, "the served device").client.database.log.waitUntil(
+        async () => (await held()).length === before.length,
         environment.clock.timeout(5000),
     );
-    expect([before, await isPresent()]).toEqual([true, false]);
+    const added = during
+        .filter((key) => !before.some((other) => other.follower === key.follower))
+        .map((key) => key.shape)
+        .toSorted();
+    expect([added, await held()]).toEqual([["access", "queries"], before]);
 
-    // hand the database over once the leading tab closes, and go on writing through the second
+    // hand the device over once the leading tab closes, and go on writing through the second
     await first.close();
     const packing = second.client.mutate(note).create({ parentId: id, title: "Packing" });
     await packing.confirmed;
@@ -502,6 +518,153 @@ test("share one browser database between tabs, handing it over when the leading 
         "Packing",
     ]);
     await second.close();
+});
+
+test("reject a tab's write the home refuses after its device queued it, with the home's failure", async () => {
+    const simulation = testSimulation();
+    const { connect, endpoint } = await serveNotes({ simulation, node: "browser" });
+    const alice = connect(users.alice);
+    const request = () => ({
+        spaceId,
+        requestId: RequestId.create(simulation.environment("test")),
+    });
+
+    // open a tab over a device whose pushes to the home wait until released
+    const environment = new BrowserSimulation(simulation).environment("browser");
+    const objects = { notebook, note };
+    const caller = principal.user.reference("universe", users.alice);
+    const device = principal.device.reference("universe", "device-browser");
+    const released = Promise.withResolvers<void>();
+    const home = endpoint(users.alice);
+    const worker = deviceWorker({
+        database: await deviceDatabase(objects, environment),
+        objects,
+        caller,
+        device,
+        endpoint: {
+            ...home,
+            fetch: async (sent: Request) => {
+                // hold the device's pushes until released
+                if (new URL(sent.url).pathname.endsWith("/store/push")) {
+                    await released.promise;
+                }
+
+                return await present(home.fetch, "the home's fetch")(sent);
+            },
+        },
+        environment,
+    });
+    const tab = await BrowserTab.open({
+        environment,
+        name: "notes",
+        objects,
+        scope: spaceId,
+        caller,
+        device,
+        worker,
+    });
+    onTestFinished(() => tab.close());
+    await tab.ready;
+
+    // rename a notebook in the tab, which its device queues, then archive it at the home
+    const plans = await alice.notebook.create({ ...request(), name: "Plans" });
+    const live = tab.client.query.notebook.findMany({ archived: "include" }).subscribe();
+    await live.ready;
+    await tab.client.database.log.waitUntil(
+        async () => (await live.read()).length === 1,
+        simulation.clock.timeout(5000),
+    );
+    const renamed = tab.client.mutate(notebook).update({ id: plans.id, name: "Old plans" });
+    await renamed.predicted;
+    await alice.notebook.archive({ ...request(), id: plans.id });
+
+    // release the device's push, and expect the home's refusal to reach the tab through its device
+    released.resolve();
+    expect(await refusal(renamed.confirmed)).toEqual([
+        "PRECONDITION_FAILED",
+        "OBJECT_BLOCKED",
+        "cannot change notebook: it is archived",
+    ]);
+});
+
+test("forget a closed tab's outcomes on its device once the tab lets go of its party lock", async () => {
+    const simulation = testSimulation();
+    const { connect, endpoint } = await serveNotes({ simulation, node: "browser" });
+    const alice = connect(users.alice);
+    const request = () => ({
+        spaceId,
+        requestId: RequestId.create(simulation.environment("test")),
+    });
+
+    // open a tab over a device whose pushes to the home wait until released
+    const environment = new BrowserSimulation(simulation).environment("browser");
+    const objects = { notebook, note };
+    const caller = principal.user.reference("universe", users.alice);
+    const device = principal.device.reference("universe", "device-browser");
+    const released = Promise.withResolvers<void>();
+    const home = endpoint(users.alice);
+    let served: BrowserDevice | undefined;
+    const worker = deviceWorker({
+        database: await deviceDatabase(objects, environment),
+        objects,
+        caller,
+        device,
+        endpoint: {
+            ...home,
+            fetch: async (sent: Request) => {
+                // hold the device's pushes until released
+                if (new URL(sent.url).pathname.endsWith("/store/push")) {
+                    await released.promise;
+                }
+
+                return await present(home.fetch, "the home's fetch")(sent);
+            },
+        },
+        environment,
+        served: (opened) => {
+            served = opened;
+        },
+    });
+    const tab = await BrowserTab.open({
+        environment,
+        name: "notes",
+        objects,
+        scope: spaceId,
+        caller,
+        device,
+        worker,
+    });
+    await tab.ready;
+
+    // rename a notebook in the tab, then close the tab before the device pushes the rename
+    const plans = await alice.notebook.create({ ...request(), name: "Plans" });
+    const live = tab.client.query.notebook.findMany().subscribe();
+    await live.ready;
+    await tab.client.database.log.waitUntil(
+        async () => (await live.read()).length === 1,
+        simulation.clock.timeout(5000),
+    );
+    const renamed = tab.client.mutate(notebook).update({ id: plans.id, name: "Old plans" });
+    await renamed.predicted;
+    const origin = (await tab.client.database.log.position()).log;
+    await tab.close();
+
+    // push the rename, and listen as the closed tab once the device sent everything
+    released.resolve();
+    const opened = present(served, "the served device");
+    const { database } = opened.client;
+    const outbox = present(opened.client.store.outbox, "the device's outbox");
+    await database.log.waitUntil(
+        async () => (await outbox.prediction.pending(database)).length === 0,
+        simulation.clock.timeout(5000),
+    );
+    await simulation.idle();
+    const heard: unknown[] = [];
+    const stop = outbox.listen(origin, (outcomes) => heard.push(...outcomes));
+    stop([]);
+
+    // expect the device to hand the closed tab nothing
+    expect(heard).toEqual([]);
 });
 
 test("decide checks on a device from its replica of the caller's access rows, and follow a grant and its revocation into them", async () => {
@@ -591,7 +754,7 @@ test("resume a store stream from the last event it sent, at that page's position
         requestId: RequestId.create(environment),
         name: "Research",
     });
-    const store = ObjectClient.store(endpoint(users.alice), world);
+    const store = ProcedureRemote.procedures(endpoint(users.alice), world);
     const subscription = {
         name: "access",
         publication: "access",
@@ -638,7 +801,7 @@ test("follow a caller's access rows on behalf of the caller itself as without a 
         requestId: RequestId.create(environment),
         name: "Research",
     });
-    const store = ObjectClient.store(endpoint(users.alice), world);
+    const store = ProcedureRemote.procedures(endpoint(users.alice), world);
     const subscription = {
         name: "access",
         publication: "access",
@@ -688,7 +851,7 @@ test("restart a caller's access stream only on access changes concerning the cal
     const controller = new AbortController();
     onTestFinished(() => controller.abort());
     const pages: Page[] = [];
-    const store = ObjectClient.store(endpoint(users.bob), world);
+    const store = ProcedureRemote.procedures(endpoint(users.bob), world);
     const subscription = {
         name: "access",
         publication: "access",
@@ -724,7 +887,7 @@ test("restart a caller's access stream only on access changes concerning the cal
     await share(users.carol);
 
     // have bob's stream publish the position past carol's share at the feed's next heartbeat, so a restart for it would show first
-    const watermark = await ObjectClient.store(endpoint(users.alice), world).watermark({
+    const watermark = await ProcedureRemote.procedures(endpoint(users.alice), world).watermark({
         scope: spaceId,
         homes: [],
     });
@@ -920,7 +1083,6 @@ async function reached<Value>(
 
 test("fail the queries open once the source refuses to follow, and refuse later ones again", async () => {
     const { endpoint, environment } = await serveNotes();
-    const errors: unknown[] = [];
 
     // follow a space the store does not serve, as alice
     const storage = await TestDatabase.create(ObjectClient.tables({ notebook, note }), {
@@ -933,12 +1095,16 @@ test("fail the queries open once the source refuses to follow, and refuse later 
         objects: { notebook, note },
         scope: schema.identifier("space").parse("space-01996ab0-0000-7000-8000-0000000000ff"),
         caller: principal.user.reference("universe", users.alice),
-        endpoint: endpoint(users.alice),
-        reconnect: unmoved,
         environment,
+        remote: ProcedureRemote.at({
+            scope: schema.identifier("space").parse("space-01996ab0-0000-7000-8000-0000000000ff"),
+            endpoint: endpoint(users.alice),
+            reconnect: unmoved,
+            environment: environment,
+        }),
     });
     const stopping = new AbortController();
-    const running = client.run(stopping.signal, (error) => errors.push(error));
+    const running = client.run(stopping.signal);
     onTestFinished(async () => {
         stopping.abort();
         await running;
@@ -961,12 +1127,14 @@ test("fail the queries open once the source refuses to follow, and refuse later 
             : Promise.resolve(settled.value),
     );
 
-    // expect each query to fail with the refusal, which every refused follow reported
-    const reported = await Promise.all(errors.map((error) => refusal(Promise.reject(error))));
+    // expect each query to fail with the refusal, which every refused follow captured
+    const captured = worldTelemetry(environment)
+        .take()
+        .map((exception) => exception.message);
     expect({
         reasons: await Promise.all(reasons),
-        reported: [...new Set(reported.map((refused) => JSON.stringify(refused)))],
-    }).toEqual({ reasons: [outside, outside, outside], reported: [JSON.stringify(outside)] });
+        captured: [...new Set(captured)],
+    }).toEqual({ reasons: [outside, outside, outside], captured: [nth(outside, 2)] });
 });
 
 test("refuse changing an archived notebook on the device before the server sees it", async () => {

@@ -1,16 +1,18 @@
-import { type Duration, schema } from "@destack/schema";
-import { ObjectError } from "../error/index.ts";
-import type { Subject } from "@destack/sync";
-import { broadcastChannel, connectShared } from "@destack/db/browser";
-import type { ClientOptions } from "../client/package.ts";
-import { RequestId } from "@destack/sync";
-import type { ObjectType } from "../object/object.ts";
-import { ObjectClient } from "../client/client.ts";
-import { Replay } from "../audit/replay.ts";
-import type { Environment } from "@destack/environment";
+import type { SqliteDatabase } from "@destack/db/sqlite";
+import { type Duration, type JsonObject, schema } from "@destack/schema";
+import { broadcastChannel, connectWasmSqlite, WasmClient } from "@destack/db/browser";
+import { type Environment, waitAborted } from "@destack/environment";
 import type {} from "@destack/environment/browser";
+import { RequestId, type Subject } from "@destack/sync";
+import { ObjectError } from "../error/index.ts";
+import { ObjectClient } from "../client/client.ts";
+import type { ObjectType } from "../object/object.ts";
+import { ChannelRemote } from "../replica/channel.ts";
+import { Replay } from "../audit/replay.ts";
+import { TelemetryScope } from "@destack/telemetry";
+import type {} from "@destack/package/import-meta";
 
-/** What the database worker tells the tab that started it: it serves, or it failed to open. */
+/** What the device worker tells the tab that started it: it serves, or it failed to open. */
 const WorkerAnswer = schema.discriminatedUnion("kind", [
     schema.object({ kind: schema.literal("serving") }),
     schema.object({ kind: schema.literal("failed"), message: schema.string() }),
@@ -19,81 +21,104 @@ const WorkerAnswer = schema.discriminatedUnion("kind", [
 /** The browser effects a tab takes: the origin's locks, broadcast channels and storage. */
 export type BrowserTabEnvironment = Environment<"locks" | "broadcast" | "storage">;
 
-/** Start the database worker, returning how to stop it. */
+/** Start the device worker, returning how to stop it. */
 export type BrowserTabWorker = () => Promise<() => Promise<void>>;
 
-/** One tab's objects over the database of the leading tab's worker. */
+/** A tab's objects in memory, following and writing through the person's device. */
 export class BrowserTab<
     Objects extends Readonly<Record<string, ObjectType>> = Readonly<Record<string, ObjectType>>,
 > {
     /** The tab's client. */
     readonly client: ObjectClient<Objects>;
-    /** Settles once the database answers with its tables. */
+    /** Settles once the tab has the caller's access rows, or refuses with why not. */
     readonly ready: Promise<void>;
-    /** The connection to the leading tab's worker. */
-    readonly #database: ReturnType<typeof connectShared>;
-    /** The browser the tab runs in. */
-    readonly #environment: BrowserTabEnvironment;
-    /** Start the database worker once the tab leads. */
-    readonly #worker: BrowserTabWorker;
-    /** The database's name, shared by every tab of the origin. */
-    readonly #name: string;
-    /** Aborts the tab's loops and waits on close. */
+    /** The device the tab follows and writes through. */
+    readonly #remote: ChannelRemote;
+    /** The tab's database in memory. */
+    readonly #database: SqliteDatabase;
+    /** Aborts the tab's loops on close. */
     readonly #stopping: AbortController;
-    /** Release the tab's presence lock. */
-    readonly #leave: () => void;
-    /** Settles once the tab no longer leads the database or waits to. */
-    readonly #owning: Promise<void>;
+    /** Settles once the tab's loops end. */
+    readonly #running: Promise<void>;
+    /** Settles once the tab no longer leads the device or waits to. */
+    readonly #leading: Promise<void>;
+    /** Settles once the tab no longer holds its party lock. */
+    readonly #party: Promise<void>;
 
-    /** Join the tabs as one party. */
+    /** Run a tab's client, leading the device once no other tab does. */
     private constructor(
         client: ObjectClient<Objects>,
-        database: ReturnType<typeof connectShared>,
-        ready: Promise<void>,
-        environment: BrowserTabEnvironment,
-        worker: BrowserTabWorker,
-        name: string,
-        stopping: AbortController,
-        leading: {
-            readonly objects: Readonly<Record<string, ObjectType>>;
-            readonly report: (error: unknown) => void;
+        database: SqliteDatabase,
+        remote: ChannelRemote,
+        options: {
+            readonly name: string;
+            readonly worker: BrowserTabWorker;
+            readonly environment: BrowserTabEnvironment & Environment;
+            /** Aborts the tab's loops and its party lock on close. */
+            readonly stopping: AbortController;
+            /** Settles once the tab no longer holds its party lock. */
+            readonly party: Promise<void>;
         },
     ) {
-        // take the presence lock
+        // refuse readiness on the tab's first final failure, such as a refused follow or a failed worker
         this.client = client;
         this.#database = database;
-        this.#environment = environment;
-        this.#worker = worker;
-        this.#name = name;
-        this.#stopping = stopping;
-        let leave!: () => void;
-        const left = new Promise<void>((resolve) => {
-            leave = resolve;
-        });
-        this.#leave = leave;
-        void this.#request(this.#presence(client.origin), () => left);
-
-        // wait to lead the database
-        const signal = this.#stopping.signal;
-        const owner = `destack:${name}:owner`;
-        this.#owning = this.#request(
-            owner,
-            () => this.#lead(leading.objects, leading.report),
-            signal,
-        ).catch((error: unknown) => {
-            // rethrow unless closing
-            if (!signal.aborted) {
-                throw error;
+        this.#remote = remote;
+        this.#stopping = options.stopping;
+        this.#party = options.party;
+        const { signal } = this.#stopping;
+        const failed = Promise.withResolvers<never>();
+        failed.promise.catch(() => undefined);
+        const instruments = TelemetryScope.of(
+            import.meta.destack.package,
+            options.environment.telemetry,
+        );
+        const stopRefusals = client.store.listenRefusals((error) => {
+            if (Replay.failure(error) !== undefined) {
+                failed.reject(error);
             }
         });
 
-        // fail readiness once leading the database fails, such as a worker unable to open it
-        this.ready = Promise.race([ready, this.#owning.then(() => ready)]);
+        // lead the device while no other tab does, starting its worker until the tab closes
+        const lead = async () => {
+            if (!signal.aborted) {
+                const stop = await options.worker();
+                try {
+                    await waitAborted(signal);
+                } finally {
+                    await stop();
+                }
+            }
+        };
+        this.#leading = options.environment.locks
+            .request(`destack:${options.name}:device`, { signal }, lead)
+            .catch((error: unknown) => {
+                // fail readiness unless closing
+                if (!signal.aborted) {
+                    failed.reject(error);
+                }
+            });
+
+        // run the client until closed, capturing a failure that ends it, ready once the tab has the caller's access rows
+        this.#running = client
+            .run(signal)
+            .catch((error: unknown) => {
+                failed.reject(error);
+                instruments.captureException(error, { isEscaped: true });
+            })
+            .finally(stopRefusals);
+        const synced = client.database.log
+            .waitUntil(
+                async () => (await client.access.position(client.database)) !== undefined,
+                signal,
+            )
+            .then(() => {});
+        this.ready = Promise.race([synced, failed.promise]);
     }
 
-    /** Open a tab's objects over the database of the leading tab's worker. */
+    /** Open a tab's objects in memory over the person's device on the origin's channel. */
     static async open<const Objects extends Readonly<Record<string, ObjectType>>>(options: {
-        /** The database's name, shared by every tab of the origin. */
+        /** The device's name, shared by every tab of the origin. */
         readonly name: string;
         /** The object types to replicate, by key. */
         readonly objects: Objects;
@@ -103,92 +128,65 @@ export class BrowserTab<
         readonly caller: Subject;
         /** The browser's device storing device-scoped local objects, absent for a visitor. */
         readonly device?: Subject;
-        /** Where and how to call the server serving the objects. */
-        readonly endpoint: ClientOptions;
-        /** Where and how to call the machine serving a moved scope now. */
-        readonly reconnect: (machine: string) => ClientOptions;
-        /** Where and how to call the home of an enclosing scope whose rows the tab changes. */
-        readonly homes?: (scope: string) => ClientOptions;
-        /** The most object rows the shared replica stores, absent for no limit. */
-        readonly storage?: { readonly rows: number };
-        /** How long the shared local log retains changes, a minute by default. */
-        readonly log?: { readonly retention: Duration };
-        /** Start the database worker once the tab leads, such as BrowserTab.worker. */
+        /** How often the device's merged changes arrive, such as for a background tab. */
+        readonly refresh?: { readonly every: Duration };
+        /** Start the device worker once the tab leads, such as BrowserTab.worker. */
         readonly worker: BrowserTabWorker;
-        /** Report the leading tab's loop failures. */
-        readonly report: (error: unknown) => void;
         /** The environment the tab runs in, with the browser's locks, channels and storage. */
         readonly environment: Environment & BrowserTabEnvironment;
     }): Promise<BrowserTab<Objects>> {
-        // connect to the shared database
+        // store the tab's rows in memory
         const { environment, objects } = options;
-        const origin = RequestId.create(environment);
-        const database = connectShared(
-            broadcastChannel(`destack:${options.name}`, environment),
-            origin,
-            ObjectClient.tables(objects),
-            options.environment,
-        );
-        const client = await ObjectClient.open({ ...options, database, origin, isMigrated: true });
-
-        // refuse readiness on the leading loops' first final failure, such as a refused follow
-        const failed = Promise.withResolvers<never>();
-        failed.promise.catch(() => undefined);
-        const report = (error: unknown) => {
-            if (Replay.failure(error) !== undefined) {
-                failed.reject(error);
-            }
-            options.report(error);
-        };
-
-        // settle once the tables exist and the access replica holds its first snapshot of the scope's chain
-        const stopping = new AbortController();
-        const synced = (async () => {
-            await database.log.waitUntil(
-                async () => (await ObjectClient.unapplied(database, objects)).length === 0,
-                stopping.signal,
-            );
-            await database.log.waitUntil(
-                async () => (await client.access.position(database)) !== undefined,
-                stopping.signal,
-            );
-        })();
-        const ready = Promise.race([synced, failed.promise]);
-
-        return new BrowserTab(
-            client,
-            database,
-            ready,
+        const memory = await WasmClient.memory(environment);
+        const database = connectWasmSqlite(memory, ObjectClient.tables(objects), {
+            name: "memory",
             environment,
-            options.worker,
-            options.name,
-            stopping,
-            {
-                objects,
-                report,
-            },
-        );
+        });
+
+        // follow and write through the device on the origin's channel
+        const channel = broadcastChannel(`destack:${options.name}`, environment);
+        const remote = new ChannelRemote(channel, RequestId.create(environment), environment);
+        const client = await ObjectClient.open({ ...options, database, remote, local: "followed" });
+
+        // hold the tab's party lock until it closes, before it streams, telling the device once it is gone
+        const stopping = new AbortController();
+        const origin = (await database.log.position()).log;
+        const held = Promise.withResolvers<void>();
+        const party = environment.locks
+            .request(BrowserTab.lock(origin), { signal: stopping.signal }, async () => {
+                held.resolve();
+                await waitAborted(stopping.signal);
+            })
+            .catch((error: unknown) => {
+                if (!stopping.signal.aborted) {
+                    held.reject(error);
+                }
+            });
+        await held.promise;
+
+        return new BrowserTab(client, database, remote, { ...options, stopping, party });
     }
 
-    /** Start the page's database worker, asking first to persist the storage. */
-    static worker(name: string, environment: Environment<"storage" | "workers">): BrowserTabWorker {
+    /** Start a module's device worker with a message asking for the device, persisting storage. */
+    static worker(
+        module: URL,
+        name: string,
+        request: JsonObject,
+        environment: Environment<"storage" | "workers">,
+    ): BrowserTabWorker {
         return async () => {
-            // ask to persist the storage, and start the database worker
+            // ask to persist the storage, and start the device worker
             await environment.storage.persist();
             const worker = environment.workers.start(
-                (Worker) =>
-                    new Worker(new URL("./database.worker.ts", import.meta.url), {
-                        type: "module",
-                        name: `destack:${name}`,
-                    }),
+                (Worker) => new Worker(module, { type: "module", name: `destack:${name}` }),
             );
-            worker.postMessage({ name });
+            worker.postMessage(request);
 
-            // wait until the worker serves the database, refusing one that cannot open it or fails to load
+            // wait until the worker serves the device, refusing one that cannot open its database or fails to load
             const message = await new Promise<unknown>((resolve, reject) => {
                 worker.addEventListener("message", (event) => resolve(event.data));
                 worker.addEventListener("error", (event) =>
-                    reject(new Error(`the database worker failed: ${event.message}`)),
+                    reject(new Error(`the device worker failed: ${event.message}`)),
                 );
             });
             const answer = WorkerAnswer.parse(message);
@@ -204,82 +202,20 @@ export class BrowserTab<
         };
     }
 
-    /** Close the tab and hand over ownership. */
+    /** Name the lock a tab holds while open, by its log, which a device waits on to forget it. */
+    static lock(origin: string): string {
+        return `destack:party:${origin}`;
+    }
+
+    /** Close the tab, handing the device over to another tab when it leads. */
     async close(): Promise<void> {
-        // stop, leave and wait for ownership to pass
+        // stop the loops and the lead, then close the client, the channel and the database
         this.#stopping.abort();
+        await this.#running;
+        await this.#leading;
+        await this.#party;
         await this.client.close();
-        this.#leave();
-        await this.#owning;
+        await this.#remote.close();
         await this.#database.close();
-    }
-
-    /** Lead the database until the tab closes, migrating its tables from this tab's build. */
-    async #lead(
-        objects: Readonly<Record<string, ObjectType>>,
-        report: (error: unknown) => void,
-    ): Promise<void> {
-        // skip a closed tab
-        const signal = this.#stopping.signal;
-        if (signal.aborted) {
-            return;
-        }
-
-        // start the worker and run the loops
-        const stop = await this.#worker();
-        try {
-            await ObjectClient.migrate(this.client.database, objects);
-            await Promise.all([
-                this.client.run(signal, report),
-                this.#forgetAbsent(signal, report),
-            ]);
-        } finally {
-            await stop();
-        }
-    }
-
-    /** Forget each party with a closed tab. */
-    async #forgetAbsent(signal: AbortSignal, report: (error: unknown) => void): Promise<void> {
-        const watched = new Set<string>();
-        const unwatched = async () =>
-            [...(await this.client.origins())].filter(
-                (origin) => origin !== this.client.origin && !watched.has(origin),
-            );
-        while (!signal.aborted) {
-            // forget each new party once its presence lock frees
-            for (const origin of await unwatched()) {
-                watched.add(origin);
-                const forget = () => this.client.forget(origin);
-                void this.#request(this.#presence(origin), forget, signal).then(
-                    () => watched.delete(origin),
-                    (error: unknown) => {
-                        // report unless closing
-                        if (!signal.aborted) {
-                            report(error);
-                        }
-                    },
-                );
-            }
-
-            // wait for a party to appear
-            await this.client.database.log.waitUntil(
-                async () => (await unwatched()).length > 0,
-                signal,
-            );
-        }
-    }
-
-    /** Take a named lock of the origin while a callback runs. */
-    #request(name: string, callback: () => Promise<void>, signal?: AbortSignal): Promise<void> {
-        return this.#environment.locks.request(
-            name,
-            signal === undefined ? {} : { signal },
-            callback,
-        );
-    }
-
-    /** Build the name of the lock a party's tab takes while it is open. */
-    #presence(origin: string): string {
-        return `destack:${this.#name}:tab:${origin}`;
     }
 }

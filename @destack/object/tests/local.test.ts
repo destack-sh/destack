@@ -7,17 +7,14 @@ import { AccessContext, accessTables, Caller, CONTAINED, principal } from "@dest
 import { TestAccess } from "@destack/access/test";
 import { RequestId, Scope, type Subject } from "@destack/sync";
 import { TestDatabase } from "@destack/db/test";
-import { broadcastChannel, serveDatabase, WasmClient } from "@destack/db/browser";
-import {
-    BrowserSimulation,
-    type SimulatedBrowserEnvironment,
-} from "@destack/environment/browser/simulation";
+import { BrowserSimulation } from "@destack/environment/browser/simulation";
 import { Identifier, nth } from "@destack/schema";
 import { definePackage } from "@destack/object";
 import { testCallKey } from "@destack/object/test";
 import { testEvents, serversOf } from "../src/test/index.ts";
-import { BrowserTab, type BrowserTabWorker } from "../src/browser/index.ts";
-import { ObjectClient, type ObjectAccess } from "../src/client/index.ts";
+import { BrowserTab } from "../src/browser/index.ts";
+import { deviceDatabase, deviceWorker } from "./fixture/browser.ts";
+import { ObjectClient, ProcedureRemote, type ObjectAccess } from "../src/client/index.ts";
 import { ObjectStore, implementPackage } from "../src/server/index.ts";
 import { serveNotes, spaceId } from "./fixture/device.ts";
 import { spacePrincipal, unmoved } from "../src/test/space.ts";
@@ -29,10 +26,10 @@ import { TestObjectStore } from "../src/test/index.ts";
 import { propagated } from "../src/index.ts";
 import { argument, plural, t } from "@destack/locale";
 
-/** The module the database worker starts from, as the tab resolves it. */
-const DATABASE_WORKER = new URL("../src/browser/database.worker.ts", import.meta.url);
+/** The module an app's device worker starts from, as its tabs resolve it. */
+const DEVICE_WORKER = new URL("./fixture/device.worker.ts", import.meta.url);
 
-test("read a local object one tab writes in another tab over the shared database, out of the outbox", async () => {
+test("read a local object one tab writes in another tab through their device, out of the outbox", async () => {
     // run in a world of its own
     const simulation = testSimulation();
     const world = simulation.environment("test");
@@ -40,23 +37,28 @@ test("read a local object one tab writes in another tab over the shared database
     const { endpoint } = await serveNotes({ simulation, node: "browser" });
     const alice = Identifier.create("user", world);
 
-    // open two tabs of one browser sharing one database worker
+    // open two tabs of one browser sharing one device worker
     const environment = new BrowserSimulation(simulation).environment("browser");
-    const worker = databaseWorker(await WasmClient.memory(environment), environment);
+    const objects = { notebook, note, draft };
+    const caller = principal.user.reference("universe", alice);
+    const browser = principal.device.reference("universe", Identifier.create("device", world));
+    const worker = deviceWorker({
+        database: await deviceDatabase(objects, environment),
+        objects,
+        caller,
+        device: browser,
+        endpoint: endpoint(alice),
+        environment,
+    });
     const open = () =>
         BrowserTab.open({
             environment,
             name: "notes",
-            objects: { notebook, note, draft },
+            objects,
             scope: spaceId,
-            caller: principal.user.reference("universe", alice),
-            device: principal.device.reference("universe", Identifier.create("device", world)),
-            endpoint: endpoint(alice),
-            reconnect: unmoved,
+            caller,
+            device: browser,
             worker,
-            report: (error) => {
-                throw error;
-            },
         });
     const first = await open();
     await first.ready;
@@ -107,9 +109,13 @@ test("hide a user's local objects from another user on the same device, and the 
             scope: spaceId,
             caller: principal.user.reference("universe", person),
             device: principal.device.reference("universe", on),
-            endpoint: endpoint(person),
-            reconnect: unmoved,
             isMigrated: true,
+            remote: ProcedureRemote.at({
+                scope: spaceId,
+                endpoint: endpoint(person),
+                reconnect: unmoved,
+                environment: environment,
+            }),
         });
     const aliceLaptop = await openClient(alice, laptop);
     const bobLaptop = await openClient(bob, laptop);
@@ -389,18 +395,17 @@ function failure(build: () => unknown): string {
     throw new Error("the build did not fail");
 }
 
-test("refuse a tab's readiness with the reason its database worker could not open the database", async () => {
-    // let the browser's database worker fail to open its database, as a second holder of its storage does
+test("refuse a tab's readiness with the reason its device worker could not open the database", async () => {
+    // let the browser's device worker fail to open its database, as a second holder of its storage does
     const simulation = testSimulation();
     const world = simulation.environment("test");
-    simulation.workers.define(DATABASE_WORKER, (scope) => {
+    simulation.workers.define(DEVICE_WORKER, (scope) => {
         scope.addEventListener("message", () =>
             scope.postMessage({ kind: "failed", message: "InvalidStateError: the handle is held" }),
         );
     });
 
-    // open a tab leading the database through the real worker start
-    const { endpoint } = await serveNotes({ simulation, node: "browser" });
+    // open a tab leading the device through the real worker start
     const alice = Identifier.create("user", world);
     const environment = new BrowserSimulation(simulation).environment("browser");
     const tab = await BrowserTab.open({
@@ -410,12 +415,7 @@ test("refuse a tab's readiness with the reason its database worker could not ope
         scope: spaceId,
         caller: principal.user.reference("universe", alice),
         device: principal.device.reference("universe", Identifier.create("device", world)),
-        endpoint: endpoint(alice),
-        reconnect: unmoved,
-        worker: BrowserTab.worker("notes", environment),
-        report: (error) => {
-            throw error;
-        },
+        worker: BrowserTab.worker(DEVICE_WORKER, "notes", { name: "notes" }, environment),
     });
 
     expect(await refusal(tab.ready)).toEqual([
@@ -424,19 +424,3 @@ test("refuse a tab's readiness with the reason its database worker could not ope
         "database 'notes' is unavailable: this browser cannot open it: InvalidStateError: the handle is held",
     ]);
 });
-
-/** Serve one database to a browser's tabs on their broadcast channel, as its worker does. */
-function databaseWorker(
-    database: WasmClient,
-    environment: SimulatedBrowserEnvironment,
-): BrowserTabWorker {
-    return async () => {
-        const stop = serveDatabase(
-            database,
-            broadcastChannel("destack:notes", environment),
-            environment,
-        );
-
-        return async () => stop();
-    };
-}
