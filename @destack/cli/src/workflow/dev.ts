@@ -90,7 +90,7 @@ async function publish(
 ): Promise<void> {
     // build the package, and read the account of its name's handle
     const native = await context.native();
-    const built = await build(context, directory, json, values);
+    const built = await build(context, directory, json, values, "release");
     const accountId = await native.resolve(PackageName.split(built.package.name).handle);
 
     // publish the build and the account's builds it pins that the forge lacks, as the person
@@ -117,6 +117,7 @@ async function build(
     directory: string,
     json: boolean,
     values: Options,
+    version: "development" | "release" = "development",
 ): Promise<{
     readonly space: string;
     readonly id: Identifier<"build">;
@@ -150,6 +151,16 @@ async function build(
             directory: registered.path,
         },
         outputs,
+        ...(version === "release"
+            ? {
+                  release: {
+                      account: await (
+                          await context.native()
+                      ).resolve(PackageName.split(read.package.name).handle),
+                      package: read.package.id,
+                  },
+              }
+            : {}),
     });
 
     // follow it until it finishes
