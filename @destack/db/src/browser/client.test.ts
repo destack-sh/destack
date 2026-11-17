@@ -1,29 +1,22 @@
 import { expect, onTestFinished, test } from "@destack/test";
 import init from "@sqlite.org/sqlite-wasm";
 import { asc, eq } from "../index.ts";
-import { connectShared, serveDatabase, type Message } from "./shared.ts";
 import { WasmClient } from "./client.ts";
+import { connectWasmSqlite } from "./connection.ts";
 import { changeTables, note } from "../log/test/fixture.ts";
-import { channelHub } from "../channel/channel.ts";
 import { testSimulation } from "@destack/test/world";
 
-/** The channel the tabs and the database owner share, as one BroadcastChannel. */
-const TAB_CHANNEL = "database";
-
-test("declare, log and query tables on SQLite WebAssembly through a channel, as a browser tab does", async () => {
+test("declare, log and query tables on SQLite WebAssembly, as a browser's database does", async () => {
     // run in a world of its own
     const world = testSimulation().environment("test");
 
-    // serve an in-memory database to a party
+    // connect to an in-memory database
     const sqlite = await init();
     const client = new WasmClient(new sqlite.oo1.DB(":memory:"), world);
-    const join = channelHub<Message>();
-    const stop = serveDatabase(client, join(TAB_CHANNEL), world);
-    onTestFinished(async () => {
-        stop();
-        await client.close();
+    const database = connectWasmSqlite(client, changeTables, {
+        name: "memory",
+        environment: world,
     });
-    const database = connectShared(join(TAB_CHANNEL), "tab-1", changeTables, world);
     onTestFinished(() => database.close());
 
     // migrate the tables and log a write
