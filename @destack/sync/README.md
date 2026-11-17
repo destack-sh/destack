@@ -103,8 +103,9 @@ A prediction applies queued writes over the replica, and replays them as the ser
 
 | Verb                           | What it does                                           |
 | ------------------------------ | ------------------------------------------------------ |
-| `add(…)`                       | predicts and queues a mutation                         |
+| `add(…)`                       | predicts and queues a mutation, or composes it into the latest unsent one |
 | `pending(database)`            | reads the mutations waiting for the server, in order   |
+| `send(database)`               | marks the pending mutations sent and reads them, as a push sends them |
 | `acknowledge(…)`, `reject(…)`  | records the server's outcome of a mutation             |
 | `replay(transaction, settled)` | settles what a page covers and predicts the rest again |
 | `checkout(database, branch)`   | shows a branch over the main line                      |

@@ -7,17 +7,17 @@ import {
     eq,
     integer,
     inArray,
-    isNotNull,
-    isNull,
     json,
     Key,
     gte,
     not,
     lte,
     max,
+    ne,
     sql,
     TABLE,
     text,
+    textEnum,
     type DatabaseConnection,
     type SQL,
     type LogPosition,
@@ -26,7 +26,7 @@ import {
     Change,
     Table,
 } from "@destack/db";
-import { schema } from "@destack/schema";
+import { present, schema } from "@destack/schema";
 import { RowChange } from "../query/page.ts";
 import { Replica } from "../replica/replica.ts";
 import { Failure } from "@destack/error";
@@ -38,11 +38,14 @@ const LayerChanges = schema.array(RowChange);
 /** The tables a layer reads or writes, as its JSON text has them. */
 const LayerTables = schema.array(schema.string());
 
-/** The state of a mutation. */
+/** The states a mutation passes through in the outbox, in order. */
+export const MUTATION_STATES = ["queued", "sent", "executed", "rejected"] as const;
+
+/** The state of a mutation, settled once its replica reflects its execution and drops it. */
 export type MutationState =
     | {
-          /** Waiting for the server, or executed. */
-          readonly kind: "pending" | "executed";
+          /** Queued, sent, executed on the server, or settled and dropped from the outbox. */
+          readonly kind: "queued" | "sent" | "executed" | "settled";
       }
     | {
           /** Rejected by the server. */
@@ -63,6 +66,8 @@ export const mutation = defineTable("mutation", {
     calls: json("calls", schema.array(Call)).notNull(),
     /** The identifier of the branch the calls are pushed to, absent on the main line. */
     branch: text("branch"),
+    /** The mutation's state; its calls change only while queued. */
+    state: textEnum("state", MUTATION_STATES).notNull().default("queued"),
     /** The server log of the executed mutation. */
     log: text("log"),
     /** The server log's epoch of the executed mutation. */
@@ -121,6 +126,16 @@ type Layer =
           readonly branch: string;
       };
 
+/** A prediction's calls: a new mutation's, or the latest mutation's calls composed with it. */
+export type Predicted<Result> = {
+    /** Whether the calls queue as a new mutation or replace the latest mutation's. */
+    readonly kind: "add" | "compose";
+    /** The calls to queue. */
+    readonly calls: readonly Call[];
+    /** The prediction's result. */
+    readonly result: Result;
+};
+
 /** What a client's replica shows over the server's rows: queued mutations and the branch. */
 export class Prediction {
     /** The tables predictions change. */
@@ -150,19 +165,20 @@ export class Prediction {
         this.#branches = definition.branches;
     }
 
-    /** Predict and queue a mutation on the checked-out branch, or on the main line when asked. */
+    /** Predict calls on the checked-out branch or main line, queued or composed into the latest. */
     async add<Result>(
         database: DatabaseConnection,
         id: string,
         origin: string,
         predict: (
             transaction: DatabaseConnection,
-        ) => Promise<{ readonly calls: readonly Call[]; readonly result: Result }>,
+            latest: Mutation | undefined,
+        ) => Promise<Predicted<Result>>,
         options: {
             /** Whether the mutation goes on the main line even while a branch is checked out. */
             readonly isMainLine?: boolean;
         } = {},
-    ): Promise<Result> {
+    ): Promise<{ readonly id: string; readonly result: Result }> {
         return database.transaction(async (transaction) => {
             // place the layer on top, or after the main line's below a checked-out branch
             const checkedOut = await this.checkedOut(transaction);
@@ -173,9 +189,30 @@ export class Prediction {
                     ? stack.findIndex((entry) => entry.kind === "branch")
                     : stack.length;
 
-            // revert the layers above it and predict it with them again on top
+            // offer the top mutation to compose into while it is unsent, the origin's and on the line
+            const latest =
+                index === stack.length
+                    ? await this.#composable(transaction, stack.at(-1), origin, branch)
+                    : undefined;
+
+            // revert the layers above it and predict it
             await transaction.log.asReplica(() => this.#revertFrom(transaction, index + 1));
-            const recorded = await this.#record(transaction, predict);
+            const recorded = await this.#record(transaction, async (nested) => {
+                const predicted = await predict(nested, latest);
+
+                return { calls: predicted.calls, result: predicted };
+            });
+            const { kind, result } = recorded.value;
+
+            // compose it into the latest mutation, extending its layer
+            if (kind === "compose") {
+                const composed = present(latest, "the mutation a prediction composes into");
+                await this.#compose(transaction, composed.id, recorded.calls, recorded.changes);
+
+                return { id: composed.id, result };
+            }
+
+            // queue it as a new mutation, and predict the layers above again on top
             await this.#append(transaction, { id, origin, calls: recorded.calls, branch });
             await transaction.insert(layer).values({
                 key: id,
@@ -185,7 +222,7 @@ export class Prediction {
             });
             await this.#apply(transaction, stack.slice(index), index + 2, recorded.after);
 
-            return recorded.value;
+            return { id, result };
         });
     }
 
@@ -310,6 +347,60 @@ export class Prediction {
         }
     }
 
+    /** Read the top layer's mutation when a prediction may compose into it, else absent. */
+    async #composable(
+        transaction: DatabaseConnection,
+        top: Layer | undefined,
+        origin: string,
+        branch: string | undefined,
+    ): Promise<Mutation | undefined> {
+        // take only a mutation layer
+        if (top?.kind !== "mutation") {
+            return undefined;
+        }
+
+        // take it while queued, the origin's and on the same line
+        const [row] = await transaction
+            .select({ origin: mutation.origin, state: mutation.state, branch: mutation.branch })
+            .from(mutation)
+            .where(eq(mutation.id, top.mutation.id));
+        const isComposable =
+            row !== undefined &&
+            row.state === "queued" &&
+            row.origin === origin &&
+            row.branch === (branch ?? null);
+
+        return isComposable ? top.mutation : undefined;
+    }
+
+    /** Replace a queued mutation's calls with composed ones, and extend its layer by changes. */
+    async #compose(
+        transaction: DatabaseConnection,
+        id: string,
+        calls: readonly Call[],
+        changes: readonly RowChange[],
+    ): Promise<void> {
+        // replace the calls
+        await transaction
+            .update(mutation)
+            .set({ calls: [...calls] })
+            .where(eq(mutation.id, id));
+
+        // append the changes to the layer's
+        const [row] = await transaction
+            .select({ changes: layer.changes })
+            .from(layer)
+            .where(eq(layer.key, id));
+        const extended = [
+            ...LayerChanges.parse(JSON.parse(present(row, "a queued mutation's layer").changes)),
+            ...changes,
+        ];
+        await transaction
+            .update(layer)
+            .set({ changes: JSON.stringify(extended), tables: this.#tables(calls, extended) })
+            .where(eq(layer.key, id));
+    }
+
     /** Revert the layers from a position up, latest first. */
     async #revertFrom(transaction: DatabaseConnection, position: number): Promise<void> {
         const rows = await transaction
@@ -425,7 +516,7 @@ export class Prediction {
         return database
             .select({ id: mutation.id, calls: mutation.calls, branch: mutation.branch })
             .from(mutation)
-            .where(isNull(mutation.error))
+            .where(ne(mutation.state, "rejected"))
             .orderBy(asc(mutation.position));
     }
 
@@ -451,6 +542,31 @@ export class Prediction {
         }));
     }
 
+    /** Mark the pending mutations sent and read them in order, as a push sends them. */
+    async send(
+        database: DatabaseConnection,
+        options: {
+            /** The most mutations to send, every pending one when absent. */
+            readonly limit?: number;
+        } = {},
+    ): Promise<(Mutation & { readonly branch?: string })[]> {
+        return database.transaction(async (transaction) => {
+            // read them and mark them sent in one transaction, so no prediction composes into them
+            const pending = await this.pending(transaction, options);
+            await transaction
+                .update(mutation)
+                .set({ state: "sent" })
+                .where(
+                    inArray(
+                        mutation.id,
+                        pending.map((entry) => entry.id),
+                    ),
+                );
+
+            return pending;
+        });
+    }
+
     /** Count the pending, executed and rejected mutations. */
     async inspect(
         database: DatabaseConnection,
@@ -460,8 +576,8 @@ export class Prediction {
         const [counts] = await database
             .select({
                 pending: Prediction.#countWhen(pending),
-                executed: Prediction.#countWhen(and(isNull(mutation.error), not(pending))),
-                rejected: Prediction.#countWhen(isNotNull(mutation.error)),
+                executed: Prediction.#countWhen(and(eq(mutation.state, "executed"), not(pending))),
+                rejected: Prediction.#countWhen(eq(mutation.state, "rejected")),
             })
             .from(mutation);
         if (counts === undefined) {
@@ -489,7 +605,12 @@ export class Prediction {
             // record the position for a replica's later page to settle
             await transaction
                 .update(mutation)
-                .set({ log: position.log, epoch: position.epoch, sequence: position.sequence })
+                .set({
+                    state: "executed",
+                    log: position.log,
+                    epoch: position.epoch,
+                    sequence: position.sequence,
+                })
                 .where(eq(mutation.id, id));
 
             // find a replica of the predicted tables whose confirming page arrived first
@@ -518,7 +639,10 @@ export class Prediction {
 
     /** Record the server's rejection of a mutation. */
     async reject(database: DatabaseConnection, id: string, error: Failure): Promise<void> {
-        await database.update(mutation).set({ error }).where(eq(mutation.id, id));
+        await database
+            .update(mutation)
+            .set({ state: "rejected", error })
+            .where(eq(mutation.id, id));
     }
 
     /** Report whether a position includes an executed mutation's changes. */
@@ -538,12 +662,12 @@ export class Prediction {
         ids: readonly string[],
     ): Promise<ReadonlyMap<string, MutationState>> {
         const rows = await database
-            .select({ id: mutation.id, error: mutation.error })
+            .select({ id: mutation.id, state: mutation.state, error: mutation.error })
             .from(mutation)
             .where(inArray(mutation.id, [...ids]));
-        const errors = new Map(rows.map((row) => [row.id, row.error]));
+        const states = new Map(rows.map((row) => [row.id, row]));
 
-        return new Map(ids.map((id) => [id, Prediction.#mutationState(errors.get(id))]));
+        return new Map(ids.map((id) => [id, Prediction.#mutationState(states.get(id))]));
     }
 
     /** Read the origins with queued mutations. */
@@ -560,7 +684,7 @@ export class Prediction {
             .where(
                 and(
                     eq(mutation.origin, origin),
-                    isNotNull(mutation.error),
+                    eq(mutation.state, "rejected"),
                     id === undefined ? undefined : eq(mutation.id, id),
                 ),
             );
@@ -592,19 +716,19 @@ export class Prediction {
         return { ...written, before: definition.encode(change.before) };
     }
 
-    /** Match the mutations to push: unacknowledged, or at an epoch the log's replicas left. */
+    /** Match the mutations to push: unexecuted, or executed at an epoch the log's replicas left. */
     static #pending(): SQL {
-        // push a mutation the server never acknowledged, or one at an epoch no replica of its log reflects
-        const isUnacknowledged = isNull(mutation.epoch);
-        const isLost = sql`${Replica.reflects(mutation.log)} AND NOT ${Replica.reflects(mutation.log, mutation.epoch)}`;
+        // push a queued or sent mutation, or an executed one at an epoch no replica of its log reflects
+        const isUnexecuted = inArray(mutation.state, ["queued", "sent"]);
+        const isLost = sql`${eq(mutation.state, "executed")} AND ${Replica.reflects(mutation.log)} AND NOT ${Replica.reflects(mutation.log, mutation.epoch)}`;
 
-        return sql`(${isNull(mutation.error)} AND (${isUnacknowledged} OR (${isLost})))`;
+        return sql`(${isUnexecuted} OR (${isLost}))`;
     }
 
     /** Match the executed mutations whose changes a position includes. */
     static #acknowledged(position: LogPosition): SQL | undefined {
         return and(
-            isNull(mutation.error),
+            eq(mutation.state, "executed"),
             eq(mutation.log, position.log),
             eq(mutation.epoch, position.epoch),
             lte(mutation.sequence, position.sequence),
@@ -616,21 +740,26 @@ export class Prediction {
         return count(sql`CASE WHEN ${condition} THEN 1 END`);
     }
 
-    /** Read a mutation's state from its error: executed without a row, pending without an error. */
+    /** Read a mutation's state from its row, settled once the outbox dropped it. */
     static #mutationState(
-        error: Extract<MutationState, { kind: "rejected" }>["error"] | null | undefined,
+        row:
+            | {
+                  readonly state: (typeof MUTATION_STATES)[number];
+                  readonly error: Failure | null;
+              }
+            | undefined,
     ): MutationState {
-        // read an executed mutation
-        if (error === undefined) {
-            return { kind: "executed" };
+        // read a settled mutation
+        if (row === undefined) {
+            return { kind: "settled" };
         }
-        // read a pending one
-        else if (error === null) {
-            return { kind: "pending" };
+        // read a rejected one with its failure
+        else if (row.state === "rejected") {
+            return { kind: "rejected", error: present(row.error, "a rejected mutation's failure") };
         }
-        // read a rejected one
+        // read any other state
         else {
-            return { kind: "rejected", error };
+            return { kind: row.state };
         }
     }
 }

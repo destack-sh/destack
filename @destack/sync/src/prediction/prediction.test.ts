@@ -121,7 +121,7 @@ test("rebase predicted mutations onto source pages until the source executes or 
             ];
             await predict(transaction, { id, calls });
 
-            return { calls, result: undefined };
+            return { kind: "add", calls, result: undefined };
         });
     }
     expect(await titles()).toEqual([
@@ -138,7 +138,7 @@ test("rebase predicted mutations onto source pages until the source executes or 
         ["a", "Server"],
         ["c", "Local"],
     ]);
-    expect(await outcomes()).toEqual(["executed", "rejected", "pending"]);
+    expect(await outcomes()).toEqual(["settled", "rejected", "queued"]);
     expect((await prediction.outcomes(client, [IDS[1]])).get(IDS[1])).toEqual({
         kind: "rejected",
         error: FORBIDDEN,
@@ -167,7 +167,7 @@ test("rebase predicted mutations onto source pages until the source executes or 
         ["a", "Server"],
         ["c", "Server"],
     ]);
-    expect(await outcomes()).toEqual(["executed", "rejected", "executed"]);
+    expect(await outcomes()).toEqual(["settled", "rejected", "settled"]);
 
     // forget the rejection once read
     await prediction.forget(client, "tab-1", IDS[1]);
@@ -210,6 +210,7 @@ test("drop a group every predicted row left, without a count measuring it", asyn
         await transaction.update(note).set({ title: "Local" }).where(eq(note.id, "a"));
 
         return {
+            kind: "add",
             calls: [
                 {
                     type: NOTE_TYPE,
@@ -249,7 +250,7 @@ test("push again on a snapshot the mutations of a log and epoch no replica follo
             ];
             await predict(transaction, { id, calls });
 
-            return { calls, result: undefined };
+            return { kind: "add", calls, result: undefined };
         });
     }
 
@@ -275,6 +276,71 @@ test("push again on a snapshot the mutations of a log and epoch no replica follo
     await replicate(other, client, [elsewhere], prediction);
     await replicate(notes, client, [page(1, [], { reset: true })], prediction);
     expect((await prediction.pending(client)).map((entry) => entry.id)).toEqual([IDS[2]]);
+});
+
+test("compose predictions into the origin's latest queued mutation until a push sends it", async () => {
+    await using simulation = new Simulation({
+        world: testWorldOptions(),
+        seed: 1,
+        start: START,
+    });
+    const client = await open({
+        simulation,
+        tables: [note, ...replicaTables, ...predictionTables],
+    });
+    const prediction = predicting([note]);
+    const notes = new Replica({ name: "notes", scope: "inbox", tables: [note] });
+    await replicate(notes, client, [page(1, [], { reset: true })], prediction);
+    const create = (key: string, title: string): Call => ({
+        type: NOTE_TYPE,
+        method: "create",
+        release: RELEASE,
+        edition: 1,
+        input: { id: key, title },
+    });
+    const titles = async () =>
+        (await client.select().from(note).orderBy(asc(note.id))).map((row) => [row.id, row.title]);
+    const offered: (string | undefined)[] = [];
+
+    // create a note, then retitle it by composing into its creation, from a tab
+    const write = (id: string, origin: string, key: string, title: string) =>
+        prediction.add(client, id, origin, async (transaction, latest) => {
+            offered.push(latest?.id);
+
+            // retitle a note the latest mutation creates
+            if (latest !== undefined && latest.calls.some((call) => call.input["id"] === key)) {
+                await transaction.update(note).set({ title }).where(eq(note.id, key));
+
+                return { kind: "compose", calls: [create(key, title)], result: undefined };
+            }
+
+            // create the note otherwise
+            await predict(transaction, { id, calls: [create(key, title)] });
+
+            return { kind: "add", calls: [create(key, title)], result: undefined };
+        });
+    await write(IDS[0], "tab-1", "a", "one");
+    await write(IDS[1], "tab-1", "a", "two");
+    expect(await prediction.pending(client)).toEqual([{ id: IDS[0], calls: [create("a", "two")] }]);
+    expect(await titles()).toEqual([["a", "two"]]);
+
+    // predict the composed calls again the same way
+    await client.transaction(async (transaction) => {
+        await transaction.log.asReplica(() => prediction.revert(transaction));
+        await prediction.replay(transaction);
+    });
+    expect(await titles()).toEqual([["a", "two"]]);
+
+    // offer nothing to another tab, and nothing once a push sent the mutation
+    await write(IDS[2], "tab-2", "b", "other");
+    expect((await prediction.send(client)).map((entry) => entry.id)).toEqual([IDS[0], IDS[2]]);
+    await write("01996ab0-0000-7000-8000-00000000000d", "tab-1", "c", "three");
+    expect(offered).toEqual([undefined, IDS[0], undefined, undefined]);
+    expect((await prediction.pending(client)).map((entry) => entry.id)).toEqual([
+        IDS[0],
+        IDS[2],
+        "01996ab0-0000-7000-8000-00000000000d",
+    ]);
 });
 
 test("read pending mutations up to a limit, and count each state with branch edits pending", async () => {
@@ -304,7 +370,7 @@ test("read pending mutations up to a limit, and count each state with branch edi
             ];
             await predict(transaction, { id, calls });
 
-            return { calls, result: undefined };
+            return { kind: "add", calls, result: undefined };
         });
     for (const [id, created] of zip(IDS, NOTES)) {
         await add(id, created);
@@ -367,7 +433,7 @@ test("predict a checked-out branch's rows under its edits, and push the edits to
             async (transaction) => {
                 await predict(transaction, { id, calls: [call(key)] });
 
-                return { calls: [call(key)], result: undefined };
+                return { kind: "add", calls: [call(key)], result: undefined };
             },
             isMainLine === undefined ? {} : { isMainLine },
         );
