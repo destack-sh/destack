@@ -323,7 +323,7 @@ export type PermissionReference = schema.Infer<typeof permissionReference>;
 export const PermissionReference = Object.assign(permissionReference, {
     /** Write the refusal of a caller without a permission. */
     forbidden(permission: Pick<PermissionReference, "name">): string {
-        return `permission '${permission.name}' is forbidden: the caller lacks it`;
+        return `permission '${permission.name}' is forbidden: it is not granted`;
     },
 
     /** Key a permission without collisions. */

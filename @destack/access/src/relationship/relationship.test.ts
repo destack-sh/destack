@@ -267,7 +267,7 @@ test("relate a subject once however often touched, set a new expiry on the same 
         refused: [
             "FORBIDDEN",
             "PERMISSION_DENIED",
-            "permission 'share' is forbidden: the caller lacks it",
+            "permission 'share' is forbidden: it is not granted",
         ],
         again: first.id,
         lapsing: first.id,
@@ -441,7 +441,7 @@ test("replace a subject's relationships through a relation with exactly the want
     ).toEqual([
         "FORBIDDEN",
         "PERMISSION_DENIED",
-        "permission 'share' is forbidden: the caller lacks it",
+        "permission 'share' is forbidden: it is not granted",
     ]);
 });
 

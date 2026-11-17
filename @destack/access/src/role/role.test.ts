@@ -494,7 +494,7 @@ test("bind only roles whose permissions the granting caller has at their approva
     ).toEqual([
         "FORBIDDEN",
         "PERMISSION_DENIED",
-        "permission 'edit' is forbidden: the caller lacks it",
+        "permission 'edit' is forbidden: it is not granted",
     ]);
 
     // reject binding a role granting that permission on approvals too
@@ -520,7 +520,7 @@ test("bind only roles whose permissions the granting caller has at their approva
     ).toEqual([
         "FORBIDDEN",
         "PERMISSION_DENIED",
-        "permission 'edit' is forbidden: the caller lacks it",
+        "permission 'edit' is forbidden: it is not granted",
     ]);
 
     // refuse binding a role to a subject set that resolving never expands
@@ -592,7 +592,7 @@ test("let owners have everything in their scope, make owners, and never remove t
     ).toEqual([
         "FORBIDDEN",
         "PERMISSION_DENIED",
-        "permission 'share' is forbidden: the caller lacks it",
+        "permission 'share' is forbidden: it is not granted",
     ]);
     const second = await Authorization.run(
         universe,
@@ -856,7 +856,7 @@ test("refuse an offer whose inviting principal lost the authority to grant it", 
     ).toEqual([
         "FORBIDDEN",
         "PERMISSION_DENIED",
-        "permission 'share' is forbidden: the caller lacks it",
+        "permission 'share' is forbidden: it is not granted",
     ]);
 });
 
@@ -1172,7 +1172,7 @@ test("refuse declaring and assigning roles to a caller without the permissions",
     ).toEqual([
         "FORBIDDEN",
         "PERMISSION_DENIED",
-        "permission 'create' is forbidden: the caller lacks it",
+        "permission 'create' is forbidden: it is not granted",
     ]);
     expect(
         await refusal(
@@ -1187,7 +1187,7 @@ test("refuse declaring and assigning roles to a caller without the permissions",
     ).toEqual([
         "FORBIDDEN",
         "PERMISSION_DENIED",
-        "permission 'update' is forbidden: the caller lacks it",
+        "permission 'update' is forbidden: it is not granted",
     ]);
     expect(
         await refusal(
@@ -1198,7 +1198,7 @@ test("refuse declaring and assigning roles to a caller without the permissions",
     ).toEqual([
         "FORBIDDEN",
         "PERMISSION_DENIED",
-        "permission 'share' is forbidden: the caller lacks it",
+        "permission 'share' is forbidden: it is not granted",
     ]);
 });
 
@@ -1297,8 +1297,8 @@ test("define a role giving a permission on approvals only at as many as the defi
     ]).toEqual([
         "two",
         "three",
-        ["FORBIDDEN", "PERMISSION_DENIED", "permission 'read' is forbidden: the caller lacks it"],
-        ["FORBIDDEN", "PERMISSION_DENIED", "permission 'read' is forbidden: the caller lacks it"],
+        ["FORBIDDEN", "PERMISSION_DENIED", "permission 'read' is forbidden: it is not granted"],
+        ["FORBIDDEN", "PERMISSION_DENIED", "permission 'read' is forbidden: it is not granted"],
         [
             "BAD_REQUEST",
             "PERMISSION_INVALID",

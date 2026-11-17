@@ -119,7 +119,7 @@ databaseTest("authorize notes, ranges and world entities", async ({ fixture }) =
     ).toEqual([
         "FORBIDDEN",
         "PERMISSION_DENIED",
-        "permission 'share' is forbidden: the caller lacks it",
+        "permission 'share' is forbidden: it is not granted",
     ]);
 
     // select each example's editable rows for its caller
@@ -207,7 +207,7 @@ databaseTest("authorize notes, ranges and world entities", async ({ fixture }) =
             "authentication required: authentication assurance is too low",
             { assurance: 2, maxAge: 15 * 60 * 1000 },
         ],
-        ["PERMISSION_DENIED", "permission 'edit' is forbidden: the caller lacks it", undefined],
+        ["PERMISSION_DENIED", "permission 'edit' is forbidden: it is not granted", undefined],
     ]);
 });
 
@@ -453,7 +453,7 @@ databaseTest(
         ).toEqual([
             "FORBIDDEN",
             "PERMISSION_DENIED",
-            "permission 'share' is forbidden: the caller lacks it",
+            "permission 'share' is forbidden: it is not granted",
         ]);
         expect(
             await refusal(
@@ -473,7 +473,7 @@ databaseTest(
         ).toEqual([
             "FORBIDDEN",
             "PERMISSION_DENIED",
-            "permission 'share' is forbidden: the caller lacks it",
+            "permission 'share' is forbidden: it is not granted",
         ]);
         await Authorization.run(
             authorizer,
@@ -525,7 +525,7 @@ databaseTest(
         ).toEqual([
             "FORBIDDEN",
             "PERMISSION_DENIED",
-            "permission 'share' is forbidden: the caller lacks it",
+            "permission 'share' is forbidden: it is not granted",
         ]);
         expect(
             await refusal(
@@ -633,7 +633,7 @@ databaseTest(
         ).toEqual([
             "FORBIDDEN",
             "PERMISSION_DENIED",
-            "permission 'share' is forbidden: the caller lacks it",
+            "permission 'share' is forbidden: it is not granted",
         ]);
         await Authorization.run(
             authorizer,
