@@ -20,6 +20,8 @@ interface ScenarioBindings extends PartitionBindings {
     readonly SPACE: string;
     /** The secret the host stamps on requests for the workload. */
     readonly SECRET: string;
+    /** The one secret the space serves its build to, any secret when empty. */
+    readonly SERVED: string;
 }
 
 /** A partition's object: the space's with its installations' facets, or a partition's. */
@@ -58,9 +60,15 @@ export class Partition {
         else if (installation !== undefined) {
             return this.#facets.facet(installation).fetch(request);
         }
-        // serve the space's build
+        // serve the space's build to the secrets it knows, as a space restarted since a start knows none of before
         else if (url.pathname === BUILD_PATH) {
-            return Response.json({ [this.#bindings.MODULE_NAME]: this.#bindings.MODULE });
+            const { SERVED } = this.#bindings;
+            const isKnown =
+                SERVED === "" || request.headers.get("authorization") === `Bearer ${SERVED}`;
+
+            return isKnown
+                ? Response.json({ [this.#bindings.MODULE_NAME]: this.#bindings.MODULE })
+                : Response.json({ message: "the instance secret is invalid" }, { status: 401 });
         }
         // accept the space's calls out
         else if (url.pathname.startsWith(Egress.path)) {

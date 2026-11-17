@@ -34,8 +34,10 @@ const SECRET = "partition-secret";
 /** The module of the echo workload's build. */
 const MODULE = "echo.js";
 
-/** Run the scenario Worker with the partitions' one class and a loader of workloads. */
-async function start(): Promise<Miniflare> {
+/** Describe the scenario Worker: the partitions' one class and a loader of workloads. */
+async function describe(
+    kept: { readonly served?: string; readonly storage?: string } = {},
+): Promise<ConstructorParameters<typeof Miniflare>[0]> {
     // bundle the echo workload and the scenario Worker
     const [workload, script] = await Promise.all([
         bundleWorker(new URL("./test/echo.ts", import.meta.url)),
@@ -43,7 +45,7 @@ async function start(): Promise<Miniflare> {
     ]);
 
     // run the Worker, its space's object serving the workload's one module
-    const worker = new Miniflare({
+    return {
         modules: true,
         script,
         compatibilityDate: WORKERD_COMPATIBILITY_DATE,
@@ -54,10 +56,17 @@ async function start(): Promise<Miniflare> {
             MODULE_NAME: MODULE,
             SPACE,
             SECRET,
+            SERVED: kept.served ?? "",
         },
+        ...(kept.storage === undefined ? {} : { durableObjectsPersist: kept.storage }),
         durableObjects: { PARTITION: { className: "Partition", useSQLite: true } },
         workerLoaders: { LOADER: {} },
-    });
+    };
+}
+
+/** Run the scenario Worker. */
+async function start(): Promise<Miniflare> {
+    const worker = new Miniflare(await describe());
     onTestFinished(() => worker.dispose());
 
     return worker;
@@ -247,5 +256,35 @@ test("move a facet's wake-up for the workload proving its installation's secret,
                 domain: "@destack/machine",
             },
         ],
+    });
+});
+
+test("start an installation's workload again after its space restarted and forgot the secret of its stored start", async () => {
+    // start the echo workload in a space whose storage a restart keeps, then stop the Worker
+    const { files } = testHost();
+    const storage = await files.makeTemporaryDirectory("destack-partition-");
+    onTestFinished(() => files.remove(storage, { recursive: true }));
+    const path = `${SPACE}/${INSTALLATION}`;
+    const first = new Miniflare(await describe({ storage }));
+    const old = { installation: INSTALLATION, secret: `${SECRET}:old` };
+    let before: number;
+    try {
+        before = await startEcho(first, path, old);
+    } finally {
+        await first.dispose();
+    }
+
+    // run the Worker again on the kept storage, its space serving its build to the new start's secret alone
+    const secret = `${SECRET}:${INSTALLATION}`;
+    const second = new Miniflare(await describe({ storage, served: secret }));
+    onTestFinished(() => second.dispose());
+    const after = await startEcho(second, path, { installation: INSTALLATION, secret });
+    const conversed = await converse(second, path, "socket-0", ["ping"]);
+
+    // start the workload on its new secret, without loading the stored start's code to drain it
+    expect({ before, after, conversed }).toEqual({
+        before: 200,
+        after: 200,
+        conversed: { protocol: "echo", answers: ["pong"] },
     });
 });
