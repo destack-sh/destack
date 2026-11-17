@@ -1,8 +1,8 @@
 import { PackageVersion } from "@destack/package";
 import { AccessError, none, Policy, principal } from "@destack/access";
 import { DatabaseError } from "@destack/db";
-import { schema, present } from "@destack/schema";
-import { expect, test } from "@destack/test";
+import { schema } from "@destack/schema";
+import { expect, single, test } from "@destack/test";
 import { createClient } from "../client/index.ts";
 import { conceal, CallError } from "../error/index.ts";
 import { Health } from "./health.ts";
@@ -472,8 +472,10 @@ test("answer a lower package's failure with the call error it names, and an unkn
     );
 
     // return the unknown failure with the trace its exception is captured in
-    const captured = simulation.telemetry.logs.find((record) => record.eventName === "exception");
-    const { traceId } = present(captured?.spanContext, "the captured exception's span");
+    const captured = single(
+        simulation.telemetry.logs.filter((record) => record.eventName === "exception"),
+    );
+    const traceId = captured.spanContext?.traceId;
     expect(received).toEqual([
         ["CONFLICT", 409, "a record with the same unique key already exists", null],
         [
