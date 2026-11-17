@@ -275,6 +275,7 @@ test("show a setting's value for the page's person, and the device's value once 
         name: editor.reference.name,
         value: "vim",
         release: editor.package.version,
+        edition: 1,
     }).predicted;
     await changed(element, () => element.textContent === "vim", RENDER_MILLISECONDS);
 });
