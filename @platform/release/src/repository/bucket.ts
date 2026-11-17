@@ -101,6 +101,7 @@ export class R2ReleaseBucket {
         path: string,
         file: string,
         type: string,
+        name: string | undefined,
         immutable: boolean,
         revision?: string,
     ): Promise<void> {
@@ -113,6 +114,11 @@ export class R2ReleaseBucket {
             "cache-control": immutable ? "public, max-age=31536000, immutable" : "no-store",
         });
         headers.set(revision === undefined ? "if-none-match" : "if-match", revision ?? "*");
+
+        // set the file name a browser saves it as
+        if (name !== undefined) {
+            headers.set("content-disposition", `attachment; filename="${name}"`);
+        }
 
         // stream the file into the presigned upload
         const url = this.client.presign(path, { method: "PUT", expiresIn: 900 });

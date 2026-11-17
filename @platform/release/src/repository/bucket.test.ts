@@ -39,6 +39,7 @@ test("publish exact bytes at the bucket's root, and reject stale replacements th
 
     // receive signed HTTP requests and enforce object revisions at the storage endpoint
     const objects = new Map<string, { bytes: Buffer; revision: string }>();
+    const saved = new Map<string, string | null>();
     let shouldRejectCatalog = false;
     const server = simulation.environment("storage").server.http({
         hostname: "127.0.0.1",
@@ -67,6 +68,7 @@ test("publish exact bytes at the bucket's root, and reject stale replacements th
                 const bytes = Buffer.from(await request.arrayBuffer());
                 const revision = `"${createHash("md5").update(bytes).digest("hex")}"`;
                 objects.set(path, { bytes, revision });
+                saved.set(path, request.headers.get("content-disposition"));
 
                 return new Response(null, { headers: { etag: revision } });
             }
@@ -93,25 +95,57 @@ test("publish exact bytes at the bucket's root, and reject stale replacements th
     const second = join(directory, "second");
     await files.writeTextFile(first, "first release");
     await files.writeTextFile(second, "second release");
-    await bucket.put("targets/artifact", first, "application/octet-stream", true);
-    await bucket.put("targets/artifact", first, "application/octet-stream", true);
+    await bucket.put(
+        "targets/artifact",
+        first,
+        "application/octet-stream",
+        "Destack-artifact",
+        true,
+    );
+    await bucket.put(
+        "targets/artifact",
+        first,
+        "application/octet-stream",
+        "Destack-artifact",
+        true,
+    );
     await expect(
-        bucket.put("targets/artifact", second, "application/octet-stream", true),
+        bucket.put(
+            "targets/artifact",
+            second,
+            "application/octet-stream",
+            "Destack-artifact",
+            true,
+        ),
     ).rejects.toThrow("refusing to overwrite immutable release file: 'targets/artifact'");
     expect(await (await bucket.get("targets/artifact")).text()).toBe("first release");
 
     // permit one exact replacement and reject the stale writer's previous revision
     expect(await bucket.revision("metadata/timestamp.json")).toBeUndefined();
-    await bucket.put("metadata/timestamp.json", first, "application/json", false);
+    await bucket.put("metadata/timestamp.json", first, "application/json", undefined, false);
     const revision = await bucket.revision("metadata/timestamp.json");
-    await bucket.put("metadata/timestamp.json", second, "application/json", false, revision);
+    await bucket.put(
+        "metadata/timestamp.json",
+        second,
+        "application/json",
+        undefined,
+        false,
+        revision,
+    );
     await expect(
-        bucket.put("metadata/timestamp.json", first, "application/json", false, revision),
+        bucket.put(
+            "metadata/timestamp.json",
+            first,
+            "application/json",
+            undefined,
+            false,
+            revision,
+        ),
     ).rejects.toThrow("could not upload release file 'metadata/timestamp.json': status 412");
     expect(await (await bucket.get("metadata/timestamp.json")).text()).toBe("second release");
-    expect([...objects.keys()].toSorted()).toEqual([
-        "/rehearsal/metadata/timestamp.json",
-        "/rehearsal/targets/artifact",
+    expect([...saved].toSorted(([left], [right]) => left.localeCompare(right))).toEqual([
+        ["/rehearsal/metadata/timestamp.json", null],
+        ["/rehearsal/targets/artifact", 'attachment; filename="Destack-artifact"'],
     ]);
 
     // sign a real repository with independent disposable keys

@@ -37,6 +37,9 @@ const CONTENT_TYPES: Readonly<Record<string, string>> = {
     ".dmg": "application/x-apple-diskimage",
 };
 
+/** A target's installer or archive under its digest, capturing its target and format. */
+const DOWNLOAD = /^targets\/[0-9a-f]{64}\.(.+\.(?:dmg|tar\.gz))$/u;
+
 /** Upload immutable files before publishing the timestamp that makes them current. */
 export async function publish(
     directory: string,
@@ -148,7 +151,13 @@ async function upload(
         for (let path = pending.shift(); path !== undefined; path = pending.shift()) {
             const isStored = path.startsWith(BLOBS) && (await bucket.revision(path)) !== undefined;
             if (!isStored) {
-                await bucket.put(path, join(directory, path), contentType(path), true);
+                await bucket.put(
+                    path,
+                    join(directory, path),
+                    contentType(path),
+                    downloadName(path),
+                    true,
+                );
             }
         }
     };
@@ -160,6 +169,7 @@ async function upload(
             path,
             join(directory, path),
             contentType(path),
+            undefined,
             false,
             revisions.get(path),
         );
@@ -279,6 +289,13 @@ function isImmutable(path: string, referenced: ReadonlySet<string>): boolean {
 /** Name a target's content-addressed path in the repository. */
 function targetPath(target: TargetFile): string {
     return `targets/${target.hashes["sha256"]}.${target.path}`;
+}
+
+/** Read the name a browser saves an installer or archive as, absent for files programs read. */
+function downloadName(path: string): string | undefined {
+    const [, target] = DOWNLOAD.exec(path) ?? [];
+
+    return target === undefined ? undefined : `Destack-${target}`;
 }
 
 /** Select the media type of an explicitly supported publication file. */
