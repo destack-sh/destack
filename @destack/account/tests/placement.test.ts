@@ -145,11 +145,9 @@ async function machines(copier: TestCaller): Promise<unknown[][]> {
     const controller = new AbortController();
     const pages = await copier.client(accountPackage).store.stream(
         {
-            ...Shape.subscription(
-                Scope.universe.id,
-                [{ shape: directoryShape, keys: [{}] }],
-                copier.subject.id,
-            ),
+            ...Shape.subscription(Scope.universe.id, [{ shape: directoryShape, keys: [{}] }], {
+                target: copier.subject.id,
+            }),
             revision: FOLLOWER_REVISION,
         },
         { signal: controller.signal },
@@ -252,7 +250,7 @@ async function assignments(caller: TestCaller): Promise<unknown[]> {
                         keys: [{ machine: schema.identifier("machine").parse(caller.subject.id) }],
                     },
                 ],
-                caller.subject.id,
+                { target: caller.subject.id },
             ),
             revision: FOLLOWER_REVISION,
         },

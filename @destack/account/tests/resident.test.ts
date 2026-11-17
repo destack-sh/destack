@@ -35,7 +35,7 @@ test("replicate every account of a residency to its cloud machine as it is creat
             ...Shape.subscription(
                 Scope.universe.id,
                 [{ shape: residentsShape, keys: [{ residency: "eu" }] }],
-                machine.subject.id,
+                { target: machine.subject.id },
             ),
             revision: FOLLOWER_REVISION,
         },

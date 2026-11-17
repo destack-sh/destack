@@ -1,6 +1,11 @@
 import { and, type DatabaseConnection, eq } from "@destack/db";
 import { PackageId } from "@destack/package";
-import { type FeatureReference, QueriesParameters, Shape } from "@destack/object";
+import {
+    type FeatureReference,
+    QueriesParameters,
+    QUERIES_PUBLICATION,
+    Shape,
+} from "@destack/object";
 import { Identifier, schema } from "@destack/schema";
 import {
     type Publisher,
@@ -40,11 +45,11 @@ export const TestEntitlement = {
         // mark the replica of the universe's entitlements complete, following the account's key beside the earlier ones
         const now = environment.clock.now();
         const scope = Scope.universe.id;
-        const name = Shape.replicaName(scope);
+        const name = Shape.replicaName(QUERIES_PUBLICATION, scope);
         const followed = Shape.subscription(
             scope,
             [{ shape: entitlementShape, keys: [{ account: accountId }] }],
-            scope,
+            { target: scope },
         );
         const recorded = await Replica.subscription(database, name, scope);
         const queries = {

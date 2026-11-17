@@ -4,7 +4,8 @@ import { type DatabaseConnection, eq } from "@destack/db";
 import { type ClaimPrimary, RemoteStore } from "@destack/object/server";
 import { Identifier } from "@destack/schema";
 import { serversOf, testCallKey, testEvents, TestObjectStore } from "@destack/object/test";
-import { Scope, type Uplink } from "@destack/sync";
+import { Scope } from "@destack/sync";
+import type { ObjectRemote } from "@destack/object/client";
 import { account } from "../object/account.ts";
 import { residency } from "../object/residency.ts";
 import { space } from "../object/space.ts";
@@ -47,11 +48,11 @@ export const TestDirectory = {
     },
 
     /** Run the placement calls a machine sends the account package over the universe's database. */
-    async uplink(
+    async remote(
         database: DatabaseConnection,
         sender: Identifier<"machine">,
         environment: Environment,
-    ): Promise<Uplink> {
+    ): Promise<ObjectRemote> {
         // serve placements, assignments and spaces, acting as the store's principal
         const { clock } = environment;
         const store = TestObjectStore.of({
@@ -71,10 +72,16 @@ export const TestDirectory = {
         const access = new TestAccess(database, environment, Scope.universe.id);
         await access.bindOwner(Scope.universe, universal, clock.now());
 
-        // receive each mutation as the sending machine
+        // take each push, call and event as the sending machine
         const signer = principal.machine.reference(Scope.universe.id, sender);
+        const { remote } = store;
 
-        return { ...store.uplink, receive: (mutation) => store.uplink.receive(mutation, signer) };
+        return {
+            ...remote,
+            push: (home, push, signal) => remote.push(home, { ...push, signer }, signal),
+            call: (scope, call) => remote.call(scope, call, signer),
+            broadcast: (scope, object, event) => remote.broadcast(scope, object, event, signer),
+        };
     },
 
     /** Place a space on a machine at an epoch, moving to a target by a transfer when given. */

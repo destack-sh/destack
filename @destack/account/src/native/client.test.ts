@@ -2,7 +2,7 @@ import { principal } from "@destack/access";
 import { and, eq } from "@destack/db";
 import { connectBunSqlite } from "@destack/db/bun";
 import { MemoryKeychain } from "@destack/identity";
-import { Bookmark, ObjectClient } from "@destack/object/client";
+import { Bookmark, ObjectClient, ProcedureRemote } from "@destack/object/client";
 import { present, schema } from "@destack/schema";
 import { ObjectReference, Scope } from "@destack/sync";
 import { expect, onTestFinished, refusal, single, test } from "@destack/test";
@@ -82,15 +82,19 @@ async function native(accounts: TestAccountStore) {
         scope: DEVICE,
         caller: subject,
         device: subject,
-        endpoint: {
-            url: "http://local.invalid/",
-            fetch: async () => {
-                throw new TypeError("calling a server from local objects is not supported");
+        remote: ProcedureRemote.at({
+            scope: DEVICE,
+            endpoint: {
+                url: "http://local.invalid/",
+                fetch: async () => {
+                    throw new TypeError("calling a server from local objects is not supported");
+                },
             },
-        },
-        reconnect: () => {
-            throw new TypeError("local objects move nowhere");
-        },
+            reconnect: () => {
+                throw new TypeError("local objects move nowhere");
+            },
+            environment: device,
+        }),
     });
     onTestFinished(() => logins.close());
 
