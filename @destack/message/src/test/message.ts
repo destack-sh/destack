@@ -382,13 +382,13 @@ export class TestMessage {
         const clients = owner.client(accountPackage).client;
         const requestId = () => RequestId.create(this.environment);
         const created = await clients.create({
-            userId: owner.id,
+            scope: owner.id,
             requestId: requestId(),
             name: "Firefox",
             kind: "browser",
         });
         const push = { url: `${PUSH_ORIGIN}${path}`, keys: browser.keys };
-        await clients.subscribe({ userId: owner.id, id: created.id, requestId: requestId(), push });
+        await clients.subscribe({ scope: owner.id, id: created.id, requestId: requestId(), push });
 
         return { to: { channel: "push", client: created.id, user: owner.id }, browser };
     }

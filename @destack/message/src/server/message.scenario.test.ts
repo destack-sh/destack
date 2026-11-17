@@ -153,7 +153,7 @@ test("unsubscribe a browser its push service answers gone", async () => {
         started: [
             {
                 input: {
-                    call: client.call("unsubscribe", { id: to.client, userId: to.user }),
+                    call: client.call("unsubscribe", { id: to.client, scope: to.user }),
                 },
                 actor: principal.space.reference(Scope.universe.id, fixture.space.id),
             },

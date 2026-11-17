@@ -161,7 +161,7 @@ async function observe(
     const forget = isGone
         ? [
               task.start(
-                  { call: client.call("unsubscribe", { id: to.client, userId: to.user }) },
+                  { call: client.call("unsubscribe", { id: to.client, scope: to.user }) },
                   {
                       actor: principal.space.reference(
                           Scope.universe.id,
