@@ -120,7 +120,7 @@ const taskThree = defineTable(
     {
         log: {},
         convert: {
-            [NEXT_VERSION]: {
+            2: {
                 priority: Expression.case(
                     Expression.column("urgent"),
                     [{ when: 1, then: Expression.literal("high") }],
@@ -430,7 +430,7 @@ test("convert rows to a new release and log the converted values", async () => {
     const plan = await database.migrate([taskThree]);
     expect(review(plan)).toEqual([
         `safe create table/${table(taskThree)}/column/priority: add column priority`,
-        `fallible convert table/${table(taskThree)}: convert rows to ${NEXT_VERSION}`,
+        `fallible convert table/${table(taskThree)}: convert rows to edition 2`,
     ]);
     expect(await database.select().from(taskThree).orderBy(taskThree.id)).toEqual([
         { id: "a", scope: "inbox", title: "Plan", urgent: 1, priority: "high", dueAt: null },
@@ -511,7 +511,7 @@ const preferenceConverted = defineTable(
     { id: text("id").primaryKey(), mode: json("mode", schema.enum(["standard", "vim"])) },
     {
         convert: {
-            [NEXT_VERSION]: {
+            2: {
                 mode: Expression.case(
                     Expression.scalar(Expression.column("mode"), "text"),
                     [{ when: "emacs", then: Expression.json("standard") }],
@@ -554,7 +554,7 @@ test("widen column values freely and narrow them only by a conversion", async ()
     ]);
     const converted = await database.migrate([preferenceConverted]);
     expect(review(converted)).toEqual([
-        `fallible convert table/${table(preferenceConverted)}: convert rows to ${NEXT_VERSION}`,
+        `fallible convert table/${table(preferenceConverted)}: convert rows to edition 2`,
     ]);
     expect(
         await database.select().from(preferenceConverted).orderBy(preferenceConverted.id),
@@ -615,7 +615,7 @@ const preferenceMisconverted = defineTable(
     { id: text("id").primaryKey(), mode: json("mode", schema.enum(["standard", "vim"])) },
     {
         convert: {
-            [NEXT_VERSION]: {
+            2: {
                 mode: Expression.case(
                     Expression.scalar(Expression.column("mode"), "text"),
                     [{ when: "emacs", then: Expression.json("nano") }],
@@ -654,7 +654,7 @@ const preferenceRebuilt = defineTable(
     { id: text("id").primaryKey(), mode: json("mode", schema.enum(["standard", "vim"])) },
     {
         convert: {
-            [preferenceOne[TABLE].package.version]: {
+            2: {
                 mode: Expression.case(
                     Expression.scalar(Expression.column("mode"), "text"),
                     [{ when: "emacs", then: Expression.json("standard") }],
@@ -677,7 +677,7 @@ test("convert rows by the conversion a rebuilt release adds, once", async () => 
     const again = await database.migrate([preferenceRebuilt]);
     expect({ converted: review(converted), again: review(again) }).toEqual({
         converted: [
-            `fallible convert table/${table(preferenceRebuilt)}: convert rows to ${preferenceOne[TABLE].package.version}`,
+            `fallible convert table/${table(preferenceRebuilt)}: convert rows to edition 2`,
         ],
         again: [],
     });

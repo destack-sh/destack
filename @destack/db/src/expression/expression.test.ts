@@ -240,23 +240,23 @@ test("compute JSON expressions alike in SQL and in memory", async () => {
     }
 });
 
-test("upgrade partial records through each later release, leaving fields computed from absent fields absent", () => {
-    // rename title to name in 2026.9.0, and default a new limit in 2026.10.0
+test("upgrade partial records through each later edition, leaving fields computed from absent fields absent", () => {
+    // rename title to name in edition 2, and default a new limit in edition 3
     const conversions = {
-        "2026.9.0": { name: Expression.column("title") },
-        "2026.10.0": {
+        2: { name: Expression.column("title") },
+        3: {
             limit: Expression.coalesce(Expression.column("limit"), Expression.literal(50)),
         },
     };
-    const convert = (record: Record<string, JsonValue>, from: string) =>
-        Expression.upgrade(conversions, record, from, "2026.10.0");
+    const convert = (record: Record<string, JsonValue>, from: number) =>
+        Expression.upgrade(conversions, record, from, 3);
 
-    // convert full, partial and null records, and a record of the latest release
+    // convert full, partial and null records, and a record of the latest edition
     expect([
-        convert({ title: "Plan" }, "2026.8.0"),
-        convert({ id: "a" }, "2026.8.0"),
-        convert({ title: null }, "2026.8.0"),
-        convert({ name: "Plan", limit: 5 }, "2026.10.0"),
+        convert({ title: "Plan" }, 1),
+        convert({ id: "a" }, 1),
+        convert({ title: null }, 1),
+        convert({ name: "Plan", limit: 5 }, 3),
     ]).toEqual([
         { title: "Plan", name: "Plan", limit: 50 },
         { id: "a", limit: 50 },

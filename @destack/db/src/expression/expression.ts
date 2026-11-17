@@ -3,7 +3,7 @@ import { DatabaseError } from "../error/error.ts";
 import { TABLE, type Table } from "../table/table.ts";
 import type { ColumnKind, ColumnValue } from "../table/column.ts";
 import type { Namespace } from "../query/namespace.ts";
-import { type JsonObject, JsonValue, schema, Version } from "@destack/schema";
+import { type JsonObject, JsonValue, Edition, schema } from "@destack/schema";
 import { Condition, Scalar, type JsonCondition } from "../query/condition.ts";
 
 /** The most terms one expression has, bounding compiled SQL; computed fields use under ten. */
@@ -322,15 +322,15 @@ export const Expression = {
         return names;
     },
 
-    /** Upgrade a partial record of an earlier release through later releases' assignments. */
+    /** Upgrade a partial record of an earlier edition through later editions' assignments. */
     upgrade(
-        convert: Readonly<Record<Version, Readonly<Record<string, Expression>>>>,
+        convert: Readonly<Record<number, Readonly<Record<string, Expression>>>>,
         record: JsonObject,
-        from: Version,
-        to: Version,
+        from: number,
+        to: number,
     ): Record<string, JsonValue> {
         const converted: Record<string, JsonValue> = Object.fromEntries(JsonValue.entries(record));
-        for (const [, assignments] of Version.between(convert, from, to)) {
+        for (const [, assignments] of Edition.between(convert, from, to)) {
             // compute each field, skipping nothing computed from absent fields alone
             const fields: Record<string, JsonValue> = {};
             for (const [field, expression] of Object.entries(assignments)) {

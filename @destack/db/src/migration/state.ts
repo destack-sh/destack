@@ -91,9 +91,12 @@ export const TableState = schema.object({
             }),
         )
         .exactOptional(),
-    /** The SQL assignments converting earlier rows by column, keyed by introducing release. */
+    /** The SQL assignments converting earlier rows, by the edition each leads to. */
     conversions: schema
-        .record(Version, schema.record(schema.string(), schema.string()))
+        .record(
+            schema.string().regex(/^[1-9]\d*$/u),
+            schema.record(schema.string(), schema.string()),
+        )
         .exactOptional(),
 });
 /** A managed table as declared or applied. */
@@ -586,7 +589,7 @@ export function writeState(
     appliedAt: number,
     namespace?: string,
 ): string {
-    // store the conversions, so a rebuilt release runs only the ones it adds
+    // store the conversions, so a later build runs only the ones it adds
     const encoded = literal(JSON.stringify(state));
     const table = quote(relation(STATE, namespace));
 
@@ -648,7 +651,7 @@ function describePredefined(table: Table, dialect: Dialect): Record<string, stri
     );
 }
 
-/** Render each release's conversion as SQL assignments of columns of the same kind. */
+/** Render each edition's conversion as SQL assignments of columns of the same kind. */
 function describeConversions(table: Table, dialect: Dialect): TableState["conversions"] {
     // render each assignment, requiring the column's kind
     const definition = table[TABLE];

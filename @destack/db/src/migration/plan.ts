@@ -283,28 +283,22 @@ function planChange(
     return [...steps, ...changes];
 }
 
-/** Convert rows by each conversion from the applied release on that the applied state lacks. */
+/** Convert rows by each conversion the applied state lacks, in edition order. */
 function convertSteps(
     state: TableState,
     previous: TableState,
     isEmpty: boolean,
     problems: Problem[],
 ): TableStep[] {
-    // run a rebuilt release's new conversion too, since its earlier build wrote the rows
-    const applied = previous.package.version;
+    // run each conversion the applied state lacks
     const conversions = Object.entries(state.conversions ?? {})
-        .filter(
-            ([release]) =>
-                Version.compare(release, applied) >= 0 &&
-                Version.compare(release, state.package.version) <= 0 &&
-                previous.conversions?.[release] === undefined,
-        )
-        .toSorted(([left], [right]) => Version.compare(left, right));
-    const releases = conversions.map(([release]) => release);
+        .filter(([edition]) => previous.conversions?.[edition] === undefined)
+        .toSorted(([left], [right]) => Number(left) - Number(right));
+    const editions = conversions.map(([edition]) => edition);
 
     return [
-        ...conversions.map(([release, assignments]) => convertRows(state, release, assignments)),
-        ...changeValues(previous, state, releases, isEmpty, problems),
+        ...conversions.map(([edition, assignments]) => convertRows(state, edition, assignments)),
+        ...changeValues(previous, state, editions, isEmpty, problems),
     ];
 }
 
@@ -976,10 +970,10 @@ function createStatements(table: TableDescription): string[] {
     ];
 }
 
-/** Convert every row of a table from earlier releases by the conversion one release introduces. */
+/** Convert every row of a table from earlier editions by the conversion leading to one. */
 function convertRows(
     state: TableState,
-    release: Version,
+    edition: string,
     assignments: Readonly<Record<string, string>>,
 ): TableStep {
     // assign every converted column in one statement
@@ -989,9 +983,13 @@ function convertRows(
         .join(", ");
 
     return {
-        ...step("convert", Address.join("table", name), "fallible", `convert rows to ${release}`, [
-            `UPDATE ${quote(name)} SET ${set}`,
-        ]),
+        ...step(
+            "convert",
+            Address.join("table", name),
+            "fallible",
+            `convert rows to edition ${edition}`,
+            [`UPDATE ${quote(name)} SET ${set}`],
+        ),
         converted: { table: name, columns: Object.keys(assignments) },
     };
 }
@@ -1000,7 +998,7 @@ function convertRows(
 function changeValues(
     previous: TableState,
     state: TableState,
-    releases: readonly Version[],
+    editions: readonly string[],
     isEmpty: boolean,
     problems: Problem[],
 ): TableStep[] {
@@ -1019,7 +1017,7 @@ function changeValues(
         // plan the change, leaving convert steps to row conversions, which an empty table skips
         const isConverted =
             isEmpty ||
-            releases.some((release) => state.conversions?.[release]?.[column.name] !== undefined);
+            editions.some((edition) => state.conversions?.[edition]?.[column.name] !== undefined);
         try {
             const planned = Plan.of({
                 target: Address.join("table", name, "column", column.name),

@@ -23,7 +23,7 @@ import {
     mapValues,
     present,
     schema,
-    Version,
+    Edition,
     type JsonObject,
     type JsonValue,
 } from "@destack/schema";
@@ -308,8 +308,8 @@ export class TableDefinition<
     readonly generation: string | undefined;
     /** The table's previous names. */
     readonly moved: TableMove;
-    /** The row conversions by the release introducing them. */
-    readonly convert: Readonly<Record<Version, RowConversion>>;
+    /** The row conversions by the edition each leads to. */
+    readonly convert: Readonly<Record<number, RowConversion>>;
     /** The aggregates this table's rows feed or store. */
     readonly aggregates: readonly Aggregate[];
     /** The rows of other tables referencing this table's rows. */
@@ -707,8 +707,8 @@ interface TableDeclaration {
     readonly generation: string | undefined;
     /** The table's previous names. */
     readonly moved: TableMove;
-    /** The row conversions by the release introducing them. */
-    readonly convert: Readonly<Record<Version, RowConversion>>;
+    /** The row conversions by the edition each leads to. */
+    readonly convert: Readonly<Record<number, RowConversion>>;
     /** The aggregates this table's rows feed or store. */
     readonly aggregates: readonly Aggregate[];
     /** The rows of other tables referencing this table's rows. */
@@ -811,8 +811,8 @@ export interface TableOptions<
         /** The previous SQL column names by property. */
         readonly columns?: { readonly [Property in keyof Columns]?: string };
     };
-    /** The row conversions by the release introducing them, converting rows of earlier releases. */
-    readonly convert?: Readonly<Record<Version, RowConversion<Columns>>>;
+    /** The row conversions by the edition each leads to, converting rows of earlier editions. */
+    readonly convert?: Readonly<Record<number, RowConversion<Columns>>>;
     /** The aggregates this table's rows feed or store. */
     readonly aggregates?: readonly Aggregate[];
     /** The rows of other tables referencing this table's rows. */
@@ -945,8 +945,8 @@ export function defineTable<
         names.add(definition.name);
     }
 
-    // require conversions keyed by releases up to the declaring one
-    Version.requireUpTo(options.convert ?? {}, owner.version, name);
+    // require conversions keyed by editions
+    Edition.require(options.convert ?? {}, name);
 
     // attach the columns in order
     const columns = attachColumns<Builders, Name>(sqlName, builders);

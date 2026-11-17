@@ -88,7 +88,7 @@ Each column takes `.primaryKey()`, `.notNull()`, `.default(value)`, `.references
 | `tree`             | the `id`, `scope` and `parent` properties of a tree per scope |
 | `aggregates`       | counts, sums, minimums and maximums kept on referenced rows   |
 | `dependents`       | rows of other tables that cascade or restrict deletion        |
-| `convert`, `moved` | how a release converts rows and renames the table or columns  |
+| `convert`, `moved` | how an edition converts rows, and the table's previous names  |
 | `predefined`       | rows every database has                                       |
 
 ### Database
