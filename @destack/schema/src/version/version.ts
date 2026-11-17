@@ -48,42 +48,6 @@ export const Version = Object.assign(z.string().regex(VERSION), {
 
         return `${year}.${month}.${release + 1}`;
     },
-
-    /** List the entries keyed by releases after one version's release up to another's, in order. */
-    between<Value>(
-        keyed: Readonly<Record<string, Value>>,
-        after: string,
-        upto: string,
-    ): [string, Value][] {
-        // compare dev builds as the release they lead to, which carries its entries
-        const first = Version.release(after);
-        const last = Version.release(upto);
-
-        return Object.entries(keyed)
-            .filter(
-                ([release]) =>
-                    Version.compare(release, first) > 0 && Version.compare(release, last) <= 0,
-            )
-            .toSorted(([left], [right]) => Version.compare(left, right));
-    },
-
-    /** Refuse conversion keys that are not releases or follow the declaring version's release. */
-    requireUpTo<Value>(
-        keyed: Readonly<Record<string, Value>>,
-        version: string,
-        name: string,
-    ): void {
-        for (const key of Object.keys(keyed)) {
-            // refuse a key that is not a release or one after the declaring version's release
-            if (!Version.safeParse(key).success || Version.isPrerelease(key)) {
-                throw new TypeError(`conversion key of '${name}' is not a release: '${key}'`);
-            } else if (Version.compare(key, Version.release(version)) > 0) {
-                throw new TypeError(
-                    `conversion of '${name}' is keyed by '${key}', after its version '${version}'`,
-                );
-            }
-        }
-    },
 });
 
 /** A package release version. */
