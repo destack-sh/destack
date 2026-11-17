@@ -2,7 +2,6 @@ import { PackageManifest } from "@destack/package/manifest";
 import { FORGE_INSTALLATION } from "@destack/forge/package";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { inspect } from "node:util";
 import { MachineKey } from "@destack/account/client";
 import { PostgresPool } from "@destack/db/postgres";
 import { DESKTOP_OBJECTS } from "@destack/desktop/object";
@@ -185,8 +184,7 @@ export class LocalUniverse implements AsyncDisposable {
                     options.print("mail", text);
                 }),
                 directory: join(options.directory, "universe"),
-                report: (error) =>
-                    options.print("universe", inspect(error, { getters: true, depth: 6 })),
+                report: (error) => Computer.capture(environment.telemetry, "universe", error),
                 shipped: {
                     releases: shipped,
                     open: (lock) => build.store.root(lock),
@@ -437,8 +435,7 @@ export class LocalUniverse implements AsyncDisposable {
                     pid: environment.process.id,
                     startedAt: now,
                 },
-                report: (event, error) =>
-                    options.print(name, `${event}: ${inspect(error, { getters: true, depth: 6 })}`),
+                report: (event, error) => Computer.capture(environment.telemetry, event, error),
                 shutdown: () =>
                     options.print(name, "asked to stop, which just local does on Ctrl-C"),
             }),
