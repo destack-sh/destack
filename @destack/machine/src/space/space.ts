@@ -1783,6 +1783,7 @@ export class Space {
         };
 
         return {
+            origin: network.origin,
             fetch: async (request, options) => {
                 // send each hop unfollowed, a wildcard's host on public addresses alone
                 let sent = request;
