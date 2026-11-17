@@ -9,6 +9,9 @@
         "./browser": {
             "runtimes": ["browser"]
         },
+        "./device": {
+            "runtimes": ["browser"]
+        },
         "./static/browser": {
             "runtimes": ["browser"]
         },

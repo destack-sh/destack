@@ -18,6 +18,7 @@
         "./media/asset": "./src/media/asset.ts",
         "./example": "./src/example/index.ts",
         "./browser": "./src/browser/index.ts",
+        "./device": "./src/browser/device.ts",
         "./static": "./src/static/index.ts",
         "./styles.css": "./src/styles/styles.css",
         "./static/browser": "./src/static/browser.ts",

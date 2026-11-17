@@ -3,19 +3,16 @@ import type { Environment } from "@destack/environment";
 import type { BrowserCapability, BrowserEnvironment } from "@destack/environment/browser";
 import "../styles/styles.ts";
 import { Catalog, Locale, type LocaleTag, Localization, SOURCE_LOCALE } from "@destack/locale";
-import { PACKAGE_PATH } from "@destack/object";
 import { present, schema } from "@destack/schema";
 import { PackageId } from "@destack/package";
-import type { ObjectType } from "@destack/object";
 import { BrowserTab } from "@destack/object/browser";
-import { ObjectClient } from "@destack/object/client";
 import { BrowserClient } from "@destack/account/browser";
 import { ObjectTypeReference, type Subject } from "@destack/sync";
 import { principal } from "@destack/access";
 import type { ClientOptions } from "@destack/object/client";
 import { reportToDevtools, startTelemetry } from "@destack/telemetry/browser";
 import { OTLP_ORIGIN_PATH, OtlpExporter } from "@destack/telemetry/otlp";
-import { CLIENT_PATH, CONTEXT_ELEMENT, HOME_PATH, ViewContext } from "../declare/context.ts";
+import { CLIENT_PATH, CONTEXT_ELEMENT, ViewContext } from "../declare/context.ts";
 import type { CommandDeclaration } from "../palette/keybinding.ts";
 import { PageUndo } from "../page/undo.ts";
 import { account, space, user } from "@destack/account/object";
@@ -28,6 +25,7 @@ import type { View } from "../declare/view.ts";
 import { CONTEXT_SCOPES } from "../declare/context.ts";
 import { renderView } from "../page/mount.ts";
 import { recordVisits } from "./visit.ts";
+import { DeviceRequest, type DeviceRole, deviceObjects } from "./device.ts";
 import { mountPackages } from "../page/view.ts";
 import { PageAuthorization } from "./authorization.ts";
 import { PaletteOverlay } from "../palette/overlay.ts";
@@ -42,6 +40,7 @@ export async function mount(
         readonly theme?: ThemeDescription;
     },
     environment: Environment<"workers" | BrowserCapability>,
+    deviceWorker: URL,
 ): Promise<() => Promise<void>> {
     // answer the page that authorizes in this window, rendering nothing
     if (PageAuthorization.answer(environment)) {
@@ -85,7 +84,7 @@ export async function mount(
         : undefined;
     const authorization = new PageAuthorization(root, environment);
     const call = pageOrigin(root, authorization);
-    const tabs = await openTabs(context, view, device, call, environment);
+    const tabs = await openTabs(context, view, { device, root, worker: deviceWorker }, environment);
     const clients = new Map([...tabs].map(([scope, tab]) => [scope, tab.client]));
     const packages = mountPackages(view.packages, call);
 
@@ -443,49 +442,57 @@ async function fetchCatalogs(
     return fetched.flat();
 }
 
-/** Open a tab for each scope a view's context opens, once its tables exist. */
+/** Open a tab for each scope a view's context opens over the person's device. */
 async function openTabs(
     context: ViewContext,
     view: View,
-    device: Subject | undefined,
-    origin: (path: string) => ClientOptions,
+    devices: {
+        readonly device: Subject | undefined;
+        readonly root: string;
+        readonly worker: URL;
+    },
     environment: Environment<"workers" | BrowserCapability>,
 ): Promise<Map<string, BrowserTab>> {
-    // follow a person's own settings and profile, and group the view's types by the scope each lives in
-    const byScope = new Map<string, Readonly<Record<string, ObjectType>>>(
-        device === undefined
-            ? []
-            : [[context.user.id, ObjectClient.keyed([setting, deviceSetting, user])]],
+    // follow a person's own settings and profile, and list the parts each scope plays for the view
+    const { device } = devices;
+    const roles = new Map<string, DeviceRole[]>(
+        device === undefined ? [] : [[context.user.id, ["user"]]],
     );
     for (const name of CONTEXT_SCOPES) {
         const scope = context[name];
-        const objects = view.opens(name === "account" ? account : space);
-        if (scope !== undefined && objects.length > 0) {
-            const named = ObjectClient.keyed(objects);
-            byScope.set(scope, { ...byScope.get(scope), ...named });
+        const role = name === "account" ? "account" : "space";
+        const isOpened = view.opens(name === "account" ? account : space).length > 0;
+        if (scope !== undefined && isOpened) {
+            roles.set(scope, [...(roles.get(scope) ?? []), role]);
         }
     }
 
-    // open each scope's tab at the origin's package path, calling other scopes' homes below its home path
-    const { url } = origin(PACKAGE_PATH);
+    // ask for the person's one device, which every tab of the origin shares
+    const name = context.user.id;
+    const request = {
+        caller: context.user,
+        ...(device === undefined ? {} : { device }),
+        root: devices.root,
+    };
+    const worker = BrowserTab.worker(
+        devices.worker,
+        name,
+        schema.jsonObject().parse(DeviceRequest.parse(request)),
+        environment,
+    );
 
     return new Map(
         await Promise.all(
-            [...byScope].map(async ([scope, objects]) => {
-                // open the scope's tab, ready once its access replica holds the scope's chain
+            [...roles].map(async ([scope, played]) => {
+                // open the scope's tab over the device, ready once its access replica holds the scope's chain
                 const tab = await BrowserTab.open({
-                    name: scope,
-                    worker: BrowserTab.worker(scope, environment),
-                    objects,
+                    name,
+                    worker,
+                    objects: deviceObjects(view, played),
                     scope,
                     caller: context.user,
                     ...(device === undefined ? {} : { device }),
-                    endpoint: { url },
-                    // reopen the same endpoint
-                    reconnect: () => ({ url }),
-                    homes: (home: string) => origin(`${HOME_PATH}/${home}`),
                     environment,
-                    report: (error: unknown) => globalThis.reportError(error),
                 });
                 await tab.ready;
 

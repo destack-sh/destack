@@ -32,6 +32,9 @@ import { ACTION_KIND } from "../declare/action.ts";
 /** The prefix of the generated modules rendering each view. */
 export const PREFIX = "virtual:@destack/view/view/";
 
+/** The suffix of a client view's device worker module, after the view's own module id. */
+const DEVICE_SUFFIX = "/device";
+
 /** The directory of the assets an output emits, as the build names them. */
 const ASSET_DIRECTORY = "asset/";
 
@@ -396,10 +399,17 @@ export function entryPlugin(views: readonly LocatedView[], compilation: ViewPack
 
     return {
         name: VIEW_PACKAGE,
+        config: () => ({
+            // build each client view's device worker with the view's framework and entries
+            worker: {
+                format: "es",
+                plugins: () => [...viewPlugins(false), entryPlugin(views, compilation)],
+            },
+        }),
         resolveId: {
             filter: {
                 id: new RegExp(
-                    `^(?:${RegExp.escape(PREFIX)}|${RegExp.escape(STYLESHEETS[0])}$)`,
+                    `^(?:\0?${RegExp.escape(PREFIX)}|${RegExp.escape(STYLESHEETS[0])}$)`,
                     "u",
                 ),
             },
@@ -408,6 +418,8 @@ export function entryPlugin(views: readonly LocatedView[], compilation: ViewPack
                 const view = views.find((entry) => `\0${PREFIX}${entry.name}` === origin);
                 if (source.startsWith(PREFIX)) {
                     return `\0${source}`;
+                } else if (source.startsWith(`\0${PREFIX}`)) {
+                    return source;
                 } else if (view !== undefined) {
                     return await this.resolve(source, view.file, { skipSelf: true });
                 }
@@ -418,14 +430,32 @@ export function entryPlugin(views: readonly LocatedView[], compilation: ViewPack
         load: {
             filter: { id: generated },
             handler(id, options) {
-                // write the module of the view the id has, for the server or the browser
+                // write a client view's device worker module, else the module of the view the id has, for the server or the browser
+                const device = views.find(
+                    (entry) => `\0${PREFIX}${entry.name}${DEVICE_SUFFIX}` === id,
+                );
                 const view = views.find((entry) => `\0${PREFIX}${entry.name}` === id);
                 const isServer = options?.ssr === true;
+                if (device !== undefined) {
+                    return deviceModule(device);
+                }
 
                 return view && entryModule(view, isServer, compilation, declared);
             },
         },
     };
+}
+
+/** Write a client view's device worker module, serving the person's device to the tabs. */
+function deviceModule(view: LocatedView): string {
+    return [
+        `import { BrowserEnvironment } from "@destack/environment/browser";`,
+        `import { serveDevice } from "${VIEW_PACKAGE}/device";`,
+        `import { ${view.export} as view } from ${JSON.stringify(view.file)};`,
+        ``,
+        `serveDevice(view, self, BrowserEnvironment.system);`,
+        ``,
+    ].join("\n");
 }
 
 /** Write a view's entry: rendering its pages on the server, or mounting or hydrating it. */
@@ -460,15 +490,18 @@ function entryModule(
             ``,
         ].join("\n");
     }
-    // mount a client view
+    // mount a client view, starting its device worker from its own bundle
     else if (view.render.mode !== "static") {
+        const worker = JSON.stringify(`${PREFIX}${view.name}${DEVICE_SUFFIX}?worker&url`);
+
         return [
             baseline,
             ...stylesheets,
             `import { BrowserEnvironment, mount } from "${VIEW_PACKAGE}/browser";`,
             imported,
+            `import device from ${worker};`,
             ``,
-            `await mount(view, ${declared}, BrowserEnvironment.system);`,
+            `await mount(view, ${declared}, BrowserEnvironment.system, new URL(device, import.meta.url));`,
             ``,
         ].join("\n");
     }

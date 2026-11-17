@@ -4,7 +4,7 @@ import { account, space } from "@destack/account/object";
 import { WasmClient } from "@destack/db/browser";
 import { SqliteDatabase } from "@destack/db/sqlite";
 import type { ObjectType } from "@destack/object";
-import { ObjectClient } from "@destack/object/client";
+import { ObjectClient, ProcedureRemote } from "@destack/object/client";
 import type { ExampleObjects } from "@destack/package/declare";
 import { Scope } from "@destack/sync";
 import { CONTEXT_SCOPES, type ViewContext } from "../declare/context.ts";
@@ -145,9 +145,13 @@ async function openScope(
         objects: named,
         scope,
         caller,
-        endpoint: OFFLINE,
-        reconnect: () => OFFLINE,
         environment,
+        remote: ProcedureRemote.at({
+            scope: scope,
+            endpoint: OFFLINE,
+            reconnect: () => OFFLINE,
+            environment: environment,
+        }),
     });
     signal.addEventListener("abort", () => {
         void client.close().then(() => memory.close());

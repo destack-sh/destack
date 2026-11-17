@@ -3,7 +3,7 @@ import { argument, plural, t } from "@destack/locale";
 import { none, principal, relation } from "@destack/access";
 import { TestDatabase } from "@destack/db/test";
 import { defineObject, field } from "@destack/object";
-import { ObjectClient } from "@destack/object/client";
+import { ObjectClient, ProcedureRemote } from "@destack/object/client";
 import { schema } from "@destack/schema";
 import { Scope } from "@destack/sync";
 import { expect, onTestFinished, test } from "@destack/test";
@@ -61,8 +61,12 @@ async function openClient(environment: Environment) {
         objects: { card },
         scope: BOARD_ID,
         caller: USER,
-        endpoint: offline,
-        reconnect: () => offline,
+        remote: ProcedureRemote.at({
+            scope: BOARD_ID,
+            endpoint: offline,
+            reconnect: () => offline,
+            environment: environment,
+        }),
     });
     onTestFinished(async () => {
         await client.close();
