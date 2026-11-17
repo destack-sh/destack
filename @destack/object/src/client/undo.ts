@@ -34,15 +34,13 @@ const UNDO_DELAY = 500;
 /** The most undo groups a party stores, as ProseMirror's history depth. */
 const UNDO_DEPTH = 100;
 
-/** Each party's undoable mutations as steps, in undo groups. */
+/** Each client's undoable mutations as steps, in undo groups. */
 export const undoEntry = defineTable(
     "undo_entry",
     {
         /** The entry, named after the mutation that first applied its steps. */
         id: text("id").primaryKey(),
-        /** The party the entry belongs to. */
-        origin: text("origin").notNull(),
-        /** The entry's place in its party's stacks. */
+        /** The entry's place in the client's stacks. */
         sequence: integer("sequence").notNull(),
         /** The undo group, named after its first entry. */
         group: text("group").notNull(),
@@ -59,7 +57,7 @@ export const undoEntry = defineTable(
     },
     {
         constraints: (columns) => [
-            index("undo_entry_sequence").on(columns.origin, columns.sequence),
+            index("undo_entry_sequence").on(columns.sequence),
             index("undo_entry_mutation").on(columns.mutationId),
         ],
     },
@@ -86,7 +84,7 @@ const STORED_STEPS: schema.Schema<StoredStep[]> = schema.array(
     }),
 );
 
-/** A party's undo and redo stacks of mutations, grouped while they continue each other. */
+/** A client's undo and redo stacks of mutations, grouped while they continue each other. */
 export class UndoStack {
     /** The client whose mutations the stacks record. */
     readonly client: ObjectClient;
@@ -98,12 +96,12 @@ export class UndoStack {
         this.client = client;
     }
 
-    /** Undo the party's latest group, predicting false when none is left. */
+    /** Undo the client's latest group, predicting false when none is left. */
     undo(): Submission<boolean> {
         return this.#toggle("done", "undone");
     }
 
-    /** Redo the party's latest undone group, predicting false when none is left. */
+    /** Redo the client's latest undone group, predicting false when none is left. */
     redo(): Submission<boolean> {
         return this.#toggle("undone", "done");
     }
@@ -114,16 +112,16 @@ export class UndoStack {
             await transaction
                 .update(undoEntry)
                 .set({ isOpen: false })
-                .where(and(eq(undoEntry.origin, this.client.origin), eq(undoEntry.isOpen, true)));
+                .where(eq(undoEntry.isOpen, true));
         });
     }
 
-    /** Read the party's latest entry in a state: the last done, or the first undone. */
+    /** Read the client's latest entry in a state: the last done, or the first undone. */
     async latest(state: "done" | "undone"): Promise<Select<typeof undoEntry> | undefined> {
         const [entry] = await this.client.database
             .select()
             .from(undoEntry)
-            .where(and(eq(undoEntry.origin, this.client.origin), eq(undoEntry.state, state)))
+            .where(eq(undoEntry.state, state))
             .orderBy(state === "done" ? desc(undoEntry.sequence) : asc(undoEntry.sequence))
             .limit(1);
 
@@ -160,14 +158,12 @@ export class UndoStack {
         composable: string | undefined,
     ): Promise<readonly StoredStep[] | undefined> {
         // clear the redo stack
-        const mine = eq(undoEntry.origin, this.client.origin);
-        await database.delete(undoEntry).where(and(mine, eq(undoEntry.state, "undone")));
+        await database.delete(undoEntry).where(eq(undoEntry.state, "undone"));
 
         // close the latest entry
         const [latest] = await database
             .select()
             .from(undoEntry)
-            .where(mine)
             .orderBy(desc(undoEntry.sequence))
             .limit(1);
         if (latest?.isOpen === true) {
@@ -210,7 +206,6 @@ export class UndoStack {
         const isJoining = latest !== undefined && composed !== undefined;
         await database.insert(undoEntry).values({
             id,
-            origin: this.client.origin,
             sequence: (latest?.sequence ?? 0) + 1,
             group: isJoining ? latest.group : id,
             state: "done",
@@ -229,9 +224,13 @@ export class UndoStack {
     }
 
     /** Fill an executed mutation's missing step results from the server. */
-    async settle(mutationId: string, value: unknown): Promise<void> {
+    async settle(
+        transaction: DatabaseConnection,
+        mutationId: string,
+        value: unknown,
+    ): Promise<void> {
         // read the mutation's entry
-        const [entry] = await this.client.database
+        const [entry] = await transaction
             .select()
             .from(undoEntry)
             .where(eq(undoEntry.mutationId, mutationId));
@@ -246,12 +245,10 @@ export class UndoStack {
                 ? { ...step, result: results[position] }
                 : step,
         );
-        await this.client.database.transaction(async (transaction) => {
-            await transaction
-                .update(undoEntry)
-                .set({ steps: schema.json().parse(steps) })
-                .where(eq(undoEntry.id, entry.id));
-        });
+        await transaction
+            .update(undoEntry)
+            .set({ steps: schema.json().parse(steps) })
+            .where(eq(undoEntry.id, entry.id));
     }
 
     /** Drop the entries of mutations the server rejected. */
@@ -266,27 +263,24 @@ export class UndoStack {
         return { canUndo: done !== undefined, canRedo: undone !== undefined };
     }
 
-    /** Drop the party's groups past the depth. */
+    /** Drop the client's groups past the depth. */
     async #trim(database: DatabaseConnection): Promise<void> {
         // find the oldest group the depth allows, by its first entry
-        const mine = eq(undoEntry.origin, this.client.origin);
         const [oldest] = await database
             .select({ sequence: undoEntry.sequence })
             .from(undoEntry)
-            .where(and(mine, eq(undoEntry.id, undoEntry.group)))
+            .where(eq(undoEntry.id, undoEntry.group))
             .orderBy(desc(undoEntry.sequence))
             .limit(1)
             .offset(UNDO_DEPTH - 1);
 
         // drop the entries before it
         if (oldest !== undefined) {
-            await database
-                .delete(undoEntry)
-                .where(and(mine, lt(undoEntry.sequence, oldest.sequence)));
+            await database.delete(undoEntry).where(lt(undoEntry.sequence, oldest.sequence));
         }
     }
 
-    /** Invert the party's latest group in a state as one new mutation. */
+    /** Invert the client's latest group in a state as one new mutation. */
     #toggle(from: "done" | "undone", to: "done" | "undone"): Submission<boolean> {
         // chain after the previous toggle
         const mutationId = RequestId.create(this.client.environment);
@@ -305,7 +299,7 @@ export class UndoStack {
         return { predicted, confirmed };
     }
 
-    /** Submit the inverse of the party's latest group in a state, returning whether one existed. */
+    /** Submit the inverse of the latest group in a state, answering whether one existed. */
     async #invert(
         from: "done" | "undone",
         to: "done" | "undone",
@@ -335,7 +329,7 @@ export class UndoStack {
         }
     }
 
-    /** Read the entries of the party's latest group in a state, in sequence order. */
+    /** Read the entries of the client's latest group in a state, in sequence order. */
     async #group(from: "done" | "undone"): Promise<Select<typeof undoEntry>[]> {
         const latest = await this.latest(from);
         if (latest === undefined) {
@@ -345,7 +339,7 @@ export class UndoStack {
         return this.client.database
             .select()
             .from(undoEntry)
-            .where(and(eq(undoEntry.origin, this.client.origin), eq(undoEntry.group, latest.group)))
+            .where(eq(undoEntry.group, latest.group))
             .orderBy(asc(undoEntry.sequence));
     }
 
@@ -446,7 +440,7 @@ export class UndoStack {
         await this.client.prediction.add(
             this.client.database,
             mutationId,
-            this.client.origin,
+            this.client.party,
             async (database) => {
                 // predict each inverse call
                 const steps: StoredStep[] = [];

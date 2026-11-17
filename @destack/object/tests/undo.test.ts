@@ -1,3 +1,4 @@
+import { worldTelemetry } from "../src/test/world.ts";
 import { testSimulation, testIdentity } from "../src/test/index.ts";
 import { users } from "./fixture/user.ts";
 import { PackageVersion } from "@destack/package";
@@ -8,7 +9,7 @@ import { definePackage } from "@destack/object";
 import { RequestId, Scope } from "@destack/sync";
 import { testCallKey } from "@destack/object/test";
 import { testEvents } from "../src/test/index.ts";
-import { ObjectClient } from "../src/client/index.ts";
+import { ObjectClient, ProcedureRemote } from "../src/client/index.ts";
 import { undoEntry } from "../src/client/undo.ts";
 import { defineObject, field, type Step } from "../src/index.ts";
 import { implementPackage } from "../src/server/index.ts";
@@ -321,7 +322,7 @@ test("undo and redo a party's mutations, restoring only what no one changed sinc
     await expect.poll(() => read(device.client)).toMatchObject({ deletedAt: null });
     expect(await trashed()).toEqual([]);
 
-    // retain the party's stack across a restart, and redo the update from it
+    // retain the client's stack across a restart, and redo the update from it
     await device.offline();
     const restarted = await ObjectClient.open({
         environment,
@@ -329,13 +330,16 @@ test("undo and redo a party's mutations, restoring only what no one changed sinc
         objects: { notebook, note },
         scope: spaceId,
         caller: principal.user.reference("universe", users.alice),
-        endpoint: endpoint(users.alice),
-        reconnect: unmoved,
-        origin: device.client.origin,
         isMigrated: true,
+        remote: ProcedureRemote.at({
+            scope: spaceId,
+            endpoint: endpoint(users.alice),
+            reconnect: unmoved,
+            environment: environment,
+        }),
     });
     const stopping = new AbortController();
-    const running = restarted.run(stopping.signal, (error) => device.errors.push(error));
+    const running = restarted.run(stopping.signal);
     await restarted.undoStack.redo().confirmed;
     expect(await read(restarted)).toEqual({
         title: "Plan",
@@ -464,7 +468,7 @@ test("compose a drag's updates in as many replica statements as its second", asy
         ["0"],
         ["600"],
     ]);
-    expect({ second, last }).toEqual({ second: 25, last: 25 });
+    expect({ second, last }).toEqual({ second: 19, last: 19 });
 });
 
 test("follow whether a party can undo and redo as its stacks change", async () => {
@@ -568,16 +572,16 @@ test("undo an update of an exact integer, restoring its value on the device and 
         objects: { tally },
         scope: spaceId,
         caller: principal.user.reference("universe", users.alice),
-        endpoint: served.as(users.alice).endpoint(tallies),
-        reconnect: unmoved,
+        remote: ProcedureRemote.at({
+            scope: spaceId,
+            endpoint: served.as(users.alice).endpoint(tallies),
+            reconnect: unmoved,
+            environment: world,
+        }),
     });
     client.queryType(tally).findMany().subscribe();
     const stopping = new AbortController();
-    const errors: unknown[] = [];
-    const loops = [
-        client.follow(stopping.signal, (error) => errors.push(error)),
-        client.push(stopping.signal, (error) => errors.push(error)),
-    ];
+    const loops = [client.follow(stopping.signal), client.push(stopping.signal)];
 
     // create a tally beyond the exact range of numbers and change its count and label
     const created = client.mutate(tally).create({ count: (2n ** 62n).toString(), label: "a" });
@@ -594,11 +598,11 @@ test("undo an update of an exact integer, restoring its value on the device and 
             .where(eq(tally.table.id, id));
     stopping.abort();
     await Promise.all(loops);
-    expect([await read(client.database), await read(storage.database), errors]).toEqual([
-        [{ count: 2n ** 62n, label: "a" }],
-        [{ count: 2n ** 62n, label: "a" }],
-        [],
-    ]);
+    expect([
+        await read(client.database),
+        await read(storage.database),
+        worldTelemetry(client.environment).exceptions(),
+    ]).toEqual([[{ count: 2n ** 62n, label: "a" }], [{ count: 2n ** 62n, label: "a" }], []]);
     await client.close();
 });
 
@@ -651,16 +655,16 @@ test("undo an update of a bytes field, restoring its bytes on the device and the
         objects: { stamp },
         scope: spaceId,
         caller: principal.user.reference("universe", users.alice),
-        endpoint: served.as(users.alice).endpoint(stamps),
-        reconnect: unmoved,
+        remote: ProcedureRemote.at({
+            scope: spaceId,
+            endpoint: served.as(users.alice).endpoint(stamps),
+            reconnect: unmoved,
+            environment: world,
+        }),
     });
     client.queryType(stamp).findMany().subscribe();
     const stopping = new AbortController();
-    const errors: unknown[] = [];
-    const loops = [
-        client.follow(stopping.signal, (error) => errors.push(error)),
-        client.push(stopping.signal, (error) => errors.push(error)),
-    ];
+    const loops = [client.follow(stopping.signal), client.push(stopping.signal)];
 
     // create a stamp of every byte value and change its bytes and label
     const original = Uint8Array.from({ length: 256 }, (_, index) => index);
@@ -679,10 +683,10 @@ test("undo an update of a bytes field, restoring its bytes on the device and the
             .where(eq(stamp.table.id, id));
     stopping.abort();
     await Promise.all(loops);
-    expect([await read(client.database), await read(storage.database), errors]).toEqual([
-        [{ bytes: original, label: "a" }],
-        [{ bytes: original, label: "a" }],
-        [],
-    ]);
+    expect([
+        await read(client.database),
+        await read(storage.database),
+        worldTelemetry(client.environment).exceptions(),
+    ]).toEqual([[{ bytes: original, label: "a" }], [{ bytes: original, label: "a" }], []]);
     await client.close();
 });
