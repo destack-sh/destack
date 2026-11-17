@@ -1,7 +1,7 @@
 import { Failure } from "@destack/error";
 import type { Localization } from "@destack/locale";
-import { ObjectTypePool } from "@destack/object";
-import { DynamicObjectClient } from "@destack/object/client";
+import { ObjectTypePool, type ObjectType } from "@destack/object";
+import { ProcedureRemote } from "@destack/object/client";
 import { schema } from "@destack/schema";
 import { ObjectReference, type Subject } from "@destack/sync";
 import type { ClientOptions } from "@destack/object/client";
@@ -23,8 +23,6 @@ import type { Environment } from "@destack/environment";
 /** The most objects the person opened lately that the palette offers: a screenful. */
 const RECENT_LIMIT = 20;
 
-/** The local object types of a device the palette reads: its windows and the person's visits. */
-const LOCAL_TYPES = ["window", "visit"];
 
 /** A window of this computer, as its local objects list it. */
 const WindowRow = schema.looseObject({
@@ -61,7 +59,7 @@ export class PaletteListing {
     /** The catalog of the person's home. */
     readonly #home: SpaceCatalog | undefined;
     /** The local objects of the device hosting the palette, absent outside one. */
-    readonly #local: DynamicObjectClient | undefined;
+    readonly #local: LocalObjects | undefined;
 
     /** Create a listing from its entries, its failures and where they come from. */
     constructor(
@@ -69,7 +67,7 @@ export class PaletteListing {
         failures: readonly string[],
         from: {
             readonly home: SpaceCatalog | undefined;
-            readonly local: DynamicObjectClient | undefined;
+            readonly local: LocalObjects | undefined;
         },
     ) {
         // set the entries and failures, and the catalog and local objects they come from
@@ -157,7 +155,7 @@ export class PaletteListing {
             throw new TypeError("the palette reads no device's windows");
         }
 
-        await this.#local.call("window", "focus", { id: entry.id });
+        await this.#local.focus(entry.id);
     }
 
     /** Find the catalog of the space a command, a view or an object belongs to. */
@@ -196,47 +194,60 @@ export class PaletteListing {
         user: Subject,
         home: SpaceCatalog | undefined,
         environment: Environment,
-    ): Promise<{ readonly reached: DynamicObjectClient; readonly entries: PaletteEntry[] }> {
-        const reached = await PaletteListing.#openLocal(origin, device, environment);
-        const [windows, recent] = await Promise.all([
-            PaletteListing.#windows(reached),
-            PaletteListing.#recent(reached, user, home),
-        ]);
+    ): Promise<{ readonly reached: LocalObjects; readonly entries: PaletteEntry[] }> {
+        const reached = await LocalObjects.open(origin, device, environment);
+        const [windows, recent] = await Promise.all([reached.windows(), reached.recent(user, home)]);
 
         return { reached, entries: [...windows, ...recent] };
     }
+}
+
+/** The local objects of the device hosting the palette: its windows and the person's visits. */
+class LocalObjects {
+    /** The device's home. */
+    readonly #remote: ProcedureRemote;
+    /** The device's window type, as its store describes it. */
+    readonly #window: ObjectType;
+    /** The device's visit type, as its store describes it. */
+    readonly #visit: ObjectType;
+
+    /** Reach the device's windows and visits through its home. */
+    private constructor(remote: ProcedureRemote, window: ObjectType, visit: ObjectType) {
+        this.#remote = remote;
+        this.#window = window;
+        this.#visit = visit;
+    }
 
     /** Open the device's local objects at its home, by the types its store describes. */
-    static async #openLocal(
+    static async open(
         origin: (path: string) => ClientOptions,
         device: string,
         environment: Environment,
-    ): Promise<DynamicObjectClient> {
+    ): Promise<LocalObjects> {
         // describe the local types the device's store serves
-        const options = {
+        const remote = ProcedureRemote.at({
             scope: device,
             endpoint: origin(`${HOME_PATH}/${device}`),
             environment,
-        };
-        const described = new DynamicObjectClient({ ...options, objects: [] });
-        const objects = ObjectTypePool.of([]).declare(await described.describe());
+        });
+        const types = ObjectTypePool.of([]).declare(await remote.describe());
 
-        // reach the device's windows and visits by those types
-        const types = LOCAL_TYPES.map((name) => {
-            const type = objects.find((each) => each.name === name);
+        // find the window and visit types
+        const typed = (name: string) => {
+            const type = types.find((each) => each.name === name);
             if (type === undefined) {
                 throw new TypeError(`the device keeps no '${name}' objects`);
             }
 
             return type;
-        });
+        };
 
-        return new DynamicObjectClient({ ...options, objects: types });
+        return new LocalObjects(remote, typed("window"), typed("visit"));
     }
 
     /** List the windows the device shows. */
-    static async #windows(local: DynamicObjectClient): Promise<PaletteEntry[]> {
-        const rows = await local.list("window", { where: { status: "open" } });
+    async windows(): Promise<PaletteEntry[]> {
+        const rows = await this.#remote.list(this.#window, { where: { status: "open" } });
 
         return rows.map((row): PaletteEntry => {
             const { id, link, title } = WindowRow.parse(row);
@@ -246,13 +257,9 @@ export class PaletteListing {
     }
 
     /** List the objects the person opened lately on the device, titled by their home. */
-    static async #recent(
-        local: DynamicObjectClient,
-        user: Subject,
-        home: SpaceCatalog | undefined,
-    ): Promise<PaletteEntry[]> {
+    async recent(user: Subject, home: SpaceCatalog | undefined): Promise<PaletteEntry[]> {
         // read the person's latest visits in their home
-        const rows = await local.list("visit", {
+        const rows = await this.#remote.list(this.#visit, {
             where: { subjectId: user.id },
             orderBy: { openedAt: "desc" },
             limit: RECENT_LIMIT,
@@ -274,5 +281,10 @@ export class PaletteListing {
                 ? []
                 : [{ kind: "object", space: visit.spaceId, object: visit.object, title }];
         });
+    }
+
+    /** Bring a window of this computer into focus. */
+    async focus(id: string): Promise<void> {
+        await this.#remote.run(this.#window, "focus", { id });
     }
 }

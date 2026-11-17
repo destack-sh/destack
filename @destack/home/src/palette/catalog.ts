@@ -9,9 +9,9 @@ import {
 } from "@destack/object";
 import {
     type ClientOptions,
-    DynamicObjectClient,
     ObjectClient,
     ObjectStoreDescription,
+    ProcedureRemote,
 } from "@destack/object/client";
 import { DeclarationName, type PackageId } from "@destack/package";
 import type { Localization } from "@destack/locale";
@@ -97,7 +97,7 @@ export class SpaceCatalog {
         // describe the space's store at its home, in one call
         const home = origin(`${HOME_PATH}/${space.id}${PackageMount.path(stackPackage.id)}`);
         const description = await ObjectStoreDescription.read(
-            ObjectClient.store(home, environment),
+            ProcedureRemote.procedures(home, environment),
         );
 
         // list each named installation's commands, views and types, by name
@@ -199,7 +199,7 @@ export class SpaceCatalog {
 
         // list the objects the command applies to whose title contains the text
         const { where, permission } = command.query();
-        const rows = await this.#client(entry.installation, type).list(type.name, {
+        const rows = await this.#client(entry.installation, type).list(type, {
             where: titled === undefined ? where : { AND: [where, titled] },
             permission,
             limit: PICKER_LIMIT,
@@ -225,7 +225,7 @@ export class SpaceCatalog {
                     if (ofType.length === 0) {
                         return [];
                     }
-                    const rows = await this.#client(installed.name, type).list(type.name, {
+                    const rows = await this.#client(installed.name, type).list(type, {
                         where: { id: { in: ofType.map((object) => object.id) } },
                     });
 
@@ -253,7 +253,7 @@ export class SpaceCatalog {
     async appliesTo(entry: CommandEntry, ids: readonly string[]): Promise<boolean> {
         const command = this.command(entry);
         const rows = await this.#client(entry.installation, command.object).list(
-            command.object.name,
+            command.object,
             { ...command.query(ids), limit: ids.length },
         );
 
@@ -265,17 +265,16 @@ export class SpaceCatalog {
         const command = this.command(entry);
         const given = target === undefined ? input : { ...input, id: target };
 
-        return this.#client(entry.installation, command.object).call(
-            command.object.name,
+        return this.#client(entry.installation, command.object).run(
+            command.object,
             command.method,
             command.input(given),
         );
     }
 
-    /** Open an object type's client through an installation by name. */
-    #client(name: string, type: ObjectType): DynamicObjectClient {
-        return new DynamicObjectClient({
-            objects: [type],
+    /** Reach an object type's installation by name. */
+    #client(name: string, type: ObjectType): ProcedureRemote {
+        return ProcedureRemote.at({
             scope: this.space.id,
             endpoint: this.#origin(
                 `${HOME_PATH}/${this.space.id}${InstallationMount.path(this.space.id, name)}${PackageMount.path(type.package.id)}`,
