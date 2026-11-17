@@ -158,10 +158,8 @@ test("publish a checkout at the registry's next release, whatever its package fi
     const words = ["organization", "create", "--name", "Acme", "--handle", "acme"];
     await terminal.printed([...words, "--residency-id", "eu"]);
 
-    // publish the checkout, allowing the stack to publish
-    const published = Published.parse(
-        await json(terminal, ["publish", NOTEBOOKS], { stdin: "yes\n" }),
-    );
+    // publish the checkout, allowing the stack to publish with --yes
+    const published = Published.parse(await json(terminal, ["publish", NOTEBOOKS, "--yes"]));
     const { version } = present(published.releases.at(-1), "the published checkout").package;
 
     // release at the month's first, or lead a dev build of uncommitted source to it

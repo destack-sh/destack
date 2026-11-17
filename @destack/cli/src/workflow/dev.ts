@@ -75,6 +75,7 @@ export function publishCommand(context: Context): Verb {
                 description: "The distribution tag pointing at the release, latest by default",
                 argument: "name",
             },
+            yes: { type: "boolean", description: "Allow the space's stack to publish as you" },
         },
         async run({ arguments: { package: directory }, options, json }) {
             await publish(context, present(directory, "the package argument"), json, options);
@@ -95,7 +96,8 @@ async function publish(
     const accountId = await native.resolve(PackageName.split(built.package.name).handle);
 
     // publish the build and the account's builds it pins that the forge lacks, as the person
-    const stack = await context.package(stackPackage, await context.locate());
+    const consent = values["yes"] === true ? "approve" : "ask";
+    const stack = await context.package(stackPackage, await context.locate(), consent);
     const tag = OptionValue.string(values["tag"], "tag");
     const published = await stack.build.publish({
         spaceId: built.space,

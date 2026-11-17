@@ -193,11 +193,16 @@ export class Context {
     }
 
     /** Open a client of a package of the machine serving a space, as the person. */
-    async package<Handle extends Package>(handle: Handle, location: PlacementEndpoint) {
-        // send as the person, asking them at the terminal for a consent a call needs
+    async package<Handle extends Package>(
+        handle: Handle,
+        location: PlacementEndpoint,
+        consent: "ask" | "approve" = "ask",
+    ) {
+        // send as the person, asking them at the terminal for a consent a call needs unless they gave it
         const client = await this.native();
         const session = await this.launcher();
-        const decide = (request: GrantRequest) => this.#decide(request);
+        const decide = async (request: GrantRequest): Promise<Decision> =>
+            consent === "approve" ? "approve" : this.#decide(request);
 
         return createClient<Handle["router"]>(
             handle,
