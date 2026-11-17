@@ -1,4 +1,6 @@
 import { TUNNEL_PATH } from "@destack/tunnel";
+import { TelemetryScope } from "@destack/telemetry";
+import type {} from "@destack/package/import-meta";
 import { principal } from "@destack/access";
 import { copyRequest } from "@destack/environment";
 import { Snapshot } from "@destack/db";
@@ -14,6 +16,7 @@ import {
 import { Egress, type Follow, PackageMount, tablesOf } from "@destack/object";
 import objectPackage from "@destack/object/package";
 import { implementPackage, ObjectStore } from "@destack/object/server";
+import { ObjectRemote } from "@destack/object/client";
 import {
     defineWorkload,
     ClientHead,
@@ -176,7 +179,9 @@ async function servePartition(
                 url: new URL(origin.read(server.settings)).origin,
                 lapsesAt,
             });
-            await server.publisher.receive(
+            await ObjectRemote.run(
+                server.remote,
+                account,
                 { id: RequestId.create(context.environment), calls: [relayed] },
                 principal.installation.reference(server.scope, server.installation),
             );
@@ -185,7 +190,14 @@ async function servePartition(
     });
 
     // close the sockets that lapsed or stopped standing while the partition slept, as it opens
-    running.sweep().catch((error: unknown) => context.report(error));
+    running
+        .sweep()
+        .catch((error: unknown) =>
+            TelemetryScope.of(
+                import.meta.destack.package,
+                context.environment.telemetry,
+            ).captureException(error, { isEscaped: true }),
+        );
 
     // serve the tunnel's sockets, which close as they lapse on the next wake or use
     return { packages: [store.package(relayPackage)], store, sockets: running };
@@ -213,11 +225,10 @@ async function openReplica(
         ],
         chain: async () => undefined,
         principal: principal.installation.reference(server.scope, server.installation),
-        publisher: () => server.publisher,
+        publisher: () => server.remote,
         database,
         environment: context.environment,
         origin: { package: relayPackage },
-        report: context.report,
     });
 }
 

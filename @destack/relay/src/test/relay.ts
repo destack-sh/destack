@@ -23,7 +23,8 @@ import { PackageVersion } from "@destack/package";
 import { DeclarationReference } from "@destack/package/declare";
 import { MemoryBuild } from "@destack/package/test";
 import { Identifier, present, schema, Uuid } from "@destack/schema";
-import { Replica, Scope, type Subject, type Uplink } from "@destack/sync";
+import { Replica, Scope, type Subject } from "@destack/sync";
+import type { ObjectRemote } from "@destack/object/client";
 import { TelemetryScope } from "@destack/telemetry";
 import type { TestMachine, TestControl } from "@destack/control/test";
 import relayPackage from "../package.ts";
@@ -139,7 +140,9 @@ export class TestRelay implements AsyncDisposable {
             },
             environment,
         ).store;
-        const replicas: Uplink = {
+        const universal = universe.control.store.remote;
+        const replicas: ObjectRemote = {
+            ...universal,
             async *stream(subscription, signal) {
                 const followed = { ...subscription, target: Scope.universe.id };
                 yield* await accounts.stream(followed, { signal });
@@ -148,18 +151,9 @@ export class TestRelay implements AsyncDisposable {
                 const followed = { ...subscription, target: Scope.universe.id };
                 await accounts.request({ subscription: followed });
             },
-            receive: async (mutation, signer) => {
-                // run the relay's changes at the universe as their signer, as the home's machine sends them
-                const caller = Caller.of(signer ?? installation);
-
-                return universe.control.store.mutate(
-                    AccessContext.of(caller, environment.clock.now()),
-                    mutation,
-                );
-            },
-            call: async () => {
-                throw new TypeError("the relay asks the universe no queries");
-            },
+            // run the relay's changes at the universe as their signer, as the home's machine sends them
+            push: (home, push, signal) =>
+                universal.push(home, { ...push, signer: push.signer ?? installation }, signal),
         };
 
         // keep each instance's memory in its own database, the root's read for its replicas' progress
@@ -214,7 +208,7 @@ export class TestRelay implements AsyncDisposable {
                 {
                     workload: relayWorkload,
                     resources: {},
-                    publisher: () => replicas,
+                    remote: () => replicas,
                     socketHost: {
                         url: `http://host.${hostname}${SOCKET_PATH}`,
                         fetch: (request) => sockets.answer(instance, request),
