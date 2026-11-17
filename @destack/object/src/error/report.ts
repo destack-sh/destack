@@ -47,9 +47,13 @@ export function reportError(
         isEscaped: true,
     });
 
+    // return the trace the exception is captured in, so an operator can find it
+    const traceId = span?.spanContext().traceId;
+
     return CallError.http("INTERNAL_SERVER_ERROR", {
         message: "internal server error",
         cause: error,
+        ...(traceId === undefined ? {} : { data: { traceId } }),
     });
 }
 
