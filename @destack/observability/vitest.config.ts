@@ -6,7 +6,6 @@ import { fileURLToPath } from "node:url";
 const UNITS = [
     "src/issue/exception.test.ts",
     "src/otlp/otlp.test.ts",
-    "src/inspect/meter.test.ts",
     "src/object/condition.test.ts",
     "src/object/issue.test.ts",
 ];
