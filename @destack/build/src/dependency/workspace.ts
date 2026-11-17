@@ -826,8 +826,11 @@ export class WorkspacePackage {
         return await this.#store.cachedBuild(key, async () => {
             // stamp a dev build at its time and key
             const at = this.#store.environment.clock.now();
-            const version = Version.dev(unit.packageJson.package.version, at, key);
-            const versions = { ...WorkspacePackage.#versionsOf(options), [unit.name]: version };
+            // lead to the release the build is given for the unit, else the one its package file names
+            const given = WorkspacePackage.#versionsOf(options);
+            const release = given[unit.name] ?? unit.packageJson.package.version;
+            const version = Version.dev(release, at, key);
+            const versions = { ...given, [unit.name]: version };
             const stamped = isPrerelease ? { ...options, versions } : options;
 
             // evaluate its declarations and compile it on them, in one request
