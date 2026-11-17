@@ -135,6 +135,11 @@ export class TestRegistry implements Registry, ReleaseRegistry {
         this.#fixture = fixture;
     }
 
+    /** Refuse npm clients, which the fixture registry serves no packages to. */
+    async npm(handle: string): Promise<string> {
+        throw new Error(`fixture registry serves no npm packages of '@${handle}'`);
+    }
+
     /** Find a release at a version or a tag: one released to it, or the fixture app's. */
     async find(packageId: PackageId, named: string): Promise<Digest> {
         // find a release published to the registry

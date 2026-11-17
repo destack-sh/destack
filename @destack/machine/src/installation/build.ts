@@ -59,6 +59,8 @@ export interface Registry {
     ) => Promise<ObjectReference>;
     /** The releases the distribution ships, which a scope runs of a package it installs none of. */
     readonly distribution: readonly PackageRelease[];
+    /** Read the address npm clients ask for a handle's packages: its forge's npm mount. */
+    readonly npm: (handle: string) => Promise<string>;
     /** Push a stored lock and its builds to its account's forge. */
     readonly push: (
         store: PublishStore,
