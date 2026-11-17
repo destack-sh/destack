@@ -1,8 +1,11 @@
 import type { Attributes, Span } from "@opentelemetry/api";
-import { DomainError } from "@destack/error";
+import { DomainError, Failure } from "@destack/error";
 
 /** The event name of an exception on a log record or a span, as OpenTelemetry names it. */
 export const EXCEPTION_EVENT = "exception";
+
+/** The attribute with a failure's reason, such as REVISION_STALE, beside its code in error.type. */
+export const REASON_ATTRIBUTE = "destack.error.reason";
 
 /** The start of the section a stack trace lists each cause in. */
 const CAUSE_PREFIX = "Caused by: ";
@@ -26,8 +29,12 @@ export function exceptionAttributes(error: unknown, isEscaped: boolean): Attribu
         cause = cause instanceof Error ? cause.cause : undefined;
     }
 
+    // take the type and the reason of the first domain error among the failure and its causes
+    const failure = Failure.causes(exception).find((each) => DomainError.is(each));
+
     return {
-        "error.type": errorType(exception),
+        "error.type": errorType(failure ?? exception),
+        ...(failure === undefined ? {} : { [REASON_ATTRIBUTE]: failure.toCallError().reason }),
         "exception.type": exception.name,
         "exception.message": exception.message,
         "exception.stacktrace": sections.join("\n"),
