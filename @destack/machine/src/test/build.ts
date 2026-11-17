@@ -5,7 +5,14 @@ import { InstallationKind, type InstallationSelection } from "@destack/object";
 import type { Crypto } from "@destack/environment";
 import { StackDefinition } from "@destack/stack/declare";
 import { StackError } from "@destack/stack/error";
-import { type Digest, type JsonObject, present, schema } from "@destack/schema";
+import {
+    type Digest,
+    type Identifier,
+    type JsonObject,
+    present,
+    schema,
+    Version,
+} from "@destack/schema";
 import { ObjectReference, Scope } from "@destack/sync";
 import { release, tag } from "@destack/registry/object";
 import { PackageVersion, PackageId, type PackageRelease } from "@destack/package";
@@ -117,6 +124,9 @@ const FORGE_HOME = schema.identifier("space").parse("space-01996ab0-0000-7000-80
 /** The hex digits a UUIDv8 leaves free past its version and variant: a fixture name's 9 bytes. */
 const FIXTURE_NAME_DIGITS = 18;
 
+/** The version a package's first release takes in the fixture registry. */
+const FIRST_RELEASE = "2026.9.0";
+
 /** The registry the fixture's releases come from. */
 export class TestRegistry implements Registry, ReleaseRegistry {
     /** The stored fixture builds. */
@@ -133,6 +143,17 @@ export class TestRegistry implements Registry, ReleaseRegistry {
     constructor(store: BuildStore, fixture?: PackageId) {
         this.#store = store;
         this.#fixture = fixture;
+    }
+
+    /** Read the version after the newest one pushed of a package, else the fixtures' first. */
+    async next(_account: Identifier<"account">, packageId: PackageId): Promise<Version> {
+        const pushed = [...this.#pushed.keys()]
+            .filter((key) => key.startsWith(`${packageId}@`))
+            .map((key) => key.slice(packageId.length + 1))
+            .toSorted((left, right) => Version.compare(right, left));
+        const [newest] = pushed;
+
+        return Version.parse(newest === undefined ? FIRST_RELEASE : Version.next(newest));
     }
 
     /** Find a release at a version or a tag: one released to it, or the fixture app's. */
