@@ -24,7 +24,6 @@ generate:
 
 # generate check
 generate-check:
-    bun run scripts/generate-release.ts --check
     bun run scripts/generate-pricing.ts --check
     bun run scripts/generate-headword.ts --check
 

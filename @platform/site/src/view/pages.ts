@@ -1,7 +1,6 @@
 import type { Endpoint } from "@destack/view/declare";
 import { siteEndpoints } from "@destack/view/static";
 import { documents, policies, pageSources, posts, searchEntries } from "./content/collection.ts";
-import { release } from "./content/generated/release.ts";
 import { plainTextFor } from "./content/markdown/text.ts";
 import { metadata } from "./metadata.ts";
 
@@ -18,11 +17,10 @@ export const paths = [
 /** The path rendering the not-found page. */
 export const notFound = "/404";
 
-/** The site's files: its metadata, search index, release, and each page's Markdown and text. */
+/** The site's files: its metadata, search index, and each page's Markdown and text. */
 export const endpoints: Readonly<Record<string, Endpoint>> = {
     ...siteEndpoints(metadata(paths)),
     "/search.json": () => Response.json(searchEntries),
-    "/release.json": () => Response.json(release),
     ...Object.fromEntries(
         pageSources.flatMap((source): [string, Endpoint][] => [
             [source.markdownRoute, () => text(source.markdown, "text/markdown")],
