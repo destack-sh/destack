@@ -10,8 +10,6 @@ export const RowChange = schema.object({
     operation: schema.enum(["insert", "update", "delete"]),
     /** The row's columns as JSON, or its key for a deletion. */
     row: schema.jsonObject(),
-    /** The row before an update, as JSON. */
-    before: schema.jsonObject().exactOptional(),
     /** The columns the subscriber may not read. */
     concealed: schema.array(schema.string()).exactOptional(),
 });

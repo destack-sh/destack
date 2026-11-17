@@ -8,7 +8,6 @@ import {
     integer,
     inArray,
     json,
-    Key,
     gte,
     not,
     lte,
@@ -22,18 +21,27 @@ import {
     type SQL,
     type LogPosition,
     type LogId,
-    type Write,
     Change,
+    ChangeSet,
     Table,
+    type RowChange,
 } from "@destack/db";
 import { present, schema } from "@destack/schema";
-import { RowChange } from "../query/page.ts";
 import { Replica } from "../replica/replica.ts";
 import { Failure } from "@destack/error";
 import { Call, type Mutation } from "../call/index.ts";
 
-/** A layer's predicted changes, as its JSON text has them. */
-const LayerChanges = schema.array(RowChange);
+/** A layer's predicted rows before and after, as its JSON text has them. */
+const LayerChanges = schema.array(
+    schema.object({
+        /** The row's table, by SQL name. */
+        table: schema.string().min(1),
+        /** The row before the layer, null for a row it creates. */
+        before: schema.jsonObject().nullable(),
+        /** The row after the layer, null for a row it removes. */
+        after: schema.jsonObject().nullable(),
+    }),
+);
 
 /** The tables a layer reads or writes, as its JSON text has them. */
 const LayerTables = schema.array(schema.string());
@@ -179,51 +187,54 @@ export class Prediction {
             readonly isMainLine?: boolean;
         } = {},
     ): Promise<{ readonly id: string; readonly result: Result }> {
-        return database.transaction(async (transaction) => {
-            // place the layer on top, or after the main line's below a checked-out branch
-            const checkedOut = await this.checkedOut(transaction);
-            const branch = options.isMainLine === true ? undefined : checkedOut;
-            const stack = await this.#stack(transaction);
-            const index =
-                branch === undefined && checkedOut !== undefined
-                    ? stack.findIndex((entry) => entry.kind === "branch")
-                    : stack.length;
+        return database.transaction(
+            async (transaction) => {
+                // place the layer on top, or after the main line's below a checked-out branch
+                const checkedOut = await this.checkedOut(transaction);
+                const branch = options.isMainLine === true ? undefined : checkedOut;
+                const stack = await this.#stack(transaction);
+                const index =
+                    branch === undefined && checkedOut !== undefined
+                        ? stack.findIndex((entry) => entry.kind === "branch")
+                        : stack.length;
 
-            // offer the top mutation to compose into while it is unsent, the origin's and on the line
-            const latest =
-                index === stack.length
-                    ? await this.#composable(transaction, stack.at(-1), origin, branch)
-                    : undefined;
+                // offer the top mutation to compose into while it is unsent, the origin's and on the line
+                const latest =
+                    index === stack.length
+                        ? await this.#composable(transaction, stack.at(-1), origin, branch)
+                        : undefined;
 
-            // revert the layers above it and predict it
-            await transaction.log.asReplica(() => this.#revertFrom(transaction, index + 1));
-            const recorded = await this.#record(transaction, async (nested) => {
-                const predicted = await predict(nested, latest);
+                // revert the layers above it and predict it
+                await transaction.log.asReplica(() => this.#revertFrom(transaction, index + 1));
+                const recorded = await this.#record(transaction, async (nested) => {
+                    const predicted = await predict(nested, latest);
 
-                return { calls: predicted.calls, result: predicted };
-            });
-            const { kind, result } = recorded.value;
+                    return { calls: predicted.calls, result: predicted };
+                });
+                const { kind, result } = recorded.value;
 
-            // compose it into the latest mutation, extending its layer
-            if (kind === "compose") {
-                const composed = present(latest, "the mutation a prediction composes into");
-                await this.#compose(transaction, composed.id, recorded.calls, recorded.changes);
+                // compose it into the latest mutation, extending its layer
+                if (kind === "compose") {
+                    const composed = present(latest, "the mutation a prediction composes into");
+                    await this.#compose(transaction, composed.id, recorded.calls, recorded.changes);
 
-                return { id: composed.id, result };
-            }
+                    return { id: composed.id, result };
+                }
 
-            // queue it as a new mutation, and predict the layers above again on top
-            await this.#append(transaction, { id, origin, calls: recorded.calls, branch });
-            await transaction.insert(layer).values({
-                key: id,
-                position: index + 1,
-                changes: JSON.stringify(recorded.changes),
-                tables: this.#tables(recorded.calls, recorded.changes),
-            });
-            await this.#apply(transaction, stack.slice(index), index + 2, recorded.after);
+                // queue it as a new mutation, and predict the layers above again on top
+                await this.#append(transaction, { id, origin, calls: recorded.calls, branch });
+                await transaction.insert(layer).values({
+                    key: id,
+                    position: index + 1,
+                    changes: this.#encode(recorded.changes),
+                    tables: this.#tables(recorded.calls, recorded.changes),
+                });
+                await this.#apply(transaction, stack.slice(index), index + 2, recorded.after);
 
-            return { id, result };
-        });
+                return { id, result };
+            },
+            { constraints: "deferred" },
+        );
     }
 
     /** Read the checked-out branch, absent on the main line. */
@@ -235,15 +246,18 @@ export class Prediction {
 
     /** Show a branch over the main line, or only the main line. */
     async checkout(database: DatabaseConnection, branch: string | undefined): Promise<void> {
-        await database.transaction(async (transaction) => {
-            // revert, switch the branch shown, and predict again
-            await transaction.log.asReplica(() => this.revert(transaction));
-            await transaction.delete(checkout);
-            if (branch !== undefined) {
-                await transaction.insert(checkout).values({ id: 1, branch });
-            }
-            await this.replay(transaction);
-        });
+        await database.transaction(
+            async (transaction) => {
+                // revert, switch the branch shown, and predict again
+                await transaction.log.asReplica(() => this.revert(transaction));
+                await transaction.delete(checkout);
+                if (branch !== undefined) {
+                    await transaction.insert(checkout).values({ id: 1, branch });
+                }
+                await this.replay(transaction);
+            },
+            { constraints: "deferred" },
+        );
     }
 
     /** List the tables each layer reads or writes, empty without predictions. */
@@ -253,17 +267,17 @@ export class Prediction {
         return rows.map((row) => LayerTables.parse(JSON.parse(row.tables)));
     }
 
-    /** Read the predicted changes in the order applied. */
+    /** Read each layer's predicted rows before and after, in the order applied. */
     async predicted(database: DatabaseConnection): Promise<RowChange[]> {
         const rows = await database
             .select({ changes: layer.changes })
             .from(layer)
             .orderBy(asc(layer.position));
 
-        return rows.flatMap((row) => LayerChanges.parse(JSON.parse(row.changes)));
+        return rows.flatMap((row) => this.#decode(row.changes));
     }
 
-    /** Revert every layer, latest first. */
+    /** Revert every layer, latest first, in a transaction deferring its constraints. */
     async revert(transaction: DatabaseConnection): Promise<void> {
         await this.#revertFrom(transaction, 1);
     }
@@ -341,7 +355,7 @@ export class Prediction {
             await transaction.insert(layer).values({
                 key: entry.kind === "mutation" ? entry.mutation.id : entry.branch,
                 position: position + index,
-                changes: JSON.stringify(recorded.changes),
+                changes: this.#encode(recorded.changes),
                 tables: this.#tables(recorded.calls, recorded.changes, entry.kind === "branch"),
             });
         }
@@ -386,33 +400,72 @@ export class Prediction {
             .set({ calls: [...calls] })
             .where(eq(mutation.id, id));
 
-        // append the changes to the layer's
+        // compose the changes into the layer's, each row before the first and after the last
         const [row] = await transaction
             .select({ changes: layer.changes })
             .from(layer)
             .where(eq(layer.key, id));
-        const extended = [
-            ...LayerChanges.parse(JSON.parse(present(row, "a queued mutation's layer").changes)),
-            ...changes,
-        ];
+        const earlier = this.#decode(present(row, "a queued mutation's layer").changes);
+        const composed = Prediction.#composed([...earlier, ...changes]);
         await transaction
             .update(layer)
-            .set({ changes: JSON.stringify(extended), tables: this.#tables(calls, extended) })
+            .set({ changes: this.#encode(composed), tables: this.#tables(calls, composed) })
             .where(eq(layer.key, id));
+    }
+
+    /** Write a layer's changes as JSON text. */
+    #encode(changes: readonly RowChange[]): string {
+        return JSON.stringify(
+            changes.map(({ table, before, after }) => ({
+                table: table[TABLE].sqlName,
+                before: before === null ? null : table[TABLE].encode(before),
+                after: after === null ? null : table[TABLE].encode(after),
+            })),
+        );
+    }
+
+    /** Read a layer's changes from JSON text. */
+    #decode(changes: string): RowChange[] {
+        return LayerChanges.parse(JSON.parse(changes)).map((change) => {
+            const table = this.#table(change.table);
+
+            return {
+                table,
+                before: change.before === null ? null : Table.decode(table, change.before),
+                after: change.after === null ? null : Table.decode(table, change.after),
+            };
+        });
+    }
+
+    /** Find a predicted table by its SQL name. */
+    #table(name: string): Table {
+        const table = this.tables.get(name);
+        if (table === undefined) {
+            throw new TypeError(`a prediction changed an unknown table: '${name}'`);
+        }
+
+        return table;
     }
 
     /** Revert the layers from a position up, latest first. */
     async #revertFrom(transaction: DatabaseConnection, position: number): Promise<void> {
+        // read the layers, latest first
         const rows = await transaction
             .select({ changes: layer.changes })
             .from(layer)
             .where(gte(layer.position, position))
             .orderBy(desc(layer.position));
+
+        // restore each row as it was before the first layer, latest change first
+        const inverse = new ChangeSet();
         for (const row of rows) {
-            for (const change of LayerChanges.parse(JSON.parse(row.changes)).toReversed()) {
-                await this.#invert(transaction, change);
+            for (const { table, before, after } of this.#decode(row.changes).toReversed()) {
+                inverse.write({ table, before: after, after: before });
             }
         }
+
+        // write the restored rows and drop the layers
+        await inverse.apply(transaction);
         await transaction.delete(layer).where(gte(layer.position, position));
     }
 
@@ -420,7 +473,7 @@ export class Prediction {
     #tables(calls: readonly Call[], changes: readonly RowChange[], isBranch = false): string {
         const tables = new Set([
             ...calls.flatMap((call) => this.#reads(call)),
-            ...changes.map((change) => change.table),
+            ...changes.map((change) => change.table[TABLE].sqlName),
             ...(isBranch && this.#branches !== undefined ? this.#branches.tables : []),
         ]);
 
@@ -447,36 +500,15 @@ export class Prediction {
 
         // read every change it wrote, in write order
         const written = await transaction.log.readTransaction({ tables, after: before });
-        const changes = written.changes.map((change) => Prediction.#predictedChange(change));
+        const changes = Prediction.#composed(
+            written.changes.map((change) => ({
+                table: change.table,
+                before: Change.before(change),
+                after: Change.after(change),
+            })),
+        );
 
         return { calls, value: result, changes, after: written.after };
-    }
-
-    /** Undo one predicted change. */
-    async #invert(transaction: DatabaseConnection, change: RowChange): Promise<void> {
-        // match the row by its key
-        const table = this.tables.get(change.table);
-        if (table === undefined) {
-            throw new TypeError(`a prediction changed an unknown table: '${change.table}'`);
-        }
-        const row = Table.decode(table, change.row);
-        const matched = Key.match(table, row);
-
-        // remove an inserted row
-        if (change.operation === "insert") {
-            await transaction.delete(table).where(matched);
-        }
-        // restore the row before an update
-        else if (change.operation === "update") {
-            if (change.before === undefined) {
-                throw new TypeError(`a predicted update of '${change.table}' has no before row`);
-            }
-            await transaction.update(table).set(Table.decode(table, change.before)).where(matched);
-        }
-        // reinsert a deleted row
-        else {
-            await transaction.insert(table).values(row);
-        }
     }
 
     /** Append a mutation after every other. */
@@ -601,40 +633,43 @@ export class Prediction {
         id: string,
         position: LogPosition,
     ): Promise<void> {
-        await database.transaction(async (transaction) => {
-            // record the position for a replica's later page to settle
-            await transaction
-                .update(mutation)
-                .set({
-                    state: "executed",
-                    log: position.log,
-                    epoch: position.epoch,
-                    sequence: position.sequence,
-                })
-                .where(eq(mutation.id, id));
+        await database.transaction(
+            async (transaction) => {
+                // record the position for a replica's later page to settle
+                await transaction
+                    .update(mutation)
+                    .set({
+                        state: "executed",
+                        log: position.log,
+                        epoch: position.epoch,
+                        sequence: position.sequence,
+                    })
+                    .where(eq(mutation.id, id));
 
-            // find a replica of the predicted tables whose confirming page arrived first
-            const [predicted] = await transaction
-                .select({ tables: layer.tables })
-                .from(layer)
-                .where(eq(layer.key, id));
-            const tables =
-                predicted === undefined ? [] : LayerTables.parse(JSON.parse(predicted.tables));
-            const reflections = await Replica.reflections(transaction);
-            const reflecting = reflections.find(
-                (reflection) =>
-                    reflection.position.log === position.log &&
-                    reflection.position.epoch === position.epoch &&
-                    reflection.position.sequence >= position.sequence &&
-                    reflection.tables.some((table) => tables.includes(table)),
-            );
+                // find a replica of the predicted tables whose confirming page arrived first
+                const [predicted] = await transaction
+                    .select({ tables: layer.tables })
+                    .from(layer)
+                    .where(eq(layer.key, id));
+                const tables =
+                    predicted === undefined ? [] : LayerTables.parse(JSON.parse(predicted.tables));
+                const reflections = await Replica.reflections(transaction);
+                const reflecting = reflections.find(
+                    (reflection) =>
+                        reflection.position.log === position.log &&
+                        reflection.position.epoch === position.epoch &&
+                        reflection.position.sequence >= position.sequence &&
+                        reflection.tables.some((table) => tables.includes(table)),
+                );
 
-            // settle at its position
-            if (reflecting !== undefined) {
-                await transaction.log.asReplica(() => this.revert(transaction));
-                await this.replay(transaction, reflecting.position);
-            }
-        });
+                // settle at its position
+                if (reflecting !== undefined) {
+                    await transaction.log.asReplica(() => this.revert(transaction));
+                    await this.replay(transaction, reflecting.position);
+                }
+            },
+            { constraints: "deferred" },
+        );
     }
 
     /** Record the server's rejection of a mutation. */
@@ -695,25 +730,15 @@ export class Prediction {
         return { kind: "mutation", mutation: queued };
     }
 
-    /** Record a logged change as its predicted row change. */
-    static #predictedChange(change: Write): RowChange {
-        // take the row after the change or before a deletion
-        const definition = change.table[TABLE];
-        const row = Change.image(change);
-        const written = {
-            table: definition.sqlName,
-            operation: change.operation,
-            row: definition.encode(row),
-        };
-
-        // record an update's row before
-        if (change.operation !== "update") {
-            return written;
-        } else if (change.before === undefined) {
-            throw new TypeError(`a logged update of '${definition.name}' has no before row`);
+    /** Compose row changes in order: each row before the first and after the last. */
+    static #composed(changes: readonly RowChange[]): RowChange[] {
+        // write each change into one set, folding rewrites of a row
+        const set = new ChangeSet();
+        for (const change of changes) {
+            set.write(change);
         }
 
-        return { ...written, before: definition.encode(change.before) };
+        return [...set.changes];
     }
 
     /** Match the mutations to push: unexecuted, or executed at an epoch the log's replicas left. */

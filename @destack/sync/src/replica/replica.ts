@@ -1477,8 +1477,11 @@ export class Replica {
         const table = node.table[TABLE].sqlName;
         const predicted = (
             prediction === undefined ? [] : await prediction.predicted(database)
-        ).filter((change) => change.table === table);
-        const images = predicted.flatMap((change) => Replica.#predictedImages(node, change));
+        ).filter((change) => change.table[TABLE].sqlName === table);
+        const images = predicted.flatMap(({ before, after }) => [
+            ...(before === null ? [] : [{ image: before, sign: -1 as const }]),
+            ...(after === null ? [] : [{ image: after, sign: 1 as const }]),
+        ]);
         if (images.length > 0) {
             const run = new Run(await View.latest(database), EVERYONE, "collect");
             const filter = new Filter(node, new Trace(this.upstream(database, prediction)));
@@ -2890,36 +2893,6 @@ export class Replica {
         return typeof sum === "string" || typeof value === "string"
             ? String(BigInt(sum ?? 0) + BigInt(sign) * BigInt(value ?? 0))
             : Number(sum ?? 0) + sign * Number(value);
-    }
-
-    /** Read a predicted change's images of a node's rows: before negative, after positive. */
-    static #predictedImages(
-        node: Node,
-        change: RowChange,
-    ): { readonly image: Row; readonly sign: -1 | 1 }[] {
-        // require an update's before
-        const table = node.table[TABLE];
-        const row = Table.decode(node.table, change.row);
-        if (change.operation === "update" && change.before === undefined) {
-            throw SyncError.of(
-                "STREAM_UNREACHABLE",
-                `could not read the before row of a predicted update of '${table.sqlName}'`,
-            );
-        }
-
-        // take the images the operation has
-        let before: Row | undefined = row;
-        if (change.operation === "insert") {
-            before = undefined;
-        } else if (change.operation === "update" && change.before !== undefined) {
-            before = Table.decode(node.table, change.before);
-        }
-        const after = change.operation === "delete" ? undefined : row;
-
-        return [
-            ...(before === undefined ? [] : [{ image: before, sign: -1 as const }]),
-            ...(after === undefined ? [] : [{ image: after, sign: 1 as const }]),
-        ];
     }
 
     /** Decide the home origin a run records. */
