@@ -62,6 +62,8 @@ export const CliError = defineErrorFamily({
 
         MACHINE_START_BROKEN: {},
 
+        PREVIEW_BROKEN: {},
+
         SETTING_BROKEN: {},
     },
 });

@@ -7,6 +7,7 @@ import * as stackObject from "@destack/stack/object";
 import { type Verb, OptionValue, type Options } from "../command/command.ts";
 import type { Context } from "../context/context.ts";
 
+import { preview } from "@destack/machine/checkout";
 import stackPackage from "@destack/stack/package";
 import type {} from "@destack/package/import-meta";
 import { CliError } from "../error/index.ts";
@@ -37,7 +38,7 @@ export function devCommand(context: Context): Verb {
         arguments: [{ name: "package", default: ".", isDirectory: true }],
         json: true,
         async run({ arguments: { package: directory }, json }) {
-            await preview(context, present(directory, "the package argument"), json);
+            await previewCheckout(context, present(directory, "the package argument"), json);
         },
     };
 }
@@ -248,7 +249,7 @@ function render(current: stackObject.Build): string {
 }
 
 /** Start previewing a checkout's package live against a space, as the person signed in. */
-async function preview(context: Context, directory: string, json: boolean): Promise<void> {
+async function previewCheckout(context: Context, directory: string, json: boolean): Promise<void> {
     // find the checkout, the package directory in it, and the space
     const registered = await context.registerCheckout(directory);
     const space = await context.requireSpace();
@@ -263,7 +264,40 @@ async function preview(context: Context, directory: string, json: boolean): Prom
         space,
         login: (await context.signedIn()).row.id,
     });
-    await context.terminal.print(
-        json ? JSON.stringify(created) : `Previewing ${created.package} (${created.id}).`,
+
+    // follow the preview until the machine ran its generation or failed to
+    await using opened = new AsyncDisposableStack();
+    const previews = await client.follow({ preview }, opened);
+    using interrupt = new Interrupt(context.environment.process);
+    for await (const row of previews.query.preview
+        .findFirst({ where: { id: created.id } })
+        .watch(interrupt.signal)) {
+        // wait for the machine to observe the generation
+        const ready = row?.conditions["Ready"];
+        if (row === undefined || ready?.observedGeneration !== row.generation) {
+            continue;
+        }
+
+        // refuse a preview the machine failed to build or run, with its reason
+        if (ready.status !== "true") {
+            throw CliError.of(
+                "PREVIEW_BROKEN",
+                `preview of '${row.package}' is broken: ${ready.message}`,
+            );
+        }
+        const views = Object.keys(row.views);
+        const shown = views.length === 0 ? "" : ` Its views: ${views.join(", ")}.`;
+        await context.terminal.print(
+            json ? JSON.stringify(row) : `Previewing ${row.package} (${row.id}).${shown}`,
+        );
+
+        return;
+    }
+    interrupt.require();
+
+    // refuse a preview followed no longer
+    throw CliError.of(
+        "FOLLOW_UNAVAILABLE",
+        `preview '${created.id}' is unavailable: following stopped before it ran`,
     );
 }
