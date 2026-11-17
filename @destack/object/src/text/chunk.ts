@@ -250,8 +250,8 @@ export const Chunk = {
         return { inverse };
     },
 
-    /** Merge an edit into the previous one when it types or deletes the next character. */
-    merge(previous: Step, next: Step): Step | undefined {
+    /** Compose edits into the previous ones when they type or delete the next characters. */
+    compose(previous: Step, next: Step): Step | undefined {
         // read both edits and the edits undoing them
         const earlier = EDIT_INPUT.parse(previous.input);
         const later = EDIT_INPUT.parse(next.input);
@@ -261,21 +261,18 @@ export const Chunk = {
         const undoEarlier = Undo.parse(previous.result).inverse;
         const undoLater = Undo.parse(next.result).inverse;
 
-        // merge one edit continuing the last one in the same field of the same object
-        const [edit, ...rest] = later.edits;
+        // compose edits continuing the last one in the same field of the same object
         const last = earlier.edits.at(-1);
         const isContinuing =
-            edit !== undefined &&
             last !== undefined &&
-            rest.length === 0 &&
             earlier.field === later.field &&
             Step.same(Step.target(previous), Step.target(next)) &&
-            continues(last, edit, undoLater);
+            continues(last, later.edits, undoLater);
         if (!isContinuing) {
             return undefined;
         }
 
-        // apply both edits, and undo the later one first
+        // apply both edits, and undo the later ones first
         const edits = schema.array(schema.json()).parse([...earlier.edits, ...later.edits]);
         const inverse = TextSequence.compact([...undoLater, ...undoEarlier]);
 
@@ -283,45 +280,71 @@ export const Chunk = {
     },
 };
 
-/** Decide whether an edit types or deletes one character right next to the last edit. */
-function continues(last: TextEdit, edit: TextEdit, undo: readonly TextEdit[]): boolean {
-    // type a character right after the last typed one
-    if ("insert" in last && "insert" in edit) {
-        return (
-            typeof last.insert === "string" &&
-            typeof edit.insert === "string" &&
-            isCharacter(last.insert) &&
-            isCharacter(edit.insert) &&
-            edit.run === last.run &&
-            edit.start === last.start + last.insert.length
-        );
-    }
-    // delete one character touching the last deleted piece
-    else if ("delete" in last && "delete" in edit) {
-        const previous = last.delete.at(-1);
-        const [deleted, ...others] = edit.delete;
-        const [restore] = undo;
-        const [restored] = restore !== undefined && "restore" in restore ? restore.restore : [];
+/** Decide whether edits type or delete one character each, right next to the last edit. */
+function continues(last: TextEdit, edits: readonly TextEdit[], undo: readonly TextEdit[]): boolean {
+    // type characters one after another, right after the last typed one
+    if ("insert" in last && edits.length > 0 && edits.every((edit) => "insert" in edit)) {
+        return [last, ...edits].every((edit, position, chain) => {
+            const before = chain[position - 1];
 
-        return (
-            previous !== undefined &&
-            deleted !== undefined &&
-            others.length === 0 &&
-            restored !== undefined &&
-            "text" in restored &&
-            typeof restored.text === "string" &&
-            isCharacter(restored.text) &&
-            isTouching(previous, deleted)
-        );
+            return (
+                "insert" in edit &&
+                typeof edit.insert === "string" &&
+                isCharacter(edit.insert) &&
+                (before === undefined ||
+                    ("insert" in before &&
+                        typeof before.insert === "string" &&
+                        edit.run === before.run &&
+                        edit.start === before.start + before.insert.length))
+            );
+        });
     }
-    // merge no other edits
+    // delete pieces one after another, each touching the last deleted, one character each
+    else if ("delete" in last && edits.length > 0 && edits.every((edit) => "delete" in edit)) {
+        const pieces = edits.map((edit) => ("delete" in edit ? edit.delete : []));
+        const isTouching = pieces.every((deleted, position) => {
+            // touch the piece deleted just before
+            const before = position === 0 ? last.delete : pieces[position - 1];
+            const previous = before?.at(-1);
+            const [piece, ...others] = deleted;
+
+            return (
+                previous !== undefined &&
+                piece !== undefined &&
+                others.length === 0 &&
+                touches(previous, piece)
+            );
+        });
+
+        return isTouching && restoredCharacters(undo) === edits.length;
+    }
+    // compose no other edits
     else {
         return false;
     }
 }
 
+/** Count the characters edits undoing deletions restore, absent when one restores no text. */
+function restoredCharacters(undo: readonly TextEdit[]): number | undefined {
+    let count = 0;
+    for (const edit of undo) {
+        // count each restored piece's characters
+        if (!("restore" in edit)) {
+            return undefined;
+        }
+        for (const piece of edit.restore) {
+            if (!("text" in piece) || typeof piece.text !== "string") {
+                return undefined;
+            }
+            count += [...GRAPHEMES.segment(piece.text)].length;
+        }
+    }
+
+    return count;
+}
+
 /** Decide whether two pieces of one run touch, either before the other. */
-function isTouching(left: TextRun, right: TextRun): boolean {
+function touches(left: TextRun, right: TextRun): boolean {
     return (
         left.run === right.run &&
         (left.start + TextSequence.length(left) === right.start ||

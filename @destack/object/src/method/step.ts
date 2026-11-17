@@ -21,21 +21,22 @@ export interface Step {
     readonly current?: JsonObject;
 }
 
-/** The operations inverses and merges use on steps. */
+/** The operations inverses and compositions use on steps. */
 export const Step = {
-    /** Merge two steps on one object into one, keeping the first row before. */
-    merge(previous: Step, next: Step): Step | undefined {
-        // merge only steps on the same object
+    /** Compose two steps on one object into one, keeping the first row before and revision. */
+    compose(previous: Step, next: Step): Step | undefined {
+        // compose only steps on the same object
         if (!Step.same(Step.target(previous), Step.target(next))) {
             return undefined;
         }
 
-        // take the first row before, and every field either input sets
-        const { before: _replaced, ...merged } = next;
+        // take every field either input sets, the first revision, and the first row before
+        const { before: _replaced, ...composed } = next;
+        const { revision: _predicted, ...later } = next.input;
 
         return {
-            ...merged,
-            input: { ...previous.input, ...next.input },
+            ...composed,
+            input: { ...previous.input, ...later },
             ...(previous.before === undefined ? {} : { before: previous.before }),
         };
     },

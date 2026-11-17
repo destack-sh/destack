@@ -190,7 +190,7 @@ export const Text = {
                           }),
                       ];
             },
-            merge: (previous, next) => Chunk.merge(previous, next),
+            compose: (previous, next) => Chunk.compose(previous, next),
             async execute(context, execution) {
                 // require the field's write permission when it guards writes
                 const field = schema.string().parse(context.input["field"]);

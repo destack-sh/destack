@@ -253,8 +253,8 @@ export interface Method<Configuration extends MethodConfiguration = MethodConfig
     readonly validate?: (object: ObjectType) => void;
     /** Derive the calls undoing a step. */
     readonly inverse?: (step: Step) => readonly sync.Call[] | undefined;
-    /** Merge a step into the previous one as one step undoing both, absent when they stay apart. */
-    readonly merge?: (previous: Step, next: Step) => Step | undefined;
+    /** Compose a step into the previous one as one call doing both, absent when apart. */
+    readonly compose?: (previous: Step, next: Step) => Step | undefined;
     /** The code an implementation attaches by phase, without the declared behaviour it wraps. */
     readonly hooks?: MethodHooks;
 }
