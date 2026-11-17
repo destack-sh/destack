@@ -431,6 +431,7 @@ export function integer(name: string): ColumnBuilder<ColumnDefinitionOf<number, 
             stored(
                 typeof value === "string" || typeof value === "bigint" ? Number(value) : value,
                 "number",
+                name,
             ),
     });
 }
@@ -458,7 +459,7 @@ export function boolean(name: string): ColumnBuilder<ColumnDefinitionOf<boolean,
     return new ColumnBuilder({
         ...column.definition,
         encode(value, dialect) {
-            const checked = stored(value, "boolean");
+            const checked = stored(value, "boolean", name);
 
             // store SQLite booleans as zero or one
             if (dialect === "sqlite") {
@@ -478,11 +479,11 @@ export function boolean(name: string): ColumnBuilder<ColumnDefinitionOf<boolean,
             if (dialect === "sqlite") {
                 const bit = typeof value === "bigint" ? Number(value) : value;
 
-                return stored(bit, "number") === 1;
+                return stored(bit, "number", name) === 1;
             }
             // read native PostgreSQL booleans
             else if (dialect === "postgresql") {
-                return stored(value, "boolean");
+                return stored(value, "boolean", name);
             }
             // reject other dialects
             else {
@@ -510,16 +511,16 @@ export function json<Value extends JsonValue>(
         decode: (value, dialect) => {
             // read the stored JSON as its write validated it
             // oxlint-disable-next-line typescript/consistent-type-assertions, typescript/no-unsafe-type-assertion -- stored JSON passed its write's validator
-            return storedJson(value, dialect) as Value;
+            return storedJson(value, dialect, name) as Value;
         },
     });
 }
 
 /** Read a JSON column's stored value as the driver returns it: SQLite's text parsed. */
-function storedJson(value: unknown, dialect: Dialect): unknown {
+function storedJson(value: unknown, dialect: Dialect, name: string): unknown {
     // parse SQLite JSON text
     if (dialect === "sqlite") {
-        const parsed: unknown = JSON.parse(stored(value, "string"));
+        const parsed: unknown = JSON.parse(stored(value, "string", name));
 
         return parsed;
     }
@@ -552,10 +553,10 @@ export function identifier<const Prefix extends string>(
         nullable: true,
         toJson: (value) => value,
         fromJson: (value) => validator.parse(value),
-        encode: (value) => stored(value, "string"),
+        encode: (value) => stored(value, "string", name),
         decode: (value) => {
             // read the stored text as its write validated it, refusing another type's identifier
-            const read = stored(value, "string");
+            const read = stored(value, "string", name);
             const expected = typeof prefix === "function" ? prefix() : prefix;
             if (!read.startsWith(`${expected}-`)) {
                 throw new TypeError(
@@ -582,10 +583,10 @@ export function binary(name: string): ColumnBuilder<ColumnDefinitionOf<Uint8Arra
         nullable: true,
         toJson: (value) => value.toBase64(),
         fromJson: (value) => Uint8Array.fromBase64(TEXT.parse(value)),
-        encode: (value) => stored(value, "bytes"),
+        encode: (value) => stored(value, "bytes", name),
         decode(value) {
             // view driver buffers as plain bytes
-            const bytes = stored(value, "bytes");
+            const bytes = stored(value, "bytes", name);
 
             return new Uint8Array(bytes.buffer, bytes.byteOffset, bytes.byteLength);
         },
@@ -608,7 +609,7 @@ export function bigint(name: string): ColumnBuilder<ColumnDefinitionOf<bigint, "
         nullable: true,
         toJson: (value) => value.toString(),
         fromJson: (value) => validator.parse(BigInt(INTEGER_TEXT.parse(value))),
-        encode: (value) => stored(value, "bigint"),
+        encode: (value) => stored(value, "bigint", name),
         decode(value) {
             // reject integers that already lost precision
             if (typeof value === "number" && !Number.isSafeInteger(value)) {
@@ -618,6 +619,7 @@ export function bigint(name: string): ColumnBuilder<ColumnDefinitionOf<bigint, "
             return stored(
                 typeof value === "string" || typeof value === "number" ? BigInt(value) : value,
                 "bigint",
+                name,
             );
         },
     });
@@ -660,10 +662,10 @@ function scalarColumn<
         nullable: true,
         toJson: (value) => value,
         fromJson: (value) => validator.parse(value),
-        encode: (value) => stored(value, SCALAR_TYPES[kind]),
+        encode: (value) => stored(value, SCALAR_TYPES[kind], name),
         decode: (value) => {
             // read the stored value as its write validated it
-            const checked: unknown = stored(read(value), SCALAR_TYPES[kind]);
+            const checked: unknown = stored(read(value), SCALAR_TYPES[kind], name);
 
             // oxlint-disable-next-line typescript/consistent-type-assertions, typescript/no-unsafe-type-assertion -- stored values passed their write's validator
             return checked as Value;
@@ -686,10 +688,14 @@ interface StoredTypes {
 }
 
 /** Narrow a driver value to the type a column stores, refusing a value of another type. */
-function stored<Type extends keyof StoredTypes>(value: unknown, type: Type): StoredTypes[Type] {
-    // refuse a value of another type than the column stores
+function stored<Type extends keyof StoredTypes>(
+    value: unknown,
+    type: Type,
+    column: string,
+): StoredTypes[Type] {
+    // refuse a value of another type than the column stores, written or read
     if (!isStored(value, type)) {
-        throw new TypeError(`the database driver returned '${typeof value}' for a ${type} column`);
+        throw new TypeError(`column '${column}' stores a ${type}, not a '${typeof value}'`);
     }
 
     return value;
