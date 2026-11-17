@@ -23,6 +23,15 @@ export const FILE_PREFIX = "@";
 /** The separator after which every word is a positional argument, as POSIX's utility syntax. */
 export const SEPARATOR = "--";
 
+/** The word help lists a group's subcommands of no journey under: the space's own nouns. */
+const OTHER_JOURNEY = "objects";
+
+/** The widest line help writes, in characters: the width terminals open at. */
+const HELP_WIDTH = 80;
+
+/** The characters a journey's line puts around its word: two before and two after. */
+const JOURNEY_INDENT = 4;
+
 /** The least width a help line pads its options to, in characters. */
 const OPTION_WIDTH = 24;
 
@@ -60,6 +69,16 @@ export interface Group {
     readonly default?: Verb;
     /** Whether help and completion leave the group out. */
     readonly isHidden?: boolean;
+    /** The journeys help lists the subcommands under, a line each, the other names last. */
+    readonly journeys?: readonly Journey[];
+}
+
+/** A journey of a group's help: its word and the subcommands a person takes on it. */
+export interface Journey {
+    /** The journey's one word, such as build. */
+    readonly title: string;
+    /** The names of its subcommands, in the order a person takes them. */
+    readonly commands: readonly string[];
 }
 
 /** A group's positional argument, which leads to the subcommand of its value. */
@@ -255,7 +274,7 @@ export class CommandTree {
         }
         // show help without running anything
         else if (isHelp || verb === undefined) {
-            await terminal.print(await this.help(command, path));
+            await terminal.print(await this.help(command, path, terminal));
         }
         // refuse JSON from a verb that prints none
         else if (json && !verb.json) {
@@ -362,7 +381,11 @@ export class CommandTree {
     }
 
     /** Render a command's help: its description, usage, subcommands and options. */
-    async help(command: Node, path: readonly string[]): Promise<string> {
+    async help(
+        command: Node,
+        path: readonly string[],
+        terminal: Pick<Terminal, "style">,
+    ): Promise<string> {
         // render the description and usage line
         const executable = this.verb(command);
         const suffix =
@@ -391,10 +414,31 @@ export class CommandTree {
                 );
                 missing = error instanceof Error ? error.message : String(error);
             }
-            children.push(...this.lines(command));
-            const width = Math.max(0, ...children.map(([name]) => name.length));
-            for (const [name, child] of children) {
-                lines.push(`  ${name.padEnd(width + 2)}${child.description}`);
+            // list a group with journeys by them, a line each, the names of no journey last
+            if (command.journeys === undefined) {
+                children.push(...this.lines(command));
+                const width = Math.max(0, ...children.map(([name]) => name.length));
+                for (const [name, child] of children) {
+                    lines.push(`  ${name.padEnd(width + 2)}${child.description}`);
+                }
+            } else {
+                const names = new Set(children.map(([name]) => name));
+                const taken = new Set(command.journeys.flatMap((journey) => journey.commands));
+                const others = [...names].filter((name) => !taken.has(name));
+                const journeys = [
+                    ...command.journeys,
+                    ...(others.length === 0 ? [] : [{ title: OTHER_JOURNEY, commands: others }]),
+                ];
+                const width = Math.max(...journeys.map(({ title }) => title.length));
+                for (const { title, commands } of journeys) {
+                    // wrap a journey's names under its first, within the help's width
+                    const shown = commands.filter((name) => names.has(name));
+                    const rows = wrap(shown, HELP_WIDTH - width - JOURNEY_INDENT);
+                    for (const [index, row] of rows.entries()) {
+                        const head = index === 0 ? title : "";
+                        lines.push(`  ${terminal.style("dim", head.padEnd(width))}  ${row}`);
+                    }
+                }
             }
             if (missing !== undefined) {
                 lines.push("", `  More commands load once the machine answers: ${missing}`);
@@ -440,6 +484,22 @@ export class CommandTree {
             })
             .join("");
     }
+}
+
+/** Join names with two spaces into lines no wider than a width, a longer name on a line alone. */
+function wrap(names: readonly string[], width: number): string[] {
+    const rows: string[] = [];
+    for (const name of names) {
+        // start a line with a name that does not fit the last
+        const last = rows.at(-1);
+        if (last === undefined || last.length + name.length + 2 > width) {
+            rows.push(name);
+        } else {
+            rows[rows.length - 1] = `${last}  ${name}`;
+        }
+    }
+
+    return rows;
 }
 
 /** The values of command-line options, read by their option. */

@@ -28,6 +28,19 @@ const PROGRAM = "destack";
 /** The variable giving the space command lines act in without --space. */
 export const SPACE_VARIABLE = "DESTACK_SPACE";
 
+/** The journeys the root's help lists its verbs under, in the order a person meets them. */
+const JOURNEYS = [
+    { title: "you", commands: ["login", "logout", "whoami", "self", "completion"] },
+    { title: "spaces", commands: ["switch"] },
+    {
+        title: "apps",
+        commands: ["install", "uninstall", "open", "apply", "plan", "approve", "reject"],
+    },
+    { title: "share", commands: ["share", "invited", "accept"] },
+    { title: "build", commands: ["new", "dev", "build", "publish", "tag"] },
+    { title: "settings", commands: ["setting", "settings"] },
+] as const;
+
 /** A command line as the terminal passes it: its global flags and the words they leave. */
 export class CommandLine {
     /** The space of --space. */
@@ -134,6 +147,7 @@ export class CommandLine {
         return {
             description: `Destack ${import.meta.destack.package.version}: destack <nouns> to list, destack <noun> <id> [method] to get and call`,
             commands,
+            journeys: JOURNEYS,
             // find a noun the stores describe, listed qualified where a root verb takes its word
             resolve: async (word) => nounCommand(context, await context.catalog(), word),
             names: async () => (await context.catalog()).plurals(Object.keys(commands)),
