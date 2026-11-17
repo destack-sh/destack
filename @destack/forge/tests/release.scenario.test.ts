@@ -2,10 +2,10 @@ import { auditedCalls } from "@destack/object/test";
 import type { TestPerson } from "@destack/account/test";
 import { ACCOUNT_ID, TEST_COMMIT, TestForge } from "../src/test/index.ts";
 import { expect, refusal, test } from "@destack/test";
-import { Digest, found, Identifier, present, Version } from "@destack/schema";
+import { Digest, found, Identifier, present } from "@destack/schema";
 import { RequestId } from "@destack/sync";
 import { PackageVersion, PackageId } from "@destack/package";
-import { BuildReader, Lock, PackageManifest } from "@destack/package/manifest";
+import { Lock, PackageManifest } from "@destack/package/manifest";
 import { TestBuildStore } from "@destack/build/test";
 import { MemoryBuild } from "@destack/package/test";
 import { Registry } from "@destack/registry/client";
@@ -333,24 +333,6 @@ test("refuse publishing a version before the package's latest release", async ()
         "PRECONDITION_FAILED",
         "VERSION_BLOCKED",
         "cannot publish release '2026.9.0': it precedes '2026.9.1', and releases publish in version order",
-    ]);
-});
-
-test("refuse publishing a build no release gave a version", async () => {
-    // read a build at the development version, as a build of a source no release gave one
-    const forge = await TestForge.open();
-    const { reader } = await fixtureBuild("answer");
-    const manifest = {
-        ...reader.manifest,
-        package: { ...PackageManifest.package(reader.manifest), version: Version.development },
-    };
-    const unreleased = new BuildReader(manifest, reader.stream, forge.environment.crypto);
-
-    // refuse it, as no release could follow the development version
-    expect(await refusal(forge.publish(unreleased))).toEqual([
-        "PRECONDITION_FAILED",
-        "VERSION_BLOCKED",
-        "cannot publish release '9999.12.0': its build has no version, which package.next gives",
     ]);
 });
 

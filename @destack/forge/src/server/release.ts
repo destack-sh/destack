@@ -342,19 +342,11 @@ export const ReleaseMethod = {
         return context.update({ yankedAt: yanked.yankedAt ?? context.now });
     },
 
-    /** Refuse a build no release gave a version, and a version older than the package's newest release. */
+    /** Refuse a version older than the package's newest release. */
     async requireNextVersion(
         context: MethodContextOf<typeof release, "create">,
         packed: Candidate,
     ): Promise<void> {
-        // refuse the development version, which no release could follow
-        if (Version.release(packed.version) === Version.development) {
-            throw ForgeError.of(
-                "VERSION_BLOCKED",
-                `cannot publish release '${packed.version}': its build has no version, which package.next gives`,
-            );
-        }
-
         // require releases in version order, the newest release being the highest version, ties in creation order
         const [newest] = await context.read(release).findMany({
             where: { parentId: context.input.parentId },
