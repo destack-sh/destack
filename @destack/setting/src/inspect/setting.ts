@@ -1,5 +1,6 @@
-import { type JsonValue, Edition } from "@destack/schema";
+import { type JsonValue, canonicalize, Edition } from "@destack/schema";
 import { Address, Plan, type Comparator } from "@destack/resource";
+import { unreachablePlan } from "@destack/resource/error";
 import { SettingDescription } from "../setting/setting.ts";
 import type { Setting } from "../setting/setting.ts";
 
@@ -10,8 +11,20 @@ export const compareSetting: Comparator = (before, after) => {
     const later = SettingDescription.parse(after.description);
     const release = after.symbol.package.version;
 
+    // refuse a conversion to an edition the earlier release has that the later one changes
+    const target = Address.join("setting", later.name);
+    const changed = Object.keys(earlier.convert ?? {}).filter(
+        (key) =>
+            canonicalize(earlier.convert?.[key]) !== canonicalize(later.convert?.[key] ?? null),
+    );
+    if (changed.length > 0) {
+        const from = before.symbol.package.version;
+        const detail = `changes the conversion to edition ${changed.join(", ")} that release ${from} has: add a new edition`;
+        throw unreachablePlan([{ target, detail }]);
+    }
+
     return Plan.of({
-        target: Address.join("setting", later.name),
+        target,
         before: earlier.schema,
         after: later.schema,
         release,
