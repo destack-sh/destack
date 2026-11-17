@@ -32,6 +32,43 @@ const note = defineTable(
     MODULE,
 );
 
+/** Folders as first released, with a column a later release drops. */
+const folderOne = defineTable(
+    "folder",
+    { id: text("id").primaryKey(), extra: text("extra") },
+    {},
+    MODULE,
+);
+
+/** Folders after dropping their extra column, which rebuilds the table. */
+const folderTwo = defineTable("folder", { id: text("id").primaryKey() }, {}, MODULE);
+
+/** Documents deleted with their folder. */
+const document = defineTable(
+    "document",
+    {
+        id: text("id").primaryKey(),
+        folderId: text("folder_id")
+            .notNull()
+            .references(() => folderTwo.id, { onDelete: "cascade" }),
+    },
+    {},
+    MODULE,
+);
+
+/** Pages deleted with their document. */
+const page = defineTable(
+    "page",
+    {
+        id: text("id").primaryKey(),
+        documentId: text("document_id")
+            .notNull()
+            .references(() => document.id, { onDelete: "cascade" }),
+    },
+    {},
+    MODULE,
+);
+
 /** Files the reader reads by their integer size and their bytes. */
 const file = defineTable(
     "file",
@@ -122,6 +159,8 @@ export class NoteStore {
             return await this.leaked();
         } else if (pathname === "/limits") {
             return await this.limits();
+        } else if (pathname === "/rebuild") {
+            return await this.rebuild();
         } else if (pathname === "/rows") {
             return await this.rows();
         } else if (pathname === "/reader") {
@@ -131,6 +170,34 @@ export class NoteStore {
         }
 
         return await this.notes();
+    }
+
+    /** Rebuild a table other tables' rows reference, and read those rows after. */
+    async rebuild(): Promise<Response> {
+        // store a folder with a document and its page
+        const database = this.databases.connect([folderOne, document, page]);
+        await database.migrate([folderOne, document, page]);
+        await database.transaction(async (transaction) => {
+            await transaction.insert(folderOne).values({ id: "f", extra: "x" });
+            await transaction.insert(document).values({ id: "d", folderId: "f" });
+            await transaction.insert(page).values({ id: "p", documentId: "d" });
+        });
+
+        // drop the folder's column, which rebuilds the table the document references
+        await database.migrate([folderTwo, document, page]);
+        const [folders, documents, pages] = await Promise.all([
+            database.select().from(folderTwo),
+            database.select().from(document),
+            database.select().from(page),
+        ]);
+
+        // delete the folder, which still deletes its document and the page with it
+        await database.transaction(async (transaction) => {
+            await transaction.delete(folderTwo).where(eq(folderTwo.id, "f"));
+        });
+        const [left] = await database.select({ count: count() }).from(page);
+
+        return Response.json({ folders, documents, pages, left: left?.count });
     }
 
     /** Check emptiness past 100 tables, filter by 150 predicates, and log a 70-column row. */

@@ -900,14 +900,121 @@ test("rebuild a table other tables reference, preserving their rows", async () =
         sql`INSERT INTO ${sql.relation(table(document))} (id, folder_id) VALUES ('d', 'f')`,
     );
 
+    // rebuild the documents with the folders they reference in SQLite, which enforces their foreign key
+    const plan = await database.plan(
+        { declared: declareState([document, folderTwo], TestDatabase.target()) },
+        DATABASE_MANAGER,
+    );
+    const [folders, documents] = [table(folderTwo), table(document)];
+    const written = plan.steps.flatMap((step) =>
+        step.statements.map((statement) => {
+            const [, verb, name] =
+                /^(CREATE TABLE|INSERT INTO|DROP TABLE|ALTER TABLE) "([^"]+)"/u.exec(statement) ??
+                [];
+
+            return `${verb} ${name}`;
+        }),
+    );
+    expect({ steps: review(plan), written }).toEqual(
+        TestDatabase.target() === "sqlite"
+            ? {
+                  steps: [
+                      `safe replace table/${documents}: rebuild table: it references a rebuilt table`,
+                      `destructive replace table/${folders}: rebuild table: drop extra`,
+                  ],
+                  written: [
+                      `CREATE TABLE ${documents}__rebuild`,
+                      `CREATE TABLE ${folders}__rebuild`,
+                      `INSERT INTO ${documents}__rebuild`,
+                      `INSERT INTO ${folders}__rebuild`,
+                      `DROP TABLE ${documents}`,
+                      `DROP TABLE ${folders}`,
+                      `ALTER TABLE ${documents}__rebuild`,
+                      `ALTER TABLE ${folders}__rebuild`,
+                  ],
+              }
+            : {
+                  steps: [`destructive delete table/${folders}/column/extra: drop column extra`],
+                  written: [`ALTER TABLE ${folders}`],
+              },
+    );
+
     // drop the referenced column and leave the reference valid
-    await database.migrate([folderTwo, document]);
+    await database.migrate([document, folderTwo]);
     expect(
         await database.all(sql`SELECT id, folder_id FROM ${sql.relation(table(document))}`),
     ).toEqual([{ id: "d", folder_id: "f" }]);
     expect(await database.all(sql`SELECT id FROM ${sql.relation(table(folderTwo))}`)).toEqual([
         { id: "f" },
     ]);
+});
+
+test("rebuild two tables in one plan, the second after renaming its column", async () => {
+    // store a folder and a task as first released
+    const database = await open([folderOne, taskOne]);
+    await database.migrate([folderOne, taskOne]);
+    const [folders, tasks] = [table(folderOne), table(taskOne)];
+    await database.run(sql`INSERT INTO ${sql.relation(folders)} (id, extra) VALUES ('f', 'x')`);
+    await database.transaction(
+        async (transaction) =>
+            await transaction.run(
+                sql`INSERT INTO ${sql.relation(tasks)} (id, scope, name, urgent, note) VALUES ('a', 'inbox', 'Plan', 1, 'old')`,
+            ),
+    );
+
+    // drop the folders' column and rename the tasks' name, keeping each one's rows
+    await database.migrate([folderTwo, taskTwo]);
+    expect({
+        folders: await database.all(sql`SELECT id FROM ${sql.relation(folders)}`),
+        tasks: await database.all(sql`SELECT id, title, due_at FROM ${sql.relation(tasks)}`),
+    }).toEqual({
+        folders: [{ id: "f" }],
+        tasks: [{ id: "a", title: "Plan", due_at: null }],
+    });
+});
+
+test("rebuild another manager's table with the table it references, keeping its rows", async () => {
+    // apply the folders and documents as one manager, and the documents' attachments as another
+    const first = [folderOne, document, attachment];
+    const database = await open(first);
+    const documented = { manager: "documents", packages: [document[TABLE].package.id] };
+    const attached = { manager: "attachments", packages: [attachment[TABLE].package.id] };
+    await database.migrate(first, documented);
+    await database.migrate(first, attached);
+    const [folders, documents, attachments] = [
+        table(folderOne),
+        table(document),
+        table(attachment),
+    ];
+    await database.run(sql`INSERT INTO ${sql.relation(folders)} (id, extra) VALUES ('f', 'x')`);
+    await database.run(
+        sql`INSERT INTO ${sql.relation(documents)} (id, folder_id) VALUES ('d', 'f')`,
+    );
+    await database.run(
+        sql`INSERT INTO ${sql.relation(attachments)} (id, document_id) VALUES ('a', 'd')`,
+    );
+
+    // drop the folders' column as the documents' manager, which SQLite rebuilds the attachments for
+    const second = [folderTwo, document, attachment];
+    const rebuilt = await database.migrate(second, documented);
+    expect({
+        steps: review(rebuilt),
+        attachments: await database.all(
+            sql`SELECT id, document_id FROM ${sql.relation(attachments)}`,
+        ),
+        unapplied: await database.unapplied(second),
+    }).toEqual({
+        steps:
+            TestDatabase.target() === "sqlite"
+                ? [
+                      `destructive replace table/${folders}: rebuild table: drop extra`,
+                      `safe replace table/${documents}: rebuild table: it references a rebuilt table`,
+                      `safe replace table/${attachments}: rebuild table: it references a rebuilt table`,
+                  ]
+                : [`destructive delete table/${folders}/column/extra: drop column extra`],
+        attachments: [{ id: "a", document_id: "d" }],
+        unapplied: [],
+    });
 });
 
 test("report a failing migration statement as a failed migration", async () => {

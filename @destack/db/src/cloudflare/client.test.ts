@@ -47,6 +47,22 @@ test("migrate, write and read a Durable Object's SQLite storage, rolling back on
     ]);
 });
 
+test("keep the rows referencing a rebuilt table in a Durable Object, whose storage always enforces foreign keys", async () => {
+    const worker = await start();
+
+    // rebuild the folders, keeping the document and the page, which still cascade after
+    const response = await worker.dispatchFetch("https://notes.test/rebuild");
+    expect([response.status, await response.json()]).toEqual([
+        200,
+        {
+            folders: [{ id: "f" }],
+            documents: [{ id: "d", folderId: "f" }],
+            pages: [{ id: "p", documentId: "d" }],
+            left: 0,
+        },
+    ]);
+});
+
 test("store two databases of one declaration in a Durable Object's storage, each namespace with separate rows, log and plan", async () => {
     const worker = await start();
 
