@@ -24,9 +24,6 @@ const Manifest = schema.looseObject({
     workspaces: schema.array(schema.string()).exactOptional(),
 });
 
-/** This package's directory, whose dependencies include the tools when running from a workspace. */
-const PACKAGE = fileURLToPath(new URL("../..", import.meta.url));
-
 /** The diagnostics of an oxlint JSON report. */
 const Report = schema.looseObject({ diagnostics: schema.unknown() });
 
@@ -194,10 +191,13 @@ async function lintSources(options: CheckOptions, fix: boolean): Promise<CheckRe
     // find the linter and the type checker of this platform among the tools
     const { toolchain } = options;
     const { files, host } = options.environment;
-    const executable = join(toolchain.locate(["oxlint"], PACKAGE), "bin", "oxlint");
+    const executable = join(toolchain.locate(["oxlint"], packageDirectory()), "bin", "oxlint");
     const checker = `@oxlint-tsgolint/${host.os}-${host.architecture}`;
     const binary = host.os === "win32" ? "tsgolint.exe" : "tsgolint";
-    const typeChecker = join(toolchain.locate(["oxlint-tsgolint", checker], PACKAGE), binary);
+    const typeChecker = join(
+        toolchain.locate(["oxlint-tsgolint", checker], packageDirectory()),
+        binary,
+    );
 
     // isolate the generated lint configuration
     const temporary = await files.makeTemporaryDirectory("destack-check-");
@@ -265,4 +265,9 @@ async function lintSources(options: CheckOptions, fix: boolean): Promise<CheckRe
     } finally {
         await files.remove(temporary, { recursive: true });
     }
+}
+
+/** Read this package's directory, whose dependencies include the tools in a workspace. */
+function packageDirectory(): string {
+    return fileURLToPath(new URL("../..", import.meta.url));
 }

@@ -21,9 +21,6 @@ const WRITTEN_AS_IS = [
 /** The longest the formatter runs, in milliseconds, far above formatting a scope's sources. */
 const FORMAT_TIMEOUT = 30_000;
 
-/** This package's directory, whose dependencies include the tools when running from a workspace. */
-const PACKAGE = fileURLToPath(new URL("../..", import.meta.url));
-
 /** Format generated source with a toolchain's formatter and the package files' fixed settings. */
 export async function formatSource(
     filename: string,
@@ -31,7 +28,7 @@ export async function formatSource(
     toolchain: Toolchain,
 ): Promise<string> {
     // load the formatter's module from the toolchain, refusing one without its format function
-    const directory = toolchain.locate(["oxfmt"], PACKAGE);
+    const directory = toolchain.locate(["oxfmt"], packageDirectory());
     const entry = createRequire(join(directory, "package.json")).resolve("oxfmt");
     const loaded: unknown = await import(pathToFileURL(entry).href);
     if (!isFormatter(loaded)) {
@@ -54,7 +51,11 @@ export async function formatPackage(options: CheckOptions, write = true): Promis
     await checkConfiguration(options.directory, files, options.plugins);
 
     // find the formatter among the tools
-    const executable = join(options.toolchain.locate(["oxfmt"], PACKAGE), "bin", "oxfmt");
+    const executable = join(
+        options.toolchain.locate(["oxfmt"], packageDirectory()),
+        "bin",
+        "oxfmt",
+    );
 
     // isolate the generated format configuration
     const temporary = await files.makeTemporaryDirectory("destack-format-");
@@ -107,4 +108,9 @@ function isFormatter(module: unknown): module is Pick<typeof oxfmt, "format"> {
         "format" in module &&
         typeof module.format === "function"
     );
+}
+
+/** Read this package's directory, whose dependencies include the tools in a workspace. */
+function packageDirectory(): string {
+    return fileURLToPath(new URL("../..", import.meta.url));
 }
