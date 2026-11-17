@@ -19,7 +19,7 @@ import stackPackage from "@destack/stack/package";
 import type { MountFetch, ObjectStore } from "@destack/object/server";
 import { Lock, PackageManifest } from "@destack/package/manifest";
 import { PackageId, type PackageRelease } from "@destack/package";
-import { Digest, type Identifier, present, schema, type Version } from "@destack/schema";
+import { Digest, type Identifier, present, schema } from "@destack/schema";
 import { RequestId, ObjectReference, Scope } from "@destack/sync";
 import type { InstallationSelection } from "@destack/object";
 import {
@@ -61,8 +61,6 @@ export interface Registry {
     readonly distribution: readonly PackageRelease[];
     /** Read the address npm clients ask for a handle's packages: its forge's npm mount. */
     readonly npm: (handle: string) => Promise<string>;
-    /** Read the version the next release of an account's package takes at the account's forge. */
-    readonly next: (account: Identifier<"account">, packageId: PackageId) => Promise<Version>;
     /** Push a stored lock and its builds to its account's forge. */
     readonly push: (
         store: PublishStore,
@@ -273,21 +271,13 @@ export function implementBuild(options: BuildOptions) {
                         );
                     }
 
-                    // take the version the package's next release has at its account's forge
-                    const { release: released, ...given } = context.input;
-                    const version =
-                        released === undefined
-                            ? undefined
-                            : await options.registry.next(released.account, released.package);
-
                     // compile it on the runner its source selects, keyed by its checkout
                     const runner = runnerOf(context, options.buildRunner);
 
                     return next(
                         context.with({
                             input: {
-                                ...given,
-                                ...(version === undefined ? {} : { version }),
+                                ...context.input,
                                 ...ObjectReference.columns("runner", runner),
                                 ...(source.kind === "commit"
                                     ? { checkout: Build.checkout(source), commit: source.commit }
