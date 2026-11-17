@@ -27,7 +27,7 @@ Sign in, install a package, and work with its objects:
 destack login
 destack switch work
 destack install @acme/notebooks
-destack notebook create --name Plans
+destack notebook new --name Plans
 destack notebooks --where 'name = Plans' --watch
 ```
 
@@ -43,8 +43,10 @@ Every command takes `--space` to act in another space, `--json` for machine-read
 | `logout`, `whoami`            | signs out, or shows the person and space                         |
 | `switch <space>`              | sets the space commands act in                                   |
 | `install <package>`           | installs `@scope/name`, at `@tag` or `@version`                  |
+| `uninstall <package>`         | removes a package's installation, or the one of a name           |
 | `apply <checkout>`            | applies a checkout's stack to the space                          |
 | `plan`, `approve`, `reject`   | shows, approves or rejects the plan an installation waits on     |
+| `new <package>`               | makes a package from a template in a new directory               |
 | `dev <checkout>`              | previews a checkout's package live against the space             |
 | `build`, `publish <checkout>` | builds a checkout's package, or builds and publishes it          |
 | `tag`                         | points a distribution tag at a release                           |
@@ -63,7 +65,7 @@ Each type the space installs adds a plural and a singular, such as `notebooks` a
 | `destack <nouns> --where <filter>`        | lists objects matching a `@destack/db` filter |
 | `destack <nouns> --limit <n> --watch`     | lists a page, and follows changes             |
 | `destack <noun> <id>`                     | gets one object                               |
-| `destack <noun> create --<field> <value>` | creates an object, with a flag per field      |
+| `destack <noun> new --<field> <value>`    | creates an object, with a flag per field      |
 | `destack <noun> <id> <method> --<field>`  | calls a method, with a flag per input field   |
 
 A failed command prints one error and exits with 2 for a usage error, 4 when signed out, and 130 when interrupted.
