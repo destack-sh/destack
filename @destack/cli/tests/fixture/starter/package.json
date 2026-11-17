@@ -1,0 +1,12 @@
+{
+    "name": "@acme/starter",
+    "version": "2026.11.0",
+    "type": "module",
+    "exports": {
+        "./package": "./src/package.ts"
+    },
+    "dependencies": {
+        "@destack/locale": "workspace:*",
+        "@destack/object": "workspace:*"
+    }
+}
