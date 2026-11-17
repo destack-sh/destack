@@ -2,7 +2,7 @@ import { resource, through, union, universe } from "@destack/access";
 import { account, space } from "@destack/account/object";
 import type { Select } from "@destack/db";
 import { defineObject, field } from "@destack/object";
-import { Digest, schema } from "@destack/schema";
+import { Digest, schema, Version } from "@destack/schema";
 import { ObjectReference } from "@destack/sync";
 import { graph, PackageId, PackageName } from "@destack/package";
 import { Vocabulary } from "@destack/resource";
@@ -155,6 +155,20 @@ export const packageObject = defineObject(
                 name: PackageName,
             }),
             prepared: ObjectReference,
+        }),
+        /** Read the version the next release of a package name takes, published yet or not. */
+        next: method.query({
+            title: t`Next`,
+            permission: "read",
+            target: "scope",
+            input: schema.object({
+                /** The package's global name, such as @acme/notebooks. */
+                name: PackageName,
+            }),
+            output: schema.object({
+                /** The version the next release takes. */
+                version: Version,
+            }),
         }),
         /** Point a distribution tag at a published version, creating the tag the first time. */
         point: method.mutation({
