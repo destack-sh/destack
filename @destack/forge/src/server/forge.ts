@@ -102,6 +102,11 @@ export class Forge {
     readonly store: BuildStore;
     /** The forge's options: its home, storage and endpoint. */
     readonly #options: ForgeOptions;
+    /** What an npm listing reads of each lock it listed: its package file and its integrity. */
+    readonly #listings = new Map<
+        Digest,
+        Promise<{ readonly manifest: JsonObject; readonly integrity: string }>
+    >();
     /** The repositories hosted at GitHub, absent in a universe running no GitHub App. */
     readonly #github: GitHubHosting | undefined;
 
@@ -423,7 +428,8 @@ export class Forge {
         const described = await Promise.all(
             published.map(async (each) => ({
                 version: each.version,
-                archive: await this.#archive(each.lock),
+                lock: each.lock,
+                archive: await this.#listed(each.lock),
                 ...(each.deprecation === null ? {} : { deprecation: each.deprecation }),
             })),
         );
@@ -435,7 +441,7 @@ export class Forge {
                 throw ForgeError.of("RELEASE_NOT_FOUND", `release '${version}' not found`);
             }
 
-            return new Response(found.archive.bytes, {
+            return new Response((await this.#archive(found.lock)).bytes, {
                 headers: { "content-type": "application/octet-stream" },
             });
         }
@@ -454,6 +460,23 @@ export class Forge {
         );
 
         return Response.json(listing);
+    }
+
+    /** Read a lock's package file and tarball integrity, archiving its build once. */
+    #listed(lock: Digest): Promise<{ readonly manifest: JsonObject; readonly integrity: string }> {
+        // keep what a listing reads of each lock, which never changes, and forget a failed read
+        const known = this.#listings.get(lock);
+        if (known !== undefined) {
+            return known;
+        }
+        const read = this.#archive(lock).then(({ manifest, integrity }) => ({
+            manifest,
+            integrity,
+        }));
+        this.#listings.set(lock, read);
+        read.catch(() => this.#listings.delete(lock));
+
+        return read;
     }
 
     /** Archive a lock's root build as its npm tarball, with the package file and integrity. */
