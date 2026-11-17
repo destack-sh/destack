@@ -257,7 +257,15 @@ An `index` keyed by `column.element(path, kind)` is a MongoDB multikey index, wi
 `table[TABLE].entryTable(name)` reads its entries, and `.sparse()` leaves out elements without any keyed value.
 
 ```ts
-import { type DatabaseConnection, defineTable, index, json, TABLE, text, Transaction } from "@destack/db";
+import {
+    type DatabaseConnection,
+    defineTable,
+    index,
+    json,
+    TABLE,
+    text,
+    Transaction,
+} from "@destack/db";
 import { schema } from "@destack/schema";
 
 // index each order line by customer and product
@@ -305,7 +313,7 @@ export async function project(
 ) {
     // run the projection after the replicas sync
     const set = { controllers: [], projections: [projection], cursors: [], activation: synced };
-    const loop = new ControlLoop(database, [{ ...set, position: "control" }], { report: console.error });
+    const loop = new ControlLoop(database, [{ ...set, position: "control" }]);
     void loop.run(signal);
 
     // wait until nothing is due among the active sets
@@ -590,11 +598,9 @@ export function closeJobs(database: DatabaseConnection, signal: AbortSignal) {
     };
 
     // run the controller in a loop
-    const loop = new ControlLoop(
-        database,
-        [{ controllers: [close], projections: [], cursors: [] }],
-        { report: console.error },
-    );
+    const loop = new ControlLoop(database, [
+        { controllers: [close], projections: [], cursors: [] },
+    ]);
     void loop.run(signal);
 }
 ```
