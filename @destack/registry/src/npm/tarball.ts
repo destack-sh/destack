@@ -10,13 +10,11 @@ const ROOT = "package";
 /** The file npm clients read a release's name, version and dependencies from. */
 const PACKAGE_FILE = "package.json";
 
-/** The fields of a package file listing dependencies by range. */
-const DEPENDENCY_FIELDS = [
-    "dependencies",
-    "devDependencies",
-    "peerDependencies",
-    "optionalDependencies",
-] as const;
+/** The fields of a package file listing what an installed release depends on, by range. */
+const DEPENDENCY_FIELDS = ["dependencies", "peerDependencies", "optionalDependencies"] as const;
+
+/** The field listing what only the package's own development needs, which a release omits. */
+const DEVELOPMENT_FIELD = "devDependencies";
 
 /** The start of a range selecting a package of the same workspace, as Bun and pnpm write it. */
 const WORKSPACE_RANGE = "workspace:";
@@ -48,14 +46,15 @@ export const NpmTarball = {
         );
     },
 
-    /** Write a package file with each workspace range replaced by the linked release's version. */
+    /** Write a package file as released: workspace ranges at linked versions. */
     release(
         authored: Uint8Array,
         versions: Readonly<Record<string, string>>,
     ): Uint8Array<ArrayBuffer> {
         // replace the workspace ranges of each dependency field it has
         const manifest = schema.jsonObject().parse(JSON.parse(new TextDecoder().decode(authored)));
-        const released: Record<string, unknown> = { ...manifest };
+        const { [DEVELOPMENT_FIELD]: _development, ...installed } = manifest;
+        const released: Record<string, unknown> = { ...installed };
         for (const field of DEPENDENCY_FIELDS) {
             const ranges = schema
                 .record(schema.string(), schema.string())

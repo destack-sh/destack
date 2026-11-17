@@ -18,7 +18,7 @@ function bytes(text: string): Uint8Array<ArrayBuffer> {
     return new TextEncoder().encode(text);
 }
 
-test("archive a build's files below package/ in path order, its workspace dependencies at the linked versions", async () => {
+test("archive a build's files below package/ in path order, its workspace dependencies at the linked versions and no development needs", async () => {
     // build a package that depends on a workspace package and an npm one
     await using simulation = testSimulation();
     const { crypto } = simulation.environment("test");
@@ -27,6 +27,7 @@ test("archive a build's files below package/ in path order, its workspace depend
         version: "2026.11.3",
         exports: { "./package": "./src/package.ts" },
         dependencies: { "@destack/object": "workspace:*", zod: "4.1.0" },
+        devDependencies: { "@destack/test": "workspace:*" },
     };
     const build = await MemoryBuild.write(
         new Map([
@@ -46,8 +47,9 @@ test("archive a build's files below package/ in path order, its workspace depend
     for await (const entry of Tarball.read(archive)) {
         read.push([entry.path, new TextDecoder().decode(await TarballEntry.bytes(entry))]);
     }
+    const { devDependencies: _development, ...installed } = authored;
     const released = {
-        ...authored,
+        ...installed,
         dependencies: { "@destack/object": "2026.11.2", zod: "4.1.0" },
     };
     expect(read).toEqual([
