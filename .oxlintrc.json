@@ -561,6 +561,7 @@
                     "name": "@destack/machine-start-fixture"
                 },
                 { "directory": "@destack/cli/tests/fixture/notebooks", "name": "@acme/notebooks" },
+                { "directory": "@destack/cli/tests/fixture/starter", "name": "@acme/starter" },
                 {
                     "directory": "@destack/view/tests/fixture/notebook",
                     "name": "@destack/view-notebook-fixture"
@@ -678,6 +679,7 @@
                 "@destack/machine-stack-fixture": "library",
                 "@destack/machine-start-fixture": "app",
                 "@acme/notebooks": "app",
+                "@acme/starter": "app",
                 "@destack/view-notebook-fixture": "library"
             }
         }
