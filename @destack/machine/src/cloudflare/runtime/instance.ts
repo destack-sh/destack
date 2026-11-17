@@ -187,6 +187,8 @@ export class InstallationFacet {
     readonly #alarm: Alarm;
     /** The stored start, read from storage once; this facet is its only writer. */
     #start: Promise<DurableObjectInstanceStart | undefined> | undefined;
+    /** Whether the stored start's workload answered here since the object started, so it runs. */
+    #isRunning = false;
 
     /** Host an installation's facet in an object, its alarm on the object's clock. */
     constructor(
@@ -463,9 +465,9 @@ export class InstallationFacet {
 
     /** Drain the running workload and stop its facet, leaving its databases. */
     async #stop(): Promise<void> {
-        // drain the workload of the stored start
+        // drain the stored start's workload when it runs here, as a restarted object runs none
         const started = await this.#started();
-        if (started !== undefined) {
+        if (started !== undefined && this.#isRunning) {
             const response = await this.#facet(started).fetch(
                 new Request(`https://workload${STOP_PATH}`, { method: "POST" }),
             );
@@ -475,19 +477,30 @@ export class InstallationFacet {
         // forget the start and stop the facet
         await this.#state.storage.delete(`${START_PREFIX}${this.installation}`);
         this.#start = Promise.resolve(undefined);
+        this.#isRunning = false;
         this.#state.facets.abort(this.installation, new Error("the instance's start changed"));
     }
 
-    /** Get the facet. */
+    /** Get the facet, recording that a start's workload runs once it answers. */
     #facet(started: DurableObjectInstanceStart | undefined): {
         readonly fetch: (request: Request) => Promise<Response>;
     } {
-        return this.#state.facets.get(this.installation, () => ({
+        const facet = this.#state.facets.get(this.installation, () => ({
             class:
                 started === undefined
                     ? this.#state.exports[DATABASE_EXPORT]
                     : this.#load(started).getDurableObjectClass(WORKLOAD_EXPORT),
         }));
+
+        return {
+            fetch: async (request) => {
+                // an answer means the workload's code loaded and runs
+                const response = await facet.fetch(request);
+                this.#isRunning ||= started !== undefined;
+
+                return response;
+            },
+        };
     }
 
     /** Load a start's workload code into an isolate of its own. */
