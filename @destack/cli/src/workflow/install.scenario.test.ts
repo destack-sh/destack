@@ -137,3 +137,37 @@ test("keep a package's one installation on a second install, and refuse another 
         ],
     });
 });
+
+test("uninstall a package's installation once confirmed, and refuse one the space lacks", async () => {
+    // install the acme notebooks in the owner's home
+    const terminal = await TerminalFixture.open({ NO_COLOR: "1" }, [], ACME);
+    const run = (words: readonly string[]) => terminal.printed(["--space", "home", ...words]);
+    const names = async () =>
+        schema
+            .array(schema.looseObject({ name: schema.string() }))
+            .parse(JSON.parse((await run(["installations", "--json"])).output))
+            .map(({ name }) => name);
+    await run(["install", "@acme/notebooks", "--json"]);
+    const before = await names();
+
+    // refuse it unconfirmed, uninstall it by its package once confirmed, then by its name again
+    const unconfirmed = await run(["uninstall", "@acme/notebooks"]);
+    const uninstalling = await run(["uninstall", "@acme/notebooks", "--yes"]);
+    const after = await names();
+    const again = await run(["uninstall", "notebooks", "--yes"]);
+    const { home } = terminal.computer.world.owner;
+    expect({
+        unconfirmed: [unconfirmed.code, unconfirmed.error],
+        uninstalling: [uninstalling.code, uninstalling.output, uninstalling.error],
+        removed: before.filter((name) => !after.includes(name)),
+        again: [again.code, again.error],
+    }).toEqual({
+        unconfirmed: [
+            1,
+            "destack: cannot uninstall 'notebooks': it deletes the installation's resources, so confirm it with --yes\n",
+        ],
+        uninstalling: [0, "Uninstalled notebooks.\n", ""],
+        removed: ["notebooks"],
+        again: [1, `destack: installation 'notebooks' of '${home}' not found\n`],
+    });
+});

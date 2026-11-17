@@ -230,13 +230,14 @@ test("print help for a command line without words as destack help does, and a no
         root,
         card: (await line(terminal, ["card", "--help"])).output,
         create: (await line(terminal, ["card", "create", "--help"])).output,
+        new: (await line(terminal, ["card", "new", "--help"])).output,
     }).toEqual({
         root: await line(terminal, ["help"]),
         card: `Get, create and change cards (work)
 
 Usage: destack card <command>
 
-  create              Call card.create
+  new                 Call card.create
   new-ideas           New Ideas Card
   <id>                Show one of the cards
   <id> pin            Call card.pin
@@ -254,6 +255,15 @@ Usage: destack card <command>
         create: `Call card.create
 
 Usage: destack card create
+
+  -h, --help              Show help
+      --json              Print JSON
+      --title <string>    The title
+      --input <json>      The method's input as a JSON object, - for stdin, @path for a file
+`,
+        new: `Call card.create
+
+Usage: destack card new
 
   -h, --help              Show help
       --json              Print JSON

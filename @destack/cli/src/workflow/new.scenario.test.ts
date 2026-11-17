@@ -8,7 +8,7 @@ import { TerminalFixture } from "../test/terminal.ts";
 /** The identifier of Acme's template, which a package made from it replaces. */
 const STARTER_ID = "package-01996ab0-0000-7000-8000-0000000000d5";
 
-/** What `create --json` prints. */
+/** What `new --json` prints. */
 const Created = schema.object({
     name: schema.string(),
     directory: schema.string(),
@@ -23,7 +23,7 @@ test("make a package from a published template in a new checkout, its registries
     // make a package from the template in a new directory
     const directory = join(terminal.native.home, "notes");
     const options = ["--template", "@acme/starter", "--json"];
-    const printed = await terminal.printed(["create", "@acme/notes", directory, ...options]);
+    const printed = await terminal.printed(["new", "@acme/notes", directory, ...options]);
     expect([printed.code, printed.error]).toEqual([0, ""]);
     const created = Created.parse(JSON.parse(printed.output));
 
