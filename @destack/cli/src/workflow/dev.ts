@@ -1,7 +1,9 @@
 import { outputsOf } from "@destack/build";
 import { readPackageJson } from "@destack/build/local";
 import { type PackageJson, PackageName } from "@destack/package";
-import { type Identifier, present } from "@destack/schema";
+import { type Identifier, present, Version } from "@destack/schema";
+import { ForgeError } from "@destack/forge/error";
+import { openForge } from "./forge.ts";
 import { RequestId } from "@destack/sync";
 import * as stackObject from "@destack/stack/object";
 import { type Verb, OptionValue, type Options } from "../command/command.ts";
@@ -114,6 +116,32 @@ async function publish(
     await context.terminal.print(json ? JSON.stringify(published) : lines.join("\n"));
 }
 
+/** Read the version a package's next release takes: its forge's, or this month's first. */
+async function nextRelease(context: Context, built: PackageJson["package"]): Promise<Version> {
+    // find the package at the forge of its name's account, as the person, absent before its first release
+    const { client, home } = await openForge(built.name, context);
+    const found = await client.package
+        .resolve({ spaceId: home, name: built.name })
+        .catch((error: unknown) => {
+            if (!ForgeError.is(error, "PACKAGE_NOT_FOUND")) {
+                throw error;
+            }
+
+            return undefined;
+        });
+
+    // ask for the release after its newest
+    const published =
+        found === undefined
+            ? undefined
+            : await client.release.next({ spaceId: home, parentId: found.id });
+
+    // start a package its forge has no release of at this month's first
+    const first = Version.first(context.environment.clock.now());
+
+    return published?.version ?? Version.parse(first);
+}
+
 /** Build the checkout containing a directory in a space. */
 async function build(
     context: Context,
@@ -154,16 +182,7 @@ async function build(
             directory: registered.path,
         },
         outputs,
-        ...(version === "release"
-            ? {
-                  release: {
-                      account: await (
-                          await context.native()
-                      ).resolve(PackageName.split(read.package.name).handle),
-                      package: read.package.id,
-                  },
-              }
-            : {}),
+        ...(version === "release" ? { version: await nextRelease(context, read.package) } : {}),
     });
 
     // follow it until it finishes
