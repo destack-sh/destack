@@ -19,7 +19,7 @@ import { schema } from "@destack/schema";
 import { ObjectReference, RequestId } from "@destack/sync";
 import { bucket, database, type Rollout, rollout } from "@destack/stack/object";
 import { vault } from "@destack/vault/object";
-import type { EventState, Terminal, Tone } from "../output/index.ts";
+import type { EventState, Standing, Terminal, Tone } from "../output/index.ts";
 import type { Context } from "../context/context.ts";
 import stackPackage from "@destack/stack/package";
 import type {} from "@destack/package/import-meta";
@@ -34,9 +34,17 @@ const RISK_WIDTH = 21;
 /** The word and state of the event for each progress of an installation. */
 const PROGRESS_EVENTS: Readonly<Record<Progress, readonly [string, EventState]>> = {
     current: ["Ready", "done"],
-    waiting: ["Waiting", "running"],
-    approval: ["Waiting", "running"],
+    waiting: ["Pending", "running"],
+    approval: ["Pending", "running"],
     failed: ["Failed", "failed"],
+};
+
+/** How a resource stands for each progress of its record. */
+const RESOURCE_STANDINGS: Readonly<Record<Progress, Standing>> = {
+    current: "ready",
+    waiting: "busy",
+    approval: "busy",
+    failed: "failed",
 };
 
 /** The sign, colour and totals phrase of each step action, coloured as a diff's lines. */
@@ -249,7 +257,7 @@ export class InstallationStatus {
     /** The rollout's applied and served revisions. */
     readonly rollout: Pick<Rollout, "appliedRevisionId" | "servedRevisionId">;
     /** The resources the installation manages or owns. */
-    readonly resources: readonly Pick<Resource, "name" | "conditions">[];
+    readonly resources: readonly Pick<Resource, "name" | "conditions" | "generation">[];
     /** The plan the installation waits on with its digest, absent unless it awaits approval. */
     readonly waiting: Waiting | undefined;
 
@@ -279,36 +287,33 @@ export class InstallationStatus {
         return Observation.message(this.installation);
     }
 
-    /** Read the reason the installation reports: failed, else its ready reason, else pending. */
-    get reason(): string {
-        return this.progress === "failed"
-            ? "Failed"
-            : (this.installation.conditions["Ready"]?.reason ?? "Pending");
-    }
-
     /** Render the installation's progress, its resources' readiness and the plan it waits on. */
     render(terminal: Terminal): string {
         // say where the installation stands, what it follows, and its failure or wait
         const { resources, waiting, installation: installed, progress, message } = this;
         const [word, state] = PROGRESS_EVENTS[progress];
         const named = `installation '${installed.name ?? installed.scope}'`;
+        const said = message === "" ? named : `${named}: ${message}`;
         const lines = [
-            terminal.event(word, state, named, this.reason),
+            terminal.event(word, state, said, Observation.condition(installed)?.reason),
             `  ${terminal.style("dim", "follows ")}  ${this.follows}`,
             `  ${terminal.style("dim", "revision")}  ${this.rollout.appliedRevisionId ?? "-"}`,
-            ...(progress === "current" || message === "" ? [] : [terminal.hint("why", message)]),
         ];
 
-        // list each resource with its dot and its readiness
+        // list each resource with its dot, what it reports, and the reason's code dim for searching
         if (resources.length > 0) {
             const width = Math.max(...resources.map((resource) => resource.name.length));
             lines.push("");
             for (const resource of resources) {
-                const ready = resource.conditions["Ready"]?.reason ?? "Pending";
-                const dot = terminal.dot(ready === "Applied" ? "ready" : "busy");
-                lines.push(
-                    `  ${dot} ${resource.name.padEnd(width)}  ${terminal.style("dim", ready)}`,
-                );
+                const standing = RESOURCE_STANDINGS[Observation.progress(resource)];
+                const reported = Observation.message(resource);
+                const reason = Observation.condition(resource)?.reason;
+                const facts = [
+                    ...(reported === "" ? [] : [reported]),
+                    ...(reason === undefined ? [] : [terminal.style("dim", reason)]),
+                ];
+                const name = facts.length === 0 ? resource.name : resource.name.padEnd(width);
+                lines.push(`  ${terminal.dot(standing)} ${[name, ...facts].join("  ")}`);
             }
         }
 
