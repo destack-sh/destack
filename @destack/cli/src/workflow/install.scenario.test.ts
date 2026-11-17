@@ -6,8 +6,8 @@ import { jsonLines, TerminalFixture } from "../test/terminal.ts";
 /** The checkout Acme publishes the notebooks package from. */
 const NOTEBOOKS = fileURLToPath(new URL("../../tests/fixture/notebooks/", import.meta.url));
 
-/** The version the checkout declares. */
-const RELEASE = "2026.11.0";
+/** The release a published dev build leads to: the first of the fixture clock's month. */
+const RELEASE = "2026.10.0";
 
 /** A printed installation. */
 const Installed = schema.object({

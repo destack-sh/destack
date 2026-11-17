@@ -8,6 +8,9 @@ import { TerminalFixture, type TerminalInput } from "../test/terminal.ts";
 /** The checkout Acme publishes the notebooks package from. */
 const NOTEBOOKS = fileURLToPath(new URL("../../tests/fixture/notebooks/", import.meta.url));
 
+/** The first release of the fixture clock's month, which the registry assigns a new package. */
+const NEXT_RELEASE = "2026.10.0";
+
 /** The notebooks package as its checkout declares it. */
 const PACKAGE = {
     id: "package-01996ab0-0000-7000-8000-0000000000d4",
@@ -133,7 +136,7 @@ test("follow a published release's tag, then pin the installation to the release
     }).toEqual({
         organized: [0, ""],
         tagged: [0, `Tagged ${PACKAGE.name}@${version} stable.\n`, ""],
-        version: PACKAGE.version,
+        version: NEXT_RELEASE,
         installations: [
             { name: "notebooks", followsType: "tag", ready },
             {
@@ -147,4 +150,30 @@ test("follow a published release's tag, then pin the installation to the release
             { source, lock, state: "succeeded" },
         ],
     });
+});
+
+test("publish an uncommitted checkout as a dev build of the registry's next release, whatever its package file says", async () => {
+    // create the acme organization as the owner
+    const terminal = await TerminalFixture.open({ NO_COLOR: "1" });
+    const words = ["organization", "create", "--name", "Acme", "--handle", "acme"];
+    await terminal.printed([...words, "--residency-id", "eu"]);
+
+    // publish the checkout twice, allowing the stack to publish
+    const publish = async () => {
+        const published = Published.parse(
+            await json(terminal, ["publish", NOTEBOOKS], { stdin: "yes\n" }),
+        );
+
+        return present(published.releases.at(-1), "the published checkout").package.version;
+    };
+    const first = await publish();
+    const second = await publish();
+
+    // lead a dev build of unchanged, uncommitted source to the registry's next release both times
+    expect([
+        PACKAGE.version,
+        Version.release(first),
+        Version.isPrerelease(first),
+        second === first,
+    ]).toEqual(["2026.11.0", NEXT_RELEASE, true, true]);
 });
