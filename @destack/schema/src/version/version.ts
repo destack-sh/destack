@@ -42,6 +42,13 @@ export const Version = Object.assign(z.string().regex(VERSION), {
         return Version.parse(`${Version.release(release)}-dev.${time}.${key.slice(0, 12)}`);
     },
 
+    /** Write the first release of the UTC month a time lies in. */
+    first(at: number): string {
+        const time = new Date(at);
+
+        return `${time.getUTCFullYear()}.${time.getUTCMonth() + 1}.0`;
+    },
+
     /** Read the next release in a version's year and month. */
     next(version: string): string {
         const { year, month, release } = components(version);
