@@ -12,9 +12,9 @@ import {
     Page,
     Subscription,
     Aggregate,
+    MutationOutcome,
 } from "@destack/sync";
 import { Procedure } from "../procedure/index.ts";
-import { Failure } from "@destack/error";
 
 /** The package defining the store procedures. */
 const DEFINING_PACKAGE = PackageVersion.of(import.meta.destack.package);
@@ -178,25 +178,11 @@ export const EphemeralParameters = schema.object({
 
 /** The outcomes of a push and the watermark with their changes. */
 export const PushResult = schema.object({
-    /** Each mutation's outcome, in the order pushed. */
-    outcomes: schema.array(
-        schema.object({
-            /** The mutation's request identifier. */
-            id: schema.string(),
-            /** The results of its calls in order, or its final failure. */
-            outcome: schema.union([
-                schema.object({
-                    /** The results of the calls in order. */
-                    value: schema.json(),
-                }),
-                schema.object({
-                    /** The final failure. */
-                    error: Failure,
-                }),
-            ]),
-        }),
-    ),
-    /** The server log sequence with every executed mutation's changes. */
+    /** The outcome of each mutation the receiver ran, in the order pushed. */
+    outcomes: schema.array(MutationOutcome),
+    /** The mutations a queueing receiver, such as a device, took to run later. */
+    queued: schema.array(schema.string()),
+    /** The receiver's log position with every ran or queued mutation's changes. */
     watermark: Watermark,
 });
 /** The outcomes of a push and the watermark with their changes. */
@@ -219,6 +205,8 @@ export const storeProcedures = {
                 mutations: schema.array(Mutation).min(1).max(PUSH_MUTATIONS),
                 /** The client instance writing ephemeral objects. */
                 writerId: WriterId.exactOptional(),
+                /** The pushing node's log, under which a queueing receiver publishes outcomes. */
+                origin: schema.string().min(1).exactOptional(),
             }),
         )
         .output(PushResult),
@@ -254,25 +242,6 @@ export const storeProcedures = {
             }),
         )
         .output(schema.json()),
-    receive: Procedure.of({
-        package: DEFINING_PACKAGE,
-        authentication: "identity",
-        permission: "rows",
-        audit: false,
-    })
-        .route({ method: "POST", path: "/store/receive" })
-        .input(
-            schema.object({
-                /** The mutation of replicated rows a follower sends toward their home. */
-                mutation: Mutation,
-            }),
-        )
-        .output(
-            schema.object({
-                /** The results of the mutation's calls, in order. */
-                results: schema.array(schema.json()),
-            }),
-        ),
     broadcast: Procedure.of({
         package: DEFINING_PACKAGE,
         authentication: "identity",

@@ -14,3 +14,5 @@ export {
 
 export * from "./shape.ts";
 export * from "./key.ts";
+export * from "./remote.ts";
+export * from "./channel.ts";
