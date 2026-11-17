@@ -221,12 +221,14 @@ test("queue notes offline, write batches atomically, drop rejected predictions a
                 type: notebook.typeReference,
                 method: "create",
                 release: notebook.package.version,
+                edition: 1,
                 input: { name: "Travel", id: book.id, spaceId },
             },
             {
                 type: note.typeReference,
                 method: "create",
                 release: note.package.version,
+                edition: 1,
                 input: {
                     parentId: book.id,
                     title: "Packing",

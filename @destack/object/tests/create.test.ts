@@ -436,6 +436,7 @@ test("create each variant of a sum type from its fields beside the shared ones, 
                         type: contact.typeReference,
                         method: "create",
                         release: contact.package.version,
+                        edition: 1,
                         input: {
                             spaceId,
                             label: "Both",

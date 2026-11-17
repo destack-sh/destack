@@ -6,7 +6,8 @@ import { OpenAPILink, type OpenAPILinkOptions } from "@orpc/openapi-client/fetch
 import { ClientRetryPlugin } from "@orpc/client/plugins";
 import type { Client, ProcedureRouter } from "../procedure/index.ts";
 import { ProcedureMetadata } from "../procedure/procedure.ts";
-import { VERSION_HEADER } from "../procedure/procedure.ts";
+import { EDITION_HEADER, VERSION_HEADER } from "../procedure/procedure.ts";
+import { Edition } from "@destack/schema";
 import { traceCalls } from "../procedure/telemetry.ts";
 import { BOOKMARK_HEADER, Bookmark } from "../procedure/bookmark.ts";
 import type { Environment } from "@destack/environment";
@@ -55,6 +56,19 @@ export function createClient<
         return release;
     };
 
+    // read the edition of each called procedure's input once
+    const editions = new Map<string, number>();
+    const editionOf = (path: readonly string[]) => {
+        // read a path's edition the first time it is called
+        const key = path.join(".");
+        const edition =
+            editions.get(key) ??
+            Edition.of(ProcedureMetadata.at(target.router, path).convert ?? {});
+        editions.set(key, edition);
+
+        return edition;
+    };
+
     // create the HTTP transport, sending through the environment's network unless the endpoint fetches
     const link = new OpenAPILink<Context>(target.router, {
         fetch: (request) => environment.network.fetch(request),
@@ -80,6 +94,7 @@ export function createClient<
                 // send the release and the required watermarks, the transport sending the trace
                 const headers = call.request.headers;
                 headers.set(VERSION_HEADER, releaseOf(call.path));
+                headers.set(EDITION_HEADER, String(editionOf(call.path)));
                 const bookmark = options.bookmark;
                 if (bookmark !== undefined && bookmark.watermarks.length > 0) {
                     headers.set(BOOKMARK_HEADER, bookmark.format());

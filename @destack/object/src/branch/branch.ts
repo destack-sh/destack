@@ -73,6 +73,7 @@ export class Branch {
                 method: entry.method,
                 input: entry.input,
                 release: entry.release,
+                edition: entry.edition,
                 author: ObjectReference.at("author", entry),
                 actors: entry.actors,
             }));
@@ -119,6 +120,7 @@ export class Branch {
                     method: entry.method,
                     input: entry.input,
                     release: entry.release,
+                    edition: entry.edition,
                     ...ObjectReference.columns("author", author),
                     actors: [...actors],
                 }),

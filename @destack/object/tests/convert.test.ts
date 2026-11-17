@@ -24,7 +24,7 @@ const card = defineObject(
         plural: "cards",
         title: t`${plural(argument("count"), { one: "Card", other: "Cards" })}`,
         scope: space,
-        convert: { [objectPackage.version]: { name: Expression.column("title") } },
+        convert: { 2: { name: Expression.column("title") } },
         fields: {
             owner: field.reference(principal.user).caller(),
             name: field.string(schema.string().min(1)),
@@ -39,7 +39,7 @@ const card = defineObject(
     }),
 );
 
-test("execute calls made against an earlier release with the fields they renamed, and refuse calls of a later release", async () => {
+test("execute calls made against an earlier edition with the fields they renamed, and refuse calls of a later edition", async () => {
     // run in a world of its own
     const world = testSimulation().environment("test");
 
@@ -70,7 +70,7 @@ test("execute calls made against an earlier release with the fields they renamed
     });
     const context = userContext(users.alice, spaceId, { environment: world });
 
-    // create and rename a card through calls of the release before the rename
+    // create and rename a card through calls of the edition before the rename
     const [result] = await store.mutate(context.access(), {
         id: RequestId.create(world),
         calls: [
@@ -78,6 +78,7 @@ test("execute calls made against an earlier release with the fields they renamed
                 type: card.typeReference,
                 method: "create",
                 release: "2026.8.0",
+                edition: 1,
                 input: { spaceId, title: "Plan" },
             },
         ],
@@ -90,21 +91,21 @@ test("execute calls made against an earlier release with the fields they renamed
                 type: card.typeReference,
                 method: "update",
                 release: "2026.8.0",
+                edition: 1,
                 input: { spaceId, id: created.id, title: "Roadmap" },
             },
         ],
     });
 
-    // refuse a call made against a release the server does not serve yet, a year past the served one
-    const [year = 0] = objectPackage.version.split(".").map(Number);
-    const next = `${year + 1}.1.0`;
+    // refuse a call made against an edition the server does not serve yet
     const later = store.mutate(context.access(), {
         id: RequestId.create(world),
         calls: [
             {
                 type: card.typeReference,
                 method: "update",
-                release: next,
+                release: objectPackage.version,
+                edition: 3,
                 input: { spaceId, id: created.id, name: "Next" },
             },
         ],
@@ -112,7 +113,7 @@ test("execute calls made against an earlier release with the fields they renamed
     expect(await refusal(later)).toEqual([
         "BAD_REQUEST",
         "RELEASE_INVALID",
-        `release '${next}' is invalid: 'card.update' targets it, but 'card' is at release '${objectPackage.version}'`,
+        "edition '3' is invalid: 'card.update' targets it, but 'card' is at edition '2'",
     ]);
     const stored = await store.query(
         context.access(),

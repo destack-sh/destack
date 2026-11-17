@@ -1,5 +1,5 @@
 import { type Expression, Row, Table } from "@destack/db";
-import { type JsonObject, schema, type Version } from "@destack/schema";
+import { type JsonObject, schema } from "@destack/schema";
 
 import { MethodContext } from "./context.ts";
 import { Step } from "./step.ts";
@@ -80,7 +80,7 @@ export interface CreateOptions<
     /** Whether clients predict the creation. */
     readonly isPredicted?: boolean;
     /** The input fields each release computes from earlier input, by introducing release. */
-    readonly convert?: Readonly<Record<Version, Readonly<Record<string, Expression>>>>;
+    readonly convert?: Readonly<Record<number, Readonly<Record<string, Expression>>>>;
     /** How often the method runs per key, and whose limit a call counts against. */
     readonly limits?: MethodLimits;
     /** The unique key, `id` or a unique constraint, whose existing match the creation answers. */
@@ -115,7 +115,7 @@ export interface UpdateOptions<
     /** Whether clients predict the update. */
     readonly isPredicted?: boolean;
     /** The input fields each release computes from earlier input, by introducing release. */
-    readonly convert?: Readonly<Record<Version, Readonly<Record<string, Expression>>>>;
+    readonly convert?: Readonly<Record<number, Readonly<Record<string, Expression>>>>;
     /** How often the method runs per key, and whose limit a call counts against. */
     readonly limits?: MethodLimits;
 }
@@ -133,7 +133,7 @@ export interface UpdateManyOptions<
     /** The fields the call matches objects by. */
     readonly match: readonly Match[];
     /** The input fields each release computes from earlier input, by introducing release. */
-    readonly convert?: Readonly<Record<Version, Readonly<Record<string, Expression>>>>;
+    readonly convert?: Readonly<Record<number, Readonly<Record<string, Expression>>>>;
     /** How often the method runs per key, and whose limit a call counts against. */
     readonly limits?: MethodLimits;
 }
@@ -266,7 +266,7 @@ export interface CustomDefinition<
     /** Merge a step into the previous one as one step undoing both, absent when they stay apart. */
     readonly merge?: (previous: Step, next: Step) => Step | undefined;
     /** The input fields each release computes from earlier input, by introducing release. */
-    readonly convert?: Readonly<Record<Version, Readonly<Record<string, Expression>>>>;
+    readonly convert?: Readonly<Record<number, Readonly<Record<string, Expression>>>>;
     /** How often the method runs per key, and whose limit a call counts against. */
     readonly limits?: MethodLimits;
     /** Whether clients predict the method once handled. */

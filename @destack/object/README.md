@@ -107,7 +107,7 @@ export async function finishTask(
 | `constraints`, `indexes`  | checks, indexes, unique constraints and foreign keys           |
 | `aggregates`              | counts and sums kept on referenced objects                     |
 | `storage`                 | where the objects live, such as the event log                  |
-| `convert`                 | how each release converts stored rows, by version              |
+| `convert`                 | how each edition converts stored rows, numbered from 2         |
 | `mapping`                 | another package's table the objects live in                    |
 | `predefined`              | the rows every database has                                    |
 
@@ -813,7 +813,7 @@ export async function starAndUndo(
 
 ### Rename a field
 
-`convert` reads stored rows of an earlier release into the new field.
+`convert` reads stored rows of an earlier edition into the new field.
 
 ```ts
 import { Expression } from "@destack/db";
@@ -827,7 +827,7 @@ export const contact = defineObject({
     title: t`${plural(argument("count"), { one: "Contact", other: "Contacts" })}`,
     container: "scope",
     fields: { fullName: field.string() },
-    convert: { "2026.11.0": { fullName: Expression.column("name") } },
+    convert: { 2: { fullName: Expression.column("name") } },
 });
 ```
 

@@ -421,6 +421,7 @@ test("run a card's hooks in its sandbox, their reads, nested calls and wrapped b
                         method: "update",
                         input: { spaceId, id: created.id, name: "PLAN: ship it" },
                         release: card.package.version,
+                        edition: 1,
                     },
                     mutates: true,
                 },

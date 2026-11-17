@@ -323,6 +323,7 @@ test("invoke methods as the space in a caller's call, writing objects the caller
                         type: slip.typeReference,
                         method: "issue",
                         release: slip.package.version,
+                        edition: 1,
                         input: { borrower: users.frank, shelf: "home" },
                     },
                 ],

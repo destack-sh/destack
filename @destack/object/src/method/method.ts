@@ -1,6 +1,6 @@
 import { Caller, type Creation } from "@destack/access";
 import type { InputObject, InputSchema } from "./input.ts";
-import { type Version, schema } from "@destack/schema";
+import { schema } from "@destack/schema";
 import { type Expression, Row, type Table } from "@destack/db";
 import type * as sync from "@destack/sync";
 import type {
@@ -192,7 +192,7 @@ export interface Method<Configuration extends MethodConfiguration = MethodConfig
     /** The caller-supplied values beyond columns. */
     readonly input?: OptionOf<Configuration, "input", never>;
     /** The input fields each release computes from earlier input, by introducing release. */
-    readonly convert?: Readonly<Record<Version, Readonly<Record<string, Expression>>>>;
+    readonly convert?: Readonly<Record<number, Readonly<Record<string, Expression>>>>;
     /** How often the method runs per key, and whose limit a call counts against. */
     readonly limits?: MethodLimits;
     /** The result of a custom method. */

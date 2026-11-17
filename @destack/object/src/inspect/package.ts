@@ -1,5 +1,5 @@
 import { Address, Plan, type Comparator, type Step } from "@destack/resource";
-import { schema, Version, type JsonSchema } from "@destack/schema";
+import { type JsonSchema, Edition, schema, Version } from "@destack/schema";
 import { graph } from "@destack/package";
 import type { ProcedureRouter } from "../procedure/index.ts";
 import { describeProcedures } from "./procedure.ts";
@@ -227,11 +227,11 @@ function payloadPlans(
     target: string,
     releases: { readonly from: string; readonly release: string },
 ): (() => Plan)[] {
-    // read the releases converting earlier callers' inputs
-    const { from, release } = releases;
-    const declared = procedure.metadata?.["convert"];
-    const convert = declared === undefined ? undefined : CONVERSIONS.parse(declared);
-    const isConverted = convert !== undefined && Version.between(convert, from, release).length > 0;
+    // read whether the later release converts earlier callers' inputs: its edition is higher
+    const { release } = releases;
+    const edition = (described: ProcedureDescription) =>
+        Edition.of(CONVERSIONS.parse(described.metadata?.["convert"] ?? {}));
+    const isConverted = edition(procedure) > edition(previous);
 
     return [
         () =>

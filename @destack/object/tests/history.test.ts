@@ -458,6 +458,7 @@ test("undo a revert by updating the reverted fields no one changed since back", 
             type: page.typeReference,
             method: "update",
             release: page.package.version,
+            edition: 1,
             input: { spaceId, id: "page-1", title: "Roadmap" },
         },
     ]);

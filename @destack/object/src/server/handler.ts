@@ -13,14 +13,15 @@ import {
     type Router,
 } from "@orpc/server";
 import type { ProcedureRouter } from "../procedure/index.ts";
-import { ProcedureMetadata, VERSION_HEADER } from "../procedure/procedure.ts";
+import { ProcedureMetadata, EDITION_HEADER, VERSION_HEADER } from "../procedure/procedure.ts";
 import {
+    type JsonSchema,
     mapValues,
     present,
+    Edition,
     schema,
     toJsonSchema,
     Version,
-    type JsonSchema,
 } from "@destack/schema";
 import { Expression } from "@destack/db";
 import type { PackageVersion } from "@destack/package";
@@ -110,17 +111,12 @@ export class RequestHandler<State extends RequestState> extends OpenAPIHandler<S
                 handler.clientInterceptors.unshift((call) => {
                     // refuse releases the procedure's package does not serve, and convert earlier inputs as JSON
                     const meta = RequestHandler.#meta(metas, call.path);
-                    const caller = RequestHandler.#requireRelease(
-                        call.context.request,
-                        meta.package,
-                        served,
-                    );
+                    RequestHandler.#requireRelease(call.context.request, meta.package, served);
                     const input = RequestHandler.#convert(
                         call.procedure,
                         meta,
                         call.input,
-                        caller,
-                        meta.package.version,
+                        RequestHandler.#requireEdition(call.context.request, meta),
                     );
 
                     return call.next({ ...call, input });
@@ -230,17 +226,33 @@ export class RequestHandler<State extends RequestState> extends OpenAPIHandler<S
         return caller;
     }
 
-    /** Convert an input of an earlier release through each later release's conversion. */
+    /** Read the edition of a procedure's input its caller was built against. */
+    static #requireEdition(request: Request, meta: ProcedureMetadata): number {
+        // require an edition up to the one served
+        const header = request.headers.get(EDITION_HEADER);
+        const caller = Edition.safeParse(Number(header)).data;
+        const served = Edition.of(meta.convert ?? {});
+        if (header === null || caller === undefined || caller > served) {
+            throw ObjectError.of(
+                "VERSION_INVALID",
+                `${EDITION_HEADER} '${header}' is invalid: it must be an edition up to '${served}'`,
+            );
+        }
+
+        return caller;
+    }
+
+    /** Convert an input of an earlier edition through each later edition's conversion. */
     static #convert(
         procedure: AnyProcedure,
         meta: ProcedureMetadata,
         input: unknown,
-        caller: Version,
-        served: Version,
+        caller: number,
     ): unknown {
-        // take an input of this release as it is
+        // take an input of this edition as it is
         const convert = meta.convert ?? {};
-        if (Version.between(convert, caller, served).length === 0) {
+        const served = Edition.of(convert);
+        if (Edition.between(convert, caller, served).length === 0) {
             return input;
         }
 

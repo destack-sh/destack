@@ -5,7 +5,7 @@ import { schema } from "@destack/schema";
 import { Expression } from "@destack/db";
 import { Package } from "../declare/index.ts";
 import { Health } from "./health.ts";
-import { Procedure, VERSION_HEADER } from "../procedure/index.ts";
+import { EDITION_HEADER, Procedure, VERSION_HEADER } from "../procedure/index.ts";
 import { implement } from "./handler.ts";
 import { Server } from "./http.ts";
 import { fixturePackage, hosting, authenticateByName } from "../test/fixture.ts";
@@ -17,7 +17,7 @@ const search = Procedure.of({
     permission: "anyone",
     audit: false,
     convert: {
-        "2026.9.0": {
+        2: {
             query: Expression.column("text"),
             limit: Expression.coalesce(Expression.column("limit"), Expression.literal(50)),
         },
@@ -53,13 +53,14 @@ test("convert inputs of earlier releases, dropping the fields this release no lo
         health: new Health("search"),
         drainTimeout: 1000,
     });
-    const call = async (release: string | undefined, input: unknown) => {
+    const call = async (release: string | undefined, input: unknown, edition = 2) => {
         const request = new Request("https://test.local/search", {
             method: "POST",
             headers: {
                 "content-type": "application/json",
                 authorization: "alice",
                 ...(release === undefined ? {} : { [VERSION_HEADER]: release }),
+                [EDITION_HEADER]: String(edition),
             },
             body: JSON.stringify(input),
         });
@@ -73,7 +74,7 @@ test("convert inputs of earlier releases, dropping the fields this release no lo
 
     // convert an earlier input
     expect([
-        await call("2026.8.5", { text: "notes" }),
+        await call("2026.8.5", { text: "notes" }, 1),
         await call(served.version, { query: "tasks", limit: 5 }),
         await call("2026.10.0", { query: "tasks", limit: 5 }),
         await call("2026.7.0", { text: "notes" }),
@@ -141,6 +142,7 @@ test("speak the release of the package defining a procedure, which the served pa
                 "content-type": "application/json",
                 authorization: "alice",
                 [VERSION_HEADER]: release,
+                [EDITION_HEADER]: "1",
             },
             body: JSON.stringify({ text: "hi" }),
         });

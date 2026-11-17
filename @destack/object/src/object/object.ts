@@ -34,19 +34,19 @@ import {
     type Snapshot,
 } from "@destack/db";
 import {
-    nth,
-    Duration,
     type DigestCrypto,
+    Duration,
     Identifier,
-    type Uuid,
-    type UuidEnvironment,
     type JsonObject,
-    present,
-    schema,
-    toJsonSchema,
-    Version,
     JsonValue,
     mapValues,
+    nth,
+    present,
+    Edition,
+    schema,
+    toJsonSchema,
+    type Uuid,
+    type UuidEnvironment,
     zip,
 } from "@destack/schema";
 
@@ -493,7 +493,7 @@ export interface ObjectDefinition<
     /** Keep every change in the log, so a read at a past time sees the objects as they were. */
     readonly retention?: "history";
     /** The fields each release computes from stored rows and earlier inputs, by release. */
-    readonly convert?: Readonly<Record<Version, Readonly<Record<string, Expression>>>>;
+    readonly convert?: Readonly<Record<number, Readonly<Record<string, Expression>>>>;
     /** The rows every database has identical, which no call writes. */
     readonly predefined?: readonly Row[];
 }
@@ -549,7 +549,7 @@ export interface ObjectLifecycle<Permissions extends string = string> {
     /** How tracked objects record their history. */
     readonly tracked: TrackedDefinition<Permissions> | undefined;
     /** The fields each release computes from stored rows and earlier callers' inputs. */
-    readonly convert: Readonly<Record<Version, Readonly<Record<string, Expression>>>>;
+    readonly convert: Readonly<Record<number, Readonly<Record<string, Expression>>>>;
 }
 
 /** A definition as an object type retains it, with identity, storage and field lists resolved. */
@@ -789,7 +789,7 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
         // retain the identifier schema and the methods, requiring the release's conversions
         this.idSchema = schema.identifier(definition.identity);
         this.methods = definition.methods;
-        ObjectType.#requireConversions(definition, owner);
+        ObjectType.#requireConversions(definition);
         this.declaration = ObjectType.#declarationOf(definition);
         this.controllers = [];
         this.projections = [];
@@ -1192,18 +1192,18 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
         return this.table === declared.table;
     }
 
-    /** A method's input conversions: the object's and the method's, by release. */
-    conversions(name: string): Readonly<Record<Version, Readonly<Record<string, Expression>>>> {
-        // merge the object's and the method's assignments by release
-        const releases: Record<string, Record<string, Expression>> = {};
+    /** A method's input conversions: the object's and the method's, by edition. */
+    conversions(name: string): Readonly<Record<number, Readonly<Record<string, Expression>>>> {
+        // merge the object's and the method's assignments by edition
+        const editions: Record<number, Record<string, Expression>> = {};
         const declared = ObjectType.#methodsOf(this)[name];
         for (const conversions of [this.lifecycle.convert, declared?.convert ?? {}]) {
-            for (const [release, assignments] of Object.entries(conversions)) {
-                releases[release] = { ...releases[release], ...assignments };
+            for (const [edition, assignments] of Object.entries(conversions)) {
+                editions[Number(edition)] = { ...editions[Number(edition)], ...assignments };
             }
         }
 
-        return releases;
+        return editions;
     }
 
     /** Read a declared method by name, refusing a name the type does not declare. */
@@ -1390,25 +1390,25 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
         return ObjectType.#record(this, name, input);
     }
 
-    /** Convert a recorded call's input to the object's release, dropping undeclared fields. */
+    /** Convert a recorded call's input to the method's edition, dropping undeclared fields. */
     upgrade(name: string, call: Call, shape?: object): JsonObject {
-        // refuse a call of a later release
-        const served = this.package.version;
-        if (Version.compare(call.release, served) > 0) {
+        // refuse a call of a later edition
+        const conversions = this.conversions(name);
+        const served = Edition.of(conversions);
+        if (call.edition > served) {
             throw ObjectError.of(
                 "RELEASE_INVALID",
-                `release '${call.release}' is invalid: '${Call.label(call)}' targets it, but '${this.name}' is at release '${served}'`,
+                `edition '${call.edition}' is invalid: '${Call.label(call)}' targets it, but '${this.name}' is at edition '${served}'`,
             );
         }
 
-        // take a call of this release as it is
-        const conversions = this.conversions(name);
-        if (Version.between(conversions, call.release, served).length === 0) {
+        // take a call of this edition as it is
+        if (Edition.between(conversions, call.edition, served).length === 0) {
             return call.input;
         }
 
-        // assign each later release's fields and drop the fields this release no longer declares
-        const converted = Expression.upgrade(conversions, call.input, call.release, served);
+        // assign each later edition's fields and drop the fields this edition no longer declares
+        const converted = Expression.upgrade(conversions, call.input, call.edition, served);
 
         return shape === undefined
             ? converted
@@ -1904,6 +1904,7 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
             // oxlint-disable-next-line typescript/consistent-type-assertions, typescript/no-unsafe-type-assertion -- a method's typed input is JSON
             input: input as JsonObject,
             release: object.package.version,
+            edition: Edition.of(object.conversions(name)),
         };
     }
 
@@ -2408,22 +2409,17 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
         }
     }
 
-    /** Require each conversion up to the release. */
+    /** Require each conversion keyed by an edition. */
     static #requireConversions(
         definition: ObjectDefinition<string, Readonly<Record<string, Method>>>,
-        owner: PackageVersion,
     ): void {
-        // require each method's conversions up to the release
+        // require each method's conversions keyed by editions
         for (const [name, declared] of Object.entries(definition.methods ?? {})) {
-            Version.requireUpTo(
-                declared.convert ?? {},
-                owner.version,
-                `${definition.name}.${name}`,
-            );
+            Edition.require(declared.convert ?? {}, `${definition.name}.${name}`);
         }
 
-        // require conversions keyed by releases up to the declaring one
-        Version.requireUpTo(definition.convert ?? {}, owner.version, definition.name);
+        // require the object's conversions keyed by editions
+        Edition.require(definition.convert ?? {}, definition.name);
     }
 
     /** Require client method names functions lack, and declared permissions. */

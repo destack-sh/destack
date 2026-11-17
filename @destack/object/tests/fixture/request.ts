@@ -26,6 +26,7 @@ export async function request<Type extends ObjectType, Name extends CallableName
         method: name,
         input: { ...rest, ...object.in(scope) },
         release: object.package.version,
+        edition: 1,
     };
 
     // read through a query

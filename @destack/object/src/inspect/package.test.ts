@@ -87,7 +87,7 @@ test("plan a package's API changes between releases, converting narrowed inputs 
                     since: RELEASE,
                     objects: [
                         query({
-                            search: procedure({ [RELEASE]: { query: Expression.column("text") } })
+                            search: procedure({ 2: { query: Expression.column("text") } })
                                 .input(schema.object({ query: schema.string() }))
                                 .output(schema.object({ hits: schema.array(schema.string()) })),
                             count: count.input(schema.object({ text: schema.string().min(3) })),
@@ -100,7 +100,7 @@ test("plan a package's API changes between releases, converting narrowed inputs 
         );
     const converted = release(
         procedure({
-            [RELEASE]: {
+            2: {
                 text: Expression.coalesce(Expression.column("text"), Expression.literal("any")),
             },
         }),

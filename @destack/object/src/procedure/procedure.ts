@@ -1,6 +1,6 @@
 import { oc } from "@orpc/contract";
 import { DECLARED_ERRORS } from "../error/call.ts";
-import { schema, Version } from "@destack/schema";
+import { schema } from "@destack/schema";
 import { PackageVersion } from "@destack/package";
 import { Expression } from "@destack/db";
 import { PermissionReference, type Permission, type Policy } from "@destack/access/declare";
@@ -8,6 +8,9 @@ import { ObjectTypeReference } from "@destack/sync";
 
 /** The header with the callee package release a caller was built against, its API version. */
 export const VERSION_HEADER = "Destack-Version";
+
+/** The header with the edition of a procedure's input its caller was built against. */
+export const EDITION_HEADER = "Destack-Edition";
 
 /** A procedure, as its requirements are read from it. */
 const PROCEDURE = schema.looseObject({ "~orpc": schema.looseObject({ meta: schema.unknown() }) });
@@ -46,9 +49,12 @@ export type ProcedureAccess = schema.Infer<typeof ProcedureAccess>;
 const procedureMeta = ProcedureAccess.extend({
     /** The package defining the procedure, whose releases its callers speak. */
     package: PackageVersion,
-    /** The input fields each release computes from an earlier input's fields. */
+    /** The input fields each edition computes from an earlier input's fields. */
     convert: schema
-        .record(Version, schema.record(schema.string().min(1), Expression.schema))
+        .record(
+            schema.string().regex(/^[1-9]\d*$/u),
+            schema.record(schema.string().min(1), Expression.schema),
+        )
         .exactOptional(),
 });
 

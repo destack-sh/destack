@@ -65,18 +65,19 @@ import {
 import { Journal } from "../audit/journal.ts";
 import type { CallKey } from "../audit/key.ts";
 import {
-    nth,
     canonicalize,
     Digest,
     Duration,
     Identifier,
     type JsonObject,
     JsonValue,
+    nth,
     present,
+    Edition,
     schema,
-    zip,
     Uuid,
     type UuidEnvironment,
+    zip,
 } from "@destack/schema";
 import type { ServerContext } from "../workload/workload.ts";
 import { COMMAND_KIND } from "../declare/command.ts";
@@ -2182,6 +2183,7 @@ export class ObjectStore {
             method: name,
             input,
             release: object.package.version,
+            edition: Edition.of(object.conversions(name)),
         };
         const home = await this.#readHome(call);
         if (home === undefined) {

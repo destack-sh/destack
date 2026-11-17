@@ -22,6 +22,7 @@ test("read through methods that change nothing on the server, and refuse mutatio
             type: notebook.typeReference,
             method: "create",
             release: notebook.package.version,
+            edition: 1,
             input: { spaceId, name: "Ideas" },
         },
     });

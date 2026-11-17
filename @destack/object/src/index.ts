@@ -24,6 +24,7 @@ export {
     type ProcedureAccess,
     type ProcedureRouter,
     type Route,
+    EDITION_HEADER,
     VERSION_HEADER,
     withEventMeta,
 } from "./procedure/index.ts";

@@ -18,12 +18,14 @@ test("predict recorded calls as one mutation, which the server executes together
             type: note.typeReference,
             method: "create",
             release: note.package.version,
+            edition: 1,
             input: { spaceId, parentId, title: "Packing" },
         },
         {
             type: note.typeReference,
             method: "create",
             release: note.package.version,
+            edition: 1,
             input: { spaceId, parentId, title: "Tickets" },
         },
     ]);

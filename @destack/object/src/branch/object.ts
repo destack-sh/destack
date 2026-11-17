@@ -163,6 +163,8 @@ export const branchEntry = defineObject(
             input: field.json(schema.jsonObject()),
             /** The release of the object type's package the call was made against. */
             release: field.string(),
+            /** The edition of the method's input the call was made against. */
+            edition: field.integer(),
             /** The principal who made the call, whom a merge records as its caller. */
             author: field.subject(),
             /** The actors the author called through, none for a direct call. */
@@ -185,6 +187,7 @@ export const branchEntry = defineObject(
                 "method",
                 "input",
                 "release",
+                "edition",
                 "authorPackageId",
                 "authorType",
                 "authorScope",
