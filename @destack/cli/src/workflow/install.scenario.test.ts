@@ -150,18 +150,24 @@ test("uninstall a package's installation once confirmed, and refuse one the spac
     await run(["install", "@acme/notebooks", "--json"]);
     const before = await names();
 
-    // refuse it unconfirmed, uninstall it by its package once confirmed, then by its name again
+    // refuse its delete and its uninstall unconfirmed, uninstall it once confirmed, then by its name again
+    const deleting = await run(["installation", "notebooks", "delete"]);
     const unconfirmed = await run(["uninstall", "@acme/notebooks"]);
     const uninstalling = await run(["uninstall", "@acme/notebooks", "--yes"]);
     const after = await names();
     const again = await run(["uninstall", "notebooks", "--yes"]);
     const { home } = terminal.computer.world.owner;
     expect({
+        deleting: [deleting.code, deleting.error],
         unconfirmed: [unconfirmed.code, unconfirmed.error],
         uninstalling: [uninstalling.code, uninstalling.output, uninstalling.error],
         removed: before.filter((name) => !after.includes(name)),
         again: [again.code, again.error],
     }).toEqual({
+        deleting: [
+            1,
+            "destack: cannot run 'delete' on 'notebooks': it cannot be undone, so confirm it with --yes\n",
+        ],
         unconfirmed: [
             1,
             "destack: cannot uninstall 'notebooks': it deletes the installation's resources, so confirm it with --yes\n",

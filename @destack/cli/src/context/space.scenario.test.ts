@@ -183,7 +183,8 @@ test("delete a space once the person takes the step-up its delete asks, in the b
     const { world } = terminal.computer;
 
     // delete it, which opens the browser for a second factor, and approve that at the universe
-    const deleting = terminal.start(["space", desk, "delete", "--json"]);
+    const unconfirmed = await terminal.printed(["space", desk, "delete", "--json"]);
+    const deleting = terminal.start(["space", desk, "delete", "--yes", "--json"]);
     await world.simulation.waitUntil(
         () => terminal.opened().length > 0,
         world.simulation.clock.now() + 60_000,
@@ -203,10 +204,16 @@ test("delete a space once the person takes the step-up its delete asks, in the b
         .looseObject({ id: schema.string(), deletedAt: schema.number().nullable() })
         .parse(JSON.parse(read.output));
     expect({
+        unconfirmed: [unconfirmed.code, unconfirmed.error],
         deleted: [deleted.code, deleted.output, deleted.error],
         opened: terminal.opened().length,
         trashed: [trashed.id, trashed.deletedAt !== null],
     }).toEqual({
+        // refuse the delete without --yes, as a controller removes the space for good
+        unconfirmed: [
+            1,
+            `{"error":{"code":"PRECONDITION_FAILED","message":"cannot run 'delete' on '${desk}': it cannot be undone, so confirm it with --yes","causes":[]}}\n`,
+        ],
         deleted: [0, "{}\n", `This needs you to confirm it is you.\nOpening ${page ?? ""}\n`],
         opened: 1,
         trashed: [desk, true],
