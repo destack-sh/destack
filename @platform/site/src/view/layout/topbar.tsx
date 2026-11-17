@@ -21,16 +21,7 @@ import { Sky } from "../effect/sky";
 import { Mark } from "./mark";
 import { lattice } from "./lattice.stylex";
 import { press } from "./press";
-import {
-    type Destination,
-    discord,
-    github,
-    home,
-    isLive,
-    menu,
-    type PendingDestination,
-    primaryDestinations,
-} from "./navigation";
+import { type Destination, discord, github, home, menu } from "./navigation";
 import { AppearanceToggle } from "./appearance";
 import { createMediaQuery } from "@destack/view/primitives/media";
 import { createEventListener } from "@destack/view/primitives/event-listener";
@@ -63,7 +54,7 @@ export function TopBar(properties: { readonly path: string }) {
     // select the most specific destination for the current route
     const active = createMemo(
         () =>
-            primaryDestinations
+            menu
                 .filter((destination) => properties.path.startsWith(destination.href))
                 .toSorted((left, right) => right.href.length - left.href.length)[0],
     );
@@ -161,28 +152,18 @@ export function TopBar(properties: { readonly path: string }) {
                             }
                         }}
                     >
-                        {menu.map((destination) =>
-                            isLive(destination) ? (
-                                <a
-                                    href={destination.href}
-                                    {...style.attrs(
-                                        styles.menuLink,
-                                        active()?.href === destination.href && styles.menuActive,
-                                    )}
-                                >
-                                    {destination.label}
-                                    <Icon icon={arrowRight} />
-                                </a>
-                            ) : (
-                                <span
-                                    aria-disabled="true"
-                                    {...style.attrs(styles.menuLink, styles.menuPending)}
-                                >
-                                    {destination.label}
-                                    <span {...style.attrs(styles.soon)}>Soon</span>
-                                </span>
-                            ),
-                        )}
+                        {menu.map((destination) => (
+                            <a
+                                href={destination.href}
+                                {...style.attrs(
+                                    styles.menuLink,
+                                    active()?.href === destination.href && styles.menuActive,
+                                )}
+                            >
+                                {destination.label}
+                                <Icon icon={arrowRight} />
+                            </a>
+                        ))}
 
                         {/* the repository and community here on phones, where the bar has no room for them */}
                         {[github, discord].map((destination) => (
@@ -228,21 +209,9 @@ function SocialLink(properties: { destination: Destination }) {
     );
 }
 
-/** Draw one guide word of the running head: a live destination, or its name while pending. */
-function MenuLink(properties: {
-    destination: Destination | PendingDestination;
-    isActive: boolean;
-}) {
+/** Draw one guide word of the running head. */
+function MenuLink(properties: { destination: Destination; isActive: boolean }) {
     const destination = properties.destination;
-
-    // name a pending destination without a link
-    if (!isLive(destination)) {
-        return (
-            <span title="Soon" {...style.attrs(styles.link, styles.pending)}>
-                {destination.label}
-            </span>
-        );
-    }
 
     return (
         <a
@@ -322,10 +291,6 @@ const styles = style.create({
         color: color.primary,
         "::before": { color: color.primary, content: '"[ "' },
         "::after": { color: color.primary, content: '" ]"' },
-    },
-    pending: {
-        color: `color-mix(in srgb, ${color.foreground} 55%, transparent)`,
-        cursor: "default",
     },
     tool: {
         width: "20px",
@@ -422,17 +387,5 @@ const styles = style.create({
     },
     menuActive: {
         fontWeight: weight.semibold,
-    },
-    menuPending: {
-        color: {
-            default: color.mutedForeground,
-            ":hover": { default: null, [media.hover]: color.mutedForeground },
-        },
-    },
-    soon: {
-        fontFamily: font.code,
-        fontSize: typeScale.label,
-        letterSpacing: tracking.label,
-        textTransform: "uppercase",
     },
 });

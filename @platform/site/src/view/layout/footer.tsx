@@ -13,10 +13,8 @@ import InstallIsland from "../islands/install";
 import {
     type Destination,
     isExternal,
-    isLive,
     legalDestinations,
     menu,
-    type PendingDestination,
     socialDestinations,
 } from "./navigation";
 import { typeScale, tracking } from "./type.stylex";
@@ -125,27 +123,16 @@ export function Footer() {
 /** The footer's columns of links: the site's menu, the community and the legal pages. */
 const columns: readonly (readonly [
     title: string,
-    destinations: readonly (Pick<Destination, "href" | "label"> | PendingDestination)[],
+    destinations: readonly Pick<Destination, "href" | "label">[],
 ])[] = [
     ["Site", menu],
     ["Community", socialDestinations],
     ["Legal", legalDestinations],
 ];
 
-/** Draw one footer destination: a link on or off the site, or its name while it is pending. */
-function FooterLink(properties: {
-    destination: Pick<Destination, "href" | "label"> | PendingDestination;
-}) {
+/** Draw one footer destination: a link on or off the site. */
+function FooterLink(properties: { destination: Pick<Destination, "href" | "label"> }) {
     const destination = properties.destination;
-
-    // show a pending destination without a link
-    if (!isLive(destination)) {
-        return (
-            <span title="Soon" {...style.attrs(styles.link, styles.pending)}>
-                {destination.label}
-            </span>
-        );
-    }
 
     return (
         <a
@@ -224,10 +211,6 @@ const styles = style.create({
         },
         fontSize: typeScale.body,
         textDecorationLine: "none",
-    },
-    pending: {
-        color: `color-mix(in srgb, ${color.foreground} 55%, transparent)`,
-        cursor: "default",
     },
     poster: {
         backgroundImage: rule.band,
