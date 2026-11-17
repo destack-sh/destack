@@ -4,7 +4,7 @@ data "aws_caller_identity" "current" {}
 data "aws_iam_policy_document" "worker" {
   statement {
     sid       = "Files"
-    actions   = ["s3:GetObject", "s3:PutObject", "s3:DeleteObject", "s3:AbortMultipartUpload", "s3:ListMultipartUploadParts"]
+    actions   = ["s3:GetObject", "s3:PutObject", "s3:PutObjectRetention", "s3:DeleteObject", "s3:AbortMultipartUpload", "s3:ListMultipartUploadParts"]
     resources = ["${aws_s3_bucket.files.arn}/*"]
   }
   statement {
