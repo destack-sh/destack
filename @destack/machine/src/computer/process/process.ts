@@ -45,6 +45,9 @@ const START_LOCK_TIMEOUT_MILLISECONDS = 10000;
 /** How long a launched machine may take to answer, in milliseconds. */
 const LAUNCH_TIMEOUT_MILLISECONDS = 5000;
 
+/** The file in the machine's directory its output goes to. */
+const LOG_FILE = "machine.log";
+
 /** How long a machine the OS supervisor starts may take to answer: a launch plus scheduling. */
 const SUPERVISOR_TIMEOUT_MILLISECONDS = 10000;
 
@@ -239,7 +242,7 @@ export class MachineProcess {
                   ];
 
         // write the machine's output to its log, independently of the launching terminal
-        const log = { file: join(this.directory, "machine.log") };
+        const log = { file: join(this.directory, LOG_FILE) };
         const child = process.spawn([executable, ...runArguments], {
             isDetached: true,
             stdin: "ignore",
@@ -287,10 +290,18 @@ export class MachineProcess {
             }
         }
 
+        // read the last line the machine logged
+        const file = join(this.directory, LOG_FILE);
+        const { files } = this.environment;
+        const log = (await files.exists(file)) ? await files.readTextFile(file) : "";
+        const last = log.trimEnd().split("\n").at(-1) ?? "";
+
         // report a machine that exited or did not answer in time
         throw MachineError.of(
             "START_BROKEN",
-            `machine did not start: read '${this.directory}'/machine.log`,
+            exited.aborted
+                ? `machine exited while starting: its log '${file}' ends with '${last}'`
+                : `machine did not answer within ${timeout} ms: its log '${file}' ends with '${last}'`,
             { cause: stopping.reason },
         );
     }
