@@ -41,8 +41,9 @@ test("open the desktop at login by default, follow this computer's value and tog
         atLogin.show(await settings.query.deviceSetting.findMany({ where: autostart.reference }));
     await show();
     const release = autostart.package.version;
-    await settings.mutate(deviceSetting).create({ ...autostart.reference, value: false, release })
-        .confirmed;
+    await settings
+        .mutate(deviceSetting)
+        .create({ ...autostart.reference, value: false, release, edition: 1 }).confirmed;
     await show();
 
     // toggle the applied value from the tray
