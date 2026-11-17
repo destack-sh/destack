@@ -13,7 +13,7 @@ import { defineObject, device } from "../object/index.ts";
 import type { ShortcutText } from "./shortcut.ts";
 import { Command, type CommandDefinition, defineCommand } from "./command.ts";
 import { definePackage } from "./package.ts";
-import { recoverable } from "../index.ts";
+import { controlled, recoverable } from "../index.ts";
 
 /** The declaring package. */
 const notes = PackageVersion.parse({
@@ -66,6 +66,22 @@ const draft = defineObject(
         traits: [recoverable({ within: { days: 30 }, by: "update" })],
     },
     () => ({}),
+);
+
+/** The jobs of a device, which a controller removes once deleted. */
+const job = defineObject(
+    {
+        name: "job",
+        plural: "jobs",
+        title: t`${plural(argument("count"), { one: "Job", other: "Jobs" })}`,
+        scope: device,
+        fields: { title: field.string(schema.string()) },
+        access: {
+            permissions: { delete: none() },
+        },
+        traits: [controlled()],
+    },
+    (method) => ({ delete: method.delete("delete") }),
 );
 
 /** The tasks of a device, stored locally, which a command marks. */
@@ -176,7 +192,7 @@ test("type a command's method as one clients call, its preset as the method's fi
 });
 
 test("read what a command acts on, the input it asks for and whether it removes its target", () => {
-    // declare commands marking, creating and deleting notes, and one moving a draft to the trash
+    // declare commands marking, creating and deleting notes, one moving a draft to the trash, one deleting a job
     const owner = { package: notes };
     const done = defineCommand(
         {
@@ -200,13 +216,18 @@ test("read what a command acts on, the input it asks for and whether it removes 
         { name: "trash-draft", title: t`Move to Trash`, object: draft, method: "delete" },
         owner,
     );
+    const cancel = defineCommand(
+        { name: "cancel-job", title: t`Cancel Job`, object: job, method: "delete" },
+        owner,
+    );
 
-    // expect each on one object but the create, asking for the rest, the note's delete alone for good
-    expect([done, create, remove, trash].map(readCommand)).toEqual([
+    // expect each on one object but the create, asking for the rest, the deletes without a trash for good
+    expect([done, create, remove, trash, cancel].map(readCommand)).toEqual([
         { target: "object", asked: ["priority", "tags"], isDestructive: false },
         { target: "scope", asked: ["title", "tags"], isDestructive: false },
         { target: "object", asked: [], isDestructive: true },
         { target: "object", asked: [], isDestructive: false },
+        { target: "object", asked: [], isDestructive: true },
     ]);
 });
 
