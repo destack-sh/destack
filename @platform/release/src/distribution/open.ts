@@ -7,7 +7,7 @@ import { releaseVersion } from "./index.ts";
 /** Open the compiled desktop of this host's target and exit with its exit code. */
 export async function openDistribution(environment: Environment<HostCapability>): Promise<void> {
     // select the compiled distribution of this host's target
-    const version = await releaseVersion(CHECKOUT, environment);
+    const version = releaseVersion(environment);
     const { os, architecture } = environment.host;
     const directory = join(CHECKOUT, "dist", version, Release.target(os, architecture));
 

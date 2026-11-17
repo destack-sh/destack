@@ -46,11 +46,12 @@ export async function buildToolchain(
     root: string,
     target: Target,
     directories: Readonly<Record<PackagePlace, string>>,
+    version: string,
     environment: Environment<"files" | "process">,
 ): Promise<void> {
     // copy each package into its place's node_modules, the programs' first, so the toolchain leaves theirs out
     const { files } = environment;
-    const nodeModules = new NodeModules(files);
+    const nodeModules = new NodeModules(files, version);
 
     // refuse a toolchain leaving out a package the builds take from it
     const listed = toolchainPackages(target);
@@ -82,6 +83,7 @@ export async function buildToolchain(
             for (const file of ["package.json", "destack.json"]) {
                 await files.copyFile(join(directory, file), join(modules, name, file));
             }
+            await releasePackage(join(modules, name), version, files);
         }
         // copy the package with its dependencies
         else {
@@ -265,10 +267,13 @@ class NodeModules {
     readonly #nested = new Map<string, string>();
     /** The file system the directories live on. */
     readonly #files: FileSystem;
+    /** The version the release gives each package it copies from source. */
+    readonly #version: string;
 
-    /** Lay out node_modules directories on a file system. */
-    constructor(files: FileSystem) {
+    /** Lay out node_modules directories on a file system, at a release's version. */
+    constructor(files: FileSystem, version: string) {
         this.#files = files;
+        this.#version = version;
     }
 
     /** Copy a package and its dependencies, hoisted, else nested under the dependent. */
@@ -311,6 +316,7 @@ class NodeModules {
         const destination =
             resolved === undefined ? join(modules, name) : join(parent ?? modules, name);
         await copyTree(real, destination, files);
+        await releasePackage(destination, this.#version, files);
 
         // copy its dependencies, resolved from the package, as seen from its own node_modules
         const manifest = PackageManifest.parse(
@@ -322,6 +328,23 @@ class NodeModules {
             await this.copy(dependency, located, modules, below);
         }
     }
+}
+
+/** Write a release's version into a copied package file that has none, as a source package's. */
+async function releasePackage(
+    directory: string,
+    version: string,
+    files: FileSystem,
+): Promise<void> {
+    // read the copy's package file, keeping a version it has
+    const path = join(directory, "package.json");
+    const manifest = schema.jsonObject().parse(JSON.parse(await files.readTextFile(path)));
+    if (manifest["version"] !== undefined) {
+        return;
+    }
+
+    // write the release's version into it
+    await files.writeTextFile(path, JSON.stringify({ ...manifest, version }));
 }
 
 /** Copy a directory's files with their links followed, leaving out installed dependencies. */

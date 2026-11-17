@@ -15,7 +15,7 @@ export async function developDistribution(
     await files.mkdir(staging, { recursive: true });
     const directory = await files.makeTemporaryDirectory("desktop-dev-", { directory: staging });
     const identity = Stage.of("local");
-    const version = await releaseVersion(CHECKOUT, environment);
+    const version = releaseVersion(environment);
 
     // retain generated icons for Cargo's build and the complete interactive lifetime
     try {

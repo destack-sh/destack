@@ -13,7 +13,7 @@ export async function packDistribution(
 ): Promise<void> {
     // package the desktop and standalone CLI together
     const { files, host, process } = environment;
-    const version = await releaseVersion(CHECKOUT, environment);
+    const version = releaseVersion(environment);
     const [selected] = arguments_;
     const target = new Release(version, selected ?? Release.target(host.os, host.architecture))
         .target;

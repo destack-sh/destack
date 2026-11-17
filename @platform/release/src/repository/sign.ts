@@ -20,7 +20,7 @@ export async function signUpdate(
     arguments_: readonly string[],
 ): Promise<void> {
     // read the version every component of the distribution ships at
-    const version = await releaseVersion(CHECKOUT, environment);
+    const version = releaseVersion(environment);
     const selected = arguments_;
 
     // load the online signing keys without the offline root key

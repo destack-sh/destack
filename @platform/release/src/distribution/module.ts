@@ -1,15 +1,9 @@
 import type { FileSystem } from "@destack/environment";
 import { dirname, extname } from "node:path";
 import { PackageLocator } from "@destack/package/locator";
+import { Version } from "@destack/schema";
 import { DECLARED_MODULE, DECLARED_PASSTHROUGH, transformModule } from "@destack/package/transform";
 import { transformAssets } from "./asset.ts";
-
-/** The packages whose metadata has the distribution version. */
-const VERSIONED_PACKAGES: ReadonlySet<string> = new Set([
-    "@destack/cli",
-    "@destack/machine",
-    "@destack/desktop",
-]);
 
 /** The namespace the declaration recorder loads from, apart from the files. */
 const DECLARED_NAMESPACE = "destack-declared";
@@ -47,12 +41,12 @@ export function modulePlugin(
                 const transformed = await transformAssets(source, path, root, assets, files);
                 const owner = await packages.find(path);
 
-                // stamp the distribution version into the versioned packages' metadata
+                // stamp the distribution version into the metadata of each package no release gave one
                 let contents = transformed;
                 if (owner !== undefined) {
                     const isVersioned =
                         version !== undefined &&
-                        VERSIONED_PACKAGES.has(owner.metadata.package.name);
+                        owner.metadata.package.version === Version.development;
                     const metadata = isVersioned
                         ? { ...owner.metadata, package: { ...owner.metadata.package, version } }
                         : owner.metadata;

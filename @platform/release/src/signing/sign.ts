@@ -13,7 +13,7 @@ export async function signPlatform(
     arguments_: readonly string[],
 ): Promise<void> {
     // select the release of the requested target, this host's by default
-    const version = await releaseVersion(CHECKOUT, environment);
+    const version = releaseVersion(environment);
     const [operation, selected] = arguments_;
     const release = new Release(
         version,

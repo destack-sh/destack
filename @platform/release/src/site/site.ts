@@ -83,7 +83,7 @@ async function siteLock(platform: PlatformBuild): Promise<Digest> {
     await using compilers = await CompilerPool.open(platform.store, async () =>
         Toolchain.workspace(),
     );
-    const workspace = await Workspace.open(CHECKOUT, compilers);
+    const workspace = await Workspace.open(CHECKOUT, compilers, { version: platform.version });
     const site = await workspace.package(join(CHECKOUT, SITE));
     const units = await site.lockUnits({});
 

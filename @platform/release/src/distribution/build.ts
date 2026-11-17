@@ -43,7 +43,7 @@ export async function buildDistribution(
 ): Promise<void> {
     // compile distributions with the pinned runtime
     const { files } = environment;
-    const version = await releaseVersion(CHECKOUT, environment);
+    const version = releaseVersion(environment);
     const { packageManager } = await readWorkspace(CHECKOUT, environment);
     const runtime = (await read(environment.process.executable, ["--version"], environment)).trim();
     if (`bun@${runtime}` !== packageManager) {
@@ -153,6 +153,7 @@ async function compileExecutables(
         CHECKOUT,
         platform.target,
         { resources: bin, toolchain: join(directory, TOOLCHAIN_DIRECTORY) },
+        version,
         environment,
     );
 

@@ -32,6 +32,7 @@ import {
 } from "@destack/schema";
 import type { Registry } from "@destack/registry/client";
 import { Toolchain } from "@destack/check/toolchain";
+import { releaseVersion } from "../distribution/distribution.ts";
 
 /** The package declaring the homes' stacks, by its directory below the checkout's root. */
 const STACK = "@platform/stack";
@@ -78,13 +79,17 @@ export class PlatformBuild implements AsyncDisposable {
     readonly releases: ReadonlyMap<string, BuildReader>;
     /** The lock of each release: its build and every build it runs with, by package name. */
     readonly locks: ReadonlyMap<string, Digest>;
+    /** The version every release has. */
+    readonly version: string;
 
     /** Keep built releases and their locks. */
     private constructor(
         store: LocalBuildStore,
         releases: ReadonlyMap<string, BuildReader>,
         locks: ReadonlyMap<string, Digest>,
+        version: string,
     ) {
+        this.version = version;
         this.store = store;
         this.releases = releases;
         this.locks = locks;
@@ -101,8 +106,9 @@ export class PlatformBuild implements AsyncDisposable {
         const store = opened.use(await LocalBuildStore.open(join(root, RELEASES_DIRECTORY), host));
         await using compilers = await CompilerPool.open(store, async () => Toolchain.workspace());
 
-        // read the workspace once, and the packages of the stacks and of the desktop, which runs the machine
-        const workspace = await Workspace.open(root, compilers);
+        // read the workspace once at the release's version, and the packages of the stacks and of the desktop
+        const version = releaseVersion(host);
+        const workspace = await Workspace.open(root, compilers, { version });
         const packages = [
             await workspace.package(join(root, STACK)),
             await workspace.package(join(root, DESKTOP)),
@@ -121,7 +127,7 @@ export class PlatformBuild implements AsyncDisposable {
         // hand the store to the build, which closes it
         opened.move();
 
-        return new PlatformBuild(store, releases, locks);
+        return new PlatformBuild(store, releases, locks, version);
     }
 
     /** Release each lock under a tag into its account's forge, a dependency layer at a time. */

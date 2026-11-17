@@ -31,7 +31,7 @@ export async function buildMacInstaller(
         throw new Error("build the macOS application on macOS");
     }
     const { files } = environment;
-    const version = await releaseVersion(CHECKOUT, environment);
+    const version = releaseVersion(environment);
     const output = join(CHECKOUT, "dist", version);
     const staging = await files.makeTemporaryDirectory("destack-macos-");
     const image = join(staging, "image");
