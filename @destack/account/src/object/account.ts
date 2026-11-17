@@ -80,8 +80,12 @@ export const account = defineObject(
                 installed: { subjects: [residency.members("installed")], grantedBy: "place" },
                 // the account's home space, and the installations living in it
                 home: { subjects: [principal.space, principal.space.members(CONTAINED)] },
-                // the people the account's managers let publish packages under its name, and its trusted publishers
-                publisher: { subjects: [principal.user], grantedBy: "manage", open: true },
+                // the people and the clients the account's managers let publish packages under its name
+                publisher: {
+                    subjects: [principal.user, principal.client],
+                    grantedBy: "manage",
+                    open: true,
+                },
                 // anyone, who finds the account's profile without reading it
                 public: { subjects: [anyone.all()] },
             },

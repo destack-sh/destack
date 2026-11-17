@@ -10,7 +10,6 @@ import { implementClient } from "./client.ts";
 import { implementDomain } from "./domain.ts";
 import { implementHostname } from "./hostname.ts";
 import { implementGroup } from "./group.ts";
-import { implementTrustedPublisher } from "./trusted-publisher.ts";
 import { implementIdentity } from "./identity.ts";
 import { implementOperation } from "./operation.ts";
 import { implementKey } from "./key.ts";
@@ -52,7 +51,6 @@ export function accountServer(options: AccountOptions): PackageImplementation {
             implementAccount(options.stacks),
             implementOrganization(),
             implementGroup(),
-            implementTrustedPublisher(),
             implementClient(),
             implementKey(),
             implementApplication(),

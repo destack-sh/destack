@@ -5,12 +5,15 @@ import { Jwt } from "@destack/identity";
 import { Relationship } from "@destack/access";
 import { PackageId } from "@destack/package";
 import { RequestId } from "@destack/sync";
-import { expect, test } from "@destack/test";
+import { expect, refusal, test } from "@destack/test";
 import { TOKEN_PATH } from "../src/authentication/path.ts";
 import { account } from "../src/object/index.ts";
 import { JWT_BEARER } from "../src/oauth/index.ts";
 import accountPackage from "../src/package.ts";
-import { ISSUER, OWNER_EMAIL, TestAccountStore } from "../src/test/index.ts";
+import { ISSUER, ORIGIN, OWNER_EMAIL, TestAccountStore } from "../src/test/index.ts";
+import { IssuerCredential, Session } from "../src/client/index.ts";
+import { Bookmark } from "@destack/object/client";
+import { Claim } from "@destack/object";
 
 /** The token endpoint, every federated token's audience. */
 const ENDPOINT = `${ISSUER}${TOKEN_PATH}`;
@@ -63,9 +66,10 @@ test("grant a trusted workflow a token once by its issuer's OIDC token, refusing
     // let the owner's account trust the workflow
     const owner = await fixture.signIn(OWNER_EMAIL);
     const owned = await fixture.createAccount(owner);
-    const trusted = await owner.client(accountPackage).trustedPublisher.create({
-        accountId: owned.id,
+    const trusted = await owner.client(accountPackage).client.trust({
+        scope: owned.id,
         requestId: RequestId.create(fixture.environment),
+        name: "Release",
         issuer: WORKFLOW_ISSUER,
         subject: WORKFLOW,
     });
@@ -128,8 +132,51 @@ test("grant a trusted workflow a token once by its issuer's OIDC token, refusing
             refused("federated token is invalid: it does not verify"),
             refused("federated token is invalid: it does not verify"),
         ],
-        [["trusted-publisher", trusted.id]],
+        [["client", trusted.id]],
     ]);
+
+    // call the universe as the workflow, signing in by its issuer's token as a release does
+    const send = (request: Request) => fixture.fetch(request);
+    const signer = { assert: (endpoint: string) => sign(signing.privateKey, WORKFLOW, endpoint) };
+    const session = new Session(new IssuerCredential(signer, ISSUER, send, fixture.environment), {
+        universe: ORIGIN,
+        send,
+        bookmark: new Bookmark(),
+        environment: fixture.environment,
+    });
+    const unclaimed = Claim.key(account, "handle", ["nobody"]);
+    expect(await session.accounts().claim.owner(unclaimed)).toBeNull();
+
+    // hide the account's clients from it, as it holds publishing alone
+    const another = session.accounts().client.trust({
+        scope: owned.id,
+        requestId: RequestId.create(fixture.environment),
+        name: "Another",
+        issuer: WORKFLOW_ISSUER,
+        subject: "repo:acme/other:environment:release",
+    });
+    expect(await refusal(another)).toEqual(["NOT_FOUND", "NOT_FOUND", "client not found"]);
+
+    // revoke the client and trust the workflow again, which then signs in as the new client
+    const accounts = owner.client(accountPackage);
+    await accounts.client.revoke({
+        scope: owned.id,
+        id: trusted.id,
+        requestId: RequestId.create(fixture.environment),
+    });
+    const revoked = await ask(await sign(signing.privateKey, WORKFLOW, ENDPOINT));
+    const again = await accounts.client.trust({
+        scope: owned.id,
+        requestId: RequestId.create(fixture.environment),
+        name: "Release",
+        issuer: WORKFLOW_ISSUER,
+        subject: WORKFLOW,
+    });
+    expect([
+        revoked,
+        again.id === trusted.id,
+        await ask(await sign(signing.privateKey, WORKFLOW, ENDPOINT)),
+    ]).toEqual([refused("workflow is invalid: no account trusts this workflow"), false, "Bearer"]);
     await server.stop(true);
 });
 

@@ -4,7 +4,6 @@ export * from "./client.ts";
 export * from "./domain.ts";
 export * from "./hostname.ts";
 export * from "./group.ts";
-export * from "./trusted-publisher.ts";
 export * from "./key.ts";
 export * from "./machine.ts";
 export * from "./application.ts";

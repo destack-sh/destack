@@ -1154,7 +1154,7 @@ export class TestAccountStore implements AsyncDisposable {
             reserved: [],
             transfers: {},
             publishers: [],
-            trustedPublishers: [],
+            clients: [],
             handle: PLATFORM_HANDLE,
             domains: [],
             homes: { eu: RESIDENCY_STACK, us: RESIDENCY_STACK },

@@ -32,7 +32,8 @@ import { space } from "../object/space.ts";
 import { user } from "../object/user.ts";
 import { StackRelease } from "../object/stack-release.ts";
 import { domain, Hostname, HostnamePattern } from "../object/domain.ts";
-import { trustedPublisher } from "../object/trusted-publisher.ts";
+import { client } from "../object/client.ts";
+import { DisplayName } from "../object/display-name.ts";
 import { hostname } from "../object/hostname.ts";
 import { Claim, Claimant, type ResultsOf } from "@destack/object";
 import type {} from "@destack/package/import-meta";
@@ -105,9 +106,16 @@ export const PlatformDefinition = schema.object({
     transfers: schema.record(AccountHandle, schema.identifier("account")),
     /** The handles the organization publishes under, each an account in its residency. */
     publishers: schema.array(AccountHandle),
-    /** The CI workflows publishing the platform's releases, by their OIDC issuer and subject. */
-    trustedPublishers: schema.array(
-        schema.object({ issuer: schema.url(), subject: schema.string().min(1) }),
+    /** The clients publishing the platform's releases, such as its release workflow. */
+    clients: schema.array(
+        schema.object({
+            /** The client's name. */
+            name: DisplayName,
+            /** The OIDC issuer vouching for the client. */
+            issuer: schema.url(),
+            /** The client's subject at its issuer. */
+            subject: schema.string().min(1),
+        }),
     ),
     /** The handle of the organization's account in the platform's residency. */
     handle: AccountHandle,
@@ -537,46 +545,50 @@ export class Platform {
                 `account @'${this.definition.handle}' not found: the organization has no such account`,
             );
         }
-        if (this.definition.trustedPublishers.length > 0) {
+        if (this.definition.clients.length > 0) {
             await this.#mutate(
-                this.definition.trustedPublishers.map((workflow) =>
-                    trustedPublisher.call("declare", {
-                        ...trustedPublisher.in(own.id),
-                        ...workflow,
-                    }),
+                this.definition.clients.map((declared) =>
+                    client.call("declare", { ...client.in(own.id), ...declared }),
                 ),
             );
         }
 
-        // delete the trusted publishers the declaration leaves out, with their publishing
+        // revoke the federated clients the declaration leaves out, with their publishing
         const stored = await this.store.database
             .select({
-                id: trustedPublisher.table.id,
-                scope: trustedPublisher.table.scope,
-                issuer: trustedPublisher.table.issuer,
-                subject: trustedPublisher.table.subject,
+                id: client.table.id,
+                scope: client.table.scope,
+                issuer: client.table.issuer,
+                subject: client.table.subject,
             })
-            .from(trustedPublisher.table)
-            .where(eq(trustedPublisher.table.scope, own.id));
-        const isListed = (row: { readonly issuer: string; readonly subject: string }) =>
-            this.definition.trustedPublishers.some(
-                (workflow) => workflow.issuer === row.issuer && workflow.subject === row.subject,
+            .from(client.table)
+            .where(
+                and(
+                    eq(client.table.scope, own.id),
+                    eq(client.table.kind, "federated"),
+                    isNull(client.table.revokedAt),
+                ),
+            );
+        const isListed = (row: {
+            readonly issuer: string | null;
+            readonly subject: string | null;
+        }) =>
+            this.definition.clients.some(
+                (declared) => declared.issuer === row.issuer && declared.subject === row.subject,
             );
         const unlisted = stored.filter((row) => !isListed(row));
         if (unlisted.length > 0) {
-            await this.#mutate(
-                unlisted.map((row) =>
-                    trustedPublisher.call("delete", trustedPublisher.target(row)),
-                ),
-            );
+            await this.#mutate(unlisted.map((row) => client.call("revoke", client.target(row))));
         }
 
-        // make each publishing account's workload publishers exactly the declared trusted publishers
+        // make each publishing account's client publishers exactly the declared clients
         const trusted = stored.filter((row) => isListed(row));
-        const declared = trusted.map((workflow) => trustedPublisher.reference(own.id, workflow.id));
+        const declared = trusted.map((row) =>
+            principal.client.reference(Scope.universe.id, row.id),
+        );
         await this.#authorize(organizationId, now, async (authorization) => {
             for (const row of publishing) {
-                // revoke every workload publisher the declaration leaves out, keeping the people managers added
+                // revoke every client publisher the declaration leaves out, keeping the people managers added
                 const object = account.reference(organizationId, row.id);
                 const related = await Relationship.read(authorization.snapshot, object, {
                     relation: "publisher",

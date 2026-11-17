@@ -19,7 +19,6 @@ import { OAuthError } from "../authentication/token.ts";
 import { TokenEndpoint, type GrantType } from "./token.ts";
 import { PackageResource } from "./resource.ts";
 import { FederatedVerifier } from "./federation.ts";
-import { trustedPublisher } from "../object/trusted-publisher.ts";
 import type { Crypto, Environment } from "@destack/environment";
 
 /** The grant type of a key-signed assertion exchanged for an access token (RFC 7523 2.1). */
@@ -91,7 +90,7 @@ export function bearerGrant(options: BearerOptions): GrantType {
             );
         }
 
-        // verify a workflow's federated token or a machine's or space's assertion
+        // verify a federated client's token or a machine's or space's assertion
         const now = options.environment.clock.now();
         const { caller: asserted, credential } = FederatedVerifier.isFederated(assertion)
             ? await federated.verify(assertion, audience, now)
@@ -101,11 +100,11 @@ export function bearerGrant(options: BearerOptions): GrantType {
                       .catch((error: unknown) => BearerGrant.refusal(error))
               ).authentication;
 
-        // read the partitions the subject acts in: a machine its own and any space, a space or a trusted publisher any space, an installation its space
+        // read the partitions the subject acts in: a machine its own and any space, a space or an account's client any space, an installation its space
         const { subject } = asserted;
         const isMachine = principal.machine.is(subject);
         const isSpaceActor =
-            isMachine || principal.space.is(subject) || trustedPublisher.is(subject);
+            isMachine || principal.space.is(subject) || principal.client.is(subject);
         const isSpace = SPACE_IDENTIFIER.safeParse(partition).success;
         const isOwn = isMachine && partition === subject.id;
         const isInstallationSpace = !isSpaceActor && subject.scope === partition;

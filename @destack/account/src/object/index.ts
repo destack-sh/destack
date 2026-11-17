@@ -19,7 +19,6 @@ export * from "./stage.ts";
 export * from "./group.ts";
 export * from "./domain.ts";
 export * from "./display-name.ts";
-export * from "./trusted-publisher.ts";
 export * from "./hostname.ts";
 export * from "./machine.ts";
 export * from "./residency.ts";

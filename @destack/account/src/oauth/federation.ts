@@ -1,4 +1,10 @@
-import { type Authentication, Caller, CLOCK_TOLERANCE_MILLISECONDS } from "@destack/access";
+import {
+    type Authentication,
+    Caller,
+    CLOCK_TOLERANCE_MILLISECONDS,
+    principal,
+} from "@destack/access";
+import { Scope } from "@destack/sync";
 import { FEDERATED_TOKEN, Nonce } from "@destack/access/token";
 import { type DatabaseConnection, Snapshot } from "@destack/db";
 import type { Environment } from "@destack/environment";
@@ -8,7 +14,7 @@ import { Digest, schema } from "@destack/schema";
 import { OAuthError } from "../authentication/token.ts";
 import { TelemetryScope } from "@destack/telemetry";
 import type {} from "@destack/package/import-meta";
-import { trustedPublisher } from "../object/trusted-publisher.ts";
+import { client } from "../object/client.ts";
 
 /** The longest interval between public key refreshes, in milliseconds. */
 const KEY_CACHE_MILLISECONDS = 60000;
@@ -39,7 +45,7 @@ interface IssuerKeys {
 
 /** Verify tokens OIDC issuers sign for the CI workflows accounts trust to publish. */
 export class FederatedVerifier {
-    /** The account database with the trusted publishers. */
+    /** The account database with the federated clients. */
     readonly #database: DatabaseConnection;
     /** The token endpoint, every federated token's audience. */
     readonly #endpoint: string;
@@ -50,7 +56,7 @@ export class FederatedVerifier {
     /** The verifier's spans and durations. */
     readonly #scope: TelemetryScope;
 
-    /** Verify tokens for the token endpoint against the trusted publishers in a database. */
+    /** Verify tokens for the token endpoint against the federated clients in a database. */
     constructor(database: DatabaseConnection, endpoint: string, environment: Environment) {
         // take the database, the endpoint and the environment, and trace on its telemetry
         this.#database = database;
@@ -66,24 +72,24 @@ export class FederatedVerifier {
         return iss?.startsWith("https://") === true;
     }
 
-    /** Verify a federated token at a time, answering its trusted publisher as the caller. */
+    /** Verify a federated token at a time, answering its client as the caller. */
     verify(token: string, audience: PackageId, now: number): Promise<Authentication> {
         return this.#scope.span("destack.federation.verify", {}, () =>
             this.#verify(token, audience, now),
         );
     }
 
-    /** Find the token's trusted publisher, verify it by its issuer's keys, and spend it once. */
+    /** Find the token's client, verify it by its issuer's keys, and spend it once. */
     async #verify(token: string, audience: PackageId, now: number): Promise<Authentication> {
-        // find the trusted publisher of the token's issuer and subject
-        const { iss, sub } = Jwt.claims(token);
+        // find the standing client of the token's issuer and subject
+        const { iss: issuer, sub: subject } = Jwt.claims(token);
         const trusted =
-            iss === undefined || sub === undefined
+            issuer === undefined || subject === undefined
                 ? undefined
                 : await Snapshot.live(this.#database)
-                      .read(trustedPublisher.table)
-                      .findFirst({ where: { issuer: iss, subject: sub } });
-        if (trusted === undefined) {
+                      .read(client.table)
+                      .findFirst({ where: { issuer, subject, revokedAt: { isNull: true } } });
+        if (issuer === undefined || subject === undefined || trusted === undefined) {
             throw OAuthError.of(
                 "GRANT_INVALID",
                 "workflow is invalid: no account trusts this workflow",
@@ -91,14 +97,14 @@ export class FederatedVerifier {
         }
 
         // verify the signature by the issuer's keys, and the token's issuer, subject, audience and times
-        const { keys, algorithms } = await this.#keys(trusted.issuer);
+        const { keys, algorithms } = await this.#keys(issuer);
         const { claims } = await Jwt.verify(
             token,
             keys,
             {
                 algorithms,
-                issuer: trusted.issuer,
-                subject: trusted.subject,
+                issuer,
+                subject,
                 audience: this.#endpoint,
                 requiredClaims: ["iat", "exp", "jti"],
                 clockTolerance: CLOCK_TOLERANCE_MILLISECONDS / 1000,
@@ -117,7 +123,7 @@ export class FederatedVerifier {
             );
         }
 
-        // spend the token once for its trusted publisher, until it expires
+        // spend the token once for its client, until it expires
         const expiresAt = claims.exp * 1000;
         const digest = await Digest.of(
             JSON.stringify([trusted.id, claims.jti]),
@@ -126,7 +132,7 @@ export class FederatedVerifier {
         await new Nonce(digest, expiresAt).spend(this.#database, now);
 
         return {
-            caller: Caller.of(trustedPublisher.reference(trusted.scope, trusted.id)),
+            caller: Caller.of(principal.client.reference(Scope.universe.id, trusted.id)),
             credential: {
                 kind: FEDERATED_TOKEN,
                 id: trusted.id,

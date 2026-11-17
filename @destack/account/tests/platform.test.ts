@@ -9,7 +9,7 @@ import {
     principal,
     Relationship,
 } from "@destack/access";
-import { eq, inArray, Snapshot } from "@destack/db";
+import { and, eq, inArray, isNull, Snapshot } from "@destack/db";
 import { RequestId, Scope } from "@destack/sync";
 import { expect, test, refusal, type Refusal } from "@destack/test";
 import { MachineKey } from "../src/client/machine-key.ts";
@@ -19,7 +19,7 @@ import {
     hostname,
     key,
     machine,
-    trustedPublisher,
+    client,
     organization,
     space,
 } from "../src/object/index.ts";
@@ -52,7 +52,7 @@ const PLATFORM: PlatformDefinition = {
     reserved: ["admin", "security"],
     transfers: {},
     publishers: ["app"],
-    trustedPublishers: [{ issuer: ISSUER, subject: WORKFLOW }],
+    clients: [{ name: "Release", issuer: ISSUER, subject: WORKFLOW }],
     handle: "destack",
     domains: [],
     homes: { eu: RESIDENCY_STACK, us: RESIDENCY_STACK },
@@ -307,7 +307,7 @@ test("move each residency home to its own newly declared stack once, giving each
     });
 });
 
-test("apply the declared cloud machines with their keys in the universe once, and the declared trusted publisher alone as the platform accounts' publisher", async () => {
+test("apply the declared cloud machines with their keys in the universe once, and the declared client alone as the platform accounts' publisher", async () => {
     // declare a cloud machine for each residency
     await using fixture = await TestAccountStore.open();
     const [europe, america] = [
@@ -339,15 +339,19 @@ test("apply the declared cloud machines with their keys in the universe once, an
     };
 
     // apply the platform with a workflow it then replaces, twice
-    const replaced = { issuer: ISSUER, subject: "repo:destack/destack:environment:old" };
+    const replaced = {
+        name: "Release",
+        issuer: ISSUER,
+        subject: "repo:destack/destack:environment:old",
+    };
     const organizationId = await new Platform(fixture.store, {
         ...definition,
-        trustedPublishers: [replaced],
+        clients: [replaced],
     }).apply(fixture.store.clock.now());
     await new Platform(fixture.store, definition).apply(fixture.store.clock.now());
     await new Platform(fixture.store, definition).apply(fixture.store.clock.now());
 
-    // create each machine once with one key in the universe, its origin published as its endpoint, and the trusted publisher once, publishing for each account
+    // create each machine once with one key in the universe, its origin published as its endpoint, and the client publisher once, publishing for each account
     const { database } = fixture.storage;
     const declared = [europe.machineId, america.machineId];
     const machines = await database
@@ -397,11 +401,12 @@ test("apply the declared cloud machines with their keys in the universe once, an
     const [eu, us] = [await fixture.residency("eu"), await fixture.residency("us")];
     const trusted = await database
         .select({
-            id: trustedPublisher.table.id,
-            issuer: trustedPublisher.table.issuer,
-            subject: trustedPublisher.table.subject,
+            id: client.table.id,
+            issuer: client.table.issuer,
+            subject: client.table.subject,
         })
-        .from(trustedPublisher.table);
+        .from(client.table)
+        .where(and(eq(client.table.kind, "federated"), isNull(client.table.revokedAt)));
     const workflow = nth(trusted, 0).id;
     expect([machines, keys.map((row) => row.parentId), urls, trusted, publishers]).toEqual([
         [
@@ -429,7 +434,7 @@ test("apply the declared cloud machines with their keys in the universe once, an
         [{ id: workflow, issuer: ISSUER, subject: WORKFLOW }],
         [PLATFORM.handle, ...PLATFORM.publishers]
             .toSorted()
-            .map((handle) => [handle, [["trusted-publisher", workflow, null]]]),
+            .map((handle) => [handle, [["client", workflow, null]]]),
     ]);
 });
 
