@@ -14,7 +14,7 @@ import { relation } from "../table/namespace.ts";
 import { bridgeTriggers } from "./bridge.ts";
 import type { TriggerSet } from "./trigger.ts";
 import type { Merge } from "./merge.ts";
-import { canonicalize, present, Version } from "@destack/schema";
+import { canonicalize, Edition, present, Version } from "@destack/schema";
 import { Address, Plan, type Action, type Risk, type Step } from "@destack/resource";
 import { type PlanProblem, ResourceError, unreachablePlan } from "@destack/resource/error";
 
@@ -290,6 +290,13 @@ function convertSteps(
     isEmpty: boolean,
     problems: Problem[],
 ): TableStep[] {
+    // refuse a conversion the applied state has that the declared one changes
+    const changed = Edition.changed(previous.conversions ?? {}, state.conversions ?? {});
+    if (changed.length > 0) {
+        const detail = `changes the conversion to edition ${changed.join(", ")} that release ${previous.package.version} applied: add a new edition`;
+        problems.push({ target: Address.join("table", state.table.name), detail });
+    }
+
     // run each conversion the applied state lacks
     const conversions = Object.entries(state.conversions ?? {})
         .filter(([edition]) => previous.conversions?.[edition] === undefined)

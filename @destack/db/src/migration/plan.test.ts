@@ -564,6 +564,33 @@ test("widen column values freely and narrow them only by a conversion", async ()
     ]);
 });
 
+/** Preferences in the next release, rewriting the conversion to edition 2. */
+const preferenceRewritten = defineTable(
+    "preference",
+    { id: text("id").primaryKey(), mode: json("mode", schema.enum(["standard", "vim"])) },
+    { convert: { 2: { mode: Expression.json("vim") } } },
+    NEXT_RELEASE,
+);
+
+test("refuse a release changing a row conversion an applied release has", async () => {
+    // apply the conversion to edition 2, then plan a release rewriting it
+    const database = await open([preferenceConverted]);
+    await database.migrate([preferenceOne]);
+    await database.migrate([preferenceConverted]);
+    expect(
+        await refusal(
+            database.plan(
+                { declared: declareState([preferenceRewritten], TestDatabase.target()) },
+                DATABASE_MANAGER,
+            ),
+        ),
+    ).toEqual([
+        "PRECONDITION_FAILED",
+        "PLAN_BLOCKED",
+        `cannot reach the desired state: table/destack__db__preference: changes the conversion to edition 2 that release ${NEXT_VERSION} applied: add a new edition`,
+    ]);
+});
+
 /** Layouts whose settings name a theme. */
 const layoutOne = defineTable("layout", {
     id: text("id").primaryKey(),
