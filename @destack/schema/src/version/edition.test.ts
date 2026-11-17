@@ -18,6 +18,16 @@ test("read the edition conversions lead to, the first without any", () => {
     ]);
 });
 
+test("list the editions whose conversions a later declaration changes or drops", () => {
+    const earlier = { 3: { to: "c" }, 2: "b" };
+    expect([
+        Edition.changed(earlier, { 2: "b", 3: { to: "c" }, 4: "d" }),
+        Edition.changed(earlier, { 2: "other", 3: { to: "c" } }),
+        Edition.changed(earlier, { 3: { to: "changed" } }),
+        Edition.changed({}, { 2: "b" }),
+    ]).toEqual([[], [2], [2, 3], []]);
+});
+
 test("list the conversions after one edition and up to another in order", () => {
     const keyed = { 4: "d", 2: "b", 3: "c" };
     expect([

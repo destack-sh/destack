@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { canonicalize } from "../json/json.ts";
 
 /** The edition of a schema no conversion has changed yet. */
 const FIRST = 1;
@@ -22,6 +23,20 @@ export const Edition = Object.assign(z.number().int().min(FIRST), {
             .map(([edition, value]): [number, Value] => [Number(edition), value])
             .filter(([edition]) => edition > after && edition <= upto)
             .toSorted(([left], [right]) => left - right);
+    },
+
+    /** List the editions whose conversions an earlier declaration has and a later one changes. */
+    changed(
+        earlier: Readonly<Record<number, unknown>>,
+        later: Readonly<Record<number, unknown>>,
+    ): number[] {
+        return Object.keys(earlier)
+            .map(Number)
+            .filter(
+                (edition) =>
+                    canonicalize(earlier[edition]) !== canonicalize(later[edition] ?? null),
+            )
+            .toSorted((left, right) => left - right);
     },
 
     /** Refuse conversion keys that are no edition after the first. */
