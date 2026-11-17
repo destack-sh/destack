@@ -65,7 +65,7 @@ export function implementSetting(options: SettingOptions) {
                 const found = Setting.find(await Setting.list(reader), desired);
                 const release = found.package.version;
 
-                // keep the stored release when the value and its conversions are unchanged
+                // keep the stored release and edition when the value and its conversions are unchanged
                 const applied = await plan.transaction
                     .view()
                     .read(setting.table)
@@ -73,9 +73,11 @@ export function implementSetting(options: SettingOptions) {
                 const isKept =
                     applied !== undefined &&
                     canonicalize(applied.value) === canonicalize(desired.value) &&
-                    found.isUnconverted(applied.release, release);
+                    applied.edition === found.edition;
 
-                return { ...desired, release: isKept ? applied.release : release };
+                return isKept
+                    ? { ...desired, release: applied.release, edition: applied.edition }
+                    : { ...desired, release, edition: found.edition };
             },
         },
     });
@@ -84,14 +86,20 @@ export function implementSetting(options: SettingOptions) {
 /** Require a value to match its setting's declaration at its placement, in the release it names. */
 async function requireDeclared(
     value: Parameters<typeof SettingPlacement.of>[0] &
-        Pick<SettingValue, "packageId" | "name" | "mode" | "value" | "release">,
+        Pick<SettingValue, "packageId" | "name" | "mode" | "value" | "release" | "edition">,
     context: Pick<MethodContext, "declarations">,
 ): Promise<void> {
     // read the value's setting, refusing one its release does not declare
     const placement = SettingPlacement.of(value);
     const found = await findSetting(context, value, value.release);
     found.requireWrite(
-        { ...placement, mode: value.mode, value: value.value, release: value.release },
+        {
+            ...placement,
+            mode: value.mode,
+            value: value.value,
+            release: value.release,
+            edition: value.edition,
+        },
         value.scope,
     );
 }

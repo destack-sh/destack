@@ -89,6 +89,7 @@ test("resolve and watch values over live queries of the user's scope and the spa
         mode: "set",
         value: "vim",
         release: editor.package.version,
+        edition: 1,
     });
     await saved.confirmed;
     const value = await saved.predicted;
@@ -114,6 +115,7 @@ test("resolve and watch values over live queries of the user's scope and the spa
             mode: "recommend",
             value: false,
             release: lineNumbers.package.version,
+            edition: 1,
             requestId: RequestId.create(spaceStore.environment),
         });
     const lowered = {
@@ -158,12 +160,14 @@ test("resolve a value the device stores over the user's own, off the server", as
             mode: "set",
             value: "vim",
             release,
+            edition: 1,
             requestId: RequestId.create(served.environment),
         });
     const local = personal.mutate(deviceSetting).create({
         ...named(editor),
         value: "standard",
         release,
+        edition: 1,
     });
     const value = await local.predicted;
     await local.confirmed;
@@ -208,11 +212,13 @@ test("follow a person's values with the device's own, yielding again once the de
         ...named(editor),
         value: "standard",
         release,
+        edition: 1,
     }).predicted;
     await personal.mutate(deviceSetting).create({
         ...named(lineNumbers),
         value: false,
         release: lineNumbers.package.version,
+        edition: 1,
     }).predicted;
 
     // follow the values along her chain and on the device, then change the device's value

@@ -76,7 +76,7 @@ A setting has a `default` or is `required`, so each scope must place a value.
 | `apply`                | `"immediate"`, the default, or `"restart"` for a consumer to apply a change   |
 | `merge`                | `"value"`, the default, or `"key"` to resolve each key of a record on its own |
 | `deprecated`           | the migration guidance of a deprecated setting                                |
-| `convert`              | the conversions of earlier values, by the release introducing each            |
+| `convert`              | the conversions of earlier values, by the edition each leads to               |
 
 A `Setting` answers its value and its resolutions:
 
@@ -145,6 +145,7 @@ export async function requirePageSize(
         mode: "require",
         value: 50,
         release: pageSize.package.version,
+        edition: pageSize.edition,
     });
 }
 ```

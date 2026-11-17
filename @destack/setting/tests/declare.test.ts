@@ -76,6 +76,7 @@ test("set, recommend and require declared values in the space and refuse undecla
         installation: null,
         value: "vim",
         release: "2026.9.0",
+        edition: 1,
     };
     const editorRow = nth(rows, 0);
     const templateRow = nth(rows, 1);
@@ -176,7 +177,7 @@ test("keep the release of an unchanged declared value across later releases with
     // apply a value of the editor setting at its first release, then at later ones
     const later = defineSetting(editor.definition, { package: { ...notes, version: "2026.10.0" } });
     const converted = defineSetting(
-        { ...editor.definition, convert: { "2026.10.0": Expression.column("value") } },
+        { ...editor.definition, convert: { 2: Expression.column("value") } },
         { package: { ...notes, version: "2026.10.0" } },
     );
     let declared = [editor];
@@ -197,9 +198,11 @@ test("keep the release of an unchanged declared value across later releases with
             document,
             applied: document,
         }).apply(served.environment.clock.now());
-        const { release, revision } = single(await served.database.select().from(setting.table));
+        const { release, edition, revision } = single(
+            await served.database.select().from(setting.table),
+        );
 
-        return { release, revision };
+        return { release, edition, revision };
     };
 
     // keep an unchanged value readable by the earlier release, and stamp a changed or converted one
@@ -212,9 +215,9 @@ test("keep the release of an unchanged declared value across later releases with
     declared = [converted];
     const conversion = await apply("vim");
     expect([first, unchanged, changed, conversion]).toEqual([
-        { release: "2026.9.0", revision: 1 },
-        { release: "2026.9.0", revision: 1 },
-        { release: "2026.10.0", revision: 2 },
-        { release: "2026.10.0", revision: 4 },
+        { release: "2026.9.0", edition: 1, revision: 1 },
+        { release: "2026.9.0", edition: 1, revision: 1 },
+        { release: "2026.10.0", edition: 1, revision: 2 },
+        { release: "2026.10.0", edition: 2, revision: 4 },
     ]);
 });

@@ -20,6 +20,7 @@ test("write declared values at their placements and refuse invalid, undeclared a
         ...named(editor),
         mode: "set",
         release: editor.package.version,
+        edition: 1,
     } as const;
     const create = (input: Partial<Parameters<typeof values.create>[0]> = {}) =>
         values.create({
@@ -92,7 +93,7 @@ test("write declared values at their placements and refuse invalid, undeclared a
                 requestId: RequestId.create(served.environment),
             }),
         ),
-        await refusal(create({ release: "2026.10.0" })),
+        await refusal(create({ edition: 2 })),
         await refusal(create({ name: "editor.theme" })),
         await refusal(create({ mode: "recommend" })),
         await refusal(create({ ...named(lineNumbers), space, value: false })),
@@ -107,7 +108,7 @@ test("write declared values at their placements and refuse invalid, undeclared a
         [
             "BAD_REQUEST",
             "VALUE_INVALID",
-            "setting value is invalid: its release '2026.10.0' must match the declaration's release '2026.9.0'",
+            "setting value is invalid: its edition '2' must be up to the declaration's edition '1'",
         ],
         [
             "NOT_FOUND",
@@ -139,6 +140,7 @@ test("resolve a setting from the values placed along a scope's chain, and its de
             mode: "set",
             value: "vim",
             release: editor.package.version,
+            edition: 1,
             requestId: RequestId.create(served.environment),
         });
 
@@ -160,6 +162,7 @@ test("resolve a setting for a client with the value deciding it and the default 
         mode: "set",
         value: "vim",
         release: editor.package.version,
+        edition: 1,
         requestId: RequestId.create(served.environment),
     });
 
@@ -194,6 +197,7 @@ test("read the retention a package's setting of days gives a space that sets it,
             mode: "set",
             value: 7,
             release: history.package.version,
+            edition: 1,
             requestId: RequestId.create(kept.environment),
         });
 
@@ -236,6 +240,7 @@ test("follow a scope's values for a setting and yield them again after a change"
         mode: "set",
         value: "vim",
         release: editor.package.version,
+        edition: 1,
         requestId: RequestId.create(served.environment),
     });
 

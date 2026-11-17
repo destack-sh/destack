@@ -1,4 +1,4 @@
-import { schema, toJsonSchema, Version } from "@destack/schema";
+import { Edition, schema, toJsonSchema } from "@destack/schema";
 import { Expression } from "@destack/db";
 import { ModuleMetadata, PackageVersion } from "@destack/package";
 import { Setting, SettingMetadata, SettingScope } from "../setting/setting.ts";
@@ -16,8 +16,8 @@ type SettingCommon<Value extends schema.Schema> = Omit<
 > & {
     /** The value schema. */
     readonly schema: Value;
-    /** The conversions of earlier values, by the release introducing each. */
-    readonly convert?: Readonly<Record<Version, Expression>>;
+    /** The conversions of earlier values, by the edition each leads to. */
+    readonly convert?: Readonly<Record<number, Expression>>;
 };
 
 /** When a consumer applies a changed value. */
@@ -90,8 +90,8 @@ export function defineSetting(
     const { schema: valueSchema, convert } = definition;
     const metadata = SettingMetadata.strip().parse(definition);
 
-    // require conversions keyed by releases up to the declaring one
-    Version.requireUpTo(convert ?? {}, owner.version, definition.name);
+    // require conversions keyed by editions
+    Edition.require(convert ?? {}, definition.name);
 
     // require exactly one of a default and a requirement, and a default the value's schema and JSON both take
     if ("default" in definition === "required" in definition) {

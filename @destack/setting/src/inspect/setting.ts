@@ -1,4 +1,4 @@
-import { type JsonValue, Version } from "@destack/schema";
+import { type JsonValue, Edition } from "@destack/schema";
 import { Address, Plan, type Comparator } from "@destack/resource";
 import { SettingDescription } from "../setting/setting.ts";
 import type { Setting } from "../setting/setting.ts";
@@ -16,8 +16,7 @@ export const compareSetting: Comparator = (before, after) => {
         after: later.schema,
         release,
         compatibility: "backward",
-        isConverted:
-            Version.between(later.convert ?? {}, before.symbol.package.version, release).length > 0,
+        isConverted: Edition.of(later.convert ?? {}) > Edition.of(earlier.convert ?? {}),
     });
 };
 

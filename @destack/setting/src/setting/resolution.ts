@@ -1,6 +1,6 @@
 import { DeclarationReference } from "@destack/package/declare";
 import { DeclarationName, PackageVersion, PackageId } from "@destack/package";
-import { schema, canonicalize, Version } from "@destack/schema";
+import { canonicalize, Edition, schema, Version } from "@destack/schema";
 import type { SettingValue } from "../object/setting.ts";
 import type { DeviceSettingValue } from "../object/device-setting.ts";
 import { SettingPlacement, SettingSelection } from "./placement.ts";
@@ -43,6 +43,8 @@ export const DeviceValue = schema.object({
     value: schema.json(),
     /** The release of the setting's package the value was written against. */
     release: Version,
+    /** The edition of the setting the value was written against. */
+    edition: Edition,
 });
 /** A device's value as a resolution reads it, which the device sends as only it keeps it. */
 export type DeviceValue = schema.Infer<typeof DeviceValue>;

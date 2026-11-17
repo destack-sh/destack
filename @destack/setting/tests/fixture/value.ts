@@ -55,6 +55,7 @@ export const personal: SettingValue = {
     mode: "set",
     value: "vim",
     release: "2026.9.0",
+    edition: 1,
 };
 
 /** The editor mode Alice's laptop stores. */
@@ -72,6 +73,7 @@ export const laptop: DeviceSettingValue = {
     ...named(editor),
     value: "standard",
     release: "2026.9.0",
+    edition: 1,
 };
 
 /** The editor mode Bob's space requires of the users acting in it. */

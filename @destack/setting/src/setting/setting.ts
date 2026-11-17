@@ -3,7 +3,7 @@ import { DeclarationReference } from "@destack/package/declare";
 import { PackageVersion, DeclarationName } from "@destack/package";
 import type {} from "@destack/package/import-meta";
 import type { BuildReader } from "@destack/package/manifest";
-import { fromJsonSchema, nth, schema, Version, canonicalize } from "@destack/schema";
+import { canonicalize, fromJsonSchema, nth, Edition, schema, Version } from "@destack/schema";
 import type { JsonObject, JsonValue } from "@destack/schema";
 import { Expression, Condition } from "@destack/db";
 import { Message } from "@destack/locale";
@@ -87,8 +87,8 @@ const fields = SettingMetadata.extend({
     default: schema.json().exactOptional(),
     /** Whether each scope must place a value, as the setting has no default. */
     required: schema.literal(true).exactOptional(),
-    /** The conversions of earlier values, by the release introducing each. */
-    convert: schema.record(Version, Expression.schema).exactOptional(),
+    /** The conversions of earlier values, by the edition each leads to. */
+    convert: schema.record(schema.string().regex(/^[1-9]\d*$/u), Expression.schema).exactOptional(),
 });
 
 /** A setting declaration as manifests describe it. */
@@ -111,6 +111,8 @@ export type SettingWrite = Omit<SettingPlacement, "scope"> & {
     readonly value: JsonValue;
     /** The release of the setting's package the value was written against. */
     readonly release: Version;
+    /** The edition of the setting the value was written against. */
+    readonly edition: number;
 };
 
 /** A typed setting declaration, typed by whether it has a default. */
@@ -435,14 +437,14 @@ export class Setting<
         return parsed.data;
     }
 
-    /** Require a value written in a scope to convert to a valid value of this release. */
+    /** Require a value written in a scope to convert to a valid value of this edition. */
     requireWrite(write: SettingWrite, scope: string): void {
-        // require a release up to this one and a value it converts to
-        const converted = this.#convert(write.value, write.release);
+        // require an edition up to this one and a value it converts to
+        const converted = this.#convert(write.value, write.edition);
         if (!converted.isConverted) {
             throw SettingError.of(
                 "VALUE_INVALID",
-                `setting value is invalid: its release '${write.release}' must match the declaration's release '${this.package.version}'`,
+                `setting value is invalid: its edition '${write.edition}' must be up to the declaration's edition '${this.edition}'`,
             );
         }
         this.requireValue(converted.value);
@@ -551,12 +553,12 @@ export class Setting<
 
     /** Convert a stored value to this release as a candidate. */
     #converted(
-        value: Pick<SettingValue, "value" | "release">,
+        value: Pick<SettingValue, "value" | "edition">,
         rank: Rank,
         source: Extract<SettingSource, { readonly kind: "value" | "device" }>,
         mode: SettingMode,
     ): Candidate {
-        const converted = this.#convert(value.value, value.release);
+        const converted = this.#convert(value.value, value.edition);
         const parsed = converted.isConverted
             ? this.definition.schema.safeParse(converted.value)
             : undefined;
@@ -566,12 +568,9 @@ export class Setting<
             : { rank, source: { kind: "invalid", source }, value: value.value, mode };
     }
 
-    /** Report whether a value written against one release reads the same in a later one. */
-    isUnconverted(from: Version, to: Version): boolean {
-        return (
-            Version.compare(from, to) <= 0 &&
-            Version.between(this.definition.convert ?? {}, from, to).length === 0
-        );
+    /** The setting's edition: the one its last conversion leads to. */
+    get edition(): number {
+        return Edition.of(this.definition.convert ?? {});
     }
 
     /** Rank a value of this setting for a selection. */
@@ -615,20 +614,20 @@ export class Setting<
         }
     }
 
-    /** Convert a value of an earlier release to this one, refusing a value of a later release. */
+    /** Convert a value of an earlier edition to this one, refusing a value of a later edition. */
     #convert(
         value: JsonValue,
-        release: Version,
+        edition: number,
     ): { readonly isConverted: true; readonly value: unknown } | { readonly isConverted: false } {
         // refuse a value newer than the declaration
-        const current = this.package.version;
-        if (Version.compare(release, current) > 0) {
+        const current = this.edition;
+        if (edition > current) {
             return { isConverted: false };
         }
 
-        // compute the value through each later release
+        // compute the value through each later edition
         const convert = this.definition.convert ?? {};
-        const converted = Version.between(convert, release, current).reduce(
+        const converted = Edition.between(convert, edition, current).reduce(
             (earlier: JsonValue, [, expression]) =>
                 Expression.evaluate(expression, { value: earlier }),
             value,

@@ -39,6 +39,8 @@ export const setting = defineObject(
             value: field.json(schema.json()),
             /** The release of the setting's package the value was written against. */
             release: field.string(Version),
+            /** The edition of the setting the value was written against. */
+            edition: field.integer(),
         },
         constraints: {
             placement: {
@@ -69,8 +71,8 @@ export const setting = defineObject(
         traits: [
             // propagate every value into the scopes inside its scope
             propagated({}),
-            // let a stack write a declared value against the release of the build declaring its setting
-            declarable(["release"]),
+            // let a stack write a declared value against the release and edition of the build declaring its setting
+            declarable(["release", "edition"]),
         ],
     },
     (method) => ({

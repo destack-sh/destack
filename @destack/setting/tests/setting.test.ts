@@ -386,11 +386,11 @@ test("refuse placements and writes a setting does not permit", async () => {
         ],
     ]);
 
-    // accept a current write in its scope, and refuse one of a later release or with an invalid value
-    const write = { mode: "set" as const, value: "vim", release: "2026.9.0" };
+    // accept a current write in its scope, and refuse one of a later edition or with an invalid value
+    const write = { mode: "set" as const, value: "vim", release: "2026.9.0", edition: 1 };
     expect([
         await refusal(() => editor.requireWrite(write, alice)),
-        await refusal(() => editor.requireWrite({ ...write, release: "2026.10.0" }, alice)),
+        await refusal(() => editor.requireWrite({ ...write, edition: 2 }, alice)),
         await refusal(() => editor.requireWrite({ ...write, value: "emacs" }, alice)),
         await refusal(() => editor.requireWrite({ ...write, mode: "recommend" }, space)),
     ]).toEqual([
@@ -398,7 +398,7 @@ test("refuse placements and writes a setting does not permit", async () => {
         [
             "BAD_REQUEST",
             "VALUE_INVALID",
-            "setting value is invalid: its release '2026.10.0' must match the declaration's release '2026.9.0'",
+            "setting value is invalid: its edition '2' must be up to the declaration's edition '1'",
         ],
         ["BAD_REQUEST", "VALUE_INVALID", "setting value is invalid: it must match its declaration"],
         "done",
@@ -456,20 +456,20 @@ test("skip stored values a changed schema rejects, falling through to the next s
     ]);
 });
 
-test("convert stored values of earlier releases, and skip values of later releases and ones no conversion reaches", () => {
-    // convert the editor mode to a named keymap in the setting's release
+test("convert stored values of earlier editions, and skip values of later editions and ones no conversion reaches", () => {
+    // convert the editor mode to a named keymap in the setting's second edition
     const keymap = defineSetting(
         {
             ...editor.definition,
             schema: schema.object({ keymap: schema.enum(["standard", "vim"]) }),
             default: { keymap: "standard" },
-            convert: { "2026.9.0": Expression.object({ keymap: Expression.column("value") }) },
+            convert: { 2: Expression.object({ keymap: Expression.column("value") }) },
         },
         { package: notes },
     );
     const unconverted = new Setting(notes, { ...keymap.definition, convert: {} });
-    const earlier: SettingValue = { ...personal, release: "2026.8.0" };
-    const current: SettingValue = { ...personal, value: { keymap: "vim" } };
+    const earlier: SettingValue = { ...personal, release: "2026.8.0", edition: 1 };
+    const current: SettingValue = { ...personal, value: { keymap: "vim" }, edition: 2 };
     const expected = {
         ...standard,
         setting: keymap.reference,
@@ -479,30 +479,23 @@ test("convert stored values of earlier releases, and skip values of later releas
     };
     expect([
         keymap.resolve(selection, [earlier], chain),
-        keymap.resolve(selection, [{ ...earlier, release: "2026.10.0" }], chain).sources,
+        keymap.resolve(selection, [{ ...earlier, edition: 3 }], chain).sources,
         unconverted.resolve(selection, [earlier], chain).sources,
         keymap.resolve(selection, [current], chain).value,
     ]).toEqual([
         expected,
-        [
-            { kind: "default", package: notes },
-            source({ ...earlier, release: "2026.10.0" }, "invalid"),
-        ],
+        [{ kind: "default", package: notes }, source({ ...earlier, edition: 3 }, "invalid")],
         [{ kind: "default", package: notes }, source(earlier, "invalid")],
         { keymap: "vim" },
     ]);
 
-    // refuse a conversion keyed by a release after the setting's release
+    // refuse a conversion keyed by the first edition, which no conversion leads to
     expect(() =>
         defineSetting(
-            { ...editor.definition, convert: { "2026.10.0": Expression.column("value") } },
+            { ...editor.definition, convert: { 1: Expression.column("value") } },
             { package: notes },
         ),
-    ).toThrow(
-        new TypeError(
-            "conversion of 'editor.mode' is keyed by '2026.10.0', after its version '2026.9.0'",
-        ),
-    );
+    ).toThrow(new TypeError("conversion key of 'editor.mode' is no edition after 1: '1'"));
 });
 
 test("resolve a value for its consuming package, and rank recommendations by the nearness of their scope", async () => {
@@ -586,7 +579,7 @@ test("plan a setting's value change between releases: safe widenings, converted 
         defineSetting(
             {
                 ...narrower.definition,
-                convert: { [version]: Expression.literal("vim") },
+                convert: { 2: Expression.literal("vim") },
             },
             { package: notes },
         ),

@@ -21,6 +21,8 @@ export const deviceSetting = defineObject({
         value: field.json(schema.json()),
         /** The release of the setting's package the value was written against. */
         release: field.string(Version),
+        /** The edition of the setting the value was written against. */
+        edition: field.integer(),
     },
     constraints: {
         name: { kind: "index", on: ["packageId", "name"], unique: true },
