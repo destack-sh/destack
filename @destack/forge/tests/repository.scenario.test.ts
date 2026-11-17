@@ -492,7 +492,7 @@ test("lease checkouts of platform and anonymous repositories by permission", asy
         ),
     ]).toEqual([
         local("read"),
-        ["FORBIDDEN", "PERMISSION_DENIED", "permission 'push' is forbidden: the caller lacks it"],
+        ["FORBIDDEN", "PERMISSION_DENIED", "permission 'push' is forbidden: it is not granted"],
         local("write"),
         ["NOT_FOUND", "NOT_FOUND", `repository '${site.id}' not found`],
     ]);
@@ -779,11 +779,7 @@ test("keep a Git remote's credential in the forge's vault", async () => {
         leased: [
             { url: remote, mode: "read", headers: { authorization: basic("token-1") } },
             { url: remote, mode: "write", headers: { authorization: basic("token-1") } },
-            [
-                "FORBIDDEN",
-                "PERMISSION_DENIED",
-                "permission 'push' is forbidden: the caller lacks it",
-            ],
+            ["FORBIDDEN", "PERMISSION_DENIED", "permission 'push' is forbidden: it is not granted"],
         ],
         current: [{ name: mirror.id, currentVersion: 2 }],
         rotated: { url: remote, mode: "read", headers: { authorization: basic("token-2") } },

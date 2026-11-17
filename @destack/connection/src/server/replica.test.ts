@@ -217,7 +217,7 @@ test("refuse client credentials through a replicated integration, and token requ
         asPerson: [
             "FORBIDDEN",
             "PERMISSION_DENIED",
-            "permission 'request' is forbidden: the caller lacks it",
+            "permission 'request' is forbidden: it is not granted",
         ],
         requested: [],
     });

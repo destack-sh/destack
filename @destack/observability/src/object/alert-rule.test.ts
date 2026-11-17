@@ -215,7 +215,7 @@ test("refuse a rule calling an installation's method from an editor who does not
     expect(await refusal(calling)).toEqual([
         "FORBIDDEN",
         "PERMISSION_DENIED",
-        "permission 'manage' is forbidden: the caller lacks it",
+        "permission 'manage' is forbidden: it is not granted",
     ]);
 });
 

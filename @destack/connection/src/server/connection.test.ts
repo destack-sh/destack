@@ -845,7 +845,7 @@ test("exchange the token of a connection its creator manages, refusing another s
             "EXCHANGE_SOURCE_DENIED",
             `token exchange source is forbidden: it must be a connection of '${fixture.scope.id}'`,
         ],
-        ["FORBIDDEN", "PERMISSION_DENIED", "permission 'manage' is forbidden: the caller lacks it"],
+        ["FORBIDDEN", "PERMISSION_DENIED", "permission 'manage' is forbidden: it is not granted"],
     ]);
 
     // exchange the token of a connection the caller manages

@@ -96,7 +96,7 @@ test("let commenters react once per emoji to articles and their comments, counte
     ).toEqual([
         "FORBIDDEN",
         "PERMISSION_DENIED",
-        "permission 'react' is forbidden: the caller lacks it",
+        "permission 'react' is forbidden: it is not granted",
     ]);
     expect(
         await refusal(
@@ -112,7 +112,7 @@ test("let commenters react once per emoji to articles and their comments, counte
     ).toEqual([
         "FORBIDDEN",
         "PERMISSION_DENIED",
-        "permission 'react' is forbidden: the caller lacks it",
+        "permission 'react' is forbidden: it is not granted",
     ]);
 
     // count the reactions on the article and on the comment
@@ -129,7 +129,7 @@ test("let commenters react once per emoji to articles and their comments, counte
     ).toEqual([
         "FORBIDDEN",
         "PERMISSION_DENIED",
-        "permission 'write' is forbidden: the caller lacks it",
+        "permission 'write' is forbidden: it is not granted",
     ]);
     await fixture.call("bob", reaction.call("delete", { ...scope, id: thumbs.id }));
     const reactions = (await fixture.list("bob", reaction)).map((row) => [

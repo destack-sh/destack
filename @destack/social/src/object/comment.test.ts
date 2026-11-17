@@ -95,7 +95,7 @@ test("let commenters start and reply to threads on an article, authors edit, edi
     ).toEqual([
         "FORBIDDEN",
         "PERMISSION_DENIED",
-        "permission 'comment' is forbidden: the caller lacks it",
+        "permission 'comment' is forbidden: it is not granted",
     ]);
 
     // refuse a reply to a reply, and a reply's mentions past the end of its text
@@ -207,7 +207,7 @@ test("let commenters start and reply to threads on an article, authors edit, edi
     ).toEqual([
         "FORBIDDEN",
         "PERMISSION_DENIED",
-        "permission 'write' is forbidden: the caller lacks it",
+        "permission 'write' is forbidden: it is not granted",
     ]);
 
     // refuse a commenter resolving another's thread
@@ -216,7 +216,7 @@ test("let commenters start and reply to threads on an article, authors edit, edi
     ).toEqual([
         "FORBIDDEN",
         "PERMISSION_DENIED",
-        "permission 'resolve' is forbidden: the caller lacks it",
+        "permission 'resolve' is forbidden: it is not granted",
     ]);
 
     // let an editor resolve the thread through its first comment once, and its author reopen it
@@ -267,7 +267,7 @@ test("let commenters start and reply to threads on an article, authors edit, edi
     ).toEqual([
         "FORBIDDEN",
         "PERMISSION_DENIED",
-        "permission 'delete' is forbidden: the caller lacks it",
+        "permission 'delete' is forbidden: it is not granted",
     ]);
 
     // count the article's comments, and delete the thread's replies with its first comment

@@ -161,7 +161,7 @@ test("push a succeeded build to the registry as its space's owner, refusing its 
         asRunner: [
             "FORBIDDEN",
             "PERMISSION_DENIED",
-            "permission 'push' is forbidden: the caller lacks it",
+            "permission 'push' is forbidden: it is not granted",
         ],
         pushed: { lock },
         isInRegistry: true,
@@ -189,7 +189,7 @@ test("refuse advancing a build to anyone but its runner, and a build not running
         asOwner: [
             "FORBIDDEN",
             "PERMISSION_DENIED",
-            "permission 'run' is forbidden: the caller lacks it",
+            "permission 'run' is forbidden: it is not granted",
         ],
         unstarted: [
             "PRECONDITION_FAILED",

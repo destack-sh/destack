@@ -94,7 +94,7 @@ test("show an article's readers who is on it once per writer, what they do and w
     ).toEqual([
         "FORBIDDEN",
         "PERMISSION_DENIED",
-        "permission 'write' is forbidden: the caller lacks it",
+        "permission 'write' is forbidden: it is not granted",
     ]);
 
     // show the viewer alone once the owner leaves
@@ -143,7 +143,7 @@ test("show an article's readers who is on it once per writer, what they do and w
     ).toEqual([
         "FORBIDDEN",
         "PERMISSION_DENIED",
-        "permission 'write' is forbidden: the caller lacks it",
+        "permission 'write' is forbidden: it is not granted",
     ]);
 });
 

@@ -392,7 +392,7 @@ test("refuse callers without the bucket permission", async () => {
     ).toEqual([
         "FORBIDDEN",
         "PERMISSION_DENIED",
-        "permission 'write' is forbidden: the caller lacks it",
+        "permission 'write' is forbidden: it is not granted",
     ]);
     expect(await client.files({ ...bucket, limit: 10 })).toEqual({
         files: [],
@@ -425,7 +425,7 @@ test("refuse callers without the bucket permission", async () => {
                         code: "FORBIDDEN",
                         reason: "PERMISSION_DENIED",
                         domain: "@destack/access",
-                        message: "permission 'write' is forbidden: the caller lacks it",
+                        message: "permission 'write' is forbidden: it is not granted",
                     },
                 },
                 target: { type: "procedure", id: "bucket.open" },

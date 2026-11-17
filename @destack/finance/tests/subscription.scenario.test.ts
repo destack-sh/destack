@@ -44,7 +44,7 @@ test("authorize subscription calls by the caller's role on the account", async (
         ),
     ]).toEqual([
         true,
-        ["FORBIDDEN", "PERMISSION_DENIED", "permission 'bill' is forbidden: the caller lacks it"],
+        ["FORBIDDEN", "PERMISSION_DENIED", "permission 'bill' is forbidden: it is not granted"],
     ]);
 
     // refuse the provider's transitions to the owner
@@ -53,7 +53,7 @@ test("authorize subscription calls by the caller's role on the account", async (
     ).toEqual([
         "FORBIDDEN",
         "PERMISSION_DENIED",
-        "permission 'provide' is forbidden: the caller lacks it",
+        "permission 'provide' is forbidden: it is not granted",
     ]);
 });
 

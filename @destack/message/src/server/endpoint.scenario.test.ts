@@ -107,7 +107,7 @@ test("refuse a webhook message unless the sender manages its endpoint", async ()
     expect(await refusal(created)).toEqual([
         "FORBIDDEN",
         "PERMISSION_DENIED",
-        "permission 'manage' is forbidden: the caller lacks it",
+        "permission 'manage' is forbidden: it is not granted",
     ]);
 });
 

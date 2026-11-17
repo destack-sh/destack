@@ -102,11 +102,7 @@ test("publish pushed locks as releases", async () => {
             `lock '${created.lock}' is invalid: a release of uncommitted changes must be a prerelease`,
         ],
         ["BAD_REQUEST", "BUILD_INVALID", "build is invalid: it belongs to another package"],
-        [
-            "FORBIDDEN",
-            "PERMISSION_DENIED",
-            "permission 'publish' is forbidden: the caller lacks it",
-        ],
+        ["FORBIDDEN", "PERMISSION_DENIED", "permission 'publish' is forbidden: it is not granted"],
     ]);
 
     // publish a dev prerelease without a commit
@@ -611,11 +607,7 @@ test("show packages to readers by their visibility", async () => {
         await reads(forge.owner),
         await reads(),
     ]).toEqual([
-        [
-            "FORBIDDEN",
-            "PERMISSION_DENIED",
-            "permission 'publish' is forbidden: the caller lacks it",
-        ],
+        ["FORBIDDEN", "PERMISSION_DENIED", "permission 'publish' is forbidden: it is not granted"],
         "private",
         [["answer", "greeting"], "done", both],
         [

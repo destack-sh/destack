@@ -32,12 +32,12 @@ test("grant a space's person and the space itself the owner role's permissions",
         reserved: [
             "FORBIDDEN",
             "PERMISSION_DENIED",
-            "permission 'replicate' is forbidden: the caller lacks it",
+            "permission 'replicate' is forbidden: it is not granted",
         ],
         stranger: [
             "FORBIDDEN",
             "PERMISSION_DENIED",
-            "permission 'update' is forbidden: the caller lacks it",
+            "permission 'update' is forbidden: it is not granted",
         ],
     });
 });

@@ -40,6 +40,6 @@ test("store one customer per account, refusing a second, a provider field and a 
     ]).toEqual([
         ["CONFLICT", "OBJECT_EXISTS", "'customer' with the same 'account' already exists"],
         ["BAD_REQUEST", "INPUT_INVALID", 'invalid input: unrecognized key: "providerId"'],
-        ["FORBIDDEN", "PERMISSION_DENIED", "permission 'bill' is forbidden: the caller lacks it"],
+        ["FORBIDDEN", "PERMISSION_DENIED", "permission 'bill' is forbidden: it is not granted"],
     ]);
 });

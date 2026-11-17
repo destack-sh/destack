@@ -239,7 +239,7 @@ test("refuse another consumer replacing a put secret", async () => {
         replaced: [
             "FORBIDDEN",
             "PERMISSION_DENIED",
-            "permission 'update' is forbidden: the caller lacks it",
+            "permission 'update' is forbidden: it is not granted",
         ],
         removed: ["NOT_FOUND", "NOT_FOUND", `secret '${target.secret}' not found`],
         after: { version: 2, value: { encoding: "text", value: "second" } },

@@ -119,7 +119,7 @@ test("authorize offers by the shop's role and the package's publisher", async ()
     ).toEqual([
         "FORBIDDEN",
         "PERMISSION_DENIED",
-        "permission 'sell' is forbidden: the caller lacks it",
+        "permission 'sell' is forbidden: it is not granted",
     ]);
 
     // refuse Carol's shop granting a feature of a destack package
