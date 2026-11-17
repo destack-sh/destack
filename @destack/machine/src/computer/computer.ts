@@ -918,8 +918,8 @@ export class Computer implements AsyncDisposable {
             return signedIn.session.client(handle, located.url, { partition: spaceId });
         }
 
-        // call the package mounted here as the person's own client
-        const server = opened.machine.package(handle);
+        // call the package mounted here below the space's path, as the person's own client
+        const server = opened.machine.package(handle, spaceId);
         if (server === undefined) {
             throw MachineError.unenrolled("serving spaces");
         }

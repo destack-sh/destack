@@ -1,5 +1,5 @@
 import type { Environment, FileSystem } from "@destack/environment";
-import { ListPage, type MethodOutput, type Package } from "@destack/object";
+import type { MethodOutput, Package } from "@destack/object";
 import { PackageName, type PackageVersion } from "@destack/package";
 import { preview, type Preview } from "../object/index.ts";
 import type { CommandHost } from "../../process/command.ts";
@@ -435,21 +435,41 @@ export class CheckoutServer {
         built: PackageVersion,
         submitted: { readonly build: Identifier<"build">; readonly environment: Environment },
     ): Promise<void> {
-        // install the package following the checkout once, its checkout directory naming the package
-        const items = await Array.fromAsync(
-            ListPage.all(objects.installation.list, { scope: spaceId }),
-        );
-        const follows = checkout.reference(selection.machine, selection.checkout);
+        // read the package's installation, of which the space has one
+        const { items } = await objects.installation.list({
+            scope: spaceId,
+            where: { packageId: built.id },
+            limit: 1,
+        });
+        const [existing] = items;
+        const follows = {
+            ...ObjectReference.columns(
+                "follows",
+                checkout.reference(selection.machine, selection.checkout),
+            ),
+            directory: selection.directory,
+        };
+
+        // install the package following the checkout's package directory, or have its installation follow it
+        const requestId = RequestId.create(submitted.environment);
         const installed =
-            items.find((item) => CheckoutServer.#isFollowing(item, selection)) ??
-            (await objects.installation.create({
-                scope: spaceId,
-                requestId: RequestId.create(submitted.environment),
-                packageId: built.id,
-                ...ObjectReference.columns("follows", follows),
-                directory: selection.directory,
-                name: built.name.slice(built.name.lastIndexOf("/") + 1),
-            }));
+            existing === undefined
+                ? await objects.installation.create({
+                      scope: spaceId,
+                      requestId,
+                      packageId: built.id,
+                      ...follows,
+                      name: built.name.slice(built.name.lastIndexOf("/") + 1),
+                  })
+                : CheckoutServer.#isFollowing(existing, selection)
+                  ? existing
+                  : await objects.installation.update({
+                        scope: spaceId,
+                        id: existing.id,
+                        requestId,
+                        revision: existing.revision,
+                        ...follows,
+                    });
 
         // apply the installation at the build
         await spaces.rollout.deploy({
