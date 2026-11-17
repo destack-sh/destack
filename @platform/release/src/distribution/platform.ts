@@ -33,6 +33,7 @@ export const PLATFORMS: readonly Platform[] = [
     {
         target: "aarch64-apple-darwin",
         runner: "macos-15",
+        verifier: "macos-15",
         runtime: "bun-darwin-arm64",
         system: "darwin",
         architecture: "arm64",
@@ -43,6 +44,7 @@ export const PLATFORMS: readonly Platform[] = [
     {
         target: "x86_64-apple-darwin",
         runner: "macos-15",
+        verifier: "macos-15-intel",
         runtime: "bun-darwin-x64",
         system: "darwin",
         architecture: "x64",
@@ -53,6 +55,7 @@ export const PLATFORMS: readonly Platform[] = [
     {
         target: "aarch64-unknown-linux-gnu",
         runner: "ubuntu-24.04-arm",
+        verifier: "ubuntu-24.04-arm",
         runtime: "bun-linux-arm64",
         system: "linux",
         architecture: "arm64",
@@ -63,6 +66,7 @@ export const PLATFORMS: readonly Platform[] = [
     {
         target: "x86_64-unknown-linux-gnu",
         runner: "ubuntu-24.04",
+        verifier: "ubuntu-24.04",
         runtime: "bun-linux-x64",
         system: "linux",
         architecture: "x64",
@@ -79,8 +83,10 @@ export type SignerName = (typeof SIGNERS)[number];
 export interface Platform {
     /** The release target. */
     readonly target: Target;
-    /** The GitHub runner building, signing and verifying the target. */
+    /** The GitHub runner building and signing the target. */
     readonly runner: string;
+    /** The GitHub runner of the target's own architecture, which installs and runs its release. */
+    readonly verifier: string;
     /** The Bun runtime compiled into the target's executables. */
     readonly runtime: Bun.Build.CompileTarget;
     /** The operating system, as Node's `process.platform` gives it. */

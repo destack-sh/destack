@@ -29,17 +29,20 @@ export async function prepareRelease(environment: Environment<HostCapability>): 
     const isPublishingBuild = isPublishing && isBuilding;
     const isRenewing = published !== undefined && !isBuilding;
 
+    // sign every platform with a signer on one runner, as one job notarizes them together
+    const signed = PLATFORMS.filter(({ signer }) => signer !== undefined);
+
     // expose identical public build choices to every job
     const outputs = {
         version: release.version,
         build: String(isBuilding),
         publish: String(isPublishingBuild),
         targets: JSON.stringify(PLATFORMS.map(({ target, runner }) => ({ target, runner }))),
-        signed: JSON.stringify(
-            PLATFORMS.flatMap(({ target, runner, signer }) =>
-                signer === undefined ? [] : [{ target, runner, signer }],
-            ),
+        verified: JSON.stringify(
+            PLATFORMS.map(({ target, verifier }) => ({ target, runner: verifier })),
         ),
+        signed: signed.map(({ target }) => target).join(" "),
+        signer: signed[0]?.runner ?? "",
         unsigned: globTargets(
             PLATFORMS.filter(({ signer }) => signer === undefined).map(({ target }) => target),
         ),
