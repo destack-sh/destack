@@ -1,3 +1,5 @@
+import { testHost } from "@destack/test/host";
+import { Terminal } from "../output/index.ts";
 import { SpaceAddress } from "@destack/account/address";
 import type { Login } from "@destack/account/native";
 import { Device, type MachineCredential } from "@destack/machine/device";
@@ -124,6 +126,15 @@ export class TerminalFixture {
         const { owner } = this.computer.world;
 
         return this.computer.space(this.login.id, owner.account, name);
+    }
+
+    /** Open a terminal without colour over a process, a person's or a program's. */
+    static terminal(isTerminal: boolean): Terminal {
+        const running = TerminalFixture.process({ NO_COLOR: "1" }, testHost().scheduler, {
+            isTerminal,
+        });
+
+        return new Terminal(running, "UTC");
     }
 
     /** Make a terminal's process with only some environment variables, writing into its chunks. */

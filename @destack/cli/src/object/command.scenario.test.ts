@@ -128,9 +128,11 @@ test("list a type's objects by its plural, restricted by field flags, a filter, 
     // expect the matching cards in order, each as stored
     expect([table.output, rows.output, json.output]).toEqual([
         [
-            "ID                                         TITLE",
-            `${plans}  Plans`,
-            `${ideas}  Ideas`,
+            "  ID                                         TITLE",
+            `  ${plans}  Plans`,
+            `  ${ideas}  Ideas`,
+            "",
+            "  2 cards",
             "",
         ].join("\n"),
         `${ideas}\tIdeas\n${plans}\tPlans\n`,
@@ -167,12 +169,12 @@ test("offer every object type an installation lists as a noun, and refuse a word
             [
                 2,
                 "",
-                "destack: noun 'cards' is invalid: it is ambiguous, so use one of 'archive:cards, work:cards'",
+                "error  noun 'cards' is invalid: it is ambiguous, so use one of 'archive:cards, work:cards'",
             ],
             [
                 2,
                 "",
-                "destack: noun 'card' is invalid: it is ambiguous, so use one of 'archive:card, work:card'",
+                "error  noun 'card' is invalid: it is ambiguous, so use one of 'archive:card, work:card'",
             ],
             [0, "[]", ""],
         ],
@@ -191,10 +193,10 @@ test("refuse a list's zero limit and a dash value without an equals sign", async
         await refused(["cards", "--limit", "0"]),
         await refused(["cards", "--sort", "-title"]),
     ]).toEqual([
-        [2, "destack: --'limit' is invalid: it takes a positive whole number"],
+        [2, "error  --'limit' is invalid: it takes a positive whole number"],
         [
             2,
-            "destack: option '--sort' is invalid: it takes a value, so write '--sort'=<value> when the value starts with a dash",
+            "error  option '--sort' is invalid: it takes a value, so write '--sort'=<value> when the value starts with a dash",
         ],
     ]);
 });
@@ -228,11 +230,27 @@ test("print help for a command line without words as destack help does, and a no
     const root = await line(terminal, []);
     expect({
         root,
+        journeys: root.output.split("\n").slice(0, 12),
         card: (await line(terminal, ["card", "--help"])).output,
         create: (await line(terminal, ["card", "create", "--help"])).output,
         new: (await line(terminal, ["card", "new", "--help"])).output,
     }).toEqual({
         root: await line(terminal, ["help"]),
+        // list the verbs by journey, a line each, then the stores' nouns wrapped under one word
+        journeys: [
+            "Destack 9999.12.0: destack <nouns> to list, destack <noun> <id> [method] to get and call",
+            "",
+            "Usage: destack <command>",
+            "",
+            "  you       login  logout  whoami  self  completion",
+            "  spaces    switch",
+            "  apps      install  uninstall  open  apply  plan  approve  reject",
+            "  share     share  invited  accept",
+            "  build     new  dev  build  publish  tag",
+            "  settings  setting  settings",
+            "  objects   computers  machine:visits  sign-ins  windows  distributions",
+            "            checkouts  previews  users  account:sessions  user-logins  passkeys",
+        ],
         card: `Get, create and change cards (work)
 
 Usage: destack card <command>

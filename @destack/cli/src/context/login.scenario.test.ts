@@ -41,13 +41,13 @@ test("sign a person in with a mailed code, and switch to their home when no spac
     expect({ first, second, stored: stored.map((row) => [row.id, row.subjectId]) }).toEqual({
         first: {
             code: 0,
-            output: `Signed in as ${terminal.login.name}.\nSwitched to ${terminal.address("home")}.\n`,
-            error: `Sent a code to ${OWNER_EMAIL}.\n`,
+            output: `Signed in  as '${terminal.login.name}'\nSwitched  to space '${terminal.address("home")}'\n`,
+            error: `Sent  a code to '${OWNER_EMAIL}'\n`,
         },
         second: {
             code: 0,
             output: `${JSON.stringify({ login: stored[0], space: null })}\n`,
-            error: `Sent a code to ${OWNER_EMAIL}.\n`,
+            error: `Sent  a code to '${OWNER_EMAIL}'\n`,
         },
         stored: [[terminal.login.id, terminal.login.subjectId]],
     });
@@ -73,7 +73,7 @@ test("act as a person signing in beside another, in their home instead of the ot
         login: await native.setting(currentLogin),
         space: await native.setting(currentSpace),
     }).toEqual({
-        output: `Signed in as ${terminal.login.name}.\nSwitched to ${terminal.address("home")}.\n`,
+        output: `Signed in  as '${terminal.login.name}'\nSwitched  to space '${terminal.address("home")}'\n`,
         login: terminal.login.id,
         space: terminal.computer.world.owner.home,
     });
@@ -92,8 +92,8 @@ test("refuse a sign-in the universe refused, with its reason", async () => {
         code: 1,
         output: "",
         error: [
-            `Sent a code to ${OWNER_EMAIL}.`,
-            "destack: the token endpoint refused the request: invalid_grant: code is invalid: it is wrong or expired",
+            `Sent  a code to '${OWNER_EMAIL}'`,
+            "error  the token endpoint refused the request: invalid_grant: code is invalid: it is wrong or expired",
             "",
         ].join("\n"),
     });
@@ -135,7 +135,7 @@ test("sign in again after signing out the person the login setting picked", asyn
         isNewLogin: again !== undefined && again.id !== terminal.login.id,
     }).toEqual({
         signedOut: [0, ""],
-        signedIn: [0, `Sent a code to ${OWNER_EMAIL}.\n`],
+        signedIn: [0, `Sent  a code to '${OWNER_EMAIL}'\n`],
         login: again?.id,
         isNewLogin: true,
     });
@@ -170,8 +170,8 @@ test("sign a new person up with a handle and a residency, then show who they are
     }).toEqual({
         signedUp: {
             code: 0,
-            output: "Signed in as Ada.\nSwitched to home--ada.\n",
-            error: `Sent a code to ${email}.\n`,
+            output: "Signed in  as 'Ada'\nSwitched  to space 'home--ada'\n",
+            error: `Sent  a code to '${email}'\n`,
         },
         whoami: [0, "", "Ada", "authenticated", "home--ada"],
         spaces: [0, "", ["home"]],

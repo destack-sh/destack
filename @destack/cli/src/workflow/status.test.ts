@@ -1,7 +1,7 @@
 import { testSimulation } from "@destack/object/test";
 import { expect, test } from "@destack/test";
 import { schema } from "@destack/schema";
-import { plain } from "../output/index.ts";
+import { TerminalFixture } from "../test/terminal.ts";
 import { Plan } from "@destack/resource";
 import { InstallationStatus } from "./status.ts";
 
@@ -43,7 +43,11 @@ test("render a plan's steps with field diffs, then its totals, risk, digest and 
     };
 
     expect(
-        InstallationStatus.renderPlan(plan, await Plan.digest(plan, crypto), plain).join("\n"),
+        InstallationStatus.renderPlan(
+            plan,
+            await Plan.digest(plan, crypto),
+            TerminalFixture.terminal(true),
+        ).join("\n"),
     ).toBe(
         [
             "  + resource/main                    safe                  declare",
@@ -51,17 +55,17 @@ test("render a plan's steps with field diffs, then its totals, risk, digest and 
             '      retention: "delete" → "forever"',
             "  ± resource/main/table/notes__note  destructive           rebuild table: drop body",
             "  - network-policy/open              destructive           retire",
-            `1 to create, 1 to update, 1 to delete, 1 to replace, destructive, plan ${await Plan.digest(plan, crypto)}`,
-            "Deferred: binding main waits for resource main",
+            `  1 to create, 1 to update, 1 to delete, 1 to replace, destructive, plan ${await Plan.digest(plan, crypto)}`,
+            "  deferred  binding main waits for resource main",
         ].join("\n"),
     );
     expect(
         InstallationStatus.renderPlan(
             { steps: [] },
             await Plan.digest({ steps: [] }, crypto),
-            plain,
+            TerminalFixture.terminal(true),
         ),
-    ).toEqual(["No changes."]);
+    ).toEqual(["  no changes"]);
 });
 
 /** Describe a stack condition observed at the first generation. */
@@ -111,22 +115,20 @@ test("render a stack's readiness with aligned resources and the plan it waits on
             rollout: stack,
             resources,
             waiting: { plan: waiting, digest, approval: APPROVAL },
-        }).render(plain),
+        }).render(TerminalFixture.terminal(true)),
     ).toBe(
         [
-            "stack  WaitingForResources",
+            "   Waiting  installation 'stack' WaitingForResources",
             "  follows   release 2026.10.0",
-            "  revision  none applied",
+            "  revision  -",
             "",
-            "resources",
-            "  main         Applied",
-            "  credentials  Pending",
-            "  notes        AwaitingApproval",
+            "  ● main         Applied",
+            "  ◐ credentials  Pending",
+            "  ◐ notes        AwaitingApproval",
             "",
-            "waiting for approval",
             "  - resource/notes/table/notes__draft  destructive           drop table",
-            `1 to delete, destructive, plan ${digest}`,
-            `approve with: destack approve --plan ${digest}`,
+            `  1 to delete, destructive, plan ${digest}`,
+            `      next  destack approve --plan ${digest}`,
         ].join("\n"),
     );
 });
@@ -172,18 +174,20 @@ test("render an application waiting to be granted more access, approved by its n
     });
 
     // wait on the approval, and show the grant with the command approving it by the installation's name
-    expect({ progress: status.progress, rendered: status.render(plain) }).toEqual({
+    expect({
+        progress: status.progress,
+        rendered: status.render(TerminalFixture.terminal(true)),
+    }).toEqual({
         progress: "approval",
         rendered: [
-            "notes  AwaitingApproval",
+            "   Waiting  installation 'notes' AwaitingApproval",
             "  follows   tag latest",
             `  revision  ${revisionId}`,
-            `  approve plan ${digest} with 1 steps`,
+            `       why  approve plan ${digest} with 1 steps`,
             "",
-            "waiting for approval",
             "  ! installation/notes/access/space/package-01996ab0-0000-7000-8000-000000000005/space/read  privileged            request read on space",
-            `1 to grant, privileged, plan ${digest}`,
-            `approve with: destack approve notes --plan ${digest}`,
+            `  1 to grant, privileged, plan ${digest}`,
+            `      next  destack approve notes --plan ${digest}`,
         ].join("\n"),
     });
 });

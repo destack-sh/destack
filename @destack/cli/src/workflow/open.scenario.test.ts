@@ -98,7 +98,7 @@ test("open a view's page in the browser on its installation's origin", async () 
         opened: terminal.opened().length,
         page: [launched.hostname, launched.pathname, launched.search],
     }).toEqual({
-        printed: { code: 0, output: `${JSON.stringify({ url })}\n`, error: `Opening ${url}\n` },
+        printed: { code: 0, output: `${JSON.stringify({ url })}\n`, error: `Opening  ${url}\n` },
         opened: 1,
         page: [`start--${terminal.address("work")}.localhost`, "/start", ""],
     });

@@ -181,7 +181,7 @@ test("refuse a preview whose setting takes fewer values without a conversion, wi
         captured: [...new Set(captured)],
     }).toEqual({
         first: [0, ""],
-        second: [1, "", `destack: preview of '${directory}' is broken: ${problem}\n`],
+        second: [1, "", `error  preview of '${directory}' is broken: ${problem}\n`],
         captured: [problem],
     });
 });

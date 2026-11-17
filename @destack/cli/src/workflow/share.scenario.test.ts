@@ -44,7 +44,7 @@ test("share a space with a person by email, who accepts it and then switches to 
         shared: [0, ""],
         pending: [invitation.id],
         accepted: [0, ""],
-        none: "No invitations.\n",
-        switched: [1, `Switched to ${terminal.address("desk")}.\n`],
+        none: "\n",
+        switched: [1, `Switched  to space '${terminal.address("desk")}'\n`],
     });
 });

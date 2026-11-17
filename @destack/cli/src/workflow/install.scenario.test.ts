@@ -133,7 +133,7 @@ test("keep a package's one installation on a second install, and refuse another 
         installed: [0, 0, identify(first)],
         renamed: [
             1,
-            "destack: installation 'notebooks' already exists: it is the package's one installation in the space, so leave --name out\n",
+            "error  installation 'notebooks' already exists: it is the package's one installation in the space, so leave --name out\n",
         ],
     });
 });
@@ -166,14 +166,14 @@ test("uninstall a package's installation once confirmed, and refuse one the spac
     }).toEqual({
         deleting: [
             1,
-            "destack: cannot run 'delete' on 'notebooks': it cannot be undone, so confirm it with --yes\n",
+            "error  cannot run 'delete' on 'notebooks': it cannot be undone, so confirm it with --yes\n",
         ],
         unconfirmed: [
             1,
-            "destack: cannot uninstall 'notebooks': it deletes the installation's resources, so confirm it with --yes\n",
+            "error  cannot uninstall 'notebooks': it deletes the installation's resources, so confirm it with --yes\n",
         ],
-        uninstalling: [0, "Uninstalled notebooks.\n", ""],
+        uninstalling: [0, "Uninstalled  installation 'notebooks'\n", ""],
         removed: ["notebooks"],
-        again: [1, `destack: installation 'notebooks' of '${home}' not found\n`],
+        again: [1, `error  installation 'notebooks' of '${home}' not found\n`],
     });
 });

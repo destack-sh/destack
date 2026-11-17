@@ -29,7 +29,7 @@ test("print the version, and refuse invalid usage as text or JSON", async () => 
             arguments: ["whoami", "--version"],
             code: 2,
             output: [],
-            error: ["destack: usage is invalid: use --version without a command"],
+            error: ["error  usage is invalid: use --version without a command"],
         },
         {
             arguments: ["self", "update", "--check", "--stage", "--json"],
@@ -65,14 +65,14 @@ test("print the version, and refuse invalid usage as text or JSON", async () => 
             arguments: ["switch"],
             code: 2,
             output: [],
-            error: ["destack: usage is invalid: use 'destack switch <space>'"],
+            error: ["error  usage is invalid: use 'destack switch <space>'"],
         },
         {
             arguments: ["completion", "powershell"],
             code: 2,
             output: [],
             error: [
-                "destack: shell 'powershell' is invalid: it has no completion, so use bash, zsh or fish",
+                "error  shell 'powershell' is invalid: it has no completion, so use bash, zsh or fish",
             ],
         },
         {
@@ -94,7 +94,7 @@ test("print the version, and refuse invalid usage as text or JSON", async () => 
             arguments: ["open"],
             code: 2,
             output: [],
-            error: ["destack: usage is invalid: use 'destack open <link|id>'"],
+            error: ["error  usage is invalid: use 'destack open <link|id>'"],
         },
     ];
 
@@ -181,7 +181,7 @@ test("report each cause of a failure below its message, outermost first", async 
 
     // expect the message, then each cause on its own line, and the same chain in JSON
     expect(written).toEqual([
-        "destack: activation did not finish\n  caused by: cannot replace the application\n  caused by: the volume is read-only\n",
+        "error  activation did not finish\ncause  cannot replace the application\ncause  the volume is read-only\n",
         `${JSON.stringify({
             error: {
                 code: "INTERNAL_SERVER_ERROR",
@@ -205,6 +205,6 @@ test("exit an interrupted command as an interrupted program, printing nothing", 
     const written = running.stderr.chunks.map((chunk) => new TextDecoder().decode(chunk));
     expect({ codes, written }).toEqual({
         codes: [130, 2],
-        written: ["destack: answer is invalid: it must be yes\n"],
+        written: ["error  answer is invalid: it must be yes\n"],
     });
 });

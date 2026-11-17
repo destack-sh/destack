@@ -135,7 +135,7 @@ test("follow a published release's tag, then pin the installation to the release
         builds,
     }).toEqual({
         organized: [0, ""],
-        tagged: [0, `Tagged ${PACKAGE.name}@${version} stable.\n`, ""],
+        tagged: [0, `Tagged  release '${PACKAGE.name}@${version}' stable\n`, ""],
         version: NEXT_RELEASE,
         installations: [
             { name: "notebooks", followsType: "tag", ready },

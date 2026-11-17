@@ -64,15 +64,15 @@ test("switch to a space as this computer's space setting, which --space override
     }).toEqual({
         lines: [
             { code: 0, output: whoami(terminal, null), error: "" },
-            { code: 0, output: `Switched to ${deskAddress}.`, error: "" },
+            { code: 0, output: `Switched  to space '${deskAddress}'`, error: "" },
             {
                 code: 0,
                 output: [
-                    `Name     ${login.name}`,
-                    `User     ${login.subjectId}`,
-                    `Issuer   ${login.issuer}`,
-                    "Session  authenticated",
-                    `Space    ${deskAddress}`,
+                    `name     ${login.name}`,
+                    `user     ${login.subjectId}`,
+                    `issuer   ${login.issuer}`,
+                    "session  authenticated",
+                    `space    ${deskAddress}`,
                 ].join("\n"),
                 error: "",
             },
@@ -88,10 +88,10 @@ test("switch to a space as this computer's space setting, which --space override
                     },
                 }),
             },
-            { code: 1, output: "", error: "destack: space 'notes' of yours not found" },
+            { code: 1, output: "", error: "error  space 'notes' of yours not found" },
             { code: 0, output: whoami(terminal, deskAddress), error: "" },
             { code: 0, output: whoami(terminal, homeAddress), error: "" },
-            { code: 2, output: "", error: "destack: --space is invalid: it takes a value" },
+            { code: 2, output: "", error: "error  --space is invalid: it takes a value" },
         ],
         listed: [0, "", ["inbox", "message", "observability", "social", "stack", "vault"]],
         setting: desk,
@@ -117,7 +117,7 @@ test("refuse whoami and universe nouns while nobody is signed in", async () => {
         spaces: {
             code: 2,
             output: "",
-            error: "destack: unknown command destack spaces: sign in with destack login for the universe's and spaces' commands\n",
+            error: "error  unknown command destack spaces: sign in with destack login for the universe's and spaces' commands\n",
         },
     });
 });
@@ -169,7 +169,7 @@ test("create a space on this computer's machine, switch to it, and list the inst
         created: [0, ""],
         switched: {
             code: 0,
-            output: `Switched to ${terminal.address("projects")}.\n`,
+            output: `Switched  to space '${terminal.address("projects")}'\n`,
             error: "",
         },
         installations: ["inbox", "message", "observability", "social", "stack", "vault"],
@@ -214,7 +214,7 @@ test("delete a space once the person takes the step-up its delete asks, in the b
             1,
             `{"error":{"code":"PRECONDITION_FAILED","message":"cannot run 'delete' on '${desk}': it cannot be undone, so confirm it with --yes","causes":[]}}\n`,
         ],
-        deleted: [0, "{}\n", `This needs you to confirm it is you.\nOpening ${page ?? ""}\n`],
+        deleted: [0, "{}\n", `Waiting  for you to confirm it is you\nOpening  ${page ?? ""}\n`],
         opened: 1,
         trashed: [desk, true],
     });
