@@ -136,7 +136,7 @@ test("ask a note's reviewers as one set, decided by a member and recorded with w
         refused: [
             "FORBIDDEN",
             "PERMISSION_DENIED",
-            "permission 'decide' is forbidden: the caller lacks it",
+            "permission 'decide' is forbidden: it is not granted",
         ],
         settled: ["applied", null],
         title: "Final",

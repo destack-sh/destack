@@ -100,7 +100,7 @@ test("find the denial a missing scope conceals, through a family failure, and no
     // conceal a refusal behind the scope's absence, and fail with a missing scope alone
     const denial = ObjectError.of(
         "PERMISSION_DENIED",
-        "permission 'read' is forbidden: the caller lacks it",
+        "permission 'read' is forbidden: it is not granted",
     );
     const concealed = ObjectError.of("SCOPE_NOT_FOUND", "scope space-1 not found", {
         cause: denial,
@@ -112,5 +112,5 @@ test("find the denial a missing scope conceals, through a family failure, and no
     expect([
         found === undefined ? undefined : [found.code, found.message],
         findDenial(missing),
-    ]).toEqual([["FORBIDDEN", "permission 'read' is forbidden: the caller lacks it"], undefined]);
+    ]).toEqual([["FORBIDDEN", "permission 'read' is forbidden: it is not granted"], undefined]);
 });

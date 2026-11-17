@@ -171,7 +171,7 @@ test("insert an object of the calling package's type from another method, as its
         refused: [
             "FORBIDDEN",
             "PERMISSION_DENIED",
-            "permission 'write' is forbidden: the caller lacks it",
+            "permission 'write' is forbidden: it is not granted",
         ],
     });
 });

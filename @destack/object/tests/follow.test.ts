@@ -1280,7 +1280,7 @@ test("replicate the chains of an installation's two served spaces in one replica
         refused: [
             "FORBIDDEN",
             "PERMISSION_DENIED",
-            "permission 'replicate' is forbidden: the caller lacks it",
+            "permission 'replicate' is forbidden: it is not granted",
         ],
         scopes: new Set([accountId, spaceId, otherSpaceId]),
         outside: [
@@ -1402,7 +1402,7 @@ test("refuse a chain follow with no via to a caller without replicate on the sco
         refused: [
             "FORBIDDEN",
             "PERMISSION_DENIED",
-            "permission 'replicate' is forbidden: the caller lacks it",
+            "permission 'replicate' is forbidden: it is not granted",
         ],
         claimed: ["NOT_FOUND", "SCOPE_NOT_FOUND", `'${spaceId}' in '${FOREIGN_ACCOUNT}' not found`],
         reached: ["NOT_FOUND", "SCOPE_NOT_FOUND", `'${spaceId}' in '${FOREIGN_ACCOUNT}' not found`],
@@ -1514,7 +1514,7 @@ test("replicate a partition's chain via its installation's space, whose source h
         refused: [
             "FORBIDDEN",
             "PERMISSION_DENIED",
-            "permission 'replicate' is forbidden: the caller lacks it",
+            "permission 'replicate' is forbidden: it is not granted",
         ],
         claimed: [
             "NOT_FOUND",
@@ -1659,7 +1659,7 @@ test("wait before serving for the store's chain replicas, never for its followed
             stream: async function* () {
                 yield* [];
                 throw CallError.http("FORBIDDEN", {
-                    message: "permission 'follow' is forbidden: the caller lacks it",
+                    message: "permission 'follow' is forbidden: it is not granted",
                 });
             },
         }),
@@ -2272,7 +2272,7 @@ test("require replicate via a scope for an in-process follower inside the scopes
         own: [
             "FORBIDDEN",
             "PERMISSION_DENIED",
-            "permission 'replicate' is forbidden: the caller lacks it",
+            "permission 'replicate' is forbidden: it is not granted",
         ],
     });
 });

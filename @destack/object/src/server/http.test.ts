@@ -147,7 +147,7 @@ test.for([
             authorizeMachine: async () => {
                 if (isRevoked) {
                     throw CallError.http("FORBIDDEN", {
-                        message: "permission 'watch' is forbidden: the caller lacks it",
+                        message: "permission 'watch' is forbidden: it is not granted",
                     });
                 }
             },

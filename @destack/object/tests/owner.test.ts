@@ -237,7 +237,7 @@ test("let the roles of an owner create objects of that owner and run scoped meth
         "done",
         "done",
         ["NOT_FOUND", "NOT_FOUND", "asset not found"],
-        ["FORBIDDEN", "PERMISSION_DENIED", "permission 'manage' is forbidden: the caller lacks it"],
+        ["FORBIDDEN", "PERMISSION_DENIED", "permission 'manage' is forbidden: it is not granted"],
     ]);
 });
 

@@ -228,12 +228,12 @@ test("list, get and fold the events a visitor may read, refusing a fold without 
         unfiltered: [
             "FORBIDDEN",
             "PERMISSION_DENIED",
-            "permission 'read' is forbidden: the caller lacks it",
+            "permission 'read' is forbidden: it is not granted",
         ],
         foreign: [
             "FORBIDDEN",
             "PERMISSION_DENIED",
-            "permission 'read' is forbidden: the caller lacks it",
+            "permission 'read' is forbidden: it is not granted",
         ],
     });
 });

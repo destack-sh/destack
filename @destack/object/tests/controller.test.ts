@@ -109,7 +109,7 @@ const gate = defineObject(
                             code: "FORBIDDEN",
                             reason: "PERMISSION_DENIED",
                             domain: "@destack/access",
-                            message: "permission 'bind' is forbidden: the caller lacks it",
+                            message: "permission 'bind' is forbidden: it is not granted",
                         });
                     } else if (row.outcome === "unavailable") {
                         throw Failure.error(
@@ -154,7 +154,7 @@ const latch = defineObject(
                         code: "FORBIDDEN",
                         reason: "PERMISSION_DENIED",
                         domain: "@destack/access",
-                        message: "permission 'bind' is forbidden: the caller lacks it",
+                        message: "permission 'bind' is forbidden: it is not granted",
                     });
                 }
             },
@@ -211,7 +211,7 @@ const lever = defineObject(
                         code: "FORBIDDEN",
                         reason: "PERMISSION_DENIED",
                         domain: "@destack/access",
-                        message: "permission 'bind' is forbidden: the caller lacks it",
+                        message: "permission 'bind' is forbidden: it is not granted",
                     });
                 }
             },
@@ -424,7 +424,7 @@ test("run a controller's calls as the space, audited with the controller's name,
         await send(users.grace),
     ]).toEqual([
         [[{ subject: spacePrincipal(spaceId) }, "reminder"]],
-        ["FORBIDDEN", "PERMISSION_DENIED", "permission 'send' is forbidden: the caller lacks it"],
+        ["FORBIDDEN", "PERMISSION_DENIED", "permission 'send' is forbidden: it is not granted"],
         ["NOT_FOUND", "NOT_FOUND", `reminder '${due.id}' not found`],
     ]);
 });
@@ -499,7 +499,7 @@ test("record a lasting reconcile failure on a controlled object as its synced co
                         observedGeneration: 1,
                         reason: "ReconcileError",
                         message:
-                            "@destack/access PERMISSION_DENIED: permission 'bind' is forbidden: the caller lacks it",
+                            "@destack/access PERMISSION_DENIED: permission 'bind' is forbidden: it is not granted",
                         lastTransitionAt: at,
                     },
                 },
@@ -673,7 +673,7 @@ test("record a lasting projection failure on a controlled object as its synced c
                     observedGeneration: 1,
                     reason: "ReconcileError",
                     message:
-                        "@destack/access PERMISSION_DENIED: permission 'bind' is forbidden: the caller lacks it",
+                        "@destack/access PERMISSION_DENIED: permission 'bind' is forbidden: it is not granted",
                     lastTransitionAt: at,
                 },
             },
@@ -761,7 +761,7 @@ test("record a projection's lasting failure and its sync on the controlled objec
                     observedGeneration: 1,
                     reason: "ReconcileError",
                     message:
-                        "@destack/access PERMISSION_DENIED: permission 'bind' is forbidden: the caller lacks it",
+                        "@destack/access PERMISSION_DENIED: permission 'bind' is forbidden: it is not granted",
                     lastTransitionAt: at,
                 },
             },

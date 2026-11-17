@@ -460,7 +460,7 @@ test.each(["direct", "forwarded"])("host personal notes through %s requests", as
     expect(await refusal(client.read({ id: "two" }))).toEqual([
         "FORBIDDEN",
         "PERMISSION_DENIED",
-        "permission 'read' is forbidden: the caller lacks it",
+        "permission 'read' is forbidden: it is not granted",
     ]);
 
     // grant a collaborator one object
@@ -468,7 +468,7 @@ test.each(["direct", "forwarded"])("host personal notes through %s requests", as
     expect(await refusal(client.read({ id: "one" }))).toEqual([
         "FORBIDDEN",
         "PERMISSION_DENIED",
-        "permission 'read' is forbidden: the caller lacks it",
+        "permission 'read' is forbidden: it is not granted",
     ]);
     const byOwner = <Value>(call: (authorization: Authorization) => Promise<Value>) =>
         Authorization.run(authorizer, database, () => asOwner, world, call);
@@ -486,13 +486,13 @@ test.each(["direct", "forwarded"])("host personal notes through %s requests", as
     expect(await refusal(client.read({ id: "two" }))).toEqual([
         "FORBIDDEN",
         "PERMISSION_DENIED",
-        "permission 'read' is forbidden: the caller lacks it",
+        "permission 'read' is forbidden: it is not granted",
     ]);
     await byOwner((authorization) => Relationship.revoke(shared.object, shared.id, authorization));
     expect(await refusal(client.read({ id: "one" }))).toEqual([
         "FORBIDDEN",
         "PERMISSION_DENIED",
-        "permission 'read' is forbidden: the caller lacks it",
+        "permission 'read' is forbidden: it is not granted",
     ]);
 
     // allow public notes and reject invalid credentials
@@ -527,7 +527,7 @@ test.each(["direct", "forwarded"])("host personal notes through %s requests", as
     expect(await refusal(stream.next())).toEqual([
         "FORBIDDEN",
         "PERMISSION_DENIED",
-        "permission 'read' is forbidden: the caller lacks it",
+        "permission 'read' is forbidden: it is not granted",
     ]);
     expect(invocations).toBe(5);
     expect(outcomes).toEqual([

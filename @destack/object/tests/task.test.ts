@@ -91,7 +91,7 @@ test("plan a project with its members, assignees, guarded budgets and comments",
     ).toEqual([
         "FORBIDDEN",
         "PERMISSION_DENIED",
-        "permission 'plan' is forbidden: the caller lacks it",
+        "permission 'plan' is forbidden: it is not granted",
     ]);
     expect(await refusal(bob.project.get({ spaceId, id: launch.id }))).toEqual([
         "NOT_FOUND",

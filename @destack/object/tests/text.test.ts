@@ -436,7 +436,7 @@ test("type in a new run after the store refuses an edit, so later typing lands",
         refused: [
             "FORBIDDEN",
             "PERMISSION_DENIED",
-            "permission 'edit' is forbidden: the caller lacks it",
+            "permission 'edit' is forbidden: it is not granted",
         ],
         text: "yes",
     });

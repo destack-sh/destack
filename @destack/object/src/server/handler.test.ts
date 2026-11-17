@@ -18,7 +18,7 @@ const authorize: NonNullable<
 > = async ({ request: state, access }) => {
     // conceal the denial from carol
     const denial = CallError.http("FORBIDDEN", {
-        message: "permission 'read' is forbidden: the caller lacks it",
+        message: "permission 'read' is forbidden: it is not granted",
     });
     const { permission } = access;
     const isNotesRead =
@@ -314,7 +314,7 @@ test("withhold streamed values after access revocation", async () => {
         authorize: async () => {
             if (!isAllowed) {
                 throw CallError.http("FORBIDDEN", {
-                    message: "permission 'read' is forbidden: the caller lacks it",
+                    message: "permission 'read' is forbidden: it is not granted",
                 });
             }
         },

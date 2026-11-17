@@ -125,7 +125,9 @@ export class TextSchema {
         if (type === undefined) {
             throw new RangeError(`text node ${node.type} is invalid: the field does not allow it`);
         } else if (!type.value.safeParse(node.value).success) {
-            throw new RangeError(`text node ${node.type} is invalid: its value is not valid`);
+            throw new RangeError(
+                `text node ${node.type} is invalid: its value does not match its schema`,
+            );
         }
     }
 
@@ -140,7 +142,9 @@ export class TextSchema {
                 `text mark ${mark.type} is invalid: overlapping marks are removed by identifier`,
             );
         } else if (mark.value !== null && !type.value.safeParse(mark.value).success) {
-            throw new RangeError(`text mark ${mark.type} is invalid: its value is not valid`);
+            throw new RangeError(
+                `text mark ${mark.type} is invalid: its value does not match its schema`,
+            );
         }
     }
 

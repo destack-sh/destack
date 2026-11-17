@@ -469,7 +469,7 @@ export const Method = {
         // refuse a result off the method's output
         if (!Method.isResult(declared, value)) {
             throw new TypeError(
-                `'${context.object.name}.${context.name}' returned an unexpected result`,
+                `'${context.object.name}.${context.name}' returned a result that does not match its output`,
             );
         }
 

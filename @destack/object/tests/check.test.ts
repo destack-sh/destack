@@ -183,7 +183,7 @@ test("list an object's relationships to whoever may read them, and revoke one on
         bob: [
             "FORBIDDEN",
             "PERMISSION_DENIED",
-            "permission 'share' is forbidden: the caller lacks it",
+            "permission 'share' is forbidden: it is not granted",
         ],
         alice: "done",
         after: [["owner", users.alice]],

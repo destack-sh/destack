@@ -135,7 +135,7 @@ test("purge a retained record through its handler under its permission or as the
     expect(await refusal(execute(handled, "purge", { id: created.id }))).toEqual([
         "FORBIDDEN",
         "PERMISSION_DENIED",
-        "permission 'purge' is forbidden: the caller lacks it",
+        "permission 'purge' is forbidden: it is not granted",
     ]);
 
     // refuse a record-retaining purge without a handler destroying the content

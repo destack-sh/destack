@@ -453,7 +453,7 @@ test("authorize a scoped method of attachments on the parent its input refers to
     const theirs = await refusal(call(counted, "count", host(article, draft.id)));
     expect([mine, theirs]).toEqual([
         { count: 1 },
-        ["FORBIDDEN", "PERMISSION_DENIED", "permission 'read' is forbidden: the caller lacks it"],
+        ["FORBIDDEN", "PERMISSION_DENIED", "permission 'read' is forbidden: it is not granted"],
     ]);
 });
 

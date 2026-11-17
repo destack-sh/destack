@@ -178,7 +178,7 @@ test("share page trees with members and links, and move pages within them", asyn
     ).toEqual([
         "FORBIDDEN",
         "PERMISSION_DENIED",
-        "permission 'manage' is forbidden: the caller lacks it",
+        "permission 'manage' is forbidden: it is not granted",
     ]);
 
     // move a subtree out of the shared tree, and refuse moving a page into its subtree

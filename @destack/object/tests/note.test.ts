@@ -94,7 +94,7 @@ test("store notes private until shared, move them between notebooks and sync the
     ).toEqual([
         "FORBIDDEN",
         "PERMISSION_DENIED",
-        "permission 'manage' is forbidden: the caller lacks it",
+        "permission 'manage' is forbidden: it is not granted",
     ]);
 
     // move a note only as its manager into an editable notebook
@@ -119,7 +119,7 @@ test("store notes private until shared, move them between notebooks and sync the
     ).toEqual([
         "FORBIDDEN",
         "PERMISSION_DENIED",
-        "permission 'manage' is forbidden: the caller lacks it",
+        "permission 'manage' is forbidden: it is not granted",
     ]);
 
     // leave deleted notes restorable from the trash, and refuse changing them there
@@ -293,7 +293,7 @@ test("queue notes offline, write batches atomically, drop rejected predictions a
     expect(await refusal(intrusion.confirmed)).toEqual([
         "FORBIDDEN",
         "PERMISSION_DENIED",
-        "permission 'write' is forbidden: the caller lacks it",
+        "permission 'write' is forbidden: it is not granted",
     ]);
     expect(await bob.titles()).toEqual(["Luggage"]);
     expect(

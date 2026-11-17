@@ -328,7 +328,7 @@ test("share an object, accept invitations and narrow agents to their grants", as
     ).toEqual([
         "FORBIDDEN",
         "PERMISSION_DENIED",
-        "permission 'write' is forbidden: the caller lacks it",
+        "permission 'write' is forbidden: it is not granted",
     ]);
     act(users.frank);
     await execute("revoke", {
@@ -362,7 +362,7 @@ test("share an object, accept invitations and narrow agents to their grants", as
     ).toEqual([
         "FORBIDDEN",
         "PERMISSION_DENIED",
-        "permission 'write' is forbidden: the caller lacks it",
+        "permission 'write' is forbidden: it is not granted",
     ]);
     act(users.frank);
     expect(await invite("list", { where: { objectId: created.id } })).toEqual({
@@ -1290,7 +1290,7 @@ test("run a scoped mutation over its scope as a holder of the scope's permission
     );
     const left = await execute("list", { where: { archived: false } });
     expect([refused, archived, left.items]).toEqual([
-        ["FORBIDDEN", "PERMISSION_DENIED", "permission 'tidy' is forbidden: the caller lacks it"],
+        ["FORBIDDEN", "PERMISSION_DENIED", "permission 'tidy' is forbidden: it is not granted"],
         { archived: 1 },
         [],
     ]);
