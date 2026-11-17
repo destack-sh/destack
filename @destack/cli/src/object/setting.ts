@@ -8,7 +8,7 @@ import type { Terminal } from "../output/index.ts";
 
 import { listCommand } from "./command.ts";
 import { LIST_OPTIONS } from "./flag.ts";
-import type { DynamicObjectClient, ObjectClient } from "@destack/object/client";
+import type { ObjectClient, ProcedureRemote } from "@destack/object/client";
 import { Noun } from "./catalog.ts";
 import { Render } from "./render.ts";
 import { CliError } from "../error/index.ts";
@@ -223,7 +223,7 @@ async function resolve(context: Context, declared: Setting): Promise<SettingReso
         const stored = new SettingScope(scope === "user" ? "account" : "space");
         const noun = await stored.noun(context);
         const remote = await noun.client(context);
-        const resolved = await remote.call(setting.name, "resolve", {
+        const resolved = await remote.run(setting, "resolve", {
             ...declared.reference,
             selection: {
                 scope:
@@ -411,17 +411,17 @@ async function show(
 /** The values a store's settings noun stores at its scope, without overrides. */
 class StoreSettingValues implements SettingValues {
     /** The client of the store's settings. */
-    readonly #remote: DynamicObjectClient;
+    readonly #remote: ProcedureRemote;
 
     /** Read and write a store's settings through a client. */
-    constructor(remote: DynamicObjectClient) {
+    constructor(remote: ProcedureRemote) {
         this.#remote = remote;
     }
 
     /** Read the value of a setting at the scope, refusing two values of one setting. */
     async current(declared: Setting): Promise<Row | undefined> {
         // list the scope's rows
-        const rows = await this.#remote.list(setting.name, {
+        const rows = await this.#remote.list(setting, {
             where: {
                 ...declared.reference,
                 package: { isNull: true },
@@ -448,8 +448,8 @@ class StoreSettingValues implements SettingValues {
         const { edition } = declared;
         const written = { mode: "set", value, release: declared.package.version, edition };
         await (current === undefined
-            ? this.#remote.call(setting.name, "create", { ...declared.reference, ...written })
-            : this.#remote.call(setting.name, "update", {
+            ? this.#remote.run(setting, "create", { ...declared.reference, ...written })
+            : this.#remote.run(setting, "update", {
                   id: current.id,
                   revision: current.revision,
                   ...written,
@@ -458,7 +458,7 @@ class StoreSettingValues implements SettingValues {
 
     /** Remove the value, which leaves the default. */
     async reset(current: Row): Promise<void> {
-        await this.#remote.call(setting.name, "delete", {
+        await this.#remote.run(setting, "delete", {
             id: current.id,
             revision: current.revision,
         });

@@ -1,10 +1,13 @@
-import { Condition } from "@destack/db";
+import { Condition, TABLE } from "@destack/db";
 import { connectBunSqlite } from "@destack/db/bun";
-import type { DynamicObjectClient } from "@destack/object/client";
-import { type JsonObject, type JsonValue, schema } from "@destack/schema";
+import { ObjectClient, type ProcedureRemote } from "@destack/object/client";
+import type { ObjectQuery } from "@destack/object";
+import { principal } from "@destack/access";
+import { Scope } from "@destack/sync";
+import { type JsonObject, type JsonValue, present, schema } from "@destack/schema";
 import { type Verb, type Group, OptionValue, type Options } from "../command/command.ts";
 import { Interrupt } from "../command/error.ts";
-import type { CliEnvironment, Context } from "../context/context.ts";
+import type { Context } from "../context/context.ts";
 import type { Terminal } from "../output/index.ts";
 
 import { FlagSet, INPUT_OPTION, LIST_OPTIONS } from "./flag.ts";
@@ -113,20 +116,14 @@ export function listCommand(context: Context, noun: Noun): Verb {
             if (options["watch"] === true) {
                 const live = context.terminal.live(json);
                 using interrupted = new Interrupt(context.environment.process);
-                for await (const rows of watch(
-                    remote,
-                    noun.type.name,
-                    query,
-                    interrupted.signal,
-                    context.environment,
-                )) {
+                for await (const rows of watch(noun, remote, query, interrupted.signal, context)) {
                     await live.show(render(rows));
                 }
                 interrupted.require();
             }
             // print the rows once, nothing for a program when there are none
             else {
-                const rendered = render(await remote.list(noun.type.name, query));
+                const rendered = render(await remote.list(noun.type, query));
                 if (rendered !== "") {
                     await context.terminal.print(rendered);
                 }
@@ -178,9 +175,7 @@ function objectCommand(context: Context, noun: Noun): Group {
             name: "id",
             // offer the identifiers of the first page of objects
             complete: async () => {
-                const rows = await (
-                    await noun.client(context)
-                ).list(noun.type.name, { limit: ID_PAGE });
+                const rows = await (await noun.client(context)).list(noun.type, { limit: ID_PAGE });
 
                 return rows.map((row) => schema.string().parse(row["id"]));
             },
@@ -221,13 +216,7 @@ function getCommand(context: Context, noun: Noun, id: string): Verb {
                 const live = context.terminal.live(json);
                 const query = { where: { id: await noun.identify(id, context) } };
                 using interrupted = new Interrupt(context.environment.process);
-                for await (const rows of watch(
-                    remote,
-                    noun.type.name,
-                    query,
-                    interrupted.signal,
-                    context.environment,
-                )) {
+                for await (const rows of watch(noun, remote, query, interrupted.signal, context)) {
                     const [row] = rows;
                     await live.show(row === undefined ? `No ${noun.name} ${id}.` : show(row));
                 }
@@ -235,7 +224,7 @@ function getCommand(context: Context, noun: Noun, id: string): Verb {
             }
             // read it once through the noun's get method
             else {
-                const row = await remote.call(noun.type.name, noun.method("get"), { id });
+                const row = await remote.run(noun.type, noun.method("get"), { id });
                 await context.terminal.print(show(schema.jsonObject().parse(row)));
             }
         },
@@ -270,7 +259,7 @@ function methodCommand(context: Context, noun: Noun, method: string, id: string 
 
             // call the method and show its result
             const remote = await noun.client(context);
-            const result = await remote.call(noun.type.name, method, input);
+            const result = await remote.run(noun.type, method, input);
             await context.terminal.print(
                 json
                     ? JSON.stringify(result)
@@ -328,7 +317,7 @@ function declaredCommand(
             const remote = await noun.client(context);
             const target = id === undefined ? undefined : await noun.identify(id, context);
             if (target !== undefined) {
-                const [applies] = await remote.list(noun.type.name, {
+                const [applies] = await remote.list(noun.type, {
                     ...command.query([target]),
                     limit: 1,
                 });
@@ -350,8 +339,8 @@ function declaredCommand(
             const input = await methodInput(flags, call.options, context);
 
             // call the method and show its result
-            const result = await remote.call(
-                noun.type.name,
+            const result = await remote.run(
+                noun.type,
                 command.method,
                 command.input(target === undefined ? input : { ...input, id: target }),
             );
@@ -421,18 +410,53 @@ function renderResult(noun: Noun, method: string, result: JsonValue, terminal: T
     return terminal.event(word, "done", subject, id);
 }
 
-/** Follow a query's rows through an in-memory replica until the signal aborts. */
+/** Follow a query's rows for the person through an in-memory replica until the signal aborts. */
 async function* watch(
-    remote: DynamicObjectClient,
-    type: string,
-    query: Parameters<DynamicObjectClient["watch"]>[1],
+    noun: Noun,
+    remote: ProcedureRemote,
+    query: Pick<ObjectQuery, "where" | "orderBy" | "limit">,
     signal: AbortSignal,
-    environment: CliEnvironment,
+    context: Context,
 ): AsyncGenerator<readonly JsonObject[]> {
-    const database = await connectBunSqlite(":memory:", [], { environment: environment });
+    // replicate the type's rows in memory as the person signed in
+    const { environment } = await context.native();
+    const objects = ObjectClient.keyed([noun.type]);
+    const database = await connectBunSqlite(":memory:", ObjectClient.tables(objects), {
+        environment,
+    });
+    const { userId } = (await context.launcher()).user;
+    const client = await ObjectClient.open({
+        database,
+        objects,
+        scope: present(remote.scope, `the scope of ${noun.plural}`),
+        caller: principal.user.reference(Scope.universe.id, userId),
+        remote,
+        environment,
+    });
+
+    // follow the replica, ending the watch at its first refused follow
+    const stopping = new AbortController();
+    const stopped = AbortSignal.any([signal, stopping.signal]);
+    let failure: Error | undefined;
+    const stopRefusals = client.store.listenRefusals((error) => {
+        failure ??= error instanceof Error ? error : new Error(String(error));
+        stopping.abort();
+    });
+    const following = client.follow(stopped);
     try {
-        yield* remote.watch(type, query, database, signal);
+        // yield the rows as JSON once the replica has them, and after every change
+        const { table } = noun.type;
+        for await (const rows of client.queryType(noun.type).findMany(query).watch(stopped)) {
+            yield rows.map((row) => table[TABLE].encode(row));
+        }
+        if (failure !== undefined) {
+            throw failure;
+        }
     } finally {
+        stopRefusals();
+        stopping.abort();
+        await following;
+        await client.close();
         await database.close();
     }
 }

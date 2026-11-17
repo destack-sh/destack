@@ -15,9 +15,8 @@ import {
 } from "@destack/object";
 import {
     type ClientOptions,
-    DynamicObjectClient,
-    ObjectClient,
     ObjectStoreDescription,
+    ProcedureRemote,
 } from "@destack/object/client";
 import { PARTITION_HEADER } from "@destack/object/workload";
 import { nth, present, schema } from "@destack/schema";
@@ -153,15 +152,14 @@ export class Noun {
 
         // get the object by its key, which its get method resolves
         const remote = await this.client(context);
-        const row = await remote.call(this.type.name, this.method("get"), { id: key });
+        const row = await remote.run(this.type, this.method("get"), { id: key });
 
         return schema.looseObject({ id: schema.string() }).parse(row).id;
     }
 
     /** Open a client of the type's objects in the scope the terminal uses for them. */
-    async client(context: Context): Promise<DynamicObjectClient> {
-        return new DynamicObjectClient({
-            objects: [this.type],
+    async client(context: Context): Promise<ProcedureRemote> {
+        return ProcedureRemote.at({
             scope: await this.#locate(context),
             endpoint: await Noun.options(context, this.store, this.package),
             ...(await this.#homes(context)),
@@ -361,7 +359,7 @@ export class Catalog {
         );
 
         return await ObjectStoreDescription.read(
-            ObjectClient.store(options, client.environment),
+            ProcedureRemote.procedures(options, client.environment),
             known,
         );
     }
@@ -381,7 +379,7 @@ export class Catalog {
 
         // read the object's scope through its type's get method
         const remote = await noun.client(context);
-        const got = await remote.call(noun.type.name, noun.method("get"), { id });
+        const got = await remote.run(noun.type, noun.method("get"), { id });
         const row = schema.looseObject({ scope: schema.string() }).parse(got);
 
         return {
