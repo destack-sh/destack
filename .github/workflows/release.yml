@@ -435,8 +435,8 @@ jobs:
 
     deploy:
         name: Deploy production
-        needs: [prepare, publish]
-        # deploy what the release publishes, on the roots and keys the operator applied once
+        needs: [prepare, releases]
+        # deploy the built releases beside the desktop's signing, on the roots and keys the operator applied once
         if: needs.prepare.outputs.publish == 'true'
         runs-on: ubuntu-24.04
         timeout-minutes: 60
