@@ -77,16 +77,18 @@ test("convert inputs of earlier releases, dropping the fields this release no lo
         await call("2026.8.5", { text: "notes" }, 1),
         await call(served.version, { query: "tasks", limit: 5 }),
         await call("2026.10.0", { query: "tasks", limit: 5 }),
+        await call("2026.10.0", { query: "tasks", limit: 5 }, 3),
         await call("2026.7.0", { text: "notes" }),
         await call(undefined, { query: "tasks", limit: 5 }),
         await call("next", { query: "tasks", limit: 5 }),
     ]).toEqual([
         { query: "notes", limit: 50 },
         { query: "tasks", limit: 5 },
+        { query: "tasks", limit: 5 },
         [
-            "PRECONDITION_FAILED",
-            "VERSION_BLOCKED",
-            `cannot call package '@destack/fixture': it serves '${served.version}', but the caller uses '2026.10.0'`,
+            "BAD_REQUEST",
+            "VERSION_INVALID",
+            "Destack-Edition '3' is invalid: it must be an edition up to '2'",
         ],
         [
             "PRECONDITION_FAILED",
@@ -154,14 +156,10 @@ test("speak the release of the package defining a procedure, which the served pa
             : body;
     };
 
-    // answer the protocol's releases, an old one beside the fixture's retirement, and refuse a newer one
+    // answer the protocol's releases: its own, an old one beside the fixture's retirement, and a newer one
     expect([await call("2026.11.0"), await call("2026.7.0"), await call("2026.12.0")]).toEqual([
         { text: "hi" },
         { text: "hi" },
-        [
-            "PRECONDITION_FAILED",
-            "VERSION_BLOCKED",
-            "cannot call package '@destack/protocol': it serves '2026.11.0', but the caller uses '2026.12.0'",
-        ],
+        { text: "hi" },
     ]);
 });

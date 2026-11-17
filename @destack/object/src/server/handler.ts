@@ -186,12 +186,12 @@ export class RequestHandler<State extends RequestState> extends OpenAPIHandler<S
         return header === null ? "absent" : Version.safeParse(header).success ? header : "invalid";
     }
 
-    /** Require a request's release within those of the procedure's package the server serves. */
+    /** Require a request's release, refusing one the served package retired. */
     static #requireRelease(request: Request, defining: PackageVersion, served: Package): Version {
         // read the caller's release, and the oldest one a served package's procedures take
         const header = request.headers.get(VERSION_HEADER);
         const caller = header === null ? undefined : Version.safeParse(header).data;
-        const { name, version } = defining;
+        const { name } = defining;
         const since = defining.id === served.id ? served.since : undefined;
 
         // require a release
@@ -206,13 +206,6 @@ export class RequestHandler<State extends RequestState> extends OpenAPIHandler<S
             throw ObjectError.of(
                 "VERSION_INVALID",
                 `${VERSION_HEADER} '${header}' is invalid: it must be a version`,
-            );
-        }
-        // refuse a release newer than this one
-        else if (Version.compare(caller, version) > 0) {
-            throw ObjectError.of(
-                "VERSION_BLOCKED",
-                `cannot call package '${name}': it serves '${version}', but the caller uses '${caller}'`,
             );
         }
         // refuse a retired release
