@@ -7,7 +7,7 @@ import { PackagePath } from "@destack/package/file";
 import { TemplateInput } from "@destack/package/template";
 import { PackageError } from "@destack/package/error";
 import { type ESTree, parseSync, Visitor } from "rolldown/utils";
-import { schema, Text } from "@destack/schema";
+import { schema, Text, Version } from "@destack/schema";
 
 /** The range of a dependency on a package of the same workspace. */
 const WORKSPACE_RANGE = "workspace:";
@@ -118,6 +118,7 @@ export class Template {
         replaceDependencies(manifest, template.dependencies ?? [], parameters);
         if (parameters.versions !== undefined) {
             releaseDependencies(manifest, parameters.versions);
+            manifest.version = Version.release(manifest.version);
         }
         const imports = {
             ...parameters.dependencies,
