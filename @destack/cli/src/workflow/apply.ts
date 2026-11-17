@@ -133,7 +133,9 @@ function decideCommand(decision: "approve" | "reject", context: Context): Verb {
             });
             const done = decision === "approve" ? "Approved" : "Rejected";
             await context.terminal.print(
-                json ? JSON.stringify({ id, plan, decision }) : `${done} plan ${plan}.`,
+                json
+                    ? JSON.stringify({ id, plan, decision })
+                    : context.terminal.event(done, "done", `plan '${plan}'`),
             );
         },
     };

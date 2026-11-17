@@ -25,7 +25,9 @@ export function switchCommand(context: Context): Verb {
             // set it as this computer's space
             await client.set(currentSpace, resolved);
             await context.terminal.print(
-                json ? JSON.stringify({ space }) : `Switched to ${space}.`,
+                json
+                    ? JSON.stringify({ space })
+                    : context.terminal.event("Switched", "done", `to space '${space}'`),
             );
         },
     };

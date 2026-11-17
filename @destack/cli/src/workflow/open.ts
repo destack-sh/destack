@@ -44,9 +44,13 @@ export function openCommand(context: Context): Verb {
                 const launcher = await context.launcher();
                 const native = await context.native();
                 const { url } = await native.launch(launcher, address);
-                await context.terminal.printDiagnostic(`Opening ${url}`);
+                await context.terminal.printDiagnostic(
+                    context.terminal.event("Opening", "running", url),
+                );
                 await context.environment.opener.openUrl(url);
-                await context.terminal.print(json ? JSON.stringify({ url }) : `Opened ${url}.`);
+                await context.terminal.print(
+                    json ? JSON.stringify({ url }) : context.terminal.event("Opened", "done", url),
+                );
             }
             // open it as a window of the running desktop, else launch the desktop with it
             else {
@@ -59,7 +63,11 @@ export function openCommand(context: Context): Verb {
                 } else {
                     await desktop.launch(desktop.locate(), link);
                 }
-                await context.terminal.print(json ? JSON.stringify({ link }) : `Opened ${link}.`);
+                await context.terminal.print(
+                    json
+                        ? JSON.stringify({ link })
+                        : context.terminal.event("Opened", "done", link),
+                );
             }
         },
     };

@@ -10,6 +10,7 @@ import type { Environment } from "@destack/environment";
 import { Prompt } from "../output/index.ts";
 import type { Context } from "./context.ts";
 import { CliError } from "../error/index.ts";
+import type { Terminal } from "../output/index.ts";
 
 /** The environment variables a script answers sign-in with, by option. */
 const ENVIRONMENT = {
@@ -145,9 +146,12 @@ export function loginCommand(context: Context): Verb {
             // act as the person signed in, in their home unless they acted in a space before
             await client.set(currentLogin, login.id);
             const switched = await switchHome(client, login, acting);
+            const { terminal } = context;
             const lines = [
-                `Signed in as ${login.name}.`,
-                ...(switched === undefined ? [] : [`Switched to ${switched}.`]),
+                terminal.event("Signed in", "done", `as '${login.name}'`),
+                ...(switched === undefined
+                    ? []
+                    : [terminal.event("Switched", "done", `to space '${switched}'`)]),
             ];
             await context.terminal.print(
                 json ? JSON.stringify({ login, space: switched ?? null }) : lines.join("\n"),
@@ -166,7 +170,9 @@ export function logoutCommand(context: Context): Verb {
             const login = await context.signedIn();
             await (await context.native()).signOut(login);
             await context.terminal.print(
-                json ? JSON.stringify({ id: login.row.id }) : `Signed out ${login.row.name}.`,
+                json
+                    ? JSON.stringify({ id: login.row.id })
+                    : context.terminal.event("Signed out", "done", `'${login.row.name}'`),
             );
         },
     };
@@ -184,7 +190,7 @@ export function whoamiCommand(context: Context): Verb {
             const acting = await context.space();
             const space = acting === undefined ? null : await launcher.address(acting);
             await context.terminal.print(
-                json ? JSON.stringify({ ...row, space }) : render(row, space),
+                json ? JSON.stringify({ ...row, space }) : render(row, space, context.terminal),
             );
         },
     };
@@ -205,17 +211,19 @@ async function signPersonIn(
     return client.signIn(method, async (state, answer) => {
         // open the page in the browser
         if (state.kind === "open") {
-            await terminal.printDiagnostic(`Opening ${state.url}`);
+            await terminal.printDiagnostic(terminal.event("Opening", "running", state.url));
             await environment.opener.openUrl(state.url);
         }
         // show the code to enter at the page
         else if (state.kind === "enter") {
-            await terminal.printDiagnostic(`First copy your one-time code: ${state.userCode}`);
-            await terminal.printDiagnostic(`Then open ${state.url} to sign in.`);
+            await terminal.printDiagnostic(terminal.event("Code", "running", state.userCode));
+            await terminal.printDiagnostic(terminal.hint("next", `enter it at ${state.url}`));
         }
         // ask for the mailed code
         else if (state.kind === "waiting") {
-            await terminal.printDiagnostic(`Sent a code to ${state.email}.`);
+            await terminal.printDiagnostic(
+                terminal.event("Sent", "done", `a code to '${state.email}'`),
+            );
             await answer(await prompt.code());
         }
     });
@@ -265,12 +273,22 @@ async function switchHome(
 }
 
 /** Render a login with its issuer and state, and the space the terminal acts in. */
-function render(login: Login["row"], acted: string | null): string {
-    return [
-        `Name     ${login.name}`,
-        `User     ${login.subjectId}`,
-        `Issuer   ${login.issuer}`,
-        `Session  ${login.status}`,
-        `Space    ${acted ?? "none: destack switch <space>--<handle>"}`,
-    ].join("\n");
+function render(
+    login: Login["row"],
+    acted: string | null,
+    terminal: Pick<Terminal, "style" | "isTerminal">,
+): string {
+    // write each fact under its label, at the margin for a person
+    const margin = terminal.isTerminal ? "  " : "";
+    const facts = [
+        ["name", login.name],
+        ["user", login.subjectId],
+        ["issuer", login.issuer],
+        ["session", login.status],
+        ["space", acted ?? "-"],
+    ] as const;
+
+    return facts
+        .map(([label, value]) => `${margin}${terminal.style("dim", label.padEnd(7))}  ${value}`)
+        .join("\n");
 }

@@ -6,6 +6,10 @@ import { RequestId, Scope } from "@destack/sync";
 import { type Verb, OptionValue } from "../command/command.ts";
 import type { Context } from "../context/context.ts";
 import { CliError } from "../error/index.ts";
+import { Render } from "../object/render.ts";
+
+/** The columns the invitations to a person list under. */
+const INVITATION_COLUMNS = ["ROLE", "OBJECT", "ID"];
 
 /** The role a person gets unless another is asked for. */
 const DEFAULT_ROLE = "editor";
@@ -60,7 +64,15 @@ export function shareCommand(context: Context): Verb {
             await context.terminal.print(
                 json
                     ? JSON.stringify(invitation)
-                    : `Invited ${named} as ${role.data}. They accept with: destack accept ${invitation.id}`,
+                    : [
+                          context.terminal.event(
+                              "Invited",
+                              "done",
+                              `'${named}'`,
+                              `as ${role.data}`,
+                          ),
+                          context.terminal.hint("next", `destack accept ${invitation.id}`),
+                      ].join("\n"),
             );
         },
     };
@@ -76,15 +88,17 @@ export function invitedCommand(context: Context): Verb {
             const { session, user } = await context.launcher();
             const { items } = await session.accounts().user.invited({ id: user.userId });
 
-            // print each with its role and what it shares
-            const lines = items.map(({ id, relationship }) => {
+            // list each with its role and what it shares, its identifier last
+            const cells = items.map(({ id, relationship }) => {
                 const role = "relation" in relationship ? relationship.relation : relationship.role;
 
-                return `${id}  ${role}  ${relationship.object.type} ${relationship.object.id}`;
+                return [role, `${relationship.object.type} ${relationship.object.id}`, id];
             });
-            await context.terminal.print(
-                json ? JSON.stringify(items) : lines.join("\n") || "No invitations.",
-            );
+            const { terminal } = context;
+            const none = terminal.isTerminal ? `  ${terminal.style("dim", "no invitations")}` : "";
+            const listed =
+                cells.length === 0 ? none : Render.grid(INVITATION_COLUMNS, cells, terminal, 2);
+            await terminal.print(json ? JSON.stringify(items) : listed);
         },
     };
 }
@@ -118,7 +132,7 @@ export function acceptCommand(context: Context): Verb {
             await context.terminal.print(
                 json
                     ? JSON.stringify(found)
-                    : `Accepted. You now have ${object.type} ${object.id}.`,
+                    : context.terminal.event("Accepted", "done", `${object.type} '${object.id}'`),
             );
         },
     };

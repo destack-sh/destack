@@ -227,11 +227,13 @@ export class Context {
     async #elevate(stepUp: StepUp): Promise<Launcher> {
         // tell the person why the browser opens, then sign them in again there
         const { terminal, environment } = this;
-        await terminal.printDiagnostic("This needs you to confirm it is you.");
+        await terminal.printDiagnostic(
+            terminal.event("Waiting", "running", "for you to confirm it is you"),
+        );
         const native = await this.native();
         const elevated = await native.signIn({ kind: "browser", stepUp }, async (state) => {
             if (state.kind === "open") {
-                await terminal.printDiagnostic(`Opening ${state.url}`);
+                await terminal.printDiagnostic(terminal.event("Opening", "running", state.url));
                 await environment.opener.openUrl(state.url);
             }
         });

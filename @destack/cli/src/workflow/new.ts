@@ -50,12 +50,10 @@ export function newCommand(context: Context): Verb {
                 directory: target,
                 source: { kind: "template", template: found.id, release: template.release, name },
             });
+            const { terminal } = context;
             const lines = [
-                `Created ${name} in ${created.directory}.`,
-                "",
-                `  cd ${created.directory}`,
-                "  bun install",
-                "  destack dev",
+                terminal.event("Created", "done", `package '${name}'`, created.directory),
+                terminal.hint("next", `cd ${created.directory} && bun install && destack dev`),
             ];
             await context.terminal.print(
                 json

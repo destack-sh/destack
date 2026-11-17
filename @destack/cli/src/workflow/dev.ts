@@ -58,7 +58,11 @@ export function buildCommand(context: Context): Verb {
                 json,
                 options,
             );
-            await context.terminal.print(json ? JSON.stringify(built) : `Built ${built.lock}.`);
+            await context.terminal.print(
+                json
+                    ? JSON.stringify(built)
+                    : context.terminal.event("Built", "done", `build '${built.lock}'`),
+            );
         },
     };
 }
@@ -109,8 +113,12 @@ async function publish(
     });
 
     // print each release, its dependencies before it
-    const lines = published.releases.map(
-        (release) => `Published ${release.package.name}@${release.package.version}.`,
+    const lines = published.releases.map((release) =>
+        context.terminal.event(
+            "Published",
+            "done",
+            `release '${release.package.name}@${release.package.version}'`,
+        ),
     );
     await context.terminal.print(json ? JSON.stringify(published) : lines.join("\n"));
 }
@@ -290,10 +298,12 @@ async function previewCheckout(context: Context, directory: string, json: boolea
             );
         }
         const views = Object.keys(row.views);
-        const shown = views.length === 0 ? "" : ` Its views: ${views.join(", ")}.`;
-        await context.terminal.print(
-            json ? JSON.stringify(row) : `Previewing ${directory} (${row.id}).${shown}`,
-        );
+        const { terminal } = context;
+        const lines = [
+            terminal.event("Previewing", "running", `'${directory}'`, row.id),
+            ...(views.length === 0 ? [] : [terminal.hint("views", views.join(" · "))]),
+        ];
+        await terminal.print(json ? JSON.stringify(row) : lines.join("\n"));
 
         return;
     }

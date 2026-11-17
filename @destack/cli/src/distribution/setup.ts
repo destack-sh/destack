@@ -124,9 +124,11 @@ export class Setup {
 
         // report the installation, and the new terminal an archive's command needs
         const isArchive = native === undefined && application === undefined;
-        await setup.terminal.print("Destack installed.");
+        await setup.terminal.print(setup.terminal.event("Installed", "done", "Destack"));
         if (isArchive && !setup.home.isCustom) {
-            await setup.terminal.print("Open a new terminal to use the destack command.");
+            await setup.terminal.print(
+                setup.terminal.hint("next", "open a new terminal to use the destack command"),
+            );
         }
     }
 
@@ -190,7 +192,7 @@ export class Setup {
         await this.terminal.print(
             options.json
                 ? JSON.stringify({ version: staged.staged })
-                : `Updated Destack to ${staged.staged}.`,
+                : this.terminal.event("Updated", "done", `Destack to '${staged.staged}'`),
         );
     }
 
@@ -210,7 +212,9 @@ export class Setup {
         if (application !== undefined) {
             await this.#registerApplication(application);
         }
-        await this.terminal.print(`Updated Destack to ${installed.release.version}.`);
+        await this.terminal.print(
+            this.terminal.event("Updated", "done", `Destack to '${installed.release.version}'`),
+        );
     }
 
     /** Activate a staged release, stopping the programs and starting them again in it. */
@@ -304,7 +308,7 @@ export class Setup {
         if (isNative) {
             await distribution.requireNative(registration);
             if (registration === undefined) {
-                await this.terminal.print("Destack was not registered.");
+                await this.terminal.print(this.terminal.hint("none", "Destack was not registered"));
 
                 return;
             }
@@ -338,7 +342,10 @@ export class Setup {
             isNative,
         );
         await this.terminal.print(
-            `Destack uninstalled. User state retained at ${this.home.directory}.`,
+            [
+                this.terminal.event("Uninstalled", "done", "Destack"),
+                this.terminal.hint("kept", `user state at ${this.home.directory}`),
+            ].join("\n"),
         );
     }
 

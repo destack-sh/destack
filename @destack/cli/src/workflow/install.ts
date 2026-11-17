@@ -68,7 +68,12 @@ export function installCommand(context: Context): Verb {
             await context.terminal.print(
                 json
                     ? JSON.stringify({ id, name, package: packageName, version, tag: tagged })
-                    : `Installed ${packageName}@${version} as ${name}, ${followed}.`,
+                    : context.terminal.event(
+                          "Installed",
+                          "done",
+                          `installation '${name}'`,
+                          `${packageName}@${version}, ${followed}`,
+                      ),
             );
         },
     };
@@ -106,7 +111,7 @@ export function uninstallCommand(context: Context): Verb {
                 options["yes"] === true ||
                 (context.environment.process.stdin.isTerminal &&
                     (await context.terminal.prompt.confirm(
-                        `Uninstall ${name} and delete its resources?`,
+                        `Uninstall installation '${name}' and delete its resources?`,
                     )));
             if (!isConfirmed) {
                 throw CliError.of(
@@ -124,7 +129,9 @@ export function uninstallCommand(context: Context): Verb {
             });
             await followRemoval(installed.id, context);
             await context.terminal.print(
-                json ? JSON.stringify({ id: installed.id, name }) : `Uninstalled ${name}.`,
+                json
+                    ? JSON.stringify({ id: installed.id, name })
+                    : context.terminal.event("Uninstalled", "done", `installation '${name}'`),
             );
         },
     };

@@ -38,7 +38,14 @@ export function tagCommand(context: Context): Verb {
                 version,
             });
             await context.terminal.print(
-                json ? JSON.stringify(pointed) : `Tagged ${packageName}@${version} ${name}.`,
+                json
+                    ? JSON.stringify(pointed)
+                    : context.terminal.event(
+                          "Tagged",
+                          "done",
+                          `release '${packageName}@${version}'`,
+                          name,
+                      ),
             );
         },
     };

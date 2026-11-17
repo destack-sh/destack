@@ -24,7 +24,9 @@ export function selfCommand(context: Context): Group {
                         environment.process.runtime.isStandalone,
                     );
                     await context.terminal.print(
-                        json ? JSON.stringify({ started: true }) : "Started the machine.",
+                        json
+                            ? JSON.stringify({ started: true })
+                            : context.terminal.event("Started", "done", "the machine"),
                     );
                 },
             },
@@ -34,7 +36,9 @@ export function selfCommand(context: Context): Group {
                 async run({ json }) {
                     // stop the machine, reporting whether one ran
                     const stopped = await (await Setup.current(context.environment)).stop();
-                    const line = stopped ? "Stopped the machine." : "No machine was running.";
+                    const line = stopped
+                        ? context.terminal.event("Stopped", "done", "the machine")
+                        : context.terminal.hint("none", "no machine was running");
                     await context.terminal.print(json ? JSON.stringify({ stopped }) : line);
                 },
             },
