@@ -1,4 +1,4 @@
-import { schema } from "@destack/schema";
+import { type JsonObject, type JsonValue, schema } from "@destack/schema";
 import { DependencyName, PackageVersion } from "./package.ts";
 import { PackageDefinition } from "./definition.ts";
 
@@ -52,8 +52,40 @@ const packageJson = schema.object({
     devDependencies: REQUIREMENTS,
 });
 
+/** The start of a range selecting a package of the same workspace, as Bun and pnpm write it. */
+const WORKSPACE_RANGE = "workspace:";
+
+/** The tag npm clients install by default, taken for an unlinked workspace dependency. */
+const DEFAULT_TAG = "latest";
+
+/** The fields of a package file listing dependencies by range. */
+const DEPENDENCY_FIELDS = [
+    "dependencies",
+    "peerDependencies",
+    "optionalDependencies",
+    "devDependencies",
+] as const;
+
 /** A package's package.json, with its destack.json as its definition. */
 export const PackageJson = Object.assign(packageJson, {
+    /** Write a package file as released: each workspace range at its linked version. */
+    release(authored: JsonObject, versions: Readonly<Record<string, string>>): JsonObject {
+        const released: { [field: string]: JsonValue | undefined } = { ...authored };
+        for (const field of DEPENDENCY_FIELDS) {
+            const ranges = REQUIREMENTS.safeParse(authored[field]);
+            if (ranges.success) {
+                released[field] = Object.fromEntries(
+                    Object.entries(ranges.data).map(([name, range]) => [
+                        name,
+                        range.startsWith(WORKSPACE_RANGE) ? (versions[name] ?? DEFAULT_TAG) : range,
+                    ]),
+                );
+            }
+        }
+
+        return released;
+    },
+
     /** List the names a package requires at runtime: its dependencies, peers and optional ones. */
     runtimeDependencies(requirements: RuntimeRequirements): string[] {
         const required = Object.keys({

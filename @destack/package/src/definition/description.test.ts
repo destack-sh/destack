@@ -23,3 +23,18 @@ test("list a package's runtime dependencies and peers, and decide which it runs 
         optional: [false, false, true, true, true],
     });
 });
+
+test("release a package file's workspace ranges at linked versions, the default tag where none links", () => {
+    const authored = {
+        name: "@acme/notes",
+        dependencies: { "@destack/object": "workspace:*", zod: "4.1.0" },
+        peerDependencies: { "@destack/view": "workspace:^" },
+        devDependencies: { "@destack/test": "workspace:*" },
+    };
+    expect(PackageJson.release(authored, { "@destack/object": "2026.11.2" })).toEqual({
+        name: "@acme/notes",
+        dependencies: { "@destack/object": "2026.11.2", zod: "4.1.0" },
+        peerDependencies: { "@destack/view": "latest" },
+        devDependencies: { "@destack/test": "latest" },
+    });
+});
