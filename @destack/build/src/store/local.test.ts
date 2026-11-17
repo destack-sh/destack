@@ -243,6 +243,57 @@ test("ship a build in a layer with its output's maps, reading a map from the lay
     }).toEqual({ module: true, map: true, read: map });
 });
 
+test("pull every file of a build its layer ships in part, when pulled for all runtimes", async () => {
+    // layer a release with a Bun output for workerd, in a store whose own blobs have none of it
+    await using simulation = testSimulation();
+    const environment = simulation.environment("test");
+    const { files, crypto } = environment;
+    const directory = await files.makeTemporaryDirectory("test-stores-");
+    await using store = await LocalBuildStore.open(join(directory, "store"), environment);
+    await using distributor = await LocalBuildStore.temporary(environment);
+    const build = await written(
+        "export const answer = 42;",
+        crypto,
+        ANSWER,
+        {},
+        {
+            "docs/notes.txt": "kept",
+        },
+    );
+    const release = await distributor.put(build);
+    const lock = await lockAlone(distributor, release);
+    const distribution = join(directory, "distribution");
+    await distributor.writeLayer([lock], ["workerd"], distribution, "addressed");
+    const fetch = async (input: string) => {
+        const file = join(distribution, new URL(input).pathname);
+
+        return (await files.exists(file))
+            ? new Response(await files.readFile(file))
+            : new Response(null, { status: 404 });
+    };
+    await using layered = await LocalBuildStore.of({
+        blobs: store.blobs,
+        directory: join(directory, "layered"),
+        environment,
+        layer: await BuildLayer.assets({ fetch }, crypto),
+    });
+
+    // pull the lock for workerd, which the layer lists without the build's files, then for all runtimes
+    const root = { kind: "lock" as const, digest: lock };
+    const read = async () => {
+        const reader = await layered.contents(release);
+
+        return reader.load("docs/notes.txt").then(
+            (bytes) => new TextDecoder().decode(bytes),
+            (error: unknown) => (error instanceof Error ? error.message : String(error)),
+        );
+    };
+    await layered.pull(distributor, root, ["workerd"]);
+    const shipped = await read();
+    await layered.pull(distributor, root, "all");
+    expect([shipped, await read()]).toEqual(["package file 'docs/notes.txt' not found", "kept"]);
+});
+
 test("read an addressed layer's builds in assets by digest, without other runtimes' outputs", async () => {
     // write a layer of a release for workerd alone, whose build has a Bun output too
     await using simulation = testSimulation();
