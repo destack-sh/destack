@@ -67,6 +67,13 @@ export const Uuid = {
         return print(bytes, 0x40);
     },
 
+    /** Read a UUIDv7's millisecond timestamp, its first 48 bits (RFC 9562 5.7). */
+    time(uuid: string): number {
+        const hex = uuid.replaceAll("-", "").slice(0, 2 * TIMESTAMP_BYTES);
+
+        return Number.parseInt(hex, 16);
+    },
+
     /** Draw a UUIDv7 ordered after the source's last one, advancing its sequence (RFC 9562 6.2). */
     v7(environment: UuidEnvironment): Uuid {
         // refuse a time outside the 48-bit timestamp

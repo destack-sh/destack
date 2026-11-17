@@ -30,6 +30,15 @@ test("lay out a UUIDv7 as the millisecond big-endian, then the version, counter,
     ]);
 });
 
+test("roundtrip a UUIDv7's millisecond through its timestamp, at the start, later and at the limit", () => {
+    const times = [TEST_START, TEST_START + 1, 2 ** 48 - 1];
+    const read = times.map((now) =>
+        Uuid.time(Uuid.v7({ clock: { now: () => now }, random: zeros() })),
+    );
+
+    expect(read).toEqual(times);
+});
+
 test("order UUIDv7s within a millisecond, after a clock moving back, and past a full counter", () => {
     // draw twice in a millisecond, once after the clock moved back, then at a later one
     const random = ones();
