@@ -1,6 +1,5 @@
 {
     "name": "@destack/check",
-    "version": "2026.11.0",
     "description": "Lint, format and check Destack packages and their READMEs with one command.",
     "license": "Apache-2.0",
     "bin": {

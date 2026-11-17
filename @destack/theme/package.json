@@ -1,6 +1,5 @@
 {
     "name": "@destack/theme",
-    "version": "2026.11.0",
     "description": "Theme views with an accent, a base and roles solved for contrast, in light and dark.",
     "license": "Apache-2.0",
     "type": "module",

@@ -1,6 +1,5 @@
 {
     "name": "@destack/db",
-    "version": "2026.11.0",
     "license": "Apache-2.0",
     "type": "module",
     "description": "Declare tables, query them on SQLite and PostgreSQL, and log every commit.",

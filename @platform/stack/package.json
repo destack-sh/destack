@@ -1,6 +1,5 @@
 {
     "name": "@platform/stack",
-    "version": "2026.11.0",
     "license": "Apache-2.0",
     "type": "module",
     "description": "Declare the platform Destack operates: its organization, its residencies, and the stacks its spaces follow.",

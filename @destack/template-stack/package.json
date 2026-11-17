@@ -1,6 +1,5 @@
 {
     "name": "@destack/template-stack",
-    "version": "2026.11.0",
     "license": "MIT",
     "type": "module",
     "sideEffects": false,
@@ -16,21 +15,21 @@
         "typecheck": "tsc --project tsconfig.json && destack-check readme"
     },
     "devDependencies": {
-        "@destack/check": "2026.11.0",
+        "@destack/check": "workspace:*",
         "@types/bun": "1.4.4"
     },
     "dependencies": {
-        "@destack/setting": "2026.11.0",
-        "@destack/view": "2026.11.0",
-        "@destack/access": "2026.11.0",
-        "@destack/stack": "2026.11.0",
-        "@destack/db": "2026.11.0",
-        "@destack/bucket": "2026.11.0",
-        "@destack/vault": "2026.11.0",
-        "@destack/account": "2026.11.0",
-        "@destack/observability": "2026.11.0",
-        "@destack/message": "2026.11.0",
-        "@destack/notification": "2026.11.0",
-        "@destack/social": "2026.11.0"
+        "@destack/setting": "workspace:*",
+        "@destack/view": "workspace:*",
+        "@destack/access": "workspace:*",
+        "@destack/stack": "workspace:*",
+        "@destack/db": "workspace:*",
+        "@destack/bucket": "workspace:*",
+        "@destack/vault": "workspace:*",
+        "@destack/account": "workspace:*",
+        "@destack/observability": "workspace:*",
+        "@destack/message": "workspace:*",
+        "@destack/notification": "workspace:*",
+        "@destack/social": "workspace:*"
     }
 }

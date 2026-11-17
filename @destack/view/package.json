@@ -1,6 +1,5 @@
 {
     "name": "@destack/view",
-    "version": "2026.11.0",
     "description": "Build a package's views with Solid, reading and changing its space's objects live.",
     "license": "Apache-2.0",
     "type": "module",

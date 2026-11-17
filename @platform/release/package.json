@@ -1,6 +1,5 @@
 {
     "name": "@platform/release",
-    "version": "2026.11.0",
     "type": "module",
     "description": "Ship Destack: build, sign and publish the desktop, the CLI and the machine as one distribution, and deploy the operated platform.",
     "exports": {

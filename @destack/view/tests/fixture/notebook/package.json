@@ -1,6 +1,5 @@
 {
     "name": "@destack/view-notebook-fixture",
-    "version": "2026.9.0",
     "type": "module",
     "exports": {
         ".": "./src/index.ts",

@@ -1,6 +1,5 @@
 {
     "name": "@destack/machine-apps-fixture",
-    "version": "2026.10.0",
     "type": "module",
     "exports": {
         "./object": "./src/index.ts",

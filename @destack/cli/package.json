@@ -1,6 +1,5 @@
 {
     "name": "@destack/cli",
-    "version": "2026.11.0",
     "license": "Apache-2.0",
     "type": "module",
     "description": "Use Destack from the terminal: sign in, install packages and work with a space's objects.",

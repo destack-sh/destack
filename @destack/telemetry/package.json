@@ -1,6 +1,5 @@
 {
     "name": "@destack/telemetry",
-    "version": "2026.11.0",
     "license": "Apache-2.0",
     "type": "module",
     "description": "Instrument Destack packages with traces, metrics, logs, exceptions and analytics.",

@@ -285,10 +285,6 @@ local *arguments:
     @case "${1:-serve}" in serve | reset) just postgres up ;; esac
     @just @platform/release/local "$@"
 
-# version
-version:
-    @bun --eval 'console.log(JSON.parse(await Bun.file("package.json").text()).version)'
-
 # pack
 pack target="":
     just @platform/release/pack "{{target}}"

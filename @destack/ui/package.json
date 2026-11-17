@@ -1,6 +1,5 @@
 {
     "name": "@destack/ui",
-    "version": "2026.11.0",
     "description": "Build views from accessible Solid components styled with StyleX and themed by the person's theme.",
     "license": "Apache-2.0",
     "type": "module",

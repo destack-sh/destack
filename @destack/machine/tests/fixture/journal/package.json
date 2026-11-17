@@ -1,6 +1,5 @@
 {
     "name": "@destack/machine-journal-fixture",
-    "version": "2026.11.0",
     "type": "module",
     "exports": {
         "./object": "./src/index.ts",
