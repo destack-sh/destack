@@ -1,4 +1,4 @@
-import { none, through } from "@destack/access";
+import { none, StepUp, through } from "@destack/access";
 import { defineObject, device, field } from "@destack/object";
 import { schema } from "@destack/schema";
 import { MachineError } from "../../../error/index.ts";
@@ -8,7 +8,11 @@ import { argument, plural, t } from "@destack/locale";
 /** How a person signs in on this computer: in the browser, with a device code, or by mail. */
 export const SignInMethod = schema.discriminatedUnion("kind", [
     /** Sign in in the browser, which redirects back to this computer. */
-    schema.object({ kind: schema.literal("browser") }),
+    schema.object({
+        kind: schema.literal("browser"),
+        /** The authentication a refused call asks for, absent for a plain sign-in. */
+        stepUp: StepUp.schema.exactOptional(),
+    }),
     /** Enter a code at a page in any browser. */
     schema.object({ kind: schema.literal("code") }),
     /** Enter the code mailed to an address. */

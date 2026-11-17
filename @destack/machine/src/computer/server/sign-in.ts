@@ -86,7 +86,9 @@ export class SignInRunner {
         // open the browser's page
         const { credential } = this.#device;
         if (method.kind === "browser") {
-            return credential.browser((url) => advance({ kind: "open", url }), undefined, signal);
+            const open = (url: string) => advance({ kind: "open", url });
+
+            return credential.browser(open, method.stepUp, signal);
         }
         // show a code to enter at a page
         else if (method.kind === "code") {
