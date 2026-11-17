@@ -1,3 +1,4 @@
+import { DistributionPlatform } from "@destack/package";
 import { CHECKOUT } from "./distribution.ts";
 import { Stage } from "@destack/update/release";
 import { checkDistribution } from "./check.ts";
@@ -159,7 +160,8 @@ async function compileExecutables(
 
     // build the first-party releases from the checkout, reusing their store across builds
     await using releases = await PlatformBuild.build(CHECKOUT, environment);
-    await releases.writeDistribution(join(bin, DISTRIBUTION_DIRECTORY));
+    const shipped = DistributionPlatform.parse(`${platform.system}-${platform.architecture}`);
+    await releases.writeDistribution(join(bin, DISTRIBUTION_DIRECTORY), shipped);
 }
 
 /** Bundle the native desktop with Tauri and return its application directory. */

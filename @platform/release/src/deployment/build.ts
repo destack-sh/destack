@@ -261,11 +261,11 @@ export class PlatformBuild implements AsyncDisposable {
         );
     }
 
-    /** Write the manifest of the releases computers on the host run to a directory. */
-    async writeDistribution(directory: string): Promise<void> {
-        // write the host's manifest into the directory, created if new
-        const { files, host } = this.store.environment;
-        const distribution = this.distribution(DistributionPlatform.of(host));
+    /** Write the manifest of the releases computers of a platform run to a directory. */
+    async writeDistribution(directory: string, platform: DistributionPlatform): Promise<void> {
+        // write the platform's manifest into the directory, created if new
+        const { files } = this.store.environment;
+        const distribution = this.distribution(platform);
         const text = JSON.stringify(DistributionManifest.parse(distribution));
         await files.mkdir(directory, { recursive: true });
         await files.writeTextFile(join(directory, DISTRIBUTION_MANIFEST), text);

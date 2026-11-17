@@ -198,7 +198,7 @@ export class LocalUniverse implements AsyncDisposable {
 
         // write the distribution once, then start each residency's cloud machine shipping it
         const directory = LocalUniverse.distribution(options);
-        await build.writeDistribution(directory);
+        await build.writeDistribution(directory, target);
         await build.writeLayer(directory);
         const { environment } = build.store;
         const distribution = {
