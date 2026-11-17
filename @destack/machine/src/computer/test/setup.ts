@@ -14,7 +14,7 @@ import {
     START_FIXTURE,
     TestDistribution,
 } from "./distribution.ts";
-import { NEXT_RELEASE, SCENARIO_FIXTURES, WORLD_FIXTURES, WORLD_VERSION } from "./fixture.ts";
+import { NEXT_RELEASE, SCENARIO_FIXTURES, WORLD_FIXTURES } from "./fixture.ts";
 import { MachineDriver } from "../../test/driver.ts";
 import { Toolchain } from "@destack/check/toolchain";
 import { COMPUTER_RUNTIMES } from "../computer.ts";
@@ -30,7 +30,6 @@ export default async function setup(project: TestProject): Promise<() => Promise
         const workspace = await Workspace.open(
             fileURLToPath(new URL("../../../", import.meta.url)),
             compilers,
-            { version: WORLD_VERSION },
         );
         const builds = [
             [RUNTIME_PACKAGE, built, () => TestDistribution.runtime(workspace)] as const,
