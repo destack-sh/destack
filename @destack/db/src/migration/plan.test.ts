@@ -1,7 +1,7 @@
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { Change, defineTable, index, integer, json, sql, text, uniqueIndex } from "../index.ts";
 import { PackageVersion } from "@destack/package";
-import { present, schema } from "@destack/schema";
+import { present, schema, Version } from "@destack/schema";
 import { TABLE, type Table } from "../table/table.ts";
 import { qualify } from "../table/namespace.ts";
 import { defineDatabase } from "../declare/database.ts";
@@ -97,11 +97,11 @@ const taskTwo = defineTable(
     },
 );
 
-/** This package's release as the tests run, which the workspace's version sets. */
+/** This package's release as the tests run. */
 const CURRENT_VERSION = taskOne[TABLE].package.version;
 
-/** This package's next release, a year past the current one, declaring the converted tasks. */
-const NEXT_VERSION = `${Number(CURRENT_VERSION.split(".")[0]) + 1}.1.0`;
+/** The version of this package's next release, the one after the current. */
+const NEXT_VERSION = Version.next(CURRENT_VERSION);
 
 /** This package's next release, declaring the converted tasks. */
 const NEXT_RELEASE = { package: { ...taskOne[TABLE].package, version: NEXT_VERSION } };
