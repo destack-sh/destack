@@ -166,7 +166,7 @@ state {
 
 ## Publication
 
-`release.yml` releases main once a day when it moved and its checks pass, or now on `release`, as the month's next `vYYYY.M.N`; it tags the release, records it as a GitHub Release listing the commits since the previous tag, and deploys production once the repository variable `DESTACK_PLATFORM` is `deployed`.
+`release.yml` releases main once a day when it moved and its checks pass, or now on `release`, as the month's next `vYYYY.M.N`; it tags the release, records it as a GitHub Release listing the commits since the previous tag, and deploys production.
 
 ```yaml
 jobs:

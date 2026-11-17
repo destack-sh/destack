@@ -426,8 +426,8 @@ jobs:
     deploy:
         name: Deploy production
         needs: [prepare, publish]
-        # deploy once the operator bootstrapped the platform and set DESTACK_PLATFORM to deployed
-        if: needs.prepare.outputs.publish == 'true' && vars.DESTACK_PLATFORM == 'deployed'
+        # deploy what the release publishes, on the roots and keys the operator applied once
+        if: needs.prepare.outputs.publish == 'true'
         runs-on: ubuntu-24.04
         timeout-minutes: 60
         environment: production
