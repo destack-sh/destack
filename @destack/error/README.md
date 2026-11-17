@@ -68,10 +68,10 @@ A message is one lowercase sentence for developers, with each given value quoted
 | `NOT_FOUND`       | `NOT_FOUND`             | `<noun> '<value>' not found`                         |
 | `EXISTS`          | `CONFLICT`              | `<noun> '<value>' already exists`                    |
 | `CONFLICT`        | `CONFLICT`              | `cannot <verb> <noun> '<value>': <why>`              |
-| `INVALID`         | `BAD_REQUEST`           | `<noun> '<value>' is invalid: <what> must …`         |
+| `INVALID`         | `BAD_REQUEST`           | `<noun> '<value>' is invalid: <why>`                 |
 | `REQUIRED`        | `BAD_REQUEST`           | `<what> is required`                                 |
 | `UNAUTHENTICATED` | `UNAUTHORIZED`          | `authentication required: <why>`                     |
-| `DENIED`          | `FORBIDDEN`             | `<noun> '<value>' is forbidden: <who> cannot <verb>` |
+| `DENIED`          | `FORBIDDEN`             | `<noun> '<value>' is forbidden: <why>`               |
 | `BLOCKED`         | `PRECONDITION_FAILED`   | `cannot <verb> <noun> '<value>': <why>`              |
 | `EXHAUSTED`       | `TOO_MANY_REQUESTS`     | `<noun> '<value>' exceeds <limit>`                   |
 | `UNSUPPORTED`     | `NOT_IMPLEMENTED`       | `<thing> is not supported`                           |
@@ -159,6 +159,20 @@ export function refuseLostWrite(path: string): never {
     throw StorageError.of("DISK_BROKEN", `file '${path}' lost its last write`);
 }
 ```
+
+## Conventions
+
+A message fills its condition's shape with the facts of the failed call.
+
+| Rule                                         | Write                                                               | Not                                                   |
+| -------------------------------------------- | ------------------------------------------------------------------- | ----------------------------------------------------- |
+| The noun is the thing acted on.              | `claim 'destack' is forbidden: machine 'release' cannot resolve it` | `permission 'resolve' is forbidden`                   |
+| The clause after the colon adds a fact.      | `'x-key' header is invalid: it is not base64`                       | `'x-key' header is invalid: it is not valid`          |
+| `<who>` is a subject, by its type and name.  | `machine 'release' cannot resolve it`                               | `the caller cannot resolve it`                        |
+| Each check has its own message.              | `token is invalid: it must expire after its issue`                  | one sentence for every check of a token               |
+| A `BROKEN` message states the fact it found. | `compiler answered 'ready' to a build`                              | `unexpected compiler result`                          |
+
+A message thrown from more than one place has one producer: a verb on its noun, such as `PermissionReference.forbidden`.
 
 ## Comparison
 
