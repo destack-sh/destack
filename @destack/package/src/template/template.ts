@@ -23,6 +23,8 @@ export const TemplateInput = schema
         name: PackageName,
         /** Replacements keyed by the template's original dependency names. */
         dependencies: schema.record(PackageName, PackageVersion),
+        /** The versions its workspace dependencies release at, absent inside their workspace. */
+        versions: schema.record(schema.string(), schema.string()).exactOptional(),
     })
     .strict();
 /** The new package name and dependency selections. */
