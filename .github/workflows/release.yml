@@ -139,11 +139,19 @@ jobs:
                   packages: libwebkit2gtk-4.1-dev build-essential libssl-dev librsvg2-dev libxdo-dev libayatana-appindicator3-dev
             - name: Install Rust
               shell: bash
+              env:
+                  TARGET: ${{ matrix.target }}
               run: |
                   rustup toolchain install stable --profile minimal
                   rustup default stable
+                  rustup target add "$TARGET"
             - name: Set up
               uses: ./.github/actions/setup
+            - name: Install the native packages of both macOS architectures
+              # one runner builds both, each with its own native tools
+              if: runner.os == 'macOS'
+              working-directory: ${{ github.workspace }}
+              run: bun install --frozen-lockfile --cpu='*'
             - name: Set up the sandbox the build compiles in
               if: runner.os == 'Linux'
               uses: ./.github/actions/setup-sandbox
