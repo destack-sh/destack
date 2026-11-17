@@ -17,6 +17,7 @@
         "./device": "./src/computer/device/index.ts",
         "./test": "./src/test/index.ts",
         "./computer/test": "./src/computer/test/index.ts",
+        "./computer/test/setup": "./src/computer/test/setup.ts",
         "./scenario": "./src/scenario/index.ts"
     },
     "scripts": {

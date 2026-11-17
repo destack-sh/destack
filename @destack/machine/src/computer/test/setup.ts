@@ -19,8 +19,21 @@ import { MachineDriver } from "../../test/driver.ts";
 import { Toolchain } from "@destack/check/toolchain";
 import { COMPUTER_RUNTIMES } from "../computer.ts";
 
+/** Set a run up with a package's own fixtures beside the machine's, by name and directory. */
+export function setupRun(
+    fixtures: Readonly<Record<string, string>> = {},
+): (project: TestProject) => Promise<() => Promise<void>> {
+    return (project) => setup(project, fixtures);
+}
+
+/** Set the machine's own run up. */
+export default setupRun();
+
 /** Build the platform, the stacks and the fixtures, write the templates and make a trash. */
-export default async function setup(project: TestProject): Promise<() => Promise<void>> {
+async function setup(
+    project: TestProject,
+    fixtures: Readonly<Record<string, string>>,
+): Promise<() => Promise<void>> {
     // build the platform's packages, the stacks and the fixtures at once, so each world only reads the run's store
     const built: Record<string, Digest> = {};
     const scenario: Record<string, string> = {};
@@ -44,6 +57,10 @@ export default async function setup(project: TestProject): Promise<() => Promise
                         SCENARIO_FIXTURES.some((each) => each === name) ? scenario : built,
                         () => MachineDriver.build(name, workspace),
                     ] as const,
+            ),
+            ...Object.entries(fixtures).map(
+                ([name, directory]) =>
+                    [name, scenario, () => TestDistribution.compile(workspace, directory)] as const,
             ),
         ];
         await Promise.all(

@@ -127,6 +127,8 @@ export interface TestHomeOptions extends Omit<
     readonly organizations?: readonly TestOrganization[];
     /** The fixtures installed in the owner's home under their names, none by default. */
     readonly installs?: readonly TestInstall[];
+    /** The fixtures the owner publishes for the organization their names give, none by default. */
+    readonly published?: readonly string[];
 }
 
 /** A fixture a home template publishes and installs in the owner's home under a name. */
@@ -533,8 +535,8 @@ export class TestComputer implements AsyncDisposable {
         readonly organizations: ReadonlyMap<string, Identifier<"account">>;
     }> {
         // fork the template of the owner's organizations with its universe
-        const { organizations = [], installs = [], ...started } = options;
-        const template = TestComputer.homeTemplate(organizations, installs);
+        const { organizations = [], installs = [], published = [], ...started } = options;
+        const template = TestComputer.homeTemplate(organizations, installs, published);
         const image = await TestRun.image(template);
         const { simulation, databases, value } = await image.fork("copy");
         defer(() => databases.universe.close());
@@ -573,12 +575,15 @@ export class TestComputer implements AsyncDisposable {
     static homeTemplate(
         organizations: readonly TestOrganization[],
         installs: readonly TestInstall[] = [],
+        published: readonly string[] = [],
     ): TestTemplate<HomeWorld, { readonly universe: typeof Control.database }> {
+        // name the template by what its world holds
         const handles = organizations.map((organization) => organization.handle);
         const installed = installs.map((install) => `${install.fixture}@${install.name}`);
+        const released = published.map((fixture) => `${fixture}@latest`);
 
         return new TestTemplate({
-            name: ["machine.home", ...handles, ...installed].join("."),
+            name: ["machine.home", ...handles, ...installed, ...released].join("."),
             databases: { universe: Control.database },
             value: HomeWorld,
             world: { seed: SEED, start: START },
@@ -624,18 +629,23 @@ export class TestComputer implements AsyncDisposable {
                 }
 
                 // publish each fixture once and install it in the owner's home under its name
-                const published = new Set<string>();
+                const sent = new Set<string>();
                 for (const { fixture, name } of installs) {
                     const build = await TestDistribution.fixture(
                         fixture,
                         simulation.environment(FILES_NODE),
                         defer,
                     );
-                    if (!published.has(fixture)) {
-                        published.add(fixture);
+                    if (!sent.has(fixture)) {
+                        sent.add(fixture);
                         await home.publish(TestDistribution.lockOf(fixture));
                     }
                     await home.install(login.id, owner.home, build, name);
+                }
+
+                // publish each other fixture as the owner, for the organization its name gives
+                for (const fixture of published) {
+                    await home.publish(TestDistribution.lockOf(fixture), owner);
                 }
                 await home.close();
 
