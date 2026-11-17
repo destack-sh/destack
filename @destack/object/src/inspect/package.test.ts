@@ -164,6 +164,18 @@ test("plan a package's API changes between releases, converting narrowed inputs 
         ],
         "cannot reach the desired state: api/procedure/query.count/input: declare a conversion for 2026.9.0",
     ]);
+
+    // refuse a later release changing the conversion to an edition the earlier release has
+    const rewritten = release(procedure({ 2: { text: Expression.literal("other") } }));
+    let refusal = "accepted";
+    try {
+        comparePackage(entry(converted, RELEASE), entry(rewritten, "2026.10.0"));
+    } catch (error) {
+        refusal = String(error instanceof Error ? error.message : error);
+    }
+    expect(refusal).toBe(
+        "cannot reach the desired state: api/procedure/query.count/input: changes the conversion to edition 2 that release 2026.9.0 has: add a new edition",
+    );
 });
 
 test("plan a package's mount changes: adding is safe, removing or moving breaks callers", () => {

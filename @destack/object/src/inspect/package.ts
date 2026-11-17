@@ -1,5 +1,6 @@
 import { Address, Plan, type Comparator, type Step } from "@destack/resource";
-import { type JsonSchema, Edition, schema, Version } from "@destack/schema";
+import { unreachablePlan } from "@destack/resource/error";
+import { type JsonSchema, canonicalize, Edition, schema, Version } from "@destack/schema";
 import { graph } from "@destack/package";
 import type { ProcedureRouter } from "../procedure/index.ts";
 import { describeProcedures } from "./procedure.ts";
@@ -234,6 +235,20 @@ function payloadPlans(
     const isConverted = edition(procedure) > edition(previous);
 
     return [
+        () => {
+            // refuse a conversion of an edition the earlier release has that the later one changes
+            const earlier = CONVERSIONS.parse(previous.metadata?.["convert"] ?? {});
+            const later = CONVERSIONS.parse(procedure.metadata?.["convert"] ?? {});
+            const changed = Object.keys(earlier).filter(
+                (key) => canonicalize(earlier[key]) !== canonicalize(later[key] ?? null),
+            );
+            if (changed.length > 0) {
+                const detail = `changes the conversion to edition ${changed.join(", ")} that release ${releases.from} has: add a new edition`;
+                throw unreachablePlan([{ target: Address.join(target, "input"), detail }]);
+            }
+
+            return { steps: [] };
+        },
         () =>
             Plan.of({
                 target: Address.join(target, "input"),
