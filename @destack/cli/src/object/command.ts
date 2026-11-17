@@ -14,6 +14,12 @@ import type { Command } from "@destack/object";
 import { Render } from "./render.ts";
 import { CliError } from "../error/index.ts";
 
+/** The word that calls a noun's create method beside the method's own name. */
+const NEW = "new";
+
+/** The usual name of a create method, which the word new stands for in help. */
+const CREATE = "create";
+
 /** The method kinds the singular noun's commands run: getting one object and listing them. */
 const NOUN_KINDS = new Set(["get", "list"]);
 
@@ -117,15 +123,30 @@ function objectCommand(context: Context, noun: Noun): Group {
         ([, method]) => !NOUN_KINDS.has(method.kind),
     );
     const creates = methods.filter(([, method]) => method.target === "scope");
+
+    // call the type's create method by the word new too, unless a method or command has the word
+    const created = creates.find(([, method]) => method.kind === "create");
+    const isTaken =
+        creates.some(([name]) => name === NEW) ||
+        noun.commands.some((command) => command.target === "scope" && command.name === NEW);
+    const added: [string, Verb][] =
+        created === undefined || isTaken
+            ? []
+            : [[NEW, methodCommand(context, noun, created[0], undefined)]];
     const called = methods.filter(([, method]) => method.target === "object");
 
     return {
         description: `Get, create and change ${noun.plural} (${noun.qualifier})`,
         commands: Object.fromEntries([
+            // list a method named create under the word new alone, taking both words
             ...creates.map(([name]): [string, Verb] => [
                 name,
-                methodCommand(context, noun, name, undefined),
+                {
+                    ...methodCommand(context, noun, name, undefined),
+                    ...(name === CREATE && added.length > 0 ? { isHidden: true } : {}),
+                },
             ]),
+            ...added,
             ...noun.commands
                 .filter((command) => command.target === "scope")
                 .map((command): [string, Verb] => [
