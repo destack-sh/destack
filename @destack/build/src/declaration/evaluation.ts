@@ -445,9 +445,17 @@ async function evaluateEntry(
     transformer: ModuleTransformer,
 ): Promise<unknown> {
     return await bundleAndEvaluate(source, project, transformer).catch((cause: unknown) => {
-        throw BuildError.of("INSPECTION_INVALID", "declaration evaluation is invalid: it failed", {
-            cause,
-        });
+        // tell the person why, as the record of a failed build keeps the message alone
+        const [reason = "no message"] = (
+            cause instanceof Error ? cause.message : String(cause)
+        ).split("\n");
+        throw BuildError.of(
+            "INSPECTION_INVALID",
+            `declaration evaluation is invalid: it failed with '${reason}'`,
+            {
+                cause,
+            },
+        );
     });
 }
 
