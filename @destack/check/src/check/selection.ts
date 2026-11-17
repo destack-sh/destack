@@ -1,4 +1,4 @@
-import { readSourceRoots } from "./sources.ts";
+import { readSourceLayout } from "./sources.ts";
 import type { CheckOptions } from "./check.ts";
 
 /** Select a call's files, else the package's source folders and root modules. */
@@ -9,7 +9,7 @@ export async function selectFiles(
     if (options.files !== undefined) {
         return options.files;
     }
-    const roots = await readSourceRoots(options.directory, options.environment.files);
+    const roots = await readSourceLayout(options.directory, options.environment.files);
 
     return [...roots.folders, ...roots.modules];
 }

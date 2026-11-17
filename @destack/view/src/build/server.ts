@@ -10,7 +10,7 @@ import { PackageLocator } from "@destack/package/locator";
 import { baselinePlugin, modulePlugin } from "@destack/package/vite";
 import { ModuleTransformer } from "@destack/package/transform";
 import { present, schema } from "@destack/schema";
-import type { PageAssets, StaticRoutes } from "../static/page.ts";
+import type { PageHead, RouteTable } from "../static/page.ts";
 import { ViewError } from "../error/error.ts";
 import {
     entryPlugin,
@@ -264,8 +264,8 @@ async function respond(
 
     // answer an endpoint, or the page with its browser entry, the stylesheets it renders, and Vite's updates
     const stylesheets = await renderedStylesheets(vite, entry);
-    const assets: PageAssets = { script: `/@id/__x00__${entry}`, stylesheets };
-    const response = await module.respond(new Request(url), assets);
+    const head: PageHead = { script: `/@id/__x00__${entry}`, stylesheets };
+    const response = await module.respond(new Request(url), head);
     if (isFile) {
         return response;
     }
@@ -304,8 +304,8 @@ async function renderedStylesheets(vite: ViteDevServer, entry: string): Promise<
 
 /** Report whether a module exports a static view's routes and respond functions. */
 function isServerModule(module: unknown): module is {
-    readonly routes: () => Promise<StaticRoutes>;
-    readonly respond: (request: Request, assets: PageAssets) => Promise<Response>;
+    readonly routes: () => Promise<RouteTable>;
+    readonly respond: (request: Request, head: PageHead) => Promise<Response>;
 } {
     return (
         typeof module === "object" &&

@@ -2,7 +2,7 @@
 import "reflect-metadata";
 import { BucketBlobStorage } from "@destack/bucket/blob";
 import { S3Client, S3Location } from "@destack/bucket/s3";
-import { BuildLayer, type LayerAssets } from "@destack/package/manifest";
+import { BuildLayer, type AssetBinding } from "@destack/package/manifest";
 import type { DurableObjectNamespace } from "@destack/db/cloudflare";
 import { connectPostgres } from "@destack/db/postgres";
 import { Envelope, EnvelopeConfiguration, UNIVERSE_OWNER } from "@destack/identity/aws";
@@ -33,7 +33,7 @@ export interface UniverseBindings {
     /** The account database through Hyperdrive. */
     readonly DATABASE: { readonly connectionString: string };
     /** The releases the Worker version ships, a build layer in its static assets. */
-    readonly RELEASES: LayerAssets;
+    readonly RELEASES: AssetBinding;
     /** The S3 bucket keeping the universe's files, as `S3Location` JSON. */
     readonly DESTACK_FILES: string;
     /** The universe's issuer, its origin, such as https://destack.app. */

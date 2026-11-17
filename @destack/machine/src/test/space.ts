@@ -62,7 +62,7 @@ import {
 } from "@destack/schema";
 import objectPackage from "@destack/object/package";
 import { Simulation } from "@destack/environment/simulation";
-import { StackDocument, type StackTypes } from "@destack/stack/declare";
+import { StackDocument, type StackRecordType } from "@destack/stack/declare";
 import { Handoff } from "../transfer/handoff.ts";
 import * as object from "@destack/stack/object";
 import { SocketRegistry, type InstallationBuild } from "../index.ts";
@@ -1799,7 +1799,7 @@ export class TestSpace implements AsyncDisposable, TestScope {
     }
 
     /** Apply the space's stack with some collections replaced, approved as its owner. */
-    async apply<const Types extends StackTypes>(
+    async apply<const Types extends readonly StackRecordType[]>(
         types: Types,
         collections: StackDocument<Types>,
     ): Promise<void> {
@@ -1824,7 +1824,7 @@ export class TestSpace implements AsyncDisposable, TestScope {
     }
 
     /** Submit the space's stack with some collections replaced, answering its deploy's refusal. */
-    async submit<const Types extends StackTypes>(
+    async submit<const Types extends readonly StackRecordType[]>(
         types: Types,
         collections: StackDocument<Types>,
     ): Promise<readonly [string, string, string] | undefined> {
@@ -1840,7 +1840,10 @@ export class TestSpace implements AsyncDisposable, TestScope {
     }
 
     /** Submit the space's stack as its owner, approving a waiting plan, with the failures. */
-    async #submit<const Types extends StackTypes>(types: Types, collections: StackDocument<Types>) {
+    async #submit<const Types extends readonly StackRecordType[]>(
+        types: Types,
+        collections: StackDocument<Types>,
+    ) {
         // replace the collections given, once the space has its stack
         this.#stack = { ...this.#stack, ...StackDocument.of(types, collections) };
         await this.simulation.idle();

@@ -1,6 +1,6 @@
 import { ModuleTransformer } from "@destack/package/transform";
 import type { Program } from "@destack/package/bun";
-import { Environment, FileSystemError, type Output, TraceHeaders } from "@destack/environment";
+import { Environment, FileSystemError, type Output, Telemetry } from "@destack/environment";
 import { DependencyTree } from "../dependency/tree.ts";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -179,7 +179,7 @@ export class CompilerWorker implements AsyncDisposable {
             else {
                 responding = responding.then(async () => {
                     // answer it below the host's span, with the spans it ended
-                    const parent = TraceHeaders.extract(new Headers(message.trace), telemetry);
+                    const parent = Telemetry.extract(new Headers(message.trace), telemetry);
                     const traces = () => {
                         const spans = ended.getFinishedSpans();
                         ended.reset();

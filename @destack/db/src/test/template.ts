@@ -42,11 +42,11 @@ export const ImageRecord = schema.object({
 /** What a build leaves of a template in a run. */
 export type ImageRecord = schema.Infer<typeof ImageRecord>;
 
-/** The tables of one database a template builds. */
-export type TemplateTables = declaration.Database | readonly Table[];
+/** One database a template builds: its declaration, or its tables. */
+export type TemplateDatabase = declaration.Database | readonly Table[];
 
 /** The databases a template builds, by name. */
-export type TemplateDatabases = Readonly<Record<string, TemplateTables>>;
+export type TemplateDatabases = Readonly<Record<string, TemplateDatabase>>;
 
 /** The models of one database's tables. */
 export type ModelsOf<Tables> =
@@ -95,7 +95,7 @@ export class TestTemplate<
     /** The value every fork shares, as its JSON form is kept with the image. */
     readonly value: schema.Schema<Value>;
     /** The tables of each database the build opens as it runs, none when absent. */
-    readonly volume: TemplateTables | undefined;
+    readonly volume: TemplateDatabase | undefined;
     /** The seed and start of the world the first build of its line runs in. */
     readonly world: TemplateWorld;
     /** Build the rows and files in the world, answering what every fork shares. */
@@ -117,7 +117,7 @@ export class TestTemplate<
                   /** The tables each of its databases migrates, by name. */
                   readonly databases: Databases;
                   /** The tables of each database the build opens as it runs. */
-                  readonly volume?: TemplateTables;
+                  readonly volume?: TemplateDatabase;
                   /** The seed and start of the world the build runs in. */
                   readonly world: TemplateWorld;
               }

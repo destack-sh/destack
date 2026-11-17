@@ -14,13 +14,13 @@ import type { Replica } from "../../replica/replica.ts";
 import type { Audience } from "../audience.ts";
 import type { Feed } from "../feed.ts";
 import type { Stream } from "../stream.ts";
-import { groupName, type Contents } from "./oracle.ts";
+import { groupName, type SubscriberState } from "./oracle.ts";
 
 /** The longest a follower waits for the feed to read a position: 5 s. */
 const WAIT_MILLISECONDS = 5000;
 
 /** What a subscriber has after applying its pages. */
-export class MemoryReplica implements Contents {
+export class MemoryReplica implements SubscriberState {
     /** The tables the replica's rows belong to. */
     readonly #tables: ReadonlyMap<string, Table>;
     /** The rows by table and key, concealed columns missing. */

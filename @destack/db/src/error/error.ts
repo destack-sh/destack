@@ -17,7 +17,7 @@ export const ViolatedKey = schema.object({
 export type ViolatedKey = schema.Infer<typeof ViolatedKey>;
 
 /** The declared names of a database's tables by SQL name: each table's name and its columns'. */
-export type DeclaredNames = ReadonlyMap<
+export type NameTable = ReadonlyMap<
     string,
     { readonly name: string; readonly columns: ReadonlyMap<string, string> }
 >;
@@ -65,7 +65,7 @@ export const DatabaseError = defineErrorFamily({
 export type DatabaseReason = ReasonOf<typeof DatabaseError>;
 
 /** Read a driver's violated unique key by its declared names, null for an expression key. */
-export function violatedKeyOf(error: Error, declared: DeclaredNames): ViolatedKey | null {
+export function violatedKeyOf(error: Error, declared: NameTable): ViolatedKey | null {
     // read SQLite's "UNIQUE constraint failed" message, with namespaced tables
     const failed = /^UNIQUE constraint failed: (.+)$/u.exec(error.message)?.[1];
     if (failed !== undefined) {
@@ -98,7 +98,7 @@ export function assertNever(value: never): never {
 }
 
 /** Classify a failed statement as a conflict, duplicate, broken reference or failed check. */
-export function classifyError(error: unknown, declared: DeclaredNames): unknown {
+export function classifyError(error: unknown, declared: NameTable): unknown {
     // return classified and non-driver failures as they are
     if (DatabaseError.is(error) || !(error instanceof Error)) {
         return error;
@@ -184,7 +184,7 @@ export function wraps(error: unknown, failure: unknown): boolean {
 
 /** Name a key of SQL columns as its table declares them, null for an undeclared table. */
 function declaredKey(
-    declared: DeclaredNames,
+    declared: NameTable,
     table: string,
     columns: readonly string[],
 ): ViolatedKey | null {

@@ -1,4 +1,4 @@
-import type { Triggers } from "./trigger.ts";
+import type { TriggerSet } from "./trigger.ts";
 import type { Dialect } from "../dialect/dialect.ts";
 import { assertNever } from "../error/error.ts";
 import { quote } from "../dialect/quote.ts";
@@ -87,7 +87,7 @@ function bridgeName(table: string, bridge: Bridge): string {
 }
 
 /** The triggers that sync renamed columns with their previous names. */
-export const bridgeTriggers: Triggers = {
+export const bridgeTriggers: TriggerSet = {
     install: (state, dialect) =>
         (state.bridges ?? []).flatMap((bridge) => install(state.table.name, bridge, dialect)),
     remove: (state, dialect) =>

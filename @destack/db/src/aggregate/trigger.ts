@@ -1,5 +1,5 @@
 import { match } from "../sql/render.ts";
-import type { Triggers } from "../migration/trigger.ts";
+import type { TriggerSet } from "../migration/trigger.ts";
 import type { Dialect } from "../dialect/dialect.ts";
 import { assertNever } from "../error/error.ts";
 import { quote } from "../dialect/quote.ts";
@@ -141,7 +141,7 @@ function changed(aggregate: AggregateDescription, operator: "IS NOT" | "IS DISTI
 }
 
 /** The triggers that maintain aggregates. */
-export const aggregateTriggers: Triggers = {
+export const aggregateTriggers: TriggerSet = {
     install: (state, dialect, namespace) =>
         (state.aggregates ?? []).flatMap((aggregate) => install(aggregate, dialect, namespace)),
     remove: (state, dialect) =>

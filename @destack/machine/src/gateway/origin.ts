@@ -74,7 +74,7 @@ import { ScopePrimary } from "./primary.ts";
 import type { Gateway, GatewaySpace } from "./gateway.ts";
 import { MachineError } from "../error/index.ts";
 import { OriginCookie } from "./cookie.ts";
-import { StaticHost, ViewAssets } from "./host.ts";
+import { StaticHost, AssetIndex } from "./host.ts";
 
 /** The path a view's dependency builds are served below, each under its digest. */
 export const BUILD_PATH = "/.destack/build/";
@@ -137,7 +137,7 @@ export class ViewOrigin {
     /** The browser import map closure of each build served so far, by build and base. */
     readonly #closures = new Map<string, Promise<ImportClosure>>();
     /** The assets of each lock's closure by mount base, indexed once. */
-    readonly #assets = new Map<string, Promise<ViewAssets>>();
+    readonly #assets = new Map<string, Promise<AssetIndex>>();
     /** The catalog paths each build's pages load, by build and base. */
     readonly #catalogs = new Map<string, Promise<string[]>>();
 
@@ -1011,7 +1011,7 @@ export class ViewOrigin {
 
         // serve an asset of the installation's build or of a build its import map reaches, unchanging under its name
         const assets = await ViewOrigin.#memo(this.#assets, `${page.lock} ${base}`, () =>
-            ViewAssets.of(closure.builds, (digest) => this.#space.builds.contents(digest)),
+            AssetIndex.of(closure.builds, (digest) => this.#space.builds.contents(digest)),
         );
         const published = assets.find(pathname);
         if (published !== undefined) {

@@ -26,7 +26,7 @@ async function start(): Promise<Miniflare> {
         script: chunk.code,
         compatibilityDate: WORKERD_COMPATIBILITY_DATE,
         compatibilityFlags: ["nodejs_compat"],
-        durableObjects: { NOTES: { className: "Notes", useSQLite: true } },
+        durableObjects: { NOTES: { className: "NoteStore", useSQLite: true } },
     });
     onTestFinished(() => worker.dispose());
 

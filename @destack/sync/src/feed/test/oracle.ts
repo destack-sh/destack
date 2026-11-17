@@ -36,7 +36,7 @@ interface Level extends QuerySelection {
 const MATCHES = new WeakMap<Level, Match>();
 
 /** What a subscriber should have. */
-export interface Contents {
+export interface SubscriberState {
     /** The rows, by table and key. */
     readonly rows: Map<string, Record<string, unknown>>;
     /** The aggregate groups, by query name and group. */
@@ -48,7 +48,7 @@ export async function evaluate(
     database: DatabaseConnection,
     queries: Readonly<Record<string, Query>>,
     audience: ConditionAudience,
-): Promise<Contents> {
+): Promise<SubscriberState> {
     // read every row of each table
     const read = new Map<Table, Row[]>();
     for (const table of new Set(
@@ -61,7 +61,7 @@ export async function evaluate(
     const tables = new Rows(read);
 
     // select each query's rows and groups
-    const contents: Contents = { rows: new Map(), results: new Map() };
+    const contents: SubscriberState = { rows: new Map(), results: new Map() };
     for (const [name, query] of Object.entries(queries)) {
         const evaluation = {
             relations: query.relations ?? new Relations(),
@@ -89,7 +89,7 @@ interface Evaluation {
     /** Who reads, deciding visible rows and hidden columns. */
     readonly audience: ConditionAudience;
     /** What the subscriber should have. */
-    readonly contents: Contents;
+    readonly contents: SubscriberState;
 }
 
 /** Select the rows of a query or include and what they include. */
@@ -167,7 +167,7 @@ function aggregate(
     aggregation: NonNullable<Level["aggregate"]>,
     rows: readonly Row[],
     partition: { readonly name: string; readonly value: ColumnValue } | undefined,
-    contents: Contents,
+    contents: SubscriberState,
 ): void {
     // group the rows by the partition and the grouped columns
     const table = query.table;

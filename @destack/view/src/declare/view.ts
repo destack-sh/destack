@@ -31,15 +31,15 @@ export type ViewRender =
           /** Load the page shell wrapping the component, the view runtime's when absent. */
           readonly document?: () => Promise<{ readonly default: Component }>;
           /** Load the module of its paths, not-found path and endpoints, on the server. */
-          readonly pages: () => Promise<StaticPages>;
+          readonly pages: () => Promise<StaticSite>;
       }
     | {
           /** Rendered per request by the package's workload, as the visitor. */
           readonly mode: "server";
       };
 
-/** A static view's pages module, as Astro's getStaticPaths and static endpoints. */
-export interface StaticPages {
+/** A static view's site: its paths, its not-found page and its endpoints. */
+export interface StaticSite {
     /** The paths prerendered below the view's base. */
     readonly paths: readonly string[];
     /** The path rendering the not-found page, published as 404.html, none when absent. */

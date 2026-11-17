@@ -4,7 +4,7 @@ import type { Environment, Subprocess } from "@destack/environment";
 import { PackagePath } from "@destack/package/file";
 import { present, schema } from "@destack/schema";
 import { ViewError } from "../../error/error.ts";
-import type { PageAssets, StaticRoutes } from "../../static/page.ts";
+import type { PageHead, RouteTable } from "../../static/page.ts";
 
 /** The longest a request's response may take, in milliseconds. */
 const RESPONSE_TIMEOUT = 10_000;
@@ -18,14 +18,14 @@ export const RENDER_PLAN_FILE = "plan.json";
 /** The file in a render directory listing the requests the renderer answered. */
 export const RENDERED_FILE = "rendered.json";
 
-/** What a renderer renders: the server module's URL, the site's origin and the pages' assets. */
+/** What a renderer renders: the server module's URL, the site's origin and the pages' head. */
 export const RenderPlan = schema.object({
     /** The file URL of the server module answering the requests. */
     module: schema.string(),
     /** The site's public origin. */
     origin: schema.url(),
-    /** The assets each page links. */
-    assets: schema.object({
+    /** What each page's head links. */
+    head: schema.object({
         /** The module each page loads. */
         script: schema.string(),
         /** The stylesheets each page links, in order. */
@@ -61,7 +61,7 @@ type RenderedResponse = schema.Infer<typeof RenderedResponse>;
 export async function prerender(
     module: string,
     origin: string,
-    assets: PageAssets,
+    head: PageHead,
     environment: Environment<"files" | "process">,
 ): Promise<Map<string, Uint8Array<ArrayBuffer>>> {
     // run the renderer in a directory of its own
@@ -70,7 +70,7 @@ export async function prerender(
     const directory = await files.makeTemporaryDirectory("destack-render-");
     try {
         // write the plan and render every route
-        const plan: RenderPlan = { module: pathToFileURL(module).href, origin, assets };
+        const plan: RenderPlan = { module: pathToFileURL(module).href, origin, head };
         await files.writeTextFile(join(directory, RENDER_PLAN_FILE), JSON.stringify(plan));
         await runRenderer(directory, RESPONSE_TIMEOUT, environment);
 
@@ -88,7 +88,7 @@ export async function prerender(
 }
 
 /** Plan each route's request and file, refusing uncanonical or duplicate paths. */
-export function planRequests(origin: string, routes: StaticRoutes): RenderRequest[] {
+export function planRequests(origin: string, routes: RouteTable): RenderRequest[] {
     // list the pages, the not-found page and the endpoints
     const site = new URL(origin);
     const planned = [

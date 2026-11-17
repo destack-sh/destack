@@ -1,5 +1,5 @@
 import { match } from "../sql/render.ts";
-import type { Triggers } from "../migration/trigger.ts";
+import type { TriggerSet } from "../migration/trigger.ts";
 import type { Dialect } from "../dialect/dialect.ts";
 import { assertNever } from "../error/error.ts";
 import { literal, quote } from "../dialect/quote.ts";
@@ -85,7 +85,7 @@ function triggerName(dependent: DependentDescription): string {
 }
 
 /** The triggers that maintain dependents. */
-export const dependentTriggers: Triggers = {
+export const dependentTriggers: TriggerSet = {
     install: (state, dialect, namespace) =>
         (state.dependents ?? []).flatMap((dependent) => install(dependent, dialect, namespace)),
     remove: (state, dialect) =>

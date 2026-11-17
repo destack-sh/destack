@@ -59,13 +59,13 @@ type LayerSource =
           /** The static assets a Worker version ships, an addressed layer. */
           readonly kind: "assets";
           /** The assets' binding. */
-          readonly assets: LayerAssets;
+          readonly assets: AssetBinding;
           /** The crypto verifying what it answers. */
           readonly crypto: Environment["crypto"];
       };
 
 /** The binding of a Worker's static assets, answering a file by its URL's path. */
-export interface LayerAssets {
+export interface AssetBinding {
     /** Fetch a file. */
     readonly fetch: (input: string) => Promise<Response>;
 }
@@ -108,7 +108,7 @@ export class BuildLayer {
     }
 
     /** Open the layer a Worker version ships as its static assets, through their binding. */
-    static async assets(assets: LayerAssets, crypto: Environment["crypto"]): Promise<BuildLayer> {
+    static async assets(assets: AssetBinding, crypto: Environment["crypto"]): Promise<BuildLayer> {
         const text = await (await BuildLayer.#fetch(assets, LAYER_INDEX)).text();
 
         return new BuildLayer(
@@ -337,7 +337,7 @@ export class BuildLayer {
     }
 
     /** Fetch a file of a layer in assets, refusing one they lack. */
-    static async #fetch(assets: LayerAssets, path: string): Promise<Response> {
+    static async #fetch(assets: AssetBinding, path: string): Promise<Response> {
         const response = await assets.fetch(`${ASSETS_ORIGIN}/${path}`);
         if (!response.ok) {
             throw PackageError.of(
@@ -350,7 +350,7 @@ export class BuildLayer {
     }
 
     /** Fetch and parse a JSON file of a layer in assets. */
-    static async #fetchJson(assets: LayerAssets, path: string): Promise<unknown> {
+    static async #fetchJson(assets: AssetBinding, path: string): Promise<unknown> {
         return JSON.parse(await (await BuildLayer.#fetch(assets, path)).text());
     }
 }

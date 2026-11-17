@@ -46,13 +46,13 @@ export interface TelemetryOptions {
     /** Metric readers, aggregation, and limits. */
     readonly metrics: Omit<MeterProviderOptions, "resource">;
     /** Build the trace and log setup, which may count on the application's meters. */
-    readonly signals: (meters: MeterProvider) => TelemetrySignals;
+    readonly signals: (meters: MeterProvider) => TelemetrySetup;
     /** Report the SDK's own warnings and failures, such as dropped spans. */
     readonly report: (error: Error) => void;
 }
 
 /** The trace and log setup of an application's telemetry. */
-export interface TelemetrySignals {
+export interface TelemetrySetup {
     /** Trace processors, sampling, and limits. */
     readonly traces: Omit<TracerProviderOptions, "resource">;
     /** Log processors and limits. */

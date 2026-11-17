@@ -40,7 +40,7 @@ export type Item<Type extends ObjectType> = Omit<Select<Type["table"]>, "scope" 
 };
 
 /** The events of one resource, by type. */
-export interface OtlpEvents {
+export interface OtlpBatch {
     /** The log records. */
     readonly log: Item<typeof kinds.log>[];
     /** The spans. */
@@ -96,10 +96,10 @@ export class OtlpResource {
     /** The emitter. */
     readonly emitter: OtlpEmitter;
     /** The events, by type, before their issues and visitor are known. */
-    readonly events: OtlpEvents;
+    readonly events: OtlpBatch;
 
     /** Take a resource's emitter and its decoded events. */
-    constructor(emitter: OtlpEmitter, events: OtlpEvents) {
+    constructor(emitter: OtlpEmitter, events: OtlpBatch) {
         this.emitter = emitter;
         this.events = events;
     }
@@ -108,7 +108,7 @@ export class OtlpResource {
     items(known: {
         readonly issues: ReadonlyMap<string, string>;
         readonly visitor?: string;
-    }): OtlpEvents {
+    }): OtlpBatch {
         // set each log record's and span's issue
         const { issues, visitor } = known;
         const log = this.events.log.map((event, index) => ({
@@ -214,7 +214,7 @@ class OtlpDecoder {
     }
 
     /** Decode the resource's log records, visits, actions and session ends. */
-    async logs(groups: OtlpLogsRequest["resourceLogs"][number]["scopeLogs"]): Promise<OtlpEvents> {
+    async logs(groups: OtlpLogsRequest["resourceLogs"][number]["scopeLogs"]): Promise<OtlpBatch> {
         const events = OtlpDecoder.#events();
         for (const { scope, logRecords } of groups) {
             for (const record of logRecords) {
@@ -243,7 +243,7 @@ class OtlpDecoder {
     /** Decode the resource's spans with their annotations and links. */
     async spans(
         groups: OtlpTracesRequest["resourceSpans"][number]["scopeSpans"],
-    ): Promise<OtlpEvents> {
+    ): Promise<OtlpBatch> {
         const events = OtlpDecoder.#events();
         for (const { scope, spans } of groups) {
             for (const span of spans) {
@@ -298,7 +298,7 @@ class OtlpDecoder {
     /** Decode the points of the resource's metrics. */
     async metrics(
         groups: OtlpMetricsRequest["resourceMetrics"][number]["scopeMetrics"],
-    ): Promise<OtlpEvents> {
+    ): Promise<OtlpBatch> {
         const events = OtlpDecoder.#events();
         for (const { scope, metrics } of groups) {
             for (const metric of metrics) {
@@ -310,7 +310,7 @@ class OtlpDecoder {
     }
 
     /** Build an empty list of each type's events. */
-    static #events(): OtlpEvents {
+    static #events(): OtlpBatch {
         return { log: [], span: [], metric: [], visit: [], action: [], session: [] };
     }
 

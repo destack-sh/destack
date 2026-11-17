@@ -1,8 +1,7 @@
 import type { graph } from "@destack/package";
 import { type PackageInspection } from "@destack/package/code";
 import { dirname, join, resolve } from "node:path";
-import type { Environment } from "@destack/environment";
-import { TraceHeaders } from "@destack/environment";
+import { type Environment, Telemetry } from "@destack/environment";
 import { fileURLToPath } from "node:url";
 import { Sandbox } from "@destack/sandbox";
 import { Toolchain } from "@destack/check/toolchain";
@@ -622,7 +621,7 @@ export class Compiler implements AsyncDisposable {
         // clear the last request's diagnostics, and carry the active span's trace context
         this.#stderr = "";
         const trace = new Headers();
-        TraceHeaders.inject(trace, this.store.environment.telemetry);
+        Telemetry.inject(trace, this.store.environment.telemetry);
         const traced = { kind: "request", trace: Object.fromEntries(trace), request } as const;
 
         return new Promise<BuildResponse>((deliver, reject) => {

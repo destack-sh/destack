@@ -14,7 +14,7 @@ export const OUTPUT_DIRECTORIES: readonly string[] = [
 const MODULE_EXTENSIONS = [".ts", ".tsx"] as const;
 
 /** A package's top-level sources: its folders, its root modules and the packages nested in it. */
-export interface SourceRoots {
+export interface SourceLayout {
     /** The folders with its code, tests, scripts and other sources. */
     readonly folders: readonly string[];
     /** The TypeScript modules at its root, such as its configuration files. */
@@ -24,7 +24,10 @@ export interface SourceRoots {
 }
 
 /** List a package's top-level sources, passing over outputs, hidden entries and nested packages. */
-export async function readSourceRoots(directory: string, files: FileSystem): Promise<SourceRoots> {
+export async function readSourceLayout(
+    directory: string,
+    files: FileSystem,
+): Promise<SourceLayout> {
     // sort each visible entry that is no output into folders, nested packages and root modules
     const folders: string[] = [];
     const modules: string[] = [];

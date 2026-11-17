@@ -38,7 +38,7 @@ export const DURABLE_OBJECT_LIMITS: SqlLimits = { variables: 100, columns: 100 }
 const MAX_EXACT = BigInt(Number.MAX_SAFE_INTEGER);
 
 /** The rows a statement returned and the rows it wrote. */
-export interface StatementRows<Rows extends unknown[] = unknown[]> {
+export interface StatementResult<Rows extends unknown[] = unknown[]> {
     /** The returned rows. */
     readonly rows: Rows;
     /** The rows the statement wrote. */
@@ -89,7 +89,7 @@ export class DurableObjectQuery implements SqliteQueryClient {
         sql: string,
         parameters: readonly DriverValue[],
         rows: "values" | "objects",
-    ): Promise<StatementRows> {
+    ): Promise<StatementResult> {
         const read: (cursor: DurableObjectCursor) => unknown[] =
             rows === "values" ? (cursor) => [...cursor.raw()] : (cursor) => cursor.toArray();
 
@@ -144,7 +144,7 @@ export class DurableObjectQuery implements SqliteQueryClient {
     #read<Rows extends unknown[]>(
         cursor: DurableObjectCursor,
         read: (cursor: DurableObjectCursor) => Rows,
-    ): StatementRows<Rows> {
+    ): StatementResult<Rows> {
         const rows = read(cursor);
         this.host.count(cursor);
 

@@ -3,17 +3,11 @@ import { text } from "../table/column.ts";
 import { uniqueIndex } from "../table/constraint.ts";
 import { defineTable, TABLE } from "../table/table.ts";
 import { TestDatabase } from "../test/database.ts";
-import {
-    classifyError,
-    DatabaseError,
-    type DeclaredNames,
-    isAborted,
-    violatedKeyOf,
-} from "./error.ts";
+import { classifyError, DatabaseError, type NameTable, isAborted, violatedKeyOf } from "./error.ts";
 import { testSimulation } from "@destack/test/world";
 
 /** Notes as a database declares them, their title column named apart from its property. */
-const NOTES: DeclaredNames = new Map([
+const NOTES: NameTable = new Map([
     [
         "note",
         {

@@ -92,7 +92,7 @@ export const PartitionRequest = {
 /** Find the space a request is for, as a machine routes it to the space's object. */
 export const SpaceRequest = {
     /** Find the spaces a machine serves by address or identifier in its directory replica. */
-    served(directory: Directory, machine: Identifier<"machine">): SpaceNames {
+    served(directory: Directory, machine: Identifier<"machine">): SpaceLookup {
         // require a space's placement on the machine
         const serves = async (space: Identifier<"space">) => {
             const [placed] = await accountObject.Placement.find(directory.snapshot, [space]);
@@ -153,7 +153,7 @@ export const SpaceRequest = {
     /** Read the space of a request at the machine's own hosts. */
     async of(
         given: Request,
-        origins: Pick<SpaceNames, "find"> & {
+        origins: Pick<SpaceLookup, "find"> & {
             /** The domain the installation origins and S3 origins sit below. */
             readonly domain: string;
         },
@@ -213,7 +213,7 @@ export const SpaceRequest = {
     /** Read the space of a request to a name. */
     async named(
         given: Request,
-        names: SpaceNames & {
+        names: SpaceLookup & {
             /** The domain the installation origins and S3 origins sit below. */
             readonly domain: string;
             /** Find the route a host's path takes, absent for none. */
@@ -256,8 +256,8 @@ export interface SpaceMatch {
     readonly current?: SpaceOrigin;
 }
 
-/** The spaces a machine serves, by their installation origins' addresses and their identifiers. */
-export interface SpaceNames {
+/** The spaces a machine serves, found by their origins' addresses. */
+export interface SpaceLookup {
     /** Find the space of an origin's address, absent for none served here. */
     readonly find: (address: SpaceAddress) => Promise<SpaceMatch | undefined>;
     /** Report whether the machine serves a space. */

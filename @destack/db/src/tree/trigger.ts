@@ -1,4 +1,4 @@
-import type { Triggers } from "../migration/trigger.ts";
+import type { TriggerSet } from "../migration/trigger.ts";
 import type { Dialect } from "../dialect/dialect.ts";
 import { assertNever } from "../error/error.ts";
 import type { TreeDescription } from "./description.ts";
@@ -245,7 +245,7 @@ function remove(tree: TreeDescription, dialect: Dialect): string[] {
 }
 
 /** The triggers that maintain tree indexes. */
-export const treeTriggers: Triggers = {
+export const treeTriggers: TriggerSet = {
     install: (state, dialect) => (state.tree ? install(state.tree, dialect) : []),
     remove: (state, dialect) => (state.tree ? remove(state.tree, dialect) : []),
 };

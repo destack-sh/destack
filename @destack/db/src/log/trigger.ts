@@ -1,4 +1,4 @@
-import type { Triggers } from "../migration/trigger.ts";
+import type { TriggerSet } from "../migration/trigger.ts";
 import type { Dialect } from "../dialect/dialect.ts";
 import type { LogDialect } from "./schema.ts";
 import { sqliteLog } from "../sqlite/log.ts";
@@ -13,7 +13,7 @@ export function createLog(dialect: Dialect, namespace?: string): readonly string
 }
 
 /** The change triggers of a logged table on its relation, recording changes under its SQL name. */
-export const logTriggers: Triggers = {
+export const logTriggers: TriggerSet = {
     install: (state, dialect, namespace) =>
         state.log ? LOGS[dialect].install(state.table.name, state.log, namespace) : [],
     remove: (state, dialect) => (state.log ? LOGS[dialect].remove(state.table.name) : []),

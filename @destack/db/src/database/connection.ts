@@ -11,7 +11,7 @@ import {
     sql,
     type SQLWrapper,
 } from "../sql/index.ts";
-import { classifyError, DatabaseError, type DeclaredNames } from "../error/error.ts";
+import { classifyError, DatabaseError, type NameTable } from "../error/error.ts";
 import { DatabaseDriver } from "./driver.ts";
 import { TransactionSpans } from "./spans.ts";
 import type { ColumnCipher } from "./cipher.ts";
@@ -764,7 +764,7 @@ export class ConnectionState {
     /** The searched tables whose full-text rows SQLite writes update, by SQL name. */
     #searched: ReadonlyMap<string, Table> = new Map();
     /** The declared names of the tables and their columns, by SQL name. */
-    #declared: DeclaredNames = new Map();
+    #declared: NameTable = new Map();
     /** The SQL names of the tables without change triggers: unlogged ones and the log's tables. */
     readonly unlogged = new Set<string>([...LOG_TABLES, STAMP]);
     /** The declared tables, by SQL name. */
@@ -870,7 +870,7 @@ export class ConnectionState {
     }
 
     /** The declared names of the tables and their columns, by SQL name. */
-    get declared(): DeclaredNames {
+    get declared(): NameTable {
         return this.#declared;
     }
 

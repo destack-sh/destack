@@ -52,10 +52,10 @@ const STACK_KEYS: ReadonlySet<string> = new Set([
 ]);
 
 /** What a stack declares records of: a package's object types, or one object type. */
-export type StackTypes = readonly (Package | ObjectType)[];
+export type StackRecordType = Package | ObjectType;
 
 /** A stack document: the stack package's collections and one per object type it declares. */
-export type StackDocument<Types extends StackTypes = readonly []> = StackInput & {
+export type StackDocument<Types extends readonly StackRecordType[] = readonly []> = StackInput & {
     readonly [
         Object in ObjectsOf<Types[number]> as string extends Object["plural"]
             ? never
@@ -66,7 +66,10 @@ export type StackDocument<Types extends StackTypes = readonly []> = StackInput &
 /** Stack documents of named object types. */
 export const StackDocument = {
     /** Serialise a document to JSON, refusing a collection no named type declares. */
-    of<const Types extends StackTypes>(types: Types, document: StackDocument<Types>): JsonObject {
+    of<const Types extends readonly StackRecordType[]>(
+        types: Types,
+        document: StackDocument<Types>,
+    ): JsonObject {
         // read the named object types and their plurals
         const objects = types.flatMap((named) =>
             ObjectType.is(named)
@@ -113,19 +116,19 @@ export interface StackDeclaration {
 }
 
 /** A stack as declared: its object types, and its document keyed by their plurals. */
-export type StackOptions<Types extends StackTypes> = {
+export type StackOptions<Types extends readonly StackRecordType[]> = {
     /** The packages whose object types the stack declares, or single object types. */
     readonly types: Types;
 } & StackDocument<Types>;
 
 /** Define a stack's declarations of the given object types, as JSON. */
-export function defineStack<const Types extends StackTypes>(
+export function defineStack<const Types extends readonly StackRecordType[]>(
     options: StackOptions<Types>,
     module?: ModuleMetadata,
 ): StackDeclaration;
 /** Define a stack's declarations, as the signature above types them. */
 export function defineStack(
-    options: StackOptions<StackTypes>,
+    options: StackOptions<readonly StackRecordType[]>,
     module?: ModuleMetadata,
 ): StackDeclaration {
     // split the types from the document keyed by collection

@@ -1,7 +1,6 @@
 import { type Attributes, type Span, SpanStatusCode } from "@opentelemetry/api";
 import { ENVIRONMENT_SCOPE, SpanRunner } from "../telemetry/runner.ts";
-import { TraceHeaders } from "../telemetry/headers.ts";
-import type { Telemetry } from "../telemetry/telemetry.ts";
+import { Telemetry } from "../telemetry/telemetry.ts";
 import type { ClientSocket, FetchOptions, Network } from "./network.ts";
 import { copyRequest } from "./request.ts";
 import type { ConnectOptions, Socket, SocketAddress } from "./socket/socket.ts";
@@ -102,7 +101,7 @@ export class HttpTransport implements Network {
             async (span) => {
                 // send the request with the trace in a copy of its headers
                 const headers = new Headers(request.headers);
-                TraceHeaders.inject(headers, this.#telemetry);
+                Telemetry.inject(headers, this.#telemetry);
                 const copy = copyRequest(request, { headers });
                 const response = await this.source.fetch(copy, options);
                 outcome = HttpTransport.answered(span, response.status, CLIENT_ERROR_STATUS);

@@ -2,8 +2,7 @@ import type { Attributes } from "@opentelemetry/api";
 import { HttpMethod, HttpTransport } from "../network/transport.ts";
 import type { SocketListener, SocketListenOptions } from "../network/socket/socket.ts";
 import { ENVIRONMENT_SCOPE, SpanRunner } from "../telemetry/runner.ts";
-import { TraceHeaders } from "../telemetry/headers.ts";
-import type { Telemetry } from "../telemetry/telemetry.ts";
+import { Telemetry } from "../telemetry/telemetry.ts";
 import type { Listener, ServeOptions, Server } from "./server.ts";
 
 /** The lowest status a server counts as its own failure: any 5xx, as OpenTelemetry sets. */
@@ -57,7 +56,7 @@ export class HttpServer implements Server {
                 let outcome: Attributes = {};
 
                 // answer it below the trace its headers carry, noting the status or the upgrade
-                const parent = TraceHeaders.extract(request.headers, this.#telemetry);
+                const parent = Telemetry.extract(request.headers, this.#telemetry);
                 const answer = () =>
                     this.#span(
                         method,

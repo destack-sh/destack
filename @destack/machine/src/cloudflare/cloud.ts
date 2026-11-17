@@ -25,7 +25,7 @@ import { DIRECTORY_PREFIX, directoryConfiguration, directoryWorkload } from "./d
 import type { Alarm } from "@destack/db";
 import { R2Bucket } from "@destack/bucket/cloudflare";
 import { BucketBlobStorage } from "@destack/bucket/blob";
-import { BuildLayer, type LayerAssets } from "@destack/package/manifest";
+import { BuildLayer, type AssetBinding } from "@destack/package/manifest";
 import { DurableObjectDatabaseHost, type DurableObjectStorage } from "@destack/db/cloudflare";
 import type { DurableObjectWorkloadInstance } from "@destack/object/cloudflare";
 import { Bookmark, createClient } from "@destack/object/client";
@@ -55,7 +55,7 @@ export interface CloudflareStorageBindings {
     /** The residency's R2 bucket of the builds the machines pull from forges. */
     readonly BUILDS: Cloudflare.R2Bucket;
     /** The releases the Worker version ships, a build layer in its static assets. */
-    readonly RELEASES: LayerAssets;
+    readonly RELEASES: AssetBinding;
     /** The rates of the spaces' use, as `RateCard` JSON. */
     readonly DESTACK_RATES: string;
     /** Where the spaces' mail goes, as `MailSender` JSON. */

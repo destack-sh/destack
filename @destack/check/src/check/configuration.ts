@@ -10,7 +10,7 @@ import { CheckError } from "../error/index.ts";
 import { expectationOverrides, readExpectations, workspaceMembers } from "./expectation.ts";
 import { type Manifest, readManifest } from "./manifest.ts";
 import { formatSource } from "./format.ts";
-import { OUTPUT_DIRECTORIES, readSourceRoots } from "./sources.ts";
+import { OUTPUT_DIRECTORIES, readSourceLayout } from "./sources.ts";
 import type { Toolchain } from "../toolchain/index.ts";
 import { present } from "@destack/schema";
 
@@ -410,7 +410,7 @@ function jsxOptions(
 /** Find the nested packages and TSX modules among a package's sources. */
 async function readSources(directory: string, files: FileSystem) {
     // walk the source folders, stopping at each directory with a manifest
-    const roots = await readSourceRoots(directory, files);
+    const roots = await readSourceLayout(directory, files);
     const packages = [...roots.packages];
     let hasViews = roots.modules.some((module) => module.endsWith(".tsx"));
     const pending = [...roots.folders];

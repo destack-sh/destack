@@ -5,7 +5,7 @@ import type { Snapshot } from "@destack/db";
 import { ObjectReference } from "@destack/sync";
 import { found, type Identifier, present, zip } from "@destack/schema";
 import type { Period } from "../rate/period.ts";
-import type { CheckoutPages, Order, PaymentProvider } from "../provider/provider.ts";
+import type { CheckoutRedirect, Order, PaymentProvider } from "../provider/provider.ts";
 import { Cost } from "../rate/amount.ts";
 import {
     charge,
@@ -136,12 +136,12 @@ export class Billing {
         // mirror the customer and the prices, and open the provider's session
         const customerId = await Billing.#mirrorCustomer(accountId, provider, key, context);
         const mirrored = await Billing.#mirrorPrices(offering, provider);
-        const pages: CheckoutPages = {
+        const redirect: CheckoutRedirect = {
             successUrl: context.input.successUrl,
             cancelUrl: context.input.cancelUrl,
         };
         const order = this.#order(offering, customerId, mirrored);
-        const session = await provider.checkout(order, pages, `${key}/checkout`);
+        const session = await provider.checkout(order, redirect, `${key}/checkout`);
 
         return {
             customer: customerId,

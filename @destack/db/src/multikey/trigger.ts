@@ -1,4 +1,4 @@
-import type { Triggers } from "../migration/trigger.ts";
+import type { TriggerSet } from "../migration/trigger.ts";
 import type { Dialect } from "../dialect/dialect.ts";
 import { assertNever } from "../error/error.ts";
 import { literal, quote } from "../dialect/quote.ts";
@@ -124,7 +124,7 @@ function read(
 }
 
 /** The triggers of multikey indexes. */
-export const multikeyIndexTriggers: Triggers = {
+export const multikeyIndexTriggers: TriggerSet = {
     install: (state, dialect) =>
         (state.multikeyIndexes ?? []).flatMap((each) => install(each, dialect)),
     remove: (state, dialect) =>

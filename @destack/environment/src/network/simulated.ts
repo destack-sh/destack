@@ -58,8 +58,8 @@ const BAD_GATEWAY = 502;
 /** The status of a refused WebSocket upgrade, Upgrade Required (RFC 9110 15.5.22). */
 const UPGRADE_REQUIRED = 426;
 
-/** The faults a simulated network applies to every delivery beside its partitions. */
-export interface NetworkFaults {
+/** The fault a simulated network applies to every delivery beside its partitions. */
+export interface NetworkFault {
     /** The share of deliveries lost, from 0 to 1; a lost message breaks its connection. */
     readonly drop?: number;
     /** The latency of a delivery, from its least to its most, in milliseconds. */
@@ -276,7 +276,7 @@ export class SimulatedNetwork {
     /** The next free port. */
     #port = FIRST_DYNAMIC_PORT;
     /** The faults every delivery meets. */
-    #faults: NetworkFaults = {};
+    #faults: NetworkFault = {};
     /** The links paused for matching requests, until resumed. */
     readonly #pauses = new Set<PausedLink>();
     /** The simulation's clock, which latency waits on. */
@@ -576,7 +576,7 @@ export class SimulatedNetwork {
     }
 
     /** Set the faults every delivery meets, recording them. */
-    degrade(faults: NetworkFaults): void {
+    degrade(faults: NetworkFault): void {
         // take the faults, and record them
         this.#faults = faults;
         const { least, most } = faults.delay ?? { least: 0, most: 0 };

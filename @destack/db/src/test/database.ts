@@ -32,7 +32,7 @@ import type {
     TestTemplate,
     TemplateDatabases,
     TemplateStorage,
-    TemplateTables,
+    TemplateDatabase,
 } from "./template.ts";
 import { testWorldOptions } from "@destack/test/world";
 
@@ -375,7 +375,7 @@ export class TestDatabase<
 
     /** Copy one database of an image into a claimed schema or a temporary file. */
     static async #copy(
-        tables: TemplateTables,
+        tables: TemplateDatabase,
         source: ImageSource,
         environment: DatabaseEnvironment,
     ): Promise<TestDatabase> {
@@ -393,7 +393,7 @@ export class TestDatabase<
 
     /** Open one database of an image migrated, and read where it keeps its rows once written. */
     static async #openImage(
-        tables: TemplateTables,
+        tables: TemplateDatabase,
         dialect: Dialect,
         key: string,
         run: { readonly id: string; readonly directory: string },

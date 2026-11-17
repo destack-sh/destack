@@ -12,14 +12,14 @@ import * as statement from "./statement.ts";
 import { literal, quote } from "../dialect/quote.ts";
 import { relation } from "../table/namespace.ts";
 import { bridgeTriggers } from "./bridge.ts";
-import type { Triggers } from "./trigger.ts";
+import type { TriggerSet } from "./trigger.ts";
 import type { Merge } from "./merge.ts";
 import { canonicalize, present, Version } from "@destack/schema";
 import { Address, Plan, type Action, type Risk, type Step } from "@destack/resource";
 import { type PlanProblem, ResourceError, unreachablePlan } from "@destack/resource/error";
 
 /** The generated triggers every plan removes and reinstalls. */
-const TRIGGERS: readonly Triggers[] = [
+const TRIGGERS: readonly TriggerSet[] = [
     logTriggers,
     treeTriggers,
     multikeyIndexTriggers,
