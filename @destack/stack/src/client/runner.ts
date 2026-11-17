@@ -1,8 +1,7 @@
 import type { Environment } from "@destack/environment";
 import type { ResourceDeclaration } from "@destack/resource";
 import type { RunnerOptions, Workload } from "@destack/object/workload";
-import { createClient } from "@destack/object/client";
-import { Uplink } from "@destack/sync";
+import { createClient, ProcedureRemote } from "@destack/object/client";
 import stackPackage from "../package.ts";
 import type { StackClient } from "./client.ts";
 
@@ -40,6 +39,7 @@ export function spaceRunner(
         workload,
         resources,
         environment,
-        publisher: (url, secret) => Uplink.of(() => connect(url, secret).store),
+        remote: (url, secret) =>
+            new ProcedureRemote({ store: connect(url, secret).store, environment }),
     };
 }
