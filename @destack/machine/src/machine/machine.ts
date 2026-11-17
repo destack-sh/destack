@@ -833,12 +833,12 @@ export class Machine {
         };
     }
 
-    /** Serve one of the spaces' packages below its mount, in the space each request names. */
-    package(handle: Package): Pick<Server, "fetch"> | undefined {
+    /** Serve one of a space's packages below the space's path and the package's mount. */
+    package(handle: Package, spaceId: Identifier<"space">): Pick<Server, "fetch"> | undefined {
         const { status } = this.health;
 
         return status === "up" || status === "down"
-            ? { fetch: (request) => this.serve(Machine.#mounted(handle, request)) }
+            ? { fetch: (request) => this.serve(Machine.#mounted(handle, spaceId, request)) }
             : undefined;
     }
 
@@ -1056,10 +1056,12 @@ export class Machine {
         }
     }
 
-    /** Address a call below a package's path, as it arrives. */
-    static #mounted(handle: Package, request: Request): Request {
+    /** Address a call below a space's path and a package's mount, as it arrives. */
+    static #mounted(handle: Package, spaceId: Identifier<"space">, request: Request): Request {
+        // put the call's path below the space's and the package's
         const url = new URL(request.url);
-        url.pathname = `${PackageMount.path(handle.id)}${url.pathname}`;
+        const mount = `${SpaceMount.path(spaceId)}${PackageMount.path(handle.id)}`;
+        url.pathname = `${mount}${url.pathname}`;
 
         return copyRequest(request, {}, url.href);
     }

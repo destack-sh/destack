@@ -911,15 +911,26 @@ export class Computer implements AsyncDisposable {
         loginId: Identifier<"login">,
         spaceId: Identifier<"space">,
     ): Promise<ClientOf<Handle>> {
-        // call the package at the machine serving the space as the person
+        // call the package below the space's path at the machine serving it, as the person
         const signedIn = await opened.device.signedIn(loginId);
         const located = await opened.machine.locate(spaceId);
         if (located.placement.machine !== opened.machine.id) {
-            return signedIn.session.client(handle, located.url, { partition: spaceId });
+            const mount = `${SpaceMount.url(located.url, spaceId)}${PackageMount.path(handle.id)}`;
+            const { session } = signedIn;
+
+            return createClient<Handle["router"]>(
+                handle,
+                {
+                    url: mount,
+                    fetch: session.fetch(handle.id, { partition: spaceId }),
+                    bookmark: session.bookmark,
+                },
+                options.environment,
+            );
         }
 
-        // call the package mounted here as the person's own client
-        const server = opened.machine.package(handle);
+        // call the package mounted here below the space's path, as the person's own client
+        const server = opened.machine.package(handle, spaceId);
         if (server === undefined) {
             throw MachineError.unenrolled("serving spaces");
         }
