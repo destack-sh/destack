@@ -66,6 +66,7 @@ function entry(feature: Feature, version: string) {
             .jsonObject()
             .parse(JSON.parse(JSON.stringify(describeFeature(feature)))),
         symbol: { package: { ...storage, version } },
+        capabilities: [],
     };
 }
 
