@@ -118,7 +118,7 @@ export class BrowserTab<
 
     /** Open a tab's objects in memory over the person's device on the origin's channel. */
     static async open<const Objects extends Readonly<Record<string, ObjectType>>>(options: {
-        /** The device's name, shared by every tab of the origin. */
+        /** The device's name, shared by every tab that opens the same device. */
         readonly name: string;
         /** The object types to replicate, by key. */
         readonly objects: Objects;
