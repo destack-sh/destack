@@ -113,22 +113,39 @@ export class ReadSet {
 
     /** Report whether a committed change touches a read row, or a row a scan would select. */
     touches(change: Change): boolean {
-        // let an update of only unlogged columns pass reads of logged images
+        // pass a change of a table the set never read
         const name = change.table[TABLE].sqlName;
+        const keys = this.#keys.get(name);
+        const matches = this.#matches.get(name);
+        if (keys === undefined && matches === undefined) {
+            return false;
+        }
+
+        // let an update of only unlogged columns pass reads of logged images, comparing them once when asked
         const encoded = (image: Row | null) =>
             canonicalize(image === null ? null : change.table[TABLE].encode(image));
-        const isUnseen =
-            change.operation === "update" && encoded(change.before) === encoded(change.after);
-        const isSeen = (kind: ReadKind) => kind === "row" || !isUnseen;
+        let isUnseen: boolean | undefined;
+        const isSeen = (kind: ReadKind) => {
+            // see every change of a row read whole
+            if (kind === "row") {
+                return true;
+            }
+
+            // see an image read unless only unlogged columns changed
+            isUnseen ??=
+                change.operation === "update" && encoded(change.before) === encoded(change.after);
+
+            return !isUnseen;
+        };
 
         // compare the change's key and both of its images
-        const read = this.#keys.get(name)?.get(Key.name(change.table, change.key));
+        const read = keys?.get(Key.name(change.table, change.key));
         const isKeyRead = read !== undefined && isSeen(read);
         const images = [
             change.operation === "insert" ? null : change.before,
             change.operation === "delete" ? null : change.after,
         ];
-        const isScanned = (this.#matches.get(name) ?? []).some(
+        const isScanned = (matches ?? []).some(
             ({ match, kind }) =>
                 isSeen(kind) &&
                 images.some((image) => image !== null && Predicate.matches(match, image)),
