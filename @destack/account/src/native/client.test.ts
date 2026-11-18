@@ -4,10 +4,11 @@ import { connectBunSqlite } from "@destack/db/bun";
 import { MemoryKeychain } from "@destack/identity";
 import { Bookmark, ObjectClient, ProcedureRemote } from "@destack/object/client";
 import { present, schema } from "@destack/schema";
-import { ObjectReference, Scope } from "@destack/sync";
+import { ObjectReference, RequestId, Scope } from "@destack/sync";
 import { expect, onTestFinished, refusal, single, test } from "@destack/test";
 import { account } from "../object/account.ts";
 import { client } from "../object/client.ts";
+import accountPackage from "../package.ts";
 import { SignUp } from "../better-auth/sign-up.ts";
 import { TestAccountStore, TestBrowser, ISSUER, ORIGIN, type TestPerson } from "../test/index.ts";
 import { Issuer } from "../client/issuer.ts";
@@ -192,7 +193,75 @@ test("sign a person in through a browser redirect with PKCE as a new client, and
     }).toEqual({ rows: [], session: undefined });
 });
 
-test("fail a browser sign-in whose redirect names another issuer", async () => {
+test("end a login whose refresh grant the issuer refuses", async () => {
+    // sign a person in through the browser, then store a refresh token the issuer does not know
+    await using accounts = await TestAccountStore.open();
+    const { person: owner, browser: ownerBrowser } = await accounts.signInBrowser(EMAIL);
+    const { nativeClient, sessions, network, laptop } = await native(accounts);
+    const row = await nativeClient.browser(async (url) => {
+        await network.fetch(new Request(await consent(ownerBrowser, url)));
+    });
+    const signedIn = new Login(
+        row,
+        nativeClient,
+        (request) => accounts.fetch(request),
+        laptop,
+        new Bookmark(),
+    );
+    const person = { issuer: ISSUER, subjectId: owner.id };
+    await sessions.replace(person, "unknown-refresh-token");
+
+    // refuse the refresh as signed out, and forget the refresh token
+    expect({
+        refused: await refusal(nativeClient.issue(signedIn)),
+        session: await sessions.load(person),
+    }).toEqual({
+        refused: [
+            "UNAUTHORIZED",
+            "SESSION_UNAUTHENTICATED",
+            "authentication required: the login ended, so sign in again",
+        ],
+        session: undefined,
+    });
+});
+
+test("end a login whose client was revoked", async () => {
+    // sign a person in through the browser, then revoke the login's client as the person
+    await using accounts = await TestAccountStore.open();
+    const { person: owner, browser: ownerBrowser } = await accounts.signInBrowser(EMAIL);
+    const { nativeClient, sessions, network, laptop } = await native(accounts);
+    const row = await nativeClient.browser(async (url) => {
+        await network.fetch(new Request(await consent(ownerBrowser, url)));
+    });
+    const signedIn = new Login(
+        row,
+        nativeClient,
+        (request) => accounts.fetch(request),
+        laptop,
+        new Bookmark(),
+    );
+    await owner.client(accountPackage).client.revoke({
+        scope: owner.id,
+        id: client.identifier(row.clientId),
+        requestId: RequestId.create(accounts.store.environment),
+    });
+
+    // refuse the refresh as signed out, and forget the refresh token
+    const person = { issuer: ISSUER, subjectId: owner.id };
+    expect({
+        refused: await refusal(nativeClient.issue(signedIn)),
+        session: await sessions.load(person),
+    }).toEqual({
+        refused: [
+            "UNAUTHORIZED",
+            "SESSION_UNAUTHENTICATED",
+            "authentication required: the login ended, so sign in again",
+        ],
+        session: undefined,
+    });
+});
+
+test("fail a browser sign-in redirected by another issuer", async () => {
     await using accounts = await TestAccountStore.open();
     const { nativeClient, logins, network } = await native(accounts);
 

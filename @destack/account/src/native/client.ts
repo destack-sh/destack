@@ -20,6 +20,7 @@ import type { SignUp } from "../better-auth/sign-up.ts";
 import type { Environment, Listener, Server } from "@destack/environment";
 import type {} from "@destack/package/import-meta";
 import { AccountError } from "../error/error.ts";
+import { OAuthError } from "../authentication/token.ts";
 
 /** The loopback path a browser sign-in returns to (RFC 8252 7.3). */
 const REDIRECT_PATH = "/callback";
@@ -29,6 +30,9 @@ const LOOPBACK = "127.0.0.1";
 
 /** How much longer each slow down makes a device flow wait: five seconds (RFC 8628 3.5). */
 const SLOW_DOWN_MILLISECONDS = 5000;
+
+/** The issuer's refusals of a refresh that end its login (RFC 6749 5.2). */
+const ENDING_REFUSALS = ["GRANT_INVALID", "CLIENT_UNAUTHENTICATED"] as const;
 
 /** The local logins of a native device, which its sign-ins write. */
 export type LoginClient = ObjectClient<{ readonly login: typeof login }>;
@@ -249,11 +253,37 @@ export class NativeClient implements LoginCredential {
             );
         }
 
-        // refresh, storing the rotated refresh token
-        const tokens = await signedIn.user.issuer.refresh(
-            client.identifier(signedIn.row.clientId),
-            refreshToken,
-        );
+        // refresh, failing on anything but a refusal that ends the login
+        const refreshed = await signedIn.user.issuer
+            .refresh(client.identifier(signedIn.row.clientId), refreshToken)
+            .catch((error: unknown) => {
+                for (const code of ENDING_REFUSALS) {
+                    if (OAuthError.is(error, code)) {
+                        return error;
+                    }
+                }
+                throw error;
+            });
+
+        // handle a refusal that ends the login by the refresh token stored now
+        if (refreshed instanceof Error) {
+            const isEnded = await sessions.remove(signedIn.row, refreshToken);
+            // end the login, as OAuth clients sign out on invalid_grant and invalid_client
+            if (isEnded) {
+                throw AccountError.of(
+                    "SESSION_UNAUTHENTICATED",
+                    "authentication required: the login ended, so sign in again",
+                    { cause: refreshed },
+                );
+            }
+            // refresh with the token another process rotated to meanwhile
+            else {
+                return await this.issue(signedIn);
+            }
+        }
+        const tokens = refreshed;
+
+        // store the rotated refresh token
         await sessions.replace(signedIn.row, TokenSet.refreshToken(tokens));
 
         return tokens.accessToken;
