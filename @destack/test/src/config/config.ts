@@ -135,13 +135,17 @@ export function defineConfiguration(
     const declared = listed?.filter((project) => tiers === undefined || tiers.has(project.tier));
     const setup = globalSetup === undefined ? {} : { globalSetup };
     const kept = declared?.length === 0 ? undefined : declared;
-    const projects = configuredProjects(kept, tier, targets, setup)?.map((project) => ({
-        ...project,
-        test: { ...project.test, server: withCaches(project.test?.server, environment) },
-    }));
-    const tiered = tier === undefined ? {} : tierOptions(tier);
     const isExcluded =
         (tier !== undefined && tiers !== undefined && !tiers.has(tier)) || declared?.length === 0;
+
+    // build the projects of a run that includes the tier, its targets' projects too
+    const projects = isExcluded
+        ? undefined
+        : configuredProjects(kept, tier, targets, setup)?.map((project) => ({
+              ...project,
+              test: { ...project.test, server: withCaches(project.test?.server, environment) },
+          }));
+    const tiered = tier === undefined ? {} : tierOptions(tier);
 
     return vitest.defineConfig({
         ...rest,

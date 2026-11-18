@@ -171,11 +171,11 @@ function excluded(configuration: ReturnType<typeof defineConfiguration>) {
     };
 }
 
-test("run only the projects of the tiers a run lists, and nothing of a configuration outside them", async () => {
+test("run only the projects of the tiers a run lists, and nothing of a configuration outside them, targets or not", async () => {
     await using simulation = cachedSimulation({ [TIERS_VARIABLE]: "unit" });
     const environment = simulation.environment("test");
 
-    // declare a unit and a scenario project, and a configuration in the scenario tier alone
+    // declare a unit and a scenario project, and configurations in the scenario tier alone, with targets and without
     const projects = defineConfiguration(
         {
             test: {
@@ -188,6 +188,10 @@ test("run only the projects of the tiers a run lists, and nothing of a configura
         environment,
     );
     const scenario = defineConfiguration({ tier: "scenario" }, environment);
+    const targeted = defineConfiguration(
+        { tier: "scenario", targets: { database: ["sqlite"] } },
+        environment,
+    );
     const outside = defineConfiguration(
         { test: { projects: [{ extends: true, tier: "scenario", test: { name: "scenario" } }] } },
         environment,
@@ -199,10 +203,12 @@ test("run only the projects of the tiers a run lists, and nothing of a configura
             typeof project === "object" && "test" in project ? project.test?.name : project,
         ),
         scenario: excluded(scenario),
+        targeted: excluded(targeted),
         outside: excluded(outside),
     }).toEqual({
         projects: ["unit"],
         scenario: { projects: undefined, exclude: ["**"], passWithNoTests: true },
+        targeted: { projects: undefined, exclude: ["**"], passWithNoTests: true },
         outside: { projects: undefined, exclude: ["**"], passWithNoTests: true },
     });
 });
