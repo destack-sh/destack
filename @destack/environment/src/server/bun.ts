@@ -2,6 +2,9 @@ import type { ServerWebSocket } from "bun";
 import type { Listener, ServeOptions, Server, ServerSocket } from "./server.ts";
 import { listenSocket } from "../network/socket/bun.ts";
 
+/** The media type of a response that streams events for as long as its client listens. */
+const EVENT_STREAM = "text/event-stream";
+
 /** The status of a refused WebSocket upgrade, Upgrade Required (RFC 9110 15.5.22). */
 const UPGRADE_REQUIRED = 426;
 
@@ -25,6 +28,11 @@ function serveHttp<Attachment>(options: ServeOptions<Attachment>): Listener {
             // answer a response
             const answer = await fetch(request, served.requestIP(request)?.address);
             if (answer instanceof Response) {
+                // leave an event stream open past Bun's 10 s idle timeout, as Bun documents
+                if (answer.headers.get("content-type")?.startsWith(EVENT_STREAM) === true) {
+                    served.timeout(request, 0);
+                }
+
                 return answer;
             }
 
