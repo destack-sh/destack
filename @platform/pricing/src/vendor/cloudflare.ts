@@ -24,9 +24,6 @@ const MILLION = 1_000_000;
 /** The bytes in a GB, which Cloudflare takes as 10^9, as its 128 MB / 1 GB example shows. */
 const GIGABYTE = 1_000_000_000;
 
-/** The memory Cloudflare bills an active Durable Object at, in GB: 128 MB / 1 GB. */
-export const DURABLE_OBJECT_GIGABYTES = 0.128;
-
 /** Durable Objects duration, $12.50 per million GB-seconds. */
 export const durableObjectDuration = new Sku(OWNER, {
     name: "cloudflare.durableObjectDuration",
