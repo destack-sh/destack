@@ -13,6 +13,7 @@
     },
     "dependencies": {
         "@destack/db": "workspace:*",
+        "@destack/environment": "workspace:*",
         "@destack/error": "workspace:*",
         "@destack/identity": "workspace:*",
         "@destack/package": "workspace:*",
@@ -21,7 +22,6 @@
         "@destack/telemetry": "workspace:*"
     },
     "devDependencies": {
-        "@destack/environment": "workspace:*",
         "@destack/test": "workspace:*",
         "@types/bun": "1.4.4"
     }

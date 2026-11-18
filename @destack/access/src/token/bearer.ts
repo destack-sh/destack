@@ -1,4 +1,5 @@
 import { IdentityError, Jwt } from "@destack/identity";
+import { BearerProtocol } from "@destack/environment";
 import { DomainError } from "@destack/error";
 import { AccessError } from "../error/index.ts";
 
@@ -20,9 +21,17 @@ export const Bearer = {
         return SIGNED.test(token);
     },
 
-    /** Read the one bearer token of a request without cookies. */
+    /** Read the one bearer token of a request without cookies, or of its WebSocket subprotocols. */
     read(headers: Headers): string | undefined {
-        return headers.has("cookie") ? undefined : Bearer.token(headers.get("authorization"));
+        // refuse a bearer beside cookies
+        if (headers.has("cookie")) {
+            return undefined;
+        }
+
+        // read the authorization header, else the one bearer subprotocol
+        const authorization = headers.get("authorization");
+
+        return authorization === null ? BearerProtocol.read(headers) : Bearer.token(authorization);
     },
 
     /** Require the one bearer token of a request without cookies. */
