@@ -6,7 +6,7 @@ import { TestDatabase } from "../test/index.ts";
 import { MemoryBlobStorage } from "@destack/resource";
 import { Digest } from "@destack/schema";
 import { expect, onTestFinished, test } from "@destack/test";
-import { BLOB_TABLES, BlobStore } from "./store.ts";
+import { BLOB_TABLES, BlobStore, gathered } from "./store.ts";
 import { testWorldOptions } from "@destack/test/world";
 
 /** When every blob store test starts: 1 October 2026, UTC. */
@@ -62,6 +62,19 @@ async function openBlobs() {
     return { simulation, environment, store, storage, database: opened.database };
 }
 
+/** Memory storage recording the length of each pack read. */
+class RecordingStorage extends MemoryBlobStorage {
+    /** The lengths of the pack reads so far. */
+    readonly sliced: number[] = [];
+
+    /** Read a range of a pack, recording its length. */
+    override slice(pack: string, offset: number, length: number): AsyncIterable<Uint8Array> {
+        this.sliced.push(length);
+
+        return super.slice(pack, offset, length);
+    }
+}
+
 /** Collect until settled, each pass a grace after the last, as each cascade level waits one. */
 async function settle(simulation: Simulation, store: BlobStore): Promise<void> {
     for (let level = 0; level < CASCADE_LEVELS; level++) {
@@ -88,6 +101,33 @@ async function put(store: BlobStore, content: string, crypto: Parameters<typeof 
 
     return digest;
 }
+
+test("read an empty blob without reading its pack", async () => {
+    // put an empty blob and a non-empty one, recording each pack read
+    const { environment, database } = await openBlobs();
+    const recording = new RecordingStorage(environment.crypto);
+    const store = new BlobStore({ storage: recording, database, environment });
+    const empty = await put(store, "", environment.crypto);
+    const full = await put(store, "notes", environment.crypto);
+
+    // read both whole, then the empty one in a batch
+    const decoder = new TextDecoder();
+    const read = [
+        decoder.decode(await store.bytes(empty)),
+        decoder.decode(await store.bytes(full)),
+    ];
+    const batched: string[] = [];
+    for await (const entry of store.batch([empty])) {
+        batched.push(decoder.decode(await gathered(entry.body)));
+    }
+
+    // answer the empty blob without a pack read both ways, and read the other's five bytes
+    expect({ read, batched, sliced: recording.sliced }).toEqual({
+        read: ["", "notes"],
+        batched: [""],
+        sliced: [5],
+    });
+});
 
 test("retain a blob while a row references it or its write's lease lasts, and delete it a grace after neither does", async () => {
     // put a referenced blob and an unreferenced one

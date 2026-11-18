@@ -187,11 +187,20 @@ export class BlobStore<Storage extends BlobStorage = BlobStorage> implements Con
 
     /** Read a range of a blob's bytes from its pack. */
     async *slice(digest: Digest, offset: number, length: number): AsyncIterable<Uint8Array> {
-        // read the range from its pack
         const placement = present((await this.placements([digest]))[0], `blob ${digest}`);
+        yield* this.slicePlaced(placement, offset, length);
+    }
+
+    /** Read a range of a placed blob's bytes from its pack. */
+    async *slicePlaced(
+        placement: BlobPlacement,
+        offset: number,
+        length: number,
+    ): AsyncIterable<Uint8Array> {
+        // read the range from its pack
         const end = Math.min(placement.size, offset + length);
         const bytes = Math.max(0, end - offset);
-        yield* this.storage.slice(placement.pack, placement.offset + offset, bytes);
+        yield* this.#pack(placement.pack, placement.offset + offset, bytes);
 
         // count the bytes read once the slice is drained
         this.#count("read", bytes);
@@ -215,13 +224,11 @@ export class BlobStore<Storage extends BlobStorage = BlobStorage> implements Con
             const first = nth(run, 0);
             const last = nth(run, run.length - 1);
             const length = last.offset + last.size - first.offset;
-            await using reader = new ChunkReader(
-                this.storage.slice(first.pack, first.offset, length),
-                () =>
-                    DatabaseError.of(
-                        "CONTENT_UNAVAILABLE",
-                        `pack '${first.pack}' is unavailable: it ends before its blobs`,
-                    ),
+            await using reader = new ChunkReader(this.#pack(first.pack, first.offset, length), () =>
+                DatabaseError.of(
+                    "CONTENT_UNAVAILABLE",
+                    `pack '${first.pack}' is unavailable: it ends before its blobs`,
+                ),
             );
             for (const { digest, size } of run) {
                 // yield the body, then skip what its reader left
@@ -235,6 +242,13 @@ export class BlobStore<Storage extends BlobStorage = BlobStorage> implements Con
 
             // count the run's bytes read
             this.#count("read", length);
+        }
+    }
+
+    /** Read a range of a pack, nothing for an empty one, which storages refuse. */
+    async *#pack(pack: string, offset: number, length: number): AsyncIterable<Uint8Array> {
+        if (length > 0) {
+            yield* this.storage.slice(pack, offset, length);
         }
     }
 
