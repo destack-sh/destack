@@ -260,7 +260,7 @@ export class ResizableControl {
         try {
             return text === undefined ? [] : SavedLayout.parse(JSON.parse(text));
         } catch (error) {
-            this.#telemetry.captureException(error, { level: "warning" });
+            this.#telemetry.captureException(error, { level: "warn" });
 
             return [];
         }
