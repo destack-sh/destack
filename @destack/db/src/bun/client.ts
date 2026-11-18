@@ -13,20 +13,11 @@ import {
 import { SqliteScript } from "../sqlite/script.ts";
 import { present } from "@destack/schema";
 import { TelemetryScope } from "@destack/telemetry";
+import { Cache } from "../cache/cache.ts";
 import type {} from "@destack/package/import-meta";
 
 /** The most prepared statement texts per connection: a package runs 400 to 600 of 2 to 10 KB. */
 const PREPARED_TEXTS = 512;
-
-/** The attributes of a statement cache hit, as the read caches name theirs. */
-const STATEMENT_HIT = { "destack.cache.name": "statement", "destack.cache.result": "hit" } as const;
-/** The attributes of a statement cache miss: a statement prepared anew. */
-const STATEMENT_MISS = {
-    "destack.cache.name": "statement",
-    "destack.cache.result": "miss",
-} as const;
-/** The attributes of a statement finalized beyond the cache's bound. */
-const STATEMENT_EVICTION = { "destack.cache.name": "statement" } as const;
 
 /** The work queue of each database file by its real path: one writer per file in the process. */
 const FILE_QUEUES = new Map<string, SqliteWorkQueue>();
@@ -220,51 +211,25 @@ export class BunClient extends BunQuery implements SqliteConnectionClient {
 export class BunStatementCache {
     /** The database preparing the statements. */
     readonly #database: bun.Database;
-    /** The statements by text, least recently used first. */
-    readonly #statements = new Map<string, bun.Statement<unknown, bun.SQLQueryBindings[]>>();
-    /** The takes, a miss being a statement prepared anew. */
-    readonly #requests;
-    /** The statements finalized beyond the bound. */
-    readonly #evictions;
+    /** The statements by text, finalized once dropped past the bound. */
+    readonly #statements: Cache<bun.Statement<unknown, bun.SQLQueryBindings[]>>;
 
     /** Create the cache, counting its takes and evictions as the statement cache. */
     constructor(database: bun.Database, environment: DatabaseEnvironment) {
-        // take the database, and count on the database package's meter
         this.#database = database;
-        const { metric } = TelemetryScope.of(import.meta.destack.package, environment.telemetry);
-        this.#requests = metric.counter("destack.cache.requests", {
-            unit: "{request}",
-            attributes: {
-                "destack.cache.name": ["statement"],
-                "destack.cache.result": ["hit", "miss"],
-            },
-        });
-        this.#evictions = metric.counter("destack.cache.evictions", {
-            unit: "{entry}",
-            attributes: { "destack.cache.name": ["statement"] },
+        this.#statements = new Cache({
+            name: "statement",
+            capacity: PREPARED_TEXTS,
+            scope: TelemetryScope.of(import.meta.destack.package, environment.telemetry),
+            evicted: (statement) => statement.finalize(),
         });
     }
 
     /** Take a text's statement, preparing it the first time. */
     take(sql: string): bun.Statement<unknown, bun.SQLQueryBindings[]> {
-        // move the statement to the recent end, preparing it on a miss
-        const cached = this.#statements.get(sql);
-        const statement = cached ?? this.#database.prepare<unknown, bun.SQLQueryBindings[]>(sql);
-        this.#statements.delete(sql);
-        this.#statements.set(sql, statement);
-        this.#requests.add(1, cached === undefined ? STATEMENT_MISS : STATEMENT_HIT);
-
-        // finalize the least recently used beyond the bound
-        if (this.#statements.size > PREPARED_TEXTS) {
-            for (const [oldest, evicted] of this.#statements) {
-                this.#statements.delete(oldest);
-                evicted.finalize();
-                this.#evictions.add(1, STATEMENT_EVICTION);
-                break;
-            }
-        }
-
-        return statement;
+        return this.#statements.take(sql, () =>
+            this.#database.prepare<unknown, bun.SQLQueryBindings[]>(sql),
+        );
     }
 
     /** Finalize every statement. */
