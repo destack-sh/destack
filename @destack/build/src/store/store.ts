@@ -877,19 +877,21 @@ export class BuildStore<
         await this.head(subject);
         await this.#requireStored(subject, files);
 
-        // record the attachments together, keeping those another writer recorded the same
-        await this.database
-            .insert(buildAttachment)
-            .values(
-                files.map((file) => ({
-                    subject,
-                    path: file.path,
-                    digest: file.digest,
-                    size: file.size,
-                    mediaType: file.mediaType,
-                })),
-            )
-            .onConflictDoNothing();
+        // record the attachments in one transaction, which splits a long insert, keeping those another writer recorded the same
+        await this.database.transaction(async (transaction) => {
+            await transaction
+                .insert(buildAttachment)
+                .values(
+                    files.map((file) => ({
+                        subject,
+                        path: file.path,
+                        digest: file.digest,
+                        size: file.size,
+                        mediaType: file.mediaType,
+                    })),
+                )
+                .onConflictDoNothing();
+        });
 
         // refuse a path another writer attached a different file at
         const recorded = new Map(

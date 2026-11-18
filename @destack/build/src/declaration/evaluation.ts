@@ -93,10 +93,8 @@ export const EvaluatedDeclaration = schema.object({
 /** A declaration a package exports, described by one of its constructor's kinds. */
 export type EvaluatedDeclaration = schema.Infer<typeof EvaluatedDeclaration>;
 
-/** How an evaluation describes declarations: for a release, or with the symbols an index reads. */
+/** How an evaluation runs modules. */
 export interface EvaluationOptions {
-    /** Whether the evaluation derives each declaration's symbols for the module graph. */
-    readonly isIndexing: boolean;
     /** The build's module transformer, which its compilations reuse. */
     readonly transformer: ModuleTransformer;
 }
@@ -281,13 +279,7 @@ async function evaluateProject(
             requireDeclaringPackage(value, owner, name);
             for (const { kind } of constructorKinds(kinds, site)) {
                 const located = { owner, name, site, kind };
-                const description = await describeDeclaration(
-                    value,
-                    located,
-                    evaluated,
-                    project,
-                    options,
-                );
+                const description = await describeDeclaration(value, located, evaluated, project);
                 if (description !== undefined) {
                     declarations.push({ description, file, export: name });
                 }
@@ -314,13 +306,7 @@ async function evaluateProject(
             let described: DeclarationDescription | undefined;
             for (const { kind } of constructorKinds(kinds, site)) {
                 const located = { owner, name: site.constructor, site, kind };
-                described ??= await describeDeclaration(
-                    value,
-                    located,
-                    evaluated,
-                    project,
-                    options,
-                );
+                described ??= await describeDeclaration(value, located, evaluated, project);
             }
             unexported.set(
                 siteKey(site),
@@ -549,7 +535,6 @@ async function describeDeclaration(
     },
     evaluated: EvaluatedEntry,
     project: PackageSource,
-    options: EvaluationOptions,
 ): Promise<DeclarationDescription | undefined> {
     // read the kind's value of the declaration and describe it, refusing a failure as the declaration's
     const { owner, name, site, kind } = located;
@@ -607,9 +592,9 @@ async function describeDeclaration(
         );
     }
 
-    // list the symbols the kind's code derives from the declaration, for an index
+    // list the symbols the kind's code derives from the declaration
     const symbols =
-        options.isIndexing && typeof functions.symbols === "function"
+        typeof functions.symbols === "function"
             ? Symbols.parse(Reflect.apply(functions.symbols, undefined, [value]))
             : undefined;
 
@@ -638,14 +623,17 @@ function requireDeclaringPackage(value: unknown, owner: PackageVersion, name: st
         );
     }
     // refuse a declaration of another package
-    else if (
-        stamped.id !== owner.id ||
-        stamped.name !== owner.name ||
-        stamped.version !== owner.version
-    ) {
+    else if (stamped.id !== owner.id || stamped.name !== owner.name) {
         throw BuildError.of(
             "INSPECTION_INVALID",
-            `declaration '${name}' is invalid: it belongs to a different package`,
+            `declaration '${name}' is invalid: package '${stamped.name}' declares it, not '${owner.name}'`,
+        );
+    }
+    // refuse a declaration its package stamped at another version than the build evaluates
+    else if (stamped.version !== owner.version) {
+        throw BuildError.of(
+            "INSPECTION_INVALID",
+            `declaration '${name}' is invalid: '${owner.name}' stamped it at '${stamped.version}', but the build evaluates '${owner.version}'`,
         );
     }
 }

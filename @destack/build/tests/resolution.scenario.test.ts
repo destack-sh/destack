@@ -295,7 +295,12 @@ test("refuse indexing star exports that lead back into a module, listing the cyc
         toolchain: async () => Toolchain.workspace(),
     });
     expect(
-        await refusal(compiler.index({ directory, runtime: "bun", dependencies: {}, links: {} })),
+        await refusal(
+            compiler.index(
+                { directory, runtime: "bun", dependencies: {}, links: {} },
+                { declarations: [], relationships: [] },
+            ),
+        ),
     ).toEqual([
         "BAD_REQUEST",
         "INSPECTION_INVALID",

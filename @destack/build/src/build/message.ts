@@ -80,6 +80,25 @@ export const RequestedBuild = schema.object({
 /** The options of a build of one source package. */
 export type RequestedBuild = schema.Infer<typeof RequestedBuild>;
 
+/** The source an inspection or index reads: its directory, runtime, tree and versions. */
+const InspectedSource = schema.object({
+    directory: RequestedBuild.shape.directory,
+    runtime: Runtime,
+    configuration: schema.string().exactOptional(),
+    tree: RequestedBuild.shape.tree,
+    versions: RequestedBuild.shape.versions,
+});
+
+/** The declarations, members and relationships a build recorded, which its index reads. */
+export const IndexedDeclarations = schema.object({
+    /** The declarations and the members they derive. */
+    declarations: schema.array(graph.Declaration),
+    /** The relationships between them. */
+    relationships: schema.array(graph.Edge),
+});
+/** The declarations, members and relationships a build recorded. */
+export type IndexedDeclarations = schema.Infer<typeof IndexedDeclarations>;
+
 /** Work accepted by the isolated compiler. */
 export const BuildRequest = schema.discriminatedUnion("kind", [
     schema.object({
@@ -90,15 +109,16 @@ export const BuildRequest = schema.discriminatedUnion("kind", [
         options: RequestedBuild,
     }),
     schema.object({
-        kind: schema.enum(["inspect", "index"]),
+        kind: schema.literal("inspect"),
         /** The inspection's options. */
-        options: schema.object({
-            directory: RequestedBuild.shape.directory,
-            runtime: Runtime,
-            configuration: schema.string().exactOptional(),
-            tree: RequestedBuild.shape.tree,
-            versions: RequestedBuild.shape.versions,
-        }),
+        options: InspectedSource,
+    }),
+    schema.object({
+        kind: schema.literal("index"),
+        /** The inspection's options. */
+        options: InspectedSource,
+        /** The declarations, members and relationships the indexed build recorded. */
+        declared: IndexedDeclarations,
     }),
 ]);
 /** Work accepted by the isolated compiler. */

@@ -9,7 +9,8 @@ import type { graph } from "@destack/package";
 import { type PackageBuildOptions, Compiler } from "../src/index.ts";
 import { comparePath } from "../src/build/serialization.ts";
 import { LocalBuildStore } from "../src/store/local.ts";
-import { linkDependencies } from "../src/source/index.ts";
+import { linkDependencies, readPackageJson } from "../src/source/index.ts";
+import { outputsOf } from "../src/build/build.ts";
 import { copySource } from "../src/test/source.ts";
 import { Toolchain } from "@destack/check/toolchain";
 
@@ -253,14 +254,25 @@ export class Fixture implements AsyncDisposable {
         });
     }
 
-    /** Index the copied package for Bun: each module's graph file. */
+    /** Build the copied package, then index it for Bun with the build's declarations. */
     async index(): Promise<graph.Module[]> {
-        return await this.#compiler.index({
+        // build the package's outputs, recording its declarations and their relationships
+        const packageJson = await readPackageJson(this.source, this.#files);
+        const built = await this.build({ outputs: outputsOf(packageJson) });
+        const declared = {
+            declarations: [...(await built.declarations()), ...(await built.members())],
+            relationships: await built.relationships(),
+        };
+
+        // index the source with them
+        const options = {
             directory: this.source,
             runtime: "bun",
             dependencies: {},
             links: {},
-        });
+        } as const;
+
+        return await this.#compiler.index(options, declared);
     }
 
     /** Close the compiler and the store, then remove the fixture's temporary checkout. */

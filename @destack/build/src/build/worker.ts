@@ -41,6 +41,7 @@ import {
     readMessages,
     writeMessage,
     type RequestedBuild,
+    type IndexedDeclarations,
 } from "./message.ts";
 import { Console } from "node:console";
 import { Writable } from "node:stream";
@@ -217,17 +218,15 @@ export class CompilerWorker implements AsyncDisposable {
         return inspectModules(project.packageJson.package, inspection.modules, tests, declarations);
     }
 
-    /** Index a package from its syntax: each module's graph file, with its symbols and edges. */
-    async index(options: InspectOptions & Pick<RequestedBuild, "tree">): Promise<graph.Module[]> {
-        // open the package and evaluate its declarations
+    /** Index a package from its syntax and its build's declarations: each module's graph file. */
+    async index(
+        options: InspectOptions & Pick<RequestedBuild, "tree">,
+        declared: IndexedDeclarations,
+    ): Promise<graph.Module[]> {
+        // open the package, its declarations and relationships read from its build
         const project = await PackageSource.open(options, this.environment, this.#program);
-        const catalog = new ConstructorCatalog(options.versions ?? {}, this.environment.files);
-        const transformer = new ModuleTransformer(this.environment);
-        const evaluation = await Evaluation.evaluate([project], catalog, {
-            isIndexing: true,
-            transformer,
-        });
-        const declarations = evaluation.declarations.map((declaration) => declaration.description);
+        const transformer = this.#transformer(options, project.packageJson);
+        const graphed = DeclarationGraph.read(declared.declarations, declared.relationships);
 
         // outline each of its modules from their syntax
         const outliner = new Outliner(this.environment, this.#modules);
@@ -258,7 +257,7 @@ export class CompilerWorker implements AsyncDisposable {
             declarations: outlines.flatMap((outline) => outline.tests),
         };
 
-        return describeGraph(source, outlines, declarations, tests, {
+        return describeGraph(source, outlines, graphed, tests, {
             package: await findPackage("@destack/package", this.#packages, this.toolchain),
             examples,
             scenarios,
@@ -278,10 +277,9 @@ export class CompilerWorker implements AsyncDisposable {
         const inspection = await typescript.inspect(project);
 
         // evaluate the package's declarations
-        const catalog = new ConstructorCatalog({}, this.environment.files);
-        const transformer = new ModuleTransformer(this.environment);
+        const catalog = new ConstructorCatalog(options.versions ?? {}, this.environment.files);
+        const transformer = this.#transformer(options, project.packageJson);
         const evaluation = await Evaluation.evaluate([project], catalog, {
-            isIndexing: true,
             transformer,
         });
         const declarations = evaluation.declarations.map((declaration) => declaration.description);
@@ -317,7 +315,6 @@ export class CompilerWorker implements AsyncDisposable {
         const catalog = new ConstructorCatalog(options.versions ?? {}, this.environment.files);
         const evaluated = new Set([opened.primary, ...opened.projects.values()]);
         const { declarations } = await Evaluation.evaluate([...evaluated.values()], catalog, {
-            isIndexing: false,
             transformer: opened.transformer,
         });
 
@@ -397,7 +394,7 @@ export class CompilerWorker implements AsyncDisposable {
         // write the manifest
         const source = opened.primary.packageJson.package;
         const requires = PackageJson.ranges(opened.packageJson);
-        const graph = new DeclarationGraph(
+        const graph = DeclarationGraph.describe(
             source,
             declarations.map((declaration) => declaration.description),
         );
@@ -411,6 +408,7 @@ export class CompilerWorker implements AsyncDisposable {
             requires,
             sourceMaps: compiled.sourceMaps,
             declarations: graph.list(),
+            relationships: graph.relationships(),
             isExtension: opened.packageJson.definition.build !== undefined,
         });
     }
@@ -471,7 +469,10 @@ export class CompilerWorker implements AsyncDisposable {
     }
 
     /** Reuse the last build's module transformer while the stamps' inputs stay the same. */
-    #transformer(options: RequestedBuild, packageJson: PackageJson): ModuleTransformer {
+    #transformer(
+        options: Pick<RequestedBuild, "tree" | "versions">,
+        packageJson: PackageJson,
+    ): ModuleTransformer {
         // key the stamps by the dependency builds, the release versions and the package's manifests
         const inputs = JSON.stringify([options.tree, options.versions ?? {}, packageJson]);
         if (this.#transformed?.inputs !== inputs) {
@@ -704,7 +705,7 @@ export class CompilerWorker implements AsyncDisposable {
             }
             // index the package's code
             else if (request.kind === "index") {
-                const modules = await compiler.index(request.options);
+                const modules = await compiler.index(request.options, request.declared);
 
                 return {
                     kind: "result",

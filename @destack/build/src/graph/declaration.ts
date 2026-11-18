@@ -30,12 +30,19 @@ export class DeclarationGraph {
     /** Every declaration and member the build has, by package, kind and name. */
     readonly #referents = new Map<string, Referent[]>();
 
+    /** Hold no declarations, which describe and read fill. */
+    private constructor() {}
+
     /** Locate every declaration and derive the package's declarations and edges. */
-    constructor(source: PackageVersion, declarations: readonly DeclarationDescription[]) {
+    static describe(
+        source: PackageVersion,
+        declarations: readonly DeclarationDescription[],
+    ): DeclarationGraph {
         // describe each declaration once across outputs with the members its symbols derive
+        const graphed = new DeclarationGraph();
         const located = new Map<graph.Moniker, Located>();
         for (const declaration of declarations) {
-            const described = describe(declaration);
+            const declared = describe(declaration);
             const members = new Map(
                 (declaration.symbols ?? []).flatMap(({ member }) =>
                     member === undefined
@@ -43,29 +50,68 @@ export class DeclarationGraph {
                         : [
                               [
                                   `${member.name} ${member.kind}`,
-                                  graph.Declaration.member(described, member),
+                                  graph.Declaration.member(declared, member),
                               ] as const,
                           ],
                 ),
             );
-            located.set(described.moniker, { declaration, described, members });
+            located.set(declared.moniker, { declaration, described: declared, members });
         }
 
         // index each declaration and member by its package, kind and name
         for (const { declaration, described, members } of located.values()) {
             const packageId = declaration.symbol.package.id;
-            this.#index(packageId, { declaration: described });
+            graphed.#index(packageId, { declaration: described });
             for (const member of members.values()) {
-                this.#index(packageId, { declaration: member, parent: described });
+                graphed.#index(packageId, { declaration: member, parent: described });
             }
         }
 
         // store the package's declarations and members with the edges their relationships draw
         for (const entry of located.values()) {
             if (entry.declaration.symbol.package.id === source.id) {
-                this.#derive(entry);
+                graphed.#derive(entry);
             }
         }
+
+        return graphed;
+    }
+
+    /** Read a build's stored declarations, members and relationships as its graph. */
+    static read(
+        declarations: readonly graph.Declaration[],
+        relationships: readonly graph.Edge[],
+    ): DeclarationGraph {
+        // index each stored declaration and member by its module and symbol
+        const read = new DeclarationGraph();
+        for (const declaration of declarations) {
+            const path = graph.Moniker.module(declaration.symbol);
+            read.#declarations.set(path, [...(read.#declarations.get(path) ?? []), declaration]);
+            read.#symbols.set(declaration.symbol, [
+                ...(read.#symbols.get(declaration.symbol) ?? []),
+                declaration.moniker,
+            ]);
+        }
+
+        // index each relationship by the module of the declaration it leaves
+        for (const edge of relationships) {
+            const path = graph.Moniker.module(edge.from);
+            read.#edges.set(path, [...(read.#edges.get(path) ?? []), edge]);
+        }
+
+        return read;
+    }
+
+    /** List the relationships between the package's declarations and members, as edges. */
+    relationships(): graph.Edge[] {
+        return [...this.#edges.values()]
+            .flat()
+            .toSorted((left, right) =>
+                Text.compare(
+                    `${left.from} ${left.kind} ${left.to}`,
+                    `${right.from} ${right.kind} ${right.to}`,
+                ),
+            );
     }
 
     /** List the package's declarations and the members they derive, by moniker. */

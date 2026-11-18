@@ -1,3 +1,4 @@
+import type { IndexedDeclarations } from "../build/message.ts";
 import { dirname, join, resolve } from "node:path";
 import { type FileSystem, FileSystemError } from "@destack/environment";
 import type { BunLockfile } from "@destack/check/bun";
@@ -501,13 +502,14 @@ export class WorkspacePackage {
 
     /** Lock the root's build with every build it runs with: units, releases and npm units. */
     async lock(root: Digest, shared: WorkspaceUnitOptions = {}): Promise<Digest> {
-        // build the units it runs with, and attach the graph of each build it ships
+        // build the units it runs with, and attach the graph of each build it ships at once as the pool allows
         const units = await this.#storeEach(shared, this.#dependencies);
-        const versions = WorkspacePackage.#builtVersions(units);
-        await this.attachGraph(root, versions);
-        for (const unit of this.#dependencies) {
-            await this.#attachUnitGraph(unit, found(units, unit.name), versions);
-        }
+        await Promise.all([
+            this.attachGraph(root, units),
+            ...this.#dependencies.map((unit) =>
+                this.#attachUnitGraph(unit, found(units, unit.name), units),
+            ),
+        ]);
 
         return await this.#lock(this.root, root, units);
     }
@@ -516,13 +518,14 @@ export class WorkspacePackage {
     async lockUnits(
         shared: WorkspaceUnitOptions,
     ): Promise<ReadonlyMap<string, { readonly build: DependencyBuild; readonly lock: Digest }>> {
-        // build every unit once, then attach its graph and lock it once per workspace
+        // build every unit once, attach their graphs at once as the pool allows, then lock each once per workspace
         const units = await this.#storeEach(shared, this.units);
         const locks = new Map<string, { readonly build: DependencyBuild; readonly lock: Digest }>();
-        const versions = WorkspacePackage.#builtVersions(units);
+        await Promise.all(
+            this.units.map((unit) => this.#attachUnitGraph(unit, found(units, unit.name), units)),
+        );
         for (const unit of this.units) {
             const build = found(units, unit.name);
-            await this.#attachUnitGraph(unit, build, versions);
             const lock = await this.workspace.unitLock(unit, shared, () =>
                 this.#lock(unit, build.manifest, units),
             );
@@ -536,10 +539,10 @@ export class WorkspacePackage {
     async #attachUnitGraph(
         unit: WorkspaceUnit,
         build: DependencyBuild,
-        versions: Readonly<Record<string, Version>>,
+        units: ReadonlyMap<string, DependencyBuild>,
     ): Promise<void> {
         const unitPackage = await this.workspace.package(unit.directory);
-        await unitPackage.attachGraph(build.manifest, versions);
+        await unitPackage.attachGraph(build.manifest, units);
     }
 
     /** Read the versions the workspace's units were built at, by package name. */
@@ -719,20 +722,26 @@ export class WorkspacePackage {
     }
 
     /** Index the root's modules and tests from source, outside releases through their builds. */
-    async index(request: Omit<InspectOptions, "directory">): Promise<graph.Module[]> {
-        // resolve members through the workspace, as its tests run, and outside releases through their builds
+    async index(
+        request: Omit<InspectOptions, "directory">,
+        declared: IndexedDeclarations,
+    ): Promise<graph.Module[]> {
+        // resolve members through the workspace, as its tests import their test layers, and outside releases through their builds
         const dependencies = await this.#releaseRoots(this.root);
         const links = await this.#releaseLinks();
 
         return await this.workspace.compilers.use(this.root.directory, (compiler) =>
-            compiler.index({ ...request, directory: this.root.directory, dependencies, links }),
+            compiler.index(
+                { ...request, directory: this.root.directory, dependencies, links },
+                declared,
+            ),
         );
     }
 
     /** Index the root for its build's primary runtime and attach its graph, unless it has one. */
     async attachGraph(
         manifest: Digest,
-        versions: Readonly<Record<string, Version>>,
+        units: ReadonlyMap<string, DependencyBuild>,
     ): Promise<void> {
         // leave a build that carries its graph
         const { store } = this.workspace.compilers;
@@ -740,18 +749,23 @@ export class WorkspacePackage {
             return;
         }
 
+        // read the build, its declarations and their relationships
+        const reader = await store.contents(manifest);
+        const declared = {
+            declarations: [...(await reader.declarations()), ...(await reader.members())],
+            relationships: await reader.relationships(),
+        };
+
         // index the root at the versions it was built at, for the first primary runtime it ships
-        const built = await this.workspace.manifest(manifest);
+        const built = reader.manifest;
         const outputs = Object.values(built.outputs);
         const runtime = present(
             PRIMARY_RUNTIMES.find((each) => outputs.some((output) => output.runtime === each)),
             `a primary runtime ${this.root.name} ships`,
         );
         const version = Version.parse(PackageManifest.package(built).version);
-        const modules = await this.index({
-            runtime,
-            versions: { ...versions, [this.root.name]: version },
-        });
+        const versions = { ...WorkspacePackage.#builtVersions(units), [this.root.name]: version };
+        const modules = await this.index({ runtime, versions }, declared);
         await store.attachGraph(manifest, modules);
     }
 

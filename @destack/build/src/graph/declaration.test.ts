@@ -48,7 +48,7 @@ const at = (path: string) => `${app.id}/${path}`;
 
 test("derive the member symbols kinds list and resolve their relationships by kind and name", () => {
     // declare an object type with two methods on a table, a database holding it that two outputs evaluate, and a view and command on it
-    const declarations = new DeclarationGraph(app, [
+    const declarations = DeclarationGraph.describe(app, [
         declare(app, "object", "src/note.ts", "Note", "note", [
             {
                 member: { kind: "method", name: "get", description: { mutates: false } },

@@ -103,9 +103,13 @@ export class PackageClient {
         attachments: ReadonlyMap<Digest, readonly PackageFile[]>,
         signal: AbortSignal | undefined,
     ): Promise<void> {
-        // ask which objects the server has
+        // ask which objects the server has, sending each build with attachments, which a layer may hold alone
         const stored = await this.has(objects.map((object) => object.digest));
-        const lacking = objects.filter((_object, index) => stored[index] !== true);
+        const lacking = objects.filter(
+            (object, index) =>
+                stored[index] !== true ||
+                (object.kind === "manifest" && found(attachments, object.digest).length > 0),
+        );
 
         // write them in order, in uploads of at most the write limit
         const batches: BuildObject[][] = [[]];

@@ -130,7 +130,7 @@ export class NpmInstallation {
                     ? undefined
                     : await this.#environment.files.realPath(installed);
             const isLinked = real !== undefined && !dependencies.has(peer);
-            if (isLinked && !(await this.#reaches(real, directory))) {
+            if (isLinked && !(await this.#requires(real, directory))) {
                 dependencies.set(peer, await this.#open(real, next));
             }
         }
@@ -140,8 +140,8 @@ export class NpmInstallation {
         return unit;
     }
 
-    /** Report whether an installed package leads to another through its requirements or peers. */
-    async #reaches(from: string, target: string): Promise<boolean> {
+    /** Report whether an installed package requires another, directly or transitively. */
+    async #requires(from: string, target: string): Promise<boolean> {
         // walk the installed packages each one requires, each once
         const locator = new PackageLocator(this.#environment.files);
         const seen = new Set<string>();

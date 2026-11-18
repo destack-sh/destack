@@ -1,5 +1,5 @@
 import { Text } from "@destack/schema";
-import { graph, type PackageVersion, type DeclarationDescription } from "@destack/package";
+import { graph, type PackageVersion } from "@destack/package";
 import type { SourceRange } from "@destack/package/source";
 import type { Outline } from "../outline/outline.ts";
 import { BuildError } from "../error/index.ts";
@@ -54,12 +54,11 @@ class Edges {
 export function describeGraph(
     source: PackageVersion,
     outlines: readonly Outline[],
-    declarations: readonly DeclarationDescription[],
+    declared: DeclarationGraph,
     tests: TestSource,
     played: ExampleSource,
 ): graph.Module[] {
-    // collect the package's declarations, refusing one in a module the outlines leave out
-    const declared = new DeclarationGraph(source, declarations);
+    // refuse a declaration in a module the outlines leave out
     const paths = new Set(outlines.map((outline) => outline.path));
     const stray = declared
         .list()

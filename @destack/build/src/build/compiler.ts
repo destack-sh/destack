@@ -24,6 +24,7 @@ import {
     readMessages,
     type RequestedBuild,
     writeMessage,
+    type IndexedDeclarations,
 } from "./message.ts";
 import type { InspectOptions } from "../inspection/inspection.ts";
 import type { BuildReader } from "@destack/package/manifest";
@@ -485,15 +486,20 @@ export class Compiler implements AsyncDisposable {
         );
     }
 
-    /** Index source inside the isolated compiler process after the requests before it. */
+    /** Index source with its build's declarations in the isolated compiler. */
     index(
         options: InspectOptions & Pick<PackageBuildOptions, "dependencies" | "links">,
+        declared: IndexedDeclarations,
         signal?: AbortSignal,
     ): Promise<graph.Module[]> {
         return this.#scope.span("destack.compiler.index", {}, () =>
             this.#serially(async () => {
                 // send the index request at the real directory, the dependencies materialized
-                const request = { kind: "index", options: await this.#inspected(options) } as const;
+                const request = {
+                    kind: "index",
+                    options: await this.#inspected(options),
+                    declared,
+                } as const;
                 const response = await this.#request(request, signal);
                 if (response.kind !== "index") {
                     throw Compiler.mismatched(request.kind, response.kind);
