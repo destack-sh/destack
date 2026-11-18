@@ -61,7 +61,7 @@ A development build of the `local` stage refuses every update.
 | `running`      | the `Release` running now                                                             |
 | `executable`   | the running command's path                                                            |
 | `applications` | the directory a Mac application is installed in                                       |
-| `stage`        | the `Stage`: `production` or `local`, with its feed, universe and command             |
+| `universe`     | the `Universe`: `production` or `local`, with its feed, origin and command            |
 | `environment`  | the files, processes and host the update runs on                                      |
 
 | Verb                               | What it does                                                    |

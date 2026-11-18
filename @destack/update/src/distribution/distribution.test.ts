@@ -1,5 +1,5 @@
 import { Digest } from "@destack/schema";
-import { Stage } from "../release/index.ts";
+import { Universe } from "../release/index.ts";
 import { testHost } from "@destack/test/host";
 import { join } from "node:path";
 import { afterAll, beforeAll, expect, test } from "@destack/test";
@@ -39,7 +39,7 @@ test("stage a newer release once, keeping it staged while none newer is publishe
         running: new Release("2026.9.0", repository.target),
         executable: join(home, "bin", "destack"),
         applications: join(home, "Applications"),
-        stage: new Stage("production"),
+        universe: new Universe("production"),
         environment: repository.environment,
     });
     try {
@@ -84,7 +84,7 @@ test("check a toolchain out once, from earlier toolchains before the feed, keepi
         running: new Release("2026.9.0", repository.target),
         executable: join(resources, "destack"),
         applications: join(home, "Applications"),
-        stage: new Stage("production"),
+        universe: new Universe("production"),
         environment: repository.environment,
     });
 
@@ -167,7 +167,7 @@ test("take a local release's toolchain from its resources", async () => {
         running: new Release("2026.9.0", "aarch64-apple-darwin"),
         executable: join(resources, "destack"),
         applications: join(home, "Applications"),
-        stage: new Stage("local"),
+        universe: new Universe("local"),
         environment: testHost(),
     });
     try {

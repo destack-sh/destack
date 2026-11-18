@@ -1,4 +1,4 @@
-import { Stage } from "../release/index.ts";
+import { Universe } from "../release/index.ts";
 import { testHost } from "@destack/test/host";
 import { join } from "node:path";
 import { principal } from "@destack/access";
@@ -46,7 +46,7 @@ test("record a device's distribution once, stage the published release and offer
         running: new Release("2026.9.0", repository.target),
         executable: join(home, "bin", "destack"),
         applications: join(home, "Applications"),
-        stage: new Stage("production"),
+        universe: new Universe("production"),
         environment: repository.environment,
     });
 

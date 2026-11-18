@@ -23,7 +23,7 @@ export const UpdateError = defineErrorFamily({
         OPTIONS_INVALID: {},
         REPOSITORY_INVALID: {},
         SIGNING_KEY_INVALID: {},
-        STAGE_INVALID: {},
+        UNIVERSE_INVALID: {},
         TARGET_INVALID: {},
 
         // blocked

@@ -1,6 +1,6 @@
 import { join } from "node:path";
 import { Simulation } from "@destack/environment/simulation";
-import { Release, Stage } from "../release/index.ts";
+import { Release, Universe } from "../release/index.ts";
 import { testSimulation } from "@destack/object/test";
 import { expect, onTestFinished, test } from "@destack/test";
 import { Distribution, type DistributionEnvironment } from "./distribution.ts";
@@ -46,7 +46,7 @@ test("link and unlink independent Linux desktop entries and link handlers for pr
         '<svg xmlns="http://www.w3.org/2000/svg"/>',
     );
 
-    // link the production and local stages, production twice, then unlink production twice
+    // link the production and local universes, production twice, then unlink production twice
     const record = { method: "archive" as const, application: join(release, "Destack") };
     const production = distributionAt(join(directory, ".destack"), "production", environment);
     const local = distributionAt(join(directory, ".destack-local"), "local", environment);
@@ -80,10 +80,10 @@ test("link and unlink independent Linux desktop entries and link handlers for pr
     });
 });
 
-/** Describe a stage's Linux distribution in a home. */
+/** Describe a universe's Linux distribution in a home. */
 function distributionAt(
     home: string,
-    stage: "production" | "local",
+    universe: "production" | "local",
     environment: DistributionEnvironment,
 ): Distribution {
     return new Distribution({
@@ -93,7 +93,7 @@ function distributionAt(
         running: new Release("2026.9.0", "x86_64-unknown-linux-gnu"),
         executable: join(home, "bin", "destack"),
         applications: join(home, "Applications"),
-        stage: new Stage(stage),
+        universe: new Universe(universe),
         environment,
     });
 }
