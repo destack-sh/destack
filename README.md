@@ -24,7 +24,7 @@ Destack is an **open-source software engine** for building and deploying general
 Think **GitHub + NPM + Convex + Vercel + Sentry in one**, with all the boring decisions already made: auth, migrations, services, multiplayer, workflows, telemetry, testing, and hosting.
 
 Destack **standardises software production and deployment**:
- 1. **Build first-class custom software** with your own AI, in a standardised pipeline.
+ 1. **Build first-class custom software** with your AI, in a standardised pipeline.
  2. **Integrate every app and agent**: one account, one database, no walls.
  3. **Control your whole stack**: your data, context and code, on any machine you choose.
 
