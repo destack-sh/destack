@@ -1,4 +1,4 @@
-import { defineTable, index, integer, text } from "@destack/db";
+import { defineTable, Expression, index, integer, text } from "@destack/db";
 
 /** The follower of the keys a store acquires for itself. */
 export const STORE_FOLLOWER = "store";
@@ -20,5 +20,9 @@ export const followKey = defineTable(
         /** The lapse time in UTC epoch milliseconds, absent while the follower follows the key. */
         expiresAt: integer("expires_at"),
     },
-    { constraints: (key) => [index("follow_key_expiry").on(key.expiresAt)] },
+    {
+        // give the keys from before followers their one follower, the store
+        convert: { 2: { follower: Expression.literal(STORE_FOLLOWER) } },
+        constraints: (key) => [index("follow_key_expiry").on(key.expiresAt)],
+    },
 );
