@@ -366,6 +366,19 @@ export class LocalBuildStore
         );
     }
 
+    /** Link a path to a target, replacing a link to another, such as an older format's pool. */
+    async #link(target: string, path: string): Promise<void> {
+        // leave a link to the target, and replace any other
+        const { files } = this.environment;
+        if (await files.exists(path)) {
+            if ((await files.readLink(path)) === target) {
+                return;
+            }
+            await files.remove(path);
+        }
+        await files.symlink(target, path);
+    }
+
     /** Write the locks' builds in a layout: addressed blobs, or whole builds and run trees. */
     async #writeLayer(
         locks: readonly Digest[],
@@ -400,9 +413,7 @@ export class LocalBuildStore
             const reader = await this.contents(digest);
             readers.set(digest, reader);
             await this.#writePooled(reader, join(pool, digest));
-            if (!(await files.exists(join(directory, digest)))) {
-                await files.symlink(join(pool, digest), join(directory, digest));
-            }
+            await this.#link(join(pool, digest), join(directory, digest));
         }
 
         // remove the builds and run directories left out
@@ -421,9 +432,7 @@ export class LocalBuildStore
         const isHosting = runtimes.includes(HOST_RUNTIME);
         const trees = this.trees;
         await files.mkdir(trees, { recursive: true });
-        if (!(await files.exists(join(directory, LAYER_TREES)))) {
-            await files.symlink(trees, join(directory, LAYER_TREES));
-        }
+        await this.#link(trees, join(directory, LAYER_TREES));
         for (const lock of isHosting ? shipped.values() : []) {
             const releases = await Lock.releases(lock, (digest) => this.get(digest));
             const resolve = (build: Digest, name: string) => Lock.resolve(lock, build, name);

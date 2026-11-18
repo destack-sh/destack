@@ -207,6 +207,33 @@ test("keep a lock copied up from the layer once the next layer drops it", async 
     );
 });
 
+test("relink a linked layer's builds that point at a pool an earlier layer format kept", async () => {
+    // write a linked layer, then point its build at a pool directory that no longer exists
+    await using simulation = testSimulation();
+    const environment = simulation.environment("test");
+    const { files, crypto } = environment;
+    await using store = await LocalBuildStore.temporary(environment);
+    const release = await store.put(await written("export const answer = 42;", crypto));
+    const lock = await lockAlone(store, release);
+    const distribution = await files.makeTemporaryDirectory("test-distribution-");
+    await store.writeLayer([lock], ["bun"], distribution, "linked");
+    await files.remove(join(distribution, release));
+    await files.symlink(join(distribution, "layered-4", release), join(distribution, release));
+
+    // write the layer again and read the build's module through it
+    await store.writeLayer([lock], ["bun"], distribution, "linked");
+    await using layered = await LocalBuildStore.of({
+        blobs: store.blobs,
+        directory: await files.makeTemporaryDirectory("test-layered-"),
+        environment,
+        layer: await BuildLayer.open(distribution, environment),
+    });
+    const read = await layered.contents(release);
+    expect(new TextDecoder().decode(await read.load("src/answer.ts"))).toBe(
+        "export const answer = 42;",
+    );
+});
+
 test("ship a build in a layer with its output's maps, reading a map from the layer", async () => {
     // store a release whose output has a map, and write a layer of it
     await using simulation = testSimulation();
