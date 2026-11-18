@@ -996,6 +996,11 @@ tester.run("no-manifest-import", rules["no-manifest-import"], {
             filename: "/tmp/site/src/main.ts",
             settings: SETTINGS,
         },
+        {
+            code: 'import definition from "@destack/object/destack.json" with { type: "json" };',
+            filename: SOURCE.replace("/src/", "/src/test/"),
+            settings: SETTINGS,
+        },
     ],
     invalid: [
         {

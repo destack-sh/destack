@@ -1,6 +1,6 @@
 import { isPackageFile } from "./package.ts";
 import type { Rule } from "@oxlint/plugins";
-import { isTestFile } from "./word.ts";
+import { isTestFile, isTestKitFile } from "./word.ts";
 
 /** Reject reading package manifests from package source. */
 export const noManifestImport: Rule = {
@@ -21,11 +21,12 @@ export const noManifestImport: Rule = {
 
         return {
             ImportDeclaration(node) {
-                // match manifest files imported from source modules
+                // match manifest files imported from source modules, apart from tests and the test kits building fixtures of them
                 const file = node.source.value.split("/").at(-1);
                 if (
                     /[\\/]src[\\/]/u.test(context.filename) &&
                     !isTestFile(context.filename) &&
+                    !isTestKitFile(context.filename) &&
                     (file === "destack.json" || file === "package.json")
                 ) {
                     context.report({ node, messageId: "manifest", data: { file } });
