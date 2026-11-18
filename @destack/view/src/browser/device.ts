@@ -23,7 +23,9 @@ export type DeviceRole = schema.Infer<typeof DeviceRole>;
 
 /** What a page's tab asks its device worker for: the person's objects of the view. */
 export const DeviceRequest = schema.object({
-    /** The person signed in, whose one device every tab of the origin shares. */
+    /** The device's name, one per installation and person, shared by the installation's tabs. */
+    name: schema.string().min(1),
+    /** The person signed in. */
     caller: Subject,
     /** The browser's device storing device-scoped local objects. */
     device: Subject.exactOptional(),
@@ -40,9 +42,9 @@ export function serveDevice(
     environment: Environment & Environment<"broadcast" | BrowserCapability>,
 ): void {
     BrowserDevice.listen(scope, async (message) => {
-        // open the person's database file with the tables of every object type the view opens
+        // open the device's database file with the tables of every object type the view opens
         const request = DeviceRequest.parse(message);
-        const name = request.caller.id;
+        const { name } = request;
         const objects = deviceObjects(view, DEVICE_ROLES);
         const file = await WasmClient.opfs(name, environment);
         const database = connectWasmSqlite(file, ObjectClient.tables(objects), {
@@ -73,10 +75,10 @@ export function serveDevice(
             database,
             channel: broadcastChannel(`destack:${name}`, environment),
             objects,
-            scope: name,
+            scope: request.caller.id,
             caller: request.caller,
             ...(request.device === undefined ? {} : { device: request.device }),
-            remote: publisher(name),
+            remote: publisher(request.caller.id),
             publisher,
             environment,
         });
