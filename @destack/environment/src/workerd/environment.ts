@@ -1,9 +1,9 @@
-import { SeverityNumber } from "@opentelemetry/api";
 import { AsyncLocalStorageContextManager } from "@opentelemetry/context-async-hooks";
 import { Clock } from "../clock/clock.ts";
 import { Environment } from "../environment/environment.ts";
 import { Network } from "../network/network.ts";
 import { Telemetry } from "../telemetry/telemetry.ts";
+import { LineExporter } from "../telemetry/line.ts";
 
 /** The system's environment on workerd, built on its first read. */
 let system: WorkerdEnvironment | undefined;
@@ -19,14 +19,7 @@ export const WorkerdEnvironment = {
         if (system === undefined) {
             const telemetry = Telemetry.local(
                 Clock.system,
-                (line, severity) => {
-                    const text = line.trimEnd();
-                    if (severity >= SeverityNumber.ERROR) {
-                        console.error(text);
-                    } else {
-                        console.log(text);
-                    }
-                },
+                (line, severity) => LineExporter.console(line, severity),
                 new AsyncLocalStorageContextManager().enable(),
             );
             const base = { ...Environment.system, network: Network.workerd };

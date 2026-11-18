@@ -128,7 +128,10 @@
             "rules": { "destack/no-ambient-effect": "off" }
         },
         {
-            "files": ["@destack/environment/src/workerd/environment.ts"],
+            "files": [
+                "@destack/environment/src/workerd/environment.ts",
+                "@destack/environment/src/telemetry/line.ts"
+            ],
             "rules": { "eslint/no-console": "off" }
         },
         {

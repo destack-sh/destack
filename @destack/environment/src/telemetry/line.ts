@@ -1,4 +1,4 @@
-import { SeverityNumber } from "@opentelemetry/api";
+import { type Attributes, SeverityNumber } from "@opentelemetry/api";
 import { type ExportResult, ExportResultCode } from "@opentelemetry/core";
 import {
     type LogRecordExporter,
@@ -6,6 +6,9 @@ import {
     type ReadableLogRecord,
     SimpleLogRecordProcessor,
 } from "@opentelemetry/sdk-logs";
+
+/** The width of the longest severity a line shows, ERROR. */
+const SEVERITY_WIDTH = 5;
 
 /** Exports log records as lines to a runtime's own log, such as standard error or a console. */
 export class LineExporter {
@@ -33,22 +36,53 @@ export class LineExporter {
         forceFlush: () => Promise.resolve(),
     };
 
-    /** Format a record as a line: its severity, its name, and any exception with its stack. */
+    /** Write a line to the runtime's console, an error's as an error, on any runtime. */
+    static console(line: string, severity: SeverityNumber): void {
+        const text = line.trimEnd();
+        if (severity >= SeverityNumber.ERROR) {
+            console.error(text);
+        }
+        // write any other record as a log
+        else {
+            console.log(text);
+        }
+    }
+
+    /** Format a record as a line: time, severity, name, attributes, and any exception. */
     static line(record: ReadableLogRecord): string {
-        // name the record by its event, else its body
+        // read the record's name, severity and time
         const name = record.eventName ?? textOf(record.body);
-        const severity = record.severityText ?? SeverityNumber[record.severityNumber ?? 0];
+        const severity = String(record.severityText ?? SeverityNumber[record.severityNumber ?? 0]);
+        const [seconds] = record.hrTime;
+
+        return LineExporter.format(seconds * 1000, severity, name, record.attributes);
+    }
+
+    /** Format a line: time of day, severity, name, attributes as key=value, and any exception. */
+    static format(at: number, severity: string, name: string, attributes: Attributes): string {
+        // stamp the time of day and list the attributes beside the exception's, quoting text with spaces
+        const time = new Date(at).toISOString().slice(11, 19);
+        const pairs = Object.entries(attributes)
+            .filter(([key]) => !key.startsWith("exception."))
+            .map(([key, value]) => `${key}=${valueOf(value)}`);
+        const listed = pairs.length === 0 ? "" : ` ${pairs.join(" ")}`;
 
         // add an exception's type, message and stack
-        const { attributes } = record;
         const message = attributes["exception.message"];
         const stack = attributes["exception.stacktrace"];
         const type = textOf(attributes["exception.type"] ?? "Error");
         const thrown = message === undefined ? "" : ` ${type}: ${textOf(message)}`;
         const trace = stack === undefined ? "" : `\n${textOf(stack)}`;
 
-        return `${severity} ${name}${thrown}${trace}`;
+        return `${time} ${severity.padEnd(SEVERITY_WIDTH)} ${name}${listed}${thrown}${trace}`;
     }
+}
+
+/** Read an attribute's value as a line shows it, quoting text with spaces or quotes. */
+function valueOf(value: unknown): string {
+    const text = textOf(value);
+
+    return typeof value === "string" && /[\s"=]/u.test(value) ? JSON.stringify(value) : text;
 }
 
 /** Read a log value as text: a string as it is, anything else as JSON. */
