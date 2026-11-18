@@ -2,7 +2,7 @@ import { schema, Version } from "@destack/schema";
 import { graph, type PackageVersion } from "@destack/package";
 import type { BuildReader } from "@destack/package/manifest";
 import { Address } from "./address.ts";
-import { Plan, Step, type Comparator } from "./plan.ts";
+import { Plan, Step } from "./plan.ts";
 import { Vocabulary } from "./vocabulary.ts";
 
 /** The steps from a package's previous release to this one. */
@@ -47,12 +47,8 @@ function planUpgrade(
     history: History,
     release: PackageVersion,
     declarations: readonly graph.Declaration[],
-    compare: (declaration: graph.Declaration) => Comparator | undefined,
+    compared: ReadonlyMap<string, Plan>,
 ): Upgrade {
-    // name the releases declaring each side of a comparison
-    const earlier = { package: { ...release, version: history.release } };
-    const later = { package: release };
-
     // pair the releases' declarations by kind and name
     const remaining = new Map(history.declarations.map((entry) => [key(entry), entry]));
 
@@ -60,7 +56,7 @@ function planUpgrade(
     const plans: (() => Plan)[] = [];
     for (const declaration of declarations) {
         const previous = remaining.get(key(declaration));
-        const comparison = compare(declaration);
+        const comparison = compared.get(key(declaration));
         remaining.delete(key(declaration));
 
         // add a new declaration
@@ -70,12 +66,7 @@ function planUpgrade(
         }
         // compare a kept declaration its kind compares
         else if (comparison !== undefined) {
-            plans.push(() =>
-                comparison(
-                    { description: previous.description, symbol: earlier },
-                    { description: declaration.description, symbol: later },
-                ),
-            );
+            plans.push(() => comparison);
         }
     }
 
