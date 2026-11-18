@@ -297,6 +297,7 @@ export class TestControl implements AsyncDisposable {
                     residencyId: declaredResidency.code,
                     key: publicKey,
                     origin,
+                    rates: {},
                 };
             }),
         );
