@@ -1,4 +1,5 @@
-import { resolve } from "node:path";
+import { join, relative, resolve } from "node:path";
+import { MODULE_EXTENSIONS } from "../check/sources.ts";
 import type { FileSystem } from "@destack/environment";
 import { BunLockfile } from "../bun/lockfile.ts";
 
@@ -75,6 +76,33 @@ export class Workspace {
                 .filter((other) => other.dependencies.includes(member.directory))
                 .map((other) => other.directory),
         );
+    }
+
+    /** List a member's existing changed modules, from the member, leaving out nested members'. */
+    async modules(
+        directory: string,
+        files: readonly string[],
+        system: FileSystem,
+    ): Promise<string[]> {
+        // take the modules below the member and outside the members nested in it
+        const member = relative(this.root, directory);
+        const nested = this.members.filter((each) => each.directory.startsWith(`${member}/`));
+        const below = files.filter(
+            (file) =>
+                (member === "" || file.startsWith(`${member}/`)) &&
+                !nested.some((each) => file.startsWith(`${each.directory}/`)) &&
+                MODULE_EXTENSIONS.some((extension) => file.endsWith(extension)),
+        );
+
+        // keep the existing ones, leaving out deleted modules
+        const modules: string[] = [];
+        for (const file of below) {
+            if (await system.exists(join(this.root, file))) {
+                modules.push(relative(member, file));
+            }
+        }
+
+        return modules;
     }
 
     /** List the members changed files affect, absent when a file lies outside every member. */

@@ -3,7 +3,7 @@ import { checkPackage, fixPackage } from "./check.ts";
 import { formatPackage } from "./format.ts";
 import { configurePackage } from "./configuration.ts";
 import { CheckError } from "../error/index.ts";
-import { listAffected } from "../workspace/index.ts";
+import { listAffected, listChangedModules } from "../workspace/index.ts";
 import { Toolchain } from "../toolchain/index.ts";
 import { Readme } from "../markdown/index.ts";
 
@@ -17,6 +17,17 @@ export async function main(environment: Environment<"files" | "process" | "host"
     if (command === "format" && files.includes("--check")) {
         command = "format-check";
         files = files.filter((file) => file !== "--check");
+    }
+
+    // lint the package's modules changed since a base, none when none changed
+    const since = command === "check" && files[0] === "--since" ? files[1] : undefined;
+    if (since !== undefined) {
+        files = await listChangedModules(process.workingDirectory, since, environment);
+        if (files.length === 0) {
+            await process.stdout.write(`${JSON.stringify({ diagnostics: [] }, null, 4)}\n`);
+
+            return;
+        }
     }
 
     // reject independent tool settings

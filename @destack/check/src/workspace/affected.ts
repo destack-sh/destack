@@ -8,7 +8,30 @@ export async function listAffected(
     base: string,
     environment: Environment<"files" | "process">,
 ): Promise<string[] | undefined> {
-    // read the workspace enclosing the directory
+    // select the members the changes touch
+    const workspace = await readWorkspace(directory, environment);
+
+    return workspace.affected(await listChanged(workspace.root, base, environment));
+}
+
+/** List a package's TypeScript modules changed since a base commit, from the package. */
+export async function listChangedModules(
+    directory: string,
+    base: string,
+    environment: Environment<"files" | "process">,
+): Promise<string[]> {
+    // select the package's existing modules among the changes
+    const workspace = await readWorkspace(directory, environment);
+    const changed = await listChanged(workspace.root, base, environment);
+
+    return await workspace.modules(directory, changed, environment.files);
+}
+
+/** Read the workspace enclosing a directory, refusing a directory outside any. */
+async function readWorkspace(
+    directory: string,
+    environment: Environment<"files">,
+): Promise<Workspace> {
     const workspace = await Workspace.read(directory, environment.files);
     if (workspace === undefined) {
         throw CheckError.of(
@@ -17,20 +40,27 @@ export async function listAffected(
         );
     }
 
-    // list the files changed in the working tree since the merge base, and the untracked files
+    return workspace;
+}
+
+/** List the paths changed since a base's merge base, and the untracked ones, from a root. */
+async function listChanged(
+    root: string,
+    base: string,
+    environment: Environment<"process">,
+): Promise<string[]> {
     const changed = await listGit(
         ["diff", "--name-only", "--no-renames", "--merge-base", base],
-        workspace.root,
+        root,
         environment,
     );
     const untracked = await listGit(
         ["ls-files", "--others", "--exclude-standard"],
-        workspace.root,
+        root,
         environment,
     );
 
-    // select the affected members
-    return workspace.affected([...changed, ...untracked]);
+    return [...changed, ...untracked];
 }
 
 /** List the lines a git command prints in a directory. */

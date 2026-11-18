@@ -73,6 +73,8 @@ test("compile a browser package with views against DOM, the view JSX runtime and
     expect(await typescriptConfiguration(directory, files)).toEqual({
         compilerOptions: {
             ...TYPESCRIPT_OPTIONS,
+            incremental: true,
+            tsBuildInfoFile: "node_modules/.cache/destack/tsc.tsbuildinfo",
             lib: [...LANGUAGE, "DOM", "DOM.Iterable"],
             jsx: "preserve",
             jsxImportSource: "@destack/view",
@@ -93,7 +95,13 @@ test("compile a Bun-only package against Bun's types without DOM", async () => {
         { "src/index.ts": "export {};\n" },
     );
     const { compilerOptions } = await typescriptConfiguration(directory, files);
-    expect(compilerOptions).toEqual({ ...TYPESCRIPT_OPTIONS, lib: [...LANGUAGE], types: ["bun"] });
+    expect(compilerOptions).toEqual({
+        ...TYPESCRIPT_OPTIONS,
+        incremental: true,
+        tsBuildInfoFile: "node_modules/.cache/destack/tsc.tsbuildinfo",
+        lib: [...LANGUAGE],
+        types: ["bun"],
+    });
 });
 
 test("compile a Bun package with Solid's terminal renderer against DOM and the renderer's JSX runtime", async () => {
@@ -112,6 +120,8 @@ test("compile a Bun package with Solid's terminal renderer against DOM and the r
     const { compilerOptions } = await typescriptConfiguration(directory, files);
     expect(compilerOptions).toEqual({
         ...TYPESCRIPT_OPTIONS,
+        incremental: true,
+        tsBuildInfoFile: "node_modules/.cache/destack/tsc.tsbuildinfo",
         lib: [...LANGUAGE, "DOM", "DOM.Iterable"],
         types: ["bun"],
         jsx: "preserve",

@@ -14,6 +14,9 @@ import { OUTPUT_DIRECTORIES, readSourceLayout } from "./sources.ts";
 import type { Toolchain } from "../toolchain/index.ts";
 import { present } from "@destack/schema";
 
+/** Where the compiler keeps what it checked, so a later run re-checks only what changed since. */
+const BUILD_INFO = "node_modules/.cache/destack/tsc.tsbuildinfo";
+
 /** A bunfig.toml preload list, its quoted modules captured. */
 const PRELOAD = /^\s*preload\s*=\s*\[([^\]]*)\]/gmu;
 
@@ -363,6 +366,8 @@ export async function typescriptConfiguration(directory: string, files: FileSyst
     return {
         compilerOptions: {
             ...TYPESCRIPT_OPTIONS,
+            incremental: true,
+            tsBuildInfoFile: BUILD_INFO,
             lib: [...TYPESCRIPT_LIBRARIES, ...(isDom ? DOM_LIBRARIES : [])],
             ...(types.length > 0 ? { types } : {}),
             ...jsx,

@@ -10,8 +10,8 @@ export const OUTPUT_DIRECTORIES: readonly string[] = [
     "out",
 ];
 
-/** The extensions of the TypeScript modules a package keeps at its root. */
-const MODULE_EXTENSIONS = [".ts", ".tsx"] as const;
+/** The extensions of the TypeScript modules a package keeps. */
+export const MODULE_EXTENSIONS = [".ts", ".tsx"] as const;
 
 /** A package's top-level sources: its folders, its root modules and the packages nested in it. */
 export interface SourceLayout {

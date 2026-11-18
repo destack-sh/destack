@@ -71,3 +71,51 @@ test("read a workspace's members from its lockfile and walk their workspace depe
         affectedByRoot: undefined,
     });
 });
+
+test("select a member's existing changed modules, leaving out deleted ones, other files and nested members' modules", async () => {
+    // record a workspace with an app and a fixture package nested in it
+    await using simulation = testSimulation();
+    const { files } = simulation.environment("test");
+    const root = await files.makeTemporaryDirectory("workspace-");
+    await files.writeTextFile(
+        join(root, "bun.lock"),
+        `{
+  "lockfileVersion": 1,
+  "workspaces": {
+    "": { "name": "@acme/workspace" },
+    "packages/app": { "name": "@acme/app" },
+    "packages/app/fixture": { "name": "@acme/fixture" },
+  },
+  "packages": {},
+}
+`,
+    );
+    await files.mkdir(join(root, "packages/app/src"), { recursive: true });
+    await files.mkdir(join(root, "packages/app/fixture"), { recursive: true });
+    for (const path of [
+        "packages/app/src/kept.ts",
+        "packages/app/src/view.tsx",
+        "packages/app/fixture/index.ts",
+    ]) {
+        await files.writeTextFile(join(root, path), "export {};\n");
+    }
+
+    // select the app's modules among changes to its modules, a deleted one, its manifest and its fixture
+    const workspace = await Workspace.read(root, files);
+    if (workspace === undefined) {
+        throw new TypeError("the fixture has a lockfile");
+    }
+    const modules = await workspace.modules(
+        join(root, "packages/app"),
+        [
+            "packages/app/src/kept.ts",
+            "packages/app/src/view.tsx",
+            "packages/app/src/deleted.ts",
+            "packages/app/package.json",
+            "packages/app/fixture/index.ts",
+            "README.md",
+        ],
+        files,
+    );
+    expect(modules).toEqual(["src/kept.ts", "src/view.tsx"]);
+});

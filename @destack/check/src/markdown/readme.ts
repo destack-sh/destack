@@ -58,7 +58,12 @@ export const Readme = {
         }
 
         // compile them on the package's tsconfig, as rustdoc compiles doc listings apart from the crate
-        const configuration = { extends: "../../../../tsconfig.json", include: [], files: names };
+        const configuration = {
+            extends: "../../../../tsconfig.json",
+            compilerOptions: { tsBuildInfoFile: "../readme.tsbuildinfo" },
+            include: [],
+            files: names,
+        };
         await files.writeTextFile(join(folder, "tsconfig.json"), JSON.stringify(configuration));
         const typescript = toolchain.locate(["@destack/check", "typescript"], directory);
 
