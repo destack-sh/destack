@@ -27,7 +27,7 @@ import { type Link, TelemetryScope } from "@destack/telemetry";
 import type {} from "@destack/package/import-meta";
 import { PackageName } from "@destack/package";
 import { Failure } from "@destack/error";
-import { RetryPolicy, waitAborted, Clock } from "@destack/environment";
+import { Clock, RetryPolicy, untilAborted, waitAborted } from "@destack/environment";
 import type { Alarm } from "./alarm.ts";
 import type { Environment } from "@destack/environment";
 
@@ -860,7 +860,7 @@ export class ControlLoop {
 
     /** Wait until the log listens to other writers' commits, failing as listening fails. */
     async #listen(signal: AbortSignal): Promise<void> {
-        await Promise.race([this.database.log.listening(), waitAborted(signal)]);
+        await untilAborted(this.database.log.listening(), signal);
         this.#isListening = !signal.aborted;
         this.#wake();
     }
@@ -966,7 +966,7 @@ export class ControlLoop {
             return;
         }
         await activation(signal);
-        await Promise.race([this.#started.promise, waitAborted(signal)]);
+        await untilAborted(this.#started.promise, signal);
         if (signal.aborted) {
             return;
         }
@@ -2090,15 +2090,13 @@ export class ControlLoop {
             }
             failures.set(key, { count: failed, failure, isReported: isRepeated || isReported });
 
-            // retry a transient failure on backoff, leaving any other to the key's next change
+            // retry a transient failure when it asks, else on backoff, leaving any other to the key's next change
             if (Failure.isTransient(failure)) {
                 const drawn = RetryPolicy.draw(`${controller.name} ${key} ${failed}`);
-                this.#enqueue(
-                    controller,
-                    key,
-                    this.#clock.now() + RetryPolicy.interval(this.#retry, failed, () => drawn),
-                    "retry",
-                );
+                const interval =
+                    Failure.retryAfter(failure) ??
+                    RetryPolicy.interval(this.#retry, failed, () => drawn);
+                this.#enqueue(controller, key, this.#clock.now() + interval, "retry");
             }
         }
     }
@@ -2111,7 +2109,7 @@ export class ControlLoop {
         stop: AbortController,
     ): Promise<void> {
         while (!reconciliation.signal.aborted) {
-            await Promise.race([reconciliation.changed(), waitAborted(reconciliation.signal)]);
+            await untilAborted(reconciliation.changed(), reconciliation.signal);
             if (reconciliation.signal.aborted) {
                 return;
             }

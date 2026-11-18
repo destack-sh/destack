@@ -800,6 +800,55 @@ test("capture a key failing transiently only once its retries last past the wind
     });
 });
 
+test("retry a transient failure after the wait it asks, else after the backoff", async () => {
+    // fail "asked" with a retry after a second and "unasked" without one, each until its third attempt
+    const simulation = testSimulation();
+    const { database, write } = await openJobs(simulation);
+    await write([
+        { id: "asked", status: "open", dueAt: 0 },
+        { id: "unasked", status: "open", dueAt: 0 },
+    ]);
+    const clock = simulation.clock;
+    const started = clock.now();
+    const attempts: [string, number][] = [];
+    const controller: Controller<typeof job> = {
+        name: "job",
+        table: job,
+        pending: { status: "open" },
+        reconcile: async (rows) => {
+            const { id } = nth(rows, 0);
+            attempts.push([id, clock.now() - started]);
+            if (attempts.filter(([each]) => each === id).length < 3) {
+                const failure = Failure.http("SERVICE_UNAVAILABLE", "service unavailable");
+                throw Failure.error(
+                    id === "asked" ? { ...failure, data: { retryAfter: 1000 } } : failure,
+                );
+            }
+        },
+    };
+    const loop = new ControlLoop(
+        database,
+        [{ projections: [], controllers: [controller], cursors: [] }],
+        { retry: { initialInterval: 60_000, maximumInterval: 60_000 } },
+    );
+    running(loop);
+
+    // run until both succeed: "asked" a second apart, "unasked" a backoff apart
+    await loop.idle();
+    for (const at of [1000, 2000, 60_000, 120_000]) {
+        await simulation.jump(started + at);
+        await loop.idle();
+    }
+    expect(attempts.toSorted(([left], [right]) => left.localeCompare(right))).toEqual([
+        ["asked", 0],
+        ["asked", 1000],
+        ["asked", 2000],
+        ["unasked", 0],
+        ["unasked", 60_000],
+        ["unasked", 120_000],
+    ]);
+});
+
 test("fail the loop, its run and its idle waiters, once a controller throws a failure it declares no outcome for", async () => {
     // reconcile one open job, its controller throwing a TypeError
     await using simulation = testSimulation();
