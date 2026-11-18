@@ -3,7 +3,7 @@ import { ObjectError } from "../error/error.ts";
 import type { Deriver } from "@destack/identity";
 import { InstallationRoot } from "./root.ts";
 import { Symbolicator } from "@destack/package/stack";
-import { copyRequest, Environment } from "@destack/environment";
+import { copyRequest, Environment, LineExporter } from "@destack/environment";
 import type { ObjectRemote } from "../replica/remote.ts";
 import type { Connector, ResourceDeclaration } from "@destack/resource";
 import { ResourceContext } from "@destack/resource/context";
@@ -37,7 +37,7 @@ const DRAIN_MILLISECONDS = 10_000;
 const STACK_ADDRESS = "@destack/stack";
 
 /** What a runner runs: one workload, its package's resources, and the clients of its space. */
-export interface RunnerOptions {
+export interface WorkloadRunnerOptions {
     /** The workload, its packages each served at its mount, and the name for its telemetry. */
     readonly workload: Workload;
     /** The package's resource declarations by name. */
@@ -54,6 +54,8 @@ export interface RunnerOptions {
     readonly connectors?: Readonly<Record<string, Connector>>;
     /** The environment: the clock, the network and the randomness. */
     readonly environment: Environment;
+    /** Write a record's line to the host's own log, its standard error or its console. */
+    readonly write: ConstructorParameters<typeof LineExporter>[0];
 }
 
 /** The telemetry a runner exports through, flushed after its work and shut down at its end. */
@@ -108,7 +110,7 @@ export class WorkloadRunner implements AsyncDisposable {
 
     /** Start a workload of a build as a host's start asks. */
     static async start(
-        runner: RunnerOptions,
+        runner: WorkloadRunnerOptions,
         start: WorkloadStart,
         build: BuildReader,
         startTelemetry: (
@@ -167,7 +169,7 @@ export class WorkloadRunner implements AsyncDisposable {
 
     /** Connect a workload's resources and start its instance, with the hibernation it sleeps in. */
     static async #instance(
-        runner: RunnerOptions,
+        runner: WorkloadRunnerOptions,
         start: WorkloadStart,
         build: BuildReader,
         environment: Environment,
@@ -202,7 +204,7 @@ export class WorkloadRunner implements AsyncDisposable {
 
     /** Export a workload's telemetry to its host, symbolicated by its build. */
     static #telemetryOptions(
-        runner: RunnerOptions,
+        runner: WorkloadRunnerOptions,
         start: WorkloadStart,
         build: BuildReader,
         report: (error: unknown) => void,
@@ -217,12 +219,15 @@ export class WorkloadRunner implements AsyncDisposable {
             new Symbolicator(build),
         );
 
-        return exporter.options(runner.workload.package, { ratio: start.sampling });
+        return exporter.options(runner.workload.package, {
+            ratio: start.sampling,
+            local: new LineExporter(runner.write),
+        });
     }
 
     /** Build the server context of a started workload. */
     static #server(
-        runner: RunnerOptions,
+        runner: WorkloadRunnerOptions,
         start: WorkloadStart,
         bound: {
             readonly build: BuildReader;
@@ -410,7 +415,7 @@ export class WorkloadRunner implements AsyncDisposable {
 
     /** Connect each bound resource through its declaration's connector for its provider. */
     static async #connect(
-        runner: RunnerOptions,
+        runner: WorkloadRunnerOptions,
         start: WorkloadStart,
         connections: AsyncDisposableStack,
     ): Promise<ResourceContext> {
@@ -443,7 +448,7 @@ export class WorkloadRunner implements AsyncDisposable {
     }
 
     /** Serve the workload's packages to the callers the host forwards. */
-    static #serve(runner: RunnerOptions, start: WorkloadStart) {
+    static #serve(runner: WorkloadRunnerOptions, start: WorkloadStart) {
         return {
             clock: runner.environment.clock,
             scope: start.scope,

@@ -15,7 +15,7 @@ import type { Alarm } from "@destack/db";
 
 import { refusal } from "../error/report.ts";
 import {
-    type RunnerOptions,
+    type WorkloadRunnerOptions,
     SOCKET_PATH,
     WorkloadRunner,
     WorkloadStart,
@@ -88,7 +88,7 @@ export class DurableObjectRunner {
     /** The object hosting the facet: its space's or its partition's. */
     readonly #object: DurableObjectRunnerBindings["PARTITION"];
     /** What the workload runs with. */
-    readonly #runner: Omit<RunnerOptions, "ephemeral">;
+    readonly #runner: Omit<WorkloadRunnerOptions, "ephemeral">;
     /** The object's databases. */
     readonly #databases: DurableObjectDatabaseHost;
     /** The running workload, absent before a start and after a stop. */
@@ -98,7 +98,7 @@ export class DurableObjectRunner {
     constructor(
         state: DurableObjectRunnerState,
         bindings: DurableObjectRunnerBindings,
-        runner: Omit<RunnerOptions, "ephemeral">,
+        runner: Omit<WorkloadRunnerOptions, "ephemeral">,
     ) {
         // set the storage, the hosting object and the databases
         this.#storage = state.storage;

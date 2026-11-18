@@ -12,7 +12,7 @@ import { observeProcess, startTelemetry } from "@destack/telemetry/bun";
 import type { Telemetry, TelemetryOptions } from "@destack/telemetry/sdk";
 
 import {
-    type RunnerOptions,
+    type WorkloadRunnerOptions,
     type WorkloadReady,
     WorkloadRunner,
     WorkloadStart,
@@ -123,7 +123,9 @@ function listen(server: Server, endpoint: BunEndpoint): Pick<Listener, "url" | "
 
 /** Run a workload as a host's first input line starts it, until shutdown. */
 export async function runWorkload(
-    runner: RunnerOptions & { readonly environment: Environment<"files" | "process" | "server"> },
+    runner: WorkloadRunnerOptions & {
+        readonly environment: Environment<"files" | "process" | "server">;
+    },
     lines: AsyncIterator<string>,
     ready: (ready: WorkloadReady) => Promise<void>,
     socket: string,
@@ -159,7 +161,7 @@ export async function runWorkload(
 
 /** Start a build's workload from its host's start, exporting its telemetry to the host. */
 export function startWorkload(
-    runner: RunnerOptions & { readonly environment: Environment<"process"> },
+    runner: WorkloadRunnerOptions & { readonly environment: Environment<"process"> },
     start: WorkloadStart,
     build: BuildReader,
     report: (error: unknown) => void,

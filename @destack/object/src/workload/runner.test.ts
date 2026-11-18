@@ -140,6 +140,9 @@ afterAll(async () => {
     await world[Symbol.asyncDispose]();
 });
 
+/** Leave a workload's local lines unprinted, as the tests read its records from its export. */
+function unprinted(): void {}
+
 test("start the workload with its installation's settings, serve a forwarded caller below the mount of each package the workload serves, and export its start's traces and logs with only its release to the host with the runner's secret once it starts", async () => {
     const node = world.environment("test");
     // capture the telemetry the runner exports to its host
@@ -194,6 +197,7 @@ test("start the workload with its installation's settings, serve a forwarded cal
     const runner = await WorkloadRunner.start(
         {
             environment,
+            write: unprinted,
             ephemeral: refusingEphemeral,
             workload: defineWorkload(
                 {
@@ -344,6 +348,7 @@ test("accept a hibernated socket, hand its messages and close to the workload, a
     const runner = await WorkloadRunner.start(
         {
             environment: node,
+            write: unprinted,
             ephemeral: refusingEphemeral,
             workload: defineWorkload(
                 {
