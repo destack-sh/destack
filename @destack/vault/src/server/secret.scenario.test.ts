@@ -532,6 +532,15 @@ test("refuse reading a version whose stored value was copied from another versio
         ["INTERNAL_SERVER_ERROR", "INTERNAL_SERVER_ERROR", "internal server error"],
         FIRST,
     ]);
+
+    // report the hidden fault the server read refused
+    fixture.space.expectRefusals([
+        [
+            "INTERNAL_SERVER_ERROR",
+            "VERSION_BROKEN",
+            `secret version '${second.id}' contains the value of another version`,
+        ],
+    ]);
 });
 
 test("refuse revealing a secret while its space is suspended", async () => {
