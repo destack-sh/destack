@@ -1,6 +1,6 @@
 import type { Environment } from "@destack/environment";
 import type { ResourceDeclaration } from "@destack/resource";
-import type { RunnerOptions, Workload } from "@destack/object/workload";
+import type { WorkloadRunnerOptions, Workload } from "@destack/object/workload";
 import { createClient, ProcedureRemote } from "@destack/object/client";
 import stackPackage from "../package.ts";
 import type { StackClient } from "./client.ts";
@@ -10,7 +10,8 @@ export function spaceRunner(
     workload: Workload,
     resources: Readonly<Record<string, ResourceDeclaration<unknown>>>,
     environment: Environment,
-): Omit<RunnerOptions, "ephemeral"> {
+    write: WorkloadRunnerOptions["write"],
+): Omit<WorkloadRunnerOptions, "ephemeral"> {
     // connect once to each machine URL under each secret
     const clients = new Map<string, StackClient>();
     const connect = (url: string, secret: string) => {
@@ -39,6 +40,7 @@ export function spaceRunner(
         workload,
         resources,
         environment,
+        write,
         remote: (url, secret) =>
             new ProcedureRemote({ store: connect(url, secret).store, environment }),
     };
