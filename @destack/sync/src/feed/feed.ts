@@ -33,7 +33,7 @@ import { Dataflow, type DataflowInspection } from "../dataflow/dataflow.ts";
 import { PAGE_SIZE } from "../dataflow/selection.ts";
 import { Run } from "../dataflow/run.ts";
 import { Memo, View, type Cache, type Window } from "../dataflow/view.ts";
-import { Clock, type Scheduler, waitAborted } from "@destack/environment";
+import { Clock, type Scheduler, untilAborted } from "@destack/environment";
 
 /** The default count of recent changes a feed stores in memory. */
 const FEED_CHANGES = 10_000;
@@ -640,7 +640,7 @@ export class Feed implements Cache {
             const [row] = await Subscription.requests(this.database, [key]);
             apply(row);
             while (!signal.aborted) {
-                await Promise.race([waitAborted(signal), this.#watch()]);
+                await untilAborted(this.#watch(), signal);
             }
         } finally {
             // stop the watch once its last follower leaves
