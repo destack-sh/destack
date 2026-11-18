@@ -1,6 +1,6 @@
 import { AccessContext, Caller, InstallationId, principal } from "@destack/access";
 import { Identifier, present, schema } from "@destack/schema";
-import { RequestId, type Subject } from "@destack/sync";
+import { RequestId, Scope, type Subject } from "@destack/sync";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import type { ObjectReference } from "@destack/sync";
 import { DEVICE_CODE } from "../oauth/server.ts";
@@ -13,7 +13,7 @@ const OUTSIDE = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-
 /** Ask an integration's primary for a device authorization, token and revocation as a space. */
 async function ask(primary: TestConnection, registered: ObjectReference, space: string) {
     // call the primary as the space
-    const client = primary.primary(space).primary(registered.scope);
+    const client = primary.as(principal.space.reference(Scope.universe.id, space));
     const target = {
         scope: registered.scope,
         id: schema.identifier("integration").parse(registered.id),
@@ -42,7 +42,7 @@ test("refuse a space outside a private integration's scope its tokens, device au
     const shared = await primary.staticIntegration({ isPublic: true });
 
     // call each as a space placed in another account
-    const client = primary.primary(OUTSIDE).primary(owned.scope);
+    const client = primary.as(principal.space.reference(Scope.universe.id, OUTSIDE));
     const target = { scope: owned.scope, id: schema.identifier("integration").parse(owned.id) };
     const refused = [
         await refusal(client.integration.authorizeDevice({ ...target, request: { scopes: [] } })),

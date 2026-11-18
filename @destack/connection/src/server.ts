@@ -18,6 +18,7 @@ export default implementPackage(connectionPackage, (context) => {
         vault: context.resources.get(connectionVault).reference,
         fetch: (request) => context.fetch(request),
         at: (address) => context.at(address),
+        connect: (address, packageId) => context.connect(address, packageId),
         environment: context.environment,
     });
 

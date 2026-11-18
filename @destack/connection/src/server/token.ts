@@ -1,6 +1,6 @@
 import type { Environment } from "@destack/environment";
 import type { Call } from "@destack/sync";
-import { type ClientOf, createClient, ProcedureRemote } from "@destack/object/client";
+import { type ClientOf, createClient, ObjectRemote } from "@destack/object/client";
 import { Egress, PackageMount } from "@destack/object";
 import type { ServerContext } from "@destack/object/workload";
 import { Account, account } from "@destack/account/object";
@@ -59,6 +59,8 @@ export interface ConnectionCredentialOptions {
     readonly fetch: Fetch;
     /** Call the packages at an address through the host's egress as the installation. */
     readonly at: ServerContext["at"];
+    /** Connect to the store of a package at an address through the host's egress. */
+    readonly connect: ServerContext["connect"];
     /** The environment the installation runs in. */
     readonly environment: Environment;
 }
@@ -241,20 +243,20 @@ export class ConnectionCredential {
             );
         }
 
-        // call the issuing installation's object APIs through the egress, as any installation may
-        const at = this.options.at(Egress.address(issued.name, issued.issuer.scope));
+        // call the issuing installation's objects over its store through the egress, as any installation may
+        const scope = issued.issuer.scope;
+        const remote = this.options.connect(Egress.address(issued.name, scope), issued.package.id);
         const type = Issuer.type(issued.package);
-        const remote = ProcedureRemote.at({
-            scope: issued.issuer.scope,
-            endpoint: {
-                url: `${at.url}${PackageMount.path(issued.package.id)}`,
-                fetch: (request) => at.fetch(request),
-            },
-            environment: this.options.environment,
-        });
-        const target = { spaceId: issued.issuer.scope, id: issued.issuer.id };
+        const target = { spaceId: scope, id: issued.issuer.id };
         const call = (method: string, input: JsonObject) =>
-            remote.run(type, method, { ...target, ...input });
+            ObjectRemote.run(
+                remote,
+                type,
+                method,
+                { ...target, ...input },
+                scope,
+                this.options.environment,
+            );
 
         // read the issuer's answers as another package's, through the template's schemas
         return {

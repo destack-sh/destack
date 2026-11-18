@@ -19,6 +19,7 @@ import { STACKS } from "@destack/account/test";
 import { TestDatabase } from "@destack/db/test";
 import { defineObject, type ObjectType, Egress, Package, PackageMount } from "@destack/object";
 import {
+    ObjectConnectionHost,
     Health,
     implementPackage,
     ObjectStore,
@@ -37,7 +38,7 @@ import vaultPackage from "@destack/vault/package";
 import { ResourceContext } from "@destack/resource/context";
 import { RequestId, ObjectReference, Scope, Subject } from "@destack/sync";
 import { onTestFinished } from "@destack/test";
-import { createClient, type ClientOf, ProcedureRemote } from "@destack/object/client";
+import { createClient, type ClientOf, ObjectConnection } from "@destack/object/client";
 import {
     authorizationRequest,
     integration,
@@ -57,7 +58,7 @@ import connectionPackage, { CONNECTION_INSTALLATION } from "../package.ts";
 import { ConnectionRequest } from "../credential/request.ts";
 import type { ServerContext } from "@destack/object/workload";
 import { integrationTables, connectionTables } from "../stack/index.ts";
-import type { Environment } from "@destack/environment";
+import { type Environment, WebSocketUpgrade } from "@destack/environment";
 import { Simulation } from "@destack/environment/simulation";
 import { tablesOf } from "@destack/object";
 import objectPackage from "@destack/object/package";
@@ -381,8 +382,8 @@ export interface ConnectionFixtureOptions {
     readonly tables?: readonly Table[];
     /** The primary of other scopes' integrations and the space replicating them, as a space has. */
     readonly primary?: {
-        /** Open a client of the primary of a scope's integrations, signed as a subject. */
-        readonly primary: (scope: string, signer?: Subject) => ClientOf<typeof connectionPackage>;
+        /** Connect to the primary of a scope's integrations, signed as a subject. */
+        readonly connect: (scope: string, signer?: Subject) => ObjectConnection;
         /** Call the primary's connections as the space's connection installation. */
         readonly at: ServerContext["at"];
         /** The space replicating the primary's integrations. */
@@ -414,6 +415,8 @@ export class TestConnection {
     readonly vaultReference: ObjectReference;
     /** The connections served in process to clients sending their principal. */
     readonly http: Server;
+    /** The servers' sockets, kept in process. */
+    readonly sockets: ObjectConnectionHost;
     /** The simulated world the connections run in, which drives their calls. */
     readonly simulation: Simulation;
     /** The world the connections run in, as their node of the simulation. */
@@ -434,6 +437,7 @@ export class TestConnection {
             | "primary"
             | "createIssuer"
             | "as"
+            | "connect"
             | "bind"
             | "lease"
             | "bindAndLease"
@@ -451,6 +455,7 @@ export class TestConnection {
         this.scope = fields.scope;
         this.vaultReference = fields.vaultReference;
         this.http = fields.http;
+        this.sockets = fields.sockets;
         this.simulation = fields.simulation;
         this.environment = fields.environment;
         this.#close = fields.close;
@@ -479,6 +484,7 @@ export class TestConnection {
         });
         const { database } = storage;
         const server = new TestAuthorizationServer(environment);
+        const sockets = new ObjectConnectionHost(environment.telemetry);
         const primary = options.primary;
         const scope = await TestConnection.#scope(database, primary, environment);
         // serve the issuing package beside the fixture when it has one
@@ -496,7 +502,11 @@ export class TestConnection {
         const issuing =
             issuingObjects === undefined || options.issuer === undefined
                 ? undefined
-                : TestConnection.#serve(issuingObjects, TestConnection.#issuing(options.issuer));
+                : TestConnection.#serve(
+                      issuingObjects,
+                      TestConnection.#issuing(options.issuer),
+                      sockets,
+                  );
 
         // reach the served issuer as the connection installation, and other installations at the primary
         const consumer = TestConnection.#installation(scope);
@@ -522,6 +532,25 @@ export class TestConnection {
                     : primary === undefined
                       ? TestConnection.#unreached(address)
                       : primary.at(address),
+            connect: (address, packageId) => {
+                // connect to the served issuer alone, as the connection installation
+                if (address !== issuer || packageId !== ISSUING.id) {
+                    return TestConnection.#unreached(address);
+                }
+                const served = present(issuing, "the issuing package's server");
+
+                return ObjectConnection.open({
+                    url: ObjectConnection.url(`${ORIGIN}${PackageMount.path(ISSUING.id)}`),
+                    authorize: TestConnection.#bearer(consumer),
+                    websocket: (url, protocols) =>
+                        sockets.open(
+                            (upgrade) =>
+                                TestConnection.#sent(served, upgrade, consumer, ISSUING.id),
+                            WebSocketUpgrade.to(url, protocols),
+                        ),
+                    environment,
+                });
+            },
         });
 
         // serve the connections, the vaults, and the integrations at their primary
@@ -533,7 +562,7 @@ export class TestConnection {
             events,
             environment,
         );
-        const http = TestConnection.#serve(objects, connectionPackage);
+        const http = TestConnection.#serve(objects, connectionPackage, sockets);
 
         return new TestConnection({
             database,
@@ -544,6 +573,7 @@ export class TestConnection {
             scope,
             vaultReference,
             http,
+            sockets,
             simulation,
             environment,
             close: async () => {
@@ -673,13 +703,7 @@ export class TestConnection {
             ...(primary === undefined
                 ? {}
                 : {
-                      publisher: (followed: string) =>
-                          new ProcedureRemote({
-                              scope: followed,
-                              store: primary.primary(followed).store,
-                              signing: (signer) => primary.primary(followed, signer).store,
-                              environment,
-                          }),
+                      publisher: (followed: string) => primary.connect(followed),
                   }),
         });
     }
@@ -717,10 +741,11 @@ export class TestConnection {
     }
 
     /** Answer clients sending their principal, the test running the controllers. */
-    static #serve(objects: ObjectStore, handle: Package): Server {
-        return Server.start({
+    static #serve(objects: ObjectStore, handle: Package, sockets: ObjectConnectionHost): Server {
+        const server = Server.start({
             environment: objects.environment,
             ...objects.package(handle),
+            hibernation: sockets.hibernation,
             drainTimeout: 1000,
             health: new Health("connection"),
             resources: new ResourceContext(),
@@ -728,6 +753,9 @@ export class TestConnection {
             authenticate: async (request) =>
                 TestConnection.#authenticate(request, handle.id, objects.clock.now()),
         });
+        sockets.serve(handle.id, server);
+
+        return server;
     }
 
     /** Declare the issuing package's handle with its issuer type. */
@@ -888,7 +916,7 @@ export class TestConnection {
     /** Connect to these connections as the primary of every scope's integrations. */
     primary(
         spaceId: string,
-    ): Pick<NonNullable<ConnectionFixtureOptions["primary"]>, "primary" | "at"> {
+    ): Pick<NonNullable<ConnectionFixtureOptions["primary"]>, "connect" | "at"> {
         // reach the primary's connections as the space's connection installation, at the primary's address
         const connections = principal.installation.reference(spaceId, INSTALLATION);
         const address = Egress.address(
@@ -897,8 +925,11 @@ export class TestConnection {
         );
 
         return {
-            primary: (_scope, signer) =>
-                this.as(signer ?? principal.space.reference(Scope.universe.id, spaceId)),
+            connect: (scope, signer) =>
+                this.connect(
+                    signer ?? principal.space.reference(Scope.universe.id, spaceId),
+                    scope,
+                ),
             at: (called) => {
                 if (called !== address) {
                     throw new TypeError(`no connections at '${called}', only at '${address}'`);
@@ -923,6 +954,33 @@ export class TestConnection {
             },
             this.environment,
         );
+    }
+
+    /** Connect to the connections' store as a subject sending its principal in the bearer. */
+    connect(subject: Subject, scope: string): ObjectConnection {
+        return ObjectConnection.open({
+            scope,
+            url: ObjectConnection.url(ORIGIN),
+            authorize: TestConnection.#bearer(subject),
+            websocket: (url, protocols) =>
+                this.sockets.open(
+                    async (upgrade) =>
+                        this.http.fetch(await TestConnection.#bearer(subject)(upgrade)),
+                    WebSocketUpgrade.to(url, protocols),
+                ),
+            signing: (signer) => this.connect(signer, scope),
+            environment: this.environment,
+        });
+    }
+
+    /** Send a subject's principal in each request's bearer, as the fixture authenticates it. */
+    static #bearer(subject: Subject): (request: Request) => Promise<Request> {
+        return async (request) => {
+            const headers = new Headers(request.headers);
+            headers.set("authorization", `Bearer ${Subject.key(subject)}`);
+
+            return new Request(request, { headers });
+        };
     }
 
     /** Send a request to the mounted connections with a subject's principal in the bearer. */
