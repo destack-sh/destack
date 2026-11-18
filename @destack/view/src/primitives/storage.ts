@@ -43,6 +43,6 @@ export class StoredItem {
         if (!(error instanceof DOMException)) {
             throw error;
         }
-        this.#telemetry.captureException(error, { level: "warning" });
+        this.#telemetry.captureException(error, { level: "warn" });
     }
 }
