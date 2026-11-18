@@ -253,8 +253,8 @@ export class Fixture implements AsyncDisposable {
         });
     }
 
-    /** Index the copied package for Bun: each module's code and its graph. */
-    async index(): Promise<{ code: graph.Document[]; modules: graph.Module[] }> {
+    /** Index the copied package for Bun: each module's graph file. */
+    async index(): Promise<graph.Module[]> {
         return await this.#compiler.index({
             directory: this.source,
             runtime: "bun",

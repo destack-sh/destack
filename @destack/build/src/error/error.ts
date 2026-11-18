@@ -16,10 +16,12 @@ export const BuildError = defineErrorFamily({
     reasons: {
         // not found
         BLOB_NOT_FOUND: {},
+        GRAPH_NOT_FOUND: {},
         MANIFEST_NOT_FOUND: {},
         MEMBER_NOT_FOUND: {},
 
         // conflict
+        ATTACHMENT_CONFLICT: {},
         SOURCE_CONFLICT: {},
 
         // invalid

@@ -1,179 +1,12 @@
-import { canonicalize, Text } from "@destack/schema";
+import { Text } from "@destack/schema";
 import { graph, type PackageVersion, type DeclarationDescription } from "@destack/package";
-import type {
-    ModuleDescription,
-    SignatureDescription,
-    SourceDeclaration,
-    SymbolDescription,
-    SymbolReference,
-} from "@destack/package/code";
 import type { SourceRange } from "@destack/package/source";
+import type { Outline } from "../outline/outline.ts";
 import { BuildError } from "../error/index.ts";
 import { DeclarationGraph } from "./declaration.ts";
-import { type DescribedTest, TestGraph, type TestSource } from "./test.ts";
-import { ExampleGraph } from "./example.ts";
-import { ScenarioGraph } from "./scenario.ts";
-import type { ExampleDeclaration } from "../typescript/example.ts";
-import type { ScenarioDeclaration } from "../typescript/scenario.ts";
-
-/** The symbol kind of each language declaration kind. */
-const DECLARATION_SYMBOL_KINDS: Readonly<Record<string, graph.Symbol["kind"]>> = {
-    FunctionDeclaration: "function",
-    FunctionExpression: "function",
-    ArrowFunction: "function",
-    ClassDeclaration: "class",
-    ClassExpression: "class",
-    InterfaceDeclaration: "interface",
-    TypeAliasDeclaration: "typeAlias",
-    TypeLiteral: "typeAlias",
-    MappedType: "typeAlias",
-    TypeParameter: "typeParameter",
-    VariableDeclaration: "variable",
-    BindingElement: "variable",
-    ExportAssignment: "variable",
-    ObjectLiteralExpression: "variable",
-    Parameter: "parameter",
-    EnumDeclaration: "enum",
-    EnumMember: "enumMember",
-    ModuleDeclaration: "namespace",
-    SourceFile: "module",
-    ExportDeclaration: "module",
-    NamespaceExport: "module",
-    MethodDeclaration: "method",
-    MethodSignature: "method",
-    CallSignature: "method",
-    ConstructSignature: "method",
-    IndexSignature: "method",
-    Constructor: "constructor",
-    PropertyDeclaration: "property",
-    PropertySignature: "property",
-    PropertyAssignment: "property",
-    ShorthandPropertyAssignment: "property",
-    GetAccessor: "getter",
-    SetAccessor: "setter",
-};
-
-/** The longest printed signature line, TypeScript's defaultMaximumTruncationLength. */
-const SIGNATURE_LENGTH = 160;
-
-/** The compiler's internal symbol names, such as for function expressions and type literals. */
-const INTERNAL_NAMES = new Set([
-    "__function",
-    "__object",
-    "__type",
-    "__class",
-    "__call",
-    "__new",
-    "__index",
-    "__constructor",
-    "__export",
-    "__computed",
-    "__jsxAttributes",
-]);
-
-/** The symbol of a source range, by its first declaration. */
-interface Enclosing {
-    /** The symbol's moniker. */
-    readonly moniker: graph.Moniker;
-    /** The symbol's source range. */
-    readonly source: SourceRange;
-}
-
-/** The edges of one module, each once. */
-class Edges {
-    /** The edges by their serialization. */
-    readonly #edges = new Map<string, graph.Edge>();
-
-    /** Add an edge, skipping an edge to its source or to an anonymous symbol. */
-    add(from: graph.Moniker, kind: graph.Edge["kind"], to: graph.Moniker | undefined): void {
-        if (to !== undefined && from !== to) {
-            this.#edges.set(`${from} ${kind} ${to}`, { from, to, kind });
-        }
-    }
-
-    /** List the edges by source, kind and target. */
-    list(): graph.Edge[] {
-        return [...this.#edges]
-            .toSorted(([left], [right]) => Text.compare(left, right))
-            .map(([, edge]) => edge);
-    }
-}
-
-/** Describe each module's graph file from the checker's descriptions and evaluations. */
-export function describeGraph(
-    source: PackageVersion,
-    modules: readonly ModuleDescription[],
-    declarations: readonly DeclarationDescription[],
-    tests: TestSource,
-    played: ExampleSource,
-): graph.Module[] {
-    // collect the package's declarations, tests, examples and scenarios
-    const declared = new DeclarationGraph(source, declarations);
-    const tested = new TestGraph(source, tests);
-    const name = (reference: SymbolReference) => monikerOf(source, reference);
-    const examples = new ExampleGraph(source, played.package, played.examples, declared, name);
-    const scenarios = new ScenarioGraph(source, played.package, played.scenarios, examples, name);
-
-    return modules.map((module) =>
-        describeModule(source, module, { declared, tested, examples, scenarios }),
-    );
-}
-
-/** Describe each module's code for the code index: its symbols and the edges of its code. */
-export function describeCode(
-    source: PackageVersion,
-    modules: readonly ModuleDescription[],
-    declarations: readonly DeclarationDescription[],
-    tests: TestSource,
-): graph.Document[] {
-    // collect the exported symbols, and the declarations and tests uses cover
-    const declared = new DeclarationGraph(source, declarations);
-    const tested = new TestGraph(source, tests);
-    const exported = new Set(
-        modules.flatMap((module) => module.exports.map((entry) => monikerOf(source, entry.symbol))),
-    );
-
-    return modules.map((module) => {
-        // describe each named symbol and member once, with the edges of their types
-        const moniker = graph.Moniker.of({ packageId: source.id, module: module.path });
-        const symbols = new ModuleSymbols(source, module, exported);
-        for (const symbol of module.symbols) {
-            symbols.add(symbol);
-        }
-
-        // attribute calls and globals to their innermost enclosing symbol or test
-        attributeUses(module, symbols, { declared, tested }, tested.describe(module.path), moniker);
-
-        return graph.Document.parse({
-            path: module.path,
-            digest: module.source.digest,
-            symbols: symbols.list(),
-            edges: symbols.edges.list(),
-        });
-    });
-}
-
-/** Join two outputs' descriptions of one module. */
-export function joinModules(
-    module: ModuleDescription,
-    other: ModuleDescription,
-): ModuleDescription {
-    // require the same source bytes, which give both outputs the same symbols and exports
-    if (module.source.digest !== other.source.digest) {
-        throw BuildError.of(
-            "SOURCE_CONFLICT",
-            `cannot inspect module '${module.path}': it was inspected from two sources`,
-        );
-    }
-
-    // take each runtime's imports, globals and errors once
-    return {
-        ...module,
-        imports: distinct([...module.imports, ...other.imports]),
-        globals: distinct([...module.globals, ...other.globals]),
-        errors: distinct([...module.errors, ...other.errors]),
-    };
-}
+import { TestGraph, type TestSource } from "./test.ts";
+import { type ExampleDeclaration, ExampleGraph } from "./example.ts";
+import { type ScenarioDeclaration, ScenarioGraph } from "./scenario.ts";
 
 /** The examples and scenarios a build declares with the package defining their kinds. */
 export interface ExampleSource {
@@ -197,418 +30,152 @@ interface PackageGraph {
     readonly scenarios: ScenarioGraph;
 }
 
-/** Describe one module's exports, declarations and the edges of its imports and declarations. */
-function describeModule(
-    source: PackageVersion,
-    module: ModuleDescription,
-    { declared, tested, examples, scenarios }: PackageGraph,
-): graph.Module {
-    // key the module and its exports
-    const moniker = graph.Moniker.of({ packageId: source.id, module: module.path });
-    const exports = module.exports.map((entry) => ({
-        name: entry.name,
-        symbol: monikerOf(source, entry.symbol),
-        isTypeOnly: entry.isTypeOnly,
-    }));
+/** The edges of one module, each once. */
+class Edges {
+    /** The edges by their serialization. */
+    readonly #edges = new Map<string, graph.Edge>();
 
-    // depend on each resolved import
-    const edges = new Edges();
-    const tests = tested.describe(module.path);
-    for (const imported of module.imports) {
-        if (imported.target !== undefined) {
-            edges.add(moniker, "depends", nameOf(source, imported.target));
+    /** Add an edge, skipping an edge to its own source. */
+    add(from: graph.Moniker, kind: graph.Edge["kind"], to: graph.Moniker): void {
+        if (from !== to) {
+            this.#edges.set(`${from} ${kind} ${to}`, { from, to, kind });
         }
     }
 
+    /** List the edges by source, kind and target. */
+    list(): graph.Edge[] {
+        return [...this.#edges]
+            .toSorted(([left], [right]) => Text.compare(left, right))
+            .map(([, edge]) => edge);
+    }
+}
+
+/** Describe each module's graph file: its declarations, its symbols and their edges. */
+export function describeGraph(
+    source: PackageVersion,
+    outlines: readonly Outline[],
+    declarations: readonly DeclarationDescription[],
+    tests: TestSource,
+    played: ExampleSource,
+): graph.Module[] {
+    // collect the package's declarations, refusing one in a module the outlines leave out
+    const declared = new DeclarationGraph(source, declarations);
+    const paths = new Set(outlines.map((outline) => outline.path));
+    const stray = declared
+        .list()
+        .find((declaration) => !paths.has(graph.Moniker.module(declaration.symbol)));
+    if (stray !== undefined) {
+        throw BuildError.of(
+            "DECLARATION_INVALID",
+            `declared '${stray.moniker}' is invalid: its module is no package module`,
+        );
+    }
+
+    // collect the package's tests, examples and scenarios
+    const tested = new TestGraph(source, tests);
+    const examples = new ExampleGraph(source, played.package, played.examples, declared);
+    const scenarios = new ScenarioGraph(source, played.package, played.scenarios, examples);
+
+    return outlines.map((outline) =>
+        describeModule(source, outline, { declared, tested, examples, scenarios }),
+    );
+}
+
+/** Describe one module's exports, declarations, symbols and the edges between them. */
+function describeModule(
+    source: PackageVersion,
+    outline: Outline,
+    { declared, tested, examples, scenarios }: PackageGraph,
+): graph.Module {
+    // depend on each resolved import, and extend what each class and interface names
+    const moniker = graph.Moniker.of({ packageId: source.id, module: outline.path });
+    const edges = new Edges();
+    for (const imported of outline.imports) {
+        if (imported.target !== undefined) {
+            edges.add(moniker, "depends", imported.target);
+        }
+    }
+    for (const edge of outline.heritage) {
+        edges.add(edge.from, edge.kind, edge.to);
+    }
+
     // describe the module's declarations, tests, examples and scenarios with their edges
-    const moduleExamples = examples.describe(module.path);
-    const moduleScenarios = scenarios.describe(module.path);
-    const declarations = [
-        ...declared.describe(module.path),
+    const tests = tested.describe(outline.path);
+    const moduleExamples = examples.describe(outline.path);
+    const moduleScenarios = scenarios.describe(outline.path);
+    const described = [
+        ...declared.describe(outline.path),
         ...[...tests, ...moduleExamples, ...moduleScenarios].map((entry) => entry.declaration),
     ].toSorted((left, right) => Text.compare(left.moniker, right.moniker));
     for (const edge of [
-        ...declared.edges(module.path),
+        ...declared.edges(outline.path),
         ...[...moduleExamples, ...moduleScenarios].flatMap((entry) => entry.edges),
     ]) {
         edges.add(edge.from, edge.kind, edge.to);
     }
 
-    return graph.Module.parse({
-        path: module.path,
-        digest: module.source.digest,
-        imports: module.imports.map((imported) => imported.specifier),
-        exports,
-        declarations,
-        edges: edges.list(),
-    });
-}
-
-/** The named symbols and members of one module, with the edges of their types. */
-class ModuleSymbols {
-    /** The package declaring the module. */
-    readonly source: PackageVersion;
-    /** The described module. */
-    readonly module: ModuleDescription;
-    /** The symbols any module of the package exports. */
-    readonly exported: ReadonlySet<graph.Moniker>;
-    /** The module's edges. */
-    readonly edges = new Edges();
-    /** The first description of each symbol, by moniker. */
-    readonly #symbols = new Map<graph.Moniker, graph.Symbol>();
-
-    /** Collect the symbols of a module. */
-    constructor(
-        source: PackageVersion,
-        module: ModuleDescription,
-        exported: ReadonlySet<graph.Moniker>,
-    ) {
-        this.source = source;
-        this.module = module;
-        this.exported = exported;
-    }
-
-    /** Name a referenced symbol, absent for an anonymous one. */
-    name(reference: SymbolReference): graph.Moniker | undefined {
-        return nameOf(this.source, reference);
-    }
-
-    /** Describe a symbol and its members, leaving anonymous types to the enclosing symbol. */
-    add(symbol: SymbolDescription): void {
-        // key the symbol
-        if (isAnonymous(symbol.name)) {
-            return;
-        }
-        const { source, module } = this;
-        const self = graph.Moniker.of({
-            packageId: source.id,
-            module: module.path,
-            name: symbol.name,
-        });
-        const isExported = this.exported.has(self);
-
-        // describe the symbol and the edges of its types and heritage
-        this.#record({
-            moniker: self,
-            kind: kindOf(symbol.declarations, `${module.path}#${symbol.name}`),
-            source: first(symbol.declarations).source,
-            signature: truncate(printSymbol(symbol)),
-            ...commentOf(symbol.documentation.text),
-            isExported,
-        });
-        for (const reference of symbolReferences(symbol)) {
-            this.edges.add(self, "references", this.name(reference));
-        }
-        for (const declaration of symbol.declarations) {
-            for (const heritage of declaration.heritage) {
-                for (const reference of heritage.type.references) {
-                    this.edges.add(self, "implements", this.name(reference));
-                }
-            }
-        }
-
-        // describe each named member
-        for (const member of symbol.members) {
-            if (!isAnonymous(member.name)) {
-                this.#member(symbol, member, self, isExported);
-            }
-        }
-    }
-
-    /** List the described symbols by moniker. */
-    list(): graph.Symbol[] {
-        return [...this.#symbols.values()].toSorted((left, right) =>
-            Text.compare(left.moniker, right.moniker),
-        );
-    }
-
-    /** Describe a member of a symbol with the edges of its type and signatures. */
-    #member(
-        symbol: SymbolDescription,
-        member: SymbolDescription["members"][number],
-        self: graph.Moniker,
-        isExported: boolean,
-    ): void {
-        // describe the member
-        const nested = graph.Moniker.of({
-            packageId: this.source.id,
-            module: this.module.path,
-            name: symbol.name,
-            member: member.name,
-        });
-        this.#record({
-            moniker: nested,
-            kind: kindOf(member.declarations, `${self}.${member.name}`),
-            source: first(member.declarations).source,
-            signature: truncate(printMember(member)),
-            ...commentOf(member.documentation.text),
-            isExported,
-        });
-
-        // reference the declarations its type and signatures name
-        const references = [
-            ...member.type.references,
-            ...member.signatures.flatMap(signatureReferences),
-        ];
-        for (const reference of references) {
-            this.edges.add(nested, "references", this.name(reference));
-        }
-    }
-
-    /** Record the first description of a symbol the checker describes as member and symbol. */
-    #record(symbol: graph.Symbol): void {
-        if (!this.#symbols.has(symbol.moniker)) {
-            this.#symbols.set(symbol.moniker, symbol);
-        }
-    }
-}
-
-/** Name a referenced symbol by its moniker, or its module's moniker for a module. */
-export function monikerOf(source: PackageVersion, reference: SymbolReference): graph.Moniker {
-    // locate the package and symbol
-    let packageId: string;
-    let symbol: { readonly module: string; readonly name: string };
-    if ("compiler" in reference) {
-        packageId = `npm:${reference.compiler.name}`;
-        symbol = reference.symbol;
-    } else if ("package" in reference) {
-        packageId =
-            "id" in reference.package ? reference.package.id : `npm:${reference.package.name}`;
-        symbol = reference.symbol;
-    } else {
-        packageId = source.id;
-        symbol = reference;
-    }
-
-    // key a module by its path alone
-    return graph.Moniker.of({
-        packageId,
-        module: symbol.module,
-        ...(symbol.name === "*" ? {} : { name: symbol.name }),
-    });
-}
-
-/** Attribute a module's calls and globals to their innermost enclosing symbol or test. */
-function attributeUses(
-    module: ModuleDescription,
-    symbols: ModuleSymbols,
-    { declared, tested }: Pick<PackageGraph, "declared" | "tested">,
-    tests: readonly DescribedTest[],
-    moniker: graph.Moniker,
-): void {
-    // enclose by the module's symbols and tests, the module itself outside them
-    const { source, edges } = symbols;
-    const covering = new Set(tests.map((test) => test.declaration.moniker));
+    // attribute each call and type reference to its innermost declaration or test, tests covering what they call
+    const { symbols } = outline;
     const enclosings = [
-        ...symbols.list(),
+        ...symbols.flatMap((symbol) =>
+            symbol.declarations.map((declaration) => ({
+                moniker: symbol.moniker,
+                source: declaration.source,
+            })),
+        ),
         ...tests.map((test) => ({ moniker: test.declaration.moniker, source: test.source })),
     ];
-    const attribute = (range: SourceRange, kind: "calls" | "references", to?: graph.Moniker) => {
-        const from = enclose(enclosings, range) ?? moniker;
-        edges.add(from, kind, to);
-        if (to !== undefined && covering.has(from) && isCovered(source, tested, to)) {
-            edges.add(from, "covers", to);
-            for (const declaration of declared.at(to)) {
+    const covering = new Set(tests.map((test) => test.declaration.moniker));
+    for (const use of outline.uses) {
+        const from = enclose(enclosings, use.source) ?? moniker;
+        edges.add(from, use.kind, use.to);
+        if (covering.has(from) && isCovered(source, tested, use.to)) {
+            edges.add(from, "covers", use.to);
+            for (const declaration of declared.at(use.to)) {
                 edges.add(from, "covers", declaration);
             }
         }
-    };
-
-    // attribute each resolved call and global
-    for (const description of module.errors) {
-        for (const call of description.calls) {
-            if (call.target !== undefined) {
-                attribute(call.source, "calls", symbols.name(call.target));
-            }
-        }
     }
-    for (const global of module.globals) {
-        if (global.symbol !== undefined) {
-            attribute(global.source, "references", symbols.name(global.symbol));
-        }
-    }
-}
 
-/** Name a referenced symbol by its moniker, absent for an anonymous one. */
-function nameOf(source: PackageVersion, reference: SymbolReference): graph.Moniker | undefined {
-    const name = "symbol" in reference ? reference.symbol.name : reference.name;
-
-    return isAnonymous(name) ? undefined : monikerOf(source, reference);
+    return graph.Module.parse(
+        graph.Module.of({
+            path: outline.path,
+            digest: outline.digest,
+            imports: outline.imports.map((imported) => imported.specifier),
+            exports: outline.exports,
+            declarations: described,
+            symbols: symbols.toSorted((left, right) => Text.compare(left.moniker, right.moniker)),
+            edges: edges.list(),
+        }),
+    );
 }
 
 /** Report whether a symbol is the package's, outside its test modules. */
 function isCovered(source: PackageVersion, tested: TestGraph, symbol: graph.Moniker): boolean {
-    // take the package's symbols
-    const prefix = `${source.id}/`;
-    if (!symbol.startsWith(prefix)) {
-        return false;
-    }
-
-    // leave symbols of the test modules themselves
-    const path = symbol.slice(prefix.length).split("#")[0] ?? "";
-
-    return !tested.has(path);
+    // take the package's symbols, leaving those of the test modules themselves
+    return (
+        graph.Moniker.packageId(symbol) === source.id && !tested.has(graph.Moniker.module(symbol))
+    );
 }
 
-/** Report whether a qualified name has an internal compiler symbol, such as `__function`. */
-function isAnonymous(name: string): boolean {
-    return name.split(".").some((segment) => INTERNAL_NAMES.has(segment));
-}
-
-/** Read the symbol kind of a symbol's first declaration. */
-function kindOf(declarations: readonly SourceDeclaration[], name: string): graph.Symbol["kind"] {
-    const kind = DECLARATION_SYMBOL_KINDS[first(declarations).kind];
-    if (kind === undefined) {
-        throw BuildError.of(
-            "INSPECTION_INVALID",
-            `declaration kind ${first(declarations).kind} of '${name}' is invalid: it is unknown`,
-        );
-    }
-
-    return kind;
-}
-
-/** Read a symbol's first declaration, which the checker requires. */
-function first(declarations: readonly SourceDeclaration[]): SourceDeclaration {
-    const [declaration] = declarations;
-    if (declaration === undefined) {
-        throw BuildError.of("INSPECTION_INVALID", "symbol is invalid: it has no declaration");
-    }
-
-    return declaration;
-}
-
-/** Print a symbol's declaration, one line per overload. */
-function printSymbol(symbol: SymbolDescription): string {
-    // read the first declaration's generics, heritage and kind
-    const declaration = first(symbol.declarations);
-    const generics = printGenerics(declaration);
-    const heritage = declaration.heritage
-        .map((clause) => ` ${clause.relation} ${clause.type.text}`)
-        .join("");
-    const kind = DECLARATION_SYMBOL_KINDS[declaration.kind];
-
-    // print callables by overload, types by their definition and values by their type
-    if (kind === "function") {
-        return symbol.signatures
-            .map((signature) => `function ${symbol.name}${printSignature(signature)}`)
-            .join("\n");
-    } else if (kind === "class" || kind === "interface") {
-        return `${kind} ${symbol.name}${generics}${heritage}`;
-    } else if (kind === "typeAlias") {
-        return `type ${symbol.name}${generics} = ${symbol.declaredType?.text ?? ""}`;
-    } else if (kind === "enum" || kind === "namespace" || kind === "module") {
-        return `${kind} ${symbol.name}`;
-    } else {
-        return `${symbol.name}: ${symbol.valueType?.text ?? symbol.declaredType?.text ?? ""}`;
-    }
-}
-
-/** Truncate each line of a printed signature, leaving complete types to detail queries. */
-function truncate(signature: string): string {
-    return signature
-        .split("\n")
-        .map((line) =>
-            line.length > SIGNATURE_LENGTH ? `${line.slice(0, SIGNATURE_LENGTH - 1)}…` : line,
-        )
-        .join("\n");
-}
-
-/** Print a member's declaration, one line per overload of a method. */
-function printMember(member: SymbolDescription["members"][number]): string {
-    const kind = DECLARATION_SYMBOL_KINDS[first(member.declarations).kind];
-    const optional = member.isOptional ? "?" : "";
-
-    // print methods by overload, enum members by name and the rest by type
-    if (kind === "method" || kind === "constructor") {
-        return member.signatures
-            .map((signature) => `${member.name}${optional}${printSignature(signature)}`)
-            .join("\n");
-    } else if (kind === "enumMember") {
-        return member.name;
-    } else {
-        return `${member.name}${optional}: ${member.type.text}`;
-    }
-}
-
-/** Print a signature without its trailing semicolon. */
-function printSignature(signature: SignatureDescription): string {
-    return signature.text.endsWith(";") ? signature.text.slice(0, -1) : signature.text;
-}
-
-/** Print a declaration's generic parameters. */
-function printGenerics(declaration: SourceDeclaration): string {
-    if (!declaration.typeParameters.length) {
-        return "";
-    }
-    const parameters = declaration.typeParameters.map((parameter) => {
-        const constraint = parameter.constraint ? ` extends ${parameter.constraint.text}` : "";
-        const fallback = parameter.default ? ` = ${parameter.default.text}` : "";
-
-        return `${parameter.name}${constraint}${fallback}`;
-    });
-
-    return `<${parameters.join(", ")}>`;
-}
-
-/** Read the first sentence of documentation, absent without documentation. */
-function commentOf(text: string): { comment?: string } {
-    const sentence = /^[\s\S]*?[.!?](?=\s|$)/u.exec(text.trim())?.[0] ?? text.trim();
-
-    return sentence ? { comment: sentence.replaceAll(/\s+/gu, " ") } : {};
-}
-
-/** List the declarations a symbol's declarations, signatures and indexes name. */
-function symbolReferences(symbol: SymbolDescription): SymbolReference[] {
-    return [
-        ...(symbol.declaredType?.references ?? []),
-        ...(symbol.valueType?.references ?? []),
-        ...symbol.typeSignatures.flatMap(signatureReferences),
-        ...symbol.signatures.flatMap(signatureReferences),
-        ...symbol.indexes.flatMap((index) => [...index.key.references, ...index.value.references]),
-        ...symbol.declarations.flatMap((declaration) =>
-            declaration.typeParameters.flatMap(parameterReferences),
-        ),
-    ];
-}
-
-/** List the declarations a signature names. */
-function signatureReferences(signature: SignatureDescription): SymbolReference[] {
-    return [
-        ...signature.returns.references,
-        ...(signature.receiver?.references ?? []),
-        ...signature.parameters.flatMap((parameter) => parameter.references),
-        ...signature.typeParameters.flatMap(parameterReferences),
-    ];
-}
-
-/** List the declarations a generic parameter names. */
-function parameterReferences(
-    parameter: SourceDeclaration["typeParameters"][number],
-): SymbolReference[] {
-    return [...(parameter.constraint?.references ?? []), ...(parameter.default?.references ?? [])];
-}
-
-/** Find the innermost symbol whose source range contains a range. */
-function enclose(symbols: readonly Enclosing[], range: SourceRange): graph.Moniker | undefined {
-    let found: Enclosing | undefined;
-    for (const symbol of symbols) {
+/** Find the innermost symbol or test whose source range contains a range. */
+function enclose(
+    enclosings: readonly { readonly moniker: graph.Moniker; readonly source: SourceRange }[],
+    range: SourceRange,
+): graph.Moniker | undefined {
+    let found: (typeof enclosings)[number] | undefined;
+    for (const enclosing of enclosings) {
         const isInside =
-            symbol.source.file === range.file &&
-            symbol.source.start <= range.start &&
-            range.end <= symbol.source.end;
+            enclosing.source.file === range.file &&
+            enclosing.source.start <= range.start &&
+            range.end <= enclosing.source.end;
         const isNarrower =
             found === undefined ||
-            symbol.source.end - symbol.source.start < found.source.end - found.source.start;
+            enclosing.source.end - enclosing.source.start < found.source.end - found.source.start;
         if (isInside && isNarrower) {
-            found = symbol;
+            found = enclosing;
         }
     }
 
     return found?.moniker;
-}
-
-/** List each value once by its canonical JSON, in first-seen order. */
-function distinct<Value>(values: readonly Value[]): Value[] {
-    return [...new Map(values.map((value) => [canonicalize(value), value])).values()];
 }

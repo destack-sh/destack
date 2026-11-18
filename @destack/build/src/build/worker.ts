@@ -29,7 +29,10 @@ import { BuildError, extensionFailureOf } from "../error/index.ts";
 import { outputsOf, type PackageBuildOptions, type ModuleOptions } from "./build.ts";
 import { BuildDirectory } from "./directory.ts";
 import { readCatalogs } from "./catalog.ts";
-import { describeCode, describeGraph } from "../graph/module.ts";
+import { describeGraph } from "../graph/module.ts";
+import { ExampleDeclaration } from "../graph/example.ts";
+import { ScenarioDeclaration } from "../graph/scenario.ts";
+import { type OutlineModule, Outliner } from "../outline/outline.ts";
 import { HostCache } from "./host-cache.ts";
 import {
     type BuildRequest,
@@ -42,7 +45,6 @@ import {
 import { Console } from "node:console";
 import { Writable } from "node:stream";
 import { PRIMARY_RUNTIMES, type Runtime } from "@destack/package/runtime";
-import type { ModuleDescription } from "@destack/package/code";
 import { TelemetryScope } from "@destack/telemetry";
 import {
     InMemorySpanExporter,
@@ -94,6 +96,8 @@ export class CompilerWorker implements AsyncDisposable {
     readonly #packages: PackageLocator;
     /** The modules the compiler shares with the code it loads. */
     readonly #program: Program;
+    /** The modules outlines read, kept across builds while each file's digest holds. */
+    readonly #modules = new Map<string, OutlineModule>();
     /** The spans of the compiler's steps, recorded for the host. */
     readonly #scope: TelemetryScope;
 
@@ -201,42 +205,67 @@ export class CompilerWorker implements AsyncDisposable {
 
     /** Inspect source using retained compiler state and source configurations. */
     async inspect(options: InspectOptions & Pick<RequestedBuild, "tree">) {
+        // inspect the package's program, and read its tests from its modules' syntax
         const { project, inspection, declarations } = await this.#inspectPackage(options);
+        const outliner = new Outliner(this.environment, this.#modules);
+        const files = await outliner.files(project.directory);
+        const tests = [];
+        for (const file of files) {
+            tests.push(...(await outliner.tests(file)));
+        }
 
-        return inspectModules(
-            project.packageJson.package,
-            inspection.modules,
-            inspection.tests,
-            declarations,
-        );
+        return inspectModules(project.packageJson.package, inspection.modules, tests, declarations);
     }
 
-    /** Index source completely: every module's symbols and code edges, and the module graph. */
-    async index(
-        options: InspectOptions & Pick<RequestedBuild, "tree">,
-    ): Promise<{ code: graph.Document[]; modules: graph.Module[] }> {
-        // inspect the package, and evaluate its declarations and its examples' properties
-        const { project, inspection, declarations, transformer } =
-            await this.#inspectPackage(options);
-        const examples = await Evaluation.examples(project, inspection.examples, transformer);
+    /** Index a package from its syntax: each module's graph file, with its symbols and edges. */
+    async index(options: InspectOptions & Pick<RequestedBuild, "tree">): Promise<graph.Module[]> {
+        // open the package and evaluate its declarations
+        const project = await PackageSource.open(options, this.environment, this.#program);
+        const catalog = new ConstructorCatalog({}, this.environment.files);
+        const transformer = new ModuleTransformer(this.environment);
+        const evaluation = await Evaluation.evaluate([project], catalog, {
+            isIndexing: true,
+            transformer,
+        });
+        const declarations = evaluation.declarations.map((declaration) => declaration.description);
+
+        // outline each of its modules from their syntax
+        const outliner = new Outliner(this.environment, this.#modules);
+        const files = await outliner.files(project.directory);
+        const outlines = [];
+        for (const file of files) {
+            outlines.push(await outliner.outline(file));
+        }
+
+        // read its examples, with the properties their modules evaluate, and its scenarios
+        const definitions = outlines.flatMap((outline) => outline.definitions);
+        const read = await Promise.all(
+            definitions
+                .filter((definition) => definition.kind === "example")
+                .map((definition) => ExampleDeclaration.read(definition)),
+        );
+        const examples = await Evaluation.examples(project, read, transformer);
+        const scenarios = await Promise.all(
+            definitions
+                .filter((definition) => definition.kind === "scenario")
+                .map((definition) => ScenarioDeclaration.read(definition)),
+        );
+
+        // describe each module's graph file
         const source = project.packageJson.package;
         const tests = {
             package: await findPackage("@destack/test", this.#packages, this.toolchain),
-            declarations: inspection.tests,
+            declarations: outlines.flatMap((outline) => outline.tests),
         };
 
-        // describe the code and the module graph
-        return {
-            code: describeCode(source, inspection.modules, declarations, tests),
-            modules: describeGraph(source, inspection.modules, declarations, tests, {
-                package: await findPackage("@destack/package", this.#packages, this.toolchain),
-                examples,
-                scenarios: inspection.scenarios,
-            }),
-        };
+        return describeGraph(source, outlines, declarations, tests, {
+            package: await findPackage("@destack/package", this.#packages, this.toolchain),
+            examples,
+            scenarios,
+        });
     }
 
-    /** Inspect the whole package with its dependencies' builds and evaluate its declarations. */
+    /** Read the whole package with its dependencies' builds and evaluate its declarations. */
     async #inspectPackage(options: InspectOptions & Pick<RequestedBuild, "tree">): Promise<{
         project: PackageSource;
         inspection: TypeScriptInspection;
@@ -265,7 +294,7 @@ export class CompilerWorker implements AsyncDisposable {
         return this.#scope.span("destack.compiler.evaluate", {}, () => this.#evaluate(options));
     }
 
-    /** Open the outputs' projects, then evaluate each export entry in the first project with it. */
+    /** Open the outputs' projects, check their globals, then evaluate each export entry once. */
     async #evaluate(options: RequestedBuild): Promise<EvaluatedDeclaration[]> {
         // open the outputs' projects with the exports' on the runtime declarations evaluate on
         const packageJson = await readPackageJson(options.directory, this.environment.files);
@@ -281,6 +310,9 @@ export class CompilerWorker implements AsyncDisposable {
             },
         });
 
+        // refuse globals an output's runtime lacks before running any module
+        await this.#checkGlobals(options);
+
         // evaluate each export entry in the first project with it
         const catalog = new ConstructorCatalog(options.versions ?? {}, this.environment.files);
         const evaluated = new Set([opened.primary, ...opened.projects.values()]);
@@ -292,38 +324,40 @@ export class CompilerWorker implements AsyncDisposable {
         return [...declarations];
     }
 
-    /** Check each output's program: its type diagnostics and its modules' globals per runtime. */
-    async check(options: RequestedBuild): Promise<void> {
-        // inspect each requested output's program, then each the package's exports ship to
+    /** Refuse the runtime globals the built outputs' modules read that their runtimes lack. */
+    async #checkGlobals(options: RequestedBuild): Promise<void> {
+        // open the built outputs and the package's others, as a module's functions run wherever it ships
         const packageJson = await readPackageJson(options.directory, this.environment.files);
-        const exported = Object.entries(outputsOf(packageJson)).filter(
+        const others = Object.entries(outputsOf(packageJson)).filter(
             ([name]) => !Object.hasOwn(options.outputs, name),
         );
         const opened = await this.#open({
             ...options,
-            outputs: { ...options.outputs, ...Object.fromEntries(exported) },
+            outputs: { ...options.outputs, ...Object.fromEntries(others) },
         });
-        const typescript = await this.#switch(options.directory);
-        const shipped = new Map<string, { module: ModuleDescription; runtimes: Set<Runtime> }>();
+
+        // check the globals module evaluation reads against each output's runtime
+        const outliner = new Outliner(this.environment, this.#modules);
+        const shipped = new Map<string, Set<Runtime>>();
         for (const project of new Set(opened.projects.values())) {
-            // refuse the program's diagnostics, and check the globals module evaluation reads
-            const { modules } = await typescript.inspect(project);
-            const evaluated = modules.flatMap((module) =>
-                module.globals.filter((global) => global.evaluation === "module"),
-            );
+            const files = await outliner.modules(project.directory, project.entries);
+            const evaluated = [];
+            for (const file of files) {
+                const globals = await outliner.globals(file);
+                evaluated.push(...globals.filter((global) => global.evaluation === "module"));
+            }
             await this.runtimes.check(evaluated, [project.runtime]);
 
             // note the runtimes each module ships to
-            for (const module of modules) {
-                const entry = shipped.get(module.path) ?? { module, runtimes: new Set() };
-                entry.runtimes.add(project.runtime);
-                shipped.set(module.path, entry);
+            for (const file of files) {
+                shipped.set(file, (shipped.get(file) ?? new Set()).add(project.runtime));
             }
         }
 
         // check the globals functions read against any runtime their module ships to
-        for (const { module, runtimes } of shipped.values()) {
-            const deferred = module.globals.filter((global) => global.evaluation !== "module");
+        for (const [file, runtimes] of shipped) {
+            const globals = await outliner.globals(file);
+            const deferred = globals.filter((global) => global.evaluation !== "module");
             await this.runtimes.check(deferred, [...runtimes]);
         }
     }
@@ -668,19 +702,13 @@ export class CompilerWorker implements AsyncDisposable {
 
                 return { kind: "result", result: { kind: "build" }, traces: traces() };
             }
-            // check a package's outputs
-            else if (request.kind === "check") {
-                await compiler.check(request.options);
-
-                return { kind: "result", result: { kind: "check" }, traces: traces() };
-            }
             // index the package's code
             else if (request.kind === "index") {
-                const { code, modules } = await compiler.index(request.options);
+                const modules = await compiler.index(request.options);
 
                 return {
                     kind: "result",
-                    result: { kind: "index", code, modules },
+                    result: { kind: "index", modules },
                     traces: traces(),
                 };
             }

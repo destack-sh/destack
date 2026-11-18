@@ -8,6 +8,9 @@ import type { Environment } from "@destack/environment";
 import { testHost } from "@destack/test/host";
 import { LocalBuildStore } from "../store/local.ts";
 import { BuildStore } from "../store/store.ts";
+import { fixtureGraph } from "./graph.ts";
+import type { BuildReader } from "@destack/package/manifest";
+import type { Digest } from "@destack/schema";
 
 /** Open the store of builds tests share across runs, the host's, or a world's view of it. */
 export async function testStore(
@@ -55,6 +58,14 @@ export class TestBuildStore extends BuildStore implements AsyncDisposable {
         const database = await TestBuildStore.#migrated(join(directory, "store.db"), environment);
 
         return new TestBuildStore(storage, database, environment);
+    }
+
+    /** Put a build with its fixture graph attached, as a builder stores what it ships. */
+    async putIndexed(reader: BuildReader): Promise<Digest> {
+        const digest = await this.put(reader);
+        await this.attachGraph(digest, await fixtureGraph(reader));
+
+        return digest;
     }
 
     /** Close the database. */

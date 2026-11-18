@@ -4,12 +4,11 @@ import type { Environment } from "@destack/environment";
 import { fileURLToPath } from "node:url";
 import type { Toolchain } from "@destack/check/toolchain";
 import { API, type Program } from "typescript/unstable/async";
-import type { GlobalReference, ModuleDescription } from "@destack/package/code";
+import type { GlobalReference } from "@destack/package/code";
 import { LISTED_MODULE_RUNTIMES, type Runtime } from "@destack/package/runtime";
 import { DOM_LIBRARIES, TYPESCRIPT_LIBRARIES, TYPESCRIPT_OPTIONS } from "@destack/package/build";
 import type { BuildDescription } from "@destack/package/manifest";
 import { BuildError, type BuildReason } from "../error/index.ts";
-import { modulePath } from "./dependency.ts";
 import { TypeScriptCompiler } from "../typescript/compiler.ts";
 
 /** This package's directory, whose dependencies have runtime declarations in a workspace. */
@@ -308,41 +307,5 @@ export function checkInputs(build: BuildDescription, runtime: Runtime): void {
                 `runtime import set of '${input.path}' is invalid: it is unresolved`,
             );
         }
-    }
-}
-
-/** Check the globals an output's own modules use against the runtimes they run on. */
-export async function checkGlobals(
-    build: BuildDescription,
-    modules: readonly ModuleDescription[],
-    runtime: Runtime,
-    compiler: RuntimeCompiler,
-): Promise<void> {
-    // collect the package's globals, those in functions by the runtimes their module ships to
-    const source = new Map(modules.map((module) => [module.path, module]));
-    const evaluated: GlobalReference[] = [];
-    const deferred = new Map<
-        string,
-        { runtimes: readonly Runtime[]; globals: GlobalReference[] }
-    >();
-    for (const id of new Set(Object.values(build.outputs).flatMap((output) => output.inputs))) {
-        const input = build.inputs[id];
-        if (input?.package === undefined && input !== undefined) {
-            const runtimes = input.runtimes ?? [runtime];
-            const key = runtimes.toSorted().join(" ");
-            const group = deferred.get(key) ?? { runtimes, globals: [] };
-            for (const global of source.get(modulePath(input.path))?.globals ?? []) {
-                (global.evaluation === "module" ? evaluated : group.globals).push(global);
-            }
-            deferred.set(key, group);
-        }
-    }
-
-    // check the globals module evaluation runs against the output's runtime
-    await compiler.check(evaluated, [runtime]);
-
-    // check the globals in functions against any runtime their module ships to
-    for (const group of deferred.values()) {
-        await compiler.check(group.globals, group.runtimes);
     }
 }

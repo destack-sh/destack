@@ -11,7 +11,7 @@ import {
 } from "@destack/package";
 import { type BuildReader, Lock, PackageManifest } from "@destack/package/manifest";
 import { PackageLocator } from "@destack/package/locator";
-import type { Runtime } from "@destack/package/runtime";
+import { PRIMARY_RUNTIMES, type Runtime } from "@destack/package/runtime";
 import { Digest, found, nth, present, Version } from "@destack/schema";
 import { Checkout } from "../cache/index.ts";
 import { NpmInstallation, type NpmUnit } from "./npm.ts";
@@ -501,7 +501,12 @@ export class WorkspacePackage {
 
     /** Lock the root's build with every build it runs with: units, releases and npm units. */
     async lock(root: Digest, shared: WorkspaceUnitOptions = {}): Promise<Digest> {
+        // build the units it runs with, and attach the graph of each build it ships
         const units = await this.#storeEach(shared, this.#dependencies);
+        await this.attachGraph(root);
+        for (const unit of this.#dependencies) {
+            await this.#attachUnitGraph(unit, found(units, unit.name));
+        }
 
         return await this.#lock(this.root, root, units);
     }
@@ -510,11 +515,12 @@ export class WorkspacePackage {
     async lockUnits(
         shared: WorkspaceUnitOptions,
     ): Promise<ReadonlyMap<string, { readonly build: DependencyBuild; readonly lock: Digest }>> {
-        // build every unit once, then lock each once per workspace
+        // build every unit once, then attach its graph and lock it once per workspace
         const units = await this.#storeEach(shared, this.units);
         const locks = new Map<string, { readonly build: DependencyBuild; readonly lock: Digest }>();
         for (const unit of this.units) {
             const build = found(units, unit.name);
+            await this.#attachUnitGraph(unit, build);
             const lock = await this.workspace.unitLock(unit, shared, () =>
                 this.#lock(unit, build.manifest, units),
             );
@@ -522,6 +528,12 @@ export class WorkspacePackage {
         }
 
         return locks;
+    }
+
+    /** Attach a workspace unit's graph to its build, unless the build carries one. */
+    async #attachUnitGraph(unit: WorkspaceUnit, build: DependencyBuild): Promise<void> {
+        const unitPackage = await this.workspace.package(unit.directory);
+        await unitPackage.attachGraph(build.manifest);
     }
 
     /** Lock a unit's build with every build it runs with. */
@@ -693,20 +705,32 @@ export class WorkspacePackage {
         );
     }
 
-    /** Index the root's code against its dependencies' builds, reusing stored units. */
-    async index(
-        request: Omit<InspectOptions, "directory">,
-    ): Promise<{ code: graph.Document[]; modules: graph.Module[] }> {
-        return await this.#against(
-            request.runtime,
-            async (compiler, dependencies) =>
-                await compiler.index({
-                    ...request,
-                    directory: this.root.directory,
-                    dependencies,
-                    links: await this.#releaseLinks(),
-                }),
+    /** Index the root's modules and tests from source, outside releases through their builds. */
+    async index(request: Omit<InspectOptions, "directory">): Promise<graph.Module[]> {
+        // resolve members through the workspace, as its tests run, and outside releases through their builds
+        const dependencies = await this.#releaseRoots(this.root);
+        const links = await this.#releaseLinks();
+
+        return await this.workspace.compilers.use(this.root.directory, (compiler) =>
+            compiler.index({ ...request, directory: this.root.directory, dependencies, links }),
         );
+    }
+
+    /** Index the root for its build's primary runtime and attach its graph, unless it has one. */
+    async attachGraph(manifest: Digest): Promise<void> {
+        // leave a build that carries its graph
+        const { store } = this.workspace.compilers;
+        if (await store.isIndexed(manifest)) {
+            return;
+        }
+
+        // index the root for the first primary runtime its build ships, then attach the graph
+        const outputs = Object.values((await this.workspace.manifest(manifest)).outputs);
+        const runtime = present(
+            PRIMARY_RUNTIMES.find((each) => outputs.some((output) => output.runtime === each)),
+            `a primary runtime ${this.root.name} ships`,
+        );
+        await store.attachGraph(manifest, await this.index({ runtime }));
     }
 
     /** Store every unit before the root for its runtimes, answering the root's compile inputs. */
@@ -878,8 +902,18 @@ export class WorkspacePackage {
         unit: WorkspaceUnit,
         stored: ReadonlyMap<string, DependencyBuild>,
     ): Promise<Record<string, DependencyRelease>> {
-        // take the host's builtins, then each required unit's build, then each required release's root
-        const closure = this.#closureOf(unit);
+        // take the releases, then each required unit's build
+        const inputs = await this.#releaseRoots(unit);
+        for (const each of this.#closureOf(unit)) {
+            inputs[each.name] = found(stored, each.name);
+        }
+
+        return inputs;
+    }
+
+    /** Take the roots of the host's builtins and of the releases a unit's closure requires. */
+    async #releaseRoots(unit: WorkspaceUnit): Promise<Record<string, DependencyRelease>> {
+        // take the host's builtins, then each required release's root
         const releases = await this.#resolvedReleases();
         const inputs: Record<string, DependencyRelease> = {};
         for (const [name, release] of releases) {
@@ -887,10 +921,7 @@ export class WorkspacePackage {
                 inputs[name] = release.root;
             }
         }
-        for (const each of closure) {
-            inputs[each.name] = found(stored, each.name);
-        }
-        for (const owner of [unit, ...closure]) {
+        for (const owner of [unit, ...this.#closureOf(unit)]) {
             for (const release of owner.releases) {
                 inputs[release.name] = found(releases, release.name).root;
             }

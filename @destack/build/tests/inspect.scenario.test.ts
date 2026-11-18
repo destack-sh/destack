@@ -4,7 +4,7 @@ import { expect, refusal, test } from "@destack/test";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { present, schema } from "@destack/schema";
-import { TestDeclaration } from "../src/typescript/test.ts";
+import { TestDeclaration } from "../src/outline/test.ts";
 import { Workspace, CompilerPool } from "../src/index.ts";
 import { LocalBuildStore } from "../src/store/local.ts";
 import { THING_FILES, writeThing } from "./fixture.ts";

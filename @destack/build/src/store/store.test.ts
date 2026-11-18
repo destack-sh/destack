@@ -7,7 +7,7 @@ import { join } from "node:path";
 import { LocalBlobStorage } from "@destack/bucket/bun";
 import { BlobStore } from "@destack/db";
 import { connectBunSqlite } from "@destack/db/bun";
-import { PackageId } from "@destack/package";
+import { graph, PackageId } from "@destack/package";
 import { PackageFile } from "@destack/package/file";
 import {
     BuildReader,
@@ -366,8 +366,8 @@ test("collect the builds no root or lease retains, the blobs only they reference
     });
 });
 
-test("attach a code index to a build, retain it with the build, and collect it with the build", async () => {
-    // store two builds, each with a separate code index attached, rooting the first
+test("attach a file to a build, retain it with the build, and collect it with the build", async () => {
+    // store two builds, each with a separate file attached, rooting the first
     await using simulation = testSimulation();
     const environment = simulation.environment("test");
     await using opened = await openStore(await temporary(environment.files), environment);
@@ -382,7 +382,7 @@ test("attach a code index to a build, retain it with the build, and collect it w
             environment.crypto,
         );
         await store.write(BuildObject.files([{ digest: file.digest, bytes }]));
-        await store.attach(manifest, file);
+        await store.attach(manifest, [file]);
 
         return { manifest, file };
     };
@@ -397,33 +397,33 @@ test("attach a code index to a build, retain it with the build, and collect it w
 
     // refuse a file the store lacks, and read each attached index back
     const missing = { ...live.file, digest: Digest.parse("c".repeat(64)) };
-    await expect(store.attach(live.manifest, missing)).rejects.toThrow(
+    await expect(store.attach(live.manifest, [missing])).rejects.toThrow(
         `build '${live.manifest}' is invalid: it lists 'code.json', which was not uploaded`,
     );
     expect([
-        await store.referrer(live.manifest, "code.json"),
-        await store.referrer(dropped.manifest, "code.json"),
-        await store.referrer(live.manifest, "other.json"),
+        await store.attachment(live.manifest, "code.json"),
+        await store.attachment(dropped.manifest, "code.json"),
+        await store.attachment(live.manifest, "other.json"),
     ]).toEqual([live.file, dropped.file, undefined]);
 
-    // collect the dropped build once the leases end, its index and its referrer with it
+    // collect the dropped build once the leases end, its index and its attachment with it
     await simulation.jump(simulation.clock.now() + LEASE_MILLISECONDS);
     await collect(store);
     expect({
         blobs: await listing(store, all),
-        referrers: [
-            await store.referrer(live.manifest, "code.json"),
-            await store.referrer(dropped.manifest, "code.json"),
+        attachments: [
+            await store.attachment(live.manifest, "code.json"),
+            await store.attachment(dropped.manifest, "code.json"),
         ],
     }).toEqual({
         blobs: [
             ...new Set([...(await blobsOf(store, [live.manifest])), live.file.digest]),
         ].toSorted(),
-        referrers: [live.file, undefined],
+        attachments: [live.file, undefined],
     });
 });
 
-test("read a build, its lock, files and referrers through a source, reporting only its own builds as contained", async () => {
+test("read a build, its lock, files and attachments through a source, reporting only its own builds as contained", async () => {
     // store a build with a lock and an attached index in a source, and open an empty store over it
     await using simulation = testSimulation();
     const environment = simulation.environment("test");
@@ -440,7 +440,7 @@ test("read a build, its lock, files and referrers through a source, reporting on
         environment.crypto,
     );
     await source.write(BuildObject.files([{ digest: index.digest, bytes }]));
-    await source.attach(manifest, index);
+    await source.attach(manifest, [index]);
     const store = new BuildStore({ blobs: empty.store.blobs, environment, sources: [source] });
 
     // read the build, its root through the lock, a file, the index and which store keeps it
@@ -451,16 +451,73 @@ test("read a build, its lock, files and referrers through a source, reporting on
         manifest: reader.manifest,
         root: root.manifest,
         file: new TextDecoder().decode(await store.file(file)),
-        referrer: await store.referrer(manifest, "code.json"),
+        attachment: await store.attachment(manifest, "code.json"),
         isKeeper: (await store.storeOf(manifest)) === source,
         contains: [await store.contains(manifest), await source.contains(manifest)],
     }).toEqual({
         manifest: (await source.contents(manifest)).manifest,
         root: (await source.contents(manifest)).manifest,
         file: SOURCES["src/answer.ts"],
-        referrer: index,
+        attachment: index,
         isKeeper: true,
         contains: [false, true],
+    });
+});
+
+test("pull a build's graph from its forge on the first read, once, and refuse a build without one", async () => {
+    // store a build with its graph at a forge, and the build alone here, pulling attachments from the forge
+    await using simulation = testSimulation();
+    const environment = simulation.environment("test");
+    await using forge = await openStore(await temporary(environment.files), environment);
+    await using local = await openStore(await temporary(environment.files), environment);
+    const build = await written(SOURCES, environment.crypto);
+    const manifest = await forge.store.put(build);
+    await local.store.put(build);
+    const module = graph.Module.of({
+        path: "src/answer.ts",
+        digest: Digest.parse("a".repeat(64)),
+        imports: [],
+        exports: [],
+        declarations: [],
+        symbols: [],
+        edges: [],
+    });
+    await forge.store.attachGraph(manifest, [module]);
+    const pulls: Digest[] = [];
+    const store = new BuildStore({
+        blobs: local.store.blobs,
+        environment,
+        pullAttachments: async ({ digest }) => {
+            pulls.push(digest);
+            const files = await forge.store.attachments(digest);
+            if (files.length === 0) {
+                return;
+            }
+            const objects = files.map((file) => ({ kind: "file", digest: file.digest }) as const);
+            await local.store.write(forge.store.read(objects));
+            await local.store.attach(digest, files);
+        },
+    });
+
+    // read the graph twice, pulling it once, and refuse a build its forge attached none to
+    const other = await store.put(
+        await written(
+            { ...SOURCES, "src/answer.ts": "export const answer = 43;\n" },
+            environment.crypto,
+        ),
+    );
+    expect({
+        isIndexed: await store.isIndexed(manifest),
+        first: await store.graph(manifest),
+        second: await store.graph(manifest),
+        pulls,
+        refused: await refusal(store.graph(other)),
+    }).toEqual({
+        isIndexed: false,
+        first: [module],
+        second: [module],
+        pulls: [manifest, other],
+        refused: ["NOT_FOUND", "GRAPH_NOT_FOUND", `graph of build '${other}' not found`],
     });
 });
 

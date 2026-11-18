@@ -24,14 +24,9 @@ import {
 } from "@destack/package/code";
 import { declaredName, SymbolInspector } from "./symbol.ts";
 import { PackageFile } from "@destack/package/file";
-import type { TestDeclaration } from "./test.ts";
 import { inspectErrors } from "@destack/check/diagnostic";
-import { collectTests } from "./test.ts";
 import { ConstructorCatalog } from "../declaration/catalog.ts";
 import type { PackageSource } from "../source/index.ts";
-import { ExampleDeclaration } from "./example.ts";
-import { ScenarioDeclaration } from "./scenario.ts";
-import { collectGlobals } from "./global.ts";
 import { isAuthored, relativePath } from "../source/dependency.ts";
 
 /** A module's exports by name: each export, its original and whether it exists at runtime. */
@@ -55,12 +50,6 @@ export interface TypeScriptInspection {
     sources: Map<string, Uint8Array<ArrayBuffer>>;
     /** Public declarations and exports. */
     modules: ModuleDescription[];
-    /** Statically collected test and suite declarations. */
-    tests: TestDeclaration[];
-    /** Statically collected examples, their properties left to evaluation. */
-    examples: Omit<ExampleDeclaration, "properties">[];
-    /** Statically collected scenarios. */
-    scenarios: ScenarioDeclaration[];
 }
 
 /** The modules and declarations the compiler reads from a package's source. */
@@ -80,25 +69,13 @@ async function inspectProject(
     const fileNames = [...(await project.program.getSourceFileNames())].toSorted();
     const authored = await readAuthored(project, root, fileNames);
 
-    // read the authored modules' tests
-    const collected = await Promise.all(
-        [...authored].map(([file, source]) => inspection.collect(file, source)),
-    );
-
-    // leave test modules' examples and scenarios to their runner, as only it can import them
-    const tested = new Set(
-        collected.flatMap((entry) => (entry.tests.length > 0 ? [entry.file] : [])),
-    );
-
     // register every authored module before following references between declarations
     for (const [file, source] of authored) {
         await inspection.register(file, source);
     }
 
     // describe each module and the declarations it queues
-    await Promise.all(
-        [...authored].map(([file, source]) => inspection.describe(file, source, tested.has(file))),
-    );
+    await Promise.all([...authored].map(([file, source]) => inspection.describe(file, source)));
     await inspection.describeQueued();
 
     // parse compiler descriptions before returning them to executable inspectors
@@ -110,18 +87,7 @@ async function inspectProject(
         files: fileNames,
         modules,
         sources: inspection.sources,
-        tests: collected.flatMap((entry) => entry.tests),
-        examples: inspection.examples,
-        scenarios: inspection.scenarios,
     };
-}
-
-/** The tests an authored module declares. */
-interface CollectedModule {
-    /** The module's absolute path. */
-    readonly file: string;
-    /** The tests the module declares. */
-    readonly tests: TestDeclaration[];
 }
 
 /** One inspection of a compiler project: its modules, bytes and queued declarations. */
@@ -146,10 +112,6 @@ class ProjectInspection {
     readonly sources = new Map<string, Uint8Array<ArrayBuffer>>();
     /** The symbol inspector of the project's snapshot. */
     readonly inspector: SymbolInspector;
-    /** The examples of the described modules. */
-    readonly examples: Omit<ExampleDeclaration, "properties">[] = [];
-    /** The scenarios of the described modules. */
-    readonly scenarios: ScenarioDeclaration[] = [];
     /** The package's declarations queued for description, by symbol. */
     readonly #pending = new Map<number, TypeScriptSymbol>();
     /** The reference of each located symbol. */
@@ -199,14 +161,6 @@ class ProjectInspection {
         return located;
     }
 
-    /** Read an authored module's tests. */
-    async collect(file: string, source: SourceFile): Promise<CollectedModule> {
-        const owner = await this.catalog.locate(dirname(file));
-        const path = relativePath(owner.directory, file);
-
-        return { file, tests: await collectTests(source, path, this.project) };
-    }
-
     /** Register an authored module by package path, requiring bytes equal to the snapshot. */
     async register(file: string, source: SourceFile): Promise<void> {
         // require source bytes to match the compiler snapshot
@@ -224,7 +178,6 @@ class ProjectInspection {
         this.sources.set(path, bytes);
         this.modules.set(path, {
             path,
-            globals: [],
             errors: [],
             source: await PackageFile.describe(path, "text/plain", bytes, this.#environment.crypto),
             length: source.text.length,
@@ -389,30 +342,15 @@ class ProjectInspection {
         return exports.toSorted((left, right) => Text.compare(left.name, right.name));
     }
 
-    /** Describe a module's imports, globals, errors, exports, and outside tests its examples. */
-    async describe(file: string, source: SourceFile, isTest: boolean): Promise<void> {
-        // describe the module's imports, globals, errors, exports, examples and scenarios together
+    /** Describe a module's imports, errors and exports. */
+    async describe(file: string, source: SourceFile): Promise<void> {
+        // describe the module's imports, errors and exports together
         const module = found(this.modules, relativePath(this.root, file));
-        const { name: owner } = await this.catalog.owner(await this.catalog.locate(dirname(file)));
-        let examples: Omit<ExampleDeclaration, "properties">[];
-        let scenarios: ScenarioDeclaration[];
-        [module.imports, module.globals, module.errors, module.exports, examples, scenarios] =
-            await Promise.all([
-                describeImports(source, this.inspector, this.root, this.catalog),
-                collectGlobals(source, this.project, module.path, (symbol) =>
-                    this.reference(symbol),
-                ),
-                inspectErrors(source, this.inspector),
-                this.describeExports(source, module.path),
-                isTest
-                    ? []
-                    : ExampleDeclaration.collect(source, module.path, this.inspector, owner),
-                isTest
-                    ? []
-                    : ScenarioDeclaration.collect(source, module.path, this.inspector, owner),
-            ]);
-        this.examples.push(...examples);
-        this.scenarios.push(...scenarios);
+        [module.imports, module.errors, module.exports] = await Promise.all([
+            describeImports(source, this.inspector, this.root, this.catalog),
+            inspectErrors(source, this.inspector),
+            this.describeExports(source, module.path),
+        ]);
     }
 
     /** Describe the queued declarations in waves, as each wave queues the local types it names. */

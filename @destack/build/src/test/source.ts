@@ -87,16 +87,6 @@ export class PackageCopy implements AsyncDisposable {
         return await this.#compilers.use(this.source, (compiler) => compiler.build(options));
     }
 
-    /** Check the copy's outputs, their types and runtime globals, then build them. */
-    async check(
-        request: Omit<PackageBuildOptions, "directory" | "dependencies" | "links">,
-    ): Promise<BuildReader> {
-        const { source, dependencies } = this;
-        const options = { ...request, directory: source, dependencies, links: {} };
-
-        return await this.#compilers.use(this.source, (compiler) => compiler.check(options));
-    }
-
     /** Remove the copy, its builds and their trees. */
     async [Symbol.asyncDispose](): Promise<void> {
         await this.store.environment.files.remove(this.directory, { recursive: true });

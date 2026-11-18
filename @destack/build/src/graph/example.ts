@@ -1,11 +1,58 @@
 import { graph, type PackageVersion } from "@destack/package";
-import type { SymbolReference } from "@destack/package/code";
 import type { SourceRange } from "@destack/package/source";
-import type { ExampleDeclaration } from "../typescript/example.ts";
+import { type JsonObject, schema } from "@destack/schema";
+import type { Definition, DefinitionSite } from "../outline/definition.ts";
 import type { DeclarationGraph } from "./declaration.ts";
 
-/** A declaration of a module with the edges from it and the range of its defining call. */
-export interface DescribedDeclaration {
+/** An example a module exports, located and described, with the properties its module gives. */
+export interface ExampleDeclaration extends DefinitionSite {
+    /** The symbol the example shows. */
+    readonly of: graph.Moniker;
+    /** The calls bringing the shown objects into the example's state, by scope. */
+    readonly objects: Readonly<
+        Record<
+            string,
+            readonly {
+                readonly object: graph.Moniker;
+                readonly method: string;
+                readonly input: JsonObject;
+            }[]
+        >
+    >;
+    /** The sentence saying what the example shows. */
+    readonly description: string;
+    /** The properties the example renders with, as its module evaluates them. */
+    readonly properties: JsonObject;
+}
+
+/** An example a module exports, located at its definition. */
+export const ExampleDeclaration = {
+    /** Read an example's definition: what it shows and the calls bringing its objects. */
+    async read(definition: Definition): Promise<Omit<ExampleDeclaration, "properties">> {
+        // read the calls of each scope, each object by its moniker
+        const { site, fields } = definition;
+        const objects: Record<string, ExampleDeclaration["objects"][string]> = {};
+        for (const [scope, calls] of fields.lists("objects")) {
+            objects[scope] = await Promise.all(
+                calls.map(async (call) => ({
+                    object: await call.symbol("object"),
+                    method: call.text("method"),
+                    input: schema.jsonObject().parse(call.literal("input") ?? {}),
+                })),
+            );
+        }
+
+        return {
+            ...site,
+            of: await fields.symbol("of"),
+            objects,
+            description: fields.text("description"),
+        };
+    },
+};
+
+/** A declaration a module registers, with the edges from it and its registering call's range. */
+export interface Registration {
     /** The declaration. */
     readonly declaration: graph.Declaration;
     /** The edges from the declaration. */
@@ -17,9 +64,9 @@ export interface DescribedDeclaration {
 /** The examples of each module, as declarations showing the symbols they render. */
 export class ExampleGraph {
     /** The examples of each module, by module path. */
-    readonly #modules = new Map<string, DescribedDeclaration[]>();
+    readonly #modules = new Map<string, Registration[]>();
     /** The examples, by the moniker of the constant with each. */
-    readonly #constants = new Map<graph.Moniker, DescribedDeclaration>();
+    readonly #constants = new Map<graph.Moniker, Registration>();
 
     /** Describe each example at its constant, showing its symbol and the declarations at it. */
     constructor(
@@ -27,7 +74,6 @@ export class ExampleGraph {
         kinds: PackageVersion,
         examples: readonly ExampleDeclaration[],
         declared: DeclarationGraph,
-        name: (reference: SymbolReference) => graph.Moniker,
     ) {
         for (const example of examples) {
             // describe the example at its constant
@@ -41,19 +87,14 @@ export class ExampleGraph {
                 kindPackageId: kinds.id,
                 name: example.name,
                 description: {
-                    ...example.description,
+                    description: example.description,
                     properties: example.properties,
-                    objects: Object.fromEntries(
-                        Object.entries(example.objects).map(([scope, calls]) => [
-                            scope,
-                            calls.map((call) => ({ ...call, object: name(call.object) })),
-                        ]),
-                    ),
+                    objects: example.objects,
                 },
             });
 
             // show the symbol and every declaration at it
-            const shown = name(example.of);
+            const shown = example.of;
             const edges = [shown, ...declared.at(shown)].map((to) => ({
                 from: declaration.moniker,
                 to,
@@ -73,12 +114,12 @@ export class ExampleGraph {
     }
 
     /** List a module's examples in source order. */
-    describe(path: string): readonly DescribedDeclaration[] {
+    describe(path: string): readonly Registration[] {
         return this.#modules.get(path) ?? [];
     }
 
     /** Find the example of a constant, absent for a constant with none. */
-    at(constant: graph.Moniker): DescribedDeclaration | undefined {
+    at(constant: graph.Moniker): Registration | undefined {
         return this.#constants.get(constant);
     }
 }

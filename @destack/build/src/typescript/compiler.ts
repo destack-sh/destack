@@ -98,17 +98,22 @@ export class TypeScriptCompiler implements AsyncDisposable {
     /** Check a source's configured program, refusing its diagnostics, then read its modules. */
     async #inspect(source: PackageSource): Promise<TypeScriptInspection> {
         return await this.#read(await this.#configure(source), async (project) => {
-            // check the configuration and the authored modules
-            const diagnostics = await this.#check(project);
-            if (diagnostics.length) {
-                throw BuildError.of(
-                    "INSPECTION_INVALID",
-                    `TypeScript inspection is invalid: it failed:\n${JSON.stringify(diagnostics)}`,
-                );
-            }
+            // check the configuration and the authored modules, then read them
+            await this.#refuse(project);
 
             return await TypeScriptInspection.read(project, source);
         });
+    }
+
+    /** Refuse a project's configuration and authored modules' diagnostics. */
+    async #refuse(project: Project): Promise<void> {
+        const diagnostics = await this.#check(project);
+        if (diagnostics.length) {
+            throw BuildError.of(
+                "INSPECTION_INVALID",
+                `TypeScript inspection is invalid: it failed:\n${JSON.stringify(diagnostics)}`,
+            );
+        }
     }
 
     /** Write a source's program configuration at one stable path per runtime. */

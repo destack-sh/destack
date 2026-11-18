@@ -122,10 +122,14 @@ async function read(
     // authorize the build
     await access.pull(request, digest);
 
-    // describe a referrer of the build, as OCI's referrers API lists a subject's artifacts
+    // list the build's attachments or describe one, as OCI's referrers API lists a subject's artifacts
     const selected = path.slice(separator + 1);
-    if (selected.startsWith("referrers/")) {
-        return referrer(store, digest, selected.slice("referrers/".length));
+    if (selected === "attachments/") {
+        const listed = await store.attachments(digest);
+
+        return Response.json(listed, { headers: { "cache-control": "private, no-cache" } });
+    } else if (selected.startsWith("attachments/")) {
+        return attachment(store, digest, selected.slice("attachments/".length));
     }
 
     // resolve the selected path among the build's manifest and the files it lists
@@ -164,10 +168,10 @@ async function select(
     return distributed.find((entry) => entry.path === name) ?? new Response(null, { status: 404 });
 }
 
-/** Describe a referrer of a build by its encoded path, answering an unknown one as missing. */
-async function referrer(store: BuildStore, digest: Digest, encoded: string): Promise<Response> {
+/** Describe a attachment of a build by its encoded path, answering an unknown one as missing. */
+async function attachment(store: BuildStore, digest: Digest, encoded: string): Promise<Response> {
     const path = decodePath(encoded);
-    const described = path === undefined ? undefined : await store.referrer(digest, path);
+    const described = path === undefined ? undefined : await store.attachment(digest, path);
 
     return described === undefined
         ? new Response(null, { status: 404 })

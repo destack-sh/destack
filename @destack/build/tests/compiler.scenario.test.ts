@@ -61,7 +61,7 @@ test("rebuild edited source, reject incompatible APIs, restore distributed outpu
         expect(restoredSource.manifest).toEqual(build.manifest);
         await expectFiles(restoredSource, build);
 
-        // refuse a browser API in the checked workerd output, though the package also ships the module to the browser
+        // refuse a browser API in the built workerd output, though the package also ships the module to the browser
         const workerdRequest = {
             directory: source,
             dependencies: {},
@@ -72,7 +72,7 @@ test("rebuild edited source, reject incompatible APIs, restore distributed outpu
             notePath,
             note + "\n/** The page title. */\nexport const page = document.title;\n",
         );
-        expect(await refusal(builder.check(workerdRequest))).toEqual([
+        expect(await refusal(builder.build(workerdRequest))).toEqual([
             "BAD_REQUEST",
             "RUNTIME_API_INVALID",
             `API 'document.title' at 'src/note.ts:${note.length + 44}' is invalid: it is not supported on 'workerd'`,
@@ -82,7 +82,7 @@ test("rebuild edited source, reject incompatible APIs, restore distributed outpu
         const deferredSource =
             note + "\n/** Read the page title. */\nexport const page = () => document.title;\n";
         await files.writeTextFile(notePath, deferredSource);
-        const deferred = await builder.check(workerdRequest);
+        const deferred = await builder.build(workerdRequest);
         expect(new TextDecoder().decode(await deferred.load("src/note.ts"))).toBe(deferredSource);
 
         // refuse the Function constructor on workerd, and accept reads of its prototype
@@ -92,7 +92,7 @@ test("rebuild edited source, reject incompatible APIs, restore distributed outpu
         await files.writeTextFile(notePath, constructed);
         expect(
             await refusal(
-                builder.check({
+                builder.build({
                     directory: source,
                     dependencies: {},
                     links: {},
@@ -108,7 +108,7 @@ test("rebuild edited source, reject incompatible APIs, restore distributed outpu
             note +
             "\n/** The function prototype's names. */\nexport const names = Object.getOwnPropertyNames(Function.prototype);\n";
         await files.writeTextFile(notePath, prototypeSource);
-        const workerd = await builder.check({
+        const workerd = await builder.build({
             directory: source,
             dependencies: {},
             links: {},
@@ -120,14 +120,14 @@ test("rebuild edited source, reject incompatible APIs, restore distributed outpu
         const symbolSource =
             note + "\n/** The tag of Math. */\nexport const tag = Math[Symbol.toStringTag];\n";
         await files.writeTextFile(notePath, symbolSource);
-        const symbolKeyed = await builder.check(workerdRequest);
+        const symbolKeyed = await builder.build(workerdRequest);
         expect(new TextDecoder().decode(await symbolKeyed.load("src/note.ts"))).toBe(symbolSource);
         await files.writeTextFile(
             notePath,
             note +
                 '\n/** A Math member. */\nexport const member = (key: string) => Math[key as "PI"];\n',
         );
-        expect(await refusal(builder.check(workerdRequest))).toEqual([
+        expect(await refusal(builder.build(workerdRequest))).toEqual([
             "BAD_REQUEST",
             "RUNTIME_API_INVALID",
             `global access to 'Math' at 'src/note.ts:${note.length + 62}' is invalid: it is dynamic`,
@@ -138,7 +138,7 @@ test("rebuild edited source, reject incompatible APIs, restore distributed outpu
             note +
             '\n/** Read the page theme. */\nexport const page = () => document.documentElement.dataset["theme"];\n';
         await files.writeTextFile(notePath, browserSource);
-        const browser = await builder.check({
+        const browser = await builder.build({
             directory: source,
             dependencies: {},
             links: {},

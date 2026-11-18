@@ -1,21 +1,23 @@
 import { type Environment, type FileSystem, Pipe, waitAborted } from "@destack/environment";
-import { Digest, type DigestCrypto, found, present } from "@destack/schema";
+import { Digest, type DigestCrypto, found, present, schema } from "@destack/schema";
 import type { BlobStorage } from "@destack/resource";
 import {
     and,
     asc,
     BLOB_TABLES,
     type BlobStore,
+    type Controller,
     type DatabaseConnection,
     defineDatabase,
     eq,
     inArray,
     isNull,
     lte,
+    Now,
     or,
     type SQLWrapper,
 } from "@destack/db";
-import { DependencyName, type DependencyRelease } from "@destack/package";
+import { DependencyName, type DependencyRelease, graph } from "@destack/package";
 import { PackageFile } from "@destack/package/file";
 import {
     BuildLayer,
@@ -40,7 +42,7 @@ import {
     buildManifest,
     buildOutput,
     buildReference,
-    buildReferrer,
+    buildAttachment,
     buildRoot,
 } from "./table.ts";
 
@@ -55,6 +57,9 @@ export const USE_MILLISECONDS = 24 * 60 * 60_000;
 
 /** The prefix of the root a cache entry retains its blobs by, followed by its key. */
 const CACHE_ROOT_PREFIX = "cache:";
+
+/** The path prefix a build's module graph files are attached at, each by its module's path. */
+const GRAPH_PREFIX = "graph/";
 
 /** What a closure follows from its root: what the root runs, or every export of the root. */
 export type ClosureEntries = "run" | "export";
@@ -72,8 +77,8 @@ export type BlobLocation =
 
 /** A blob a transfer sends: a file, a build's manifest, or a lock. */
 export interface BuildObject {
-    /** What the blob is. */
-    readonly kind: "file" | "manifest" | "lock";
+    /** What the blob is: a build's file, manifest or lock, or a file attached to a build. */
+    readonly kind: "file" | "manifest" | "lock" | "attachment";
     /** The blob's digest. */
     readonly digest: Digest;
     /** The blob's size in bytes. */
@@ -141,6 +146,20 @@ export const BuildObject = {
         ];
     },
 
+    /** Give files attached to builds as attachment entries for a write, after the files. */
+    async *attachments(
+        attachments: readonly BuildAttachment[],
+        crypto: DigestCrypto,
+    ): AsyncIterable<TarballEntry> {
+        for (const attachment of attachments) {
+            const bytes = new TextEncoder().encode(
+                JSON.stringify(BuildAttachment.parse(attachment)),
+            );
+            const digest = await Digest.of(bytes, crypto);
+            yield TarballEntry.of(BuildObject.path({ kind: "attachment", digest }), bytes);
+        }
+    },
+
     /** Give blobs as file entries for a write. */
     async *files(
         blobs: readonly { readonly digest: Digest; readonly bytes: Uint8Array<ArrayBuffer> }[],
@@ -160,7 +179,9 @@ export const BuildObject = {
         // read the kind and the digest, refusing anything else
         const [kind, named] = path.split("/");
         const digest = Digest.safeParse(named);
-        if ((kind !== "file" && kind !== "manifest" && kind !== "lock") || !digest.success) {
+        const isKind =
+            kind === "file" || kind === "manifest" || kind === "lock" || kind === "attachment";
+        if (!isKind || !digest.success) {
             throw BuildError.of(
                 "OBJECT_INVALID",
                 `object '${path}' is invalid: it must be a kind and a digest`,
@@ -170,6 +191,16 @@ export const BuildObject = {
         return { kind, digest: digest.data };
     },
 };
+
+/** A file attached to a build, as a transfer sends it: the build it describes and the file. */
+export const BuildAttachment = schema.object({
+    /** The build's manifest digest. */
+    subject: Digest,
+    /** The attached file, stored before its attachment. */
+    file: PackageFile,
+});
+/** A file attached to a build. */
+export type BuildAttachment = schema.Infer<typeof BuildAttachment>;
 
 /** The package a build is of and the releases it requires. */
 export type BuildRequirements = Pick<PackageManifest, "package" | "requires">;
@@ -209,6 +240,11 @@ export interface BuildStoreOptions<StoreEnvironment, Storage extends BlobStorage
         build: { readonly digest: Digest; readonly manifest: PackageManifest },
         file: PackageFile,
     ) => Promise<void>;
+    /** Pull the files a build's forge attached to it, which installs leave behind. */
+    readonly pullAttachments?: (build: {
+        readonly digest: Digest;
+        readonly manifest: PackageManifest;
+    }) => Promise<void>;
 }
 
 /** Locate some files: absent unless the store has each, else the layer holding any it lacks. */
@@ -252,6 +288,8 @@ export class BuildStore<
     readonly sources: readonly BuildStore[];
     /** Pull a build's file this store and its sources lack, absent where every file is stored. */
     readonly #pullFile: BuildStoreOptions<StoreEnvironment, Storage>["pullFile"];
+    /** Pulls the files a build's forge attached to it. */
+    readonly #pullAttachments: BuildStoreOptions<StoreEnvironment, Storage>["pullAttachments"];
     /** The spans and durations of the store's verbs. */
     readonly scope: TelemetryScope;
 
@@ -264,6 +302,7 @@ export class BuildStore<
         this.leaseMilliseconds = options.leaseMilliseconds ?? options.blobs.leaseMilliseconds;
         this.sources = options.sources ?? [];
         this.#pullFile = options.pullFile;
+        this.#pullAttachments = options.pullAttachments;
         this.scope = TelemetryScope.of(import.meta.destack.package, options.environment.telemetry);
     }
 
@@ -537,20 +576,41 @@ export class BuildStore<
 
     /** Store objects in packs of at most the write limit, then record their manifests and locks. */
     async #pack(objects: AsyncIterable<StoredObject>, digests: "verify" | "trust"): Promise<void> {
-        // gather objects into packs of at most the write limit
+        // gather objects into packs of at most the write limit, noting the builds the write records
         let gathered: StoredObject[] = [];
         let size = 0;
+        const recorded = new Set<Digest>();
         const flush = async () => {
             // store the pack, verifying digests from outside, then record its manifests and locks from their bytes
             if (digests === "verify") {
                 await this.#verify(gathered);
             }
-            await this.#put(gathered);
+            const attachments = gathered.filter((object) => object.kind === "attachment");
+            await this.#put(gathered.filter((object) => object.kind !== "attachment"));
             const buffers = new Map(gathered.map(({ digest, bytes }) => [digest, bytes]));
             await this.#recordObjects(
-                gathered.filter((object) => object.kind !== "file"),
+                gathered.filter((object) => object.kind === "manifest" || object.kind === "lock"),
                 buffers,
             );
+            for (const object of gathered.filter((each) => each.kind === "manifest")) {
+                recorded.add(object.digest);
+            }
+
+            // attach each build's referred files together, refusing a build another write recorded
+            const attached = new Map<Digest, PackageFile[]>();
+            for (const object of attachments) {
+                const { subject, file } = BuildAttachment.parse(BuildStore.#json(object.bytes));
+                if (!recorded.has(subject)) {
+                    throw BuildError.of(
+                        "OBJECT_INVALID",
+                        `attachment '${file.path}' of build '${subject}' is invalid: it must arrive with its build`,
+                    );
+                }
+                attached.set(subject, [...(attached.get(subject) ?? []), file]);
+            }
+            for (const [subject, files] of attached) {
+                await this.attach(subject, files);
+            }
             gathered = [];
             size = 0;
         };
@@ -811,57 +871,133 @@ export class BuildStore<
         await this.#recordObjects([...builds, { kind: "lock", digest }], new Map());
     }
 
-    /** Attach a stored blob to a stored build as its referrer at a path, unless one exists. */
-    async attach(subject: Digest, file: PackageFile): Promise<void> {
-        // require the build and the blob
+    /** Attach stored blobs to a stored build as attachments, refusing another file at a path. */
+    async attach(subject: Digest, files: readonly PackageFile[]): Promise<void> {
+        // require the build and the blobs
         await this.head(subject);
-        await this.#requireStored(subject, [file]);
+        await this.#requireStored(subject, files);
 
-        // record the referrer, unless another writer recorded one first
+        // record the attachments together, keeping those another writer recorded the same
         await this.database
-            .insert(buildReferrer)
-            .values({
-                subject,
-                path: file.path,
-                digest: file.digest,
-                size: file.size,
-                mediaType: file.mediaType,
-            })
+            .insert(buildAttachment)
+            .values(
+                files.map((file) => ({
+                    subject,
+                    path: file.path,
+                    digest: file.digest,
+                    size: file.size,
+                    mediaType: file.mediaType,
+                })),
+            )
             .onConflictDoNothing();
+
+        // refuse a path another writer attached a different file at
+        const recorded = new Map(
+            (await this.attachments(subject)).map((file) => [file.path, file.digest]),
+        );
+        const conflict = files.find((file) => recorded.get(file.path) !== file.digest);
+        if (conflict !== undefined) {
+            throw BuildError.of(
+                "ATTACHMENT_CONFLICT",
+                `cannot attach attachment '${conflict.path}' to build '${subject}': another file is attached there`,
+            );
+        }
     }
 
-    /** List a stored manifest's referrers, as OCI's referrers API lists a subject's artifacts. */
-    async referrers(subject: Digest): Promise<PackageFile[]> {
+    /** Store a build's graph: each module's file, all attached together at its module's path. */
+    async attachGraph(subject: Digest, modules: readonly graph.Module[]): Promise<void> {
+        // encode and store each module's file
+        const { crypto } = this.environment;
+        const files: PackageFile[] = [];
+        for (const module of modules) {
+            const { digest, bytes } = await graph.Module.file(module, crypto);
+            await this.#write(digest, bytes);
+            const path = `${GRAPH_PREFIX}${module.path}`;
+            files.push({ path, digest, size: bytes.byteLength, mediaType: "application/json" });
+        }
+
+        // attach the files at once, so a build carries its whole graph or none
+        await this.attach(subject, files);
+    }
+
+    /** Report whether a build carries its graph here or in a source, without pulling it. */
+    async isIndexed(subject: Digest): Promise<boolean> {
+        return (await this.#attachedGraph(subject)).length > 0;
+    }
+
+    /** List a build's graph files, pulling its forge's attachments when it has none here. */
+    async #graphFiles(subject: Digest): Promise<PackageFile[]> {
+        // take the attached graph, else pull what the build's forge attached
+        let attached = await this.#attachedGraph(subject);
+        if (attached.length === 0 && this.#pullAttachments !== undefined) {
+            await this.#pullAttachments({ digest: subject, manifest: await this.get(subject) });
+            attached = await this.#attachedGraph(subject);
+        }
+
+        // refuse a build no builder attached a graph to
+        if (attached.length === 0) {
+            throw BuildError.of("GRAPH_NOT_FOUND", `graph of build '${subject}' not found`);
+        }
+
+        return attached;
+    }
+
+    /** List the graph files attached to a build here or in a source. */
+    async #attachedGraph(subject: Digest): Promise<PackageFile[]> {
+        const attached = await this.attachments(subject);
+
+        return attached.filter((file) => file.path.startsWith(GRAPH_PREFIX));
+    }
+
+    /** Read a build's graph: each module's file attached to it. */
+    async graph(subject: Digest): Promise<graph.Module[]> {
+        return await Promise.all(
+            (await this.#graphFiles(subject)).map(async (file) =>
+                graph.Module.parse(JSON.parse(new TextDecoder().decode(await this.file(file)))),
+            ),
+        );
+    }
+
+    /** List a manifest's attachments, else its keeping source's, as OCI's referrers API does. */
+    async attachments(subject: Digest): Promise<PackageFile[]> {
+        // read the attachments attached here
         const rows = await this.database
             .select({
-                path: buildReferrer.path,
-                digest: buildReferrer.digest,
-                size: buildReferrer.size,
-                mediaType: buildReferrer.mediaType,
+                path: buildAttachment.path,
+                digest: buildAttachment.digest,
+                size: buildAttachment.size,
+                mediaType: buildAttachment.mediaType,
             })
-            .from(buildReferrer)
-            .where(eq(buildReferrer.subject, subject));
+            .from(buildAttachment)
+            .where(eq(buildAttachment.subject, subject));
+
+        // read the attachments the keeping source attached, for a build this store lacks
+        if (rows.length === 0 && !(await this.contains(subject))) {
+            const source = await this.#sourceOf(subject);
+
+            return (await source?.attachments(subject)) ?? rows;
+        }
 
         return rows.toSorted((left, right) => comparePath(left, right));
     }
 
     /** Read the file attached to a manifest at a path, absent for a manifest without one. */
-    async referrer(subject: Digest, path: string): Promise<PackageFile | undefined> {
+    async attachment(subject: Digest, path: string): Promise<PackageFile | undefined> {
         const [row] = await this.database
             .select({
-                path: buildReferrer.path,
-                digest: buildReferrer.digest,
-                size: buildReferrer.size,
-                mediaType: buildReferrer.mediaType,
+                path: buildAttachment.path,
+                digest: buildAttachment.digest,
+                size: buildAttachment.size,
+                mediaType: buildAttachment.mediaType,
             })
-            .from(buildReferrer)
-            .where(and(eq(buildReferrer.subject, subject), eq(buildReferrer.path, path)));
+            .from(buildAttachment)
+            .where(and(eq(buildAttachment.subject, subject), eq(buildAttachment.path, path)));
 
-        // read the referrer the keeping source attached, for a build this store lacks
+        // read the attachment the keeping source attached, for a build this store lacks
         if (row === undefined && !(await this.contains(subject))) {
             const source = await this.#sourceOf(subject);
 
-            return await source?.referrer(subject, path);
+            return await source?.attachment(subject, path);
         }
 
         return row;
@@ -1194,6 +1330,19 @@ export class BuildStore<
         return oldest === undefined ? undefined : oldest.usedAt + CACHE_MILLISECONDS;
     }
 
+    /** Declare the controller dropping the cache entries unused for a week. */
+    controller(): Controller<typeof buildCache> {
+        return {
+            name: "destack.build.expire",
+            table: buildCache,
+            pending: { usedAt: { lte: new Now().minus({ milliseconds: CACHE_MILLISECONDS }) } },
+            key: [],
+            reconcile: async () => {
+                await this.expire();
+            },
+        };
+    }
+
     /** Evict the least recently used entries and leases until the blobs fit a size, while alone. */
     evict(maxBytes: number): Promise<void> {
         return this.scope.span("destack.build.evict", {}, () => this.#evict(maxBytes));
@@ -1235,7 +1384,7 @@ export class BuildStore<
         await this.database.transaction(async (transaction) => {
             for (const table of [
                 buildReference,
-                buildReferrer,
+                buildAttachment,
                 buildRoot,
                 buildCache,
                 buildManifest,

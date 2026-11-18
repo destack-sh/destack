@@ -1,6 +1,7 @@
 import { Tarball, type TarballEntry } from "@destack/package/archive";
-import { Digest, nth, present, schema } from "@destack/schema";
+import { Digest, found, nth, present, schema } from "@destack/schema";
 import { CallError } from "@destack/object";
+import type { PackageFile } from "@destack/package/file";
 import { BuildError } from "../error/index.ts";
 import { BuildObject, type BuildStore, MAX_WRITE_BYTES } from "./store.ts";
 
@@ -65,15 +66,44 @@ export class PackageClient {
         await response.body?.cancel();
     }
 
-    /** Push locks' objects from a store, writing what the server lacks in bounded uploads. */
+    /** Push locks' objects and their builds' attached files, writing what the server lacks. */
     async push(
-        store: Pick<BuildStore, "closure" | "contents" | "head" | "lock" | "read">,
+        store: Pick<
+            BuildStore,
+            "closure" | "contents" | "head" | "lock" | "read" | "attachments" | "environment"
+        >,
         locks: readonly Digest[],
         signal?: AbortSignal,
     ): Promise<void> {
-        // list every lock's objects once, files first, and ask which the server has
+        // list every lock's objects, files first, and the files each build attached
         const roots = locks.map((digest) => ({ kind: "lock", digest }) as const);
         const objects = await BuildObject.of(store, roots, "all");
+        const manifests = objects.filter((object) => object.kind === "manifest");
+        const attachments = new Map(
+            await Promise.all(
+                manifests.map(
+                    async ({ digest }) => [digest, await store.attachments(digest)] as const,
+                ),
+            ),
+        );
+        const attached = [...attachments.values()].flat().map((file) => ({
+            kind: "file" as const,
+            digest: file.digest,
+            size: file.size,
+        }));
+
+        // write what the server lacks, each build's attachments in the write that records the build
+        await this.#upload(store, [...attached, ...objects], attachments, signal);
+    }
+
+    /** Write the objects the server lacks from a store, in uploads of at most the write limit. */
+    async #upload(
+        store: Pick<BuildStore, "read" | "environment">,
+        objects: readonly BuildObject[],
+        attachments: ReadonlyMap<Digest, readonly PackageFile[]>,
+        signal: AbortSignal | undefined,
+    ): Promise<void> {
+        // ask which objects the server has
         const stored = await this.has(objects.map((object) => object.digest));
         const lacking = objects.filter((_object, index) => stored[index] !== true);
 
@@ -89,8 +119,21 @@ export class PackageClient {
             size += object.size;
         }
         for (const batch of batches.filter((each) => each.length > 0)) {
+            // send each build's attachments after the objects that record it
             signal?.throwIfAborted();
-            await this.write(store.read(batch), signal);
+            const carried = batch.flatMap((object) =>
+                object.kind === "manifest"
+                    ? found(attachments, object.digest).map((file) => ({
+                          subject: object.digest,
+                          file,
+                      }))
+                    : [],
+            );
+            const entries = concatenated(
+                store.read(batch),
+                BuildObject.attachments(carried, store.environment.crypto),
+            );
+            await this.write(entries, signal);
         }
     }
 
@@ -126,4 +169,13 @@ function jsonOf(text: string): unknown {
         }
         throw error;
     }
+}
+
+/** Yield one stream's entries, then another's. */
+async function* concatenated(
+    first: AsyncIterable<TarballEntry>,
+    second: AsyncIterable<TarballEntry>,
+): AsyncIterable<TarballEntry> {
+    yield* first;
+    yield* second;
 }

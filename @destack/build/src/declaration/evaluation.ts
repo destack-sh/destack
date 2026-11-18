@@ -16,7 +16,7 @@ import {
 } from "@destack/package";
 import { DECLARED_MODULE } from "@destack/package/transform";
 import type { FunctionExport } from "./declaration.ts";
-import type { ExampleDeclaration } from "../typescript/example.ts";
+import type { ExampleDeclaration } from "../graph/example.ts";
 import type { ConstructorCatalog, ConstructorKind } from "./catalog.ts";
 import type { PackageSource } from "../source/index.ts";
 import { modulePlugin } from "@destack/package/vite";

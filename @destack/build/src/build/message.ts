@@ -14,19 +14,13 @@ export const BuildResult = schema.discriminatedUnion("kind", [
         kind: schema.literal("build"),
     }),
     schema.object({
-        /** The package's outputs passed their type and runtime checks. */
-        kind: schema.literal("check"),
-    }),
-    schema.object({
         kind: schema.literal("inspect"),
         /** The inspected package. */
         inspection: PackageInspection,
     }),
     schema.object({
         kind: schema.literal("index"),
-        /** The code of each module of the indexed package. */
-        code: schema.array(graph.Document),
-        /** The module graph: each module's exports, declarations and edges. */
+        /** The graph file of each module of the indexed package. */
         modules: schema.array(graph.Module),
     }),
 ]);
@@ -92,12 +86,6 @@ export const BuildRequest = schema.discriminatedUnion("kind", [
         kind: schema.literal("build"),
         /** The directory the build writes into. */
         destination: schema.string(),
-        /** The build's options. */
-        options: RequestedBuild,
-    }),
-    schema.object({
-        /** Check the outputs' types and the runtime globals their modules use. */
-        kind: schema.literal("check"),
         /** The build's options. */
         options: RequestedBuild,
     }),

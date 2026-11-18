@@ -402,33 +402,6 @@ export class Compiler implements AsyncDisposable {
         await writeMessage(input, { kind: "cached", id: request.id, bytes });
     }
 
-    /** Check a package's outputs, their types and the runtime globals they use, then build it. */
-    check(options: PackageBuildOptions): Promise<BuildReader> {
-        return this.#scope.span("destack.compiler.check", {}, () => this.#check(options));
-    }
-
-    /** Send a check after the requests before it, then build. */
-    async #check(options: PackageBuildOptions): Promise<BuildReader> {
-        // check after the requests before it, then build
-        await this.#serially(async () => {
-            // send the check at the real directory, the dependencies materialized
-            const { files } = this.store.environment;
-            const { signal, timeout, links: _links, ...given } = options;
-            const directory = await files.realPath(resolve(given.directory));
-            const tree = await this.#install(options);
-            const request = {
-                kind: "check",
-                options: { ...given, directory, tree: tree.directories },
-            } as const;
-            const response = await this.#request(request, signal, timeout);
-            if (response.kind !== "check") {
-                throw Compiler.mismatched(request.kind, response.kind);
-            }
-        });
-
-        return await this.build(options);
-    }
-
     /** Build a package's current source in one request: evaluate its declarations, compile it. */
     build(options: PackageBuildOptions): Promise<BuildReader> {
         return this.#scope.span("destack.compiler.build", {}, () => this.#storeBuild(options));
@@ -516,7 +489,7 @@ export class Compiler implements AsyncDisposable {
     index(
         options: InspectOptions & Pick<PackageBuildOptions, "dependencies" | "links">,
         signal?: AbortSignal,
-    ): Promise<{ code: graph.Document[]; modules: graph.Module[] }> {
+    ): Promise<graph.Module[]> {
         return this.#scope.span("destack.compiler.index", {}, () =>
             this.#serially(async () => {
                 // send the index request at the real directory, the dependencies materialized
@@ -526,7 +499,7 @@ export class Compiler implements AsyncDisposable {
                     throw Compiler.mismatched(request.kind, response.kind);
                 }
 
-                return { code: response.code, modules: response.modules };
+                return response.modules;
             }),
         );
     }

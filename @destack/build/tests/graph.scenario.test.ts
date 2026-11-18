@@ -66,6 +66,12 @@ import { NoteCard } from "./card.ts";
 import { cardInteraction } from "./card.interaction.ts";
 import { LOUD_LOOK } from "./card.look.ts";
 
+/** The state a completed card shows. */
+const DONE = "done";
+
+/** The steps that complete a card and quiet it. */
+const STEPS = [{ action: "done" }, { action: "set", properties: { tone: "quiet" } }] as const;
+
 /** A loud card. */
 export const noteCardLoud = defineExample({
     of: NoteCard,
@@ -83,8 +89,8 @@ export const noteCardComplete = defineScenario({
     description: "complete a card",
     given: { examples: [noteCardLoud], globals: { width: 320 } },
     parameters: {},
-    when: [{ action: "done" }, { action: "set", properties: { tone: "quiet" } }],
-    then: [{ observe: { kind: "state" }, is: "done" }],
+    when: STEPS,
+    then: [{ observe: { kind: "state" }, is: DONE }],
 });
 `;
 
@@ -177,10 +183,9 @@ describe("note", () => {
 });
 `,
     );
-    const { code, modules } = await input.index();
+    const modules = await input.index();
 
     // read the test module's declarations, its symbols and the edges from its test from the index
-    const indexed = code.find((each) => each.path === "src/note.test.ts");
     const module = present(
         modules.find((each) => each.path === "src/note.test.ts"),
         "the test module's graph",
@@ -188,14 +193,14 @@ describe("note", () => {
     const registered = module.declarations.find((declaration) => declaration.kind === "test");
     expect({
         // declare each test and suite at the module, which defines no symbols
-        symbols: indexed?.symbols,
+        symbols: module.symbols,
         declarations: module.declarations.map(({ moniker, symbol, kind, name }) => ({
             moniker: local(moniker),
             symbol: local(symbol),
             kind,
             name,
         })),
-        covers: (indexed?.edges ?? [])
+        covers: graph.Module.edges(module)
             .filter((edge) => edge.from === registered?.moniker && edge.kind === "covers")
             .map((edge) => edge.to.slice(edge.to.indexOf("/") + 1)),
     }).toEqual({
@@ -218,7 +223,7 @@ describe("note", () => {
     });
 });
 
-test.concurrent("declare each example showing its symbol with controls and the properties its module evaluates from imported constants, and each scenario with its interaction and steps covering what its examples show", async ({
+test.concurrent("declare each example showing its symbol with the properties its module evaluates from imported constants, and each scenario with its interaction and steps covering what its examples show", async ({
     expect,
 }) => {
     // add a card component, an interaction, an example of the card and a scenario given that example
@@ -228,7 +233,7 @@ test.concurrent("declare each example showing its symbol with controls and the p
     await using input = await Fixture.open("library", environment);
     await writeCards(input.source, files);
     const build = await input.build(library.request);
-    const { modules } = await input.index();
+    const modules = await input.index();
 
     // read the example module's declarations and edges, with monikers within the package
     const module = present(
@@ -243,7 +248,7 @@ test.concurrent("declare each example showing its symbol with controls and the p
             name,
             description,
         })),
-        edges: module.edges
+        edges: graph.Module.edges(module)
             .filter((edge) => edge.kind === "shows" || edge.kind === "covers")
             .map((edge) => [local(edge.from), edge.kind, local(edge.to)]),
     }).toEqual({
@@ -274,32 +279,6 @@ test.concurrent("declare each example showing its symbol with controls and the p
                     description: "a loud card",
                     properties: { title: "Groceries", tone: "loud", lines: -2 },
                     objects: {},
-                    controls: [
-                        {
-                            property: "title",
-                            label: "The note's title.",
-                            isOptional: false,
-                            input: { kind: "text" },
-                        },
-                        {
-                            property: "isComplete",
-                            label: "Whether the note is done.",
-                            isOptional: true,
-                            input: { kind: "boolean" },
-                        },
-                        {
-                            property: "tone",
-                            label: "The card's look.",
-                            isOptional: true,
-                            input: { kind: "select", options: ["quiet", "loud"] },
-                        },
-                        {
-                            property: "lines",
-                            label: "The lines of text shown.",
-                            isOptional: true,
-                            input: { kind: "number" },
-                        },
-                    ],
                 },
             },
         ],

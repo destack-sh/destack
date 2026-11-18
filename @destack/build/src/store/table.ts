@@ -37,8 +37,8 @@ export const buildReference = defineTable(
 );
 
 /** The blobs attached to builds at paths, as OCI's referrers attach artifacts to a subject. */
-export const buildReferrer = defineTable(
-    "referrer",
+export const buildAttachment = defineTable(
+    "attachment",
     {
         /** The build the blob is attached to, whose deletion takes the attachment. */
         subject: blob("subject", { onDelete: "cascade" }).primaryKey(),
@@ -51,7 +51,11 @@ export const buildReferrer = defineTable(
         /** The attached blob's media type. */
         mediaType: text("media_type").notNull(),
     },
-    { constraints: (table) => [index("referrer_digest").on(table.digest)] },
+    {
+        // keep the attachments the table held under its former name
+        moved: { table: "referrer" },
+        constraints: (table) => [index("attachment_digest").on(table.digest)],
+    },
 );
 
 /** The blobs each root retains: a space's builds, a directory's, a cache entry's. */
@@ -85,7 +89,7 @@ export const BUILD_STORE_TABLES = [
     buildManifest,
     buildOutput,
     buildReference,
-    buildReferrer,
+    buildAttachment,
     buildRoot,
     buildCache,
 ];
