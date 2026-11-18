@@ -85,7 +85,7 @@ export class TestDistribution implements ReleaseRegistry, AsyncDisposable {
     readonly stacks: PlatformDefinition["stacks"];
     /** The stack each residency's home runs. */
     readonly home: StackRelease;
-    /** The builds of the stacks, of the packages they install and of the other given builds. */
+    /** The root builds of the shipped releases: the platform's units, stacks and given builds. */
     readonly builds: readonly BuildReader[];
     /** The manifest of the releases the distribution ships, each with its role. */
     readonly manifest: DistributionManifest;
@@ -124,19 +124,15 @@ export class TestDistribution implements ReleaseRegistry, AsyncDisposable {
         host: Environment<"files" | "process" | "host">,
         given: readonly BuildReader[] = [],
     ): Promise<TestDistribution> {
-        // read each platform package's build at the root of its lock in the run's store
+        // read the run's locks in its store
         await using opened = new AsyncDisposableStack();
         const store = opened.use(await testStore(host));
         const built = TestDistribution.built();
         const lockOf = (name: string) => present(built[name], `the run's lock of ${name}`);
         const read = async (name: string) => store.root(lockOf(name));
-        const platform = await Promise.all(
-            [...PLATFORM_PACKAGES, DESKTOP_PACKAGE].map((name) => read(name)),
-        );
 
         // select the stacks spaces are born with
         const stack = await read(STACK_FIXTURE);
-        const start = await read(START_FIXTURE);
         const stacks = {
             home: TestDistribution.released(stack, "HOME_STACK"),
             space: TestDistribution.released(stack, "SPACE_STACK"),
@@ -144,8 +140,6 @@ export class TestDistribution implements ReleaseRegistry, AsyncDisposable {
         const residencyHome = TestDistribution.released(stack, "RESIDENCY_STACK");
 
         // ship the computers' own release, the stacks, the packages they install, and the builds the test adds
-        const runtime = await read(RUNTIME_PACKAGE);
-        const builds = [runtime, ...platform, stack, start, ...given];
         const extra = await Promise.all(
             given.map((build) => TestDistribution.#lockAt(build, store)),
         );
@@ -163,6 +157,9 @@ export class TestDistribution implements ReleaseRegistry, AsyncDisposable {
             }),
         );
         const layer = await TestDistribution.#distribute(shipped, store);
+
+        // read the root of every shipped release, which the distribution opens by version
+        const builds = await Promise.all(shipped.map((lock) => store.root(lock)));
 
         // hand the store to the distribution
         opened.move();
@@ -329,10 +326,10 @@ export class TestDistribution implements ReleaseRegistry, AsyncDisposable {
         ];
         const locks = [...named.map((name) => lockOf(name)), ...given];
 
-        // ship every builtin's lock too
+        // ship every builtin's and library's lock too, as a platform build releases each unit
         for (const lock of Object.values(built)) {
             const root = await store.get((await store.lock(lock)).root);
-            if (root.role === "builtin") {
+            if (root.role !== "app") {
                 locks.push(lock);
             }
         }

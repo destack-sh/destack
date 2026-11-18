@@ -44,28 +44,44 @@ async function setup(
             fileURLToPath(new URL("../../../", import.meta.url)),
             compilers,
         );
+        // ship the runtime, the desktop, the platform packages and the stacks with their units, as a platform build does
+        const shipping = new Set<string>([STACK_FIXTURE, START_FIXTURE]);
         const builds = [
-            [RUNTIME_PACKAGE, built, () => TestDistribution.runtime(workspace)] as const,
-            [DESKTOP_PACKAGE, built, () => TestDistribution.desktop(workspace)] as const,
+            [RUNTIME_PACKAGE, built, true, () => TestDistribution.runtime(workspace)] as const,
+            [DESKTOP_PACKAGE, built, true, () => TestDistribution.desktop(workspace)] as const,
             ...PLATFORM_PACKAGES.map(
-                (name) => [name, built, () => TestDistribution.platform(name, workspace)] as const,
+                (name) =>
+                    [name, built, true, () => TestDistribution.platform(name, workspace)] as const,
             ),
             ...[...WORLD_FIXTURES, STACK_FIXTURE, START_FIXTURE, ...SCENARIO_FIXTURES].map(
                 (name) =>
                     [
                         name,
                         SCENARIO_FIXTURES.some((each) => each === name) ? scenario : built,
+                        shipping.has(name),
                         () => MachineDriver.build(name, workspace),
                     ] as const,
             ),
             ...Object.entries(fixtures).map(
                 ([name, directory]) =>
-                    [name, scenario, () => TestDistribution.compile(workspace, directory)] as const,
+                    [
+                        name,
+                        scenario,
+                        false,
+                        () => TestDistribution.compile(workspace, directory),
+                    ] as const,
             ),
         ];
         await Promise.all(
-            builds.map(async ([name, digests, build]) => {
-                digests[name] = (await build()).lock;
+            builds.map(async ([name, digests, isShipped, build]) => {
+                // lock the package, and each unit a shipped package runs with
+                const { lock, units } = await build();
+                digests[name] = lock;
+                if (isShipped) {
+                    for (const [unit, unitLock] of units) {
+                        built[unit] ??= unitLock;
+                    }
+                }
             }),
         );
 
@@ -75,12 +91,6 @@ async function setup(
             present(built[NEXT_RELEASE.fixture], `the run's lock of ${NEXT_RELEASE.fixture}`),
             NEXT_RELEASE.version,
         );
-
-        // lock the runtime's builtins too
-        const { units } = await TestDistribution.runtime(workspace);
-        for (const [name, lock] of units) {
-            built[name] ??= lock;
-        }
 
         // write the layer every computer ships once here, so no test pays for it
         const shipped = await TestDistribution.shipped(store, built, []);
