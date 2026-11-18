@@ -23,6 +23,7 @@ export const SyncError = defineErrorFamily({
         CAPACITY_EXHAUSTED: {},
 
         // unavailable
+        CONNECTION_UNAVAILABLE: {},
         FEED_UNAVAILABLE: {},
         REPLICA_UNAVAILABLE: {},
 

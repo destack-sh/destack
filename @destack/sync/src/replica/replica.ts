@@ -83,6 +83,9 @@ const LAPSE_RETRY = RetryPolicy.of({ maximumAttempts: 5 });
 /** How a follow waits out its issuer refusing the follower: from 1 s, at most 100 s apart. */
 const REFUSAL_RETRY = RetryPolicy.of();
 
+/** How a follow waits out a source it lost before any page: from 1 s, at most 100 s apart. */
+const LOSS_RETRY = RetryPolicy.of();
+
 /** A group's values as a retained group's canonical JSON text has them. */
 const GroupValues = schema.record(schema.string(), Scalar);
 
@@ -1776,11 +1779,13 @@ export class Replica {
         let isSynced = false;
         let lapses = 0;
         let refusals = 0;
+        let losses = 0;
         try {
             while (!signal.aborted) {
                 let isReceived = false;
                 let isLapsed = false;
                 let isRefused = false;
+                let isLost = false;
                 silent = new AbortController();
                 const streaming = AbortSignal.any([signal, silent.signal]);
 
@@ -1808,10 +1813,13 @@ export class Replica {
                     // wait out a follower its issuer no longer authenticates, as an operator may restore it
                     isRefused = SyncError.is(error, "FOLLOWER_UNAUTHENTICATED");
 
+                    // resume from the replica's position once the connection to the source dropped
+                    isLost = SyncError.is(error, "CONNECTION_UNAVAILABLE");
+
                     // end quietly on this follow's own abort or a silent stream's, failing on anything else
                     const isAborted = signal.aborted && error === signal.reason;
                     const isSilent = silent.signal.aborted && !signal.aborted;
-                    if (!isLapsed && !isRefused && !isAborted && !isSilent) {
+                    if (!isLapsed && !isRefused && !isLost && !isAborted && !isSilent) {
                         throw error;
                     }
                 }
@@ -1841,6 +1849,13 @@ export class Replica {
                         `${this.name} ${this.scope} refused ${refusals}`,
                     );
                     await RetryPolicy.pause(REFUSAL_RETRY, refusals, clock, signal, () => drawn);
+                }
+                // back off before resuming a source lost before any page
+                else if (!isReceived && isLost) {
+                    losses += 1;
+                    const { clock } = database.state;
+                    const drawn = RetryPolicy.draw(`${this.name} ${this.scope} lost ${losses}`);
+                    await RetryPolicy.pause(LOSS_RETRY, losses, clock, signal, () => drawn);
                 }
                 // reject a stream that ends without a page, other than one whose credential lapsed
                 else if (!isReceived && !isLapsed && !signal.aborted) {
@@ -1877,6 +1892,7 @@ export class Replica {
                     }
                     lapses = 0;
                     refusals = 0;
+                    losses = 0;
                 }
             }
         } finally {
