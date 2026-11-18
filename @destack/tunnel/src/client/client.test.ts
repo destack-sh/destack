@@ -1,14 +1,12 @@
 import { testSimulation } from "@destack/test/world";
 import { TestTelemetry } from "@destack/telemetry/test";
 import { expect, refusal, test } from "@destack/test";
+import { WebSocketClosure } from "@destack/environment";
 import { Simulation } from "@destack/environment/simulation";
 import { schema } from "@destack/schema";
 import { Frame, FrameFlag, FrameType, PING_MESSAGE, TUNNEL_PROTOCOL } from "../session/index.ts";
 import { PackageId } from "@destack/package";
 import { TUNNEL_METADATA_PATH, TunnelClient, type TunnelStatus } from "./client.ts";
-
-/** The close code of a normal closure, from RFC 6455 section 7.4.1. */
-const NORMAL_CLOSURE = 1000;
 
 /** The tunnel URL of a relay where nothing listens. */
 const NOWHERE = "http://relay.test/tunnel";
@@ -98,7 +96,9 @@ function answeringRelay(simulation: Simulation, dropped = 0) {
                 // answer a session ping, closing the first connections in the same turn
                 const frame = typeof message === "string" ? undefined : Frame.decode(message);
                 if (frame?.type === FrameType.ping && frame.has(FrameFlag.syn)) {
-                    socket.send(new Frame(FrameType.ping, FrameFlag.ack, 0, frame.value).encode());
+                    void socket.send(
+                        new Frame(FrameType.ping, FrameFlag.ack, 0, frame.value).encode(),
+                    );
                     if (connections <= dropped) {
                         socket.close();
                     }
@@ -128,6 +128,11 @@ function warning(message: string) {
     };
 }
 
+/** Refuse a forwarded upgrade, which these tests never send. */
+function refuseUpgrade(): never {
+    throw new TypeError("the test forwards no upgrade");
+}
+
 test("refuse callers waiting for a tunnel once the client closes", async () => {
     // dial a relay that never answers, as a machine with a token
     await using simulation = testSimulation();
@@ -137,6 +142,7 @@ test("refuse callers waiting for a tunnel once the client closes", async () => {
         machineId: MACHINE,
         token: async () => "token",
         fetch: async () => new Response(null, { status: 204 }),
+        websocket: refuseUpgrade,
         renewed: () => {},
         changed: (status) => void statuses.push(status),
         environment: simulation.environment("machine"),
@@ -168,6 +174,7 @@ test("dial again after the issuer grants no token for the relay's resource, warn
             throw new TypeError("the issuer is unreachable");
         },
         fetch: async () => new Response(null, { status: 204 }),
+        websocket: refuseUpgrade,
         renewed: () => {},
         changed: (status) => void statuses.push(status),
         environment: simulation.environment("machine"),
@@ -199,6 +206,7 @@ test("drop a tunnel whose relay stops answering, dialing again and closing witho
         machineId: MACHINE,
         token: async () => "token",
         fetch: async () => new Response(null, { status: 204 }),
+        websocket: refuseUpgrade,
         renewed: () => {},
         changed: (status) => void statuses.push(status),
         environment: simulation.environment("machine"),
@@ -218,12 +226,12 @@ test("drop a tunnel whose relay stops answering, dialing again and closing witho
             {
                 protocols: `${TUNNEL_PROTOCOL}, destack.bearer.dG9rZW4`,
                 messages: [ping, PING_MESSAGE],
-                closed: NORMAL_CLOSURE,
+                closed: WebSocketClosure.normal,
             },
             {
                 protocols: `${TUNNEL_PROTOCOL}, destack.bearer.dG9rZW4`,
                 messages: [ping],
-                closed: NORMAL_CLOSURE,
+                closed: WebSocketClosure.normal,
             },
         ],
         [warning(`tunnel to ${relay.url} did not open`)],
@@ -241,6 +249,7 @@ test("tell the tunnel open once the relay answers, dialing once it drops, and no
         machineId: MACHINE,
         token: async () => "token",
         fetch: async () => new Response(null, { status: 204 }),
+        websocket: refuseUpgrade,
         renewed: () => {},
         changed: (status) => void statuses.push(status),
         environment: simulation.environment("machine"),
@@ -265,6 +274,7 @@ test("tell no tunnel open whose relay drops it while answering", async () => {
         machineId: MACHINE,
         token: async () => "token",
         fetch: async () => new Response(null, { status: 204 }),
+        websocket: refuseUpgrade,
         renewed: () => {},
         changed: (status) => void statuses.push(status),
         environment: simulation.environment("machine"),

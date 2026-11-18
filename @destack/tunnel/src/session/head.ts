@@ -1,3 +1,4 @@
+import { WebSocketUpgrade } from "@destack/environment";
 import { schema } from "@destack/schema";
 
 /** The fields of a message's headers in order, each `set-cookie` its own pair. */
@@ -11,6 +12,8 @@ export const RequestHead = schema.object({
     url: schema.url(),
     /** The request's headers. */
     headers: HeaderList,
+    /** The protocol an upgrade switches to, as RFC 8441's `:protocol` names it on the stream. */
+    protocol: schema.literal("websocket").exactOptional(),
 });
 /** The head of an HTTP request a stream forwards. */
 export type RequestHead = schema.Infer<typeof RequestHead>;
@@ -44,9 +47,16 @@ const BODILESS_METHODS: ReadonlySet<string> = new Set(["GET", "HEAD"]);
 
 /** The heads of HTTP messages as streams carry them. */
 export const Head = {
-    /** Read a request's head. */
+    /** Read a request's head, naming a WebSocket upgrade's protocol as its dropped headers did. */
     request(request: Request): RequestHead {
-        return { method: request.method, url: request.url, headers: entries(request.headers) };
+        const isWebSocket = WebSocketUpgrade.of(request) !== undefined;
+
+        return {
+            method: request.method,
+            url: request.url,
+            headers: entries(request.headers),
+            ...(isWebSocket ? { protocol: "websocket" } : {}),
+        };
     },
 
     /** Read a response's head. */
@@ -69,11 +79,18 @@ export const Head = {
         return ResponseHead.safeParse(decode(payload)).data;
     },
 
-    /** Build the headers a head lists. */
+    /** Build the headers a head lists, with a WebSocket upgrade's own as HTTP/1.1 sends them. */
     headers(head: RequestHead | ResponseHead): Headers {
+        // list the head's headers
         const headers = new Headers();
         for (const [name, value] of head.headers) {
             headers.append(name, value);
+        }
+
+        // name a WebSocket upgrade as HTTP/1.1 does
+        if ("protocol" in head && head.protocol === "websocket") {
+            headers.set("upgrade", "websocket");
+            headers.set("connection", "Upgrade");
         }
 
         return headers;

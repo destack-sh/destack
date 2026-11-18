@@ -18,10 +18,10 @@ Both ends run a session:
 - `Stream`: one HTTP exchange.
 - `Frame`: one binary message of a session.
 
-Open a tunnel that serves the machine's requests, and wait until it is open:
+Open a tunnel that serves the machine's requests and WebSockets, and wait until it is open:
 
 ```ts
-import type { Environment } from "@destack/environment";
+import type { ClientSocket, Environment } from "@destack/environment";
 import type { PackageId } from "@destack/package";
 import type { Identifier } from "@destack/schema";
 import { TunnelClient } from "@destack/tunnel";
@@ -31,6 +31,7 @@ export async function serveThroughRelay(
     machineId: Identifier<"machine">,
     token: (audience: PackageId) => Promise<string>,
     serve: (request: Request) => Promise<Response>,
+    websocket: (upgrade: Request) => ClientSocket,
     environment: Environment,
     signal: AbortSignal,
 ) {
@@ -40,6 +41,7 @@ export async function serveThroughRelay(
         machineId,
         token,
         fetch: serve,
+        websocket,
         renewed: ({ name, lapsesAt }) => console.log(name, lapsesAt),
         changed: (status) => console.log(status),
         environment,
@@ -64,6 +66,7 @@ export async function serveThroughRelay(
 | `machineId`   | the machine, which seeds the backoff's jitter                           |
 | `token`       | a function answering the machine's access token for the relay's package |
 | `fetch`       | answers a request the relay forwards, a failure answering 502           |
+| `websocket`   | opens in the machine the socket of an upgrade the relay forwards        |
 | `renewed`     | learns the `Renewal` each time the token renews                         |
 | `changed`     | learns each `TunnelStatus`                                              |
 | `heartbeat`   | how often to probe the tunnel, 15 seconds by default                    |
@@ -82,6 +85,7 @@ The relay asks for a renewal with a `PUT` to the tunnel URL.
 | the text messages `ping` and `pong`                      | the machine's liveness probe each heartbeat, and the relay's answer         |
 | `PUT` to the tunnel URL with a bearer token, as a stream | a renewal, answered with `{ name, lapsesAt }`                               |
 | binary messages                                          | the session's frames                                                        |
+| a stream whose head is a WebSocket upgrade               | the socket's messages as RFC 6455 frames, unmasked, as RFC 8441 carries one |
 
 ### Session
 

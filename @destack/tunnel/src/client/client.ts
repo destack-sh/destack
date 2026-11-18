@@ -7,8 +7,9 @@ import {
     Session,
     type Stream,
     TunnelProtocol,
+    WebSocketFrame,
 } from "../session/index.ts";
-import type { ClientSocket, Environment } from "@destack/environment";
+import { type ClientSocket, type Environment, WebSocketMessage } from "@destack/environment";
 import { type Identifier, schema } from "@destack/schema";
 import { PackageId } from "@destack/package";
 import { TunnelError } from "../error/index.ts";
@@ -27,6 +28,9 @@ const RENEWAL_SHARE = 0.8;
 
 /** The status a machine answers a forwarded request with when its handler gives no answer. */
 const BAD_GATEWAY = 502;
+
+/** The status of a stream carrying an opened WebSocket, as RFC 8441 answers it. */
+const SWITCHED = 200;
 
 /** The WebSocket close code refusing a message's data type, from RFC 6455 section 7.4.1. */
 const UNSUPPORTED_DATA = 1003;
@@ -58,6 +62,8 @@ export interface TunnelClientOptions {
     readonly token: (audience: PackageId) => Promise<string>;
     /** Answer a request the relay forwards. */
     readonly fetch: (request: Request) => Promise<Response>;
+    /** Open in the machine a WebSocket whose upgrade the relay forwards. */
+    readonly websocket: (upgrade: Request) => ClientSocket;
     /** Learn the machine's name and its tunnel's lapse at each renewal. */
     readonly renewed: (renewal: Renewal) => void;
     /** Learn that the tunnel opened, or ended and dials again, until the client closes. */
@@ -408,10 +414,15 @@ export class TunnelClient {
         return renewal;
     }
 
-    /** Answer a request the relay forwards. */
+    /** Answer a request the relay forwards, carrying a WebSocket upgrade's socket on the stream. */
     async #answer(session: Session, dial: Dial, stream: Stream): Promise<void> {
-        // read the relay's request
+        // read the relay's request, carrying an upgrade's socket on the stream
         const request = stream.request();
+        if (stream.head.protocol === "websocket") {
+            await this.#socket(stream, request);
+
+            return;
+        }
         let response: Response;
         try {
             // renew at once as the relay asks at its own tunnel URL, learning a new name
@@ -433,6 +444,46 @@ export class TunnelClient {
         if (request.body !== null && !request.bodyUsed && !request.signal.aborted) {
             await request.body.cancel();
         }
+    }
+
+    /** Open a WebSocket the relay forwards, its messages on the stream as RFC 8441 has it. */
+    async #socket(stream: Stream, upgrade: Request): Promise<void> {
+        // open the socket in the machine, framing its messages and its close for the relay in order
+        const socket = this.#options.websocket(upgrade);
+        const frames = new TransformStream<Uint8Array, Uint8Array>();
+        const writer = frames.writable.getWriter();
+        const send = (frame: WebSocketFrame) => {
+            // close the socket once the relay dropped the stream
+            writer.write(frame.encode()).catch(() => socket.close());
+        };
+        socket.addEventListener("message", (event) => {
+            send(WebSocketFrame.message(WebSocketMessage.of(event.data)));
+        });
+        socket.addEventListener("close", (event) => {
+            send(WebSocketFrame.close(event.code, event.reason));
+            writer.close().catch(() => undefined);
+        });
+
+        // refuse a socket that closes before it opens
+        const isOpen = await new Promise<boolean>((resolve) => {
+            socket.addEventListener("open", () => resolve(true), { once: true });
+            socket.addEventListener("close", () => resolve(false), { once: true });
+        });
+        if (!isOpen) {
+            await stream.respond(new Response(null, { status: BAD_GATEWAY }));
+
+            return;
+        }
+
+        // answer with its subprotocol and its frames, and hand it the relay's frames
+        const headers = socket.protocol === "" ? {} : { "sec-websocket-protocol": socket.protocol };
+        await Promise.all([
+            stream.respond(new Response(frames.readable, { status: SWITCHED, headers })),
+            WebSocketFrame.deliver(stream.readable, {
+                send: async (message) => socket.send(message),
+                close: (code, reason) => socket.close(code, reason),
+            }),
+        ]);
     }
 }
 
