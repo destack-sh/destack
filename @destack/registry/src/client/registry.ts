@@ -45,7 +45,15 @@ type ForgeEndpoint = {
 /** The store a publisher pushes and releases locks from. */
 type LockStore = Pick<
     BuildStore,
-    "closure" | "contents" | "get" | "head" | "lock" | "putLock" | "read"
+    | "closure"
+    | "contents"
+    | "get"
+    | "head"
+    | "lock"
+    | "putLock"
+    | "read"
+    | "attachments"
+    | "environment"
 >;
 
 /** Whose forge a caller calls: a package's publisher's, or an account's. */
@@ -614,15 +622,31 @@ export class Registry {
         return new PackageClient(url, forge.fetch);
     }
 
+    /** List the files a package's published build attached, as OCI's referrers API lists them. */
+    async attachments(packageId: PackageId, manifest: Digest): Promise<PackageFile[]> {
+        // ask the build's forge for its attachments
+        const { location, fetch } = await this.locate(packageId, manifest);
+        const response = await fetch(new URL("attachments/", location.url), {});
+        if (!response.ok) {
+            await response.body?.cancel();
+            throw RegistryError.of(
+                "REMOTE_UNREACHABLE",
+                `could not list the attachments of '${manifest}' from the forge: HTTP ${response.status}`,
+            );
+        }
+
+        return schema.array(PackageFile).parse(await response.json());
+    }
+
     /** Read the build a published build attached at a path, such as its runtime build. */
-    async referrer(
+    async attachment(
         packageId: PackageId,
         manifest: Digest,
         path: string,
     ): Promise<Digest | undefined> {
-        // ask the build's forge for the referrer at the path, as OCI's referrers API answers
+        // ask the build's forge for the attachment at the path, as OCI's referrers API answers
         const { location, fetch } = await this.locate(packageId, manifest);
-        const url = new URL(`referrers/${encodeURIComponent(path)}`, location.url);
+        const url = new URL(`attachments/${encodeURIComponent(path)}`, location.url);
         const response = await fetch(url, {});
         if (response.status === 404) {
             await response.body?.cancel();
