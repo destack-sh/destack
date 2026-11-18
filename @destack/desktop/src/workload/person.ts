@@ -1,5 +1,4 @@
 import type { Login } from "@destack/account/native";
-import { inspect } from "node:util";
 import { t } from "@destack/locale";
 import { machine, placement, space } from "@destack/account/object";
 import type { Device, Launcher } from "@destack/machine/device";
@@ -173,7 +172,7 @@ export class Person {
 
     /** Open what a signed-in person sees on this machine of their account, and follow it. */
     static async open(
-        desktop: PersonDesktop & Pick<Desktop, "native" | "environment">,
+        desktop: PersonDesktop & Pick<Desktop, "native" | "environment" | "local">,
         launcher: Launcher,
         login: Login,
         machineId: Identifier<"machine">,
@@ -194,8 +193,7 @@ export class Person {
                         await desktop.native.locate(home.space),
                     ),
             },
-            (error) =>
-                desktop.environment.process.stderr.writeSync(`telemetry: ${inspect(error)}\n`),
+            (error) => desktop.local.captureException(error, { isEscaped: true }),
         );
         const telemetry = await startTelemetry(
             exporter.options(import.meta.destack.package),

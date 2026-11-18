@@ -1,7 +1,7 @@
-import { inspect } from "node:util";
 import { argument, LocaleTag, Localization, t } from "@destack/locale";
 import type { Select } from "@destack/db";
-import type { Environment } from "@destack/environment";
+import { type Environment, Telemetry } from "@destack/environment";
+import { TelemetryScope } from "@destack/telemetry";
 import type { SpaceAddress } from "@destack/account/address";
 import { currentLogin, type Login } from "@destack/account/native";
 import { MachineProcess } from "@destack/machine/computer";
@@ -63,8 +63,10 @@ export class Desktop implements AsyncDisposable {
     readonly links: Link;
     /** The host's language the desktop shows its menus in, as native applications do. */
     readonly localization: Localization;
-    /** The host the desktop runs on, whose standard error takes failures before a sign-in. */
+    /** The host the desktop runs on. */
     readonly environment: DesktopHost;
+    /** The desktop's own log on standard error, which takes failures before a sign-in. */
+    readonly local: TelemetryScope;
     /** Aborts once the desktop stops. */
     readonly #stopping: AbortController;
     /** The clients the desktop opened, closed once it stops. */
@@ -106,6 +108,12 @@ export class Desktop implements AsyncDisposable {
 
         // read every fact of the host from its environment
         this.environment = environment;
+        this.local = TelemetryScope.of(
+            import.meta.destack.package,
+            Telemetry.local(environment.clock, (line) =>
+                environment.process.stderr.writeSync(line),
+            ),
+        );
     }
 
     /** Start this computer's machine and run the desktop until the shell closes its pipe. */
@@ -422,7 +430,7 @@ export class Desktop implements AsyncDisposable {
         }
         // write it to the host while nobody is signed in
         else {
-            this.environment.process.stderr.writeSync(`${event}: ${inspect(error)}\n`);
+            this.local.captureException(error, { isEscaped: true, tags: { event } });
         }
     }
 
