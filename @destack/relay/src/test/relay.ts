@@ -1,4 +1,4 @@
-import { AccessContext, Caller } from "@destack/access";
+import { Caller } from "@destack/access";
 import { TOKEN_LIFETIME_MILLISECONDS } from "@destack/access/token";
 import { machine, Residency } from "@destack/account/object";
 import accountPackage from "@destack/account/package";
@@ -152,8 +152,8 @@ export class TestRelay implements AsyncDisposable {
                 await accounts.request({ subscription: followed });
             },
             // run the relay's changes at the universe as their signer, as the home's machine sends them
-            push: (home, push, signal) =>
-                universal.push(home, { ...push, signer: push.signer ?? installation }, signal),
+            push: (scope, push, signal) =>
+                universal.push(scope, { ...push, signer: push.signer ?? installation }, signal),
         };
 
         // keep each instance's memory in its own database, the root's read for its replicas' progress
