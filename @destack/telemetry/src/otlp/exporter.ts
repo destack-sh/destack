@@ -23,6 +23,7 @@ import type { TelemetryOptions } from "../sdk/index.ts";
 import { RatioSampler } from "../trace/sampler.ts";
 import { TailSampler } from "../trace/tail.ts";
 import { StackFrame, type Symbolicator } from "@destack/package/stack";
+import type { LineExporter } from "@destack/environment";
 
 /** How long one export may take by default before it fails: OTLP's OTEL_EXPORTER_OTLP_TIMEOUT. */
 const EXPORT_TIMEOUT_MILLISECONDS = 10_000;
@@ -215,7 +216,11 @@ export class OtlpExporter {
     /** Build telemetry options that sample an owner's traces. */
     options(
         owner: { readonly name: string; readonly version: string },
-        options: { readonly ratio?: number } = {},
+        options: {
+            readonly ratio?: number;
+            /** The process's own log, printing every record beside the export. */
+            readonly local?: LineExporter;
+        } = {},
     ): TelemetryOptions {
         return {
             name: owner.name,
@@ -234,7 +239,12 @@ export class OtlpExporter {
                         sampler: new RatioSampler(options.ratio ?? 1),
                         spanProcessors: [tail.spans],
                     },
-                    logs: { processors: [tail.logs] },
+                    logs: {
+                        processors:
+                            options.local === undefined
+                                ? [tail.logs]
+                                : [tail.logs, options.local.processor],
+                    },
                 };
             },
             metrics: {

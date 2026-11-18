@@ -264,3 +264,57 @@ Spans and logs carry identifiers and metrics do not, so each metric has a bounde
 | span attribute    | `<scope>.<noun>`, any value                 | `destack.key`                      |
 | failure           | `error.type`, the failure's code            | `CONFLICT`                         |
 | failure reason    | `destack.error.reason`, its reason          | `REVISION_STALE`                   |
+
+### Levels
+
+Each log record has one of four levels.
+
+| Level   | Meaning                                               | Such as                                                      |
+| ------- | ----------------------------------------------------- | ------------------------------------------------------------ |
+| `ERROR` | a failure someone acts on, captured once by its owner | an unexpected throw, a key that keeps failing, a lost export |
+| `WARN`  | a degraded state that recovers on its own             | `destack.replica.silent`, `destack.replica.refused`          |
+| `INFO`  | a lifecycle change, once per change                   | `destack.space.started`, `destack.database.migrated`         |
+| `DEBUG` | detail per request or per iteration, off by default   | a page sent, a statement run                                 |
+
+The package's `TelemetryScope` records each level, and spans record requests:
+
+```ts
+import type { Environment } from "@destack/environment";
+import { TelemetryScope } from "@destack/telemetry";
+
+/** Start a space's servers, recording the start once and a failure once. */
+export async function startSpace(
+    environment: Environment,
+    space: string,
+    serve: () => Promise<number>,
+): Promise<void> {
+    const { log, span, captureException } = TelemetryScope.of(
+        import.meta.destack.package,
+        environment.telemetry,
+    );
+    try {
+        const installations = await span(
+            "destack.space.serve",
+            { "destack.space.id": space },
+            serve,
+        );
+        log.info("destack.space.started", {
+            "destack.space.id": space,
+            "destack.space.installations": installations,
+        });
+    } catch (error) {
+        captureException(error);
+    }
+}
+```
+
+Each case uses one kind of record:
+
+| Case                                       | Record                                              |
+| ------------------------------------------ | --------------------------------------------------- |
+| a process reports what it does             | a log record through the package's `TelemetryScope` |
+| a server answers a request                 | a span, with the request's outcome as attributes    |
+| a failure reaches its owner                | one exception, captured by the owner                |
+| a record refers to a user, space or object | the identifier, without secrets or personal content |
+
+Program output, such as a command's result or a checker's report, writes to standard output.
