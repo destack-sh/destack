@@ -227,7 +227,7 @@ export class Compiler implements AsyncDisposable {
         const read = [...new Set(await Promise.all(paths.map((path) => files.realPath(path))))];
 
         // start the compiler with a temporary directory
-        const temporary = await files.realPath(await store.stage("compile-"));
+        const temporary = await files.realPath(await store.makeTemporaryDirectory("compile-"));
         try {
             const sandbox = await spawn(workspace, temporary, read, started, environment);
 
@@ -458,7 +458,7 @@ export class Compiler implements AsyncDisposable {
         const tree = await this.#install(options);
         const request = { ...requested, tree: tree.directories };
         const written = join(this.#temporary, "builds", String(this.#builds++));
-        const destination = await this.store.stage("build-");
+        const destination = await this.store.makeTemporaryDirectory("build-");
         try {
             await this.#compile(request, written, signal, timeout);
             await files.rename(written, destination);

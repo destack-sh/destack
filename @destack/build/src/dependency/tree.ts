@@ -24,9 +24,6 @@ import { locateWorkspace } from "@destack/check/workspace";
 import { BuildError } from "../error/index.ts";
 import type { LocalBuildStore } from "../store/local.ts";
 
-/** The directory below the trees staging what a materialization writes before moving it in. */
-export const STAGING_DIRECTORY = ".staging";
-
 /** How a workspace installed npm packages: for its members, and where it put each one. */
 interface WorkspaceInstall {
     /** The workspace's members, whose builds link the npm packages it installed. */
@@ -258,7 +255,7 @@ export class DependencyTree {
 
             // place a root the trees lack
             if (!(await files.exists(visit.root))) {
-                await DependencyTree.#place(store, visit, visits, directory, scope);
+                await DependencyTree.#place(store, visit, visits, scope);
             }
         };
         for (const manifest of visits.keys()) {
@@ -339,13 +336,12 @@ export class DependencyTree {
         store: LocalBuildStore,
         visit: TreeVisit,
         visits: ReadonlyMap<Digest, TreeVisit>,
-        directory: string,
         scope: TreeScope,
     ): Promise<void> {
-        // stage the build beside its root
+        // stage the build in this process's temporary directory
         const { files } = store.environment;
         const { name, entry, reader, root } = visit;
-        const staged = await DependencyTree.#stage(directory, files);
+        const staged = await store.makeTemporaryDirectory("tree-");
         const target = join(staged, "node_modules", name);
         for (const [each, manifest] of Object.entries(visit.links)) {
             const linked = join(present(visits.get(manifest), manifest).root, "node_modules", each);
@@ -486,16 +482,10 @@ export class DependencyTree {
         };
     }
 
-    /** Make a fresh staging directory beside the trees, so moving it into place is atomic. */
-    static async #stage(directory: string, files: FileSystem): Promise<string> {
-        const staging = join(directory, STAGING_DIRECTORY);
-        await files.mkdir(staging, { recursive: true });
-
-        return await files.makeTemporaryDirectory("tree-", { directory: staging });
-    }
-
     /** Move a staged directory into place, leaving the one a concurrent writer moved in first. */
     static async #move(staged: string, root: string, files: FileSystem): Promise<void> {
+        // create the root's parent, then move the staged directory in
+        await files.mkdir(dirname(root), { recursive: true });
         await files.rename(staged, root).catch(async (error: unknown) => {
             if (!(await files.exists(root))) {
                 throw error;

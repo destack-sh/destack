@@ -1,6 +1,6 @@
 import { TEST_START, testWorldOptions } from "@destack/test/world";
 import type { Crypto } from "@destack/environment";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { Simulation } from "@destack/environment/simulation";
 import { PackageVersion, type PackageRole } from "@destack/package";
 import { BuildReader, BuildWriter, Lock, PackageManifest } from "@destack/package/manifest";
@@ -12,7 +12,7 @@ import { LocalBuildStore } from "./local.ts";
 import { BuildObject, BuildStore } from "./store.ts";
 import { BuildLayer, LAYER_FORMAT } from "@destack/package/manifest";
 import { hoisted } from "../dependency/test/store.ts";
-import { DependencyTree, STAGING_DIRECTORY } from "../dependency/tree.ts";
+import { DependencyTree } from "../dependency/tree.ts";
 
 /** A day, in milliseconds. */
 const DAY_MILLISECONDS = 24 * 60 * 60_000;
@@ -116,7 +116,7 @@ test("keep one store in a directory, which a later open of any toolchain reads",
             .toSorted(),
         isStored: (await reopened.has([marker]))[0],
     }).toEqual({
-        entries: ["collected", "files", "open.lock", "store.db", "store.lock", "trees"],
+        entries: ["collected", "files", "open.lock", "store.db", "store.lock", "tmp", "trees"],
         isStored: true,
     });
 });
@@ -517,29 +517,58 @@ test("retain a build's files while another process opens the store twice before 
     expect(stored).toEqual(distributed.map(() => true));
 });
 
-test("collect an idle store at most daily, keeping what a crashed materialization staged until then", async () => {
-    // open the store idle, then leave a staged tree behind, as a crashed materialization does
+test("delete an ended process's temporary directory on the next open, leaving a live process's", async () => {
+    // write in a live store's temporary directory, and leave one behind as an ended process does
     await using simulation = testSimulation();
     const environment = simulation.environment("test");
     const { files } = environment;
     const directory = await files.makeTemporaryDirectory("test-stores-");
-    const { clock } = simulation;
-    const staged = async () => {
-        await using store = await LocalBuildStore.open(directory, environment);
-        const staging = join(store.trees, STAGING_DIRECTORY);
-        const isStaged = await files.exists(staging);
-        await files.mkdir(staging, { recursive: true });
+    await using live = await LocalBuildStore.open(directory, environment);
+    const created = await live.makeTemporaryDirectory("build-");
+    const temporaries = dirname(dirname(created));
+    await files.mkdir(join(temporaries, "ended", "build-1"), { recursive: true });
+    await files.writeTextFile(join(temporaries, "ended.lock"), "");
 
-        return isStaged;
-    };
-    await staged();
+    // open another store, which deletes the ended directory and keeps the live one
+    {
+        await using _opened = await LocalBuildStore.open(directory, environment);
+    }
+    expect({
+        isLive: await files.exists(created),
+        isEnded: await files.exists(join(temporaries, "ended")),
+        isEndedLock: await files.exists(join(temporaries, "ended.lock")),
+    }).toEqual({ isLive: true, isEnded: false, isEndedLock: false });
+});
 
-    // keep it through idle opens within the day, and delete it on the first idle open a day on
-    const within = [await staged()];
-    await simulation.jump(clock.now() + DAY_MILLISECONDS - 1);
-    within.push(await staged());
-    await simulation.jump(clock.now() + 1);
-    expect({ within, after: await staged() }).toEqual({ within: [true, true], after: false });
+test("delete a temporary directory without a lock on the next open", async () => {
+    // leave a directory without a lock behind
+    await using simulation = testSimulation();
+    const environment = simulation.environment("test");
+    const { files } = environment;
+    const directory = await files.makeTemporaryDirectory("test-stores-");
+    const temporaries = join(directory, "tmp");
+    await files.mkdir(join(temporaries, "unlocked", "build-1"), { recursive: true });
+
+    // open the store, which deletes it
+    await using _store = await LocalBuildStore.open(directory, environment);
+    expect(await files.exists(join(temporaries, "unlocked"))).toBe(false);
+});
+
+test("remove a store's temporary directory when the store closes", async () => {
+    // write in the temporary directory, then close the store
+    await using simulation = testSimulation();
+    const environment = simulation.environment("test");
+    const { files } = environment;
+    const directory = await files.makeTemporaryDirectory("test-stores-");
+    const store = await LocalBuildStore.open(directory, environment);
+    const temporary = dirname(await store.makeTemporaryDirectory("build-"));
+    await store[Symbol.asyncDispose]();
+
+    // find neither the directory nor its lock
+    expect({
+        isTemporary: await files.exists(temporary),
+        isLock: await files.exists(`${temporary}.lock`),
+    }).toEqual({ isTemporary: false, isLock: false });
 });
 
 test("collect an unrooted build and its tree on the first idle open a week after storing it", async () => {

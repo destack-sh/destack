@@ -24,7 +24,7 @@ import {
     LayerIndex,
     type LayerFile,
 } from "@destack/package/manifest";
-import { DependencyTree, STAGING_DIRECTORY } from "../dependency/tree.ts";
+import { DependencyTree } from "../dependency/tree.ts";
 import { Digest, found, JsonValue, present, schema, Uuid } from "@destack/schema";
 import { HOST_RUNTIME, type Runtime } from "@destack/package/runtime";
 
@@ -37,8 +37,11 @@ const DATABASE_FILE = "store.db";
 /** The directory below a store's directory with the dependency trees of its builds, by manifest. */
 const TREES_DIRECTORY = "trees";
 
-/** The directory below a store's directory that compilers write builds in, on the blobs' volume. */
-const STAGE_DIRECTORY = "stage";
+/** The directory below a store's directory with each process's temporary files, by process. */
+const TEMPORARY_DIRECTORY = "tmp";
+
+/** The suffix of the file a process locks while its temporary directory lives. */
+const TEMPORARY_LOCK_SUFFIX = ".lock";
 
 /** The directory below a store's directory with the builds its linked layers share, by digest. */
 const LAYERED_DIRECTORY = "layered";
@@ -114,6 +117,8 @@ export class LocalBuildStore
     readonly #maintainer: LocalBuildStore | undefined;
     /** The builds a view used, renewed by its maintainer once the view closes. */
     readonly #used = new Set<Digest>();
+    /** The directory this process writes temporary files in, which its views share. */
+    readonly #temporary: string;
 
     /** Store builds in a directory's blobs indexed in a database, and what disposal releases. */
     private constructor(
@@ -125,6 +130,10 @@ export class LocalBuildStore
         super(options);
         this.directory = options.directory;
         this.trees = join(options.directory, TREES_DIRECTORY);
+        this.#temporary =
+            maintainer === undefined
+                ? join(options.directory, TEMPORARY_DIRECTORY, Uuid.v4(options.environment.random))
+                : maintainer.#temporary;
         this.#disposables = disposables;
         this.#maintainer = maintainer;
     }
@@ -140,10 +149,66 @@ export class LocalBuildStore
         disposables: AsyncDisposableStack,
         maintainer?: LocalBuildStore,
     ): Promise<LocalBuildStore> {
+        // create the trees directory and this process's temporary directory, which a view shares
         const store = new LocalBuildStore(options, disposables, maintainer);
         await options.environment.files.mkdir(store.trees, { recursive: true });
+        if (maintainer === undefined) {
+            await store.#openTemporary(disposables);
+        }
 
         return store;
+    }
+
+    /** Delete ended processes' temporary directories, then lock this process's until disposal. */
+    async #openTemporary(disposables: AsyncDisposableStack): Promise<void> {
+        // delete what ended processes left
+        const { files } = this.environment;
+        await files.mkdir(dirname(this.#temporary), { recursive: true });
+        await this.#deleteEndedTemporaries();
+
+        // lock this process's temporary directory again should a sweep have deleted its lock first
+        const lock = `${this.#temporary}${TEMPORARY_LOCK_SUFFIX}`;
+        let held = await files.lock(lock, "exclusive");
+        while (!(await files.exists(lock))) {
+            await held.close();
+            held = await files.lock(lock, "exclusive");
+        }
+
+        // create it once locked, removing both on disposal
+        await files.mkdir(this.#temporary);
+        disposables.defer(async () => {
+            await files.remove(this.#temporary, { recursive: true, force: true });
+            await files.remove(lock, { force: true });
+            await held.close();
+        });
+    }
+
+    /** Delete the temporary directories of ended processes: unlocked, or without a lock. */
+    async #deleteEndedTemporaries(): Promise<void> {
+        const { files } = this.environment;
+        const temporaries = dirname(this.#temporary);
+        for (const name of await LocalBuildStore.#entries(temporaries, files)) {
+            // delete a directory without a lock, as a live process locks before creating its directory
+            if (!name.endsWith(TEMPORARY_LOCK_SUFFIX)) {
+                const lock = join(temporaries, `${name}${TEMPORARY_LOCK_SUFFIX}`);
+                if (!(await files.exists(lock))) {
+                    await files.remove(join(temporaries, name), { recursive: true, force: true });
+                }
+            }
+            // delete a directory and its lock once no live process holds the lock
+            else {
+                const ended = await files.tryLock(join(temporaries, name), "exclusive");
+                if (ended !== undefined) {
+                    const directory = join(
+                        temporaries,
+                        name.slice(0, -TEMPORARY_LOCK_SUFFIX.length),
+                    );
+                    await files.remove(directory, { recursive: true, force: true });
+                    await files.remove(join(temporaries, name), { force: true });
+                    await ended.close();
+                }
+            }
+        }
     }
 
     /** Open a standalone store in a directory: its blobs, and its database migrated. */
@@ -244,11 +309,11 @@ export class LocalBuildStore
         await this.retain(`${DIRECTORY_ROOT_PREFIX}${directory}`, manifests);
     }
 
-    /** Create a directory to write a build in beside the blobs, which idle collection removes. */
-    async stage(prefix: string): Promise<string> {
-        // create a fresh directory below the store's stage
+    /** Create a directory to write in on the blobs' volume, removed when the store closes. */
+    async makeTemporaryDirectory(prefix: string): Promise<string> {
+        // create a fresh directory below this process's temporary directory
         const { files, random } = this.environment;
-        const directory = join(this.directory, STAGE_DIRECTORY, `${prefix}${Uuid.v4(random)}`);
+        const directory = join(this.#temporary, `${prefix}${Uuid.v4(random)}`);
         await files.mkdir(directory, { recursive: true });
 
         return directory;
@@ -401,17 +466,16 @@ export class LocalBuildStore
         runtimes: readonly Runtime[],
     ): Promise<string> {
         // leave a layer written before in this format
-        const { files, crypto, process } = this.environment;
+        const { files, crypto } = this.environment;
         const key = await Digest.json({ format: LAYER_FORMAT, releases: locks, runtimes }, crypto);
         const directory = join(this.directory, LAYERS_DIRECTORY, key);
         if (await files.exists(directory)) {
             return directory;
         }
 
-        // write it under this process's name, then move it in, leaving one another process moved in first
-        const written = `${directory}.${process.id}`;
-        await files.remove(written, { recursive: true, force: true });
-        await files.mkdir(dirname(written), { recursive: true });
+        // write it in this process's temporary directory, then move it in, leaving one another process moved in first
+        const written = await this.makeTemporaryDirectory("layer-");
+        await files.mkdir(dirname(directory), { recursive: true });
         await this.writeLayer(locks, runtimes, written, "linked");
         await files.rename(written, directory).catch(async (error: unknown) => {
             if (!FileSystemError.is(error, "FILE_EXISTS")) {
@@ -525,11 +589,9 @@ export class LocalBuildStore
             return;
         }
 
-        // stage it beside its place, then move it in
+        // write it in this process's temporary directory, then move it in
         await files.mkdir(dirname(build), { recursive: true });
-        const staging = await files.makeTemporaryDirectory(".staging.", {
-            directory: dirname(build),
-        });
+        const staging = await this.makeTemporaryDirectory("pooled-");
         try {
             // write every file, as linked layers of any runtimes share the pooled build
             await this.#writeDirectory(reader, join(staging, "build"), await reader.distributed());
@@ -641,10 +703,9 @@ export class LocalBuildStore
             }
         }
 
-        // delete what crashed materializations, compilers and blob writes left
+        // delete what ended processes and blob writes left
         const { files } = this.environment;
-        await files.remove(join(this.trees, STAGING_DIRECTORY), { recursive: true, force: true });
-        await files.remove(join(this.directory, STAGE_DIRECTORY), { recursive: true, force: true });
+        await this.#deleteEndedTemporaries();
         await this.blobs.storage.clean();
 
         // drop the unused cache entries and fit the size, then delete what nothing retains
@@ -655,7 +716,7 @@ export class LocalBuildStore
         // delete the trees of the builds whose manifests the store no longer has, whole or in part
         const entries = await files.readDirectory(this.trees);
         const trees = entries
-            .filter((entry) => entry.kind === "directory" && entry.name !== STAGING_DIRECTORY)
+            .filter((entry) => entry.kind === "directory")
             .map((entry) => ({
                 name: entry.name,
                 manifest: DependencyTree.manifestOf(entry.name),
