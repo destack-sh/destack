@@ -28,6 +28,11 @@ function noOrigin(path: string): never {
     throw new TypeError(`a test page reaches no '${path}'`);
 }
 
+/** Refuse a connection the test's view makes to its page's origin. */
+function noConnect(path: string): never {
+    throw new TypeError(`the test view connects to no path, yet connected to '${path}'`);
+}
+
 /** Open no other space, as a test page's view opens only its context's scopes. */
 function noSpace(scope: string): never {
     throw new TypeError(`a test page opens no '${scope}'`);
@@ -82,6 +87,7 @@ function readText(locale: LocaleTag, environment: BrowserEnvironment): string {
             packages: new Map(),
             open: noSpace,
             origin: noOrigin,
+            connect: noConnect,
         },
         localization: Localization.of(locale, CATALOGS),
         environment: environment,
@@ -181,6 +187,7 @@ test("call a package the view declares where the host mounts it, and refuse it t
             packages,
             open: noSpace,
             origin: noOrigin,
+            connect: noConnect,
         },
         localization: Localization.of(SOURCE_LOCALE, []),
         environment: new BrowserSimulation(simulation).environment("view"),
@@ -213,6 +220,7 @@ test("call a package the view declares where the host mounts it, and refuse it t
                 packages: new Map(),
                 open: noSpace,
                 origin: noOrigin,
+                connect: noConnect,
             },
             localization: Localization.of(SOURCE_LOCALE, []),
             environment: new BrowserSimulation(simulation).environment("view"),
@@ -246,6 +254,7 @@ test("show the time on the view's clock, moving on each second until the view go
             packages: new Map(),
             open: noSpace,
             origin: noOrigin,
+            connect: noConnect,
         },
         localization: Localization.of(SOURCE_LOCALE, []),
         environment: new BrowserSimulation(simulation).environment("view"),

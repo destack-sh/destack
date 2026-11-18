@@ -3,7 +3,7 @@ import { argument, Localization, plural, SOURCE_LOCALE, t } from "@destack/local
 import { none, principal, relation } from "@destack/access";
 import { TestDatabase } from "@destack/db/test";
 import { defineObject, field } from "@destack/object";
-import { ObjectClient, ProcedureRemote } from "@destack/object/client";
+import { ObjectClient, ObjectRemote } from "@destack/object/client";
 import { schema } from "@destack/schema";
 import { Scope } from "@destack/sync";
 import { expect, onTestFinished, test } from "@destack/test";
@@ -20,6 +20,11 @@ import { ActionRegistry } from "../page/action.ts";
 /** A page origin that calls nothing, as a test page has none. */
 function noOrigin(path: string): never {
     throw new TypeError(`a test page reaches no '${path}'`);
+}
+
+/** Refuse a connection the test's view makes to its page's origin. */
+function noConnect(path: string): never {
+    throw new TypeError(`the test view connects to no path, yet connected to '${path}'`);
 }
 
 /** Open no other space, as a test page's view opens only its context's scopes. */
@@ -87,19 +92,13 @@ async function openClient(
     const storage = await TestDatabase.create(ObjectClient.tables({ card }), {
         environment,
     });
-    const offline = { url: "https://cards.test", fetch: () => new Promise<Response>(() => {}) };
     const client = await ObjectClient.open({
         environment,
         database: storage.database,
         objects: { card },
         scope: BOARD_ID,
         caller: CONTEXT.user,
-        remote: ProcedureRemote.at({
-            scope: BOARD_ID,
-            endpoint: offline,
-            reconnect: () => offline,
-            environment: environment,
-        }),
+        remote: ObjectRemote.unanswered(),
     });
     onTestFinished(async () => {
         await client.close();
@@ -164,6 +163,7 @@ test("show a query's rows after loading, and re-render only the row a predicted 
                     packages: new Map(),
                     open: noSpace,
                     origin: noOrigin,
+                    connect: noConnect,
                 },
                 localization: Localization.of(SOURCE_LOCALE, []),
                 environment: tab,
@@ -222,6 +222,7 @@ test("open and close another space with a component", async () => {
                 open,
                 packages: new Map(),
                 origin: noOrigin,
+                connect: noConnect,
             },
             localization: Localization.of(SOURCE_LOCALE, []),
             environment: tab,
@@ -260,6 +261,7 @@ test("fail access to an object type the view's space does not hold into the erro
                     packages: new Map(),
                     open: noSpace,
                     origin: noOrigin,
+                    connect: noConnect,
                 },
                 localization: Localization.of(SOURCE_LOCALE, []),
                 environment: tab,
@@ -296,7 +298,6 @@ test("show a setting's value for the page's person, and the device's value once 
     const storage = await TestDatabase.create(ObjectClient.tables({ setting, deviceSetting }), {
         environment: simulation.environment("view"),
     });
-    const offline = { url: "https://settings.test", fetch: () => new Promise<Response>(() => {}) };
     const client = await ObjectClient.open({
         environment: simulation.environment("view"),
         database: storage.database,
@@ -304,12 +305,7 @@ test("show a setting's value for the page's person, and the device's value once 
         scope: CONTEXT.user.id,
         caller: CONTEXT.user,
         device: principal.device.reference(Scope.universe.id, DEVICE_ID),
-        remote: ProcedureRemote.at({
-            scope: CONTEXT.user.id,
-            endpoint: offline,
-            reconnect: () => offline,
-            environment: simulation.environment("view"),
-        }),
+        remote: ObjectRemote.unanswered(),
     });
     onTestFinished(async () => {
         await client.close();
@@ -333,6 +329,7 @@ test("show a setting's value for the page's person, and the device's value once 
                 packages: new Map(),
                 open: noSpace,
                 origin: noOrigin,
+                connect: noConnect,
             },
             localization: Localization.of(SOURCE_LOCALE, []),
             environment: tab,
@@ -385,6 +382,7 @@ test("refuse following a space's setting as the page's person into the error bou
                     packages: new Map(),
                     open: noSpace,
                     origin: noOrigin,
+                    connect: noConnect,
                 },
                 localization: Localization.of(SOURCE_LOCALE, []),
                 environment: tab,

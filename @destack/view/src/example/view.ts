@@ -1,10 +1,10 @@
-import type { Environment } from "@destack/environment";
+import { type Environment, MemoryWebSocket } from "@destack/environment";
 import { principal } from "@destack/access";
 import { account, space } from "@destack/account/object";
 import { WasmClient } from "@destack/db/browser";
 import { SqliteDatabase } from "@destack/db/sqlite";
 import type { ObjectType } from "@destack/object";
-import { ObjectClient, ProcedureRemote } from "@destack/object/client";
+import { ObjectClient, ObjectConnection, ObjectRemote } from "@destack/object/client";
 import type { ExampleObjects } from "@destack/package/declare";
 import { schema } from "@destack/schema";
 import { Scope } from "@destack/sync";
@@ -128,6 +128,18 @@ async function openSample(
                 openScope(scope, view.opens(space), context.user, environment, closing),
             packages,
             origin: () => OFFLINE,
+            connect: (path, scope) =>
+                ObjectConnection.open({
+                    scope,
+                    url: ObjectConnection.url(`${OFFLINE.url}${path}`),
+                    websocket: (url) =>
+                        new MemoryWebSocket(
+                            url,
+                            () => {},
+                            () => {},
+                        ),
+                    environment,
+                }),
         },
     };
 }
@@ -155,12 +167,7 @@ async function openScope(
         scope,
         caller,
         environment,
-        remote: ProcedureRemote.at({
-            scope: scope,
-            endpoint: OFFLINE,
-            reconnect: () => OFFLINE,
-            environment: environment,
-        }),
+        remote: ObjectRemote.unanswered(),
     });
     signal.addEventListener("abort", () => {
         void client.close().then(() => memory.close());

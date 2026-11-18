@@ -1,5 +1,5 @@
 import { useContext } from "solid-js";
-import type { ObjectClient } from "@destack/object/client";
+import type { ObjectClient, ObjectConnection } from "@destack/object/client";
 import { type Client, type Package, type ProcedureRouter, PackageMount } from "@destack/object";
 import { type ClientOptions, createClient } from "@destack/object/client";
 import { PLATFORM_PATH } from "../declare/context.ts";
@@ -9,6 +9,11 @@ import { useEnvironment, ViewMountContext } from "./context.ts";
 /** Read how the mounted view calls a path below its page's origin with the page's credential. */
 export function useOrigin(): (path: string) => ClientOptions {
     return useContext(ViewMountContext).origin;
+}
+
+/** Read how the mounted view connects to a store below its page's origin, as the page. */
+export function useConnect(): (path: string, scope: string) => ObjectConnection {
+    return useContext(ViewMountContext).connect;
 }
 
 /** Read the open client of one of the mounted view's scopes. */

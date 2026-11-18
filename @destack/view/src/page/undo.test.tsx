@@ -3,7 +3,7 @@ import { argument, plural, t } from "@destack/locale";
 import { none, principal, relation } from "@destack/access";
 import { TestDatabase } from "@destack/db/test";
 import { defineObject, field } from "@destack/object";
-import { ObjectClient, ProcedureRemote } from "@destack/object/client";
+import { ObjectClient, ObjectRemote } from "@destack/object/client";
 import { schema } from "@destack/schema";
 import { Scope } from "@destack/sync";
 import { expect, onTestFinished, test } from "@destack/test";
@@ -54,19 +54,13 @@ const USER = principal.user.reference(
 async function openClient(environment: Environment) {
     // keep the cards in a local database whose server never answers
     const storage = await TestDatabase.create(ObjectClient.tables({ card }), { environment });
-    const offline = { url: "https://cards.test", fetch: () => new Promise<Response>(() => {}) };
     const client = await ObjectClient.open({
         environment,
         database: storage.database,
         objects: { card },
         scope: BOARD_ID,
         caller: USER,
-        remote: ProcedureRemote.at({
-            scope: BOARD_ID,
-            endpoint: offline,
-            reconnect: () => offline,
-            environment: environment,
-        }),
+        remote: ObjectRemote.unanswered(),
     });
     onTestFinished(async () => {
         await client.close();

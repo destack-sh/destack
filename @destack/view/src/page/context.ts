@@ -1,7 +1,7 @@
 import { createContext, useContext } from "solid-js";
 import type { BrowserEnvironment } from "@destack/environment/browser";
 import type { TelemetryScope } from "@destack/telemetry";
-import type { ClientOptions, ObjectClient } from "@destack/object/client";
+import type { ClientOptions, ObjectClient, ObjectConnection } from "@destack/object/client";
 import type { ViewContext } from "../declare/context.ts";
 import type { ActionRegistry } from "./action.ts";
 
@@ -17,6 +17,8 @@ export interface ViewMount {
     readonly packages: ReadonlyMap<string, ClientOptions>;
     /** Address a path below the page's origin with the page's credential. */
     readonly origin: (path: string) => ClientOptions;
+    /** Connect to a scope at the store below a path of the page's origin, as the page. */
+    readonly connect: (path: string, scope: string) => ObjectConnection;
     /** The actions the page's components handle while they are mounted. */
     readonly actions: ActionRegistry;
 }

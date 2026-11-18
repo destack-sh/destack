@@ -9,10 +9,10 @@ import { BrowserTab } from "@destack/object/browser";
 import { BrowserClient } from "@destack/account/browser";
 import { ObjectTypeReference, type Subject } from "@destack/sync";
 import { principal } from "@destack/access";
-import type { ClientOptions } from "@destack/object/client";
+import { type ClientOptions, ObjectConnection } from "@destack/object/client";
 import { reportToDevtools, startTelemetry } from "@destack/telemetry/browser";
 import { OTLP_ORIGIN_PATH, OtlpExporter } from "@destack/telemetry/otlp";
-import { CLIENT_PATH, CONTEXT_ELEMENT, ViewContext } from "../declare/context.ts";
+import { CLIENT_PATH, CONTEXT_ELEMENT, HOME_PATH, ViewContext } from "../declare/context.ts";
 import type { CommandDeclaration } from "../palette/keybinding.ts";
 import { PageUndo } from "../page/undo.ts";
 import { account, space, user } from "@destack/account/object";
@@ -93,6 +93,23 @@ export async function mount(
     );
     const clients = new Map([...tabs].map(([scope, tab]) => [scope, tab.client]));
     const packages = mountPackages(view.packages, call);
+    const connections = new Map<string, ObjectConnection>();
+    const connect = (path: string, scope: string): ObjectConnection => {
+        // connect to each path's store once for the page, each scope over its socket
+        const known = connections.get(path);
+        if (known !== undefined) {
+            return known.at(scope);
+        }
+        const connection = ObjectConnection.open({
+            scope,
+            url: ObjectConnection.url(`${root}${path}`),
+            homes: (home) => connect(`${HOME_PATH}/${home}`, home),
+            environment,
+        });
+        connections.set(path, connection);
+
+        return connection;
+    };
 
     // resolve what the page shows the person against the package's theme, else Destack's
     const stopping = new AbortController();
@@ -126,7 +143,15 @@ export async function mount(
                 package: { ...view.package, version: release },
                 environment: { ...environment, telemetry },
                 localization,
-                mount: { context, clients, open, packages, origin: call, actions },
+                mount: {
+                    context,
+                    clients,
+                    open,
+                    packages,
+                    origin: call,
+                    connect,
+                    actions,
+                },
             }),
         {
             owner: view.package.id,
@@ -183,10 +208,14 @@ export async function mount(
     const scope = TelemetryScope.of({ ...view.package, version: release }, telemetry);
     recordVisits(view.name, scope, environment, stopping.signal);
 
-    // release the page's rendering, tabs and telemetry on unmount
+    // release the page's rendering, connections, tabs and telemetry on unmount
     const unmount = async () => {
+        // stop the page's work and close its connections
         stopping.abort();
         rendering.dispose();
+        for (const connection of connections.values()) {
+            connection.close();
+        }
         try {
             await Promise.all([...tabs.values()].map((tab) => tab.close()));
         } finally {

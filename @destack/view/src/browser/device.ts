@@ -2,7 +2,7 @@ import type { Environment } from "@destack/environment";
 import type { BrowserCapability } from "@destack/environment/browser";
 import { broadcastChannel, connectWasmSqlite, WasmClient } from "@destack/db/browser";
 import { BrowserDevice, type DeviceWorkerScope } from "@destack/object/browser";
-import { ObjectClient, ProcedureRemote } from "@destack/object/client";
+import { ObjectClient, ObjectConnection } from "@destack/object/client";
 import { PACKAGE_PATH, type ObjectType } from "@destack/object";
 import { schema } from "@destack/schema";
 import { Subject } from "@destack/sync";
@@ -57,23 +57,19 @@ export function serveDevice(
             environment,
         });
 
-        // follow and write each scope through the package's origin, once per scope, calling enclosing homes below its home path
-        const url = `${request.root}${PACKAGE_PATH}`;
-        const remotes = new Map<string, ProcedureRemote>();
-        const publisher = (followed: string) => {
-            const remote =
-                remotes.get(followed) ??
-                ProcedureRemote.at({
-                    scope: followed,
-                    endpoint: { url },
-                    reconnect: () => ({ url }),
-                    homes: (home: string) => ({ url: `${request.root}${HOME_PATH}/${home}` }),
+        // follow and write every scope over one connection to the package's origin, connecting to enclosing homes below its home path
+        const connection = ObjectConnection.open({
+            scope: request.caller.id,
+            url: ObjectConnection.url(`${request.root}${PACKAGE_PATH}`),
+            homes: (home: string) =>
+                ObjectConnection.open({
+                    scope: home,
+                    url: ObjectConnection.url(`${request.root}${HOME_PATH}/${home}`),
                     environment,
-                });
-            remotes.set(followed, remote);
-
-            return remote;
-        };
+                }),
+            environment,
+        });
+        const publisher = (followed: string) => connection.at(followed);
 
         // serve the person's device in the person's scope
         return BrowserDevice.serve({
@@ -83,7 +79,7 @@ export function serveDevice(
             scope: request.caller.id,
             caller: request.caller,
             ...(request.device === undefined ? {} : { device: request.device }),
-            remote: publisher(request.caller.id),
+            remote: connection,
             publisher,
             environment,
         });

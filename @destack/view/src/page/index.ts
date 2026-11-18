@@ -6,7 +6,7 @@ export {
     useView,
 } from "./context.ts";
 export { useNow } from "./now.ts";
-export { useOrigin, usePackage } from "./view.ts";
+export { useConnect, useOrigin, usePackage } from "./view.ts";
 export { LocaleContext, useLocale } from "./locale.ts";
 export {
     type ActionHandler,

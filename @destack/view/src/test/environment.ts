@@ -1,7 +1,7 @@
 import { Window } from "happy-dom";
 
-/** The DOM event globals that replace the runtime's events. */
-const DOM_GLOBALS = new Set(["Event", "EventTarget", "CustomEvent", "UIEvent", "KeyboardEvent"]);
+/** The DOM event globals that replace the runtime's: the event target and every event class. */
+const DOM_EVENT = /^(EventTarget|\w*Event)$/u;
 
 /** Render tests into a DOM, keeping the runtime's fetch, streams and timers. */
 export default {
@@ -16,8 +16,8 @@ export default {
         const added: string[] = [];
         const replaced = new Map<string, unknown>();
         for (const key of Object.getOwnPropertyNames(window)) {
-            // keep the runtime's global
-            if (!DOM_GLOBALS.has(key) && key in global) {
+            // keep the runtime's global, but for events, as one event family dispatches only its own
+            if (!DOM_EVENT.test(key) && key in global) {
                 continue;
             }
 
