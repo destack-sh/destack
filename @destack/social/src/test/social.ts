@@ -1,11 +1,7 @@
 import { testHost } from "@destack/test/host";
 import { principal } from "@destack/access";
 import * as account from "@destack/account/object";
-import {
-    type Simulation,
-    type SimulatedClock,
-    SimulatedScheduler,
-} from "@destack/environment/simulation";
+import { type Simulation, type SimulatedClock } from "@destack/environment/simulation";
 import { notification } from "@destack/notification/object";
 import { TestNotification } from "@destack/notification/test";
 import { ObjectType } from "@destack/object";
@@ -323,9 +319,7 @@ export class TestFollower {
         this.#client = client;
         this.#resources = resources;
         this.#settle = settle;
-        this.#running = client.run(this.#stopping.signal, (error) =>
-            SimulatedScheduler.of(client.environment).fail(error),
-        );
+        this.#running = client.run(this.#stopping.signal);
         this.#values = client.query.presence.findMany().subscribe().watch(this.#stopping.signal);
     }
 
