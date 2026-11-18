@@ -1,3 +1,4 @@
+import { LineExporter } from "@destack/environment";
 import { Simulation } from "@destack/environment/simulation";
 import { PackageVersion, type PackageId } from "@destack/package";
 import { MemoryBuild } from "@destack/package/test";
@@ -197,7 +198,7 @@ test("start the workload with its installation's settings, serve a forwarded cal
     const runner = await WorkloadRunner.start(
         {
             environment,
-            write: unprinted,
+            log: new LineExporter(unprinted),
             ephemeral: refusingEphemeral,
             workload: defineWorkload(
                 {
@@ -348,7 +349,7 @@ test("accept a hibernated socket, hand its messages and close to the workload, a
     const runner = await WorkloadRunner.start(
         {
             environment: node,
-            write: unprinted,
+            log: new LineExporter(unprinted),
             ephemeral: refusingEphemeral,
             workload: defineWorkload(
                 {

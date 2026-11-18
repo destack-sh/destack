@@ -1,3 +1,4 @@
+import { LineExporter, LOG_FORMAT_VARIABLE, LOG_LEVEL_VARIABLE } from "@destack/environment";
 import { ObjectError } from "../error/error.ts";
 import {
     DATABASE_PATH,
@@ -79,6 +80,10 @@ export interface DurableObjectRunnerState {
 export interface DurableObjectRunnerBindings {
     /** The object hosting the facet: its space's or its partition's. */
     readonly PARTITION: { readonly fetch: (request: Request) => Promise<Response> };
+    /** The lowest level the workload prints, as its host Worker's, info when absent. */
+    readonly DESTACK_LOG_LEVEL?: string;
+    /** The format the workload prints in, as its host Worker's, line when absent. */
+    readonly DESTACK_LOG_FORMAT?: string;
 }
 
 /** A workload instance in its installation's facet, beside its databases. */
@@ -98,12 +103,21 @@ export class DurableObjectRunner {
     constructor(
         state: DurableObjectRunnerState,
         bindings: DurableObjectRunnerBindings,
-        runner: Omit<WorkloadRunnerOptions, "ephemeral">,
+        runner: Omit<WorkloadRunnerOptions, "ephemeral" | "log">,
     ) {
         // set the storage, the hosting object and the databases
         this.#storage = state.storage;
         this.#object = bindings.PARTITION;
-        this.#runner = runner;
+
+        // print the workload's records to the isolate's console, as its host Worker's variables ask
+        const log = new LineExporter(
+            (line, severity) => LineExporter.console(line, severity),
+            LineExporter.options({
+                [LOG_LEVEL_VARIABLE]: bindings.DESTACK_LOG_LEVEL,
+                [LOG_FORMAT_VARIABLE]: bindings.DESTACK_LOG_FORMAT,
+            }),
+        );
+        this.#runner = { ...runner, log };
         this.#databases = new DurableObjectDatabaseHost(state.storage, runner.environment);
         this.#running = state.blockConcurrencyWhile(() => this.#resume());
     }

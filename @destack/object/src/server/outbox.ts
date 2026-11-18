@@ -332,7 +332,7 @@ export class Outbox {
 
                     return;
                 } else if (!isConflict) {
-                    this.#instruments.captureException(error, { level: "warning" });
+                    this.#instruments.captureException(error, { level: "warn" });
                 }
 
                 // back off, drawn from the leading mutation's request

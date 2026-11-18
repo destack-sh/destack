@@ -54,8 +54,8 @@ export interface WorkloadRunnerOptions {
     readonly connectors?: Readonly<Record<string, Connector>>;
     /** The environment: the clock, the network and the randomness. */
     readonly environment: Environment;
-    /** Write a record's line to the host's own log, its standard error or its console. */
-    readonly write: ConstructorParameters<typeof LineExporter>[0];
+    /** The host's own log, which the workload prints its records to. */
+    readonly log: LineExporter;
 }
 
 /** The telemetry a runner exports through, flushed after its work and shut down at its end. */
@@ -221,7 +221,7 @@ export class WorkloadRunner implements AsyncDisposable {
 
         return exporter.options(runner.workload.package, {
             ratio: start.sampling,
-            local: new LineExporter(runner.write),
+            local: runner.log,
         });
     }
 
