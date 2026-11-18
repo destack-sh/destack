@@ -14,7 +14,13 @@ export default defineConfiguration(
                 {
                     extends: true,
                     tier: "unit",
-                    test: { name: "unit", include: ["src/**/*.test.ts", SCENARIO_MODULES] },
+                    test: { name: "unit", include: ["src/**/*.test.ts"] },
+                },
+                // play the scenarios, whose worlds of a thousand followers take seconds to set up
+                {
+                    extends: true,
+                    tier: "scenario",
+                    test: { name: "scenario", include: [SCENARIO_MODULES] },
                 },
             ],
         },

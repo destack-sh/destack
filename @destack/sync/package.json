@@ -12,7 +12,7 @@
     },
     "scripts": {
         "typecheck": "tsc --project tsconfig.json && destack-check readme",
-        "test": "bun --bun run vitest run --config vitest.config.ts --project 'unit:*'",
+        "test": "bun --bun run vitest run --config vitest.config.ts --project 'unit:*' --project 'scenario:*'",
         "bench": "bun --bun run vitest run --config vitest.config.ts --project 'bench:*'"
     },
     "dependencies": {
