@@ -1,6 +1,6 @@
 import { nth } from "@destack/schema";
 import type { Dialect } from "../dialect/dialect.ts";
-import { ColumnCipher, ENCRYPTED_DIALECT } from "../database/cipher.ts";
+import type { ColumnCipher } from "../database/cipher.ts";
 import { Column, type DriverValue } from "../table/column.ts";
 import { TABLE, Table } from "../table/table.ts";
 import { DatabaseError } from "../error/error.ts";
@@ -233,7 +233,7 @@ function renderChunk(chunk: Chunk, target: Target): string {
 function bind(chunk: Parameter | Placeholder, target: Target): string {
     // write a literal into a declaration, or bind a parameter
     const { dialect } = target;
-    const value = chunk instanceof Placeholder ? chunk : encoded(chunk, target);
+    const value = chunk instanceof Placeholder ? chunk : chunk.encode(dialect, target.cipher);
     if (target.parameters === undefined) {
         if (value instanceof Placeholder) {
             throw DatabaseError.of(
@@ -261,43 +261,6 @@ function bind(chunk: Parameter | Placeholder, target: Target): string {
     target.bound.set(key, target.parameters.length);
 
     return `?${target.parameters.length}`;
-}
-
-/** Encode a parameter's value through its column, encryption a sensitive column's value. */
-function encoded(parameter: Parameter, target: Target): DriverValue {
-    // take null and a value without a column as they are
-    const { encoder } = parameter;
-    if (encoder === undefined || parameter.value === null) {
-        return driverValue(parameter.value);
-    }
-
-    // encode through the column
-    const { classification, encryption, name } = encoder.definition;
-    if (classification !== "sensitive" || encryption === undefined) {
-        return encoder.definition.encode(parameter.value, target.dialect);
-    }
-    const value = encoder.definition.encode(parameter.value, ENCRYPTED_DIALECT);
-
-    return ColumnCipher.require(target.cipher, encoder).encrypt(value, name, encryption);
-}
-
-/** Require a value bound without a column to be one the drivers take as it is. */
-function driverValue(value: unknown): DriverValue {
-    if (
-        value === null ||
-        typeof value === "string" ||
-        typeof value === "number" ||
-        typeof value === "boolean" ||
-        typeof value === "bigint" ||
-        value instanceof Uint8Array
-    ) {
-        return value;
-    }
-
-    throw DatabaseError.of(
-        "QUERY_INVALID",
-        `value of type '${typeof value}' is invalid: it cannot bind without its column, as drivers accept text, numbers, booleans, bytes and null`,
-    );
 }
 
 /** Report whether a chunk lists chunks. */

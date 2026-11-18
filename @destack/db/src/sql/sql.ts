@@ -1,5 +1,7 @@
 import type { Dialect } from "../dialect/dialect.ts";
-import type { Column, ColumnDefinition, ColumnValue } from "../table/column.ts";
+import type { Column, ColumnDefinition, ColumnValue, DriverValue } from "../table/column.ts";
+import { ColumnCipher, ENCRYPTED_DIALECT } from "../database/cipher.ts";
+import { DatabaseError } from "../error/error.ts";
 
 /** Something that renders as SQL, such as a column, a table, a query or a fragment. */
 export interface SQLWrapper {
@@ -102,6 +104,43 @@ export class Parameter {
     constructor(value: unknown, encoder?: Column) {
         this.value = value;
         this.encoder = encoder;
+    }
+
+    /** Encode the value through its column, encrypting a sensitive column's value. */
+    encode(dialect: Dialect, cipher: ColumnCipher | undefined): DriverValue {
+        // take null and a value without a column as they are
+        const { encoder, value } = this;
+        if (encoder === undefined || value === null) {
+            return Parameter.#driverValue(value);
+        }
+
+        // encode through the column, encrypting a sensitive one
+        const { classification, encryption, name } = encoder.definition;
+        if (classification !== "sensitive" || encryption === undefined) {
+            return encoder.definition.encode(value, dialect);
+        }
+        const encoded = encoder.definition.encode(value, ENCRYPTED_DIALECT);
+
+        return ColumnCipher.require(cipher, encoder).encrypt(encoded, name, encryption);
+    }
+
+    /** Require a value bound without a column to be one the drivers take as it is. */
+    static #driverValue(value: unknown): DriverValue {
+        if (
+            value === null ||
+            typeof value === "string" ||
+            typeof value === "number" ||
+            typeof value === "boolean" ||
+            typeof value === "bigint" ||
+            value instanceof Uint8Array
+        ) {
+            return value;
+        }
+
+        throw DatabaseError.of(
+            "QUERY_INVALID",
+            `value of type '${typeof value}' is invalid: it cannot bind without its column, as drivers accept text, numbers, booleans, bytes and null`,
+        );
     }
 }
 
