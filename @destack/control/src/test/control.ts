@@ -361,7 +361,7 @@ export class TestControl implements AsyncDisposable {
         const listener = simulation.network.server(UNIVERSE_NODE).http({
             hostname: new URL(TEST_ORIGIN).hostname,
             port: HTTPS_PORT,
-            fetch: (request) => universe.fetch(request),
+            ...universe.connections.listen((request) => universe.fetch(request)),
         });
         opening.defer(() => listener.stop(true));
 

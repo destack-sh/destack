@@ -141,18 +141,11 @@ export class TestMachine implements AsyncDisposable {
         const identity = new MachineKey(id, keychain, environment);
         const kept = new MemoryKeychain(options.world?.secrets);
         const keyring = await LocalKeyring.open(kept, id, environment);
-        const accounts = PackageMount.url(origin, accountPackage.id);
         const issuer = UniverseOrigin.issuer(origin);
-        const store = createClient(
+        const store = TestMachine.#session(identity, issuer, origin, send, environment).connect(
             accountPackage,
-            {
-                url: accounts,
-                fetch: TestMachine.#session(identity, issuer, origin, send, environment).fetch(
-                    accountPackage.id,
-                ),
-            },
-            environment,
-        ).store;
+            origin,
+        );
 
         // follow the directory, the identities and the machine's assignments as the machine, into the given database or a new one
         const follows = TestMachine.#follows(id);
@@ -170,10 +163,10 @@ export class TestMachine implements AsyncDisposable {
             principal: principal.machine.reference(Scope.universe.id, id),
             publisher: () => ({
                 async *stream(subscription, signal) {
-                    yield* await store.stream(subscription, { signal });
+                    yield* store.stream(subscription, signal);
                 },
                 request: async (subscription) => {
-                    await store.request({ subscription });
+                    await store.request(subscription);
                 },
             }),
             database: storage.database,
@@ -206,6 +199,12 @@ export class TestMachine implements AsyncDisposable {
             this.#send,
             this.environment,
         ).fetch(audience);
+    }
+
+    /** Add the machine's token for a universe package to a request, such as an upgrade. */
+    authorize(audience: PackageId): (request: Request) => Promise<Request> {
+        return (request) =>
+            this.identity.at(this.universe.issuer, this.#send).authorize(request, audience, {});
     }
 
     /** Read the machine's access token for a package, as the universe grants it. */

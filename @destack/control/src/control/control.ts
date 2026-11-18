@@ -29,12 +29,13 @@ import type { Bucket } from "@destack/bucket";
 import { DatabasePersonalKeyring, EventStore } from "@destack/event";
 import { type Keyring } from "@destack/identity";
 import { call, type CallKey, type Fetch, PackageMount, tablesOf } from "@destack/object";
-import { Health, Server } from "@destack/object/server";
+import { ObjectConnectionHost, Health, Server } from "@destack/object/server";
 import objectServer, { implementPackage, ObjectStore } from "@destack/object/server";
-import { PackageVersion, type PackageId, PackageRelease } from "@destack/package";
+import { PackageVersion, PackageId, PackageRelease } from "@destack/package";
 import { type Policy } from "@destack/access";
 import { ResourceContext } from "@destack/resource/context";
 import { Digest, schema } from "@destack/schema";
+import type { Publisher } from "@destack/sync";
 import { RequestId, Scope } from "@destack/sync";
 import { settingServer } from "@destack/setting/server";
 import settingPackage from "@destack/setting/package";
@@ -119,10 +120,14 @@ export class Control implements AsyncDisposable {
     readonly store: ObjectStore;
     /** The account package's server, which answers as the universe's issuer. */
     readonly issuer: Server;
+    /** The servers' connections, whose sockets the universe's listener keeps through it. */
+    readonly connections: ObjectConnectionHost;
     /** Aborts the store's loop. */
     readonly #stopping: AbortController;
     /** The store's running loop. */
     readonly #running: Promise<void>;
+    /** Closes the publishers of the residencies' homes the store follows. */
+    readonly #publishers: DisposableStack;
 
     /** Create a started control. */
     private constructor(
@@ -130,15 +135,22 @@ export class Control implements AsyncDisposable {
         servers: ReadonlyMap<string, Server>,
         store: ObjectStore,
         issuer: Server,
-        loop: { readonly stopping: AbortController; readonly running: Promise<void> },
+        connections: ObjectConnectionHost,
+        loop: {
+            readonly stopping: AbortController;
+            readonly running: Promise<void>;
+            readonly publishers: DisposableStack;
+        },
     ) {
-        // keep the definition, the servers, the store, the issuer and the store's loop
+        // keep the definition, the servers, the store, the issuer, the connections and the store's loop
         this.definition = definition;
         this.servers = servers;
         this.store = store;
         this.issuer = issuer;
+        this.connections = connections;
         this.#stopping = loop.stopping;
         this.#running = loop.running;
+        this.#publishers = loop.publishers;
     }
 
     /** Migrate the universe's database to this release, then start its packages over it. */
@@ -163,15 +175,19 @@ export class Control implements AsyncDisposable {
         // bind the parts that need the store once it exists: the account server's sign-in stores
         //  through the store, and the universe's signed fetch registers its identity there
         const signIn = Promise.withResolvers<BetterAuthAuthenticator>();
-        const connected = Promise.withResolvers<(audience: PackageId) => Fetch>();
+        const connected = Promise.withResolvers<Session>();
         const serving = Promise.withResolvers<Control>();
 
         // call residency homes as the universe once its identity exists
         const connect =
             (audience: PackageId): Fetch =>
             async (request) =>
-                (await connected.promise)(audience)(request);
+                (await connected.promise).fetch(audience)(request);
         const directory = new Directory(Snapshot.live(database));
+
+        // follow each residency home over one publisher, closed with the universe
+        const publishers = new Map<string, Publisher>();
+        const following = new DisposableStack();
         const releases = options.releases({ directory, connect });
 
         // apply the residencies, then each step of the platform's definition, once per run
@@ -228,8 +244,28 @@ export class Control implements AsyncDisposable {
             events,
             origin: { package: PackageVersion.of(accountPackage) },
             // follow the residencies' homes where their machines answer
-            publisher: (scope) =>
-                directory.publisher(scope, connect(objectPackage.id), options.environment),
+            publisher: (scope) => {
+                // follow each home over one publisher, closed with the universe
+                const known = publishers.get(scope);
+                if (known !== undefined) {
+                    return known;
+                }
+                const publisher = following.use(
+                    directory.publisher(
+                        scope,
+                        async (request) =>
+                            (await connected.promise).credential.authorize(
+                                request,
+                                objectPackage.id,
+                                {},
+                            ),
+                        options.environment,
+                    ),
+                );
+                publishers.set(scope, publisher);
+
+                return publisher;
+            },
         });
 
         // apply the platform through the universe's store
@@ -294,7 +330,7 @@ export class Control implements AsyncDisposable {
             bookmark: new Bookmark(),
             environment: options.environment,
         });
-        connected.resolve((audience) => session.fetch(audience));
+        connected.resolve(session);
 
         // serve once the run applied the definition, refusing a run that did not complete
         const ready = async (signal: AbortSignal) => {
@@ -314,11 +350,13 @@ export class Control implements AsyncDisposable {
             issuer,
             options.environment,
         );
+        const connections = new ObjectConnectionHost(options.environment.telemetry);
         const servers = new Map(
             store.packages.map((implementation) => [
                 implementation.package.id,
                 Server.start({
                     ...implementation,
+                    hibernation: connections.hibernation,
                     environment: options.environment,
                     health: new Health(implementation.package.name),
                     resources: new ResourceContext(),
@@ -344,7 +382,15 @@ export class Control implements AsyncDisposable {
         const running = store
             .run(stopping.signal, options.alarm === undefined ? {} : { alarm: options.alarm })
             .catch((error: unknown) => options.report(error));
-        const control = new Control(definition, servers, store, accounts, { stopping, running });
+        // take each server's connections, then start
+        for (const [packageId, server] of servers) {
+            connections.serve(PackageId.parse(packageId), server);
+        }
+        const control = new Control(definition, servers, store, accounts, connections, {
+            stopping,
+            running,
+            publishers: following,
+        });
         serving.resolve(control);
 
         return control;
@@ -399,13 +445,17 @@ export class Control implements AsyncDisposable {
         await this.store.idle(deadline);
     }
 
-    /** Stop the store's loop, then drain every package. */
+    /** Stop the store's loop, drain every package, then close the homes' publishers. */
     async [Symbol.asyncDispose](): Promise<void> {
+        // stop the loop and drain the packages
         this.#stopping.abort();
         await this.#running;
         for (const server of this.servers.values()) {
             await server.close();
         }
+
+        // close the publishers the store followed through
+        this.#publishers.dispose();
     }
 }
 
