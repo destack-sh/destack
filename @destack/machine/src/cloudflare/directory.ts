@@ -24,7 +24,7 @@ interface DirectoryConfiguration {
     readonly publisher: Publisher;
 }
 
-/** The prefix of a cloud machine's directory blobs in the residency's build bucket. */
+/** The prefix of a cloud machine's directory blobs in the residency's bucket. */
 export const DIRECTORY_PREFIX = "directory/";
 
 /** The configuration a cloud machine's object binds. */

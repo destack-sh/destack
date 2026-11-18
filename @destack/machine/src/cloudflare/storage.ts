@@ -46,16 +46,13 @@ import { Traffic } from "../gateway/index.ts";
 import { CACHE_NAMESPACE, DurableObjectSpaceDatabaseHost, SPACE_NAMESPACE } from "./database.ts";
 import type { DurableObjectNamespace } from "./runtime/index.ts";
 
-/** The prefix of the machines' builds in the residency's build bucket, a space's below it. */
-const CACHE_PREFIX = "cache/";
+/** The prefix of the spaces' keys in the residency's bucket, each space's below its identifier. */
+const SPACES_PREFIX = "spaces/";
 /** The namespace of the space's live sockets, stored only while the object runs. */
 const SOCKETS_NAMESPACE = "sockets";
 
 /** The region R2 and a space's buckets sign their S3 requests for. */
 const S3_REGION = "auto";
-
-/** The prefix of the spaces' blobs in the residency's files, each below its space. */
-const BLOBS_PREFIX = "blobs";
 
 /** What a space's object stores the space with. */
 export interface DurableObjectSpaceStorageOptions {
@@ -63,10 +60,10 @@ export interface DurableObjectSpaceStorageOptions {
     readonly space: Identifier<"space">;
     /** The object's storage, with a namespace per database it stores. */
     readonly storage: DurableObjectStorage;
-    /** The residency's R2 bucket of the spaces' buckets, snapshots and event segments. */
-    readonly files: Cloudflare.R2Bucket;
+    /** The residency's R2 bucket, the space's keys below `spaces/<space>/`. */
+    readonly bucket: Cloudflare.R2Bucket;
     /** The name of the residency's R2 bucket. */
-    readonly filesName: string;
+    readonly bucketName: string;
     /** The domain of the installation origins, which each space's S3 origin answers below. */
     readonly domain: string;
     /** The residency's Artifacts namespace of the spaces' Git storages. */
@@ -109,8 +106,8 @@ export class DurableObjectSpaceStorage implements SpaceStorage {
     readonly database: DatabaseConnection;
     /** The installations' databases, each in its partition's object. */
     readonly databases: DurableObjectSpaceDatabaseHost;
-    /** The residency's bucket of the space's buckets, snapshots and event segments. */
-    readonly #files: R2Bucket;
+    /** The residency's bucket, the space's keys below its prefix. */
+    readonly #bucket: R2Bucket;
 
     /** Take a space over its object's migrated database. */
     private constructor(
@@ -127,7 +124,7 @@ export class DurableObjectSpaceStorage implements SpaceStorage {
         this.ephemeral = declared.ephemeral;
         this.#host = host;
         this.database = database;
-        this.#files = new R2Bucket(options.files);
+        this.#bucket = new R2Bucket(options.bucket);
         this.databases = new DurableObjectSpaceDatabaseHost(
             database,
             options.facet,
@@ -153,17 +150,17 @@ export class DurableObjectSpaceStorage implements SpaceStorage {
         return new DurableObjectSpaceStorage(options, declared, host, database);
     }
 
-    /** Open the machine's builds in the object's storage, over the shipped releases. */
-    async builds(builds: Cloudflare.R2Bucket, releases: BuildLayer): Promise<BuildStore> {
-        // index the pulled builds in the object's storage, their blobs in the build bucket, the shipped ones read in place
+    /** Open the space's builds in the object's storage, over the shipped releases. */
+    async builds(releases: BuildLayer): Promise<BuildStore> {
+        // index the pulled builds in the object's storage, their blobs below the space's prefix
         const { environment, space } = this.#options;
         const database = this.#host.connect(BuildStore.database.tables, {
             namespace: CACHE_NAMESPACE,
         });
         await database.migrate(BuildStore.database.tables);
         const storage = new BucketBlobStorage(
-            new R2Bucket(builds),
-            `${CACHE_PREFIX}${space}/`,
+            this.#bucket,
+            `${DurableObjectSpaceStorage.prefix(space)}builds/`,
             environment.random,
         );
         const blobs = new BlobStore({ storage, database, environment });
@@ -185,7 +182,18 @@ export class DurableObjectSpaceStorage implements SpaceStorage {
                 `space '${space}' in the object of '${this.#options.space}' not found`,
             );
         }
+        // delete the space's keys in the residency's bucket, then its object's storage
+        await new BucketBlobStorage(
+            this.#bucket,
+            DurableObjectSpaceStorage.prefix(space),
+            this.#options.environment.random,
+        ).clear();
         await this.#options.storage.deleteAll();
+    }
+
+    /** Write a space's key prefix in the residency's bucket. */
+    static prefix(space: Identifier<"space">): string {
+        return `${SPACES_PREFIX}${space}/`;
     }
 
     /** Open the volume of the space the object stores, refusing any other space. */
@@ -225,7 +233,7 @@ export class DurableObjectSpaceStorage implements SpaceStorage {
                     host,
                     database: this.database,
                     databases: this.databases,
-                    files: this.#files,
+                    bucket: this.#bucket,
                     sockets,
                 });
             },
@@ -259,8 +267,8 @@ export class DurableObjectVolume implements Volume {
     readonly #host: DurableObjectDatabaseHost;
     /** The installations' databases, each in its partition's object. */
     readonly #databases: DurableObjectSpaceDatabaseHost;
-    /** The residency's bucket of the space's buckets, snapshots and event segments. */
-    readonly #files: R2Bucket;
+    /** The residency's bucket, the space's keys below its prefix. */
+    readonly #bucket: R2Bucket;
     /** The space's buckets, once served. */
     #buckets: R2BucketHost | undefined;
     /** The graph views of the space's builds, once read. */
@@ -273,7 +281,7 @@ export class DurableObjectVolume implements Volume {
         readonly host: DurableObjectDatabaseHost;
         readonly database: DatabaseConnection;
         readonly databases: DurableObjectSpaceDatabaseHost;
-        readonly files: R2Bucket;
+        readonly bucket: R2Bucket;
         readonly sockets: SocketRegistry;
     }) {
         // set the object's stores
@@ -281,25 +289,23 @@ export class DurableObjectVolume implements Volume {
         this.#options = options;
         this.#host = fields.host;
         this.#databases = fields.databases;
-        this.#files = fields.files;
+        this.#bucket = fields.bucket;
         this.database = database;
         this.sockets = fields.sockets;
 
-        // store the space's events and blobs in the residency's files
+        // store the space's events and blobs below its prefix of the residency's bucket
         const { environment, space } = options;
+        const prefix = DurableObjectSpaceStorage.prefix(space);
         this.events = new EventStore({
             environment,
             database,
             kinds: fields.kinds,
-            files: () => fields.files,
+            files: () => fields.bucket,
+            prefix: `${prefix}events`,
             personal: new DatabasePersonalKeyring(database, options.keyring, environment),
             settings: Entitlement.capRetention(database, SettingValue.retention(database)),
         });
-        this.blobs = new BucketBlobStorage(
-            fields.files,
-            `${BLOBS_PREFIX}/${space}/`,
-            environment.random,
-        );
+        this.blobs = new BucketBlobStorage(fields.bucket, `${prefix}blobs/`, environment.random);
 
         // provide databases in objects, Git in Artifacts and mail
         const { artifacts, send, mail: transport } = options;
@@ -327,10 +333,11 @@ export class DurableObjectVolume implements Volume {
             `https://${S3Origin.format(this.#options.space, this.#options.domain)}`,
         );
 
-        // store the buckets' files in the residency's bucket, counting its operations for the meters
+        // store the buckets' files below the space's prefix, counting the bucket's operations for the meters
         this.#buckets ??= new R2BucketHost({
-            files: this.#files,
-            name: this.#options.filesName,
+            bucket: this.#bucket,
+            name: this.#options.bucketName,
+            prefix: `${DurableObjectSpaceStorage.prefix(this.#options.space)}buckets/`,
             catalogues: new DurableObjectCatalogueStore(this.#host),
             endpoint,
             region: S3_REGION,
@@ -393,7 +400,7 @@ export class DurableObjectVolume implements Volume {
         ];
 
         // take the counts in memory once every read that may fail has answered
-        const operations = this.#files.takeOperations();
+        const operations = this.#bucket.takeOperations();
         const taken = traffic.take();
 
         return [

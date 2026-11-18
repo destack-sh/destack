@@ -45,14 +45,12 @@ export const CONNECTING_IP_HEADER = "cf-connecting-ip";
 
 /** The bindings of a cloud machine's spaces' storage. */
 export interface CloudflareStorageBindings {
-    /** The residency's R2 bucket of the spaces' buckets, snapshots and event segments. */
-    readonly FILES: Cloudflare.R2Bucket;
+    /** The residency's R2 bucket, by owner: `spaces/<space>/` and `directory/`. */
+    readonly BUCKET: Cloudflare.R2Bucket;
     /** The name of the residency's R2 bucket. */
-    readonly DESTACK_FILES: string;
+    readonly DESTACK_BUCKET: string;
     /** The residency's Artifacts namespace of the spaces' Git storages. */
     readonly ARTIFACTS: ArtifactsNamespace;
-    /** The residency's R2 bucket of the builds the machines pull from forges. */
-    readonly BUILDS: Cloudflare.R2Bucket;
     /** The releases the Worker version ships, a build layer in its static assets. */
     readonly RELEASES: AssetBinding;
     /** The rates of the spaces' use, as `RateCard` JSON. */
@@ -329,7 +327,7 @@ export class CloudMachine {
             resources: new ResourceContext().bind(directoryConfiguration, {
                 database,
                 blobs: new BucketBlobStorage(
-                    new R2Bucket(this.bindings.BUILDS),
+                    new R2Bucket(this.bindings.BUCKET),
                     DIRECTORY_PREFIX,
                     this.environment.random,
                 ),
