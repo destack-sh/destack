@@ -144,7 +144,7 @@ export class BuildGraph {
     readonly build: Identifier<"build">;
     /** The space of the build. */
     readonly space: Identifier<"space">;
-    /** The digest of the manifest of its lock's root build, which keys the index. */
+    /** The digest of the manifest of its image's root build, which keys the index. */
     readonly manifest: Digest;
     /** When the build finished, which its rows are made at. */
     readonly finishedAt: number;
@@ -180,11 +180,11 @@ export class BuildGraph {
         }
     }
 
-    /** Read an index scope's succeeded build and its lock's root, refusing one without files. */
+    /** Read an index scope's succeeded build and its image's root, refusing one without files. */
     static async of(
         database: DatabaseConnection,
         scope: string,
-        builds: Pick<BuildStore, "lock">,
+        builds: Pick<BuildStore, "image">,
     ): Promise<BuildGraph> {
         // read the build's space
         const id = schema.identifier("build").parse(scope);
@@ -193,7 +193,7 @@ export class BuildGraph {
                 id: build.table.id,
                 scope: build.table.scope,
                 state: build.table.state,
-                lock: build.table.lock,
+                image: build.table.image,
                 failure: build.table.failure,
                 expiredAt: build.table.expiredAt,
                 finishedAt: build.table.finishedAt,
@@ -206,7 +206,7 @@ export class BuildGraph {
         return new BuildGraph({
             build: id,
             space: record.scope,
-            manifest: (await builds.lock(Build.lock(record))).root,
+            manifest: (await builds.image(Build.image(record))).root,
             finishedAt,
         });
     }

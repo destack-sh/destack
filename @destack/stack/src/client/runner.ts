@@ -1,9 +1,7 @@
 import type { Environment } from "@destack/environment";
 import type { ResourceDeclaration } from "@destack/resource";
 import type { WorkloadRunnerOptions, Workload } from "@destack/object/workload";
-import { createClient, ProcedureRemote } from "@destack/object/client";
-import stackPackage from "../package.ts";
-import type { StackClient } from "./client.ts";
+import { ObjectConnection } from "@destack/object/client";
 
 /** Run a workload in a space with its package's resources in an environment. */
 export function spaceRunner(
@@ -12,34 +10,30 @@ export function spaceRunner(
     environment: Environment,
 ): Omit<WorkloadRunnerOptions, "ephemeral" | "log"> {
     // connect once to each machine URL under each secret
-    const clients = new Map<string, StackClient>();
+    const connections = new Map<string, ObjectConnection>();
     const connect = (url: string, secret: string) => {
-        // reuse the client of a URL and secret
+        // reuse the connection of a URL and secret
         const key = JSON.stringify([url, secret]);
-        const known = clients.get(key);
+        const known = connections.get(key);
         if (known !== undefined) {
             return known;
         }
 
-        // connect to a new one
-        const client = createClient(
-            stackPackage,
-            {
-                url,
-                headers: () => ({ authorization: `Bearer ${secret}` }),
+        // connect to a new one, signing its upgrade and each call with the instance's secret
+        const connection = ObjectConnection.open({
+            url: ObjectConnection.url(url),
+            authorize: async (request) => {
+                const headers = new Headers(request.headers);
+                headers.set("authorization", `Bearer ${secret}`);
+
+                return new Request(request, { headers });
             },
             environment,
-        );
-        clients.set(key, client);
+        });
+        connections.set(key, connection);
 
-        return client;
+        return connection;
     };
 
-    return {
-        workload,
-        resources,
-        environment,
-        remote: (url, secret) =>
-            new ProcedureRemote({ store: connect(url, secret).store, environment }),
-    };
+    return { workload, resources, environment, remote: connect };
 }

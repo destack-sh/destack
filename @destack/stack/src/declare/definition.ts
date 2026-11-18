@@ -66,20 +66,20 @@ export const StackDefinition = Object.assign(schema.jsonObject(), {
             );
         }
 
-        // read each package's one build in the stack's lock, refusing a second
+        // read each package's one build in the stack's image, refusing a second
         const builds = new Map<PackageId, DependencyRelease>();
         for (const entry of releases.filter((each) => each.kind === "destack")) {
             const known = builds.get(entry.package.id);
             if (known !== undefined && known.manifest !== entry.manifest) {
                 throw StackError.of(
                     "DEFINITION_INVALID",
-                    `stack '${name}' is invalid: it locks two builds of '${entry.package.name}'`,
+                    `stack '${name}' is invalid: it images two builds of '${entry.package.name}'`,
                 );
             }
             builds.set(entry.package.id, entry);
         }
         const entries = Object.fromEntries(releases.map((entry) => [entry.package.name, entry]));
-        // read each installation's build in the stack's lock, but for one the host provides
+        // read each installation's build in the stack's image, but for one the host provides
         const declaredInstallations = Object.entries(document.installations).flatMap(
             ([key, installed]) => {
                 if (installed.selection?.kind === "host") {
@@ -89,7 +89,7 @@ export const StackDefinition = Object.assign(schema.jsonObject(), {
                 if (built === undefined) {
                     throw StackError.of(
                         "DEFINITION_INVALID",
-                        `installation '${key}' of '${name}' is invalid: it installs a package without a build in the stack's lock, so add the package to the stack's dependencies`,
+                        `installation '${key}' of '${name}' is invalid: it installs a package without a build in the stack's image, so add the package to the stack's dependencies`,
                     );
                 }
 
@@ -157,13 +157,13 @@ export const StackDefinition = Object.assign(schema.jsonObject(), {
 /** The stack declaration kind, which stack defines. */
 export const STACK_KIND = defineKind({ name: "stack", description: StackDefinition });
 
-/** List the Destack builds of a lock other than its root whose packages store types in a space. */
+/** List an image's Destack builds but its root whose packages store types in a space. */
 export async function installableBuilds(
     entries: Readonly<Record<string, DependencyRelease>>,
     root: Digest,
     read: (packageId: PackageId, manifest: Digest) => Promise<BuildReader>,
 ): Promise<PackageBuild[]> {
-    // list the lock's Destack builds other than its root
+    // list the image's Destack builds other than its root
     const destack = Object.values(entries).flatMap((entry) =>
         entry.kind === "destack" && entry.manifest !== root
             ? [{ package: entry.package, manifest: entry.manifest }]

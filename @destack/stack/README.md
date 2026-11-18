@@ -17,7 +17,7 @@ Spaces apply them:
 - `rollout`: how an installation follows a release or a tag, through plans that may wait for approval.
 - `installation-revision`: one applied release of an installation.
 - `deployment`: the revisions a space serves, switched together.
-- `build`: a package compiled from a checkout, stored by its lock.
+- `build`: a package compiled from a checkout, stored by its image.
 - `route`: a path under a domain, served by an installation.
 
 Declare a stack that provisions a bucket and installs a package with it:
@@ -121,14 +121,14 @@ export async function approvePlan(
 
 ### Build a checkout
 
-The checkout's machine compiles the package, and `push` sends its lock to its account's forge.
+The checkout's machine compiles the package, and `push` sends its image to its account's forge.
 
 ```ts
 import type { ClientOf } from "@destack/object/client";
 import type { Identifier } from "@destack/schema";
 import type stackPackage from "@destack/stack/package";
 
-/** Build a checkout's package for Bun, and push its lock to its account's forge. */
+/** Build a checkout's package for Bun, and push its image to its account's forge. */
 export async function buildCheckout(
     client: ClientOf<typeof stackPackage>,
     spaceId: Identifier<"space">,
@@ -145,7 +145,7 @@ export async function buildCheckout(
         outputs: ["bun"],
     });
 
-    // push the build's lock
+    // push the build's image
     await client.build.push({ spaceId, id: build.id, account, requestId });
 }
 ```

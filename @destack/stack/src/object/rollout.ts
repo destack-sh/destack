@@ -88,8 +88,8 @@ export const InstallationView = schema.object({
     installationId: schema.identifier("installation"),
     /** The revision whose build serves the view. */
     revisionId: schema.identifier("installation-revision"),
-    /** The digest of the lock of the build serving the view. */
-    lock: Digest,
+    /** The digest of the image of the build serving the view. */
+    image: Digest,
     /** The view's name. */
     view: DeclarationName,
     /** The installed package's name, such as @acme/notes. */
@@ -270,7 +270,7 @@ export const installationRevision = defineObject(
             build: field.reference((): ObjectOf<{ identity: "build" }> => build, {
                 delete: "restrict",
             }),
-            /** The installable packages its build depends on, at the builds its lock has. */
+            /** The installable packages its build depends on, at the builds its image has. */
             dependencies: field.json(schema.array(PackageBuild)),
             /** The state each declaration requires, such as main's tables, by name. */
             states: field.blobMap(),
@@ -358,20 +358,20 @@ export const Rollout = {
         return { status: "false", reason, message };
     },
 
-    /** Describe an installation's condition waiting for a lock's builds this machine lacks. */
-    waitingForBuild(lock: Digest): Condition {
-        const message = `waiting for build ${lock}, which this machine does not have yet`;
+    /** Describe an installation's condition waiting for an image's builds this machine lacks. */
+    waitingForBuild(image: Digest): Condition {
+        const message = `waiting for build ${image}, which this machine does not have yet`;
 
         return Rollout.waiting("WaitingForBuild", message);
     },
 
-    /** Report whether one following the host's release runs a lock this machine does not. */
+    /** Report whether one following the host's release runs an image this machine does not. */
     isSuperseded(
         installed: Pick<Installation, "followsId">,
-        lock: Digest,
+        image: Digest,
         trusted: ReadonlySet<Digest>,
     ): boolean {
-        return installed.followsId === null && !trusted.has(lock);
+        return installed.followsId === null && !trusted.has(image);
     },
 
     /** Read the rollouts of some installations joined with them. */
@@ -831,7 +831,7 @@ export const InstallationRevision = {
     async build(
         snapshot: Pick<Snapshot, "read">,
         revisionId: Identifier<"installation-revision">,
-    ): Promise<Select<typeof build.table> & { readonly lock: Digest }> {
+    ): Promise<Select<typeof build.table> & { readonly image: Digest }> {
         // read the revision, refusing an unknown one
         const revision = await snapshot
             .read(installationRevision.table)
@@ -848,11 +848,11 @@ export const InstallationRevision = {
         snapshot: Pick<Snapshot, "read">,
         revisionId: Identifier<"installation-revision">,
         packageId: PackageId,
-        builds: { readonly root: (packageId: PackageId, lock: Digest) => Promise<BuildReader> },
+        builds: { readonly root: (packageId: PackageId, image: Digest) => Promise<BuildReader> },
     ): Promise<BuildReader> {
         const built = await InstallationRevision.build(snapshot, revisionId);
 
-        return builds.root(packageId, built.lock);
+        return builds.root(packageId, built.image);
     },
 
     /** Read the revision an installation follows, absent before its first. */
@@ -871,18 +871,18 @@ export const InstallationRevision = {
         return revision;
     },
 
-    /** Digest a build's lock and its stack evaluation's inputs, which decide its definition. */
+    /** Digest a build's image and its stack evaluation's inputs, which decide its definition. */
     digest(
-        lock: Digest,
+        image: Digest,
         inputs: Omit<StackEvaluation, "definition"> | undefined,
         bindings: readonly Binding[],
         crypto: DigestCrypto,
     ): Promise<Digest> {
         return Digest.json(
             inputs === undefined
-                ? { lock, bindings }
+                ? { image, bindings }
                 : {
-                      lock,
+                      image,
                       export: inputs.export,
                       parameters: inputs.parameters,
                       settings: inputs.settings,

@@ -63,8 +63,8 @@ export const BuildSource = schema.discriminatedUnion("kind", [
         package: PackageId,
         /** The released version. */
         version: Version,
-        /** The digest of the release's lock: its build and every build it runs with. */
-        lock: Digest,
+        /** The digest of the release's image: its build and every build it runs with. */
+        image: Digest,
     }),
 ]);
 /** The source a build has. */
@@ -94,13 +94,13 @@ const FailedBuild = schema.object({
     failure: Failure,
 });
 
-/** How a build ended: stored under the lock its runner pushed, or failed. */
+/** How a build ended: stored under the image its runner pushed, or failed. */
 export const BuildOutcome = schema.discriminatedUnion("kind", [
     schema.object({
-        /** A build whose lock the space stores. */
+        /** A build whose image the space stores. */
         kind: schema.literal("stored"),
-        /** The digest of the stored lock. */
-        lock: Digest,
+        /** The digest of the stored image. */
+        image: Digest,
     }),
     FailedBuild,
 ]);
@@ -130,8 +130,8 @@ export const build = defineObject(
             commit: field.string(Commit).optional(),
             /** The repository, directory and commit of a commit build, absent for a release. */
             checkout: field.string().optional(),
-            /** The stored build's lock once succeeded, kept until retention expires it. */
-            lock: field.blob({ while: { expiredAt: { isNull: true } } }).optional(),
+            /** The stored build's image once succeeded, kept until retention expires it. */
+            image: field.blob({ while: { expiredAt: { isNull: true } } }).optional(),
             /** Why the build failed, once failed. */
             failure: field.json(Failure).optional(),
             /** The start of the build's run, in UTC epoch milliseconds. */
@@ -166,12 +166,12 @@ export const build = defineObject(
                     ],
                 },
             },
-            lock: {
+            image: {
                 kind: "check",
                 condition: {
                     OR: [
-                        { state: "succeeded", lock: { isNotNull: true } },
-                        { state: { ne: "succeeded" }, lock: { isNull: true } },
+                        { state: "succeeded", image: { isNotNull: true } },
+                        { state: { ne: "succeeded" }, image: { isNull: true } },
                     ],
                 },
             },
@@ -264,8 +264,8 @@ export const build = defineObject(
                 /** The account publishing the build's package. */
                 account: schema.identifier("account"),
             }),
-            output: schema.object({ lock: Digest }),
-            prepared: schema.object({ lock: Digest }),
+            output: schema.object({ image: Digest }),
+            prepared: schema.object({ image: Digest }),
         }),
         /** Publish the succeeded build and its unpublished dependencies for the caller. */
         publish: method.mutation({
@@ -296,22 +296,22 @@ export const build = defineObject(
     }),
 );
 
-/** A build's state with the lock and failure the table's checks require of it. */
+/** A build's state with the image and failure the table's checks require of it. */
 export type BuildState =
-    | { readonly state: "succeeded"; readonly lock: Digest; readonly failure: null }
-    | { readonly state: "failed"; readonly lock: null; readonly failure: Failure }
+    | { readonly state: "succeeded"; readonly image: Digest; readonly failure: null }
+    | { readonly state: "failed"; readonly image: null; readonly failure: Failure }
     | {
           readonly state: "pending" | "running" | "cancelled";
-          readonly lock: null;
+          readonly image: null;
           readonly failure: null;
       };
 
-/** One recorded build: a succeeded build has its lock, a failed build its failure. */
+/** One recorded build: a succeeded build has its image, a failed build its failure. */
 export type Build = Omit<Select<typeof build.table>, keyof BuildState> & BuildState;
 
 /** What build retention retains and drops. */
 export interface BuildRetention {
-    /** The locks of the retained builds, releases among them. */
+    /** The images of the retained builds, releases among them. */
     readonly retained: ReadonlySet<Digest>;
     /** The unexpired builds retention drops. */
     readonly expired: readonly {
@@ -326,24 +326,29 @@ export const Build = {
     of<Row extends Pick<Select<typeof build.table>, "id" | keyof BuildState>>(
         row: Row,
     ): Omit<Row, keyof BuildState> & BuildState {
-        const { state, lock, failure } = row;
+        const { state, image, failure } = row;
 
-        // accept a succeeded build with its lock
-        if (state === "succeeded" && lock !== null && failure === null) {
-            return { ...row, state, lock, failure };
+        // accept a succeeded build with its image
+        if (state === "succeeded" && image !== null && failure === null) {
+            return { ...row, state, image, failure };
         }
         // accept a failed build with its failure
-        else if (state === "failed" && lock === null && failure !== null) {
-            return { ...row, state, lock, failure };
+        else if (state === "failed" && image === null && failure !== null) {
+            return { ...row, state, image, failure };
         }
         // accept an unfinished or cancelled build without either
-        else if (state !== "succeeded" && state !== "failed" && lock === null && failure === null) {
-            return { ...row, state, lock, failure };
+        else if (
+            state !== "succeeded" &&
+            state !== "failed" &&
+            image === null &&
+            failure === null
+        ) {
+            return { ...row, state, image, failure };
         }
         // refuse a row the table's checks refuse
         else {
             throw new TypeError(
-                `build '${row.id}' is '${state}' with a mismatched lock or failure`,
+                `build '${row.id}' is '${state}' with a mismatched image or failure`,
             );
         }
     },
@@ -360,12 +365,12 @@ export const Build = {
         return source.kind === "commit" ? source.commit : (entry.commit ?? undefined);
     },
 
-    /** Read a build's lock. */
-    lock(entry: Pick<Select<typeof build.table>, "id" | "expiredAt" | keyof BuildState>): Digest {
-        // read a succeeded build's lock until retention removes its files
+    /** Read a build's image. */
+    image(entry: Pick<Select<typeof build.table>, "id" | "expiredAt" | keyof BuildState>): Digest {
+        // read a succeeded build's image until retention removes its files
         const narrowed = Build.of(entry);
         if (narrowed.state === "succeeded" && narrowed.expiredAt === null) {
-            return narrowed.lock;
+            return narrowed.image;
         }
         // refuse an expired build
         else if (narrowed.state === "succeeded") {
@@ -375,7 +380,7 @@ export const Build = {
         else if (narrowed.state === "failed") {
             throw Failure.error(narrowed.failure);
         }
-        // refuse a build without a lock
+        // refuse a build without an image
         else {
             throw StackError.of(
                 "BUILD_UNAVAILABLE",
@@ -408,12 +413,12 @@ export const Build = {
         return JSON.stringify([source.repository, source.directory, source.commit]);
     },
 
-    /** Require a space's build with its lock, as a revision evaluates it. */
+    /** Require a space's build with its image, as a revision evaluates it. */
     async require(
         snapshot: Pick<Snapshot, "read">,
         spaceId: Identifier<"space">,
         buildId: Identifier<"build">,
-    ): Promise<Select<typeof build.table> & { readonly lock: Digest }> {
+    ): Promise<Select<typeof build.table> & { readonly image: Digest }> {
         // require the space's build, refusing one without its files
         const [found] = await snapshot
             .read(build.table)
@@ -422,7 +427,7 @@ export const Build = {
             throw StackError.of("BUILD_NOT_FOUND", `build '${buildId}' not found`);
         }
 
-        return { ...found, lock: Build.lock(found) };
+        return { ...found, image: Build.image(found) };
     },
 
     /** Read a space's build of a release, creating it pulled and born succeeded the first time. */
@@ -433,17 +438,17 @@ export const Build = {
         release: {
             readonly package: PackageId;
             readonly version: string;
-            readonly lock: Digest;
+            readonly image: Digest;
         },
-    ): Promise<{ readonly id: Identifier<"build">; readonly lock: Digest }> {
-        // take the space's live build of the release's lock
+    ): Promise<{ readonly id: Identifier<"build">; readonly image: Digest }> {
+        // take the space's live build of the release's image
         const [found] = await reader.read(build.table).findMany({
-            where: { scope: spaceId, lock: release.lock, expiredAt: { isNull: true } },
+            where: { scope: spaceId, image: release.image, expiredAt: { isNull: true } },
         });
 
         // create it pulled from the registry the first time
-        const { package: packageId, version, lock } = release;
-        const source = { kind: "release" as const, package: packageId, version, lock };
+        const { package: packageId, version, image } = release;
+        const source = { kind: "release" as const, package: packageId, version, image };
         const id =
             found?.id ??
             (await mutate([build.call("create", { ...build.in(spaceId), source })]))[0].id;
@@ -469,7 +474,7 @@ export const Build = {
                 id: build.table.id,
                 scope: build.table.scope,
                 source: build.table.source,
-                lock: build.table.lock,
+                image: build.table.image,
             })
             .from(build.table)
             .where(and(eq(build.table.state, "succeeded"), isNull(build.table.expiredAt)))
@@ -494,7 +499,7 @@ export const Build = {
                 // retain the latest builds and every applied one, and expire the rest
                 const id = schema.identifier("build").parse(row.id);
                 if (position < count || appliedBuilds.has(id)) {
-                    retained.add(present(row.lock, "a succeeded build's lock"));
+                    retained.add(present(row.image, "a succeeded build's image"));
                 } else {
                     expired.push({ id, scope: schema.identifier("space").parse(row.scope) });
                 }
