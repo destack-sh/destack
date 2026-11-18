@@ -1,7 +1,7 @@
 import type { Environment, FileSystem } from "@destack/environment";
 import type { PackageFile } from "../file/index.ts";
 import { PackageError } from "../error/index.ts";
-import { Lock } from "./lock.ts";
+import { BuildImage } from "./image.ts";
 import { PackageManifest } from "./manifest.ts";
 import { BuildReader, MANIFEST_PATH } from "./reader.ts";
 import { Digest, present, schema } from "@destack/schema";
@@ -43,10 +43,10 @@ export const LAYER_BLOBS = "blobs";
 export const LayerIndex = schema.object({
     /** The layer index format version. */
     formatVersion: schema.literal(LAYER_FORMAT),
-    /** The locks of the releases the layer ships, each with what it runs. */
+    /** The images of the releases the layer ships, each with what it runs. */
     releases: schema.array(Digest),
-    /** Each shipped lock, by its digest. */
-    locks: schema.record(Digest, Lock),
+    /** Each shipped image, by its digest. */
+    images: schema.record(Digest, BuildImage),
     /** The byte count of each layered build's manifest, by the manifest's digest. */
     builds: schema.record(Digest, schema.int()),
     /** How the file table finds a file: by its recorded path, or at its digest. */
@@ -238,7 +238,7 @@ export class BuildLayer {
             {
                 formatVersion: LAYER_FORMAT,
                 releases: [],
-                locks: {},
+                images: {},
                 builds: {},
                 addressing: "path",
             },
@@ -281,10 +281,10 @@ export class BuildLayer {
         );
     }
 
-    /** Write a layer directory's file table, then its index of its locks and builds. */
+    /** Write a layer directory's file table, then its index of its images and builds. */
     static async writeIndex(
         directory: string,
-        locks: ReadonlyMap<Digest, Lock>,
+        images: ReadonlyMap<Digest, BuildImage>,
         builds: LayerIndex["builds"],
         placed: readonly LayerFile[],
         addressing: LayerAddressing,
@@ -295,8 +295,8 @@ export class BuildLayer {
         await files.writeFile(files.join(directory, LAYER_FILES), table);
         const index: LayerIndex = {
             formatVersion: LAYER_FORMAT,
-            releases: [...locks.keys()],
-            locks: Object.fromEntries(locks),
+            releases: [...images.keys()],
+            images: Object.fromEntries(images),
             builds,
             addressing,
         };
@@ -308,14 +308,14 @@ export class BuildLayer {
         return this.#source === undefined;
     }
 
-    /** List the locks of the releases the layer ships, each with what it runs. */
+    /** List the images of the releases the layer ships, each with what it runs. */
     get releases(): readonly Digest[] {
         return this.#index.releases;
     }
 
-    /** Read a shipped lock, absent for a lock outside the layer. */
-    lock(digest: Digest): Lock | undefined {
-        return this.#index.locks[digest];
+    /** Read a shipped image, absent for an image outside the layer. */
+    image(digest: Digest): BuildImage | undefined {
+        return this.#index.images[digest];
     }
 
     /** List the real directories the layer's files lie in: its own, its trees' and its builds'. */
@@ -365,10 +365,10 @@ export class BuildLayer {
         return opened;
     }
 
-    /** Find a layered build's directory or a lock's run directory, absent off disk. */
+    /** Find a layered build's directory or an image's run directory, absent off disk. */
     directory(digest: Digest): string | undefined {
         const source = this.#source;
-        const isLayered = this.hasBuild(digest) || Object.hasOwn(this.#index.locks, digest);
+        const isLayered = this.hasBuild(digest) || Object.hasOwn(this.#index.images, digest);
 
         return source?.kind === "directory" && isLayered
             ? source.environment.files.join(source.directory, digest)
@@ -385,10 +385,10 @@ export class BuildLayer {
             : undefined;
     }
 
-    /** Describe a layered build's manifest or a layered lock, absent for one outside the layer. */
+    /** Describe a layered build's manifest or a layered image, absent for one outside the layer. */
     head(digest: Digest): PackageFile | undefined {
         const size =
-            this.hasBuild(digest) || Object.hasOwn(this.#index.locks, digest)
+            this.hasBuild(digest) || Object.hasOwn(this.#index.images, digest)
                 ? this.size(digest)
                 : undefined;
 
@@ -397,24 +397,24 @@ export class BuildLayer {
             : { path: MANIFEST_PATH, digest, size, mediaType: "application/json" };
     }
 
-    /** Read a layered blob's byte count: a lock's, a manifest's or a file's, absent for none. */
+    /** Read a layered blob's byte count: an image's, a manifest's or a file's, absent for none. */
     size(digest: Digest): number | undefined {
-        const lock = this.#index.locks[digest];
+        const image = this.#index.images[digest];
 
-        return lock === undefined
+        return image === undefined
             ? (this.#index.builds[digest] ?? this.#files.find(digest)?.size)
-            : Lock.serialize(lock).byteLength;
+            : BuildImage.serialize(image).byteLength;
     }
 
     /** Read a layered blob whole, absent for one outside the layer. */
     read(digest: Digest): Promise<Uint8Array<ArrayBuffer>> | undefined {
-        // serve a lock's canonical bytes, else read a manifest's or a file's path below the layer
-        const lock = this.#index.locks[digest];
+        // serve an image's canonical bytes, else read a manifest's or a file's path below the layer
+        const image = this.#index.images[digest];
         const path = this.hasBuild(digest)
             ? this.#manifestPath(digest)
             : this.#files.find(digest)?.path;
-        if (lock !== undefined) {
-            return Promise.resolve(Lock.serialize(lock));
+        if (image !== undefined) {
+            return Promise.resolve(BuildImage.serialize(image));
         } else if (path !== undefined) {
             return this.#read(path);
         } else {

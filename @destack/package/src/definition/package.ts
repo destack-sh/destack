@@ -153,11 +153,11 @@ export type PackageBuild = schema.Infer<typeof PackageBuild>;
 const packageRelease = schema.object({
     /** The released package name and version. */
     package: PackageVersion,
-    /** The digest of its lock: its build and every build it runs with. */
-    lock: Digest,
+    /** The digest of its image: its build and every build it runs with. */
+    image: Digest,
 });
 
-/** An immutable Destack release and the lock it runs with. */
+/** An immutable Destack release and the image it runs with. */
 export const PackageRelease = Object.assign(packageRelease, {
     /** Select the newest of the releases of a package, none when it has none. */
     newest(releases: readonly PackageRelease[], packageId: PackageId): PackageRelease | undefined {

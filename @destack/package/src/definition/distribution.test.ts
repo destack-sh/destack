@@ -18,7 +18,7 @@ const START = {
     version: "2.0.0",
 };
 
-/** The locks each slice builds. */
+/** The images each slice builds. */
 const LOCKS = {
     vaultArm: Digest.parse("a".repeat(64)),
     vaultIntel: Digest.parse("b".repeat(64)),
@@ -29,8 +29,8 @@ const LOCKS = {
 /** The arm64 slice's manifest. */
 const ARM: DistributionManifest = {
     releases: [
-        { package: VAULT, role: "builtin", locks: { "darwin-arm64": LOCKS.vaultArm } },
-        { package: START, role: "app", locks: { "darwin-arm64": LOCKS.startArm } },
+        { package: VAULT, role: "builtin", images: { "darwin-arm64": LOCKS.vaultArm } },
+        { package: START, role: "app", images: { "darwin-arm64": LOCKS.startArm } },
     ],
 };
 
@@ -38,20 +38,20 @@ const ARM: DistributionManifest = {
 const INTEL_VAULT: DistributionManifest["releases"][number] = {
     package: VAULT,
     role: "builtin",
-    locks: { "darwin-x64": LOCKS.vaultIntel },
+    images: { "darwin-x64": LOCKS.vaultIntel },
 };
 
 /** The x64 slice's start page release. */
 const INTEL_START: DistributionManifest["releases"][number] = {
     package: START,
     role: "app",
-    locks: { "darwin-x64": LOCKS.startIntel },
+    images: { "darwin-x64": LOCKS.startIntel },
 };
 
 /** The x64 slice's manifest, in another order. */
 const INTEL: DistributionManifest = { releases: [INTEL_START, INTEL_VAULT] };
 
-test("merge two slices' manifests into each release's locks on both platforms", () => {
+test("merge two slices' manifests into each release's images on both platforms", () => {
     // merge, then read each platform's releases and builtins back
     const merged = DistributionManifest.merge(ARM, INTEL);
     expect(merged).toEqual({
@@ -59,21 +59,21 @@ test("merge two slices' manifests into each release's locks on both platforms", 
             {
                 package: VAULT,
                 role: "builtin",
-                locks: { "darwin-arm64": LOCKS.vaultArm, "darwin-x64": LOCKS.vaultIntel },
+                images: { "darwin-arm64": LOCKS.vaultArm, "darwin-x64": LOCKS.vaultIntel },
             },
             {
                 package: START,
                 role: "app",
-                locks: { "darwin-arm64": LOCKS.startArm, "darwin-x64": LOCKS.startIntel },
+                images: { "darwin-arm64": LOCKS.startArm, "darwin-x64": LOCKS.startIntel },
             },
         ],
     });
     expect(DistributionManifest.releases(merged, "darwin-x64")).toEqual([
-        { package: VAULT, lock: LOCKS.vaultIntel },
-        { package: START, lock: LOCKS.startIntel },
+        { package: VAULT, image: LOCKS.vaultIntel },
+        { package: START, image: LOCKS.startIntel },
     ]);
     expect(DistributionManifest.builtins(merged, "darwin-arm64")).toEqual(
-        new Map([[VAULT.id, { package: VAULT, lock: LOCKS.vaultArm }]]),
+        new Map([[VAULT.id, { package: VAULT, image: LOCKS.vaultArm }]]),
     );
 });
 
@@ -81,7 +81,7 @@ test("merge a slice's manifest with itself unchanged", () => {
     expect(DistributionManifest.merge(ARM, ARM)).toEqual(ARM);
 });
 
-test("refuse to merge manifests of different packages, versions, roles or locks", () => {
+test("refuse to merge manifests of different packages, versions, roles or images", () => {
     // ship the start page in one slice only
     expect(() => DistributionManifest.merge(ARM, { releases: [INTEL_VAULT] })).toThrow(
         PackageError.of(
@@ -106,19 +106,19 @@ test("refuse to merge manifests of different packages, versions, roles or locks"
         ),
     );
 
-    // ship another lock on the same platform
-    const rebuilt = { ...INTEL_START, locks: { "darwin-arm64": LOCKS.startIntel } };
+    // ship another image on the same platform
+    const rebuilt = { ...INTEL_START, images: { "darwin-arm64": LOCKS.startIntel } };
     expect(() => DistributionManifest.merge(ARM, { releases: [INTEL_VAULT, rebuilt] })).toThrow(
         PackageError.of(
             "DISTRIBUTION_INVALID",
-            "distribution is invalid: it has two 'darwin-arm64' locks of 'start@2.0.0 (app)'",
+            "distribution is invalid: it has two 'darwin-arm64' images of 'start@2.0.0 (app)'",
         ),
     );
 });
 
-test("refuse to read a release without a lock on the platform", () => {
+test("refuse to read a release without an image on the platform", () => {
     expect(() => DistributionManifest.releases(ARM, "workerd")).toThrow(
-        new TypeError("'the workerd lock of @destack/vault' is missing"),
+        new TypeError("'the workerd image of @destack/vault' is missing"),
     );
 });
 

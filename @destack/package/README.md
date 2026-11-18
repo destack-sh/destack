@@ -19,7 +19,7 @@ Modules declare things:
 Builds are stored by digest:
 
 - `PackageManifest`: one build's files, outputs, requirements and interface.
-- `Lock`: a root build and the build of each package it runs with.
+- `BuildImage`: a root build and the build of each package it runs with.
 - `BuildReader`: a build opened by its manifest, every file checked against its digest.
 
 Define a kind, and read the calling package's version inside a module:
@@ -103,10 +103,10 @@ A manifest describes one build, and its digest is the build's address in every s
 | `interface` | the digest of what dependents' compilations read, so an unchanged one skips their rebuild |
 | `outputs`   | its compiled outputs by name, each with its runtime and exports                           |
 
-### Lock
+### BuildImage
 
-A lock is `{ root, builds }`: a root build, and one build per package it runs with.
-`Lock.digest` addresses it, `Lock.builds` lists every build, and `Lock.entries` reads them with their packages.
+An image is `{ root, builds }`: a root build, and one build per package it runs with.
+`BuildImage.digest` addresses it, `BuildImage.builds` lists every build, and `BuildImage.entries` reads them with their packages.
 
 ### BuildReader
 
@@ -200,13 +200,13 @@ Try to avoid using large code listings / prose in code listings to hack around t
 
 ### npm
 
-`destack.json` adds what npm's `package.json` lacks, and locks work like a flat `package-lock.json`.
+`destack.json` adds what npm's `package.json` lacks, and images work like a flat `package-lock.json`.
 
 | npm                  | `@destack/package`           | Difference                                                |
 | -------------------- | ---------------------------- | --------------------------------------------------------- |
 | `package.json`       | `destack.json` beside it     | Adds an id, runtimes, a sandbox and kinds.                |
 | a tarball by version | `PackageManifest`            | Addressed by its digest, with every file checked.         |
-| `package-lock.json`  | `Lock`                       | One build per name, each by digest.                       |
+| `package-lock.json`  | `BuildImage`                 | One build per name, each by digest.                       |
 | a dev version        | `2026.11.0-dev.<time>.<key>` | Stamped from the build's key, as in Go's pseudo-versions. |
 
 ### Deno permissions
