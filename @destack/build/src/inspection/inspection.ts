@@ -1,6 +1,6 @@
 import { type PackageVersion, DeclarationDescription } from "@destack/package";
 import { type Runtime } from "@destack/package/runtime";
-import { schema } from "@destack/schema";
+import { schema, type Version } from "@destack/schema";
 import { type ModuleDescription, ModuleGraph, PackageInspection } from "@destack/package/code";
 import { TestDeclaration } from "../outline/test.ts";
 
@@ -12,6 +12,8 @@ export interface InspectOptions {
     runtime: Runtime;
     /** The TypeScript configuration, absent for the package defaults. */
     configuration?: string;
+    /** The versions the inspected build releases its source packages at, by package name. */
+    versions?: Readonly<Record<string, Version>>;
 }
 
 /** Describe the modules and declarations collected by the compiler. */

@@ -221,7 +221,7 @@ export class CompilerWorker implements AsyncDisposable {
     async index(options: InspectOptions & Pick<RequestedBuild, "tree">): Promise<graph.Module[]> {
         // open the package and evaluate its declarations
         const project = await PackageSource.open(options, this.environment, this.#program);
-        const catalog = new ConstructorCatalog({}, this.environment.files);
+        const catalog = new ConstructorCatalog(options.versions ?? {}, this.environment.files);
         const transformer = new ModuleTransformer(this.environment);
         const evaluation = await Evaluation.evaluate([project], catalog, {
             isIndexing: true,

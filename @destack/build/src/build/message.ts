@@ -97,6 +97,7 @@ export const BuildRequest = schema.discriminatedUnion("kind", [
             runtime: Runtime,
             configuration: schema.string().exactOptional(),
             tree: RequestedBuild.shape.tree,
+            versions: RequestedBuild.shape.versions,
         }),
     }),
 ]);
