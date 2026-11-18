@@ -1299,10 +1299,10 @@ export class Computer implements AsyncDisposable {
             },
         };
         const exporter = new OtlpExporter(
-            async (signal, body) => {
+            async (signal, body, abort) => {
                 const own = machine();
                 if (own !== undefined && (await own.isEnrolled())) {
-                    await OtlpExporter.post(target, signal, body);
+                    await OtlpExporter.post(target, signal, body, abort);
                 }
             },
             // print a failure of the telemetry with its causes
