@@ -24,6 +24,9 @@ import { RatioSampler } from "../trace/sampler.ts";
 import { TailSampler } from "../trace/tail.ts";
 import { StackFrame, type Symbolicator } from "@destack/package/stack";
 
+/** How long one export may take by default before it fails: OTLP's OTEL_EXPORTER_OTLP_TIMEOUT. */
+const EXPORT_TIMEOUT_MILLISECONDS = 10_000;
+
 /** How often metrics export: once a minute, the resolution observability stores points at. */
 const METRIC_INTERVAL_MILLISECONDS = 60_000;
 
@@ -91,8 +94,16 @@ export interface OtlpTarget {
     readonly fetch: (request: Request) => Promise<Response>;
 }
 
-/** Deliver one OTLP/JSON export request of a signal, rejecting a refused delivery. */
-export type OtlpSend = (signal: OtlpSignal, body: Uint8Array) => Promise<void>;
+/** Deliver one OTLP/JSON export request of a signal, rejecting a refused or aborted delivery. */
+export type OtlpSend = (signal: OtlpSignal, body: Uint8Array, abort: AbortSignal) => Promise<void>;
+
+/** How an exporter reads exceptions and how long it lets a delivery take. */
+export interface OtlpExporterOptions {
+    /** The symbolicator of the build the exceptions ran, absent where none is at hand. */
+    readonly symbolicator?: Pick<Symbolicator, "frames">;
+    /** How long one delivery may take before its export fails, in milliseconds. */
+    readonly timeout?: number;
+}
 
 /** Exports every signal as OTLP/JSON through one delivery. */
 export class OtlpExporter {
@@ -104,6 +115,8 @@ export class OtlpExporter {
     readonly #symbolicator: Pick<Symbolicator, "frames"> | undefined;
     /** The deliveries in flight. */
     readonly #pending = new Set<Promise<void>>();
+    /** How long one delivery may take before its export fails, in milliseconds. */
+    readonly #timeout: number;
 
     /** The log record exporter, symbolicating exceptions first. */
     readonly logs: LogRecordExporter = {
@@ -140,14 +153,12 @@ export class OtlpExporter {
     };
 
     /** Export through a delivery, reporting its failures, symbolicating through a build. */
-    constructor(
-        send: OtlpSend,
-        report: (error: Error) => void,
-        symbolicator?: Pick<Symbolicator, "frames">,
-    ) {
+    constructor(send: OtlpSend, report: (error: Error) => void, options: OtlpExporterOptions = {}) {
+        // keep the delivery, the report, the symbolicator and the timeout
         this.#send = send;
         this.#report = report;
-        this.#symbolicator = symbolicator;
+        this.#symbolicator = options.symbolicator;
+        this.#timeout = options.timeout ?? EXPORT_TIMEOUT_MILLISECONDS;
     }
 
     /** Export over OTLP/HTTP below a target's endpoint, each signal at its `/v1/<signal>` path. */
@@ -157,14 +168,19 @@ export class OtlpExporter {
         symbolicator?: Pick<Symbolicator, "frames">,
     ): OtlpExporter {
         return new OtlpExporter(
-            (signal, body) => OtlpExporter.post(target, signal, body),
+            (signal, body, abort) => OtlpExporter.post(target, signal, body, abort),
             report,
-            symbolicator,
+            symbolicator === undefined ? {} : { symbolicator },
         );
     }
 
     /** Post one OTLP/JSON export request of a signal to a target, rejecting a refused delivery. */
-    static async post(target: OtlpTarget, signal: OtlpSignal, body: Uint8Array): Promise<void> {
+    static async post(
+        target: OtlpTarget,
+        signal: OtlpSignal,
+        body: Uint8Array,
+        abort: AbortSignal,
+    ): Promise<void> {
         // view the serialized bytes over their ArrayBuffer
         const buffer = body.buffer;
         if (!(buffer instanceof ArrayBuffer)) {
@@ -177,6 +193,7 @@ export class OtlpExporter {
             method: "POST",
             headers: { "content-type": "application/json", ...target.headers?.() },
             body: bytes,
+            signal: abort,
             ...(target.isKeepalive === true ? { keepalive: true } : {}),
         });
         const response = await target.fetch(request);
@@ -246,8 +263,12 @@ export class OtlpExporter {
             return;
         }
 
-        // deliver it, reporting a failure
-        const delivery = this.#send(signal, body).then(
+        // deliver it within the export timeout, failing one that outlasts it as OTLP exporters do, and report a failure
+        const abort = AbortSignal.timeout(this.#timeout);
+        const timedOut = new Promise<never>((_resolve, reject) => {
+            abort.addEventListener("abort", () => reject(abort.reason), { once: true });
+        });
+        const delivery = Promise.race([this.#send(signal, body, abort), timedOut]).then(
             () => done({ code: ExportResultCode.SUCCESS }),
             (cause: unknown) => {
                 const error = cause instanceof Error ? cause : new Error(String(cause));

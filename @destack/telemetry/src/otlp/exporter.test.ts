@@ -186,6 +186,33 @@ test("export a log record inside its span as OTLP/JSON, correlated by trace", as
     `);
 });
 
+test("fail an export that outlasts the timeout", async () => {
+    // export a log through a delivery that never settles but sees its abort
+    const reported: string[] = [];
+    let isAborted = false;
+    const exporter = new OtlpExporter(
+        (_signal, _body, abort) =>
+            new Promise<void>(() => {
+                abort.addEventListener("abort", () => {
+                    isAborted = true;
+                });
+            }),
+        (error) => reported.push(error.name),
+        { timeout: 10 },
+    );
+    const outcome = await new Promise<number>((resolve) => {
+        exporter.logs.export([], (result) => resolve(result.code));
+    });
+    await exporter.logs.forceFlush();
+
+    // fail the export, report the timeout and abort the delivery
+    expect({ outcome, reported, isAborted }).toEqual({
+        outcome: 1,
+        reported: ["TimeoutError"],
+        isAborted: true,
+    });
+});
+
 test("post each signal below a target's endpoint through the target's fetch", async () => {
     // record each request the target's fetch posts
     await using simulation = testSimulation();
@@ -243,8 +270,10 @@ test("export a captured exception with the frames its build's symbolicator resol
             throw error;
         },
         {
-            frames: async (frames) =>
-                frames.map((frame) => ({ ...frame, path: "src/note.ts", line: 7, column: 3 })),
+            symbolicator: {
+                frames: async (frames) =>
+                    frames.map((frame) => ({ ...frame, path: "src/note.ts", line: 7, column: 3 })),
+            },
         },
     );
     const telemetry = await startTelemetry(exporter.options(source), environment);
