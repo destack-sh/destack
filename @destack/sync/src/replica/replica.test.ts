@@ -2006,17 +2006,23 @@ test("keep a replica live while its pages arrive within the lag, and end a strea
     const silent = isLive();
     const kept = streams;
 
-    // end the silent stream to resume once the second lag passes without a page
+    // end the silent stream to resume once the second lag passes without a page, warning of it
     await simulation.sleep(30_000);
     controller.abort();
     await simulation.wait(following);
-    expect({ live, beaten, silent, kept, streams, stopped: isLive() }).toEqual({
+    const warned = simulation.telemetry.logs.map((record) => [
+        record.eventName,
+        record.attributes["destack.replica.name"],
+        record.attributes["destack.replica.received"],
+    ]);
+    expect({ live, beaten, silent, kept, streams, stopped: isLive(), warned }).toEqual({
         live: true,
         beaten: true,
         silent: false,
         kept: 1,
         streams: 2,
         stopped: false,
+        warned: [["destack.replica.silent", "notes", true]],
     });
 });
 test("stop a follow's silence timer when its stream fails, as when it stops", async () => {

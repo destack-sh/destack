@@ -66,7 +66,7 @@ import { Run } from "../dataflow/run.ts";
 import { Trace, type Group, type Upstream } from "../dataflow/upstream.ts";
 import { View } from "../dataflow/view.ts";
 import { scopeTable } from "../scope/table.ts";
-import { RetryPolicy, waitAborted } from "@destack/environment";
+import { RetryPolicy, untilAborted } from "@destack/environment";
 
 /** The staged pages a run's completion reads at once. */
 const STAGED_BATCH = 16;
@@ -779,7 +779,6 @@ export class Replica {
         check: () => Promise<boolean>,
         signal: AbortSignal,
     ): Promise<boolean> {
-        const aborted = waitAborted(signal);
         while (!signal.aborted) {
             // watch the marks from before the check, so no change passes unseen
             const changed = Promise.withResolvers<void>();
@@ -788,7 +787,7 @@ export class Replica {
                 if (await check()) {
                     return true;
                 }
-                await Promise.race([changed.promise, aborted]);
+                await untilAborted(changed.promise, signal);
             } finally {
                 unwatch();
             }
@@ -1817,8 +1816,16 @@ export class Replica {
                     }
                 }
 
-                // resume a stream ended for its silence like one that delivered pages
-                isReceived ||= silent.signal.aborted && !signal.aborted;
+                // resume a stream ended for its silence like one that delivered pages, warning of it
+                const isSilenced = silent.signal.aborted && !signal.aborted;
+                if (isSilenced) {
+                    this.#scope(database).log.warn("destack.replica.silent", {
+                        "destack.replica.name": this.name,
+                        "destack.replica.scope": this.scope,
+                        "destack.replica.received": isReceived,
+                    });
+                }
+                isReceived ||= isSilenced;
 
                 // back off before following again as a follower its issuer refuses, logging the first refusal
                 if (isRefused) {
