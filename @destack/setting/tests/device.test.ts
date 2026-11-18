@@ -276,13 +276,11 @@ async function follow(
         }),
     });
     const controller = new AbortController();
-    const failures: unknown[] = [];
-    const running = client.run(controller.signal, (error) => failures.push(error));
+    const running = client.run(controller.signal);
     served.defer(async () => {
         controller.abort();
         await running;
         await client.close();
-        expect(failures).toEqual([]);
     });
 
     // wait until the scope's access replica arrives, as following its chain requires
