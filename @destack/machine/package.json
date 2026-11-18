@@ -71,7 +71,6 @@
         "@types/bun": "1.4.4",
         "happy-dom": "21.0.4",
         "fake-indexeddb": "6.2.5",
-        "@destack/template-stack": "workspace:*",
         "@destack/observability": "workspace:*",
         "@destack/finance": "workspace:*",
         "@destack/forge": "workspace:*",

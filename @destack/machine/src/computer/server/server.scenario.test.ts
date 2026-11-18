@@ -29,10 +29,8 @@ import { ComputerServer } from "./computer.ts";
 import { TOKEN_LIFETIME_MILLISECONDS } from "@destack/access/token";
 import { OWNER_EMAIL, TestComputer, TestDistribution } from "../test/index.ts";
 
-/** The template stack package, used as a registered checkout. */
-const templateStack = dirname(
-    dirname(fileURLToPath(import.meta.resolve("@destack/template-stack"))),
-);
+/** The fixture stack package, used as a registered checkout. */
+const stackFixture = fileURLToPath(new URL("../../../tests/fixture/stack/", import.meta.url));
 
 /** The stack package of the registered checkout's working tree. */
 const STACK_CHECKOUT_PACKAGE = "package-01996ab0-0000-7000-8000-0000000000d1";
@@ -488,7 +486,7 @@ test("decide checkout permissions for the owner, the machine and a stranger", as
     const registered = await client.checkout.create({
         machineId: machine.id,
         requestId: RequestId.create(opened.environment),
-        directory: templateStack,
+        directory: stackFixture,
         source: { kind: "existing" },
     });
     const read = await client.checkout.get({ machineId: machine.id, id: registered.id });

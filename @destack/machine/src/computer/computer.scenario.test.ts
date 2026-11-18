@@ -1,4 +1,3 @@
-import { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { CLIENT_KEYS, SESSIONS } from "@destack/account/native";
 import { account, endpoint } from "@destack/account/object";
@@ -10,10 +9,8 @@ import machinePackage from "../package.ts";
 import { Computer, MACHINE_KEYS, ROOT_KEYS } from "./computer.ts";
 import { OWNER_EMAIL, TestComputer } from "./test/index.ts";
 
-/** The template stack package, used as a registered checkout. */
-const templateStack = dirname(
-    dirname(fileURLToPath(import.meta.resolve("@destack/template-stack"))),
-);
+/** The fixture stack package, used as a registered checkout. */
+const stackFixture = fileURLToPath(new URL("../../tests/fixture/stack/", import.meta.url));
 
 /** Another machine's entry in the system's keychains, which erasing leaves. */
 const OTHER_MACHINE = "machine-01a10f00-0000-7000-8000-000000000003";
@@ -97,7 +94,7 @@ test("list a relayed computer's checkouts as its account's owner on another comp
     const registered = await relayed.connect(machinePackage).checkout.create({
         machineId: relayed.machine.id,
         requestId: RequestId.create(relayed.environment),
-        directory: templateStack,
+        directory: stackFixture,
         source: { kind: "existing" },
     });
 
