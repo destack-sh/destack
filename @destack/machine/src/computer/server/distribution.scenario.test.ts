@@ -129,7 +129,7 @@ test("report a universe its repository refuses as the controller's failure", asy
             taken: world.telemetry.take().map((captured) => captured.message),
         }).toEqual({
             captured: [
-                "destack.distribution.universe",
+                "destack.distribution.stage",
                 key,
                 "metadata not found: metadata request failed: HTTP 404",
             ],
