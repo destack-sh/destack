@@ -3,7 +3,7 @@ import type { ProviderClients } from "@destack/account/better-auth";
 import { FORGE_INSTALLATION } from "@destack/forge/package";
 import { WORKERD_COMPATIBILITY_DATE } from "@destack/package/runtime";
 import { builtinModules } from "node:module";
-import { resolve } from "node:path";
+import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { type Plugin, rolldown } from "rolldown";
 import { DOMAINS, InstallationOrigin, UniverseOrigin } from "@destack/account/address";
@@ -24,12 +24,27 @@ import type { Deployment } from "../deployment.ts";
 import { PLATFORM, type PlatformResidency, RESIDENCIES } from "@platform/stack";
 import { CloudflareCredentials } from "./credential.ts";
 import { present, schema } from "@destack/schema";
+import { FileSystemError } from "@destack/environment";
 
 /** The pause before asking again when nothing listens at a Worker's origin yet: 0.2 s. */
 const CONNECT_RETRY_MILLISECONDS = 200;
 
 /** How long a Worker may take to answer: four times the slowest local start measured, 15 s. */
 const ANSWER_MILLISECONDS = 60_000;
+
+/** The file beside a bundled script with the digests of every input it was bundled from. */
+const INPUTS_FILE = "inputs.json";
+
+/** The manifests the module transformer reads of each bundled module's package. */
+const MANIFESTS = ["package.json", "destack.json"];
+
+/** The digests of a bundle's inputs: its supplied modules, and each file by path. */
+const BundleInputs = schema.object({
+    supplied: schema.string(),
+    files: schema.record(schema.string(), schema.string()),
+});
+/** The digests of a bundle's inputs. */
+type BundleInputs = schema.Infer<typeof BundleInputs>;
 
 /** What a starting server answers: its reason and the pause before asking again. */
 const Starting = schema.looseObject({
@@ -330,8 +345,8 @@ export class WorkerScript {
         };
     }
 
-    /** Bundle the script's entry and its supplied modules for workerd into one module. */
-    async build(directory: string, modules: SuppliedModules): Promise<void> {
+    /** Bundle the script for workerd into one module, answering the files it read. */
+    async build(directory: string, modules: SuppliedModules): Promise<readonly string[]> {
         // bundle with module metadata, leaving workerd's own modules to the runtime
         const { environment } = this.deployment;
         const { files } = environment;
@@ -368,19 +383,124 @@ export class WorkerScript {
         // write the module
         await files.mkdir(directory, { recursive: true });
         await files.writeTextFile(resolve(directory, "index.js"), chunk.code);
+
+        // answer the bundled files, leaving out the supplied virtual modules
+        return chunk.moduleIds.filter((id) => !id.startsWith("\0"));
     }
 
-    /** Bundle the script and write its wrangler configuration beside it, answering its path. */
+    /** Bundle the script when an input changed, write its configuration, and answer its path. */
     async write(configuration: WranglerConfiguration, modules: SuppliedModules): Promise<string> {
-        // bundle the script into a fresh directory with its configuration beside it
+        // bundle the script into a fresh directory unless its last bundle read the same inputs
         const { files } = this.deployment.environment;
         const directory = resolve(ROOT, ".wrangler", this.deployment.stage.name, this.name);
-        await files.remove(directory, { recursive: true, force: true });
-        await this.build(directory, modules);
+        const inputs = resolve(directory, INPUTS_FILE);
+        if (!(await this.#isBundled(directory, modules))) {
+            await this.deployment.scope.span(
+                "platform.worker.bundle",
+                { "platform.worker.name": this.service },
+                async () => {
+                    // bundle into a fresh directory, recording the inputs it read
+                    await files.remove(directory, { recursive: true, force: true });
+                    const read = await this.build(directory, modules);
+                    const digests = await this.#inputs(read, modules);
+                    await files.writeTextFile(inputs, JSON.stringify(digests));
+                },
+                { level: "info" },
+            );
+        }
+
+        // write the configuration, which changes without the bundle
         const path = resolve(directory, "wrangler.json");
         await files.writeTextFile(path, `${JSON.stringify(configuration, null, 4)}\n`);
 
         return path;
+    }
+
+    /** Decide whether the script's last bundle read the same inputs as now. */
+    async #isBundled(directory: string, modules: SuppliedModules): Promise<boolean> {
+        // read the last bundle's inputs, none before a first bundle
+        const { files } = this.deployment.environment;
+        const text = await files
+            .readTextFile(resolve(directory, INPUTS_FILE))
+            .catch((error: unknown) => {
+                if (FileSystemError.is(error, "FILE_NOT_FOUND")) {
+                    return undefined;
+                }
+                throw error;
+            });
+        if (text === undefined) {
+            return false;
+        }
+
+        // compare them with the same files' digests now
+        const recorded = BundleInputs.parse(JSON.parse(text));
+        const current = await this.#inputs(Object.keys(recorded.files), modules);
+
+        return (
+            current.supplied === recorded.supplied &&
+            Object.entries(recorded.files).every(([path, digest]) => current.files[path] === digest)
+        );
+    }
+
+    /** Digest a bundle's files, their manifests, the bundler and the supplied modules. */
+    async #inputs(read: readonly string[], modules: SuppliedModules): Promise<BundleInputs> {
+        // add the manifests of each read file's package and the bundler's own code
+        const { files, crypto } = this.deployment.environment;
+        const roots = new Map<string, string | undefined>();
+        const packages = new Set(
+            (await Promise.all(read.map((path) => this.#root(dirname(path), roots)))).flatMap(
+                (root) => root ?? [],
+            ),
+        );
+        const paths = [
+            ...new Set([
+                ...read,
+                ...[...packages].flatMap((root) => MANIFESTS.map((name) => resolve(root, name))),
+                fileURLToPath(import.meta.url),
+                fileURLToPath(import.meta.resolve("rolldown/package.json")),
+            ]),
+        ];
+
+        // digest each file, a missing one as absent
+        const digest = async (bytes: Uint8Array<ArrayBuffer>) =>
+            new Uint8Array(await crypto.digest("SHA-256", bytes)).toHex();
+        const entries = await Promise.all(
+            paths.map(async (path) => {
+                const bytes = await files.readFile(path).catch((error: unknown) => {
+                    if (FileSystemError.is(error, "FILE_NOT_FOUND")) {
+                        return undefined;
+                    }
+                    throw error;
+                });
+
+                return [path, bytes === undefined ? "" : await digest(bytes)] as const;
+            }),
+        );
+        const supplied = await digest(new TextEncoder().encode(JSON.stringify(modules)));
+
+        return { supplied, files: Object.fromEntries(entries) };
+    }
+
+    /** Find the package directory a directory lies in, the nearest one with a package.json. */
+    async #root(
+        directory: string,
+        roots: Map<string, string | undefined>,
+    ): Promise<string | undefined> {
+        // answer a directory looked up before, else look in it, then in its parent
+        if (roots.has(directory)) {
+            return roots.get(directory);
+        }
+        const parent = dirname(directory);
+        const root = (await this.deployment.environment.files.exists(
+            resolve(directory, "package.json"),
+        ))
+            ? directory
+            : parent === directory
+              ? undefined
+              : await this.#root(parent, roots);
+        roots.set(directory, root);
+
+        return root;
     }
 
     /** Wait until the script answers at its origin without a server failure, in milliseconds. */
