@@ -59,7 +59,7 @@ import { type PartitionId, SPACE_KEY, TokenVerifier } from "@destack/access/toke
 import { createClient, type ClientOf } from "@destack/object/client";
 import { Health } from "@destack/object/server";
 import type { Alarm } from "@destack/db";
-import { copyRequest, waitAborted } from "@destack/environment";
+import { copyRequest, untilAborted } from "@destack/environment";
 import { RequestId, type Publisher, Scope } from "@destack/sync";
 import type { HibernationHost } from "@destack/object/workload";
 import {
@@ -434,7 +434,7 @@ export class Machine {
 
     /** Wait until this machine's own job read an enrollment, or until aborted. */
     async #waitEnrolled(signal: AbortSignal): Promise<void> {
-        await Promise.race([this.#enrolling.promise, waitAborted(signal)]);
+        await untilAborted(this.#enrolling.promise, signal);
     }
 
     /** Read this machine's enrollment for an action, refusing it unenrolled or revoked. */
@@ -956,7 +956,7 @@ export class Machine {
         while ((await this.#enrollment()) === undefined) {
             this.health.set("starting", "it has not enrolled yet");
             synced();
-            await Promise.race([following.changed(), waitAborted(signal)]);
+            await untilAborted(following.changed(), signal);
             if (signal.aborted) {
                 return;
             }

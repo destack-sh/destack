@@ -1,4 +1,4 @@
-import { waitAborted } from "@destack/environment";
+import { untilAborted, waitAborted } from "@destack/environment";
 import {
     and,
     type BlobStore,
@@ -614,7 +614,7 @@ export class SpaceTransfer {
             .catch((error: unknown) => halted.abort(error));
         try {
             // copy the rows' blobs once the replica took its first complete run, index the builds among them, then restore each resource
-            await Promise.race([isSynced.promise, waitAborted(following)]);
+            await untilAborted(isSynced.promise, following);
             following.throwIfAborted();
             await this.#copyBlobs(source, options.blobs, signal);
             await this.#indexBuilds(options.builds);
