@@ -36,7 +36,6 @@ import {
     SOCKET_PATH,
 } from "@destack/object/workload";
 import {
-    CodeIndex,
     type DeploymentRuntime,
     type Endpoint,
     Instance,
@@ -183,7 +182,7 @@ export type GatewaySpace = Pick<
     /** The space's workload, which tells the protocols its packages implement. */
     readonly instance: Pick<WorkloadInstance, "implements">;
     /** The space's builds, reading through to its machine's builds. */
-    readonly builds: Pick<BuildStore, "contents" | "referrer" | "file" | "get">;
+    readonly builds: Pick<BuildStore, "contents" | "attachment" | "graph" | "file" | "get">;
     /** The keystore signing as the space and deriving its secrets. */
     readonly keystore: Pick<IdentityKeystore, "issuer" | "deriver">;
     /** The machine serving the space: its clock, runtimes, network, directory and traffic. */
@@ -1280,12 +1279,12 @@ export class Gateway {
             return known.attribution;
         }
 
-        // read the build and the code index attached to its manifest, forgetting a failed read
+        // read the build and the graph attached to its manifest, forgetting a failed read
         const packages = this.#space.builds;
         const attribution = Promise.all([
             packages.contents(manifest),
-            CodeIndex.read(packages, manifest),
-        ]).then(([reader, index]) => new Attribution(reader, index));
+            packages.graph(manifest),
+        ]).then(([reader, modules]) => new Attribution(reader, modules));
         const entry = { manifest, attribution };
         this.#attributions.set(installationId, entry);
         attribution.catch(() => {

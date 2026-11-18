@@ -5,14 +5,14 @@ import { fileURLToPath } from "node:url";
 import { eq } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
 import type { DurableObjectNamespace } from "@destack/db/cloudflare";
-import { PackageVersion } from "@destack/package";
+import { graph, PackageVersion } from "@destack/package";
 import { modulePlugin } from "@destack/package/vite";
 import { ModuleTransformer } from "@destack/package/transform";
 import { rolldown } from "rolldown";
 import { testHost } from "@destack/test/host";
 import { testSimulation } from "@destack/object/test";
 import { MemoryBuild } from "@destack/package/test";
-import { Digest, type Identifier, schema } from "@destack/schema";
+import { Digest, type Identifier, present, schema } from "@destack/schema";
 import { expect, onTestFinished, test } from "@destack/test";
 import { build, declaration } from "@destack/stack/object";
 import { spaceTables } from "@destack/stack/stack";
@@ -28,7 +28,7 @@ const builds = [
     schema.identifier("build").parse("build-01996ab0-0000-7000-8000-0000000000a2"),
 ] as const;
 
-test("share one graph index per manifest and delete it a lease after its last view", async () => {
+test("share one graph view per manifest and delete it a lease after its last view", async () => {
     // record a release declaring a notification as two builds of the space, in a world of its own
     const simulation = testSimulation();
     const world = simulation.environment("test");
@@ -68,6 +68,22 @@ test("share one graph index per manifest and delete it a lease after its last vi
         );
     }
 
+    // give the release a graph: the module declaring the notification, as its builder attaches it
+    const [declared] = await reader.declarations();
+    const path = graph.Moniker.module(present(declared, "the notification").symbol);
+    const module = graph.Module.of({
+        path,
+        digest: present(
+            (await reader.files()).find((file) => file.path === path),
+            "the declaring module",
+        ).digest,
+        imports: [],
+        exports: [],
+        declarations: [present(declared, "the notification")],
+        symbols: [],
+        edges: [],
+    });
+
     // read each build's notification through the index objects, counting the builds read
     let opened = 0;
     const namespace = await indexes();
@@ -82,8 +98,9 @@ test("share one graph index per manifest and delete it a lease after its last vi
 
                     return reader;
                 },
-                referrer: async () => undefined,
-                file: () => Promise.reject(new TypeError("the builds carry no code index")),
+                attachment: async () => undefined,
+                graph: async () => [module],
+                file: () => Promise.reject(new TypeError("the test reads no files")),
             },
             namespace,
             LEASE_MILLISECONDS,
@@ -119,8 +136,8 @@ test("share one graph index per manifest and delete it a lease after its last vi
 });
 
 /** Read a build's notification declaration through its index object. */
-async function readNotification(graph: DurableObjectGraphStorage, id: Identifier<"build">) {
-    const database = await graph.open(id);
+async function readNotification(graphs: DurableObjectGraphStorage, id: Identifier<"build">) {
+    const database = await graphs.open(id);
     const [row] = await database
         .select({
             scope: declaration.table.scope,

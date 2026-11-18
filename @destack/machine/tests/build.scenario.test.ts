@@ -1,3 +1,4 @@
+import { fixtureGraph } from "@destack/build/test";
 import { testHost } from "@destack/test/host";
 import { Failure } from "@destack/error";
 import { principal } from "@destack/access";
@@ -9,6 +10,7 @@ import { expect, refusal, test } from "@destack/test";
 import { BuildSource } from "@destack/stack/object";
 import stackPackage from "@destack/stack/package";
 import { ids, TestSpace } from "../src/test/index.ts";
+import { graph } from "@destack/package";
 
 /** The output the builds compile. */
 const OUTPUTS = ["bun"];
@@ -77,12 +79,17 @@ test("run a checkout's build as its machine and read its lock back from the buil
         progress: { phase: "building", outputs: OUTPUTS, commit: COMMIT },
     });
 
-    // push every file, the manifest and the lock into the space's empty builds, then finish
+    // push every file, the manifest, the lock and the graph into the space's empty builds, then finish
     const reader = await writeBuild();
     const root = await Digest.of(PackageManifest.serialize(reader.manifest), testHost().crypto);
     const expected = Lock.of(root);
     const locked = await Lock.digest(expected, testHost().crypto);
-    const lacking = [...new Set([...(await digests(reader)), root, locked])].toSorted();
+    const graphs = await Promise.all(
+        (await fixtureGraph(reader)).map(
+            async (module) => (await graph.Module.file(module, testHost().crypto)).digest,
+        ),
+    );
+    const lacking = [...new Set([...(await digests(reader)), root, locked, ...graphs])].toSorted();
     const uploaded = await fixture.storeBuild(machine, target, reader);
     const finished = await runner.build.get(target);
     const lock = present(finished.lock, "the stored lock");
@@ -181,7 +188,7 @@ test("refuse advancing a build to anyone but its runner, and a build not running
     const unstarted = await refusal(
         runner.build.finish({
             ...target,
-            end: { kind: "failed", failure: Failure.http("INTERNAL_SERVER_ERROR", "x") },
+            outcome: { kind: "failed", failure: Failure.http("INTERNAL_SERVER_ERROR", "x") },
         }),
     );
 
@@ -212,7 +219,7 @@ test("fail a running build with the failure its runner reports, and refuse cance
     await runner.build.finish({
         ...target,
         requestId: RequestId.create(fixture.machine.environment),
-        end: { kind: "failed", failure },
+        outcome: { kind: "failed", failure },
     });
 
     // read the failure and refuse cancelling the finished build

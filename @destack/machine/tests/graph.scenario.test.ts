@@ -37,17 +37,16 @@ const UNKNOWN_BUILD = schema
     .parse("build-01996ab0-0000-7000-8000-000000000003");
 
 test("serve a build's modules, declarations and symbols to its readers", async () => {
-    // record the notebook's build with its code index twice as the space's builds of one manifest
+    // record the notebook's build with its graph twice as the space's builds of one manifest
     const fixture = await TestSpace.open();
     const { simulation } = fixture;
     const { clock } = simulation;
     await fixture.serve();
     const notebook = await writeNotebook();
     const stored = notebook.reader;
-    const index = { code: notebookCode(), modules: notebook.modules };
-    const { build: buildId } = await fixture.recordBuild(stored, index);
+    const { build: buildId } = await fixture.recordBuild(stored, notebook.modules);
     await simulation.jump(clock.now() + 1);
-    const { build: rebuiltId } = await fixture.recordBuild(stored, index);
+    const { build: rebuiltId } = await fixture.recordBuild(stored, notebook.modules);
     const [rebuild] = await fixture.database
         .select({ finishedAt: build.table.finishedAt })
         .from(build.table)
@@ -77,9 +76,8 @@ test("serve a build's modules, declarations and symbols to its readers", async (
         return [
             row.moniker,
             row.moduleId,
-            row.kind,
             row.name,
-            row.signature,
+            row.declarations.map((each) => [each.kind, each.signature]),
             relations(row.relationships),
         ];
     };
@@ -119,9 +117,8 @@ test("serve a build's modules, declarations and symbols to its readers", async (
         [
             `${at}#notebook`,
             moduleId,
-            "variable",
             "notebook",
-            NOTEBOOK_SIGNATURE,
+            [["variable", NOTEBOOK_SIGNATURE]],
             [`calls ${packages.object}`],
         ],
         [rebuiltId, rebuild?.finishedAt],
@@ -181,11 +178,9 @@ test("refuse to open the graph of a build the space does not record", async () =
         storage.database,
         {
             storeOf: refuse,
-            contains: async () => false,
             lock: refuse,
             contents: refuse,
-            referrer: refuse,
-            file: refuse,
+            graph: refuse,
         },
         world.files,
     );
@@ -219,38 +214,6 @@ function relations(
 /** The printed declaration of the notebook's variable. */
 const NOTEBOOK_SIGNATURE = "const notebook: ObjectType";
 
-/** The notebook's code index: its variable, which calls the object package's constructor. */
-function notebookCode(): graph.Document[] {
-    const notebook = graph.Moniker.of({
-        packageId: NOTEBOOK_ID,
-        module: "src/object.ts",
-        name: "notebook",
-    });
-
-    return [
-        {
-            path: "src/object.ts",
-            digest: Digest.parse("0".repeat(64)),
-            symbols: [
-                {
-                    moniker: notebook,
-                    kind: "variable",
-                    source: { file: "src/object.ts", start: 0, end: 20 },
-                    signature: NOTEBOOK_SIGNATURE,
-                    isExported: true,
-                },
-            ],
-            edges: [
-                {
-                    from: notebook,
-                    to: graph.Moniker.parse(`${packages.object}/src/object.ts#defineObject`),
-                    kind: "calls",
-                },
-            ],
-        },
-    ];
-}
-
 /** Write the notebook's build and its module graph: an entry, the object and two procedures. */
 async function writeNotebook(): Promise<{ reader: BuildReader; modules: graph.Module[] }> {
     // name each module's symbols and declarations by moniker
@@ -279,18 +242,19 @@ async function writeNotebook(): Promise<{ reader: BuildReader; modules: graph.Mo
         ]),
     );
     const digest = (path: string) => Digest.of(found(sources, path), testHost().crypto);
-    const written: graph.Module[] = [
+    const written = [
         {
             path: "src/index.ts",
             digest: await digest("src/index.ts"),
             imports: ["./object.ts"],
             exports: [],
             declarations: [],
+            symbols: [],
             edges: [
                 {
                     from: monikerOf("src/index.ts"),
                     to: monikerOf("src/object.ts"),
-                    kind: "depends",
+                    kind: "depends" as const,
                 },
             ],
         },
@@ -307,11 +271,29 @@ async function writeNotebook(): Promise<{ reader: BuildReader; modules: graph.Mo
                     description: {},
                 }),
             ],
+            symbols: [
+                {
+                    moniker: notebook,
+                    declarations: [
+                        {
+                            kind: "variable" as const,
+                            source: { file: "src/object.ts", start: 0, end: 20 },
+                            signature: NOTEBOOK_SIGNATURE,
+                        },
+                    ],
+                    isExported: true,
+                },
+            ],
             edges: [
                 {
                     from: monikerOf("src/object.ts"),
                     to: graph.Moniker.parse(`${packages.object}/src/index.ts`),
-                    kind: "depends",
+                    kind: "depends" as const,
+                },
+                {
+                    from: notebook,
+                    to: graph.Moniker.parse(`${packages.object}/src/object.ts#defineObject`),
+                    kind: "calls" as const,
                 },
             ],
         },
@@ -321,11 +303,12 @@ async function writeNotebook(): Promise<{ reader: BuildReader; modules: graph.Mo
             imports: ["./object.ts"],
             exports: [{ name: "notebooksService", symbol: service, isTypeOnly: false }],
             declarations: [notebooksService, procedure("notebook.get"), procedure("notebook.list")],
+            symbols: [],
             edges: [
                 {
                     from: monikerOf("src/service.ts"),
                     to: monikerOf("src/object.ts"),
-                    kind: "depends",
+                    kind: "depends" as const,
                 },
             ],
         },
@@ -344,5 +327,5 @@ async function writeNotebook(): Promise<{ reader: BuildReader; modules: graph.Mo
         testHost().crypto,
     );
 
-    return { reader, modules: written };
+    return { reader, modules: written.map((each) => graph.Module.of(each)) };
 }

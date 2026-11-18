@@ -1,3 +1,4 @@
+import { fixtureGraph } from "@destack/build/test";
 import { ObjectReference } from "@destack/sync";
 import { checkout } from "../src/computer/checkout/object/index.ts";
 import { TestRegistry } from "../src/test/build.ts";
@@ -259,7 +260,7 @@ test("install an application from a checkout by submitting its build, following 
 
     // submit the checkout's build, apply it, and open the view it mounts
     const reader = await fixtureBuild(ids.package, "2026.9.0", fixture.environment.crypto);
-    const recorded = await fixture.recordBuild(reader);
+    const recorded = await fixture.recordBuild(reader, await fixtureGraph(reader));
     await deployBuild(fixture, notes.id, recorded);
     await fixture.simulation.idle();
     const installed = await readInstalled(fixture.database, notes.id);

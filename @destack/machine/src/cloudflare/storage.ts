@@ -75,7 +75,7 @@ export interface DurableObjectSpaceStorageOptions {
     readonly facet: (installation: string) => {
         readonly fetch: (request: Request) => Promise<Response>;
     };
-    /** The builds' graph index objects, one per manifest. */
+    /** The builds' graph view objects, one per manifest. */
     readonly graphs: DurableObjectNamespace;
     /** The jurisdiction of the objects, empty for none. */
     readonly jurisdiction: Jurisdiction;
@@ -263,7 +263,7 @@ export class DurableObjectVolume implements Volume {
     readonly #files: R2Bucket;
     /** The space's buckets, once served. */
     #buckets: R2BucketHost | undefined;
-    /** The graph indexes of the space's builds, once read. */
+    /** The graph views of the space's builds, once read. */
     #graph: DurableObjectGraphStorage | undefined;
 
     /** Take what the object opened for its space. */
@@ -343,7 +343,10 @@ export class DurableObjectVolume implements Volume {
 
     /** Open the graphs of the space's builds once, one object per manifest. */
     graphs(
-        builds: Pick<BuildStore, "contains" | "contents" | "lock" | "referrer" | "file">,
+        builds: Pick<
+            BuildStore,
+            "contains" | "contents" | "lock" | "attachment" | "graph" | "file"
+        >,
     ): DurableObjectGraphStorage {
         // index each manifest in an object of the jurisdiction
         const indexes = Jurisdiction.narrow(this.#options.graphs, this.#options.jurisdiction);

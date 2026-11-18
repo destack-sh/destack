@@ -98,8 +98,9 @@ export function openGateway(
             residencyHome: async () => ids.residencyHome,
             builds: {
                 contents: refuse("read builds"),
-                referrer: refuse("read code indexes"),
-                file: refuse("read code indexes"),
+                attachment: refuse("read graphs"),
+                graph: refuse("read graphs"),
+                file: refuse("read graphs"),
                 get: refuse("read builds"),
             },
             machine: {

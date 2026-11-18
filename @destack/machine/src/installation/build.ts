@@ -5,6 +5,7 @@ import { and, eq, Snapshot } from "@destack/db";
 import { setting, SettingValue } from "@destack/setting/object";
 import { buildRetention } from "@destack/stack/setting";
 import { type BuildObject, BuildStore } from "@destack/build/store";
+import type { PackageFile } from "@destack/package/file";
 import type { Runtime } from "@destack/package/runtime";
 import {
     type MethodContextOf,
@@ -26,9 +27,7 @@ import {
     build,
     Build,
     BuildOutcome,
-    BuildEnd,
     BuildSource,
-    CodeIndex,
     installationRevision,
 } from "@destack/stack/object";
 import type {} from "@destack/package/import-meta";
@@ -43,7 +42,15 @@ export type CommitSource = Extract<BuildSource, { readonly kind: "commit" }>;
 /** The build store a push or publish reads a lock and its builds from. */
 export type PublishStore = Pick<
     BuildStore,
-    "closure" | "contents" | "get" | "head" | "lock" | "putLock" | "read"
+    | "closure"
+    | "contents"
+    | "get"
+    | "head"
+    | "lock"
+    | "putLock"
+    | "read"
+    | "attachments"
+    | "environment"
 >;
 
 /** The registry of published releases. */
@@ -80,6 +87,8 @@ export interface Registry {
         packageId: PackageId,
         root: Pick<BuildObject, "kind" | "digest">,
     ) => Promise<Pick<BuildStore, "read">>;
+    /** List the files a package's published build attached at its forge. */
+    readonly attachments: (packageId: PackageId, manifest: Digest) => Promise<PackageFile[]>;
 }
 
 /** The options of the build server. */
@@ -143,26 +152,25 @@ export function pushMount(builds: BuildStore): MountFetch {
     };
 }
 
-/** Take a finished build's pushed lock, attaching its code index to its root build. */
+/** Take a finished build's outcome, requiring the lock its runner pushed. */
 async function adopt(
     builds: BuildStore,
-    end: schema.Infer<typeof BuildEnd>,
+    outcome: schema.Infer<typeof BuildOutcome>,
 ): Promise<schema.Infer<typeof BuildOutcome>> {
-    // store nothing of a failed build
-    if (end.kind === "failed") {
-        return end;
+    // take a failed build as it is
+    if (outcome.kind === "failed") {
+        return outcome;
     }
 
-    // require the lock its runner pushed
-    if (!(await builds.contains(end.lock))) {
+    // require the lock
+    if (!(await builds.contains(outcome.lock))) {
         throw StackError.of(
             "BUILD_NOT_FOUND",
-            `lock '${end.lock}' not found: it was not pushed to the space`,
+            `lock '${outcome.lock}' not found: it was not pushed to the space`,
         );
     }
-    await builds.attach((await builds.lock(end.lock)).root, CodeIndex.file(end.code));
 
-    return { kind: "stored", lock: end.lock };
+    return outcome;
 }
 
 /** Expire the space's builds its retention drops, leaving their blobs to the collection. */
@@ -326,7 +334,7 @@ export function implementBuild(options: BuildOptions) {
             },
             finish: {
                 // take a succeeded build's pushed manifest before the transaction
-                prepare: (context) => adopt(options.space.builds, context.input.end),
+                prepare: (context) => adopt(options.space.builds, context.input.outcome),
                 handle: async (context) => {
                     // finish a running build with its stored manifest or its failure
                     requireRunning(context.target);

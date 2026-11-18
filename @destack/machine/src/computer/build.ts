@@ -6,12 +6,11 @@ import type { PackageVersion } from "@destack/package";
 import type { BuildReader, Lock } from "@destack/package/manifest";
 import { type Controller, eq, type Select, Reconciliation } from "@destack/db";
 import { GitLease } from "@destack/git/local";
-import { Digest, type Identifier, present, schema, Uuid, type Version } from "@destack/schema";
-import { PRIMARY_RUNTIMES } from "@destack/package/runtime";
+import { Digest, type Identifier, schema, Uuid, type Version } from "@destack/schema";
 import { CallError } from "@destack/object";
 import { RequestId } from "@destack/sync";
 import stackPackage, { PUSH_PATH } from "@destack/stack/package";
-import { BuildObject, PackageClient } from "@destack/build/store";
+import { PackageClient } from "@destack/build/store";
 import { ACTIVE_BUILD_STATES, build } from "@destack/stack/object";
 import type { CheckoutSource, CommitSource } from "../installation/build.ts";
 import { Failure } from "@destack/error";
@@ -120,7 +119,7 @@ export class BuildRunner {
                         await space.build.finish({
                             ...target,
                             requestId: RequestId.create(this.#machine.environment),
-                            end: { kind: "failed", failure: Failure.of(error) },
+                            outcome: { kind: "failed", failure: Failure.of(error) },
                         });
                     }
                 }
@@ -156,28 +155,16 @@ export class BuildRunner {
             },
         });
 
-        // compile the outputs with a warm compiler, then index the code for its primary runtime
+        // compile the outputs with a warm compiler
         const compiled = await this.#compile(
             workspacePackage,
             opened,
             { outputs, version: replicated.version },
             signal,
         );
-        const runtime = present(
-            PRIMARY_RUNTIMES.find((each) =>
-                Object.values(implied).some((output) => output.runtime === each),
-            ),
-            `a runtime ${workspacePackage.root.name} ships`,
-        );
-        const code = new TextEncoder().encode(
-            JSON.stringify(await workspacePackage.index({ runtime })),
-        );
-        const indexed = {
-            digest: await Digest.of(code, this.#environment.crypto),
-            size: code.byteLength,
-        };
+        const root = await compiled.digest();
 
-        // report storing, then push the build and its code index to the space's builds
+        // report storing, then push the build and the graphs the lock attaches
         await space.build.progress({
             ...target,
             requestId: RequestId.create(this.#machine.environment),
@@ -188,17 +175,12 @@ export class BuildRunner {
             `${endpoint.url}${PUSH_PATH}/${target.spaceId}/${target.id}/`,
             endpoint.fetch,
         );
-        const digest = await workspacePackage.lock(await compiled.digest());
-        await pushing.push(this.#compilers.store, [digest], signal);
-        await pushing.write(BuildObject.files([{ digest: indexed.digest, bytes: code }]), signal);
+        const lock = await workspacePackage.lock(root);
+        await pushing.push(this.#compilers.store, [lock], signal);
         await space.build.finish({
             ...target,
             requestId: RequestId.create(this.#machine.environment),
-            end: {
-                kind: "stored",
-                lock: digest,
-                code: { digest: indexed.digest, size: indexed.size },
-            },
+            outcome: { kind: "stored", lock },
         });
     }
 

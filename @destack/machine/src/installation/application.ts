@@ -1137,11 +1137,7 @@ export class ApplicationInstallation {
         let upgrade: Upgrade;
         try {
             const compared = await this.#compare(declarations, from, next, locked);
-            upgrade = Upgrade.plan(history, owner, await next.declarations(), (declaration) => {
-                const plan = compared.get(Address.join(declaration.kind, declaration.name));
-
-                return plan === undefined ? undefined : () => plan;
-            });
+            upgrade = Upgrade.plan(history, owner, await next.declarations(), compared);
         } catch (cause) {
             // tell the caller why no plan reaches the release, whose author changes its declarations
             if (!ResourceError.is(cause, "PLAN_BLOCKED")) {

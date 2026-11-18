@@ -84,6 +84,7 @@ test("export a static view as a static host serves it: pages with the import map
                 built("browser/index.js", typeface),
                 built("destack.json", typeface),
                 built("package.json", typeface),
+                built("src/index.ts", typeface),
                 built("browser/asset/font.woff2"),
                 built("browser/assets/hydrate.js"),
                 built("browser/index.js"),

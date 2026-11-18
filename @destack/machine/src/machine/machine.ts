@@ -367,6 +367,38 @@ export class Machine {
         });
     }
 
+    /** Pull the files a published build's forge attached to it into the machine's builds. */
+    pullAttachments(build: {
+        readonly digest: Digest;
+        readonly manifest: PackageManifest;
+    }): Promise<void> {
+        return this.scope.span("destack.machine.pull_attachments", {}, async () => {
+            // refuse a build without a forge, such as an npm unit
+            const owner = build.manifest.package;
+            if (!("id" in owner)) {
+                throw StackError.of(
+                    "GRAPH_NOT_FOUND",
+                    `graph of build '${build.digest}' not found`,
+                );
+            }
+
+            // list the attached files, leaving a build its forge attached none
+            const files = await this.releases.attachments(owner.id, build.digest);
+            if (files.length === 0) {
+                return;
+            }
+
+            // write them from the build's forge, then attach them
+            const forge = await this.releases.store(owner.id, {
+                kind: "manifest",
+                digest: build.digest,
+            });
+            const objects = files.map((file) => ({ kind: "file", digest: file.digest }) as const);
+            await this.builds.write(forge.read(objects));
+            await this.builds.attach(build.digest, files);
+        });
+    }
+
     /** Retain the builds a space runs in the machine's builds. */
     async retain(space: Identifier<"space">, locks: Iterable<Digest>): Promise<void> {
         await this.builds.retain(`${SPACE_ROOT_PREFIX}${space}`, new Set(locks));

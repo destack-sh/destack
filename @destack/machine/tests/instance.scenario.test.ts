@@ -147,13 +147,9 @@ function noteType(
         scope: space,
         fields,
         traits: [shareable({})],
+        ...(convert === undefined ? {} : { convert }),
     });
-    const { name, definition } = ObjectDescription.of(note);
-    const description = {
-        name,
-        package: { ...notesPackage, version },
-        definition: convert === undefined ? definition : { ...definition, convert },
-    };
+    const description = { ...ObjectDescription.of(note), package: { ...notesPackage, version } };
 
     return { kind: "object", definer: objectPackage, name: "note", description };
 }
@@ -178,10 +174,9 @@ async function dependencyBuild(owner: PackageVersion, crypto: Crypto): Promise<B
         scope: space,
         fields: {},
     });
-    const { name, definition } = ObjectDescription.of(entry);
+    const entryDescription = { ...ObjectDescription.of(entry), package: owner };
     const described = {
         ...testIdentity,
-        api: { name: "entries", procedures: [] },
         objects: {},
         mounts: {},
         protocols: [],
@@ -204,8 +199,8 @@ async function dependencyBuild(owner: PackageVersion, crypto: Crypto): Promise<B
             {
                 kind: "object",
                 kindPackageId: objectPackage.id,
-                name,
-                description: { name, package: owner, definition },
+                name: entryDescription.name,
+                description: entryDescription,
             },
         ],
         crypto,
@@ -231,7 +226,6 @@ function requesting(permissions: GrantDeclaration): Declaration {
         name: "notes",
         description: {
             ...testIdentity,
-            api: { name: "notes", procedures: [] },
             objects: {},
             mounts: {},
             protocols: [],
@@ -1108,7 +1102,6 @@ test("refuse a build routing hooks nothing serves", async () => {
         ...requesting({}),
         description: {
             ...testIdentity,
-            api: { name: "notes", procedures: [] },
             objects: {
                 notes: {
                     type: { packageId: ids.package, type: "note" },
@@ -1154,7 +1147,6 @@ test("refuse a build declaring mounts no workload answers", async () => {
         ...requesting({}),
         description: {
             ...testIdentity,
-            api: { name: "notes", procedures: [] },
             objects: {},
             mounts: { inbox: { path: "/inbox" } },
             protocols: [],

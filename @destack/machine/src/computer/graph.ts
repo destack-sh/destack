@@ -9,40 +9,34 @@ import { LocalBlobStorage } from "@destack/bucket/bun";
 import type { PackageFile } from "@destack/package/file";
 import { Digest, present } from "@destack/schema";
 import type { BuildStore } from "@destack/build/store";
-import { catalog, declaration, GraphIndex, module, symbol } from "@destack/stack/object";
+import { catalog, declaration, GraphView, module, symbol } from "@destack/stack/object";
 
 /** The most parameters SQLite binds to a statement: SQLITE_MAX_VARIABLE_NUMBER since 3.32. */
 const SQLITE_PARAMETERS = 32_766;
 
-/** The path a build's graph index is attached to its manifest at. */
-const GRAPH_PATH = "graph";
+/** The file name of a build's graph database, which also names its cache key with the manifest. */
+const GRAPH_PATH = "graph.sqlite";
 
-/** The media type of a graph index: a SQLite database file, as IANA registers it. */
+/** The media type of a graph database: a SQLite database file, as IANA registers it. */
 const SQLITE_MEDIA_TYPE = "application/vnd.sqlite3";
 
-/** The graph of each build as external objects, its index a file attached to the build. */
+/** The graph of each build as external objects, its index a file the store caches per manifest. */
 export class BunGraphStorage implements ExternalStorage, AsyncDisposable {
     /** The graph's object types. */
     readonly objects: readonly ObjectType[] = [module, declaration, symbol, catalog];
     /** The database with the builds. */
     readonly #database: DatabaseConnection;
-    /** The builds and code indexes the space and its machine store. */
-    readonly #builds: Pick<
-        BuildStore,
-        "storeOf" | "contains" | "contents" | "lock" | "referrer" | "file"
-    >;
+    /** The builds and graphs the space and its machine store. */
+    readonly #builds: Pick<BuildStore, "storeOf" | "contents" | "lock" | "graph">;
     /** The files the indexes are written in before they are stored. */
     readonly #files: FileSystem;
     /** The opened indexes, by build. */
     readonly #opened = new Map<string, Promise<OpenedIndex>>();
 
-    /** Index the builds a database records, attaching each index to its build where stored. */
+    /** Index the builds a database records, caching each index in the store with the build. */
     constructor(
         database: DatabaseConnection,
-        builds: Pick<
-            BuildStore,
-            "storeOf" | "contains" | "contents" | "lock" | "referrer" | "file"
-        >,
+        builds: Pick<BuildStore, "storeOf" | "contents" | "lock" | "graph">,
         files: FileSystem,
     ) {
         // store the database, the builds and the files
@@ -76,10 +70,10 @@ export class BunGraphStorage implements ExternalStorage, AsyncDisposable {
         }
     }
 
-    /** Open a succeeded build's view of its manifest's index, attaching the index when absent. */
+    /** Open a succeeded build's view of its manifest's index, writing the index on a cache miss. */
     async #open(scope: string): Promise<OpenedIndex> {
         // read the build's place in its manifest's index, and the store with the build
-        const index = await GraphIndex.of(this.#database, scope, this.#builds);
+        const index = await GraphView.of(this.#database, scope, this.#builds);
         const { manifest } = index;
         const store = present(
             await this.#builds.storeOf(manifest),
@@ -90,15 +84,18 @@ export class BunGraphStorage implements ExternalStorage, AsyncDisposable {
             throw new TypeError(`the store of build '${manifest}' keeps no local files`);
         }
 
-        // attach the index once per manifest, which every build of it shares
+        // take the index the store caches for the manifest, which every build of it shares
         const { environment } = this.#database.state;
-        const attached =
-            (await store.referrer(manifest, GRAPH_PATH)) ??
-            (await this.#attach(index, store, environment));
+        const key = await this.cacheKey(manifest);
+        const cached = await store.cached(key);
+        if (cached !== undefined && cached.kind !== "file") {
+            throw new TypeError(`the cache entry of '${manifest}'s index is no file`);
+        }
+        const stored = cached?.file ?? (await this.#cache(index, store, key, environment));
 
         // read it as the build's rows: in its scope, made when it finished
-        const database = new Database(storage.path(attached.digest), { readonly: true });
-        for (const table of GraphIndex.tables) {
+        const database = new Database(storage.path(stored.digest), { readonly: true });
+        for (const table of GraphView.tables) {
             const { sqlName } = table[TABLE];
             database.run(
                 `CREATE TEMP VIEW "${sqlName}" AS ${index.select(table, `main."${sqlName}"`)}`,
@@ -106,37 +103,45 @@ export class BunGraphStorage implements ExternalStorage, AsyncDisposable {
         }
 
         return {
-            database: await connectBunSqlite(database, GraphIndex.tables, { environment }),
+            database: await connectBunSqlite(database, GraphView.tables, { environment }),
         };
     }
 
-    /** Write a manifest's index into a file, then store it attached to the build. */
-    async #attach(
-        index: GraphIndex,
+    /** Name the cache entry of a manifest's index. */
+    async cacheKey(manifest: Digest): Promise<Digest> {
+        const named = new TextEncoder().encode(`${GRAPH_PATH} ${manifest}`);
+
+        return await Digest.of(named, this.#database.state.environment.crypto);
+    }
+
+    /** Write a manifest's index into a file, then store it under its cache key. */
+    async #cache(
+        index: GraphView,
         store: BuildStore,
+        key: Digest,
         environment: DatabaseEnvironment,
     ): Promise<PackageFile> {
         // write the index in a private directory, removed once stored
         const directory = await this.#files.makeTemporaryDirectory("destack-graph-");
         try {
-            const file = join(directory, "graph.sqlite");
+            const file = join(directory, GRAPH_PATH);
             await write(index, this.#builds, file, environment);
 
-            // store the file and attach it to the build, which retains it
+            // store the file and cache it, which retains it while used
             const bytes = await this.#files.readFile(file);
             const digest = await Digest.of(bytes, environment.crypto);
             await store.blobs.put([
                 { digest, size: bytes.byteLength, open: async () => chunks(bytes) },
             ]);
-            const attached = {
+            const indexed = {
                 path: GRAPH_PATH,
                 digest,
                 size: bytes.byteLength,
                 mediaType: SQLITE_MEDIA_TYPE,
             };
-            await store.attach(index.manifest, attached);
+            await store.cache(key, { kind: "file", file: indexed });
 
-            return attached;
+            return indexed;
         } finally {
             await this.#files.remove(directory, { recursive: true });
         }
@@ -151,8 +156,8 @@ interface OpenedIndex {
 
 /** Write a manifest's objects into a new index file, in the rollback journal mode readers open. */
 async function write(
-    index: GraphIndex,
-    builds: Pick<BuildStore, "contains" | "contents" | "referrer" | "file">,
+    index: GraphView,
+    builds: Pick<BuildStore, "contents" | "graph">,
     file: string,
     environment: DatabaseEnvironment,
 ): Promise<void> {
@@ -160,13 +165,13 @@ async function write(
     const rows = await index.rows(builds, environment.crypto);
 
     // write them in one transaction
-    const database = await connectBunSqlite(new Database(file), GraphIndex.tables, {
+    const database = await connectBunSqlite(new Database(file), GraphView.tables, {
         environment,
     });
     try {
-        await database.migrate(GraphIndex.tables);
+        await database.migrate(GraphView.tables);
         await database.transaction((transaction) =>
-            GraphIndex.write(transaction, rows, SQLITE_PARAMETERS),
+            GraphView.write(transaction, rows, SQLITE_PARAMETERS),
         );
     } finally {
         await database.close();

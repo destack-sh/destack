@@ -12,7 +12,7 @@ import type { ObjectType } from "@destack/object";
 import type { BuildStore } from "@destack/build/store";
 import type { ExternalStorage } from "@destack/object/server";
 import { Digest, schema } from "@destack/schema";
-import { catalog, declaration, GraphIndex, module, symbol } from "@destack/stack/object";
+import { catalog, declaration, GraphView, module, symbol } from "@destack/stack/object";
 
 /** The origin of the requests to an index object, which its stub routes by path alone. */
 const OBJECT_ORIGIN = "https://graph.invalid";
@@ -87,8 +87,11 @@ export class DurableObjectGraphStorage implements ExternalStorage {
     readonly objects: readonly ObjectType[] = [module, declaration, symbol, catalog];
     /** The database with the builds. */
     readonly #database: DatabaseConnection;
-    /** The builds and code indexes the spaces store. */
-    readonly #builds: Pick<BuildStore, "contains" | "contents" | "lock" | "referrer" | "file">;
+    /** The builds and graphs the spaces store. */
+    readonly #builds: Pick<
+        BuildStore,
+        "contains" | "contents" | "lock" | "attachment" | "graph" | "file"
+    >;
     /** The index objects, one per manifest. */
     readonly #indexes: DurableObjectNamespace;
     /** How often a build views its index again, renewing the index's lease. */
@@ -99,7 +102,10 @@ export class DurableObjectGraphStorage implements ExternalStorage {
     /** Index the builds a database records and their spaces store, in one object per manifest. */
     constructor(
         database: DatabaseConnection,
-        builds: Pick<BuildStore, "contains" | "contents" | "lock" | "referrer" | "file">,
+        builds: Pick<
+            BuildStore,
+            "contains" | "contents" | "lock" | "attachment" | "graph" | "file"
+        >,
         indexes: DurableObjectNamespace,
         leaseMilliseconds = GRAPH_LEASE_MILLISECONDS,
     ) {
@@ -128,7 +134,7 @@ export class DurableObjectGraphStorage implements ExternalStorage {
     /** Show a build its manifest's index, writing the index first when it is not complete. */
     async #open(scope: string): Promise<DatabaseConnection> {
         // read the build's place, and its manifest's object
-        const index = await GraphIndex.of(this.#database, scope, this.#builds);
+        const index = await GraphView.of(this.#database, scope, this.#builds);
         const object = this.#indexes.get(this.#indexes.idFromName(index.manifest));
         const fields = {
             build: index.build,
@@ -158,7 +164,7 @@ export class DurableObjectGraphStorage implements ExternalStorage {
 
         return DurableObjectReader.connect(
             object,
-            GraphIndex.tables,
+            GraphView.tables,
             this.#database.state.environment,
             index.build,
         );
@@ -215,7 +221,7 @@ export class GraphIndexObject {
         else {
             await this.#renew();
 
-            return Response.json(this.#view(new GraphIndex(body.index)));
+            return Response.json(this.#view(new GraphView(body.index)));
         }
     }
 
@@ -241,11 +247,11 @@ export class GraphIndexObject {
         );
 
         // migrate the tables, then insert the rows and the completion mark in one transaction
-        const database = this.#host.connect(GraphIndex.tables);
-        await database.migrate(GraphIndex.tables);
+        const database = this.#host.connect(GraphView.tables);
+        await database.migrate(GraphView.tables);
         await database.transaction(async (transaction) => {
             // insert the rows, then mark the index complete
-            await GraphIndex.write(
+            await GraphView.write(
                 transaction,
                 { modules, declarations, symbols, catalogs },
                 OBJECT_PARAMETERS,
@@ -261,15 +267,15 @@ export class GraphIndexObject {
     }
 
     /** Create a build's views of the complete index once, answering whether it is complete. */
-    #view(index: GraphIndex): schema.Infer<typeof Viewed> {
+    #view(index: GraphView): schema.Infer<typeof Viewed> {
         // show nothing before the index is complete
         if (!this.#isComplete()) {
             return { isComplete: false };
         }
 
         // show every stored relation in the build's namespace, the graph's rows as the build's
-        const graph = new Map<string, (typeof GraphIndex.tables)[number]>(
-            GraphIndex.tables.map((table) => [table[TABLE].sqlName, table]),
+        const graph = new Map<string, (typeof GraphView.tables)[number]>(
+            GraphView.tables.map((table) => [table[TABLE].sqlName, table]),
         );
         for (const name of this.#relations()) {
             const table = graph.get(name);

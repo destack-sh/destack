@@ -361,6 +361,7 @@ export class Space {
             environment: fields.machine.environment,
             sources: [fields.machine.builds],
             pullFile: (built, file) => fields.machine.pullFile(built, file),
+            pullAttachments: (built) => fields.machine.pullAttachments(built),
         });
         this.keystore = new IdentityKeystore(
             fields.machine.keyring,
@@ -465,6 +466,7 @@ export class Space {
                     follows: forge === null ? [] : forge.follows(),
                     controllers: [
                         () => this.controller(),
+                        () => this.builds.controller(),
                         ...(isMetered
                             ? [
                                   (store: ObjectStore) =>

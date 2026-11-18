@@ -269,7 +269,7 @@ export class LocalVolume implements Volume {
     readonly #lifetime: AsyncDisposableStack;
     /** The space's buckets, once served. */
     #buckets: LocalBucketHost | undefined;
-    /** The graph indexes of the space's builds, once read. */
+    /** The graph views of the space's builds, once read. */
     #graph: BunGraphStorage | undefined;
 
     /** Take what the host opened for a space. */
@@ -319,7 +319,7 @@ export class LocalVolume implements Volume {
     graphs(
         builds: Pick<
             BuildStore,
-            "storeOf" | "contains" | "contents" | "lock" | "referrer" | "file"
+            "storeOf" | "contains" | "contents" | "lock" | "attachment" | "graph" | "file"
         >,
     ): BunGraphStorage {
         this.#graph ??= this.#lifetime.use(

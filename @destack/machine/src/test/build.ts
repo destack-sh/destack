@@ -9,6 +9,7 @@ import { type Digest, type JsonObject, present, schema } from "@destack/schema";
 import { ObjectReference, Scope } from "@destack/sync";
 import { release, tag } from "@destack/registry/object";
 import { PackageVersion, PackageId, type PackageRelease } from "@destack/package";
+import type { PackageFile } from "@destack/package/file";
 import {
     type BuildReader,
     Lock,
@@ -287,6 +288,11 @@ export class TestRegistry implements Registry, ReleaseRegistry {
     /** Open the stored fixture builds as the store a lock or build is read from. */
     async store(): Promise<Pick<BuildStore, "read">> {
         return this.#store;
+    }
+
+    /** List the files the fixture store attached to a build. */
+    attachments(_packageId: PackageId, manifest: Digest): Promise<PackageFile[]> {
+        return this.#store.attachments(manifest);
     }
 
     /** The locks of the pushed releases. */

@@ -79,7 +79,7 @@ export interface MachineBindings extends PartitionBindings, CloudflareStorageBin
     readonly DESTACK_MACHINE_KEY: string;
     /** The universe's origin, serving the account package. */
     readonly DESTACK_UNIVERSE: string;
-    /** The objects of the builds' graph indexes, one per manifest. */
+    /** The objects of the builds' graph views, one per manifest. */
     readonly GRAPH: DurableObjectNamespace;
     /** The jurisdiction of the machine's objects, empty for none. */
     readonly DESTACK_JURISDICTION: Jurisdiction;

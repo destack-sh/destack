@@ -68,7 +68,7 @@ export interface Volume {
     readonly graphs: (
         builds: Pick<
             BuildStore,
-            "storeOf" | "contains" | "contents" | "lock" | "referrer" | "file"
+            "storeOf" | "contains" | "contents" | "lock" | "attachment" | "graph" | "file"
         >,
     ) => ExternalStorage;
     /** Read what the space used over an interval, with the traffic its gateway counted. */

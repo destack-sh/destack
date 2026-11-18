@@ -49,7 +49,7 @@ import {
 } from "@destack/object";
 import { ObjectStore, type PackageImplementation } from "@destack/object/server";
 import { BunSqliteDatabaseHost } from "@destack/db/bun";
-import { PackageVersion, PackageId, type PackageRelease } from "@destack/package";
+import { graph, PackageVersion, PackageId, type PackageRelease } from "@destack/package";
 import settingPackage from "@destack/setting/package";
 import { describeSetting } from "@destack/setting/inspect";
 import { buildRetention } from "@destack/stack/setting";
@@ -93,8 +93,8 @@ import { BunGraphStorage } from "../computer/graph.ts";
 import { PackageManifest } from "@destack/package/manifest";
 import { MemoryBuild } from "@destack/package/test";
 import type { StackRelease } from "@destack/account/object";
-import { BuildObject, PackageClient, BuildStore } from "@destack/build/store";
-import { TestBuildStore } from "@destack/build/test";
+import { PackageClient, BuildStore } from "@destack/build/store";
+import { fixtureGraph, TestBuildStore } from "@destack/build/test";
 import { RolloutTarget } from "../installation/target.ts";
 import { testWorldOptions } from "@destack/test/world";
 
@@ -1507,7 +1507,7 @@ export class TestSpace implements AsyncDisposable, TestScope {
         return this.#index;
     }
 
-    /** Push a running build's files and code index as its runner, answering the files uploaded. */
+    /** Push a running build's files and graph as its runner, answering the files uploaded. */
     async storeBuild(
         runner: TestCaller,
         target: { readonly spaceId: Identifier<"space">; readonly id: Identifier<"build"> },
@@ -1542,19 +1542,14 @@ export class TestSpace implements AsyncDisposable, TestScope {
         await using store = await TestBuildStore.create(this.machine.environment);
         const root = await store.put(reader);
         const lock = await store.putLock(Lock.of(root));
-        await pushing.push(store, [lock]);
 
-        // upload an empty code index with it
-        const bytes = new TextEncoder().encode(JSON.stringify([]));
-        const code = {
-            digest: await Digest.of(bytes, this.machine.environment.crypto),
-            size: bytes.byteLength,
-        };
-        await pushing.write(BuildObject.files([{ digest: code.digest, bytes: bytes }]));
+        // attach its graph as its builder does, push it, then finish it
+        await store.attachGraph(root, await fixtureGraph(reader));
+        await pushing.push(store, [lock]);
         await client.build.finish({
             ...target,
             requestId: RequestId.create(this.machine.environment),
-            end: { kind: "stored", lock, code },
+            outcome: { kind: "stored", lock },
         });
 
         return uploaded;
@@ -1582,7 +1577,6 @@ export class TestSpace implements AsyncDisposable, TestScope {
     }
 
     /** Store a build locked with the builds it runs with, answering its lock and root. */
-    /** Store a build locked with the builds it runs with, answering its lock and root. */
     async #lock(
         reader: BuildReader,
         builds: readonly BuildReader[],
@@ -1593,23 +1587,17 @@ export class TestSpace implements AsyncDisposable, TestScope {
         return await lockBuild(stored, reader, builds);
     }
 
-    /** Store a build locked with the builds it runs with, and record it succeeded now. */
+    /** Store a build with its graph, the fixture's by default, and record it succeeded now. */
     async recordBuild(
         reader: BuildReader,
-        index: object.CodeIndex = { code: [], modules: [] },
+        modules?: readonly graph.Module[],
         builds: readonly BuildReader[] = [],
     ): Promise<{ readonly kind: "build"; readonly build: Identifier<"build"> }> {
         // put the build and its lock in the build store
         const { database } = this;
         const packages = await this.builds();
         const { lock, root } = await this.#lock(reader, builds);
-        const bytes = new TextEncoder().encode(JSON.stringify(index));
-        const indexed = {
-            digest: await Digest.of(bytes, this.machine.environment.crypto),
-            size: bytes.byteLength,
-        };
-        await packages.write(BuildObject.files([{ digest: indexed.digest, bytes: bytes }]));
-        await packages.attach(root, object.CodeIndex.file(indexed));
+        await packages.attachGraph(root, modules ?? (await fixtureGraph(reader)));
 
         // record the build succeeded now
         const id = Identifier.create("build", this.machine.environment);

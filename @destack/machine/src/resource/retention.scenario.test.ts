@@ -1,3 +1,4 @@
+import { fixtureGraph } from "@destack/build/test";
 import { buildManifest } from "@destack/build/table";
 import { eq } from "@destack/db";
 import { present } from "@destack/schema";
@@ -32,7 +33,7 @@ test("expire a build past retention and collect it with its graph after its leas
             `2026.${minor + 1}.0`,
             fixture.environment.crypto,
         );
-        const { build: id } = await fixture.recordBuild(built);
+        const { build: id } = await fixture.recordBuild(built, await fixtureGraph(built));
         const manifest = await BuildStore.digest(built.manifest, fixture.environment.crypto);
         const lock = await lockOf(built, fixture.environment.crypto);
         recorded.push({ id, manifest, lock });
@@ -52,9 +53,11 @@ test("expire a build past retention and collect it with its graph after its leas
         .from(build.table)
         .where(eq(build.table.id, dropped.id));
     const isStoredWithinLease = await (await fixture.builds()).contains(dropped.manifest);
+    const key = await (await fixture.index()).cacheKey(dropped.manifest);
+    const cached = await (await fixture.builds()).cached(key);
     const attached = present(
-        await (await fixture.builds()).referrer(dropped.manifest, "graph"),
-        "the dropped build's graph index",
+        cached?.kind === "file" ? cached.file : undefined,
+        "the dropped build's graph database",
     );
     const [isIndexedWithinLease] = await (await fixture.builds()).has([attached.digest]);
     await fixture.simulation.jump(start + LEASE_MILLISECONDS + RETAINED + 1);
