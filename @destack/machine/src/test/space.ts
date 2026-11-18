@@ -265,6 +265,7 @@ export const ids = {
     run: schema.identifier("run").parse("run-01996ab0-0000-7000-8000-000000000006"),
     machine: schema.identifier("machine").parse("machine-01996ab0-0000-7000-8000-000000000007"),
     checkout: schema.identifier("checkout").parse("checkout-01996ab0-0000-7000-8000-000000000008"),
+    residencyHome: schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000009"),
 };
 
 /** The fixture's account, which its spaces belong to. */

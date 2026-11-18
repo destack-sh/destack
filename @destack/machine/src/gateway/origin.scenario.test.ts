@@ -350,6 +350,8 @@ interface Served {
     readonly spaceId: Identifier<"space">;
     /** The space's address: its name and its account's handle. */
     readonly address: string;
+    /** The home of the space's account's residency, which its views read. */
+    readonly residencyHome: Identifier<"space">;
 }
 
 /** Serve the owner's home on its cloud computer, with the organization publishing the packages. */
@@ -357,8 +359,12 @@ async function openHome(): Promise<Served> {
     const { home, login } = await TestComputer.home({ organizations: [PUBLISHER] });
     const { owner } = home.world;
     const address = `home--${owner.handle}`;
+    const accounts = await home.machine.accounts();
+    const residencyHome = schema
+        .identifier("space")
+        .parse(await accounts.residency.locate({ account: owner.account }));
 
-    return { computer: home, cloud: home, login, spaceId: owner.home, address };
+    return { computer: home, cloud: home, login, spaceId: owner.home, address, residencyHome };
 }
 
 /** Serve a work space of the owner's account on their own computer in the home's world. */
@@ -373,7 +379,14 @@ async function openWork(home: Served): Promise<Served> {
 
     const address = `work--${owner.handle}`;
 
-    return { computer, cloud: home.cloud, login: signedIn.id, spaceId, address };
+    return {
+        computer,
+        cloud: home.cloud,
+        login: signedIn.id,
+        spaceId,
+        address,
+        residencyHome: home.residencyHome,
+    };
 }
 
 /** Serve the owner's work space shared with a second person by invitation. */
@@ -622,6 +635,7 @@ test("launch a view onto a session cookie serving its document", async () => {
             installation: installation.id,
             space: spaceId,
             account: owner.account,
+            residencyHome: opened.residencyHome,
             home: owner.home,
             view: "home",
             base: "",
@@ -685,6 +699,7 @@ test("serve anonymous visitors and refuse forged credentials", async () => {
                 installation: installation.id,
                 space: spaceId,
                 account: computer.world.owner.account,
+                residencyHome: opened.residencyHome,
                 view: "home",
                 base: "",
                 universe: computer.world.universe.origin,

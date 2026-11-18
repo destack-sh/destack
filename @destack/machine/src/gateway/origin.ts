@@ -140,6 +140,8 @@ export class ViewOrigin {
     readonly #assets = new Map<string, Promise<AssetIndex>>();
     /** The catalog paths each build's pages load, by build and base. */
     readonly #catalogs = new Map<string, Promise<string[]>>();
+    /** The home of each account's residency, by account. */
+    readonly #residencies = new Map<string, Promise<Identifier<"space">>>();
 
     /** Serve the origins of a space's installations through its gateway. */
     constructor(
@@ -1145,6 +1147,9 @@ export class ViewOrigin {
                 installation: found.installationId,
                 space: this.#space.id,
                 account: space.scope,
+                residencyHome: await ViewOrigin.#memo(this.#residencies, space.scope, () =>
+                    this.#space.residencyHome(schema.identifier("account").parse(space.scope)),
+                ),
                 view: name,
                 base,
                 universe: new URL(this.#space.universe.issuer).origin,

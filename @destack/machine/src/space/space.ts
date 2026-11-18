@@ -2640,7 +2640,7 @@ export class Space {
         // publish through the forges in the accounts' residency homes, calling each for the caller under the grant the space asks
         const forges = Registry.of(
             this.machine.directory,
-            (owner) => this.#residencyHome(owner),
+            (owner) => this.residencyHome(owner),
             (audience) =>
                 this.session(this.identityOf(space).acting(acting, requested)).fetch(audience),
             environment,
@@ -2648,7 +2648,13 @@ export class Space {
             [...this.machine.shipped.values()],
         );
 
-        return await forges.publish(store, lock, account, tag, commit);
+        return await forges.publish(
+            store,
+            lock,
+            account,
+            tag,
+            commit === undefined ? {} : { commit },
+        );
     }
 
     /** Lease a repository of the space's account to read, at the forge in its residency's home. */
@@ -2694,7 +2700,7 @@ export class Space {
 
         return Registry.of(
             this.machine.directory,
-            (account) => this.#residencyHome(account),
+            (account) => this.residencyHome(account),
             () => this.session(this.identityOf(self)).fetch(stackPackage.id),
             this.machine.environment,
             this.machine.registry,
@@ -2763,7 +2769,7 @@ export class Space {
                 accountId: use.accountId,
                 id: this.id,
             });
-            const home = await this.#residencyHome(payer);
+            const home = await this.residencyHome(payer);
             const fetch = this.machine.fetch(stackPackage.id);
             const stack = directory.client(
                 stackPackage,
@@ -2782,7 +2788,7 @@ export class Space {
     }
 
     /** Read the home of an account's residency through the universe, as the machine. */
-    async #residencyHome(accountId: Identifier<"account">): Promise<Identifier<"space">> {
+    async residencyHome(accountId: Identifier<"account">): Promise<Identifier<"space">> {
         return this.accounts().residency.locate({ account: accountId });
     }
 }

@@ -95,6 +95,7 @@ export function openGateway(
             },
             root: refuse("pull builds"),
             imports: refuse("map builds' imports"),
+            residencyHome: async () => ids.residencyHome,
             builds: {
                 contents: refuse("read builds"),
                 referrer: refuse("read code indexes"),

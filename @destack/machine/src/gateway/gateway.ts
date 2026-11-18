@@ -178,6 +178,7 @@ export type GatewaySpace = Pick<
     | "contain"
     | "root"
     | "imports"
+    | "residencyHome"
 > & {
     /** The space's workload, which tells the protocols its packages implement. */
     readonly instance: Pick<WorkloadInstance, "implements">;

@@ -294,7 +294,7 @@ export class TestDistribution implements ReleaseRegistry, AsyncDisposable {
         const registry = new Registry(async () => ({ url, space: home, fetch }), environment);
 
         // push its lock and publish it at the test commit
-        await registry.release(this.#store, [lock], accountId, LATEST_TAG, TEST_COMMIT);
+        await registry.release(this.#store, [lock], accountId, LATEST_TAG, { commit: TEST_COMMIT });
 
         return lock;
     }
