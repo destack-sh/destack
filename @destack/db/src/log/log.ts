@@ -213,7 +213,7 @@ export class Log {
         await this.database.executeScript(
             [...createLog(dialect, state.namespace), epoch].join(";\n"),
         );
-        state.isLogged = true;
+        state.logging = "logged";
     }
 
     /** Digest the layout of a table's changes: its logged columns with their kinds and values. */
@@ -477,7 +477,7 @@ export class Log {
         // read the SQLite transaction stamp
         const dialect = this.database.dialect;
         if (dialect === "sqlite") {
-            return this.database.state.isLogged === true
+            return this.database.state.logging === "logged"
                 ? sql`(SELECT id FROM ${sql.relation(LOG_TRANSACTION)} WHERE slot = 1)`
                 : sql`NULL`;
         }
@@ -615,7 +615,7 @@ export class Log {
         const { dialect } = this.database;
         const after = selection.after ?? 0;
         const transaction = await this.transaction();
-        if (dialect === "sqlite" && this.database.state.isLogged !== true) {
+        if (dialect === "sqlite" && this.database.state.logging !== "logged") {
             throw new TypeError("cannot read written changes of an unlogged database");
         }
         if (transaction === undefined) {

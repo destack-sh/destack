@@ -1,6 +1,6 @@
 import type { TransactionState } from "./transaction.ts";
 import type { ReadCache } from "../log/cache.ts";
-import type { ConnectionState, WriteOperation } from "./connection.ts";
+import type { ConnectionState, Logging, WriteOperation } from "./connection.ts";
 import { classifyError, DatabaseError } from "../error/error.ts";
 import type { Dialect } from "../dialect/dialect.ts";
 import type { DriverStatement } from "../sql/index.ts";
@@ -25,9 +25,6 @@ const OPERATIONS: ReadonlySet<string> = new Set([
 
 /** The tables no script wrote, which a plain write passes. */
 const UNSCRIPTED: ReadonlySet<string> = new Set();
-
-/** Whether a write logs: through tables with change triggers, through none, or unknown. */
-type Logging = "logged" | "unlogged" | "unknown";
 
 /** A session and its statements' lifetime, counting and failures. */
 export class DatabaseDriver {

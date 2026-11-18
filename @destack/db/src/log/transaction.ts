@@ -66,7 +66,7 @@ export class TransactionIdentity {
         }
 
         // submit the marker in statement order, waiting only while finding the log
-        const isKnown = this.#connection.isLogged;
+        const isLogged = this.#connection.logging === "logged";
         if (this.#stamped === undefined) {
             // forget a stamp that found no log
             const marking = this.#mark();
@@ -81,7 +81,7 @@ export class TransactionIdentity {
             );
         }
 
-        return isKnown === true ? undefined : this.#stamped;
+        return isLogged ? undefined : this.#stamped;
     }
 
     /** Forget a stamp that a rolled back savepoint undid. */
@@ -205,14 +205,14 @@ export class TransactionIdentity {
     async #mark(): Promise<string | undefined> {
         // look for the log once per connection
         const connection = this.#connection;
-        if (connection.isLogged === undefined) {
+        if (connection.logging === "unknown") {
             const found = await this.#session.values(
                 "SELECT name FROM sqlite_schema WHERE type = 'table' AND name = ?",
                 [relation(LOG_TRANSACTION, connection.namespace)],
             );
-            connection.isLogged = found.length > 0;
+            connection.logging = found.length > 0 ? "logged" : "unlogged";
         }
-        if (!connection.isLogged) {
+        if (connection.logging === "unlogged") {
             return undefined;
         }
 

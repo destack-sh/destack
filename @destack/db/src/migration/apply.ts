@@ -53,7 +53,7 @@ async function applySteps(
     await database.transaction(async (transaction) => {
         // change the tables, then look for the log again, which the changes may create
         await runStatements(transaction, changes, manager);
-        transaction.state.isLogged = undefined;
+        transaction.state.logging = "unknown";
 
         // convert rows and rebuild trees after the triggers
         let pending: string[] = [];
