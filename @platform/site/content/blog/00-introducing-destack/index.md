@@ -11,7 +11,7 @@ author: "Florian"
 >
 > Destack **standardises software production and deployment**:
 >
-> 1. **Build first-class custom software**, with your own AI, in a standardised pipeline.
+> 1. **Build first-class custom software**, with your AI, in a standardised pipeline.
 > 2. **Integrate every app and agent**: one account, one database, no walls.
 > 3. **Control your whole stack**: your data, your context, your machine.
 >
