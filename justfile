@@ -64,9 +64,11 @@ check-fast base="":
     set -euo pipefail
     just check-repository
     base="{{base}}"
-    for directory in $(just affected "${base:-$(git merge-base HEAD origin/main)}"); do
+    base="${base:-$(git merge-base HEAD origin/main)}"
+    for directory in $(just affected "$base"); do
         echo "check $directory"
-        just check-package "$directory"
+        # lint only the package's modules changed since the base, as the type checker checks only what it lints
+        just check-package "$directory" --since "$base"
         just test "$directory" --fast
     done
 
@@ -100,8 +102,8 @@ affected base="":
         fi
     done
 
-# check a package's formatting, types and lints, writing nothing
-check-package directory:
+# check a package's formatting, types and lints, writing nothing: lint every source, or those `--since <base>` changed
+check-package directory *arguments:
     #!/usr/bin/env bash
     set -euo pipefail
     cd "{{justfile_directory()}}/{{directory}}"
@@ -112,7 +114,7 @@ check-package directory:
     else
         bunx tsc --noEmit -p .
     fi
-    bun run destack-check check
+    bun run destack-check check {{arguments}}
 
 # test a package in every tier, or its unit tier with --fast, or the given test files of it
 test directory *arguments:
