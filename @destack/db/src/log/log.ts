@@ -207,11 +207,13 @@ export class Log {
 
     /** Create the log once, with the row scope of tables without a scope column. */
     async create(scope?: string): Promise<void> {
+        // create the log and its epoch, then mark the connection logged
         const { dialect, state } = this.database;
         const epoch = insertEpoch(Uuid.v7(state.environment), state.namespace, scope);
         await this.database.executeScript(
             [...createLog(dialect, state.namespace), epoch].join(";\n"),
         );
+        state.isLogged = true;
     }
 
     /** Digest the layout of a table's changes: its logged columns with their kinds and values. */
@@ -475,7 +477,7 @@ export class Log {
         // read the SQLite transaction stamp
         const dialect = this.database.dialect;
         if (dialect === "sqlite") {
-            return this.database.state.isLogged
+            return this.database.state.isLogged === true
                 ? sql`(SELECT id FROM ${sql.relation(LOG_TRANSACTION)} WHERE slot = 1)`
                 : sql`NULL`;
         }
@@ -613,7 +615,7 @@ export class Log {
         const { dialect } = this.database;
         const after = selection.after ?? 0;
         const transaction = await this.transaction();
-        if (dialect === "sqlite" && !this.database.state.isLogged) {
+        if (dialect === "sqlite" && this.database.state.isLogged !== true) {
             throw new TypeError("cannot read written changes of an unlogged database");
         }
         if (transaction === undefined) {

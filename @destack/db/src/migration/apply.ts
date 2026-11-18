@@ -51,8 +51,9 @@ async function applySteps(
     isRebuilt: boolean,
 ): Promise<void> {
     await database.transaction(async (transaction) => {
-        // change the tables
+        // change the tables, then look for the log again, which the changes may create
         await runStatements(transaction, changes, manager);
+        transaction.state.isLogged = undefined;
 
         // convert rows and rebuild trees after the triggers
         let pending: string[] = [];

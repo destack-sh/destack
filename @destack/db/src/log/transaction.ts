@@ -25,8 +25,6 @@ export class TransactionIdentity {
     readonly #connection: ConnectionState;
     /** The stamped SQLite marker, absent before the first logged write. */
     #stamped: Promise<string | undefined> | undefined;
-    /** Whether the transaction looked for its marker before, so a log it finds may be its log. */
-    #isMarking = false;
     /** The PostgreSQL transaction's stamped time, absent before its first logged write. */
     #timed: Promise<unknown> | undefined;
     /** PostgreSQL's transaction identifier, read once per transaction. */
@@ -83,7 +81,7 @@ export class TransactionIdentity {
             );
         }
 
-        return isKnown ? undefined : this.#stamped;
+        return isKnown === true ? undefined : this.#stamped;
     }
 
     /** Forget a stamp that a rolled back savepoint undid. */
@@ -205,21 +203,17 @@ export class TransactionIdentity {
 
     /** Write the SQLite marker the change triggers stamp each entry with, once the log exists. */
     async #mark(): Promise<string | undefined> {
-        // look for the log, remembering one found on the transaction's first mark
+        // look for the log once per connection
         const connection = this.#connection;
-        const isFirst = !this.#isMarking;
-        this.#isMarking = true;
-        if (!connection.isLogged) {
+        if (connection.isLogged === undefined) {
             const found = await this.#session.values(
                 "SELECT name FROM sqlite_schema WHERE type = 'table' AND name = ?",
                 [relation(LOG_TRANSACTION, connection.namespace)],
             );
-            if (found.length === 0) {
-                return undefined;
-            }
-            if (isFirst) {
-                connection.isLogged = true;
-            }
+            connection.isLogged = found.length > 0;
+        }
+        if (!connection.isLogged) {
+            return undefined;
         }
 
         // write the marker
