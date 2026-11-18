@@ -526,12 +526,6 @@ export class Space {
                     start.store.resolve(store);
                     start.gateway.resolve(new Gateway(this, start, store));
 
-                    // record the start
-                    this.machine.scope.log.info("destack.space.started", {
-                        "destack.space.id": this.id,
-                        "destack.space.installations": start.installed.length,
-                    });
-
                     return {
                         packages: store.packages,
                         store,
@@ -549,6 +543,7 @@ export class Space {
                     throw error;
                 }
             },
+            { level: "info" },
         );
     }
 

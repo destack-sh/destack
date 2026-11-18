@@ -142,6 +142,10 @@ export interface PartitionBindings {
     readonly PARTITION: DurableObjectNamespace;
     /** The jurisdiction of the partitions' objects. */
     readonly DESTACK_JURISDICTION: Jurisdiction;
+    /** The lowest level the Worker prints, which its workloads print from too, info when absent. */
+    readonly DESTACK_LOG_LEVEL?: string;
+    /** The format the Worker prints in, which its workloads print in too, line when absent. */
+    readonly DESTACK_LOG_FORMAT?: string;
 }
 
 /** The name of the object serving a partition: its address, innermost first, joined by `--`. */
@@ -548,7 +552,16 @@ export class InstallationFacet {
             compatibilityFlags: ["nodejs_compat"],
             mainModule: started.main,
             modules: await InstallationFacet.#modules(space, secret),
-            env: { PARTITION: self },
+            env: {
+                PARTITION: self,
+                // print the workload's records as its host Worker prints its own
+                ...(bindings.DESTACK_LOG_LEVEL === undefined
+                    ? {}
+                    : { DESTACK_LOG_LEVEL: bindings.DESTACK_LOG_LEVEL }),
+                ...(bindings.DESTACK_LOG_FORMAT === undefined
+                    ? {}
+                    : { DESTACK_LOG_FORMAT: bindings.DESTACK_LOG_FORMAT }),
+            },
             globalOutbound: space,
         }));
     }

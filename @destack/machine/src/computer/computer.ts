@@ -1298,8 +1298,12 @@ export class Computer implements AsyncDisposable {
         };
         // write every record to the machine's own log too, beside its owner's home, and the export's own failures there alone
         const write = (line: string) => environment.process.stderr.writeSync(line);
-        const local = new LineExporter(write);
-        const own = TelemetryScope.of(MACHINE_PACKAGE, Telemetry.local(environment.clock, write));
+        const options = LineExporter.options(environment.process.variables);
+        const local = new LineExporter(write, options);
+        const own = TelemetryScope.of(
+            MACHINE_PACKAGE,
+            Telemetry.local(environment.clock, write, undefined, options),
+        );
         const exporter = new OtlpExporter(
             async (signal, body, abort) => {
                 const running = machine();
