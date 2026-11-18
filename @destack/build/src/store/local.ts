@@ -435,11 +435,20 @@ export class LocalBuildStore
             objects.filter((object) => object.kind === "file").map((object) => object.digest),
         );
 
+        // link the builtins among the locks, as a machine shipping them links their releases
+        const linked = new Map<string, Lock>();
+        for (const lock of locks.values()) {
+            const { manifest } = await this.contents(lock.root);
+            if (manifest.role === "builtin") {
+                linked.set(PackageManifest.package(manifest).name, lock);
+            }
+        }
+
         // read the modules each lock's root reaches on the runtimes loading modules by import
         const reached = new Set<string>();
         for (const lock of locks.values()) {
             for (const runtime of runtimes.filter((each) => LOADED_RUNTIMES.has(each))) {
-                const closure = await this.imports(lock, runtime, CLOSURE_BASE, new Map());
+                const closure = await this.imports(lock, runtime, CLOSURE_BASE, linked);
                 const root = await this.contents(lock.root);
                 const modules = await ImportClosure.modules(
                     await ImportClosure.entries(lock.root, root, runtime),
