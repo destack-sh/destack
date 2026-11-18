@@ -435,7 +435,6 @@ export class LocalUniverse implements AsyncDisposable {
                     pid: environment.process.id,
                     startedAt: now,
                 },
-                report: (event, error) => Computer.capture(environment.telemetry, event, error),
                 shutdown: () =>
                     options.print(name, "asked to stop, which just local does on Ctrl-C"),
             }),
