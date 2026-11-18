@@ -170,21 +170,37 @@ export const PackageDefinition = Object.assign(definition, {
             );
         }
 
-        // refuse a kind comparison its export leaves off a server runtime, as machines compare on theirs
+        // refuse a comparison its export leaves off a server runtime, as machines compare on theirs
         const servers = (value.runtimes ?? []).filter((runtime) =>
             SERVER_RUNTIMES.some((server) => server === runtime),
         );
-        for (const kind of value.kinds ?? []) {
-            const [subpath = ""] = kind.compare?.split("#") ?? [];
-            const compiled = subpath === "" ? servers : PackageDefinition.runtimes(value, subpath);
+        for (const { kind, compare } of PackageDefinition.comparisons(value)) {
+            const [subpath = ""] = compare.split("#");
+            const compiled = PackageDefinition.runtimes(value, subpath);
             const missing = servers.find((runtime) => !compiled.includes(runtime));
             if (missing !== undefined) {
                 throw PackageError.of(
                     "EXPORT_INVALID",
-                    `package '${name}' is invalid: '${subpath}' compares ${kind.kind} declarations without '${missing}', where machines compare releases`,
+                    `package '${name}' is invalid: '${subpath}' compares ${kind} declarations without '${missing}', where machines compare releases`,
                 );
             }
         }
+    },
+
+    /** List the comparisons a package defines: its declaration constructors' and its kinds'. */
+    comparisons(
+        value: PackageDefinition,
+    ): readonly { readonly kind: string; readonly compare: FunctionReference }[] {
+        // read every kind a constructor describes or the package defines, with a comparison
+        const described = Object.values(value.declarations ?? {}).flatMap(
+            (constructor) => constructor.describes,
+        );
+
+        return [...described, ...(value.kinds ?? [])].flatMap((each) =>
+            "compare" in each && each.compare !== undefined
+                ? [{ kind: each.kind, compare: each.compare }]
+                : [],
+        );
     },
     /** Refuse importing an export of another package where the layout forbids it. */
     requireImport(

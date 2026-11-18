@@ -158,7 +158,7 @@ test("refuse an app without its package or with a free subpath, and a library wi
     });
 });
 
-test("refuse a kind comparison whose export leaves out a server runtime the package runs on", () => {
+test("refuse a declaration or kind comparison whose export leaves out a server runtime the package runs on", () => {
     // declare a builtin on Bun and workerd defining the object kind, its comparison in ./inspect
     const objects = PackageDefinition.parse({
         $schema: "https://destack.app/schemas/2026.9.0/destack.json",
@@ -166,6 +166,17 @@ test("refuse a kind comparison whose export leaves out a server runtime the pack
         role: "builtin",
         language: "typescript",
         runtimes: ["bun", "workerd"],
+        declarations: {
+            defineSetting: {
+                describes: [
+                    {
+                        kind: "setting",
+                        function: "./inspect#describeSetting",
+                        compare: "./inspect#compareSetting",
+                    },
+                ],
+            },
+        },
         kinds: [
             {
                 kind: "object",
@@ -187,7 +198,7 @@ test("refuse a kind comparison whose export leaves out a server runtime the pack
         }
     };
 
-    // allow the comparison on every server runtime, and refuse it on Bun alone
+    // allow the comparisons on every server runtime, and refuse them on Bun alone, the declaration's first
     expect({
         inherited: outcome(undefined),
         both: outcome(["bun", "workerd"]),
@@ -195,6 +206,6 @@ test("refuse a kind comparison whose export leaves out a server runtime the pack
     }).toEqual({
         inherited: "allowed",
         both: "allowed",
-        bun: "package '@acme/objects' is invalid: './inspect' compares object declarations without 'workerd', where machines compare releases",
+        bun: "package '@acme/objects' is invalid: './inspect' compares setting declarations without 'workerd', where machines compare releases",
     });
 });
