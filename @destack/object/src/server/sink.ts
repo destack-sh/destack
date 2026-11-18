@@ -22,7 +22,7 @@ import {
 } from "@destack/db";
 import { canonicalize, Digest, schema, present } from "@destack/schema";
 import * as sync from "@destack/sync";
-import { waitAborted } from "@destack/environment";
+import { untilAborted, waitAborted } from "@destack/environment";
 import type { ObjectStore, Subscriber } from "./store.ts";
 import { replicaRequest } from "../replica/request.ts";
 import { followKey } from "../replica/key.ts";
@@ -531,7 +531,7 @@ export class ObjectSink {
         let watched = request;
         while (!revised.signal.aborted) {
             // wait for the request's row to change
-            await Promise.race([following.changed(), waitAborted(revised.signal)]);
+            await untilAborted(following.changed(), revised.signal);
             const next = revised.signal.aborted ? watched : await this.#read(key);
 
             // keep an unchanged request

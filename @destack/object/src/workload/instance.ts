@@ -1,5 +1,5 @@
 import { TelemetryScope } from "@destack/telemetry";
-import { waitAborted } from "@destack/environment";
+import { untilAborted } from "@destack/environment";
 import { Failure } from "@destack/error";
 import { present, Uuid } from "@destack/schema";
 import { ObjectError } from "../error/error.ts";
@@ -341,7 +341,7 @@ class WorkloadStart {
         // wait for the start's turn
         const { options, clock, activation } = this.#serving;
         const signal = AbortSignal.any([this.#controller.signal, this.#stopping.signal]);
-        await Promise.race([activation, waitAborted(signal)]);
+        await untilAborted(activation, signal);
         if (store === undefined || signal.aborted) {
             return;
         }

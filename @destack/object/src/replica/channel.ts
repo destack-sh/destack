@@ -1,5 +1,5 @@
 import { type Channel, typedChannel } from "@destack/db";
-import { type Environment, waitAborted } from "@destack/environment";
+import { type Environment, untilAborted } from "@destack/environment";
 import { Failure } from "@destack/error";
 import { type JsonValue, schema } from "@destack/schema";
 import * as sync from "@destack/sync";
@@ -260,10 +260,9 @@ export class ChannelRemote implements ObjectRemote {
         page: (page: sync.Page) => void = () => {},
     ): Promise<JsonValue> {
         // wait for the node unless abandoned first, then number the send
-        const abandoned = signal === undefined ? undefined : waitAborted(signal);
-        await (abandoned === undefined
+        await (signal === undefined
             ? this.#serving.promise
-            : Promise.race([this.#serving.promise, abandoned]));
+            : untilAborted(this.#serving.promise, signal));
         signal?.throwIfAborted();
         const id = this.#next;
         this.#next += 1;

@@ -1,6 +1,6 @@
 import * as db from "@destack/db";
 import type { Extras } from "@destack/db";
-import { waitAborted } from "@destack/environment";
+import { untilAborted } from "@destack/environment";
 import { type Duration, mapValues } from "@destack/schema";
 import * as sync from "@destack/sync";
 import type { AggregateGroup } from "@destack/sync";
@@ -228,7 +228,7 @@ export class RelationalQuery<Value> implements PromiseLike<Value> {
         const live = this.subscribe();
         try {
             // wait for the replica to have the query, unless aborted first
-            await Promise.race([live.ready, waitAborted(signal)]);
+            await untilAborted(live.ready, signal);
             if (!signal.aborted) {
                 yield* live.watch(signal);
             }
@@ -247,7 +247,6 @@ export class RelationalQuery<Value> implements PromiseLike<Value> {
         const latest = new Map<string, unknown>();
         const stopped = new AbortController();
         const watching = AbortSignal.any([signal, stopped.signal]);
-        const aborted = waitAborted(signal);
         let changed = Promise.withResolvers<void>();
         let end: { readonly error: unknown } | "ended" | undefined;
         const watched = Promise.all(
@@ -269,7 +268,7 @@ export class RelationalQuery<Value> implements PromiseLike<Value> {
         // yield every query's latest value once each has one, until one watch stops
         try {
             while (!signal.aborted) {
-                await Promise.race([changed.promise, aborted]);
+                await untilAborted(changed.promise, signal);
                 changed = Promise.withResolvers<void>();
 
                 // fail with a watch's failure
