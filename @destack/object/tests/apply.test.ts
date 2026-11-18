@@ -81,3 +81,34 @@ test("serve a package applied after the store started, keeping the handlers of t
         name: "Urgent",
     });
 });
+
+test("wait for the reloaded loop in idle", async () => {
+    // serve notes and pages, idle once the loop runs
+    const simulation = testSimulation();
+    const scope = space.reference(Scope.universe.id, "space-01996ab0-0000-7000-8000-000000000401");
+    await using objects = await TestObjectStore.open({
+        packages: [notesPackage, pagesPackage],
+        tables: label.tables,
+        scope,
+        simulation,
+        owners: [principal.user.reference(Scope.universe.id, users.alice)],
+    });
+    await objects.store.idle();
+
+    // apply labels, which reloads the loop, then idle on the next loop before a deadline
+    objects.apply([...objects.store.servers, implementPackage(labelsPackage, {})]);
+    const { clock } = objects.environment;
+    const deadline = clock.now() + 1000;
+    await objects.store.idle(deadline);
+    const settled = clock.now();
+    await objects.store.idle();
+
+    // settle through the next loop before the deadline, serving labels beside the others
+    expect({
+        isBeforeDeadline: settled < deadline,
+        served: objects.store.packages.map((handler) => handler.package.id),
+    }).toEqual({
+        isBeforeDeadline: true,
+        served: [notesPackage.id, pagesPackage.id, labelsPackage.id],
+    });
+});

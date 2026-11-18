@@ -554,10 +554,12 @@ export class ObjectStore {
     >();
     /** The served jobs by name and the tables they watch, which a change restarts the loop over. */
     #controlled = "";
-    /** The next or running loop, with the signal of its reload. */
+    /** The next or running loop, its reload and stop signals, and its run until replaced. */
     #loop = Promise.withResolvers<{
         readonly loop: ControlLoop;
         readonly reloading: AbortSignal;
+        readonly stopping: AbortSignal;
+        readonly stopped: Promise<void>;
     }>();
     /** Aborts the running loop once the served jobs change. */
     #reloading = new AbortController();
@@ -2714,9 +2716,11 @@ export class ObjectStore {
                 ...(options.alarm === undefined ? {} : { alarm: options.alarm }),
             });
             previous = loop;
-            this.#loop.resolve({ loop, reloading: reloading.signal });
-            await loop.run(AbortSignal.any([signal, reloading.signal]));
-            this.#loop = Promise.withResolvers();
+            const stopped = loop.run(AbortSignal.any([signal, reloading.signal])).finally(() => {
+                this.#loop = Promise.withResolvers();
+            });
+            this.#loop.resolve({ loop, reloading: reloading.signal, stopping: signal, stopped });
+            await stopped;
         }
     }
 
@@ -2736,9 +2740,10 @@ export class ObjectStore {
             return;
         }
 
-        // wait for it, then for the next loop once a reload stopped it
+        // wait for it, then for the next loop once a reload, not the store's stop, ended it
         await running.loop.idle(deadline);
-        if (running.reloading.aborted) {
+        if (running.reloading.aborted && !running.stopping.aborted) {
+            await running.stopped;
             await this.idle(deadline);
         }
     }
