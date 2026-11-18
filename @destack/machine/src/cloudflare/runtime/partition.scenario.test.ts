@@ -3,7 +3,7 @@ import { Miniflare } from "miniflare";
 import { MemoryBuild } from "@destack/package/test";
 import { schema } from "@destack/schema";
 import { PackageMount } from "@destack/object";
-import { ALARM_PATH, START_PATH } from "@destack/object/cloudflare";
+import { ALARM_PATH, BUILD_PATH, START_PATH } from "@destack/object/cloudflare";
 import type { WorkloadStart } from "@destack/object/workload";
 import { testSimulation } from "@destack/object/test";
 import { testHost } from "@destack/test/host";
@@ -287,4 +287,89 @@ test("start an installation's workload again after its space restarted and forgo
         after: 200,
         conversed: { protocol: "echo", answers: ["pong"] },
     });
+});
+
+test("end a stored start once its restarted space refuses the start's secret, then answer that none runs", async () => {
+    // start the echo workload in a space whose storage a restart keeps, then stop the Worker
+    const { files } = testHost();
+    const storage = await files.makeTemporaryDirectory("destack-partition-");
+    onTestFinished(() => files.remove(storage, { recursive: true }));
+    const path = `${SPACE}/${INSTALLATION}`;
+    const first = new Miniflare(await describe({ storage }));
+    try {
+        await startEcho(first, path, { installation: INSTALLATION, secret: `${SECRET}:old` });
+    } finally {
+        await first.dispose();
+    }
+
+    // run the Worker again, its space serving only a start it has not made yet, and call the workload twice
+    const second = new Miniflare(await describe({ storage, served: `${SECRET}:${INSTALLATION}` }));
+    onTestFinished(() => second.dispose());
+    const call = async () => {
+        const response = await second.dispatchFetch(
+            `https://partition/${path}${PackageMount.path(ECHO_PACKAGE.id)}/open?id=socket-0`,
+        );
+
+        const { code, reason, message } = schema
+            .looseObject({
+                code: schema.string(),
+                reason: schema.string(),
+                message: schema.string(),
+            })
+            .parse(await response.json());
+
+        return [response.status, code, reason, message];
+    };
+    const ended = await call();
+    const after = await call();
+
+    // refuse the call as the start ending, then as no start running, without reading the space again
+    expect({ ended, after }).toEqual({
+        ended: [
+            503,
+            "SERVICE_UNAVAILABLE",
+            "WORKLOAD_UNAVAILABLE",
+            "workload is unavailable: its space no longer runs its start",
+        ],
+        after: [
+            503,
+            "SERVICE_UNAVAILABLE",
+            "WORKLOAD_UNAVAILABLE",
+            "workload is unavailable: no workload runs here",
+        ],
+    });
+});
+
+test("end a stored start whose wake-up rings after its restarted space forgot the start's secret", async () => {
+    // start the echo workload, set its wake-up a second ahead, then stop the Worker
+    const { files, clock } = testHost();
+    const storage = await files.makeTemporaryDirectory("destack-partition-");
+    onTestFinished(() => files.remove(storage, { recursive: true }));
+    const path = `${SPACE}/${INSTALLATION}`;
+    const old = `${SECRET}:old`;
+    const first = new Miniflare(await describe({ storage }));
+    try {
+        await startEcho(first, path, { installation: INSTALLATION, secret: old });
+        const moved = await first.dispatchFetch(`https://partition/${path}${ALARM_PATH}`, {
+            method: "POST",
+            headers: { authorization: `Bearer ${old}` },
+            body: JSON.stringify({ at: clock.now() + 1000 }),
+        });
+        await moved.arrayBuffer();
+    } finally {
+        await first.dispose();
+    }
+
+    // run the Worker again, its space serving only a start it has not made yet
+    const second = new Miniflare(await describe({ storage, served: `${SECRET}:${INSTALLATION}` }));
+    onTestFinished(() => second.dispose());
+
+    // read the stored start without loading its code, until the ringing wake-up ended it
+    const stored = async () => {
+        const response = await second.dispatchFetch(`https://partition/${path}${BUILD_PATH}/x`);
+
+        return schema.looseObject({ message: schema.string() }).parse(await response.json())
+            .message;
+    };
+    await expect.poll(stored).toBe("workload is unavailable: no workload runs here");
 });

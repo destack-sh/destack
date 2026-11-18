@@ -429,14 +429,22 @@ export class InstallationFacet {
         }
         Attribution.publish(Attribution.of(started.workload.start));
 
-        // run the workload's controllers until the ring's deadline
+        // run the workload's controllers until the ring's deadline, reporting a start that ended, which rings no more
         const ring: DurableObjectAlarm = { at: this.#environment.clock.now() + ALARM_MILLISECONDS };
-        const response = await this.#facet(started).fetch(
-            new Request(`https://workload${ALARM_PATH}`, {
-                method: "POST",
-                body: JSON.stringify(ring),
-            }),
-        );
+        const response = await this.#facet(started)
+            .fetch(
+                new Request(`https://workload${ALARM_PATH}`, {
+                    method: "POST",
+                    body: JSON.stringify(ring),
+                }),
+            )
+            .catch((error: unknown) => {
+                if (!MachineError.is(error, "WORKLOAD_UNAVAILABLE")) {
+                    throw error;
+                }
+
+                return refusal(error, this.#environment.telemetry);
+            });
         await response.arrayBuffer();
     }
 
@@ -475,7 +483,22 @@ export class InstallationFacet {
         }
 
         // forget the start and stop the facet
+        if (started !== undefined) {
+            await this.#forget(started);
+        }
+    }
+
+    /** Forget a start while it is still the stored one: its record, its wake-up and its facet. */
+    async #forget(started: DurableObjectInstanceStart): Promise<void> {
+        // leave a newer start the space stored meanwhile
+        const stored = await this.#started();
+        if (stored?.workload.start.secret !== started.workload.start.secret) {
+            return;
+        }
+
+        // delete the start and its wake-up, then stop the facet
         await this.#state.storage.delete(`${START_PREFIX}${this.installation}`);
+        await this.#alarm.deleteAlarm();
         this.#start = Promise.resolve(undefined);
         this.#isRunning = false;
         this.#state.facets.abort(this.installation, new Error("the instance's start changed"));
@@ -494,8 +517,17 @@ export class InstallationFacet {
 
         return {
             fetch: async (request) => {
+                // forget a start the space no longer runs, so later wake-ups find none
+                const response = await facet.fetch(request).catch(async (error: unknown) => {
+                    // rethrow the loader's copy of the refusal as this object's own
+                    if (started !== undefined && MachineError.is(error, "WORKLOAD_UNAVAILABLE")) {
+                        await this.#forget(started);
+                        throw MachineError.of("WORKLOAD_UNAVAILABLE", error.message);
+                    }
+                    throw error;
+                });
+
                 // an answer means the workload's code loaded and runs
-                const response = await facet.fetch(request);
                 this.#isRunning ||= started !== undefined;
 
                 return response;
@@ -532,7 +564,16 @@ export class InstallationFacet {
                 headers: { authorization: `Bearer ${secret}` },
             }),
         );
-        if (!response.ok) {
+        // end a start whose secret the space refuses, as a restarted space runs no start from before
+        if (response.status === 401) {
+            await response.arrayBuffer();
+            throw MachineError.of(
+                "WORKLOAD_UNAVAILABLE",
+                "workload is unavailable: its space no longer runs its start",
+            );
+        }
+        // refuse any other failure
+        else if (!response.ok) {
             throw MachineError.of(
                 "MODULE_UNREACHABLE",
                 `could not read the space's modules: ${response.status} '${await response.text()}'`,
