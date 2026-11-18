@@ -97,16 +97,15 @@ export const TestNotes = {
 
     /** Attribute the frames of a `Note.rename` failure, as the machine forwards them. */
     async frames(build: BuildReader): Promise<string> {
-        // symbolize the stack, then attribute it by the note module's code and graph
+        // symbolize the stack, then attribute it by the note module's graph file
         const symbolized = await new Symbolicator(build).frames(StackFrame.read(RENAME_STACK));
-        const index = { code: [await notesCode()], modules: [await notesModule()] };
-        const attributed = await new Attribution(build, index).frames(symbolized);
+        const attributed = await new Attribution(build, [await notesModule()]).frames(symbolized);
 
         return JSON.stringify(attributed);
     },
 };
 
-/** Index the note module: its `note` object at `Note` and the `rename` method it derives. */
+/** Index the note module: its `note` object at `Note`, its `rename` method, and their symbols. */
 async function notesModule(): Promise<graph.Module> {
     // declare the `note` object at `Note` and the `rename` method it derives
     const object = graph.Declaration.at(symbol("Note"), {
@@ -120,42 +119,42 @@ async function notesModule(): Promise<graph.Module> {
         description: {},
     });
 
-    return {
+    // locate the `Note` class and its `rename` method by source range
+    const range = (start: number, end: number) => ({ file: NOTE_MODULE, start, end });
+    const renamed = NOTE_SOURCE.indexOf("    rename");
+
+    return graph.Module.of({
         path: NOTE_MODULE,
         digest: await Digest.of(encode(NOTE_SOURCE), testHost().crypto),
         imports: [],
         exports: [],
         declarations: [object, rename],
-        edges: [],
-    };
-}
-
-/** Index the note module's code: the `Note` class and its `rename` method, by source range. */
-async function notesCode(): Promise<graph.Document> {
-    const range = (start: number, end: number) => ({ file: NOTE_MODULE, start, end });
-    const rename = NOTE_SOURCE.indexOf("    rename");
-
-    return {
-        path: NOTE_MODULE,
-        digest: await Digest.of(encode(NOTE_SOURCE), testHost().crypto),
         symbols: [
             {
                 moniker: symbol("Note"),
-                kind: "class",
-                source: range(0, NOTE_SOURCE.length),
-                signature: "class Note",
+                declarations: [
+                    {
+                        kind: "class",
+                        source: range(0, NOTE_SOURCE.length),
+                        signature: "class Note",
+                    },
+                ],
                 isExported: true,
             },
             {
                 moniker: symbol("Note.rename"),
-                kind: "method",
-                source: range(rename, NOTE_SOURCE.lastIndexOf("    }") + "    }".length),
-                signature: "rename(title: string): string",
+                declarations: [
+                    {
+                        kind: "method",
+                        source: range(renamed, NOTE_SOURCE.lastIndexOf("    }") + "    }".length),
+                        signature: "rename(title: string): string",
+                    },
+                ],
                 isExported: true,
             },
         ],
         edges: [],
-    };
+    });
 }
 
 /** Write the moniker of a symbol of the note module. */
