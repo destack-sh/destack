@@ -1,7 +1,7 @@
 import { schema } from "@destack/schema";
-import { and, isNull, sql, type SQL } from "../sql/index.ts";
+import { and, isNull, sql, type SQL, type SQLWrapper } from "../sql/index.ts";
 import { TABLE, Table, type Select } from "../table/table.ts";
-import type { ColumnValue } from "../table/column.ts";
+import type { Column, ColumnValue } from "../table/column.ts";
 import type { Row } from "../table/row.ts";
 import { DatabaseError } from "../error/error.ts";
 import { Condition, Scalar } from "./condition.ts";
@@ -35,14 +35,19 @@ export type Key<Definition extends Table = Table> = Pick<
 /** A table's primary key. */
 export const Key = {
     /** Match the row with a row's key. */
-    match(table: Table, row: Key): SQL<boolean> {
+    match(
+        table: Table,
+        row: Key,
+        bind: (value: ColumnValue, column: Column) => SQLWrapper = (value, column) =>
+            sql.param(value, column),
+    ): SQL<boolean> {
         const [first, ...rest] = table[TABLE].key.map((property) => {
             const column = table[TABLE].column(property);
             const value = Key.value(table, row, property);
 
             return value === null
                 ? isNull(column)
-                : sql<boolean>`${column} = ${sql.param(value, column)}`;
+                : sql<boolean>`${column} = ${bind(value, column)}`;
         });
         if (first === undefined) {
             throw DatabaseError.of(
