@@ -6,7 +6,7 @@ import { builtinModules } from "node:module";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { type Plugin, rolldown } from "rolldown";
-import { DOMAINS, UniverseOrigin } from "@destack/account/address";
+import { DOMAINS, InstallationOrigin, UniverseOrigin } from "@destack/account/address";
 import { ModuleTransformer } from "@destack/package/transform";
 import { modulePlugin } from "@destack/package/vite";
 import { DURABLE_OBJECT_GIGABYTES } from "@platform/pricing/cloudflare";
@@ -174,7 +174,7 @@ export class WorkerScript {
         }
 
         return target.kind === "universe"
-            ? this.deployment.universeOrigin
+            ? this.deployment.universeWorkerOrigin
             : this.deployment.machineOrigin(target.residency);
     }
 
@@ -244,7 +244,9 @@ export class WorkerScript {
                 DESTACK_MACHINE_ID: residency.machine.id,
                 DESTACK_UNIVERSE: this.deployment.universeOrigin,
                 DESTACK_JURISDICTION: kept,
-                DESTACK_SPACE_DOMAIN: DOMAINS.space,
+                DESTACK_SPACE_DOMAIN: InstallationOrigin.domain(
+                    this.deployment.machineOrigin(residency),
+                ),
                 DESTACK_HOST: outputs.host,
                 DESTACK_FILES: outputs.files,
                 DESTACK_REGISTRY: FORGE_INSTALLATION,

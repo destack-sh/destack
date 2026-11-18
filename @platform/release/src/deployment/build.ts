@@ -30,7 +30,7 @@ import {
     present,
     schema,
 } from "@destack/schema";
-import type { Registry } from "@destack/registry/client";
+import type { PublishOptions, Registry } from "@destack/registry/client";
 import { Toolchain } from "@destack/check/toolchain";
 import { releaseVersion } from "../distribution/distribution.ts";
 
@@ -136,12 +136,13 @@ export class PlatformBuild implements AsyncDisposable {
         tag: string,
         open: ForgeOpen,
         released: (reader: BuildReader) => Promise<void>,
+        options: PublishOptions = {},
     ): Promise<void> {
         // release each handle's locks at once into its account's forge, after the handles they require
         for (const { handle, names } of PlatformBuild.#runs(this.releases)) {
             const { accountId, registry } = await open(handle);
             const locks = names.map((name) => found(this.locks, name));
-            const releases = await registry.release(this.store, locks, accountId, tag);
+            const releases = await registry.release(this.store, locks, accountId, tag, options);
             for (const each of releases) {
                 await released(found(this.releases, each.package.name));
             }

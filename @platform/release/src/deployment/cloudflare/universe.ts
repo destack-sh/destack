@@ -103,8 +103,12 @@ async function startUniverse(bindings: UniverseBindings, alarm: Alarm) {
     const universe = await Control.start({
         ...PlatformUniverse.options(environment, {
             releases: DistributionManifest.releases(await WorkerdDistribution.read(), "workerd"),
-            open: (manifest) =>
-                present(releases.build(manifest), `the shipped release ${manifest}`),
+            open: (lock) => {
+                // open the root build of the shipped lock
+                const { root } = present(releases.lock(lock), `the shipped release ${lock}`);
+
+                return present(releases.build(root), `the shipped release's root build ${root}`);
+            },
         }),
         definition: UniverseDefinition.parse(declared.default),
         origin: bindings.DESTACK_UNIVERSE,

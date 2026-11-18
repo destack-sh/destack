@@ -56,6 +56,7 @@ import { GITHUB_APP, PLATFORM, type PlatformResidency, RESIDENCIES } from "@plat
 import { Custody, type CustodyEnvelopes } from "./custody.ts";
 import { DISTRIBUTION_MODULE, PackageId } from "@destack/package";
 import { PackageManifest } from "@destack/package/manifest";
+import { LATEST_TAG } from "@destack/registry/object";
 import { SERVER_BUNDLE_MODULE } from "@destack/machine/cloudflare";
 import { InstallationMount, PackageMount } from "@destack/object";
 import type { Environment, HostCapability } from "@destack/environment";
@@ -139,6 +140,8 @@ export interface LoopbackLayout {
     readonly machine: number;
     /** Each residency's cloud machine's port, by residency code. */
     readonly machines: Readonly<Record<ResidencyCode, number>>;
+    /** The universe Worker's own port, behind the universe port's edge under workerd. */
+    readonly universeWorker: number;
 }
 
 /** The loopback layout of `just local`: the universe, this machine, then each residency's. */
@@ -148,6 +151,7 @@ export const LOOPBACK_LAYOUT: LoopbackLayout = {
     machines: Object.fromEntries(
         RESIDENCIES.map((residency, index) => [residency.code, UNIVERSE_PORT + 2 + index]),
     ),
+    universeWorker: UNIVERSE_PORT + 2 + RESIDENCIES.length,
 };
 
 /** The platform deployed at a stage: its universe, residencies and Workers. */
@@ -203,6 +207,35 @@ export class Deployment {
         return this.stage.name === "local"
             ? `http://${LOOPBACK}:${this.layout.universe}`
             : this.stage.universe;
+    }
+
+    /** The origin the universe's Worker answers at: its own port behind the edge locally. */
+    get universeWorkerOrigin(): string {
+        return this.stage.name === "local"
+            ? `http://${LOOPBACK}:${this.layout.universeWorker}`
+            : this.universeOrigin;
+    }
+
+    /** Address a request at the universe's domain, as the edge does. */
+    edge(request: Request): Request {
+        // keep the path and query below the universe's domain
+        const requested = new URL(request.url);
+        const routed = new URL(
+            `${requested.pathname}${requested.search}`,
+            `https://${DOMAINS.universe}`,
+        );
+
+        // present the browser's own origin as the universe's, as a reverse proxy changing the origin does
+        const headers = new Headers(request.headers);
+        if (headers.get("origin") === requested.origin) {
+            headers.set("origin", routed.origin);
+        }
+        const referer = headers.get("referer");
+        if (referer?.startsWith(`${requested.origin}/`) === true) {
+            headers.set("referer", `${routed.origin}${referer.slice(requested.origin.length)}`);
+        }
+
+        return new Request(new Request(routed, request), { headers });
     }
 
     /** The origin the cloud machine serving a residency answers at. */
@@ -308,7 +341,7 @@ export class Deployment {
         server: string,
         database: string,
         print: (name: string, line: string) => void,
-        hold: () => Promise<void>,
+        hold: (build: PlatformBuild) => Promise<void>,
     ): Promise<void> {
         // create a fresh database on the server's maintenance connection
         const { environment } = this;
@@ -372,6 +405,36 @@ export class Deployment {
         // write the releases the Workers ship as their static assets
         await build.writeAssets(this.releases);
         const modules = await Deployment.#modules(build, declaration);
+
+        // serve the universe's port as Cloudflare's routes do: its own paths at the universe's Worker, others at the platform residency's machine
+        const platform = present(
+            RESIDENCIES.find((residency) => residency.code === PLATFORM.residencyId),
+            "the platform residency",
+        );
+        const front = environment.server.http({
+            hostname: LOOPBACK,
+            port: this.layout.universe,
+            fetch: (request) => {
+                // send the universe's paths to its Worker, others at its domain to the platform machine, passing bodies and redirects through
+                const isUniverse = UniverseOrigin.path(new URL(request.url).pathname) !== undefined;
+                const edged = isUniverse ? request : this.edge(request);
+                const routed = new URL(edged.url);
+                const target = isUniverse
+                    ? this.universeWorkerOrigin
+                    : this.machineOrigin(platform);
+                const headers = new Headers(edged.headers);
+                headers.set("host", routed.host);
+
+                return environment.network.fetch(
+                    new Request(new Request(`${target}${routed.pathname}${routed.search}`, edged), {
+                        headers,
+                        redirect: "manual",
+                    }),
+                    { decompress: false },
+                );
+            },
+        });
+        serving.defer(() => front.stop(true));
 
         // serve each script on its own ports with placeholder secrets and its root key, and check it answers, keeping the universe's lines
         await using children = new AsyncDisposableStack();
@@ -449,16 +512,11 @@ export class Deployment {
             print("stage", `the home of ${residency.code} serves its forge`);
         }
 
-        // sign the operator in, and publish the platform's releases under the stage's tag as its owner
-        const send = (request: Request) => this.environment.network.fetch(request);
-        const issuer = new Issuer(this.issuer, send, this.environment, new Bookmark());
-        const operator = await Operator.signIn(issuer, mail, this.environment);
-        await build.release(this.stage.tag, this.forges(custody, build, operator), async () => {});
-        print("stage", `the releases are published under ${this.stage.tag}`);
+        // publish the platform's releases as the local operator
+        await this.publishLocal(build, custody, mail, print);
 
-        // serve until the hold ends
-        print("ready", `${this.universeOrigin}/ opens Destack in a browser`);
-        await hold();
+        // serve the build until the hold ends
+        await hold(build);
     }
 
     /** Require a residency home's forge to serve on the residency's cloud machine. */
@@ -659,6 +717,28 @@ export class Deployment {
         await this.release(print);
     }
 
+    /** Publish a build's releases as the local operator under the stage's tag, pointing latest. */
+    async publishLocal(
+        build: PlatformBuild,
+        custody: Custody,
+        mail: PrintedMail,
+        print: (name: string, line: string) => void,
+    ): Promise<void> {
+        // sign the operator in, and publish under the stage's tag as the platform's owner, pointing latest, which installs follow
+        const send = (request: Request) => this.environment.network.fetch(request);
+        const issuer = new Issuer(this.issuer, send, this.environment, new Bookmark());
+        const operator = await Operator.signIn(issuer, mail, this.environment);
+        await build.release(
+            this.stage.tag,
+            this.forges(custody, build, operator),
+            async (reader) => {
+                const { name, version } = PackageManifest.package(reader.manifest);
+                print("publish", `${name}@${version}`);
+            },
+            { tags: [LATEST_TAG] },
+        );
+    }
+
     /** Migrate the universe's database, and deploy the universe and every cloud machine. */
     async release(print: (name: string, line: string) => void): Promise<void> {
         // read the operator, the roots' outputs and the custody record the operator sealed
@@ -748,7 +828,7 @@ export class Deployment {
         const fetch = session.fetch(registryPackage.id, { partition: home });
         const registry = new Registry(async () => ({ url, space: home, fetch }), environment);
 
-        // release each build under the stage's tag, in the account of its handle
+        // release each build under the stage's tag in the account of its handle, pointing latest, which installs follow
         await using build = await this.#build();
         await build.release(
             this.stage.tag,
@@ -757,6 +837,7 @@ export class Deployment {
                 const { name, version } = PackageManifest.package(reader.manifest);
                 print("publish", `${name}@${version}`);
             },
+            { tags: [LATEST_TAG] },
         );
     }
 
