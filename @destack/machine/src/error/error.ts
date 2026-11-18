@@ -101,7 +101,7 @@ const machineError = defineErrorFamily({
         MACHINE_UNAVAILABLE: {},
         REVISION_UNAVAILABLE: {},
         RUNNER_UNAVAILABLE: {},
-        SPACE_UNAVAILABLE: {},
+        SPACE_UNAVAILABLE: { data: RetryAfter.partial() },
         TELEMETRY_UNAVAILABLE: {},
         TRACE_UNAVAILABLE: {},
         WORKLOAD_UNAVAILABLE: {},

@@ -34,7 +34,12 @@ import {
 } from "./runtime/index.ts";
 import { Machine, OLDEST_DESTACK } from "../machine/index.ts";
 import machinePackage from "../package.ts";
-import { type Space, SPACE_HEADER, SpaceRequest } from "../space/index.ts";
+import {
+    type Space,
+    SPACE_HEADER,
+    SPACE_RETRY_MILLISECONDS,
+    SpaceRequest,
+} from "../space/index.ts";
 import { Attribution, TRACES_PATH } from "./attribution.ts";
 import { TraceCount } from "../gateway/index.ts";
 import { DurableObjectSpaceStorage } from "./storage.ts";
@@ -261,6 +266,7 @@ export class PartitionObject {
                 MachineError.of(
                     "SPACE_UNAVAILABLE",
                     "space is unavailable: no space runs here yet",
+                    { data: {} },
                 ),
                 WorkerdEnvironment.system.telemetry,
             );
@@ -327,6 +333,7 @@ export class PartitionObject {
                     throw MachineError.of(
                         "SPACE_UNAVAILABLE",
                         `'${space}' is unavailable: it is starting`,
+                        { data: { retryAfter: SPACE_RETRY_MILLISECONDS } },
                     );
                 }
 
@@ -338,6 +345,7 @@ export class PartitionObject {
                     throw MachineError.of(
                         "SPACE_UNAVAILABLE",
                         `'${space}' is unavailable: it is starting`,
+                        { data: { retryAfter: SPACE_RETRY_MILLISECONDS } },
                     );
                 }
 

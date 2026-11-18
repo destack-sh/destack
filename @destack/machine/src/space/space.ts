@@ -181,6 +181,12 @@ const ASSIGNMENT_PLACEMENT: Relation = {
 /** The origin in-process installations call their space's stack service at, in process. */
 const STACK_ORIGIN = "http://stack.localhost";
 
+/** How long a request waits for its space's instantiation: 5 s, as for its caller's watermarks. */
+const INSTANTIATION_WAIT_MILLISECONDS = 5000;
+
+/** The milliseconds a caller waits before asking again for a space not instantiated yet. */
+export const SPACE_RETRY_MILLISECONDS = 1000;
+
 /** The redirects a fetch follows at most, as the Fetch standard limits them. */
 const MAX_REDIRECTS = 20;
 
@@ -528,6 +534,11 @@ export class Space {
                     );
                     const store = openStore(this, start, this.#storeServers(servers), isolates);
                     start.store.resolve(store);
+
+                    // instantiate a primary placed here before it serves
+                    if (start.role === "primary") {
+                        await this.#place(this.id, store, this.machine.volumes.main);
+                    }
                     start.gateway.resolve(new Gateway(this, start, store));
 
                     return {
@@ -1200,7 +1211,7 @@ export class Space {
     async installations(
         open: (packageId: PackageId, lock: Digest) => Promise<BuildReader | undefined>,
     ): Promise<InstallationBuild[]> {
-        // read no installations of a space before its birth gives it main
+        // read no installations of a space before its instantiation gives it main
         const snapshot = Snapshot.live(this.database);
         const spaceId = this.id;
         const main = await Database.mainMaybe(snapshot, spaceId);
@@ -1962,7 +1973,7 @@ export class Space {
         return { ...verified, caller: { ...caller, groups: [...caller.groups, ...inside] } };
     }
 
-    /** Declare the projection giving birth to the space once placed here, following its stack. */
+    /** Declare the projection instantiating the space once placed here, following its stack. */
     placement(store: ObjectStore, main: ReturnType<typeof defineDatabase>): Projection {
         const here = { id: this.id };
 
@@ -2015,7 +2026,7 @@ export class Space {
         // leave a space not placed here, a deleting one, and one whose row or parent scope has not arrived
         const spaceId = accountObject.space.identifier(key);
         const [placed] = await this.database
-            .select({ born: Scope.table.scope, parent: accountObject.space.table.scope })
+            .select({ instantiated: Scope.table.scope, parent: accountObject.space.table.scope })
             .from(accountObject.placement.table)
             .innerJoin(
                 accountObject.space.table,
@@ -2037,7 +2048,7 @@ export class Space {
         const resolved = await this.#resolveStack(spaceId);
 
         // instantiate the space once its parent's scope arrived
-        if (placed.born === null) {
+        if (placed.instantiated === null) {
             const [parent] = await this.database
                 .select({ ancestors: Scope.table.ancestors })
                 .from(Scope.table)
@@ -2064,6 +2075,16 @@ export class Space {
         resolved: ResolvedStack,
     ): Promise<void> {
         await Transaction.run(this.database, async (transaction) => {
+            // leave a space instantiated already, as its start and its placement both instantiate it
+            const [instantiated] = await transaction
+                .view()
+                .read(Scope.table)
+                .findMany({ where: { scope: spaceId } });
+            if (instantiated !== undefined) {
+                return;
+            }
+
+            // receive its scope, create its main database and follow its stack
             await this.#receive(store, spaceId, ancestors, transaction);
             await this.#createMain(store, main, spaceId, transaction);
             await this.#followChangedStack(store, spaceId, transaction, resolved);
@@ -2373,10 +2394,46 @@ export class Space {
             return probed;
         }
 
-        // serve anything else through the gateway once it serves
-        const gateway = await this.#current().gateway.promise;
+        // serve anything else through the gateway once it serves, a primary once instantiated
+        const start = this.#current();
+        const gateway = await start.gateway.promise;
+        if (start.role === "primary") {
+            await this.#waitInstantiated(request.signal);
+        }
 
         return gateway.serve(request, authentication);
+    }
+
+    /** Wait until the space is instantiated, refusing it as starting past the wait. */
+    async #waitInstantiated(signal: AbortSignal): Promise<void> {
+        // read whether its own scope exists, which its instantiation records first
+        const isInstantiated = async () => {
+            const [scope] = await this.database
+                .select({ scope: Scope.table.scope })
+                .from(Scope.table)
+                .where(eq(Scope.table.scope, this.id));
+
+            return scope !== undefined;
+        };
+        if (await isInstantiated()) {
+            return;
+        }
+
+        // wait for the instantiation's commit, then refuse a space still waiting with when to ask again
+        const waited = AbortSignal.any([
+            signal,
+            this.machine.clock.timeout(INSTANTIATION_WAIT_MILLISECONDS),
+        ]);
+        await this.database.log.waitUntil(isInstantiated, waited);
+        if (!(await isInstantiated())) {
+            throw MachineError.of(
+                "SPACE_UNAVAILABLE",
+                `space '${this.id}' is unavailable: it is starting`,
+                {
+                    data: { retryAfter: SPACE_RETRY_MILLISECONDS },
+                },
+            );
+        }
     }
 
     /** Stop the space's workload, then release what the machine opened for it. */
