@@ -157,3 +157,44 @@ test("refuse an app without its package or with a free subpath, and a library wi
         builtin: "allowed",
     });
 });
+
+test("refuse a kind comparison whose export leaves out a server runtime the package runs on", () => {
+    // declare a builtin on Bun and workerd defining the object kind, its comparison in ./inspect
+    const objects = PackageDefinition.parse({
+        $schema: "https://destack.app/schemas/2026.9.0/destack.json",
+        id: "package-01996ab0-0000-7000-8000-000000000a02",
+        role: "builtin",
+        language: "typescript",
+        runtimes: ["bun", "workerd"],
+        kinds: [
+            {
+                kind: "object",
+                function: "./inspect#describeObject",
+                compare: "./inspect#compareObject",
+            },
+        ],
+    });
+    const outcome = (runtimes: PackageDefinition["runtimes"]) => {
+        try {
+            const exports = runtimes === undefined ? {} : { "./inspect": { runtimes } };
+            PackageDefinition.requireExports({ ...objects, exports }, "@acme/objects", [
+                "./inspect",
+            ]);
+
+            return "allowed";
+        } catch (error) {
+            return error instanceof Error ? error.message : String(error);
+        }
+    };
+
+    // allow the comparison on every server runtime, and refuse it on Bun alone
+    expect({
+        inherited: outcome(undefined),
+        both: outcome(["bun", "workerd"]),
+        bun: outcome(["bun"]),
+    }).toEqual({
+        inherited: "allowed",
+        both: "allowed",
+        bun: "package '@acme/objects' is invalid: './inspect' compares object declarations without 'workerd', where machines compare releases",
+    });
+});

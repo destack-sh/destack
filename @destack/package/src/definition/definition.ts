@@ -1,6 +1,6 @@
 import { schema } from "@destack/schema";
 import { Language } from "./language.ts";
-import { Runtime } from "../runtime/index.ts";
+import { Runtime, SERVER_RUNTIMES } from "../runtime/index.ts";
 import { TemplateDefinition } from "../template/index.ts";
 import { DependencyName, PackageId, PackageName } from "./package.ts";
 import {
@@ -168,6 +168,22 @@ export const PackageDefinition = Object.assign(definition, {
                 "EXPORT_INVALID",
                 `app '${name}' is invalid: it exports '${free}', outside the standard subpaths`,
             );
+        }
+
+        // refuse a kind comparison its export leaves off a server runtime, as machines compare on theirs
+        const servers = (value.runtimes ?? []).filter((runtime) =>
+            SERVER_RUNTIMES.some((server) => server === runtime),
+        );
+        for (const kind of value.kinds ?? []) {
+            const [subpath = ""] = kind.compare?.split("#") ?? [];
+            const compiled = subpath === "" ? servers : PackageDefinition.runtimes(value, subpath);
+            const missing = servers.find((runtime) => !compiled.includes(runtime));
+            if (missing !== undefined) {
+                throw PackageError.of(
+                    "EXPORT_INVALID",
+                    `package '${name}' is invalid: '${subpath}' compares ${kind.kind} declarations without '${missing}', where machines compare releases`,
+                );
+            }
         }
     },
     /** Refuse importing an export of another package where the layout forbids it. */
