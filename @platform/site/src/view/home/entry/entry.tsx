@@ -320,9 +320,10 @@ const styles = style.create({
         display: { default: "grid", [media.maxLg]: "flex" },
         flexWrap: "wrap",
         gridArea: "word",
-        justifyItems: "start",
+        justifyItems: { default: "end", [media.maxLg]: "start" },
         margin: 0,
         rowGap: "0.5rem",
+        textAlign: { default: "end", [media.maxLg]: "start" },
     },
     meta: {
         color: color.mutedForeground,
