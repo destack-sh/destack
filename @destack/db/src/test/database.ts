@@ -67,6 +67,8 @@ export class TestDatabase<
     readonly #open: TestConnector | undefined;
     /** Remove the database. */
     readonly #remove: () => Promise<void>;
+    /** The close once started, which every later close awaits. */
+    #closed: Promise<void> | undefined;
     /** The other open connections. */
     readonly #connections = new Set<ClosingConnection>();
 
@@ -638,7 +640,15 @@ export class TestDatabase<
     }
 
     /** Close every connection and remove the database. */
-    async close(): Promise<void> {
+    close(): Promise<void> {
+        // close once, a later close awaiting the first
+        this.#closed ??= this.#close();
+
+        return this.#closed;
+    }
+
+    /** Close the database once. */
+    async #close(): Promise<void> {
         // close the connections, then remove the database on its scheduler
         await Promise.all([...this.#connections].map((connection) => connection.close()));
         const { scheduler } = this.database.state.environment;
