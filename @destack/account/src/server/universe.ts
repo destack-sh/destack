@@ -149,6 +149,8 @@ export const PlatformDefinition = schema.object({
             key: PublicKey,
             /** The origin the machine answers at, published as its endpoint. */
             origin: schema.url(),
+            /** The SKU rating each meter of the machine's spaces, by meter key. */
+            rates: schema.record(schema.string(), schema.string()),
         }),
     ),
 });
@@ -293,11 +295,31 @@ export class Platform {
                     residencyId: entry.residencyId,
                     providerCode: entry.providerCode,
                     location: entry.location,
+                    rates: entry.rates,
                     publicKey: entry.key,
                     origin: entry.origin,
                 }),
             ),
         );
+
+        // rate the existing ones whose declared rates changed
+        const rated = existing.flatMap((row) => {
+            // read the machine's declared rates
+            const declared = present(
+                this.definition.machines.find((entry) => entry.id === row.id),
+                `the definition of ${row.id}`,
+            );
+
+            // compare the stored rates with the declared ones by meter
+            const stored = Object.entries(row.rates);
+            const isChanged =
+                stored.length !== Object.keys(declared.rates).length ||
+                stored.some(([meter, sku]) => declared.rates[meter] !== sku);
+            const target = machine.target({ scope: Scope.universe.id, id: row.id });
+
+            return isChanged ? [machine.call("rate", { ...target, rates: declared.rates })] : [];
+        });
+        await this.#mutate(rated);
     }
 
     /** Create the operating organization with its account once, as the universe. */

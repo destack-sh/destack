@@ -32,6 +32,7 @@ export function implementMachine(): typeof machine {
             enable: (call) => transition(call, "enabled"),
             drain: (call) => transition(call, "draining"),
             disable: (call) => transition(call, "disabled"),
+            rate: (call) => call.update({ rates: call.input.rates }),
             rename,
         },
     });

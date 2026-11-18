@@ -141,6 +141,8 @@ export const machine = defineObject(
             location: field.string(CloudMachine.shape.location).optional(),
             /** The size of an account's dedicated cloud machine. */
             size: field.enum(MACHINE_SIZES).optional(),
+            /** The SKU rating each meter of the machine's spaces, by meter key. */
+            rates: field.json(schema.record(schema.string(), schema.string())).default({}),
 
             // the machine's status and contact
             /** Whether the machine hosts new work, drains existing work, or neither. */
@@ -233,6 +235,7 @@ export const machine = defineObject(
                 // let the account's managers share the machine with another account's members as tenants
                 share: through("account", "manage"),
                 declare: none(),
+                rate: none(),
             },
             reserved: ["rotate", "serve", "relay", "replicate"],
         },
@@ -247,11 +250,21 @@ export const machine = defineObject(
         }),
         declare: method.create("declare", {
             visibility: "package",
-            fields: ["name", "size"],
+            fields: ["name", "size", "rates"],
             variants: { kind: { cloud: CLOUD_COLUMNS } },
             input: KeyProof.pick({ publicKey: true }).extend({
                 /** The URL the cloud machine answers at, its endpoint. */
                 origin: schema.url(),
+            }),
+        }),
+        /** Rate a declared cloud machine's spaces by other SKUs, as the universe declares them. */
+        rate: method.mutation({
+            title: t`Rate`,
+            permission: "rate",
+            visibility: "package",
+            input: schema.object({
+                /** The SKU rating each meter of the machine's spaces, by meter key. */
+                rates: schema.record(schema.string(), schema.string()),
             }),
         }),
         /** Record the tunnel a relay accepted from a personal machine, at its derived name. */

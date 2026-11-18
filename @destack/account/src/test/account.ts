@@ -1554,6 +1554,7 @@ async function cloudMachine(
         location: LOCATION,
         key: publicKey,
         origin: `https://${name}.machine.test/`,
+        rates: {},
     };
 }
 

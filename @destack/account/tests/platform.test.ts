@@ -325,6 +325,7 @@ test("apply the declared cloud machines with their keys in the universe once, an
                 location: "eu",
                 key: await europe.key(),
                 origin: "https://eu-west.machine.test/",
+                rates: {},
             },
             {
                 id: america.machineId,
@@ -334,6 +335,7 @@ test("apply the declared cloud machines with their keys in the universe once, an
                 location: "us",
                 key: await america.key(),
                 origin: "https://us-west.machine.test/",
+                rates: {},
             },
         ],
     };
