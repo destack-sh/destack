@@ -166,7 +166,7 @@ function openTunnel() {
         simulation,
         standing,
         published,
-        telemetry: new TestTelemetry(simulation.telemetry),
+        telemetry: TestTelemetry.of(simulation.telemetry),
     };
 }
 

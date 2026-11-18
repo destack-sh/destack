@@ -17,7 +17,7 @@ test("keep a string under its key, reporting storage the browser refuses and fai
     // keep a string in a tab's storage, reporting to the world's telemetry
     const { tab } = testWorld();
     const recorded = new SimulatedTelemetry(tab);
-    using telemetry = new TestTelemetry(recorded);
+    using telemetry = TestTelemetry.of(recorded);
     const item = new StoredItem("theme", tab, TelemetryScope.of(NOTES, recorded));
     const before = item.read();
     item.write("dark");

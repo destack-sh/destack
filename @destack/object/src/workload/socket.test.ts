@@ -22,7 +22,7 @@ test("report a socket close its instance refuses, delivering the close once", as
         seed: 1,
         start: Date.UTC(2026, 9, 16),
     });
-    using telemetry = new TestTelemetry(simulation.telemetry);
+    using telemetry = TestTelemetry.of(simulation.telemetry);
     const delivered: string[] = [];
     const host = new HibernationHost(async (_instanceId, path, request) => {
         delivered.push(`${request.method} ${path}`);

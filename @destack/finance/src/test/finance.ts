@@ -303,7 +303,7 @@ export class TestFinance {
             store,
             implementation,
             provider: charging === undefined ? undefined : charging(home.id),
-            telemetry: new TestTelemetry(home.simulation.telemetry),
+            telemetry: TestTelemetry.of(home.simulation.telemetry),
             world,
             published,
         });

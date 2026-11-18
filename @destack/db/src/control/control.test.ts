@@ -164,7 +164,7 @@ async function openJobs(simulation: Simulation, tables: readonly Table[] = [job,
     // read the world's telemetry, refusing failures the test does not take at its end
     const world = simulation.environment("test");
     const recorded = simulation.telemetry;
-    const telemetry = new TestTelemetry(recorded);
+    const telemetry = TestTelemetry.of(recorded);
     onTestFinished(() => telemetry[Symbol.dispose]());
 
     // open the database in the world

@@ -93,7 +93,7 @@ export class TestTunnelMachine implements AsyncDisposable {
     }) {
         // take the simulation, the universe and the owner
         this.simulation = fields.simulation;
-        this.telemetry = new TestTelemetry(fields.simulation.telemetry);
+        this.telemetry = TestTelemetry.of(fields.simulation.telemetry);
         this.universe = fields.universe;
         this.owner = fields.owner;
 

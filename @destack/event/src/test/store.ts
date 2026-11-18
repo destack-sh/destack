@@ -157,7 +157,7 @@ export class TestEventStore implements AsyncDisposable {
                 }),
             database,
             simulation,
-            new TestTelemetry(simulation.telemetry),
+            TestTelemetry.of(simulation.telemetry),
         );
     }
 

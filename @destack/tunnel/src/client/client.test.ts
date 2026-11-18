@@ -158,7 +158,7 @@ test("dial again after the issuer grants no token for the relay's resource, warn
     await using simulation = testSimulation();
     const statuses: TunnelStatus[] = [];
     const audiences: PackageId[] = [];
-    using telemetry = new TestTelemetry(simulation.telemetry);
+    using telemetry = TestTelemetry.of(simulation.telemetry);
     const relay = silentRelay(simulation);
     const client = TunnelClient.open({
         url: relay.url,
@@ -192,7 +192,7 @@ test("drop a tunnel whose relay stops answering, dialing again and closing witho
     // dial a relay that accepts the upgrade and answers nothing after
     await using simulation = testSimulation();
     const statuses: TunnelStatus[] = [];
-    using telemetry = new TestTelemetry(simulation.telemetry);
+    using telemetry = TestTelemetry.of(simulation.telemetry);
     const relay = silentRelay(simulation);
     const client = TunnelClient.open({
         url: relay.url,
