@@ -2,7 +2,7 @@ import type { StepUp } from "@destack/access";
 import type { ObjectClient } from "@destack/object/client";
 import { Identifier, schema, Uuid } from "@destack/schema";
 import { RequestId } from "@destack/sync";
-import { waitAborted } from "@destack/environment";
+import { untilAborted } from "@destack/environment";
 import { client, type ClientRegistration } from "../object/client.ts";
 import {
     DEVICE_SCOPES,
@@ -472,7 +472,7 @@ class LoopbackRedirect implements AsyncDisposable {
             signal.throwIfAborted();
             const next = Promise.withResolvers<void>();
             this.#wake = next.resolve;
-            await Promise.race([next.promise, waitAborted(signal)]);
+            await untilAborted(next.promise, signal);
         }
     }
 
