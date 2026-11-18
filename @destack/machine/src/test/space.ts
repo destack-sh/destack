@@ -4,11 +4,11 @@ import * as accountObject from "@destack/account/object";
 import { FORGE_INSTALLATION } from "@destack/forge/package";
 import { pathToFileURL } from "node:url";
 import { KNOWN_TYPES } from "@destack/stack/stack";
-import { Crypto } from "@destack/environment";
+import { Crypto, WebSocketUpgrade } from "@destack/environment";
 import { TestTelemetry } from "@destack/telemetry/test";
 import { Refusal } from "./refusal.ts";
 import { InstallationDefinition, STACK_KIND, StackDefinition } from "@destack/stack/declare";
-import type { Environment, HostCapability, Scheduler } from "@destack/environment";
+import type { ClientSocket, Environment, HostCapability, Scheduler } from "@destack/environment";
 import type { Connector, Plan } from "@destack/resource";
 import { join } from "node:path";
 import { LocalBucketHost } from "@destack/bucket/bun";
@@ -25,7 +25,7 @@ import {
     TABLE,
     DatabaseHandle,
 } from "@destack/db";
-import { type BuildReader, Lock } from "@destack/package/manifest";
+import { type BuildReader, BuildImage } from "@destack/package/manifest";
 import { ObjectTypeReference, RequestId, type Subject, ObjectReference } from "@destack/sync";
 import { TestBearer, TestCaller, type TestSigner, type TestScope } from "@destack/object/test";
 import { TestTemplate, TestDatabase, TestRun, type TemplateStorage } from "@destack/db/test";
@@ -59,6 +59,7 @@ import {
     type JsonObject,
     type VersionRange,
     type JsonValue,
+    nth,
     present,
     schema,
 } from "@destack/schema";
@@ -84,7 +85,7 @@ import {
 import type { TestPerson } from "@destack/account/test";
 import type { ClientOf } from "@destack/object/client";
 import stackPackage, { PUSH_PATH } from "@destack/stack/package";
-import { fixtureOutputs, lockBuild, lockOf, TestRegistry } from "./build.ts";
+import { fixtureOutputs, imageBuild, imageOf, TestRegistry } from "./build.ts";
 import { TestSpaceStorage } from "./storage.ts";
 import { TestGateway } from "./gateway.ts";
 import { TestRuntime } from "./runtime.ts";
@@ -116,14 +117,14 @@ export interface StackReleases {
     readonly stack: BuildReader;
     /** The stack of the fixture's space: the empty stack's release. */
     readonly source: StackRelease;
-    /** The digest of the empty stack's release's lock. */
-    readonly sourceLock: Digest;
-    /** The digest of the stack package's release's lock. */
-    readonly lock: Digest;
+    /** The digest of the empty stack's release's image. */
+    readonly sourceImage: Digest;
+    /** The digest of the stack package's release's image. */
+    readonly image: Digest;
     /** The object package's release, with its real definition, its kinds' code in process. */
     readonly object: BuildReader;
-    /** The digest of the object package's release's lock. */
-    readonly objectLock: Digest;
+    /** The digest of the object package's release's image. */
+    readonly objectImage: Digest;
 }
 
 /** The residency a test universe declares, whose home a residency fixture hosts. */
@@ -167,7 +168,7 @@ function spaceWorldOf<World extends JsonValue>(world: schema.Schema<World>) {
                 /** The releases the registry published, published again on restore. */
                 releases: schema.array(Digest),
                 /** The linked release of each server's package the write installed, by package. */
-                linked: schema.array(schema.object({ packageId: PackageId, lock: Digest })),
+                linked: schema.array(schema.object({ packageId: PackageId, image: Digest })),
             }),
         ),
         /** What the fixture's write returned. */
@@ -311,7 +312,7 @@ export class TestSpace implements AsyncDisposable, TestScope {
     >;
     /** The failures the world captured, which its disposal refuses untaken. */
     readonly telemetry: TestTelemetry;
-    /** The servers the world's spaces run in process, which its machines load by linked lock. */
+    /** The servers the world's spaces run in process, which its machines load by linked image. */
     readonly servers: PackageImplementation[];
     /** The function stopping each running machine's follow of its directory, by machine. */
     readonly stops: Map<Identifier<"machine">, () => Promise<void>>;
@@ -612,13 +613,13 @@ export class TestSpace implements AsyncDisposable, TestScope {
     #state(): Omit<SpaceWorld<null>["spaces"][number], "key" | "owner"> {
         const linked = [...this.machine.linked.values()]
             .filter((release) => release.package.id !== stackPackage.id)
-            .map((release) => ({ packageId: release.package.id, lock: release.lock }));
+            .map((release) => ({ packageId: release.package.id, image: release.image }));
 
         return {
             id: this.id,
             account: this.account,
             stack: this.#stack,
-            releases: [...this.registry.locks],
+            releases: [...this.registry.images],
             linked,
         };
     }
@@ -754,14 +755,14 @@ export class TestSpace implements AsyncDisposable, TestScope {
             ]),
         );
         const linked = value.spaces.flatMap((state) =>
-            state.linked.flatMap(({ packageId, lock }) => {
+            state.linked.flatMap(({ packageId, image }) => {
                 const server = (options.servers ?? []).find(
                     (each) => each.package.id === packageId,
                 );
 
                 return server === undefined
                     ? []
-                    : [{ package: PackageVersion.of(server.package), lock }];
+                    : [{ package: PackageVersion.of(server.package), image }];
             }),
         );
         const spaces = new Map<Identifier<"space">, TestSpace>();
@@ -785,8 +786,8 @@ export class TestSpace implements AsyncDisposable, TestScope {
     /** Publish a write's releases again, and store the stack and servers it installed. */
     async #restoreState(state: SpaceWorld<null>["spaces"][number]): Promise<void> {
         // record the releases the write published again, from the registry's builds it kept
-        for (const lock of state.releases) {
-            await this.registry.push(await this.builds(), lock);
+        for (const image of state.releases) {
+            await this.registry.push(await this.builds(), image);
         }
 
         // store the stack the write applied
@@ -917,7 +918,7 @@ export class TestSpace implements AsyncDisposable, TestScope {
             }),
         });
 
-        // follow the space stack at its release, each build identified by its lock alone
+        // follow the space stack at its release, each build identified by its image alone
         const source = {
             ...STACKS.space,
             selection: { kind: "release" as const, version: STACK_VERSION },
@@ -927,10 +928,10 @@ export class TestSpace implements AsyncDisposable, TestScope {
             space: empty,
             stack,
             source,
-            sourceLock: await lockOf(empty, crypto),
-            lock: await lockOf(stack, crypto),
+            sourceImage: await imageOf(empty, crypto),
+            image: await imageOf(stack, crypto),
             object: objectRelease,
-            objectLock: await lockOf(objectRelease, crypto),
+            objectImage: await imageOf(objectRelease, crypto),
         };
     }
 
@@ -1115,13 +1116,13 @@ export class TestSpace implements AsyncDisposable, TestScope {
             const released = PackageManifest.package(build.manifest);
             shipped.push({
                 package: released,
-                lock: await registry.find(released.id, released.version),
+                image: await registry.find(released.id, released.version),
             });
         }
         const linked = new Map<PackageId, PackageRelease>(
             [
-                { package: PackageVersion.of(stackPackage), lock: stack.lock },
-                { package: PackageVersion.of(objectPackage), lock: stack.objectLock },
+                { package: PackageVersion.of(stackPackage), image: stack.image },
+                { package: PackageVersion.of(objectPackage), image: stack.objectImage },
                 ...(lifetime.linked ?? []),
                 ...shipped,
             ].map((release) => [release.package.id, release]),
@@ -1147,8 +1148,12 @@ export class TestSpace implements AsyncDisposable, TestScope {
                 "isBuilding" | "isEnforcingEntitlements" | "runtimes" | "destack"
             >,
         ): Promise<Machine> => {
-            // build the machine over the options as changed
+            // build the machine over the options as changed, its first runtime keeping its instances' sockets
             const changed = { ...options, ...changes };
+            const runtimes = changed.runtimes?.({ scheduler: simulation.scheduler, builds }) ?? [
+                new TestRuntime({ scheduler: simulation.scheduler, builds }),
+                new ProcessRuntime(),
+            ];
             const machine: Machine = new Machine({
                 id: test.id,
                 environment: simulation.environment(test.id),
@@ -1188,15 +1193,17 @@ export class TestSpace implements AsyncDisposable, TestScope {
                 isEnforcingEntitlements: changed.isEnforcingEntitlements ?? false,
                 isServingHostnames: options.isServingHostnames ?? true,
                 domain: "localhost",
-                runtimes: changed.runtimes?.({ scheduler: simulation.scheduler, builds }) ?? [
-                    new TestRuntime({ scheduler: simulation.scheduler, builds }),
-                    new ProcessRuntime(),
-                ],
-                hibernation: undefined,
+                runtimes,
+                instances: (instanceId, path, request) =>
+                    nth(runtimes, 0).deliver(
+                        schema.identifier("instance").parse(instanceId),
+                        path,
+                        new Request(`http://instance${path}`, request),
+                    ),
                 alarm: undefined,
-                server: async (lock) =>
+                server: async (image) =>
                     world.servers.find(
-                        (server) => machine.linked.get(server.package.id)?.lock === lock,
+                        (server) => machine.linked.get(server.package.id)?.image === image,
                     ),
                 linked: world.machines.get(test.id)?.linked ?? linked,
                 shipped: [],
@@ -1353,7 +1360,7 @@ export class TestSpace implements AsyncDisposable, TestScope {
                 await registry.release(build);
                 machine.link({
                     package: released,
-                    lock: await registry.find(released.id, released.version),
+                    image: await registry.find(released.id, released.version),
                 });
             }
         }
@@ -1392,11 +1399,11 @@ export class TestSpace implements AsyncDisposable, TestScope {
 
     /** Link a build as its package's release on the machine, as a newer distribution does. */
     async link(build: BuildReader): Promise<void> {
-        // publish the build, then link its lock on the machine
+        // publish the build, then link its image on the machine
         await this.registry.release(build);
         const released = PackageManifest.package(build.manifest);
-        const lock = await this.registry.find(released.id, released.version);
-        this.machine.link({ package: released, lock });
+        const image = await this.registry.find(released.id, released.version);
+        this.machine.link({ package: released, image });
     }
 
     /** Wait until the machine serves the space live, refusing the failures its servers report. */
@@ -1448,7 +1455,7 @@ export class TestSpace implements AsyncDisposable, TestScope {
         return await (await this.space).store();
     }
 
-    /** Read the installed set main applied, each at its revision and the lock it runs. */
+    /** Read the installed set main applied, each at its revision and the image it runs. */
     async installed(): Promise<readonly InstallationBuild[]> {
         return (await (await this.space).installed("forges")).installed;
     }
@@ -1588,15 +1595,15 @@ export class TestSpace implements AsyncDisposable, TestScope {
         );
         await using store = await TestBuildStore.create(this.machine.environment);
         const root = await store.put(reader);
-        const lock = await store.putLock(Lock.of(root));
+        const image = await store.putImage(BuildImage.of(root));
 
         // attach its graph as its builder does, push it, then finish it
         await store.attachGraph(root, await fixtureGraph(reader));
-        await pushing.push(store, [lock]);
+        await pushing.push(store, [image]);
         await client.build.finish({
             ...target,
             requestId: RequestId.create(this.machine.environment),
-            outcome: { kind: "stored", lock },
+            outcome: { kind: "stored", image },
         });
 
         return uploaded;
@@ -1612,26 +1619,26 @@ export class TestSpace implements AsyncDisposable, TestScope {
         const store = await space.store();
         const options = { space, registry: this.registry, blobs: space.blobs, known: KNOWN_TYPES };
 
-        // lock the build alone in the space's store
-        const { lock } = await this.#lock(reader, []);
+        // make an image of the build alone in the space's store
+        const { image } = await this.#image(reader, []);
 
         return RolloutTarget.describe(
             target,
-            await space.builds.lock(lock),
+            await space.builds.image(image),
             store.objects,
             options,
         );
     }
 
-    /** Store a build locked with the builds it runs with, answering its lock and root. */
-    async #lock(
+    /** Store a build in an image with the builds it runs with, answering its image and root. */
+    async #image(
         reader: BuildReader,
         builds: readonly BuildReader[],
-    ): Promise<{ readonly lock: Digest; readonly root: Digest }> {
-        // put each build and their lock in the space's store
+    ): Promise<{ readonly image: Digest; readonly root: Digest }> {
+        // put each build and their image in the space's store
         const stored = await this.builds();
 
-        return await lockBuild(stored, reader, builds);
+        return await imageBuild(stored, reader, builds);
     }
 
     /** Store a build with its graph, the fixture's by default, and record it succeeded now. */
@@ -1640,10 +1647,10 @@ export class TestSpace implements AsyncDisposable, TestScope {
         modules?: readonly graph.Module[],
         builds: readonly BuildReader[] = [],
     ): Promise<{ readonly kind: "build"; readonly build: Identifier<"build"> }> {
-        // put the build and its lock in the build store
+        // put the build and its image in the build store
         const { database } = this;
         const packages = await this.builds();
-        const { lock, root } = await this.#lock(reader, builds);
+        const { image, root } = await this.#image(reader, builds);
         await packages.attachGraph(root, modules ?? (await fixtureGraph(reader)));
 
         // record the build succeeded now
@@ -1662,7 +1669,7 @@ export class TestSpace implements AsyncDisposable, TestScope {
                     },
                     outputs: ["bun"],
                     state: "succeeded",
-                    lock,
+                    image,
                     startedAt: now,
                     finishedAt: now,
                     createdAt: now,
@@ -1676,34 +1683,34 @@ export class TestSpace implements AsyncDisposable, TestScope {
         return { kind: "build", build: id };
     }
 
-    /** Record a build of the space's stack declaring a definition, locked with its releases. */
+    /** Record a space stack's build declaring a definition, in an image with its releases. */
     async recordStack(
         exported: string,
         definition: JsonObject,
     ): Promise<{ readonly kind: "build"; readonly build: Identifier<"build"> }> {
-        // pull each installed release's lock
+        // pull each installed release's image
         const { installations } = StackDefinition.collections(definition);
         const released = Object.values(installations).flatMap(
             ({ packageId, selection, version }) => {
-                // lock a pinned release, else the release it was built with
+                // make an image of a pinned release, else the release it was built with
                 const pinned = selection?.kind === "release" ? selection.version : undefined;
                 const built = selection === undefined ? version : undefined;
-                const locked = pinned ?? built;
+                const chosen = pinned ?? built;
 
-                return locked === undefined ? [] : [{ packageId, version: locked }];
+                return chosen === undefined ? [] : [{ packageId, version: chosen }];
             },
         );
         const builds = await this.builds();
         const requires: Record<string, string> = {};
-        const locked: BuildReader[] = [];
+        const readers: BuildReader[] = [];
         for (const { packageId, version } of released) {
-            const lock = await (
+            const image = await (
                 await this.space
             ).pull(packageId, await this.registry.find(packageId, version));
-            const root = await builds.contents(lock.root);
+            const root = await builds.contents(image.root);
             requires[root.manifest.package.name] = version;
-            for (const build of Lock.builds(lock)) {
-                locked.push(await builds.contents(build));
+            for (const build of BuildImage.builds(image)) {
+                readers.push(await builds.contents(build));
             }
         }
 
@@ -1715,18 +1722,18 @@ export class TestSpace implements AsyncDisposable, TestScope {
             { requires },
         );
 
-        return await this.recordBuild(reader, undefined, locked);
+        return await this.recordBuild(reader, undefined, readers);
     }
 
     /** Put a package's fixture release in the build store, as the space's build of it. */
     async release(
         packageId: PackageId,
         version: string,
-    ): Promise<{ readonly id: Identifier<"build">; readonly lock: Digest }> {
+    ): Promise<{ readonly id: Identifier<"build">; readonly image: Digest }> {
         // replicate the registry's release into the build store, and record it as the space's build
-        const lock = await this.registry.find(packageId, version);
-        const reader = await (await this.space).root(packageId, lock);
-        const release = { package: packageId, version, lock };
+        const image = await this.registry.find(packageId, version);
+        const reader = await (await this.space).root(packageId, image);
+        const release = { package: packageId, version, image };
 
         return insertRelease(
             this.database,
@@ -1768,6 +1775,8 @@ export class TestSpace implements AsyncDisposable, TestScope {
 
                 return new Request(request, { headers });
             },
+            open: (handle, signer, url, protocols) =>
+                this.#open(handle, url, protocols, (upgrade) => signing.sign(upgrade, signer)),
         };
 
         return new TestCaller(signing, person.subject);
@@ -1807,6 +1816,31 @@ export class TestSpace implements AsyncDisposable, TestScope {
         }
 
         return found[0];
+    }
+
+    /** Open a socket to a package the space serves, its upgrade signed as a caller. */
+    open(
+        handle: Package,
+        signer: TestSigner,
+        url: string,
+        protocols: readonly string[],
+    ): ClientSocket {
+        return this.#open(handle, url, protocols, (upgrade) => this.sign(upgrade, signer));
+    }
+
+    /** Open a socket to a package the space serves through its machine's host, signed. */
+    #open(
+        handle: Package,
+        url: string,
+        protocols: readonly string[],
+        sign: (upgrade: Request) => Promise<Request>,
+    ): ClientSocket {
+        const host = present(this.machine.hibernation, "the machine's sockets");
+
+        return host.open(
+            async (upgrade) => this.simulation.wait(this.server(handle).fetch(await sign(upgrade))),
+            WebSocketUpgrade.to(url, protocols),
+        );
     }
 
     /** Sign a request as a test caller by its bearer, as the world's machines authenticate it. */

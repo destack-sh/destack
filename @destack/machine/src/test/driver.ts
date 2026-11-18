@@ -7,7 +7,7 @@ import type { DatabaseConnection } from "@destack/db";
 import { connectBunSqlite } from "@destack/db/bun";
 import { type Clock, type Environment, World } from "@destack/environment";
 import { ObjectType, PackageMount, role, SpaceMount } from "@destack/object";
-import { ObjectClient, ProcedureRemote, type TextDocument } from "@destack/object/client";
+import { ObjectClient, ObjectConnection, type TextDocument } from "@destack/object/client";
 import { PackageManifest } from "@destack/package/manifest";
 import type { PackageId } from "@destack/package";
 import type { Given, SetStep } from "@destack/package/declare";
@@ -109,7 +109,7 @@ export class MachineDriver implements Driver<MachineStep, MachineObservation> {
     /** The identifiers each call bound, by name, in call order. */
     readonly #bound = new Map<string, string[]>();
     /** The remote calling each object type's package, by type and person. */
-    readonly #callers = new Map<string, ProcedureRemote>();
+    readonly #callers = new Map<string, ObjectConnection>();
     /** The texts the devices follow, by device, object and field. */
     readonly #texts = new Map<string, TextDocument>();
     /** The characters typed into each text so far, by object and field. */
@@ -183,7 +183,7 @@ export class MachineDriver implements Driver<MachineStep, MachineObservation> {
         }
         // publish a fixture package as the platform's operator
         else if (step.action === "publish") {
-            await this.home.publish(TestDistribution.lockOf(step.fixture));
+            await this.home.publish(TestDistribution.imageOf(step.fixture));
         }
         // install a published fixture package in the owner's home
         else if (step.action === "install") {
@@ -281,7 +281,7 @@ export class MachineDriver implements Driver<MachineStep, MachineObservation> {
         return this.home.world.simulation.telemetry;
     }
 
-    /** Build and lock a fixture package at its authored version. */
+    /** Build and make an image of a fixture package at its authored version. */
     static build(
         fixture: string,
         workspace: Workspace,
@@ -353,10 +353,7 @@ export class MachineDriver implements Driver<MachineStep, MachineObservation> {
             );
         }
         const launcher = await this.#launcher(signedIn.id, environment);
-        const endpoint = launcher.endpoint(
-            packageId,
-            await launcher.machine.locate(world.owner.home),
-        );
+        const remote = await launcher.connect({ space: world.owner.home }, packageId);
         const objects = Object.fromEntries(installed.map(({ type }) => [type.name, type]));
         const database = await connectBunSqlite(":memory:", ObjectClient.tables(objects), {
             environment,
@@ -367,12 +364,7 @@ export class MachineDriver implements Driver<MachineStep, MachineObservation> {
             objects,
             scope: world.owner.home,
             caller: principal.user.reference(Scope.universe.id, signedIn.subjectId),
-            remote: ProcedureRemote.at({
-                scope: world.owner.home,
-                endpoint,
-                reconnect: () => endpoint,
-                environment: environment,
-            }),
+            remote,
         });
 
         // follow every object type and run the client's loops until the world ends
@@ -599,7 +591,7 @@ export class MachineDriver implements Driver<MachineStep, MachineObservation> {
     }
 
     /** Read the remote calling a type's package as a person, one per type and person. */
-    async #caller(object: string, person: string): Promise<ProcedureRemote> {
+    async #caller(object: string, person: string): Promise<ObjectConnection> {
         // reuse the remote
         const key = `${object} ${person}`;
         const known = this.#callers.get(key);
@@ -610,14 +602,8 @@ export class MachineDriver implements Driver<MachineStep, MachineObservation> {
         // sign in as the person, at the object's package in the owner's home
         const { device, world } = this.home;
         const { packageId } = present(this.#objects.get(object), `an object type ${object}`);
-        const remote = ProcedureRemote.at({
-            scope: world.owner.home,
-            endpoint: (await device.launcher(this.#login(person))).endpoint(
-                packageId,
-                await device.locate(world.owner.home),
-            ),
-            environment: device.environment,
-        });
+        const launcher = await device.launcher(this.#login(person));
+        const remote = await launcher.connect({ space: world.owner.home }, packageId);
         this.#callers.set(key, remote);
 
         return remote;

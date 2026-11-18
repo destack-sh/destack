@@ -4,7 +4,7 @@ import type * as packageRuntime from "@destack/package/runtime";
 import type { defineDatabase } from "@destack/db";
 import { Failure } from "@destack/error";
 import { openStore, ownServers, spaceProviders } from "./store.ts";
-import type { ClaimPrimary, ExternalStorage } from "@destack/object/server";
+import type { ClaimPrimary, ExternalStorage, Voucher } from "@destack/object/server";
 import type { Follow, ObjectType } from "@destack/object";
 import {
     AccessContext,
@@ -38,7 +38,12 @@ import {
 } from "@destack/db";
 import { MAIN_DATABASE } from "@destack/stack/declare";
 import stackPackage, { STACK_INSTALLATION } from "@destack/stack/package";
-import { HostAddress, type Network, type SocketAddress } from "@destack/environment";
+import {
+    HostAddress,
+    type Network,
+    type SocketAddress,
+    WebSocketUpgrade,
+} from "@destack/environment";
 import type { Deriver } from "@destack/identity";
 import {
     CallKey,
@@ -61,13 +66,14 @@ import {
 } from "@destack/object";
 import {
     defineWorkload,
+    type Hibernation,
     InstallationRoot,
     PackageContext,
     type ServerContext,
     type WorkloadContext,
     WorkloadInstance,
 } from "@destack/object/workload";
-import { BuildReader, type Lock } from "@destack/package/manifest";
+import { BuildReader, type BuildImage } from "@destack/package/manifest";
 import {
     type Connector,
     EGRESS_PROVIDER,
@@ -96,7 +102,7 @@ import {
     type ClientOf,
     createClient,
     ObjectRemote,
-    ProcedureRemote,
+    ObjectConnection,
 } from "@destack/object/client";
 import { type Credential, Session } from "@destack/account/client";
 import objectPackage from "@destack/object/package";
@@ -134,7 +140,6 @@ import {
     type SpaceProvider,
     StoreProvider,
 } from "@destack/stack/object";
-import { type PublishStore } from "../installation/build.ts";
 import { StackError } from "@destack/stack/error";
 import type {
     EgressCaller,
@@ -143,7 +148,7 @@ import type {
     WorkloadResource,
 } from "../runtime/runtime.ts";
 import { RolloutTarget } from "../installation/target.ts";
-import { Forge, Registry } from "@destack/registry/client";
+import { Forge, type PublishStore, Registry } from "@destack/registry/client";
 import { S3Credentials, type S3Server } from "@destack/bucket/s3";
 import connectionPackage, { CONNECTION_INSTALLATION } from "@destack/connection/client";
 import type { ConnectionLease } from "@destack/connection/object";
@@ -223,29 +228,31 @@ export interface Mount {
     readonly path: string;
 }
 
-/** An installation with the build it runs: the revision in effect and the lock the machine runs. */
+/** An installation with its build: the revision in effect and the image the machine runs. */
 export interface InstallationBuild {
     /** The installation's rollout. */
     readonly rollout: InstallationRollout;
     /** The revision in effect. */
     readonly revisionId: Identifier<"installation-revision">;
-    /** The lock the machine runs. */
-    readonly lock: Digest;
-    /** The lock the revision recorded, which differs while a host installation catches up. */
+    /** The image the machine runs. */
+    readonly image: Digest;
+    /** The image the revision recorded, which differs while a host installation catches up. */
     readonly recorded: Digest;
     /** The declarations of the build the machine runs. */
     readonly declarations: graph.Declaration[];
 }
 
-/** An installation's server as one start serves it: its load, and its server or isolate. */
-interface ServedEntry {
+/** One run of an installation within a start: its load, its server or isolate, its connections. */
+interface InstallationRun {
+    /** The connections the run opened, closed once the start keeps it no longer. */
+    readonly connections: DisposableStack;
     /** Its build's load: a trusted server or none, an isolate, or why it failed. */
     readonly load:
         | { readonly kind: "host"; readonly server: PackageImplementation | undefined }
         | { readonly kind: "isolate" }
         | { readonly kind: "failed"; readonly error: unknown };
-    /** The server or isolate serving it, or why it failed to load or start. */
-    readonly served:
+    /** The server or isolate running it, or why it failed to load or start. */
+    readonly outcome:
         | { readonly kind: "server"; readonly server: PackageImplementation }
         | { readonly kind: "isolate"; readonly isolate: Isolate }
         | {
@@ -289,12 +296,16 @@ export interface SpaceStart {
     readonly store: PromiseWithResolvers<ObjectStore>;
     /** The gateway routing the installations' calls, once the store serves. */
     readonly gateway: PromiseWithResolvers<Gateway>;
+    /** The connections the start opened, closed as it retires. */
+    readonly connections: DisposableStack;
+    /** The start's publishers of other homes' partitions, by home and partition. */
+    readonly publishers: Map<string, Publisher>;
 }
 
 /** An installed server as a start reads it once: its types, its providers and its server. */
 interface ServerRead {
     /** The package's types, the handled ones in place, and the providers it serves. */
-    readonly served: {
+    readonly package: {
         readonly objects: readonly ObjectType[];
         readonly providers: ImplementationInput["providers"];
     };
@@ -320,22 +331,24 @@ export class Space {
     readonly blobs: BlobStore;
     /** The space's own builds, reading through to its machine's builds. */
     readonly builds: BuildStore;
-    /** The import maps of the space's locks, by lock, runtime and base, each mapped once. */
+    /** The import maps of the space's images, by image, runtime and base, each mapped once. */
     readonly #closures = new Map<string, Promise<ImportClosure>>();
-    /** The locks pulled into the machine's builds or pulling, by lock. */
-    readonly #pulled = new Map<Digest, Promise<Lock>>();
+    /** The images pulled into the machine's builds or pulling, by image. */
+    readonly #pulled = new Map<Digest, Promise<BuildImage>>();
     /** Whether the space serves every installation at its revision, and why not. */
     readonly health: Health;
     /** The identities of the space and its installations, reusing their tokens, by subject. */
     readonly #identities = new Map<string, Identity>();
     /** The failure each installation serving nothing reported last, by installation. */
     readonly #failed = new Map<Identifier<"installation">, string>();
-    /** The current start's servers, by installation and revision, kept while they stay served. */
-    #served:
-        | { readonly signal: AbortSignal; readonly entries: ReadonlyMap<string, ServedEntry> }
+    /** The current start's installation runs, by installation, revision, image and capabilities. */
+    #runs:
+        | { readonly start: SpaceStart; readonly runs: ReadonlyMap<string, InstallationRun> }
         | undefined;
     /** The space's running workload, once started. */
     #instance: WorkloadInstance | undefined;
+    /** The space store's side of its machine's sockets, absent where the runtime keeps them. */
+    #hibernation: Hibernation | undefined;
     /** The workload's current start. */
     #start: SpaceStart | undefined;
     /** Each installed server the current start read, by the server. */
@@ -403,9 +416,15 @@ export class Space {
                     blobs,
                 });
 
+                // keep the space store's sockets at the machine's host, sending through it in this process
+                space.#hibernation = machine.hibernation?.instance(id);
+
                 // start the machine workload serving the space
                 space.#instance = await WorkloadInstance.start(spaceWorkload, {
                     environment,
+                    ...(space.#hibernation === undefined
+                        ? {}
+                        : { hibernation: space.#hibernation }),
                     resources: new ResourceContext().bind(machineSpace, space),
                     callKey: () => space.callKey(),
                     ...(machine.alarm === undefined ? {} : { alarm: machine.alarm }),
@@ -454,7 +473,11 @@ export class Space {
                         : { installed: [], unavailable: [] };
                 await this.#root(installed, unavailable);
                 const forge = this.forge();
-                const accounts = this.accounts();
+
+                // close the start's connections as it retires
+                const connections = new DisposableStack();
+                context.defer(() => connections.dispose());
+                const remote = this.remote(connections);
                 const rates =
                     role === "primary" ? await machine.rates() : new Map<string, string>();
                 const isMetered = rates.size > 0;
@@ -465,10 +488,10 @@ export class Space {
                     buckets,
                     s3: serveS3(buckets, this.database, machine.environment),
                     forge,
-                    remote: this.remote(),
+                    remote,
                     claims: {
                         object: accountObject.claim,
-                        home: RemoteStore.of(accounts.store, Scope.universe.id),
+                        home: RemoteStore.of(remote, Scope.universe.id),
                     },
                     external: volume.graphs(this.builds),
                     follows: forge === null ? [] : forge.follows(),
@@ -501,6 +524,8 @@ export class Space {
                     mounts: Space.#mounts(installed),
                     store: Promise.withResolvers(),
                     gateway: Promise.withResolvers(),
+                    connections,
+                    publishers: new Map(),
                 };
                 this.#start = start;
                 this.#reads = new Map();
@@ -528,10 +553,7 @@ export class Space {
                 // prepare the start, then serve the store and route the installations' calls through the gateway
                 const start = await this.prepare(context);
                 try {
-                    const { servers, isolates } = await this.#servers(
-                        start.installed,
-                        context.signal,
-                    );
+                    const { servers, isolates } = await this.#servers(start.installed, start);
                     const store = openStore(this, start, this.#storeServers(servers), isolates);
                     start.store.resolve(store);
 
@@ -598,7 +620,7 @@ export class Space {
         }
         // pull the distribution's release of a package the space does not install
         else if (distributed !== undefined) {
-            return this.root(packageId, distributed.lock);
+            return this.root(packageId, distributed.image);
         }
         // run nothing of a package outside the distribution
         else {
@@ -629,7 +651,7 @@ export class Space {
                           this,
                           start,
                           installed,
-                          reads.map(([, read]) => read.served),
+                          reads.map(([, read]) => read.package),
                       ),
                   };
         this.#own = built;
@@ -652,7 +674,7 @@ export class Space {
         );
 
         return {
-            served: { objects, providers: server.providers },
+            package: { objects, providers: server.providers },
             server: server.installation === undefined ? resolved : resolved.at(server.installation),
             isProviding:
                 server.providers.length > 0 ||
@@ -725,39 +747,39 @@ export class Space {
         return CallKey.of(await this.identity(), this.machine.environment.crypto);
     }
 
-    /** Pull a lock with its closures into the machine's builds once. */
-    pull(packageId: PackageId, lock: Digest): Promise<Lock> {
-        // take a lock pulled or pulling already
-        const known = this.#pulled.get(lock);
+    /** Pull an image with its closures into the machine's builds once. */
+    pull(packageId: PackageId, image: Digest): Promise<BuildImage> {
+        // take an image pulled or pulling already
+        const known = this.#pulled.get(image);
         if (known !== undefined) {
             return known;
         }
 
         // pull it once, forgetting a failed pull
-        const pulling = this.#pull(packageId, lock);
-        this.#pulled.set(lock, pulling);
-        pulling.catch(() => this.#pulled.delete(lock));
+        const pulling = this.#pull(packageId, image);
+        this.#pulled.set(image, pulling);
+        pulling.catch(() => this.#pulled.delete(image));
 
         return pulling;
     }
 
-    /** Pull a published lock from its forge, or the space's own lock from the space's builds. */
-    async #pull(packageId: PackageId, lock: Digest): Promise<Lock> {
-        // pull a published lock from its forge
-        if (!(await this.builds.contains(lock))) {
-            return await this.machine.pull(packageId, lock);
+    /** Pull a published image from its forge, or the space's own image from the space's builds. */
+    async #pull(packageId: PackageId, image: Digest): Promise<BuildImage> {
+        // pull a published image from its forge
+        if (!(await this.builds.contains(image))) {
+            return await this.machine.pull(packageId, image);
         }
 
-        // pull the space's own lock from the space's builds
+        // pull the space's own image from the space's builds
         const { builds, targets } = this.machine;
-        await builds.pull(this.builds, { kind: "lock", digest: lock }, targets);
+        await builds.pull(this.builds, { kind: "image", digest: image }, targets);
 
-        return await builds.lock(lock);
+        return await builds.image(image);
     }
 
-    /** Open a lock's root build, pulling a published one with its closures first. */
-    async root(packageId: PackageId, lock: Digest): Promise<BuildReader> {
-        return await this.builds.contents((await this.pull(packageId, lock)).root);
+    /** Open an image's root build, pulling a published one with its closures first. */
+    async root(packageId: PackageId, image: Digest): Promise<BuildReader> {
+        return await this.builds.contents((await this.pull(packageId, image)).root);
     }
 
     /** Read a package's build: the space's own, else a published one listed from its forge. */
@@ -770,7 +792,8 @@ export class Space {
         // list a published build's manifest once, the linked release's in place of another
         const { builds, linked, releases } = this.machine;
         const release = linked.get(packageId);
-        const resolved = release === undefined ? manifest : (await builds.lock(release.lock)).root;
+        const resolved =
+            release === undefined ? manifest : (await builds.image(release.image)).root;
         if ((await builds.find(resolved)) === undefined) {
             const root = { kind: "manifest", digest: resolved } as const;
             await builds.pull(await releases.store(packageId, root), root, []);
@@ -779,17 +802,17 @@ export class Space {
         return await this.builds.contents(resolved);
     }
 
-    /** Map a lock's imports for a runtime once, with the builtins the machine links. */
-    imports(lock: Digest, runtime: packageRuntime.Runtime, base: string): Promise<ImportClosure> {
-        // map each lock once per runtime and base, forgetting a failed map
-        const key = `${lock} ${runtime} ${base}`;
+    /** Map an image's imports for a runtime once, with the builtins the machine links. */
+    imports(image: Digest, runtime: packageRuntime.Runtime, base: string): Promise<ImportClosure> {
+        // map each image once per runtime and base, forgetting a failed map
+        const key = `${image} ${runtime} ${base}`;
         const known = this.#closures.get(key);
         if (known !== undefined) {
             return known;
         }
         const mapping = (async () => {
-            const read = await this.builds.lock(lock);
-            const linked = await this.machine.linkedLocks();
+            const read = await this.builds.image(image);
+            const linked = await this.machine.linkedImages();
 
             return await this.machine.builds.imports(read, runtime, base, linked, (digest) =>
                 this.builds.get(digest),
@@ -875,7 +898,7 @@ export class Space {
                     );
                 }
 
-                // stop the instance
+                // stop the instance, which closes each start's connections
                 await this.#instance?.close();
 
                 // destroy each resource this machine provisioned apart from the main database
@@ -975,10 +998,18 @@ export class Space {
     }
 
     /** Replicate account rows: the machine's own as the machine, the rest as the space. */
-    remote(): ObjectRemote {
-        // open the account store as the space or a signer, and as the machine
-        const signed = (signer?: Subject) => this.accounts(signer ?? this.principal).store;
-        const machine = this.accounts().store;
+    remote(connections: DisposableStack): ObjectRemote {
+        // connect to the account store as the machine, and once per signer, closing them with the start
+        const machine = this.#accounts(connections);
+        const signers = new Map<string, ObjectConnection>();
+        const signed = (signer: Subject = this.principal) => {
+            // reuse the signer's connection, else open one
+            const key = Subject.key(signer);
+            const connection = signers.get(key) ?? this.#accounts(connections, signer);
+            signers.set(key, connection);
+
+            return connection;
+        };
 
         // follow as the machine what is decided for it
         const followerOf = async (subscription: Subscription) => {
@@ -996,10 +1027,10 @@ export class Space {
 
         return {
             async *stream(subscription, signal) {
-                yield* await (await followerOf(subscription)).stream(subscription, { signal });
+                yield* (await followerOf(subscription)).stream(subscription, signal);
             },
             request: async (subscription) => {
-                await (await followerOf(subscription)).request({ subscription });
+                await (await followerOf(subscription)).request(subscription);
             },
             push: (home, push, signal) => {
                 // send the machine's universe writes as the machine, and the space's changes as their signer
@@ -1007,84 +1038,115 @@ export class Space {
                 const sender = signer === undefined ? machine : signed(signer);
 
                 return sender.push(
-                    {
-                        scope: home,
-                        mutations: [...mutations],
-                        ...(writerId === undefined ? {} : { writerId }),
-                    },
-                    signal === undefined ? {} : { signal },
+                    home,
+                    { mutations, chain: [], ...(writerId === undefined ? {} : { writerId }) },
+                    signal,
                 );
             },
-            call: (scope, call, signer) => {
+            call: (scope, call, signer) =>
                 // ask the universe as the machine, and for the space as the query's signer
-                const sender = signer === undefined ? machine : signed(signer);
-
-                return sender.call({ scope, call });
-            },
-            broadcast: async (scope, object, event, signer) => {
+                (signer === undefined ? machine : signed(signer)).call(scope, call),
+            broadcast: (scope, object, event, signer) =>
                 // send as the machine, or as the event's signer
-                const sender = signer === undefined ? machine : signed(signer);
-                await sender.broadcast({ scope, object, event });
-            },
-            moves: new AbortController().signal,
-            redirect: () => false,
+                (signer === undefined ? machine : signed(signer)).broadcast(scope, object, event),
         };
+    }
+    /** Connect to the universe's account store as a principal, else as the machine. */
+    #accounts(connections: DisposableStack, subject?: Subject): ObjectConnection {
+        // sign as the principal, else as the machine, closing the connection with the start
+        const authorize =
+            subject === undefined
+                ? this.machine.authorize(accountPackage.id)
+                : (request: Request) =>
+                      this.identityOf(subject).granted.authorize(request, accountPackage.id, {});
+        const connection = ObjectConnection.open({
+            url: ObjectConnection.url(this.universe.accounts),
+            authorize,
+            environment: this.machine.environment,
+        });
+        connections.defer(() => connection.close());
+
+        return connection;
     }
 
     /** Follow a partition at its home, where the directory locates it, as each follow's subject. */
-    publisherAt(home: string, partition: string): Publisher {
+    publisherAt(start: SpaceStart, home: string, partition: string): Publisher {
+        // reuse the start's publisher of the partition
+        const key = `${home} ${partition}`;
+        const known = start.publishers.get(key);
+        if (known !== undefined) {
+            return known;
+        }
+
         // sign as the installation a follow is decided for, else as the space with a universe grant
         const bound = PartitionId.parse(partition);
-        const fetchOf = (subject: Subject | undefined) =>
-            subject !== undefined && principal.installation.is(subject)
-                ? this.session(this.identityOf(subject)).fetch(objectPackage.id, {
-                      partition: bound,
-                  })
-                : this.session(this.identityOf(this.principal).granted).fetch(objectPackage.id, {
-                      partition: bound,
-                  });
-        const at = (subscription: Subscription) =>
-            this.machine.directory.publisher(
-                home,
-                fetchOf(subscription.subject),
-                this.machine.environment,
-            );
+        const publishers = new Map<string, Publisher>();
+        const at = (subscription: Subscription) => {
+            // follow over one connection per signer: an installation's own, else the space's
+            const { subject } = subscription;
+            const signer =
+                subject !== undefined && principal.installation.is(subject) ? subject : undefined;
+            const signed = signer === undefined ? "" : Subject.key(signer);
+            const credential =
+                signer === undefined
+                    ? this.identityOf(this.principal).granted
+                    : this.identityOf(signer);
+            const publisher =
+                publishers.get(signed) ??
+                start.connections.use(
+                    this.machine.directory.publisher(
+                        home,
+                        (request) =>
+                            credential.authorize(request, objectPackage.id, {
+                                partition: bound,
+                            }),
+                        this.machine.environment,
+                    ),
+                );
+            publishers.set(signed, publisher);
 
-        return {
+            return publisher;
+        };
+        const publisher: Publisher = {
             stream: (subscription, signal) => at(subscription).stream(subscription, signal),
             request: (subscription) => at(subscription).request(subscription),
         };
+        start.publishers.set(key, publisher);
+
+        return publisher;
     }
 
     /** Serve each installation main applied: a trusted one in the store, another in its isolate. */
     async #servers(
         installed: readonly InstallationBuild[],
-        signal: AbortSignal,
+        start: SpaceStart,
     ): Promise<{
         readonly servers: readonly PackageImplementation[];
         readonly isolates: readonly Isolate[];
         readonly serving: ReadonlyMap<Identifier<"installation">, Serving>;
     }> {
-        // keep this start's servers served before, by installation, revision and lock
-        const earlier: ReadonlyMap<string, ServedEntry> =
-            this.#served?.signal === signal ? this.#served.entries : new Map();
-        const keys = installed.map(({ rollout: row, revisionId, lock }) =>
-            Space.#key(row.installationId, revisionId, lock, row.installation.capabilities),
+        // keep this start's runs from before, by installation, revision and image
+        const { signal } = start.context;
+        const earlier: ReadonlyMap<string, InstallationRun> =
+            this.#runs?.start === start ? this.#runs.runs : new Map();
+        const keys = installed.map(({ rollout: row, revisionId, image }) =>
+            Space.#key(row.installationId, revisionId, image, row.installation.capabilities),
         );
 
         // load the server of each other installation the store runs from its build
         const loaded = await Promise.all(
-            installed.map(async ({ rollout: row, lock }, index) => {
+            installed.map(async ({ rollout: row, image }, index) => {
                 // take the earlier load, else load a trusted one, reporting a server that fails to load
                 const kept = earlier.get(present(keys[index], "the installation's key"));
-                const isLinked = this.machine.linked.get(row.installation.packageId)?.lock === lock;
+                const isLinked =
+                    this.machine.linked.get(row.installation.packageId)?.image === image;
                 if (kept !== undefined) {
                     return kept.load;
                 } else if (row.installation.isolation !== "host" && !isLinked) {
                     return { kind: "isolate" } as const;
                 }
                 try {
-                    return { kind: "host", server: await this.machine.server(lock) } as const;
+                    return { kind: "host", server: await this.machine.server(image) } as const;
                 } catch (error) {
                     this.#reportFailed(row, "its server did not load", error);
 
@@ -1097,7 +1159,7 @@ export class Space {
         );
 
         // serve each installation in the store or in its isolate, keeping the earlier ones
-        const entries = new Map<string, ServedEntry>();
+        const runs = new Map<string, InstallationRun>();
         const servers: PackageImplementation[] = [];
         const isolates: Isolate[] = [];
         const serving = new Map<Identifier<"installation">, Serving>();
@@ -1107,12 +1169,18 @@ export class Space {
                 loaded[index],
                 `the load of installation ${entry.rollout.installationId}`,
             );
-            // reuse an earlier served entry, starting a failed or new one again
-            const kept = earlier.get(key)?.served;
-            const served =
-                kept !== undefined && kept.kind !== "failed"
+            // reuse an earlier run and its connections, starting a failed or new one again with its own
+            const earlierRun = earlier.get(key);
+            const kept = earlierRun?.outcome;
+            const isKept = kept !== undefined && kept.kind !== "failed";
+            const connections =
+                isKept && earlierRun !== undefined
+                    ? earlierRun.connections
+                    : start.connections.use(new DisposableStack());
+            const outcome =
+                isKept && kept !== undefined
                     ? kept
-                    : await this.#serve(entry, load, { signal, trusted }).catch(
+                    : await this.#serve(entry, load, { signal, trusted, connections }).catch(
                           (error: unknown) => {
                               // report an installation that fails to start, and start the space without it
                               this.#reportFailed(entry.rollout, "its server did not start", error);
@@ -1120,26 +1188,32 @@ export class Space {
                               return { kind: "failed", reason: "StartFailed", error } as const;
                           },
                       );
-            entries.set(key, { load, served });
+            runs.set(key, { connections, load, outcome });
 
             // serve each installation in its store or its isolate, else record why it failed
             const { installationId } = entry.rollout;
-            if (served.kind === "failed") {
+            if (outcome.kind === "failed") {
                 serving.set(installationId, {
-                    reason: served.reason,
-                    message: Failure.of(served.error).message,
+                    reason: outcome.reason,
+                    message: Failure.of(outcome.error).message,
                 });
-            } else if (served.kind === "server") {
-                servers.push(served.server);
+            } else if (outcome.kind === "server") {
+                servers.push(outcome.server);
                 serving.set(installationId, { revisionId: entry.revisionId });
                 this.#failed.delete(installationId);
             } else {
-                isolates.push(served.isolate);
+                isolates.push(outcome.isolate);
                 serving.set(installationId, { revisionId: entry.revisionId });
                 this.#failed.delete(installationId);
             }
         }
-        this.#served = { signal, entries };
+        // close the connections of the runs no longer kept
+        for (const [key, run] of earlier) {
+            if (runs.get(key)?.connections !== run.connections) {
+                run.connections.dispose();
+            }
+        }
+        this.#runs = { start, runs };
 
         return { servers, isolates, serving };
     }
@@ -1175,9 +1249,8 @@ export class Space {
         // load the set's servers, reusing this start's, and hand them to the store once the served set changes
         const start = this.#current();
         const store = await start.store.promise;
-        const { signal } = start.context;
-        const before = this.#served?.signal === signal ? this.#serving() : undefined;
-        const { servers, isolates, serving } = await this.#servers(installed, signal);
+        const before = this.#runs?.start === start ? this.#serving() : undefined;
+        const { servers, isolates, serving } = await this.#servers(installed, start);
         const after = this.#serving();
         if (before === undefined || before.symmetricDifference(after).size > 0) {
             start.context.serve(store.apply(this.#storeServers(servers), isolates));
@@ -1200,16 +1273,16 @@ export class Space {
 
     /** List the keys of the installations this start serves. */
     #serving(): Set<string> {
-        const entries = this.#served?.entries ?? new Map<string, ServedEntry>();
+        const runs = this.#runs?.runs ?? new Map<string, InstallationRun>();
 
         return new Set(
-            [...entries].flatMap(([key, entry]) => (entry.served.kind === "failed" ? [] : [key])),
+            [...runs].flatMap(([key, run]) => (run.outcome.kind === "failed" ? [] : [key])),
         );
     }
 
     /** Read the build each installation of the space runs, at its revision in effect. */
     async installations(
-        open: (packageId: PackageId, lock: Digest) => Promise<BuildReader | undefined>,
+        open: (packageId: PackageId, image: Digest) => Promise<BuildReader | undefined>,
     ): Promise<InstallationBuild[]> {
         // read no installations of a space before its instantiation gives it main
         const snapshot = Snapshot.live(this.database);
@@ -1238,7 +1311,7 @@ export class Space {
         const declared = new Map(
             await Promise.all(
                 revisions.map(async (revision) => {
-                    // open the revision's build by its installation's package and its lock
+                    // open the revision's build by its installation's package and its image
                     const built = present(
                         builds.find((each) => each.id === revision.buildId),
                         `the build of revision ${revision.id}`,
@@ -1251,17 +1324,17 @@ export class Space {
                         ),
                         `the installation of revision ${revision.id}`,
                     );
-                    const recorded = Build.lock(built);
-                    const lock = RolloutTarget.running(
+                    const recorded = Build.image(built);
+                    const image = RolloutTarget.running(
                         installed.installation,
                         recorded,
                         this.machine,
                     );
                     const reader =
-                        lock === undefined
+                        image === undefined
                             ? undefined
-                            : await open(installed.installation.packageId, lock);
-                    if (lock === undefined || reader === undefined) {
+                            : await open(installed.installation.packageId, image);
+                    if (image === undefined || reader === undefined) {
                         return [];
                     }
 
@@ -1269,7 +1342,7 @@ export class Space {
                         [
                             revision.id,
                             {
-                                lock,
+                                image,
                                 recorded,
                                 declarations: await reader.declarations(),
                                 objects: await ObjectDescription.read(reader),
@@ -1315,7 +1388,7 @@ export class Space {
             if (opened === undefined) {
                 return [];
             }
-            const { lock, recorded, declarations } = opened;
+            const { image, recorded, declarations } = opened;
 
             // serve a stack at once, which runs nothing and whose resources its document instantiates
             const isStack = entry.installation.export !== null;
@@ -1332,32 +1405,33 @@ export class Space {
                 );
 
             return isStack || hasBindings
-                ? [{ rollout: entry, revisionId, lock, recorded, declarations }]
+                ? [{ rollout: entry, revisionId, image, recorded, declarations }]
                 : [];
         });
     }
 
-    /** Key an installation's server by its installation, revision, lock and capabilities. */
+    /** Key an installation's server by its installation, revision, image and capabilities. */
     static #key(
         installationId: Identifier<"installation">,
         revisionId: Identifier<"installation-revision">,
-        lock: Digest,
+        image: Digest,
         capabilities: readonly unknown[],
     ): string {
-        return `${installationId}@${revisionId}@${lock}@${JSON.stringify(capabilities)}`;
+        return `${installationId}@${revisionId}@${image}@${JSON.stringify(capabilities)}`;
     }
 
     /** Serve one installation: a loaded server in the store, else its hooks in an isolate. */
     async #serve(
-        { rollout: row, revisionId, lock, declarations }: InstallationBuild,
-        load: ServedEntry["load"],
+        { rollout: row, revisionId, image, declarations }: InstallationBuild,
+        load: InstallationRun["load"],
         run: {
             readonly signal: AbortSignal;
             readonly trusted: readonly PackageImplementation[];
+            readonly connections: DisposableStack;
         },
-    ): Promise<ServedEntry["served"]> {
+    ): Promise<InstallationRun["outcome"]> {
         // serve a loaded server in the store, activated once its revision and any lent grant exist
-        const { signal, trusted } = run;
+        const { signal, trusted, connections } = run;
         const stored = load.kind === "host" ? load.server : undefined;
         if (load.kind === "failed") {
             return { kind: "failed", reason: "LoadFailed", error: load.error };
@@ -1369,7 +1443,7 @@ export class Space {
         if (stored !== undefined) {
             const caller = this.#callerOnce(row, stored.package, bindings);
             const resources = await this.#resources(row, stored.package, caller, trusted, bindings);
-            const context = await this.#context(row, lock, resources, caller);
+            const context = await this.#context(row, image, resources, caller, connections);
             const requested = Rollout.permissions(row.installation, stored.package, "space");
             const isLent = Object.entries(requested).some(
                 ([scope, each]) => scope !== "space" && each.length > 0,
@@ -1382,7 +1456,13 @@ export class Space {
         // run another package's hooks in its isolate, which binds its resources itself
         else {
             const caller = this.#callerOnce(row, { resources: {} }, bindings);
-            const context = await this.#context(row, lock, new ResourceContext(), caller);
+            const context = await this.#context(
+                row,
+                image,
+                new ResourceContext(),
+                caller,
+                connections,
+            );
 
             return { kind: "isolate", isolate: this.#isolate(row, context, declarations) };
         }
@@ -1717,34 +1797,40 @@ export class Space {
     /** Describe an installation to its code serving in the store, calling the platform as it. */
     async #context(
         row: InstallationRollout,
-        lock: Digest,
+        image: Digest,
         resources: ResourceContext,
         caller: () => Promise<EgressCaller>,
+        connections: DisposableStack,
     ): Promise<ServerContext> {
-        // call the space's stack package in process as the installation
+        // connect to the space's stack store in process as the installation, through the machine's sockets
         const { machine } = this;
+        const host = present(machine.hibernation, "the machine's sockets");
         const { installationId: id, scope } = row;
         const signer = principal.installation.reference(scope, id);
-        const stack = createClient(
-            stackPackage,
-            {
-                url: STACK_ORIGIN,
-                fetch: (request) =>
-                    this.call(
-                        stackPackage.id,
-                        request,
-                        this.identityOf(signer).authentication(stackPackage.id, scope),
-                    ),
-            },
-            machine.environment,
-        );
+        const stack = ObjectConnection.open({
+            scope,
+            url: ObjectConnection.url(STACK_ORIGIN),
+            websocket: (url, protocols) =>
+                host.open(
+                    (upgrade) =>
+                        this.call(stackPackage.id, upgrade, async () =>
+                            this.identityOf(signer).authentication(stackPackage.id, scope),
+                        ),
+                    WebSocketUpgrade.to(url, protocols),
+                ),
+            environment: machine.environment,
+        });
+        connections.defer(() => stack.close());
         const at = (address: string) => ({
             url: Egress.url(EGRESS_ORIGIN, address),
             fetch: async (request: Request) => this.#egress(await caller(), request),
+            authorize: async (request: Request) =>
+                (await this.#current().gateway.promise).authorize(await caller(), request),
         });
+        const peers = new Map<string, ObjectConnection>();
 
         // describe its build and package, settings, keys rooted in its space's identity, replicas and peers
-        const reader = await this.root(row.installation.packageId, lock);
+        const reader = await this.root(row.installation.packageId, image);
         const description = await PackageDescription.of(reader);
         const identity = present(
             await this.keystore.deriver(this.database, scope),
@@ -1786,27 +1872,26 @@ export class Space {
                 scope,
                 installation: id,
             }),
-            remote: new ProcedureRemote({
-                scope,
-                store: stack.store,
-                environment: machine.environment,
-            }),
-            publisherAt: (address, packageId) => {
-                // follow the stack package at the address
-                const published = createClient(
-                    stackPackage,
-                    {
-                        url: `${at(address).url}${PackageMount.path(packageId)}`,
-                        fetch: (request) => at(address).fetch(request),
-                    },
-                    machine.environment,
-                );
-
-                return new ProcedureRemote({
+            remote: stack,
+            connect: (address, packageId) => {
+                // connect to the package's store at the address through egress, once per package and address
+                const key = `${address} ${packageId}`;
+                const known = peers.get(key);
+                if (known !== undefined) {
+                    return known;
+                }
+                const connection = ObjectConnection.open({
                     scope: address,
-                    store: published.store,
+                    url: ObjectConnection.url(`${at(address).url}${PackageMount.path(packageId)}`),
+                    authorize: at(address).authorize,
+                    websocket: (url, protocols) =>
+                        host.open(at(address).fetch, WebSocketUpgrade.to(url, protocols)),
                     environment: machine.environment,
                 });
+                peers.set(key, connection);
+                connections.defer(() => connection.close());
+
+                return connection;
             },
             at,
         };
@@ -2298,7 +2383,7 @@ export class Space {
             ...[...assigned.difference(working)].map((machine) => work("unassign", machine)),
         ];
         if (calls.length > 0) {
-            await ObjectRemote.run(remote, placed.scope, {
+            await ObjectRemote.mutate(remote, placed.scope, {
                 id: RequestId.create(this.machine.environment),
                 calls,
             });
@@ -2365,21 +2450,24 @@ export class Space {
     }
 
     /** Hand a request to one of the space's packages as a verified caller. */
-    async call(
-        packageId: PackageId,
-        request: Request,
-        authentication?: Authentication,
-    ): Promise<Response> {
+    async call(packageId: PackageId, request: Request, voucher?: Voucher): Promise<Response> {
         const served = this.instance.packages.find((handle) => handle.id === packageId);
         if (served === undefined) {
             throw MachineError.of("PACKAGE_NOT_FOUND", `package '${packageId}' not found`);
         }
 
-        return this.instance.fetch(served, request, authentication);
+        return this.instance.fetch(served, request, voucher);
+    }
+
+    /** Hand the space store a socket's message or close its machine's host delivered. */
+    async receive(request: Request): Promise<void> {
+        const hibernation = present(this.#hibernation, "the space store's sockets");
+        await this.instance.ready();
+        await hibernation.receive(request, this.instance.sockets);
     }
 
     /** Serve a request to the space: its health's probes, else through its gateway. */
-    async fetch(request: Request, authentication?: Authentication): Promise<Response> {
+    async fetch(request: Request, voucher?: Voucher): Promise<Response> {
         // answer the space's liveness and readiness, as a server answers its own, while it starts too
         const mounted = SpaceMount.parse(new URL(request.url).pathname);
         const probed =
@@ -2401,7 +2489,7 @@ export class Space {
             await this.#waitInstantiated(request.signal);
         }
 
-        return gateway.serve(request, authentication);
+        return gateway.serve(request, voucher);
     }
 
     /** Wait until the space is instantiated, refusing it as starting past the wait. */
@@ -2444,6 +2532,8 @@ export class Space {
             { "destack.space.id": this.id },
             async () => {
                 try {
+                    // release the store's sockets first, their clients resuming elsewhere
+                    this.machine.hibernation?.release(this.id);
                     await this.#instance?.close();
                 } finally {
                     await this.volume.close();
@@ -2458,8 +2548,8 @@ export class Space {
         installed: readonly InstallationBuild[],
         unavailable: readonly Digest[],
     ): Promise<void> {
-        const locks = installed.flatMap((each) => [each.lock, each.recorded]);
-        await this.machine.retain(this.id, [...locks, ...unavailable]);
+        const images = installed.flatMap((each) => [each.image, each.recorded]);
+        await this.machine.retain(this.id, [...images, ...unavailable]);
     }
 
     /** Apply a primary's installed set in place, then report whether it serves each revision. */
@@ -2492,22 +2582,22 @@ export class Space {
         readonly installed: readonly InstallationBuild[];
         readonly unavailable: readonly Digest[];
     }> {
-        // open the lock each installation runs, noting an unavailable one
+        // open the image each installation runs, noting an unavailable one
         const unavailable: Digest[] = [];
-        const open = async (packageId: PackageId, lock: Digest) => {
-            // open the root of a lock the machine keeps
+        const open = async (packageId: PackageId, image: Digest) => {
+            // open the root of an image the machine keeps
             if (source === "machine") {
-                const isKept = (await this.builds.storeOf(lock)) !== undefined;
+                const isKept = (await this.builds.storeOf(image)) !== undefined;
                 if (!isKept) {
-                    unavailable.push(lock);
+                    unavailable.push(image);
                 }
 
-                return isKept ? await this.builds.root(lock) : undefined;
+                return isKept ? await this.builds.root(image) : undefined;
             }
-            // pull a lock
+            // pull an image
             else {
-                return await this.root(packageId, lock).catch((error: unknown) => {
-                    // note a lock its forge cannot answer yet, as a file or a build it lacks
+                return await this.root(packageId, image).catch((error: unknown) => {
+                    // note an image its forge cannot answer yet, as a file or a build it lacks
                     const failure = Failure.of(error);
                     const isUnavailable =
                         PackageError.is(error, "FILE_UNAVAILABLE") ||
@@ -2516,7 +2606,7 @@ export class Space {
                     if (!isUnavailable) {
                         throw error;
                     }
-                    unavailable.push(lock);
+                    unavailable.push(image);
 
                     return undefined;
                 });
@@ -2678,10 +2768,10 @@ export class Space {
         return this.#current().mounts.filter((each) => each.installationId === installationId);
     }
 
-    /** Publish each of an account's packages in a stored lock for a caller. */
+    /** Publish each of an account's packages in a stored image for a caller. */
     async publish(
         store: PublishStore,
-        lock: Digest,
+        image: Digest,
         account: Identifier<"account">,
         tag: string,
         commit: string | undefined,
@@ -2712,7 +2802,7 @@ export class Space {
 
         return await forges.publish(
             store,
-            lock,
+            image,
             account,
             tag,
             commit === undefined ? {} : { commit },
@@ -2791,11 +2881,9 @@ export class Space {
                 headers: { "content-type": "application/json" },
                 body: JSON.stringify(body),
             });
-            const authentication = this.identityOf(self).authentication(
-                receiver.packageId,
-                this.id,
+            const response = await this.call(receiver.packageId, request, async () =>
+                this.identityOf(self).authentication(receiver.packageId, this.id),
             );
-            const response = await this.call(receiver.packageId, request, authentication);
             const answer = await response.text();
             if (!response.ok) {
                 throw MachineError.of(

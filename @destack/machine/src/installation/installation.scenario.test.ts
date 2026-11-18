@@ -208,7 +208,7 @@ test("find and list only the enabled installations not being deleted, as a machi
         const release = {
             package: ids.package,
             version: "2026.9.0",
-            lock: Digest.parse("e".repeat(64)),
+            image: Digest.parse("e".repeat(64)),
         };
         const pulled = await insertRelease(
             database,

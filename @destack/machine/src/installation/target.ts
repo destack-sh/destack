@@ -22,7 +22,7 @@ import {
     PackageDescription,
 } from "@destack/object";
 import { type DependencyRelease, PackageId, PackageRelease } from "@destack/package";
-import { type BuildReader, Lock, PackageManifest } from "@destack/package/manifest";
+import { type BuildReader, BuildImage, PackageManifest } from "@destack/package/manifest";
 import { ResourceDescription } from "@destack/resource";
 import {
     Digest,
@@ -76,24 +76,24 @@ export interface RevisionOptions {
     readonly linked: ReadonlyMap<PackageId, PackageRelease>;
     /** The releases the machine ships, by package. */
     readonly shipped: ReadonlyMap<PackageId, PackageRelease>;
-    /** The locks of the releases the machine runs in its process: those it ships or links. */
+    /** The images of the releases the machine runs in its process: those it ships or links. */
     readonly trusted: ReadonlySet<Digest>;
 }
 
 /** A build chosen for an installation, with what its revision requires. */
 export interface ChosenBuild extends SelectedBuild {
-    /** The installable packages the build depends on, at the builds its lock has. */
+    /** The installable packages the build depends on, at the builds its image has. */
     readonly dependencies: InstallationRevision["dependencies"];
     /** The state each declaration of the build requires of its target, as a blob. */
     readonly states: InstallationRevision["states"];
 }
 
-/** The build a selection resolves to: the space's build, its lock and source. */
+/** The build a selection resolves to: the space's build, its image and source. */
 export interface SelectedBuild {
     /** The space's build, absent for a release its apply records. */
     readonly build?: Identifier<"build">;
-    /** The digest of the build's lock. */
-    readonly lock: Digest;
+    /** The digest of the build's image. */
+    readonly image: Digest;
     /** Where the build comes from. */
     readonly source: BuildSource;
 }
@@ -217,7 +217,7 @@ export const RolloutTarget = {
         return provided;
     },
 
-    /** Resolve the lock an installation runs, undefined for a host release the machine lacks. */
+    /** Resolve the image an installation runs, undefined for a host release the machine lacks. */
     running(
         installed: Pick<Installation, "packageId" | "followsType">,
         recorded: Digest,
@@ -226,8 +226,8 @@ export const RolloutTarget = {
         const { packageId } = installed;
 
         return RolloutTarget.follows(installed) === "host"
-            ? RolloutTarget.provided(packageId, options)?.lock
-            : (options.linked.get(packageId)?.lock ?? recorded);
+            ? RolloutTarget.provided(packageId, options)?.image
+            : (options.linked.get(packageId)?.image ?? recorded);
     },
 
     /** Choose the build an installation runs and describe its revision, none while none is here. */
@@ -257,29 +257,29 @@ export const RolloutTarget = {
                 ? await selectBuild(reader, row, current, options)
                 : await Build.require(reader, row.scope, requested).then((found) => ({
                       build: found.id,
-                      lock: found.lock,
+                      image: found.image,
                       source: found.source,
                   }));
         const targeted =
             current === undefined
                 ? undefined
-                : { build: current.id, lock: Build.lock(current), source: current.source };
+                : { build: current.id, image: Build.image(current), source: current.source };
         const chosen = selected ?? targeted;
 
-        // choose none without a build, or with one whose lock the machine lacks
+        // choose none without a build, or with one whose image the machine lacks
         if (
             chosen === undefined ||
-            (await options.space.builds.storeOf(chosen.lock)) === undefined
+            (await options.space.builds.storeOf(chosen.image)) === undefined
         ) {
             return undefined;
         }
 
         // describe its revision, reusing the targeted one's for the same build
-        const lock = await options.space.builds.lock(chosen.lock);
+        const image = await options.space.builds.image(chosen.image);
         const described =
             revision !== undefined && revision.buildId === chosen.build
                 ? { dependencies: revision.dependencies, states: revision.states }
-                : await RolloutTarget.describe(row.installation, lock, objects, options);
+                : await RolloutTarget.describe(row.installation, image, objects, options);
 
         return { ...chosen, ...described };
     },
@@ -303,7 +303,7 @@ export const RolloutTarget = {
         const hosted = kind === "host" ? RolloutTarget.host(packageId, options) : undefined;
         if (
             hosted !== undefined &&
-            (await options.space.builds.storeOf(hosted.lock)) !== undefined
+            (await options.space.builds.storeOf(hosted.image)) !== undefined
         ) {
             return undefined;
         }
@@ -331,12 +331,12 @@ export const RolloutTarget = {
             return undefined;
         }
 
-        // pull its lock onto the machine
-        const { lock } = resolved;
-        const pulled = await options.space.pull(packageId, lock);
+        // pull its image onto the machine
+        const { image } = resolved;
+        const pulled = await options.space.pull(packageId, image);
         const version = (await options.space.builds.get(pulled.root)).package.version;
 
-        return { lock, source: { kind: "release", package: packageId, version, lock } };
+        return { image, source: { kind: "release", package: packageId, version, image } };
     },
 
     /** Read the build an installation follows, else the linked release, else its selection. */
@@ -378,7 +378,7 @@ export const RolloutTarget = {
         }
         // read the release the machine provides for one following the host's
         else if (kind === "host") {
-            return options.space.root(packageId, RolloutTarget.host(packageId, options).lock);
+            return options.space.root(packageId, RolloutTarget.host(packageId, options).image);
         }
         // read the revision's build
         else if (found?.targetRevisionId !== undefined && found.targetRevisionId !== null) {
@@ -391,13 +391,13 @@ export const RolloutTarget = {
         }
         // read the release the machine links, which runs until a revision replaces it
         else if (linked !== undefined) {
-            return options.space.root(packageId, linked.lock);
+            return options.space.root(packageId, linked.image);
         }
         // resolve a planned installation's release
         else if (following !== undefined && (kind === "release" || kind === "tag")) {
             const resolved = await selectedRelease(snapshot, following, options);
             if (resolved !== undefined) {
-                return options.space.root(packageId, resolved.lock);
+                return options.space.root(packageId, resolved.image);
             }
         }
 
@@ -408,22 +408,22 @@ export const RolloutTarget = {
         );
     },
 
-    /** Evaluate a locked build's stack at an export, with the builds its lock has. */
+    /** Evaluate a locked build's stack at an export, with the builds its image has. */
     async evaluate(
         inputs: Omit<StackEvaluation, "definition">,
-        lock: Lock,
+        image: BuildImage,
         options: {
             readonly space: Pick<Space, "builds" | "machine" | "root" | "pull" | "read">;
             readonly registry: Pick<Registry, "store">;
         },
     ): Promise<StackEvaluation> {
-        // take the builds the machine links, then the lock's
+        // take the builds the machine links, then the image's
         const { machine } = options.space;
-        const locks = await machine.linkedLocks();
+        const images = await machine.linkedImages();
         const linked = [...machine.linked.values()].map((provided) => {
             const { root } = present(
-                locks.get(provided.package.name),
-                `the lock of ${provided.package.name}`,
+                images.get(provided.package.name),
+                `the image of ${provided.package.name}`,
             );
             const entry: DependencyRelease = {
                 kind: "destack",
@@ -435,12 +435,12 @@ export const RolloutTarget = {
         });
         const releases = [
             ...linked,
-            ...(await Lock.releases(lock, (digest) => options.space.builds.get(digest))),
+            ...(await BuildImage.releases(image, (digest) => options.space.builds.get(digest))),
         ];
 
-        // read the stack the lock's root declares at the export
+        // read the stack the image's root declares at the export
         const definition = await StackDefinition.declared(
-            await options.space.builds.contents(lock.root),
+            await options.space.builds.contents(image.root),
             releases,
             inputs.export,
             inputs.settings,
@@ -497,17 +497,19 @@ export const RolloutTarget = {
     /** Describe a build's revision of an installation: its dependencies and required states. */
     async describe(
         target: Pick<Installation, "name" | "capabilities" | "allowed">,
-        lock: Lock,
+        image: BuildImage,
         objects: readonly ObjectType[],
         options: Pick<RevisionOptions, "space" | "registry" | "blobs" | "known">,
     ): Promise<Pick<InstallationRevision, "dependencies" | "states">> {
-        // read the lock's root and the builds of the installable packages the lock has
+        // read the image's root and the builds of the installable packages the image has
         const { blobs } = options;
-        const reader = await options.space.builds.contents(lock.root);
-        const entries = await Lock.entries(lock, (digest) => options.space.builds.get(digest));
+        const reader = await options.space.builds.contents(image.root);
+        const entries = await BuildImage.entries(image, (digest) =>
+            options.space.builds.get(digest),
+        );
         const read = (dependency: PackageId, manifest: Digest) =>
             options.space.read(dependency, manifest);
-        const dependencies = await installableBuilds(entries, lock.root, read);
+        const dependencies = await installableBuilds(entries, image.root, read);
 
         // describe the state each declaration requires: main's tables, an installation's release, a resource's own
         const required = new Map<string, JsonValue>();
@@ -532,7 +534,7 @@ export const RolloutTarget = {
     /** Describe the call that records a space's build and its stack evaluation as a revision. */
     async create(
         target: Pick<Installation, "id" | "scope" | "packageId" | "generation">,
-        evaluated: { readonly id: Identifier<"build">; readonly lock: Digest },
+        evaluated: { readonly id: Identifier<"build">; readonly image: Digest },
         described: Pick<InstallationRevision, "dependencies" | "states">,
         evaluation: StackEvaluation | undefined,
         bindings: readonly Binding[],
@@ -548,7 +550,12 @@ export const RolloutTarget = {
             ...(evaluation === undefined ? {} : { definition: evaluation.definition }),
             bindings: [...bindings],
             generation: target.generation,
-            digest: await InstallationRevision.digest(evaluated.lock, evaluation, bindings, crypto),
+            digest: await InstallationRevision.digest(
+                evaluated.image,
+                evaluation,
+                bindings,
+                crypto,
+            ),
         });
     },
 };
@@ -567,19 +574,19 @@ async function selectBuild(
 
     // take the release the machine provides for one following the host's, reusing its current build
     if (kind === "host") {
-        const { lock } = RolloutTarget.host(packageId, options);
+        const { image } = RolloutTarget.host(packageId, options);
         const source = current?.source;
-        if (source?.kind === "release" && current !== undefined && Build.lock(current) === lock) {
-            return { lock, source, build: current.id };
+        if (source?.kind === "release" && current !== undefined && Build.image(current) === image) {
+            return { image, source, build: current.id };
         }
-        const stored = await options.space.builds.storeOf(lock);
+        const stored = await options.space.builds.storeOf(image);
         if (stored === undefined) {
             return undefined;
         }
-        const root = (await options.space.builds.lock(lock)).root;
+        const root = (await options.space.builds.image(image)).root;
         const version = (await options.space.builds.get(root)).package.version;
 
-        return { lock, source: { kind: "release", package: packageId, version, lock } };
+        return { image, source: { kind: "release", package: packageId, version, image } };
     }
     // leave a followed release or tag to its pull
     else if (kind === "release" || kind === "tag") {
@@ -594,7 +601,7 @@ async function selectBuild(
         );
 
         return pinned.state === "succeeded"
-            ? { lock: Build.lock(pinned), source: pinned.source, build: pinned.id }
+            ? { image: Build.image(pinned), source: pinned.source, build: pinned.id }
             : undefined;
     }
     // take the succeeded build of the commit a followed reference points at
@@ -619,7 +626,7 @@ async function selectBuild(
         const found = await Build.find(snapshot, row.scope, source);
 
         return found?.state === "succeeded"
-            ? { lock: Build.lock(found), source, build: found.id }
+            ? { image: Build.image(found), source, build: found.id }
             : undefined;
     }
     // take the followed checkout's newest succeeded build
@@ -641,11 +648,11 @@ async function selectBuild(
 
         return newest === undefined
             ? undefined
-            : { lock: Build.lock(newest), source: newest.source, build: newest.id };
+            : { image: Build.image(newest), source: newest.source, build: newest.id };
     }
 }
 
-/** Resolve a followed release or tag to its version and lock, none while its tag is unset. */
+/** Resolve a followed release or tag to its version and image, none while its tag is unset. */
 async function selectedRelease(
     snapshot: Pick<Snapshot, "read">,
     installed: Pick<
@@ -655,7 +662,7 @@ async function selectedRelease(
     options: Pick<RevisionOptions, "forge" | "registry"> & {
         readonly space: Pick<Space, "builds" | "machine" | "root" | "pull" | "read">;
     },
-): Promise<{ readonly version: string; readonly lock: Digest } | undefined> {
+): Promise<{ readonly version: string; readonly image: Digest } | undefined> {
     // read the version a tag points at in the forge's replica
     const { packageId } = installed;
     const { forge, registry } = options;
@@ -666,18 +673,18 @@ async function selectedRelease(
 
         return version === undefined
             ? undefined
-            : { version, lock: await registry.find(packageId, version) };
+            : { version, image: await registry.find(packageId, version) };
     }
     // read a release's version, or a tag's once on a machine following no forge, at the registry
     else {
         const version = await registry.version(packageId, followed);
-        const lock = await published(registry, packageId, version);
+        const image = await published(registry, packageId, version);
 
-        return lock === undefined ? undefined : { version, lock };
+        return image === undefined ? undefined : { version, image };
     }
 }
 
-/** Find a published release's lock by version or tag, absent while none is published. */
+/** Find a published release's image by version or tag, absent while none is published. */
 async function published(
     registry: Pick<Registry, "find">,
     packageId: PackageId,
@@ -730,7 +737,7 @@ async function mainState(
     );
     const unserved = depended.flat().filter((each) => !known.has(ObjectDescription.key(each)));
 
-    // read the linked packages whose types they refer to, as a linked package's lock lists none
+    // read the linked packages whose types they refer to, as a linked package's image lists none
     const { linked } = options.space.machine;
     const pool = ObjectTypePool.of(pooled);
     const descriptions = [...unserved, ...owned];
@@ -743,8 +750,8 @@ async function mainState(
         for (const id of ids) {
             // read each linked package once, its types' own references in the next round
             read.add(id);
-            const { lock } = present(linked.get(id), `the linked release of ${id}`);
-            const types = await ObjectDescription.read(await options.space.root(id, lock));
+            const { image } = present(linked.get(id), `the linked release of ${id}`);
+            const types = await ObjectDescription.read(await options.space.root(id, image));
             descriptions.push(...types.filter((each) => !known.has(ObjectDescription.key(each))));
         }
     }
@@ -800,7 +807,7 @@ async function declaredStates(
     // record an installation's callee release
     const states = new Map<string, JsonValue>();
     for (const { name, isInstallation, spec, ...state } of resources) {
-        // record the callee's version in the lock
+        // record the callee's version in the image
         if (isInstallation) {
             const callee = InstallationBindingSpec.parse(spec).package;
             const version =

@@ -2,7 +2,7 @@ import { StackError } from "@destack/stack/error";
 import { Failure } from "@destack/error";
 import { ObjectError } from "@destack/object/error";
 import type { PackageFile } from "@destack/package/file";
-import { type Lock, type PackageManifest } from "@destack/package/manifest";
+import { type BuildImage, type PackageManifest } from "@destack/package/manifest";
 import { type BuildStore } from "@destack/build/store";
 import type * as packageRuntime from "@destack/package/runtime";
 import type * as installation from "../installation/index.ts";
@@ -43,6 +43,7 @@ import {
     type Follow,
     type MethodInput,
     type Package,
+    CONNECTION_PATH,
     PackageMount,
     refusal,
     SpaceMount,
@@ -56,12 +57,13 @@ import type {
 import { PackageId, type PackageRelease } from "@destack/package";
 import { TUNNEL_PATH, TunnelClient, type TunnelStatus } from "@destack/tunnel";
 import { type PartitionId, SPACE_KEY, TokenVerifier } from "@destack/access/token";
-import { createClient, type ClientOf } from "@destack/object/client";
-import { Health } from "@destack/object/server";
+import { createClient, type ClientOf, ObjectConnection } from "@destack/object/client";
+import { Health, type Voucher } from "@destack/object/server";
 import type { Alarm } from "@destack/db";
-import { copyRequest, untilAborted } from "@destack/environment";
+import { copyRequest, untilAborted, WebSocketUpgrade } from "@destack/environment";
 import { RequestId, type Publisher, Scope } from "@destack/sync";
-import type { HibernationHost } from "@destack/object/workload";
+import { HibernationHost, type SocketDelivery } from "@destack/object/workload";
+import { SocketBridge } from "../gateway/bridge.ts";
 import {
     canonicalize,
     type Digest,
@@ -115,13 +117,14 @@ export type MachineOptions = Pick<
     | "isServingHostnames"
     | "domain"
     | "runtimes"
-    | "hibernation"
     | "alarm"
     | "server"
     | "endpoint"
     | "authenticate"
     | "authorizeSpace"
 > & {
+    /** Hand an instance's socket event to its runtime, absent where the runtime keeps them. */
+    readonly instances: SocketDelivery | undefined;
     /** The releases of the packages the machine links, by package. */
     readonly linked: ReadonlyMap<PackageId, PackageRelease>;
     /** Read the machine's enrollment, through a controller's view when given. */
@@ -194,8 +197,8 @@ export class Machine {
     readonly builds: BuildStore;
     /** The runtimes the machine pulls builds' closures for. */
     readonly targets: readonly packageRuntime.Runtime[];
-    /** The locks pulled from their forges, by digest, each once. */
-    readonly #pulled = new Map<Digest, Promise<Lock>>();
+    /** The images pulled from their forges, by digest, each once. */
+    readonly #pulled = new Map<Digest, Promise<BuildImage>>();
     /** The forges' registry of published releases, called as the machine. */
     readonly releases: installation.Registry;
     /** The installation residency homes serve the registry protocol at. */
@@ -208,13 +211,15 @@ export class Machine {
     readonly isServingHostnames: boolean;
     /** The runtimes running the spaces' instances, in preference order. */
     readonly runtimes: readonly Runtime[];
-    /** The open WebSockets of the machine's instances, absent where the runtime serves them. */
-    readonly hibernation: Pick<HibernationHost, "answer"> | undefined;
+    /** The open WebSockets of the machine's spaces, instances and bridges, absent without any. */
+    readonly hibernation: HibernationHost | undefined;
+    /** The sockets this machine forwards to other origins, kept at its host, absent without one. */
+    readonly bridge: SocketBridge | undefined;
     /** Set a wake-up for a space's earliest due controller key, absent where timers wake them. */
     readonly alarm: Alarm | undefined;
-    /** Load the server a lock's root exports into the machine's process, absent for none. */
-    readonly server: (lock: Digest) => Promise<PackageImplementation | undefined>;
-    /** The locks of the releases the machine runs in its process: those it ships or links. */
+    /** Load the server an image's root exports into the machine's process, absent for none. */
+    readonly server: (image: Digest) => Promise<PackageImplementation | undefined>;
+    /** The images of the releases the machine runs in its process: those it ships or links. */
     readonly #trusted: Set<Digest>;
     /** The releases of the packages the machine links, by package. */
     readonly #linked: Map<PackageId, PackageRelease>;
@@ -246,6 +251,10 @@ export class Machine {
     readonly #describe: MachineOptions["describe"];
     /** The spaces started while serving, by space. */
     readonly #started = new Map<Identifier<"space">, Promise<Space>>();
+    /** The connections to packages of the machines serving spaces, by package and space. */
+    readonly #connections = new Map<string, ObjectConnection>();
+    /** The connection to the account package of this machine's enrollment, once enrolled. */
+    #accountConnection: Promise<ObjectConnection> | undefined;
     /** Settles once the machine's own job read an enrollment, renewed when it is revoked. */
     #enrolling = Promise.withResolvers<void>();
     /** Whether the machine serves its spaces, and why not. */
@@ -282,7 +291,19 @@ export class Machine {
 
         // set the runtimes and what the machine serves with them
         this.runtimes = options.runtimes;
-        this.hibernation = options.hibernation;
+        const { instances } = options;
+        this.hibernation =
+            instances === undefined
+                ? undefined
+                : new HibernationHost(
+                      (instance, path, request) =>
+                          this.#deliver(instance, path, request, instances),
+                      options.environment.telemetry,
+                  );
+        this.bridge =
+            this.hibernation === undefined
+                ? undefined
+                : new SocketBridge(this.hibernation, options.environment);
         this.alarm = options.alarm;
         this.server = options.server;
         this.#linked = new Map(options.linked);
@@ -290,7 +311,7 @@ export class Machine {
             options.shipped.map((release) => [PackageId.parse(release.package.id), release]),
         );
         this.#trusted = new Set(
-            [...options.shipped, ...options.linked.values()].map((release) => release.lock),
+            [...options.shipped, ...options.linked.values()].map((release) => release.image),
         );
 
         // set where peers call the machine and how it verifies and reports
@@ -326,18 +347,18 @@ export class Machine {
         this.scope.captureException(error, { isEscaped: true });
     }
 
-    /** Pull a published lock with its closures once, from its package's forge. */
-    pull(packageId: PackageId, lock: Digest): Promise<Lock> {
-        // take a lock pulled or pulling already
-        const known = this.#pulled.get(lock);
+    /** Pull a published image with its closures once, from its package's forge. */
+    pull(packageId: PackageId, image: Digest): Promise<BuildImage> {
+        // take an image pulled or pulling already
+        const known = this.#pulled.get(image);
         if (known !== undefined) {
             return known;
         }
 
         // pull it once, forgetting a failed pull, the registry tracing the transfer
-        const pulling = this.releases.pull(this.builds, packageId, lock, this.targets);
-        this.#pulled.set(lock, pulling);
-        pulling.catch(() => this.#pulled.delete(lock));
+        const pulling = this.releases.pull(this.builds, packageId, image, this.targets);
+        this.#pulled.set(image, pulling);
+        pulling.catch(() => this.#pulled.delete(image));
 
         return pulling;
     }
@@ -396,8 +417,8 @@ export class Machine {
     }
 
     /** Retain the builds a space runs in the machine's builds. */
-    async retain(space: Identifier<"space">, locks: Iterable<Digest>): Promise<void> {
-        await this.builds.retain(`${SPACE_ROOT_PREFIX}${space}`, new Set(locks));
+    async retain(space: Identifier<"space">, images: Iterable<Digest>): Promise<void> {
+        await this.builds.retain(`${SPACE_ROOT_PREFIX}${space}`, new Set(images));
     }
 
     /** Forget the retained builds of each space the machine no longer stores. */
@@ -410,11 +431,11 @@ export class Machine {
         }
     }
 
-    /** Pull the locks of the releases the machine links, by package name. */
-    async linkedLocks(): Promise<Map<string, Lock>> {
+    /** Pull the images of the releases the machine links, by package name. */
+    async linkedImages(): Promise<Map<string, BuildImage>> {
         const pulled = [...this.#linked.values()].map(
             async (release) =>
-                [release.package.name, await this.pull(release.package.id, release.lock)] as const,
+                [release.package.name, await this.pull(release.package.id, release.image)] as const,
         );
 
         return new Map(await Promise.all(pulled));
@@ -425,21 +446,21 @@ export class Machine {
         return this.#linked;
     }
 
-    /** The locks of the releases the machine runs in its process: those it ships or links. */
+    /** The images of the releases the machine runs in its process: those it ships or links. */
     get trusted(): ReadonlySet<Digest> {
         return this.#trusted;
     }
 
     /** Link a package's release in place of the earlier one, as a newer distribution does. */
     link(release: PackageRelease): void {
-        // trust the release's lock in place of the replaced one
+        // trust the release's image in place of the replaced one
         const id = PackageId.parse(release.package.id);
         const replaced = this.#linked.get(id);
         if (replaced !== undefined) {
-            this.#trusted.delete(replaced.lock);
+            this.#trusted.delete(replaced.image);
         }
         this.#linked.set(id, release);
-        this.#trusted.add(release.lock);
+        this.#trusted.add(release.image);
     }
 
     /** Follow the directory, the identities and a machine's own placements from the universe. */
@@ -538,8 +559,59 @@ export class Machine {
         };
     }
 
+    /** Add this machine's token for a package to a request, such as a connection's upgrade. */
+    authorize(
+        audience: PackageId,
+        binding: Pick<TokenBinding, "partition"> = {},
+    ): (request: Request) => Promise<Request> {
+        return async (request) => {
+            const enrollment = await this.enrolled("calling packages");
+            const send: Fetch = (sent) => this.send(sent);
+
+            return this.identity
+                .at(Machine.#issuer(enrollment), send)
+                .authorize(request, audience, binding);
+        };
+    }
+
+    /** Hand a socket event the machine's host keeps to its space, bridge or instance. */
+    async #deliver(
+        instance: string,
+        path: string,
+        request: RequestInit & { readonly headers: Record<string, string> },
+        instances: SocketDelivery,
+    ): Promise<Response> {
+        // hand a space store's event to the space in this process, a refusal closing the socket
+        const spaceId = schema.identifier("space").safeParse(instance);
+        if (spaceId.success) {
+            try {
+                const space = await this.space(spaceId.data);
+                await space.receive(new Request(`http://space${path}`, request));
+
+                return new Response(null, { status: 204 });
+            } catch (error) {
+                return refusal(error, this.environment.telemetry);
+            }
+        }
+        // pass a forwarded socket's event on to the other end of its bridge
+        else if (SocketBridge.is(instance)) {
+            const bridge = present(this.bridge, "the machine's socket bridge");
+            await bridge.receive(instance, new Request(`http://bridge${path}`, request));
+
+            return new Response(null, { status: 204 });
+        }
+
+        // hand an instance's to the runtime running it
+        return instances(instance, path, request);
+    }
+
     /** Send a request to another origin as it is, with a lent call's client certificate. */
     send(request: Request, options?: FetchOptions): Promise<Response> {
+        // forward a WebSocket upgrade through a bridge, else send the request
+        if (WebSocketUpgrade.of(request) !== undefined) {
+            return present(this.bridge, "the machine's socket bridge").forward(request);
+        }
+
         return this.environment.network.fetch(request, options);
     }
 
@@ -609,6 +681,7 @@ export class Machine {
         this.#enrolling = Promise.withResolvers();
         this.health.set("down", "it is revoked");
         await this.#closeSpaces();
+        this.#closeConnections();
 
         // delete the machine at its universe, then forget its key
         const accounts = createClient(
@@ -662,7 +735,7 @@ export class Machine {
     publisher(scope: string): Publisher {
         // follow the universe and this machine's own chain at the account package, once enrolled
         if (scope === Scope.universe.id || scope === this.id) {
-            const accounts = () => this.accounts();
+            const accounts = () => this.#accounts();
             const enrolled = (signal: AbortSignal) => this.#waitEnrolled(signal);
 
             return {
@@ -672,10 +745,10 @@ export class Machine {
                     if (signal.aborted) {
                         return;
                     }
-                    yield* await (await accounts()).store.stream(subscription, { signal });
+                    yield* (await accounts()).stream(subscription, signal);
                 },
                 request: async (subscription) => {
-                    await (await accounts()).store.request({ subscription });
+                    await (await accounts()).request(subscription);
                 },
             };
         }
@@ -686,7 +759,7 @@ export class Machine {
             // wait until this machine serves, refusing while it pauses, then call the space as itself
             await this.health.waitUp(signal);
 
-            return this.connect(stackPackage, spaceId);
+            return this.connection(stackPackage, spaceId);
         };
         const placed = () => this.#placed(spaceId);
         const moved = (from: string | undefined, signal: AbortSignal) =>
@@ -704,9 +777,7 @@ export class Machine {
 
                     // stream its rows, waiting out a move or a stop of this machine's serving
                     try {
-                        for await (const page of await stack.store.stream(subscription, {
-                            signal,
-                        })) {
+                        for await (const page of stack.stream(subscription, signal)) {
                             isStreamed = true;
                             yield page;
                         }
@@ -731,7 +802,7 @@ export class Machine {
                 }
             },
             request: async (subscription) => {
-                await (await this.connect(stackPackage, spaceId)).store.request({ subscription });
+                await (await this.connection(stackPackage, spaceId)).request(subscription);
             },
         };
     }
@@ -851,6 +922,62 @@ export class Machine {
         );
     }
 
+    /** Connect to a package's store at the machine serving a space, as this machine. */
+    async connection(
+        handle: Pick<Package, "id">,
+        spaceId: Identifier<"space">,
+    ): Promise<ObjectConnection> {
+        // reuse the connection to where the space is now, closing one to where it was
+        const located = await this.locate(spaceId);
+        const isOwn = located.placement.machine === this.id;
+        const mounted = `${SpaceMount.url(isOwn ? OWN_MACHINE : located.url, spaceId)}${PackageMount.path(handle.id)}`;
+        const url = ObjectConnection.url(mounted);
+        const key = `${handle.id} ${spaceId}`;
+        const known = this.#connections.get(key);
+        if (known?.url === url) {
+            return known;
+        }
+        known?.close();
+
+        // connect to another machine with this machine's token bound to the space, else to this one through itself, vouched for at each call
+        const host = this.hibernation;
+        const connection = ObjectConnection.open({
+            scope: spaceId,
+            url,
+            ...(isOwn
+                ? {
+                      websocket: (opened: string, protocols: readonly string[]) =>
+                          present(host, "the machine's sockets").open(
+                              async (upgrade) =>
+                                  (await this.space(spaceId)).call(
+                                      handle.id,
+                                      new Request(`http://space${CONNECTION_PATH}`, upgrade),
+                                      async () => this.#self(),
+                                  ),
+                              WebSocketUpgrade.to(opened, protocols),
+                          ),
+                  }
+                : { authorize: this.authorize(handle.id, { partition: spaceId }) }),
+            environment: this.environment,
+        });
+        this.#connections.set(key, connection);
+
+        return connection;
+    }
+
+    /** Connect to the account package of this machine's enrollment as this machine, once. */
+    #accounts(): Promise<ObjectConnection> {
+        this.#accountConnection ??= this.enrolled("serving spaces").then((enrollment) =>
+            ObjectConnection.open({
+                url: ObjectConnection.url(PackageMount.url(enrollment.universe, accountPackage.id)),
+                authorize: this.authorize(accountPackage.id),
+                environment: this.environment,
+            }),
+        );
+
+        return this.#accountConnection;
+    }
+
     /** Read the client options of a package of the machine serving a space, as this machine. */
     async options(
         handle: Pick<Package, "id">,
@@ -865,12 +992,10 @@ export class Machine {
             };
         }
 
-        // call this machine's own space as itself, through itself
-        const authentication = this.#self();
-
+        // call this machine's own space as itself, through itself, verified anew at each call
         return {
             url: `${SpaceMount.url(OWN_MACHINE, spaceId)}${PackageMount.path(handle.id)}`,
-            fetch: (request) => this.serve(request, authentication),
+            fetch: (request) => this.serve(request, async () => this.#self()),
         };
     }
 
@@ -884,11 +1009,11 @@ export class Machine {
     }
 
     /** Serve a request at the machine's own hosts, in the space it names. */
-    async serve(request: Request, authentication?: Authentication): Promise<Response> {
+    async serve(request: Request, voucher?: Voucher): Promise<Response> {
         return (
             this.#refusal() ??
             (await this.npm(request)) ??
-            this.#serve(await this.#route(request), authentication)
+            this.#serve(await this.#route(request), voucher)
         );
     }
 
@@ -1076,10 +1201,7 @@ export class Machine {
     }
 
     /** Serve a request in the space the machine found for it. */
-    async #serve(
-        routed: SpaceRequest | undefined,
-        authentication?: Authentication,
-    ): Promise<Response> {
+    async #serve(routed: SpaceRequest | undefined, voucher?: Voucher): Promise<Response> {
         // answer 404 to a request naming no space, and move one at a former name to the current one
         if (routed === undefined) {
             return new Response(null, { status: 404 });
@@ -1091,7 +1213,7 @@ export class Machine {
         try {
             const space = await this.space(routed.space);
 
-            return await space.fetch(routed.request, authentication);
+            return await space.fetch(routed.request, voucher);
         } catch (error) {
             return refusal(error, this.environment.telemetry);
         }
@@ -1191,10 +1313,22 @@ export class Machine {
         try {
             await this.#closeSpaces();
         } finally {
+            this.#closeConnections();
             await tunnel?.[Symbol.asyncDispose]();
             await announced;
             this.health.set("stopped", "it stopped serving");
         }
+    }
+
+    /** Close the connections to the spaces' machines and the account package, opened anew later. */
+    #closeConnections(): void {
+        // close each, forgetting them for the next serving to open anew
+        for (const connection of this.#connections.values()) {
+            connection.close();
+        }
+        this.#connections.clear();
+        void this.#accountConnection?.then((connection) => connection.close());
+        this.#accountConnection = undefined;
     }
 
     /** Close every space at once, refusing with each that failed to close. */
@@ -1267,6 +1401,12 @@ export class Machine {
             url,
             machineId: this.id,
             fetch: relayed.fetch,
+            // open a forwarded upgrade's socket at this machine's host, as its listener would
+            websocket: (upgrade) =>
+                present(this.hibernation, "the machine's sockets").open(
+                    (request) => relayed.fetch(request),
+                    present(WebSocketUpgrade.of(upgrade), "the forwarded WebSocket upgrade"),
+                ),
             environment: this.environment,
             token: (audience) =>
                 this.identity.at(issuer, (request) => this.send(request)).token(audience, {}),

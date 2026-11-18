@@ -13,7 +13,7 @@ import {
     PackageMount,
     INSTALLATION_PROVIDER,
     InstallationKind,
-    STORE_PATHS,
+    CONNECTION_PATH,
 } from "@destack/object";
 import type { Deriver } from "@destack/identity";
 import { InstallationRoot, type WorkloadStart } from "@destack/object/workload";
@@ -84,9 +84,9 @@ export interface Runtime {
         authentication: Authentication | undefined,
         partition?: string,
     ) => Promise<Response>;
-    /** Call an export of a lock's root module once with JSON arguments, as it runs package code. */
+    /** Call an export of an image's root module once with JSON arguments, running package code. */
     readonly call: (
-        lock: Digest,
+        image: Digest,
         path: string,
         name: string,
         input: readonly JsonValue[],
@@ -113,8 +113,8 @@ export interface InstanceSpec {
     readonly deploymentId: Identifier<"deployment">;
     /** The build the deployment runs. */
     readonly build: BuildReader;
-    /** The digest of the build's lock. */
-    readonly lock: Digest;
+    /** The digest of the build's image. */
+    readonly image: Digest;
     /** The build output with the workload. */
     readonly output: string;
     /** The package-local workload. */
@@ -176,7 +176,7 @@ export const EgressCaller = {
         };
     },
 
-    /** Report whether a caller may call a peer's path: a store procedure, else once bound. */
+    /** Report whether a caller may call a peer's path: its store's connection, else once bound. */
     binds(
         caller: Pick<EgressCaller, "installations">,
         peer: { readonly name: string; readonly spaceId: string },
@@ -186,7 +186,7 @@ export const EgressCaller = {
             (bound) => bound.installation === peer.name && bound.scope === peer.spaceId,
         );
 
-        return isBound || STORE_PATHS.has(path);
+        return isBound || path === CONNECTION_PATH;
     },
 };
 

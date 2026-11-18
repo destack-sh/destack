@@ -14,6 +14,7 @@ import {
     CLIENT_HEAD_HEADER,
     ClientHead,
     PARTITION_HEADER,
+    PARTITION_PARAMETER,
     ROUTE_HEADER,
 } from "@destack/object/workload";
 
@@ -56,12 +57,21 @@ export interface SpaceRequest {
 
 /** The partition a request addresses: the innermost scoped route's, else its scoped body's. */
 export const PartitionRequest = {
-    /** Read the partition of a request: its header's, its path's or its body's, absent for none. */
+    /** Read the partition of a request: the one it names, its path's or its body's. */
     async of(request: Request, pathname: string): Promise<string | undefined> {
         return (
-            request.headers.get(PARTITION_HEADER) ??
+            PartitionRequest.named(request) ??
             PartitionRequest.scoped(pathname) ??
             (await PartitionRequest.body(request, pathname))
+        );
+    },
+
+    /** Read the partition a request names: in its header, else a socket's in its query. */
+    named(request: Request): string | undefined {
+        return (
+            request.headers.get(PARTITION_HEADER) ??
+            new URL(request.url).searchParams.get(PARTITION_PARAMETER) ??
+            undefined
         );
     },
 

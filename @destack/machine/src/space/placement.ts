@@ -183,7 +183,7 @@ async function report(
     environment: UuidEnvironment,
 ): Promise<void> {
     const call = space.call(name, { accountId: row.scope, id: row.id, ...input });
-    await ObjectRemote.run(
+    await ObjectRemote.mutate(
         remote,
         row.scope,
         { id: RequestId.create(environment), calls: [call] },

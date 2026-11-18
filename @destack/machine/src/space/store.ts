@@ -134,7 +134,7 @@ export function openStore(
             runtimes: space.machine.runtimes.map((runtime) => runtime.name),
             linked: [...space.machine.linked.values()].map((release) => [
                 release.package.id,
-                release.lock,
+                release.image,
             ]),
             destack: JSON.stringify(space.machine.destack),
             isEnforcingEntitlements: space.machine.isEnforcingEntitlements,
@@ -178,14 +178,14 @@ export function ownServers(
     space: Space,
     start: SpaceStart,
     installed: readonly PackageImplementation[],
-    served: ConstructorParameters<typeof ProviderIndex>[2],
+    packages: ConstructorParameters<typeof ProviderIndex>[2],
 ): {
     readonly servers: readonly PackageImplementation[];
     readonly control: (store: ObjectStore) => readonly ControllerSet[];
 } {
     // index the machine's providers and bindable kinds, which the stack and the installations bind with
     const bindingKinds = ObjectBindingKind.of(installed);
-    const providers = new ProviderIndex(space.machine.id, spaceProviders(space, start), served);
+    const providers = new ProviderIndex(space.machine.id, spaceProviders(space, start), packages);
     const binder = new Binder(
         providers.objects().map((type) => ResourceBindingKind.of(providers.kind(type), type)),
         bindingKinds,
@@ -438,11 +438,11 @@ function homePublisher(space: Space, start: SpaceStart, scope: string): Publishe
     // follow a space at itself, and another scope in its account's partition at the account's home
     const homed = async () => {
         if (accountObject.space.identifies(scope)) {
-            return space.publisherAt(scope, scope);
+            return space.publisherAt(start, scope, scope);
         }
         const { id } = await Account.of(Snapshot.live(space.database), scope);
 
-        return space.publisherAt(Account.home(id), id);
+        return space.publisherAt(start, Account.home(id), id);
     };
 
     return {

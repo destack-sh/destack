@@ -185,17 +185,17 @@ export class WorkerdRuntime implements Runtime {
             );
         }
 
-        return this.#modules(identified.build, identified.lock);
+        return this.#modules(identified.build, identified.image);
     }
 
-    /** Read each module a lock's root's modules reach, resolved through its import map. */
+    /** Read each module an image's root's modules reach, resolved through its import map. */
     async #modules(
         build: BuildReader,
-        lock: Digest,
+        image: Digest,
         called: readonly string[] = [],
     ): Promise<Record<string, string>> {
         // read what the root's workloads, mounted views and called modules reach
-        const closure = await this.#served().imports(lock, WORKERD_RUNTIME, MODULE_BASE);
+        const closure = await this.#served().imports(image, WORKERD_RUNTIME, MODULE_BASE);
         const own = await build.digest();
         const entries = [
             ...(await ImportClosure.entries(own, build, WORKERD_RUNTIME)),
@@ -221,16 +221,16 @@ export class WorkerdRuntime implements Runtime {
         return Object.fromEntries(resolved);
     }
 
-    /** Call an export of a lock's root module once, in an isolate of its own beside the space. */
+    /** Call an export of an image's root module once, in an isolate of its own beside the space. */
     async call(
-        lock: Digest,
+        image: Digest,
         path: string,
         name: string,
         input: readonly JsonValue[],
     ): Promise<JsonValue> {
         // load the root's modules beside a module calling the export
-        const build = await this.#served().builds.root(lock);
-        const modules = await this.#modules(build, lock, [path]);
+        const build = await this.#served().builds.root(image);
+        const modules = await this.#modules(build, image, [path]);
         const main = JSON.stringify(`./${await build.digest()}/${path}`);
         const isolate = this.#loader.get(this.#random.bytes(SECRET_BYTES).toHex(), async () => ({
             compatibilityDate: WORKERD_COMPATIBILITY_DATE,

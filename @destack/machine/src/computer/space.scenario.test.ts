@@ -229,7 +229,7 @@ async function openEcho(world: TestWorld, name: string, relay: TestRelay): Promi
                 identity,
                 runner: (spec) => found(runners, PackageManifest.package(spec.build.manifest).id),
                 report: (error) => failures.push(error),
-                root: async (lock) => await packages.contents((await packages.lock(lock)).root),
+                root: async (image) => await packages.contents((await packages.image(image)).root),
             });
             runtimes.push(runtime);
 
@@ -391,7 +391,7 @@ async function openBoard(
     const { computer, login, space } = served;
     const database = (await computer.machine.space(space)).database;
     const build = await TestDistribution.fixture("board");
-    await home.publish(TestDistribution.lockOf("board"));
+    await home.publish(TestDistribution.imageOf("board"));
     await computer.install(login.id, space, build, "board");
     await storing(served, boardPackage.id);
 
@@ -498,8 +498,8 @@ async function openComputers() {
     const echoRelease = await echoBuild(crypto);
     const visitorRelease = await visitorBuild(echoRelease, crypto);
     const { distribution } = world;
-    await home.publish(await distribution.lock(echoRelease), world.owner);
-    await home.publish(await distribution.lock(visitorRelease, [echoRelease]), world.owner);
+    await home.publish(await distribution.image(echoRelease), world.owner);
+    await home.publish(await distribution.image(visitorRelease, [echoRelease]), world.owner);
 
     // run the echo package in the source and the visitor in the caller
     const called = await install(source, echoRelease, "echo");
@@ -660,7 +660,7 @@ test("stamp a sandboxed instance's telemetry with its installation", async () =>
     const boardId = present(boards, "the board's installation").id;
     const [running] = await stackObject.Instance.endpoints(sourced, boardId);
     const [built] = await sourced
-        .select({ lock: stackObject.build.table.lock })
+        .select({ image: stackObject.build.table.image })
         .from(stackObject.rollout.table)
         .innerJoin(
             installation.table,
@@ -679,7 +679,7 @@ test("stamp a sandboxed instance's telemetry with its installation", async () =>
         )
         .where(eq(stackObject.rollout.table.installationId, boardId));
     const instance = present(running, "the board's instance").instanceId;
-    const lock = present(built?.lock, "the board's build lock");
+    const image = present(built?.image, "the board's build image");
 
     // read the started records the board's runner exported to its machine
     const { events } = (await computer.machine.space(space)).volume;
@@ -700,7 +700,7 @@ test("stamp a sandboxed instance's telemetry with its installation", async () =>
 
     // record it under the board's installation, its running instance and its build
     await computer.waitUntil(sourced, async () => (await started()).length > 0);
-    expect([await started(), computer.captured()]).toEqual([[[boardId, instance, lock]], []]);
+    expect([await started(), computer.captured()]).toEqual([[[boardId, instance, image]], []]);
 });
 
 test("authorize a move by step-up and its fence by a bound token", async () => {
@@ -877,7 +877,7 @@ test("refuse a host installation of an untrusted release", async () => {
     const served = await openComputer(world, found(organizations, PUBLISHER.handle), "board");
     const { computer, login, space } = served;
     const build = await TestDistribution.fixture("board");
-    await home.publish(TestDistribution.lockOf("board"));
+    await home.publish(TestDistribution.imageOf("board"));
     const refused = await computer
         .install(login.id, space, build, "board", { isolation: "host" })
         .catch((error: unknown) => (error instanceof Error ? error.message : String(error)));
@@ -901,7 +901,7 @@ test("serve a space whose installation fails to start", async () => {
     const { world } = home;
     const { computer, login, space } = await openComputer(world, world.owner.account, "regional");
     const build = await TestDistribution.fixture("regional");
-    await home.publish(TestDistribution.lockOf("regional"));
+    await home.publish(TestDistribution.imageOf("regional"));
     const released = PackageManifest.package(build.manifest);
     const { device } = computer;
     const settings = createClient(

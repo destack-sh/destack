@@ -3,7 +3,13 @@ import { join } from "node:path";
 import type { PackageId } from "@destack/package";
 import { schema } from "@destack/schema";
 import { type Package, PackageMount } from "@destack/object";
-import { type Bookmark, type ClientOptions, createClient } from "@destack/object/client";
+import { PARTITION_PARAMETER } from "@destack/object/workload";
+import {
+    type Bookmark,
+    type ClientOptions,
+    createClient,
+    ObjectConnection,
+} from "@destack/object/client";
 import { type Environment, FileSystemError } from "@destack/environment";
 import { RequestId } from "@destack/sync";
 import machinePackage from "../../package.ts";
@@ -97,6 +103,28 @@ export class Loopback {
         };
     }
 
+    /** Connect to the store below a loopback path as the owner, in a partition when named. */
+    connection(path: string, scope: string | undefined, partition?: string): ObjectConnection {
+        // open at the running machine's current port, the partition in the URL as an opening sends no header
+        const located = async () => {
+            // address the path at the current port, naming the partition
+            const { url } = await this.#address(new Request(`http://127.0.0.1${path}`));
+            const opened = new URL(ObjectConnection.url(url));
+            if (partition !== undefined) {
+                opened.searchParams.set(PARTITION_PARAMETER, partition);
+            }
+
+            return opened.href;
+        };
+
+        return ObjectConnection.open({
+            ...(scope === undefined ? {} : { scope }),
+            locate: located,
+            authorize: (request) => this.#address(request),
+            environment: this.environment,
+        });
+    }
+
     /** Read the computer the running machine records, failing once it does not answer in time. */
     async computer(): Promise<Select<typeof computer.table>> {
         const { machine, device } = await this.read();
@@ -123,8 +151,8 @@ export class Loopback {
         return this.#send(request, undefined);
     }
 
-    /** Send a request to the running machine's current port with its current credential. */
-    async #send(request: Request, options: RequestInit | undefined): Promise<Response> {
+    /** Address a request to the running machine's current port with its current credential. */
+    async #address(request: Request): Promise<Request> {
         // read the endpoint and credential together after any restart
         const current = await this.read();
         const url = new URL(request.url);
@@ -132,13 +160,19 @@ export class Loopback {
         const headers = new Headers(request.headers);
         headers.set("authorization", `Bearer ${current.token}`);
 
+        return new Request(url.href, { headers });
+    }
+
+    /** Send a request to the running machine's current port with its current credential. */
+    async #send(request: Request, options: RequestInit | undefined): Promise<Response> {
         // pass cancellation and refuse redirects with the owner's credential
+        const addressed = await this.#address(request);
         try {
             return await this.environment.network.fetch(
-                new Request(url.href, {
+                new Request(addressed.url, {
                     ...options,
                     method: request.method,
-                    headers,
+                    headers: addressed.headers,
                     body: request.body,
                     redirect: "error",
                     signal: request.signal,

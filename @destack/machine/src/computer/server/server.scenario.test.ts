@@ -308,7 +308,7 @@ test("stop the machine only as its own device", async () => {
             {
                 url: "http://127.0.0.1/",
                 fetch: (request: Request) =>
-                    opened.instance.fetch(machinePackage, request, authentication),
+                    opened.instance.fetch(machinePackage, request, async () => authentication),
             },
             computer.device.environment,
         );
@@ -624,10 +624,10 @@ test("build a checkout as a prerelease until committed", async () => {
     const { submission } = await submit("./stack/");
     const { build, ...evaluated } = submission;
     const built = await service.build.get({ spaceId: space, id: build });
-    if (built.lock === null) {
-        throw new TypeError("the build has no lock");
+    if (built.image === null) {
+        throw new TypeError("the build has no image");
     }
-    const reader = await (await machine.space(space)).builds.root(built.lock);
+    const reader = await (await machine.space(space)).builds.root(built.image);
     const { version } = PackageManifest.package(reader.manifest);
     expect({
         checkout: registered,
@@ -676,7 +676,7 @@ test("build a checkout as a prerelease until committed", async () => {
     const rebuilt = await service.build.get({ spaceId: space, id: committed });
     const released = await (
         await machine.space(space)
-    ).builds.root(present(rebuilt.lock, "the lock"));
+    ).builds.root(present(rebuilt.image, "the image"));
     expect(Version.isPrerelease(PackageManifest.package(released.manifest).version)).toBe(false);
 
     // refuse a stack directory outside the working tree
@@ -747,7 +747,7 @@ test("build a checkout in a space another computer serves, following the build a
         parameters: {},
     });
     const built = await service.build.get({ spaceId: space, id: submission.build });
-    const reader = await opened.machine.builds.root(present(built.lock, "the lock"));
+    const reader = await opened.machine.builds.root(present(built.image, "the image"));
     expect({
         served: [
             (await opened.machine.volumes.list()).includes(space),

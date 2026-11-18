@@ -90,7 +90,7 @@ export interface DeploymentOptions {
     readonly providers: ProviderIndex;
     /** The kinds of package objects that bindings target other than resources, such as secrets. */
     readonly bindingKinds: readonly ObjectBindingKind[];
-    /** The locks this machine runs host installations from. */
+    /** The images this machine runs host installations from. */
     readonly trusted: ReadonlySet<Digest>;
 }
 
@@ -443,7 +443,7 @@ class Reconcile {
                 .findFirst({ where: { id: this.#current.installationId } }),
             `the installation ${this.#current.installationId}`,
         );
-        if (Rollout.isSuperseded(installed, built.lock, this.#options.trusted)) {
+        if (Rollout.isSuperseded(installed, built.image, this.#options.trusted)) {
             const message =
                 "waiting for the space's stack to move it to a release this machine runs";
             await this.#observe(recorded, {
@@ -457,7 +457,7 @@ class Reconcile {
         // run the revision's build and restart a failed instance in place
         const restarts = recorded.status === "failed" ? recorded.restarts + 1 : recorded.restarts;
         try {
-            await this.#launch(recorded, installed, built.lock, bindings, resources, running);
+            await this.#launch(recorded, installed, built.image, bindings, resources, running);
         } catch (error) {
             // record the failure on the instance and restart it after its backoff
             return this.#recordFailure(recorded, restarts, error);
@@ -503,7 +503,7 @@ class Reconcile {
     async #launch(
         recorded: Instance,
         installed: Installation,
-        lock: Digest,
+        image: Digest,
         bindings: readonly Binding[],
         resources: readonly BoundResource[],
         running: Runtime,
@@ -513,7 +513,7 @@ class Reconcile {
         this.#refuseUnsupported(running);
 
         // start the workload as its installation, by its name, with its bindings, and record an unasked exit
-        const reader = await this.#options.space.root(installed.packageId, lock);
+        const reader = await this.#options.space.root(installed.packageId, image);
         await running.start(
             {
                 instanceId: recorded.id,
@@ -522,7 +522,7 @@ class Reconcile {
                 scope: current.scope,
                 deploymentId: current.id,
                 build: reader,
-                lock,
+                image,
                 output: current.output,
                 workload: current.workload,
                 sandbox: current.description.sandbox,

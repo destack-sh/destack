@@ -1,5 +1,5 @@
 import { testIdentity } from "@destack/object/test";
-import type { Crypto } from "@destack/environment";
+import { type Crypto, WebSocketUpgrade } from "@destack/environment";
 import { OTLP_ORIGIN_PATH } from "@destack/telemetry/otlp";
 import { eq } from "@destack/db";
 import { testHost } from "@destack/test/host";
@@ -20,9 +20,10 @@ import {
     EDITION_HEADER,
     VERSION_HEADER,
     Bookmark,
+    CallError,
 } from "@destack/object";
 import objectPackage from "@destack/object/package";
-import { createClient, ProcedureRemote } from "@destack/object/client";
+import { createClient, ObjectConnection } from "@destack/object/client";
 import { describeObject, describePackage } from "@destack/object/inspect";
 import observabilityPackage from "@destack/observability/package";
 import { PackageVersion, PackageId, Sandbox } from "@destack/package";
@@ -429,9 +430,9 @@ async function install(
     name: string,
     builds: readonly BuildReader[] = [],
 ) {
-    // lock the build with the builds it runs with
+    // make an image of the build with the builds it runs with
     const { world } = served.computer;
-    await served.cloud.publish(await world.distribution.lock(build, builds), world.owner);
+    await served.cloud.publish(await world.distribution.image(build, builds), world.owner);
 
     return served.computer.install(served.login, served.spaceId, build, name);
 }
@@ -466,7 +467,26 @@ async function openPage(served: Served, address: Address) {
         return listener.fetch(new Request(request, { headers }));
     };
 
-    return { session, signedIn, grant, launched, traded, cookie, origin, fetch };
+    // connect from the page to its space's store, the upgrade sent like the page's other requests
+    const host = present(computer.machine.hibernation, "the computer's sockets");
+    const connect = (
+        scope: string,
+        options: {
+            readonly send?: typeof fetch;
+            readonly bookmark?: Bookmark;
+            readonly mount?: string;
+        } = {},
+    ) =>
+        ObjectConnection.open({
+            scope,
+            url: ObjectConnection.url(`${origin}${options.mount ?? PACKAGE_PATH}`),
+            websocket: (url, protocols) =>
+                host.open(options.send ?? fetch, WebSocketUpgrade.to(url, protocols)),
+            ...(options.bookmark === undefined ? {} : { bookmark: options.bookmark }),
+            environment: native.environment,
+        });
+
+    return { session, signedIn, grant, launched, traded, cookie, origin, fetch, connect };
 }
 
 /** Describe the refusal an origin answers with, as its JSON body states it. */
@@ -904,12 +924,8 @@ test("serve a link-shared article to holders of its secret", async () => {
         path: "/",
     };
     const page = await openPage(home, address);
-    const client = (fetch: (request: Request) => Promise<Response>) =>
-        ProcedureRemote.at({
-            scope: home.spaceId,
-            endpoint: { url: `${page.origin}${PACKAGE_PATH}`, fetch, bookmark: new Bookmark() },
-            environment,
-        });
+    const client = (send: (request: Request) => Promise<Response>) =>
+        page.connect(home.spaceId, { send, bookmark: new Bookmark() });
     const owner = client(page.fetch);
     const created = Identified.parse(await owner.run(article, "create", { title: "Roadmap" }));
 
@@ -980,7 +996,6 @@ test("serve a link-shared article to holders of its secret", async () => {
 test("rate-limit anonymous writes by the first proxy's address", async () => {
     // open the articles reader as the owner, create an article and let anyone edit it
     const home = await openHome();
-    const { environment } = home.computer.device;
     await install(home, await articlesBuild(home.computer.environment.crypto), "articles");
     const page = await openPage(home, {
         space: home.address,
@@ -988,12 +1003,8 @@ test("rate-limit anonymous writes by the first proxy's address", async () => {
         view: "reader",
         path: "/",
     });
-    const client = (fetch: (request: Request) => Promise<Response>) =>
-        ProcedureRemote.at({
-            scope: home.spaceId,
-            endpoint: { url: `${page.origin}${PACKAGE_PATH}`, fetch, bookmark: new Bookmark() },
-            environment,
-        });
+    const client = (send: (request: Request) => Promise<Response>) =>
+        page.connect(home.spaceId, { send, bookmark: new Bookmark() });
     const owner = client(page.fetch);
     const created = Identified.parse(await owner.run(article, "create", { title: "Roadmap" }));
     await owner.run(article, "grant", {
@@ -1042,11 +1053,7 @@ test("call a page's package and declared services under its grant", async () => 
     });
 
     // create a task, complete it and list it through the page's own package
-    const remote = ProcedureRemote.at({
-        scope: home.spaceId,
-        endpoint: { url: `${page.origin}${PACKAGE_PATH}`, fetch: page.fetch },
-        environment: home.computer.device.environment,
-    });
+    const remote = page.connect(home.spaceId);
     const created = Identified.parse(await remote.run(task, "create", { title: "Water" }));
     await remote.run(task, "complete", { id: created.id });
     const listed = await remote.list(task);
@@ -1077,18 +1084,13 @@ test("call a page's package and declared services under its grant", async () => 
             headers: { cookie: page.cookie, origin: "https://foreign.test" },
         }),
     );
-    const visitor = ProcedureRemote.at({
-        scope: home.spaceId,
-        endpoint: {
-            url: `${page.origin}${PACKAGE_PATH}`,
-            fetch: (request) => {
-                const headers = new Headers(request.headers);
-                headers.set("origin", page.origin);
+    const visitor = page.connect(home.spaceId, {
+        send: (request) => {
+            const headers = new Headers(request.headers);
+            headers.set("origin", page.origin);
 
-                return listener.fetch(new Request(request, { headers }));
-            },
+            return listener.fetch(new Request(request, { headers }));
         },
-        environment: home.computer.device.environment,
     });
     const unshared = await refusal(visitor.list(task));
 
@@ -1141,17 +1143,7 @@ test("end a page's calls once its grant or client is revoked", async () => {
     const page = await openPage(home, address);
     const bookmark = new Bookmark();
     const list = (opened: typeof page) =>
-        refusal(
-            ProcedureRemote.at({
-                scope: home.spaceId,
-                endpoint: {
-                    url: `${opened.origin}${PACKAGE_PATH}`,
-                    fetch: opened.fetch,
-                    bookmark,
-                },
-                environment: home.computer.device.environment,
-            }).list(task),
-        );
+        refusal(opened.connect(home.spaceId, { bookmark }).list(task));
     const before = await list(page);
 
     // revoke the grant, grant it again, then revoke the launching client
@@ -1297,27 +1289,27 @@ test("call a scope's home path within the start page's grant only", async () => 
         where: { status: "enabled" },
     });
 
-    // push revoking the owner's client, which the start page's grant does not allow
+    // push revoking the owner's client over the page's connection to the universe, which the start page's grant does not allow
     const client = schema.identifier("client").parse(page.signedIn.row.clientId);
     const call = accountObject.client.call("revoke", {
         ...accountObject.client.target({ scope: user.identifier(owner.id), id: client }),
     });
-    const response = await page.fetch(
-        new Request(`${page.origin}${HOME_PATH}/${owner.id}/store/push`, {
-            method: "POST",
-            headers: { [VERSION_HEADER]: accountPackage.version, [EDITION_HEADER]: "1" },
-            body: JSON.stringify({
-                scope: owner.id,
-                mutations: [{ id: RequestId.create(home.computer.environment), calls: [call] }],
-            }),
-        }),
-    );
+    const universe = page.connect(owner.id, { mount: `${HOME_PATH}/${owner.id}` });
+    const pushed = await universe.store
+        .push({
+            scope: owner.id,
+            mutations: [{ id: RequestId.create(home.computer.environment), calls: [call] }],
+        })
+        .then(
+            () => undefined,
+            (error: unknown) => CallError.of(error)?.toJSON(),
+        );
 
     // list each enabled installation with its applied rollout, and refuse the push at the universe as outside the grant
     expect({
         installations: installations.items.map((row) => row.name).toSorted(),
         rollouts: rollouts.items.map((row) => row.installationId).toSorted(),
-        pushed: [response.status, await response.json()],
+        pushed,
     }).toEqual({
         installations: [
             "connection",
@@ -1330,22 +1322,19 @@ test("call a scope's home path within the start page's grant only", async () => 
             "vault",
         ],
         rollouts: installations.items.map((row) => row.id).toSorted(),
-        pushed: [
-            403,
-            {
-                defined: true,
-                code: "FORBIDDEN",
-                status: 403,
-                reason: "GRANT_DENIED",
-                domain: "@destack/object",
-                message: `'revoke' on client '${client}' is forbidden: grant '${page.grant.id}' does not give it`,
-                data: {
-                    permission: accountObject.client.permission("revoke"),
-                    object: accountObject.client.reference(owner.id, client),
-                    grant: page.grant.id,
-                },
+        pushed: {
+            defined: true,
+            code: "FORBIDDEN",
+            status: 403,
+            reason: "GRANT_DENIED",
+            domain: "@destack/object",
+            message: `'revoke' on client '${client}' is forbidden: grant '${page.grant.id}' does not give it`,
+            data: {
+                permission: accountObject.client.permission("revoke"),
+                object: accountObject.client.reference(owner.id, client),
+                grant: page.grant.id,
             },
-        ],
+        },
     });
 });
 
@@ -1484,11 +1473,7 @@ test("launch and call a space another machine serves", async () => {
     await Promise.all([traded.body?.cancel(), document.body?.cancel()]);
 
     // create and list tasks in the work space through the route the CLI's platform calls take
-    const remote = ProcedureRemote.at({
-        scope: work.spaceId,
-        endpoint: await login.installation(work.spaceId, "tasks", tasks.id),
-        environment: home.computer.device.environment,
-    });
+    const remote = await login.connect({ space: work.spaceId, installation: "tasks" }, tasks.id);
     await remote.run(task, "create", { title: "Write the report" });
     const listed = await remote.list(task);
 
@@ -1555,7 +1540,7 @@ test("serve a library's catalogs and assets at its dependent's origin", async ()
     );
     const opened = await openHome();
     const { world } = opened.computer;
-    await opened.cloud.publish(await world.distribution.lock(widgets), world.owner);
+    await opened.cloud.publish(await world.distribution.image(widgets), world.owner);
     await install(opened, greeting, "greeting", [widgets]);
 
     // open the greeting view and read its own and the library's German catalogs at its origin

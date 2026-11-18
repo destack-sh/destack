@@ -167,7 +167,7 @@ export function implementTransfer(options: TransferOptions) {
                     // place the space at the next epoch
                     const moving = await SpaceTransfer.plan(options, record);
                     const next = { ...moving.placement, epoch: moving.placement.epoch + 1 };
-                    await ObjectRemote.run(options.remote, next.scope, {
+                    await ObjectRemote.mutate(options.remote, next.scope, {
                         id: RequestId.create(context.environment),
                         calls: [SpaceTransfer.placing(next)],
                     });
@@ -242,7 +242,7 @@ async function mark(
     // mark the move at the epoch this machine serves the space at
     const move = { accountId: located.scope, id: located.space, epoch: located.epoch };
     const transferId = schema.identifier("transfer").parse(call.id);
-    await ObjectRemote.run(options.remote, located.scope, {
+    await ObjectRemote.mutate(options.remote, located.scope, {
         id: RequestId.create(call.environment),
         calls: [
             placement.call("move", {
@@ -276,7 +276,7 @@ async function unmark(context: SettlementContext, options: TransferOptions): Pro
 
     // serve the space at its epoch again, which clears the move
     const placed = { accountId: located.scope, id: spaceId, epoch: located.epoch };
-    await ObjectRemote.run(options.remote, located.scope, {
+    await ObjectRemote.mutate(options.remote, located.scope, {
         id: RequestId.create(context.environment),
         calls: [placement.call("place", placed)],
     });
@@ -635,21 +635,21 @@ export class SpaceTransfer {
         }
     }
 
-    /** Read the locks of the space's own live builds, its releases left out. */
-    static async locks(reader: Snapshot, spaceId: Identifier<"space">): Promise<Set<Digest>> {
+    /** Read the images of the space's own live builds, its releases left out. */
+    static async images(reader: Snapshot, spaceId: Identifier<"space">): Promise<Set<Digest>> {
         const built = await reader
             .read(build.table)
             .findMany({ where: { scope: spaceId, expiredAt: { isNull: true } } });
         const own = built.filter((row) => row.source.kind !== "release");
 
-        return new Set(own.flatMap((row) => (row.lock === null ? [] : [row.lock])));
+        return new Set(own.flatMap((row) => (row.image === null ? [] : [row.image])));
     }
 
-    /** Index the space's locks and builds from its blobs, leaving releases to the registry. */
+    /** Index the space's images and builds from its blobs, leaving releases to the registry. */
     async #indexBuilds(builds: BuildStore): Promise<void> {
-        const locks = await SpaceTransfer.locks(Snapshot.live(this.space.database), this.spaceId);
-        for (const lock of locks) {
-            await builds.record(lock);
+        const images = await SpaceTransfer.images(Snapshot.live(this.space.database), this.spaceId);
+        for (const image of images) {
+            await builds.record(image);
         }
     }
 
@@ -869,7 +869,7 @@ export class SpaceTransfer {
                     machine: this.target,
                     epoch: this.placement.epoch + 1,
                 };
-                await ObjectRemote.run(options.remote, placed.scope, {
+                await ObjectRemote.mutate(options.remote, placed.scope, {
                     id: RequestId.create(environment),
                     calls: [SpaceTransfer.placing(placed)],
                 });

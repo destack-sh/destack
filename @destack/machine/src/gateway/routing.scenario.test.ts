@@ -3,7 +3,7 @@ import { expect, refusal, test } from "@destack/test";
 import { ResourceId } from "@destack/resource";
 import { ConnectionKind } from "@destack/connection/declare";
 import { EGRESS_PROVIDER } from "@destack/resource";
-import { PackageMount } from "@destack/object";
+import { CONNECTION_PATH, PackageMount } from "@destack/object";
 import { EgressCaller, type InstanceSpec, type WorkloadResource } from "../runtime/runtime.ts";
 import { PackageVersion, PackageId } from "@destack/package";
 import { MemoryBuild } from "@destack/package/test";
@@ -16,8 +16,8 @@ import { fixtureBuild } from "../test/build.ts";
 import accountPackage from "@destack/account/package";
 import { RequestId } from "@destack/sync";
 
-/** The lock of the instance's build, which the test never reads. */
-const LOCK = Digest.parse("1".repeat(64));
+/** The image of the instance's build, which the test never reads. */
+const IMAGE = Digest.parse("1".repeat(64));
 
 /** The package of a universe service. */
 const ACCOUNT_PACKAGE = PackageId.parse("package-01996ab0-0000-7000-8000-0000000000f1");
@@ -54,7 +54,7 @@ async function notesInstance(crypto: Crypto): Promise<InstanceSpec> {
             .identifier("deployment")
             .parse("deployment-01996ab0-0000-7000-8000-0000000000e3"),
         build: await fixtureBuild(ids.package, "2026.9.0", crypto),
-        lock: Digest.parse("d".repeat(64)),
+        image: Digest.parse("d".repeat(64)),
         output: "bun",
         workload: "main",
         enabled: [],
@@ -108,7 +108,7 @@ test("resolve each kind of address a workload calls", async () => {
         deploymentId: schema
             .identifier("deployment")
             .parse("deployment-01996ab0-0000-7000-8000-0000000000e3"),
-        lock: LOCK,
+        image: IMAGE,
         build: await fixtureBuild(ids.package, "2026.9.0", fixture.machine.environment.crypto),
         output: "bun",
         workload: "main",
@@ -151,13 +151,13 @@ test("resolve each kind of address a workload calls", async () => {
     const notesMount = PackageMount.path(ids.package);
     const boardMount = PackageMount.path(OTHER_PACKAGE);
     expect([
-        await resolve(`notes--${ids.space}`, `${notesMount}/store/stream`, []),
+        await resolve(`notes--${ids.space}`, `${notesMount}${CONNECTION_PATH}`, []),
         await resolve(`notes--${ids.space}`, `${notesMount}/notes/list`, []),
         await resolve(`${peer}--${acme}`, `${boardMount}/notes/list`),
         await resolve(`${peer}--${acme}`, "/notes/list"),
         await resolve(`${unbound}--${acme}`, `${boardMount}/notes/list`),
-        await resolve(`${unbound}--${acme}`, `${boardMount}/store/stream`),
-        await resolve(`${peer}--${ids.space}`, `${boardMount}/store/stream`),
+        await resolve(`${unbound}--${acme}`, `${boardMount}${CONNECTION_PATH}`),
+        await resolve(`${peer}--${ids.space}`, `${boardMount}${CONNECTION_PATH}`),
         await resolve("@destack/object"),
         await resolve(acme, `/${ACCOUNT_PACKAGE}/accounts/list`),
         await resolve("notes"),
@@ -171,7 +171,7 @@ test("resolve each kind of address a workload calls", async () => {
             scope: ids.space,
             installationId: notes,
             audience: ids.package,
-            path: `${notesMount}/store/stream`,
+            path: `${notesMount}${CONNECTION_PATH}`,
         },
         "FORBIDDEN: INSTALLATION_DENIED: installation 'notes' is forbidden: this installation does not bind it",
         {

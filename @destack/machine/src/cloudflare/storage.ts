@@ -351,7 +351,7 @@ export class DurableObjectVolume implements Volume {
     graphs(
         builds: Pick<
             BuildStore,
-            "contains" | "contents" | "lock" | "attachment" | "graph" | "file"
+            "contains" | "contents" | "image" | "attachment" | "graph" | "file"
         >,
     ): DurableObjectGraphStorage {
         // index each manifest in an object of the jurisdiction

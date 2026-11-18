@@ -27,7 +27,7 @@ import stackPackage from "@destack/stack/package";
 import objectPackage from "@destack/object/package";
 import type { ClientOf } from "@destack/object/client";
 import type { Machine } from "../../../machine/index.ts";
-import { Lock, PackageManifest, ViewDescription } from "@destack/package/manifest";
+import { BuildImage, PackageManifest, ViewDescription } from "@destack/package/manifest";
 import type {} from "@destack/package/import-meta";
 import { MachineError } from "../../../error/index.ts";
 
@@ -208,7 +208,7 @@ export class CheckoutServer {
         client: StackClient,
         spaceId: Identifier<"space">,
         source: CheckoutSource,
-    ): Promise<{ readonly id: Identifier<"build">; readonly lock: Digest }> {
+    ): Promise<{ readonly id: Identifier<"build">; readonly image: Digest }> {
         // note the machine's log position before the build, whose replica it follows as its runner
         const { database } = this.machine;
         const { sequence } = await database.log.position();
@@ -243,7 +243,7 @@ export class CheckoutServer {
             );
         }
 
-        return { id: created.id, lock: Build.lock(current) };
+        return { id: created.id, image: Build.image(current) };
     }
 
     /** Write a package made from a template's published release into a new directory. */
@@ -253,12 +253,12 @@ export class CheckoutServer {
     ): Promise<void> {
         // pull the template's release whole, its source files among them
         const { machine, compilers, host } = this;
-        const lock = await machine.releases.find(source.template, source.release);
-        await machine.releases.pull(machine.builds, source.template, lock, "all");
-        const locked = await machine.builds.lock(lock);
+        const image = await machine.releases.find(source.template, source.release);
+        await machine.releases.pull(machine.builds, source.template, image, "all");
+        const opened = await machine.builds.image(image);
 
         // read the packages the release links, each at the version it released with
-        const links = Object.entries(Lock.links(locked, locked.root));
+        const links = Object.entries(BuildImage.links(opened, opened.root));
         const linked = await Promise.all(
             links.map(async ([name, digest]) => {
                 const manifest = await machine.builds.get(digest);
@@ -268,7 +268,7 @@ export class CheckoutServer {
         );
 
         // read the template's files
-        const reader = await machine.builds.contents(locked.root);
+        const reader = await machine.builds.contents(opened.root);
         const files = await Promise.all(
             (await reader.files()).map(
                 async (file) => [file.path, await reader.load(file.path)] as const,
@@ -393,7 +393,7 @@ export class CheckoutServer {
         const client = await this.connect(stackPackage, login, spaceId);
         const built = await this.build(client, spaceId, selection);
         const { builds } = this.machine;
-        const reader = await builds.root(built.lock);
+        const reader = await builds.root(built.image);
 
         return { selection, built, client, builds, reader };
     }

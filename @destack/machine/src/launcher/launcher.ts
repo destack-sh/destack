@@ -12,7 +12,7 @@ import {
 } from "@destack/account/authentication";
 import { Failure } from "@destack/error";
 import type { PlacementEndpoint } from "@destack/account/object";
-import type { Session, UserIdentity } from "@destack/account/client";
+import type { Session, TokenBinding, UserIdentity } from "@destack/account/client";
 import type { Environment } from "@destack/environment";
 import accountPackage from "@destack/account/package";
 import {
@@ -23,6 +23,7 @@ import {
     type ObjectType,
     PackageMount,
     SpaceMount,
+    CallError,
 } from "@destack/object";
 import objectPackage from "@destack/object/package";
 import {
@@ -30,7 +31,7 @@ import {
     createClient,
     ObjectClient,
     ObjectStoreDescription,
-    ProcedureRemote,
+    ObjectConnection,
 } from "@destack/object/client";
 import { PackageVersion, PackageId } from "@destack/package";
 import {
@@ -38,7 +39,7 @@ import {
     ViewDescription,
     ViewPresentationPriority,
 } from "@destack/package/manifest";
-import { type Identifier, nth, schema, Text } from "@destack/schema";
+import { type Identifier, nth, present, schema, Text } from "@destack/schema";
 import { ObjectReference, RequestId, Subject } from "@destack/sync";
 import { InstallationView } from "@destack/stack/object";
 import stackPackage from "@destack/stack/package";
@@ -159,20 +160,27 @@ export class Launcher {
         return this.session.accounts().residency.locate({ account: accountId });
     }
 
-    /** Connect to the home of a scope: its machine for a space, else the person's issuer. */
-    store(scope: string): ClientOptions {
-        // call a space's store through the stack package at the machine serving it
+    /** Connect as the person to a scope's store: a space's at its machine, else the universe's. */
+    connection(scope: string, consent: LauncherConsent = {}): ObjectConnection {
+        // connect to a space's store through the stack package where it is at each opening
         const spaceId = schema.identifier("space").safeParse(scope);
         if (spaceId.success) {
-            return {
-                url: UNRESOLVED_ORIGIN,
-                fetch: async (request) =>
-                    this.send(request, stackPackage.id, await this.machine.locate(spaceId.data)),
-            };
+            return this.#connect(
+                stackPackage.id,
+                scope,
+                async () =>
+                    Launcher.#spacePlace(await this.machine.locate(spaceId.data), stackPackage.id),
+                consent,
+            );
         }
 
-        // call any other scope at the person's issuer, which stores the universe's rows
-        return this.endpoint(accountPackage.id, "universe");
+        // connect to any other scope's at the person's issuer, which stores the universe's rows
+        return this.#connect(
+            accountPackage.id,
+            scope,
+            async () => this.#universePlace(accountPackage.id),
+            consent,
+        );
     }
 
     /** Connect to an installation's package below the machine serving its space. */
@@ -222,8 +230,7 @@ export class Launcher {
     async view(category: ViewCategory, path = "/"): Promise<ViewAddress> {
         // read the views the home's installations declare, as the person
         const home = await this.home();
-        const { store } = this.#clients(await this.machine.locate(home));
-        const views = await Launcher.#views(store);
+        const views = await this.#views(await this.machine.locate(home));
 
         // take the view of the category, the first by installation and name
         const [found] = views
@@ -262,50 +269,7 @@ export class Launcher {
         }
         const isSpace = "space" in location && location.installation === undefined;
         const serving = isSpace ? PackageVersion.of(stackPackage) : first.package;
-        const atMachine = (served: () => Promise<PlacementEndpoint>): ClientOptions => ({
-            url: UNRESOLVED_ORIGIN,
-            fetch: async (request) =>
-                // send the request below the path of the objects' package at the machine serving the space
-                this.send(request, serving.id, await served()),
-        });
-
-        // call a space's objects at the machine serving it, else a scope's at its endpoint here
-        let scopeId: string;
-        let reached: ClientOptions;
-        if ("space" in location) {
-            const located = await this.machine.locate(location.space);
-            scopeId = located.placement.space;
-            reached = atMachine(async () => located);
-        }
-        // call a scope at the person's universe, such as their account, with an access token
-        else {
-            scopeId = location.scope;
-            reached = this.session.endpoint(serving.id);
-        }
-
-        // call the objects through the person's installation, or where the space or scope moved
-        let endpoint: ClientOptions;
-        let reconnect: () => ClientOptions;
-        // call through the installation, again at the same endpoint
-        if ("installation" in location && location.installation !== undefined) {
-            const served = await this.installation(
-                location.space,
-                location.installation,
-                serving.id,
-            );
-            endpoint = served;
-            reconnect = () => served;
-        }
-        // call the space again at the machine it moved to
-        else if ("space" in location) {
-            endpoint = reached;
-            reconnect = () => atMachine(async () => this.machine.locate(location.space));
-        }
-        // call the scope again at the person's universe
-        else {
-            endpoint = reached;
-            reconnect = () => reached;
-        }
+        const remote = await this.connect(location, serving.id);
 
         // follow them as the person until the stack closes
         return ObjectClient.start(
@@ -313,18 +277,127 @@ export class Launcher {
                 environment: this.machine.environment,
                 database,
                 objects,
-                scope: scopeId,
+                scope: present(remote.scope, "the followed scope"),
                 caller: this.user.subject,
-                remote: ProcedureRemote.at({
-                    scope: scopeId,
-                    endpoint,
-                    reconnect,
-                    homes: (scope) => this.store(scope),
-                    environment: this.machine.environment,
-                }),
+                remote,
             },
             stack,
         );
+    }
+
+    /** Connect as the person to the store of the package serving a location's objects. */
+    async connect(
+        location:
+            | { readonly scope: string }
+            | {
+                  readonly space: Identifier<"space"> | SpaceAddress;
+                  readonly installation?: string;
+              },
+        packageId: PackageId,
+        consent: LauncherConsent = {},
+    ): Promise<ObjectConnection> {
+        // connect to a scope at the person's universe, such as their account
+        if (!("space" in location)) {
+            return this.#connect(
+                packageId,
+                location.scope,
+                async () => this.#universePlace(packageId),
+                consent,
+            );
+        }
+
+        // connect through the person's installation, else to the space where it is at each opening
+        const { space, installation } = location;
+        const { placement } = await this.machine.locate(space);
+
+        return installation === undefined
+            ? this.#connect(
+                  packageId,
+                  placement.space,
+                  async () => Launcher.#spacePlace(await this.machine.locate(space), packageId),
+                  consent,
+              )
+            : this.#connect(
+                  packageId,
+                  placement.space,
+                  async () => {
+                      const { url, partition } = await this.#mount(space, installation, packageId);
+
+                      return { url, binding: { partition } };
+                  },
+                  consent,
+              );
+    }
+
+    /** Connect to a package's store as the person, wherever it is at each opening. */
+    #connect(
+        packageId: PackageId,
+        scope: string,
+        place: () => Promise<{ readonly url: string; readonly binding: TokenBinding }>,
+        consent: LauncherConsent,
+    ): ObjectConnection {
+        // place the store at each opening, its token bound where it was first placed
+        let placed: Promise<{ readonly url: string; readonly binding: TokenBinding }> | undefined;
+        const placing = () => {
+            placed = place();
+
+            return placed;
+        };
+
+        // sign each call as the person, stepped up once a refusal asked it
+        let { credential } = this.session;
+        let stepUp: StepUp | undefined;
+        const authorize = async (request: Request) => {
+            const { binding } = await (placed ?? placing());
+
+            return credential.authorize(request, packageId, binding, stepUp);
+        };
+        const resolve = async (refused: unknown) => {
+            // resolve a refusal the person answers, signing the calls after it as they resolved it
+            const failure = CallError.of(refused);
+            const resolved =
+                failure === undefined
+                    ? undefined
+                    : await this.#consent(Failure.of(failure), consent);
+            if (resolved === undefined) {
+                return false;
+            }
+            credential = resolved.launcher.session.credential;
+            stepUp = resolved.stepUp ?? stepUp;
+
+            return true;
+        };
+
+        return ObjectConnection.open({
+            scope,
+            locate: async () => ObjectConnection.url((await placing()).url),
+            authorize,
+            consent: resolve,
+            homes: (home) => this.connection(home, consent),
+            bookmark: this.session.bookmark,
+            environment: this.machine.environment,
+        });
+    }
+
+    /** Place a universe package at the person's issuer. */
+    #universePlace(packageId: PackageId): { readonly url: string; readonly binding: TokenBinding } {
+        return {
+            url: new URL(PackageMount.path(packageId), this.user.issuer.url).href,
+            binding: {},
+        };
+    }
+
+    /** Place a space's package at the machine serving it, the token bound to the space. */
+    static #spacePlace(
+        at: PlacementEndpoint,
+        packageId: PackageId,
+    ): { readonly url: string; readonly binding: TokenBinding } {
+        const { space } = at.placement;
+
+        return {
+            url: `${SpaceMount.url(at.url, space)}${PackageMount.path(packageId)}`,
+            binding: { partition: space },
+        };
     }
 
     /** Launch a view under the person's grant, with what its page's calls further request. */
@@ -579,29 +652,45 @@ export class Launcher {
             });
         const response = await send(copy());
         const refusal = response.ok ? undefined : await Failure.read(response.clone());
-        const { decide, elevate } = consent;
+        const resolved = refusal === undefined ? undefined : await this.#consent(refusal, consent);
 
-        // sign the person in again as a step-up asks, then send the call with the stepped-up token
-        if (refusal?.reason === "ASSURANCE_UNAUTHENTICATED" && elevate !== undefined) {
-            const stepUp = StepUp.schema.parse(refusal.data);
-
-            return resend(await elevate(stepUp), copy(), stepUp);
+        // leave a response the person resolves no refusal of, else send the call again as resolved
+        if (resolved === undefined) {
+            return response;
+        } else if (resolved.stepUp !== undefined) {
+            return resend(resolved.launcher, copy(), resolved.stepUp);
         }
 
-        // leave a response asking no consent, and one the person declines
+        return await send(copy());
+    }
+
+    /** Resolve a refusal the person answers: step up, or decide and grant its request. */
+    async #consent(
+        refusal: Failure,
+        consent: LauncherConsent,
+    ): Promise<{ readonly launcher: Launcher; readonly stepUp?: StepUp } | undefined> {
+        // sign the person in again as a step-up asks
+        const { decide, elevate } = consent;
+        if (refusal.reason === "ASSURANCE_UNAUTHENTICATED" && elevate !== undefined) {
+            const stepUp = StepUp.schema.parse(refusal.data);
+
+            return { launcher: await elevate(stepUp), stepUp };
+        }
+
+        // leave a refusal asking no consent, and one the person declines
         const [asked] =
-            refusal?.reason === "CONSENT_REQUIRED"
+            refusal.reason === "CONSENT_REQUIRED"
                 ? ConsentRequest.parse(refusal.data).authorization_details
                 : [];
         if (asked === undefined || decide === undefined || (await decide(asked)) === "deny") {
-            return response;
+            return undefined;
         }
 
-        // grant the delegate what it asks, then send the call again
+        // grant the delegate what it asks
         const permissions = asked.permissions.map((each) => RequestedPermission.permission(each));
         await this.grant(asked.delegate, permissions);
 
-        return await send(copy());
+        return { launcher: this };
     }
 
     /** Call a space's stack and object packages as the person. */
@@ -612,7 +701,6 @@ export class Launcher {
         });
 
         return {
-            store: ProcedureRemote.procedures(endpoint(stackPackage.id), this.machine.environment),
             stack: createClient(stackPackage, endpoint(stackPackage.id), this.machine.environment),
             objects: createClient(
                 objectPackage,
@@ -683,12 +771,11 @@ export class Launcher {
     }> {
         // call the store of the space at the address as the person
         const place = await this.machine.locate(address.space);
-        const { store } = this.#clients(place);
 
         // choose the view presenting an object among the views the space serves
         let view: ViewAddress;
         if ("object" in address) {
-            const views = await Launcher.#views(store);
+            const views = await this.#views(place);
             const presented = Launcher.#present(views, address.object, address.view);
             const query = new URLSearchParams({
                 [TARGET_PARAMETER]: JSON.stringify(address.object),
@@ -762,10 +849,17 @@ export class Launcher {
     }
 
     /** Read the views a space's named installations serve, as its store describes them. */
-    static async #views(
-        store: ReturnType<typeof ProcedureRemote.procedures>,
-    ): Promise<SpaceView[]> {
-        const description = await ObjectStoreDescription.read(store);
+    async #views(place: PlacementEndpoint): Promise<SpaceView[]> {
+        // describe the store over a connection closed once it answered
+        const connection = this.#connect(
+            stackPackage.id,
+            place.placement.space,
+            async () => Launcher.#spacePlace(place, stackPackage.id),
+            {},
+        );
+        const description = await ObjectStoreDescription.read(connection.store).finally(() =>
+            connection.close(),
+        );
 
         return description.packages.flatMap((served) => {
             const name = served.installation?.name;

@@ -28,8 +28,8 @@ import { Traffic } from "./traffic.ts";
 import { RecordingTokenExchange } from "./test/exchange.ts";
 import { deployNotes, openGateway } from "./test/gateway.ts";
 
-/** The lock of the instance's build, which the test never reads. */
-const LOCK = Digest.parse("1".repeat(64));
+/** The image of the instance's build, which the test never reads. */
+const IMAGE = Digest.parse("1".repeat(64));
 
 /** The deployment of notes' earlier release. */
 const EARLIER = {
@@ -94,7 +94,7 @@ const tasks: InstanceSpec = {
     deploymentId: schema
         .identifier("deployment")
         .parse("deployment-01996ab0-0000-7000-8000-0000000000b3"),
-    lock: LOCK,
+    image: IMAGE,
     build: await MemoryBuild.write(
         new Map(),
         {
@@ -365,7 +365,8 @@ test("send a workload's calls as its installation, signing only the calls that l
     const sent: [string, string | null, string | null][] = [];
     const { gateway, runtime, space } = await openNotes([EARLIER, NEWEST], {
         packages: [objectPackage],
-        call: async (_packageId, request, authentication) => {
+        call: async (_packageId, request, vouching) => {
+            const authentication = await vouching?.(request);
             served.push([
                 new URL(request.url).pathname,
                 present(authentication, "the served call's caller").credential.audience,
@@ -554,7 +555,7 @@ test("ask a caller to wait for an installation still deploying, and refuse a dep
                     headers: { [VERSION_HEADER]: "2026.9.0" },
                 },
             ),
-            personAt(space.machine.clock.now()),
+            async () => personAt(space.machine.clock.now()),
         );
 
         return [answered.headers.get("retry-after"), await answerOf(answered)];
@@ -712,7 +713,12 @@ test("send a person's own tool's call through a connection below its API, borrow
     // call through the connection as the person, then anonymously
     const path = `/.destack/connection/${TOKEN_CONNECTION}/items?page=2`;
     const call = async (authentication?: Authentication) =>
-        (await gateway.serve(new Request(`http://127.0.0.1:7470${path}`), authentication)).status;
+        (
+            await gateway.serve(
+                new Request(`http://127.0.0.1:7470${path}`),
+                authentication === undefined ? undefined : async () => authentication,
+            )
+        ).status;
     const statuses = [await call(personAt(space.machine.clock.now())), await call()];
 
     expect({ statuses, borrowed, sent }).toEqual({

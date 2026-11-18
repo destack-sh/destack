@@ -106,7 +106,7 @@ async function openBoard(
         // publish a missing one as the platform's operator, and install it
         if (installed === undefined) {
             const build = await TestDistribution.fixture(fixture);
-            await home.publish(TestDistribution.lockOf(fixture));
+            await home.publish(TestDistribution.imageOf(fixture));
             await computer.install(login.id, space, build, name);
         }
     }
@@ -200,7 +200,7 @@ function boardClient(served: Served, person: TestPerson) {
                 const mounted = present(PackageMount.of(request), "the board's mount");
                 const { instance } = await computer.machine.space(space);
 
-                return instance.fetch(board, mounted.request, authentication);
+                return instance.fetch(board, mounted.request, async () => authentication);
             },
         },
         computer.device.environment,

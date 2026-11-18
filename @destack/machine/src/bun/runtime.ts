@@ -5,7 +5,7 @@ import { dirname, join } from "node:path";
 import { type Environment, Pipe } from "@destack/environment";
 import { DependencyTree, type LocalBuildStore } from "@destack/build";
 import { PackageFile } from "@destack/package/file";
-import { Lock, MANIFEST_PATH, PackageManifest } from "@destack/package/manifest";
+import { BuildImage, MANIFEST_PATH, PackageManifest } from "@destack/package/manifest";
 import { Sandbox, type SandboxOptions } from "@destack/sandbox";
 import { type Digest, type Identifier, JsonValue, present } from "@destack/schema";
 import type { Deriver } from "@destack/identity";
@@ -163,10 +163,10 @@ export class BunRuntime implements Runtime {
         this.#registry = new InstanceRegistry(BUN_RUNTIME, options.environment.telemetry);
     }
 
-    /** Load the server a lock's root exports into this process, absent for none. */
-    async server(lock: Digest): Promise<PackageImplementation | undefined> {
+    /** Load the server an image's root exports into this process, absent for none. */
+    async server(image: Digest): Promise<PackageImplementation | undefined> {
         // take none of a root without a server export
-        const build = await this.#packages.root(lock);
+        const build = await this.#packages.root(image);
         const output = Object.values(build.manifest.outputs).find(
             (each) => each.runtime === BUN_RUNTIME,
         );
@@ -175,7 +175,7 @@ export class BunRuntime implements Runtime {
         }
 
         // import it, refusing a module exporting no package implementation
-        const module = await this.import(lock, SERVER_EXPORT);
+        const module = await this.import(image, SERVER_EXPORT);
         const exported =
             typeof module === "object" && module !== null && "default" in module
                 ? module.default
@@ -190,11 +190,11 @@ export class BunRuntime implements Runtime {
         return exported;
     }
 
-    /** Import an export of a lock's root's Bun output, with this process's builtins. */
-    import(lock: Digest, specifier: string): Promise<unknown> {
+    /** Import an export of an image's root's Bun output, with this process's builtins. */
+    import(image: Digest, specifier: string): Promise<unknown> {
         return this.#scope.span("destack.runtime.import", {}, async () => {
             // find the export in the root's Bun output
-            const read = await this.#packages.lock(lock);
+            const read = await this.#packages.image(image);
             const build = await this.#packages.contents(read.root);
             const output = present(
                 Object.values(build.manifest.outputs).find((each) => each.runtime === BUN_RUNTIME),
@@ -212,7 +212,7 @@ export class BunRuntime implements Runtime {
             }
 
             // place the build, link the builtin modules its closure may load to this process's own, and import the export
-            const { build: placed } = await this.#write(lock);
+            const { build: placed } = await this.#write(image);
             const imports = await this.#imports(read);
 
             // load the modules as one real operation, completed in order whether the host loaded them before or not
@@ -225,11 +225,11 @@ export class BunRuntime implements Runtime {
         });
     }
 
-    /** List the modules a lock's closure may load: its imports and each build's Bun exports. */
-    async #imports(lock: Lock): Promise<string[]> {
+    /** List the modules an image's closure may load: its imports and each build's Bun exports. */
+    async #imports(image: BuildImage): Promise<string[]> {
         // read each build of the closure once, as placing it did
         const closure = await this.#packages.closure(
-            lock,
+            image,
             BUN_RUNTIME,
             (needed) => this.#packages.get(needed),
             "export",
@@ -324,15 +324,15 @@ export class BunRuntime implements Runtime {
         return child.send(WorkloadRequest.forward(RUNNER_ORIGIN, path, request, child.secret));
     }
 
-    /** Call an export of a lock's root module once, sandboxed to the root, else in this process. */
+    /** Call an export of an image's root module once, sandboxed to the root, else in process. */
     async call(
-        lock: Digest,
+        image: Digest,
         path: string,
         name: string,
         input: readonly JsonValue[],
     ): Promise<JsonValue> {
-        // read the lock's root build
-        const build = await this.#packages.root(lock);
+        // read the image's root build
+        const build = await this.#packages.root(image);
 
         // call a builtin's export in this process's own instance, as importing it does
         const output = Object.values(build.manifest.outputs).find(
@@ -350,10 +350,10 @@ export class BunRuntime implements Runtime {
         }
 
         // write the build as its instances run it, then call the export in the module, refusing an addon in a sandbox
-        const written = await this.#write(lock);
+        const written = await this.#write(image);
         const module = join(written.build, path);
         if (this.#isolation === "sandbox") {
-            await this.#requireNoAddon(await this.#packages.lock(lock));
+            await this.#requireNoAddon(await this.#packages.image(image));
         }
 
         return this.#isolation === "sandbox"
@@ -470,7 +470,7 @@ export class BunRuntime implements Runtime {
 
         // run the runner in a sandboxed process reading its closure's roots, refusing an addon there, else in this process
         if (this.#isolation === "sandbox") {
-            await this.#requireNoAddon(await this.#packages.lock(spec.lock));
+            await this.#requireNoAddon(await this.#packages.image(spec.image));
         }
 
         return this.#isolation === "sandbox"
@@ -614,7 +614,7 @@ export class BunRuntime implements Runtime {
         spec: InstanceSpec,
     ): Promise<Omit<BunInstanceLayout, "roots"> & { readonly placed: PlacedBuild }> {
         // place the build once, and keep the installation's directories in the runtime's own
-        const placed = await this.#write(spec.lock);
+        const placed = await this.#write(spec.image);
         const { files } = this.#environment;
         await files.mkdir(this.#directory, { recursive: true });
         const root = await files.realPath(this.#directory);
@@ -629,9 +629,9 @@ export class BunRuntime implements Runtime {
         return { build: placed.build, data, cache, placed };
     }
 
-    /** Write a lock's root's Bun output and closure once, shared by its instances and calls. */
+    /** Write an image's root's Bun output and closure once, shared by its instances and calls. */
     async #write(digest: Digest): Promise<PlacedBuild> {
-        // share the layout of each lock
+        // share the layout of each image
         const known = this.#layouts.get(digest);
         if (known !== undefined) {
             return await known;
@@ -643,9 +643,9 @@ export class BunRuntime implements Runtime {
         return await placing;
     }
 
-    /** Refuse a lock whose builds run a native addon on Bun. */
-    async #requireNoAddon(lock: Lock): Promise<void> {
-        for (const build of Lock.builds(lock)) {
+    /** Refuse an image whose builds run a native addon on Bun. */
+    async #requireNoAddon(image: BuildImage): Promise<void> {
+        for (const build of BuildImage.builds(image)) {
             const reader = await this.#packages.contents(build);
             const addon = (await reader.runFiles([BUN_RUNTIME])).find((file) =>
                 PackageFile.isAddon(file.path),
@@ -660,11 +660,11 @@ export class BunRuntime implements Runtime {
         }
     }
 
-    /** Place a lock's root's Bun output in the runtime's directory, its closure in the trees. */
+    /** Place an image's root's Bun output in the runtime's directory, its closure in the trees. */
     async #place(digest: Digest): Promise<PlacedBuild> {
         // run a layered build in place, its run tree linked beside it, walking its links only for a sandbox
         const { files } = this.#environment;
-        const lock = await this.#packages.lock(digest);
+        const image = await this.#packages.image(digest);
         const layered = this.#packages.layered(digest);
         if (layered !== undefined && (await files.exists(join(layered, "node_modules")))) {
             const build = await files.realPath(layered);
@@ -674,8 +674,8 @@ export class BunRuntime implements Runtime {
         }
 
         // place the closure's Bun outputs in the store's trees
-        const build = await this.#packages.contents(lock.root);
-        const tree = await this.#packages.runTree(lock, BUN_RUNTIME);
+        const build = await this.#packages.contents(image.root);
+        const tree = await this.#packages.runTree(image, BUN_RUNTIME);
         const roots = await tree.roots(files);
 
         // leave a build written before, whose manifest a write publishes last

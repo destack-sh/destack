@@ -399,7 +399,7 @@ test("run a stack's host installation at the release the machine links, as it fo
 
     // read the release the installation's revision runs
     const [revised] = await database
-        .select({ lock: object.build.table.lock, source: object.build.table.source })
+        .select({ image: object.build.table.image, source: object.build.table.source })
         .from(installation.table)
         .innerJoin(rollout.table, eq(rollout.table.installationId, installation.table.id))
         .innerJoin(
@@ -412,12 +412,12 @@ test("run a stack's host installation at the release the machine links, as it fo
         )
         .where(eq(installation.table.name, "notes"));
     expect(revised).toEqual({
-        lock: await fixture.registry.find(ids.package, "2026.10.0"),
+        image: await fixture.registry.find(ids.package, "2026.10.0"),
         source: {
             kind: "release",
             package: ids.package,
             version: "2026.10.0",
-            lock: await fixture.registry.find(ids.package, "2026.10.0"),
+            image: await fixture.registry.find(ids.package, "2026.10.0"),
         },
     });
 });
@@ -459,7 +459,7 @@ test("run a host installation at a restarted machine's linked release, then revi
     const revised = async () =>
         (
             await database
-                .select({ lock: object.build.table.lock })
+                .select({ image: object.build.table.image })
                 .from(installation.table)
                 .innerJoin(rollout.table, eq(rollout.table.installationId, installation.table.id))
                 .innerJoin(
@@ -471,11 +471,11 @@ test("run a host installation at a restarted machine's linked release, then revi
                     eq(object.build.table.id, object.installationRevision.table.buildId),
                 )
                 .where(eq(installation.table.name, "notes"))
-        )[0]?.lock;
+        )[0]?.image;
     const recorded = await revised();
     const opened = (await fixture.installed()).find(
         (entry) => entry.rollout.installation.name === "notes",
-    )?.lock;
+    )?.image;
 
     // restart the machine to revise onto the linked release
     await fixture.restart({});
@@ -871,8 +871,8 @@ test("install a package and declare records of its type in one approved plan, ap
     ]);
 
     // link notes and restart the machine
-    const lock = await fixture.registry.find(ids.package, "2026.9.0");
-    fixture.machine.link({ package: PackageManifest.package(release.manifest), lock });
+    const image = await fixture.registry.find(ids.package, "2026.9.0");
+    fixture.machine.link({ package: PackageManifest.package(release.manifest), image });
     await fixture.restart({});
     await fixture.simulation.idle();
     const applied = await readStack(database);
@@ -884,7 +884,7 @@ test("install a package and declare records of its type in one approved plan, ap
     ]).toEqual(["Applied", applied.targetRevisionId, [{ name: "main" }]]);
 });
 
-test("install the packages a stack declares without its libraries, refusing a missing installable dependency and a package outside the stack's lock", async () => {
+test("install the packages a stack declares without its libraries, refusing a missing installable dependency and a package outside the stack's image", async () => {
     // publish an installable dependency and a library
     const world = new Simulation({
         world: testWorldOptions(),
@@ -904,11 +904,11 @@ test("install the packages a stack declares without its libraries, refusing a mi
         present(builds.get(Digest.parse(manifest)), `the build ${manifest}`);
 
     // install notes with the vault it requires
-    const locked = [vault, library, notes];
+    const fixtures = [vault, library, notes];
     const declare = async (installed: readonly FixtureRelease[]) =>
         StackDefinition.declared(
             await installingStack(installed, world),
-            Object.values(entriesOf(locked)),
+            Object.values(entriesOf(fixtures)),
             "space",
             {},
             read,
@@ -926,7 +926,7 @@ test("install the packages a stack declares without its libraries, refusing a mi
         [
             "BAD_REQUEST",
             "DEFINITION_INVALID",
-            "installation 'pages' of 'space' is invalid: it installs a package without a build in the stack's lock, so add the package to the stack's dependencies",
+            "installation 'pages' of 'space' is invalid: it installs a package without a build in the stack's image, so add the package to the stack's dependencies",
         ],
     ]);
 });
@@ -1075,7 +1075,7 @@ function requirementsOf(released: readonly FixtureRelease[]): Record<string, str
     return Object.fromEntries(released.map((each) => [each.package.name, each.package.version]));
 }
 
-/** Read releases as a lock's entries, by package name. */
+/** Read releases as an image's entries, by package name. */
 function entriesOf(released: readonly FixtureRelease[]): Record<string, DependencyRelease> {
     return Object.fromEntries(
         released.map(({ kind, package: dependency, manifest }) => [

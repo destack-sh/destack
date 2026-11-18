@@ -91,7 +91,7 @@ async function serveInstallation() {
     const snapshot = async (as: Subject, scope: string, type?: ObjectTypeReference) => {
         const pages = await fixture
             .as(as)
-            .client(stackPackage)
+            .connect(stackPackage)
             .store.stream({
                 name: ObjectSink.chainName(ids.space),
                 scope,

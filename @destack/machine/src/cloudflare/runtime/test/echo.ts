@@ -40,7 +40,10 @@ export const workload = defineWorkload(
                 sockets: {
                     // answer each message prefixed with the partition, and list the open sockets on "list"
                     message: async (socket, message) => {
-                        const text = new TextDecoder().decode(message);
+                        const text =
+                            typeof message === "string"
+                                ? message
+                                : new TextDecoder().decode(message);
                         const answer =
                             text === "list"
                                 ? JSON.stringify(
@@ -49,7 +52,7 @@ export const workload = defineWorkload(
                                       ),
                                   )
                                 : `${partition} ${text}`;
-                        socket.send(new TextEncoder().encode(answer));
+                        await socket.send(new TextEncoder().encode(answer));
                     },
                     close: async () => {},
                 },

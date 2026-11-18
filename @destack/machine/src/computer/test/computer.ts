@@ -1,6 +1,11 @@
 import { Observation } from "@destack/object";
 import { FORGE_INSTALLATION } from "@destack/forge/package";
-import { type Environment, type FileSystem, FileSystemError } from "@destack/environment";
+import {
+    type Environment,
+    type FileSystem,
+    FileSystemError,
+    type ServerSocket,
+} from "@destack/environment";
 import { type CapturedRecord, TestTelemetry } from "@destack/telemetry/test";
 import { Refusal } from "../../test/refusal.ts";
 import { basename, dirname, join } from "node:path";
@@ -17,6 +22,7 @@ import { MemoryKeychain } from "@destack/identity";
 import { installation, type ObjectType, type Package, PackageMount } from "@destack/object";
 import { createClient } from "@destack/object/client";
 import { type Digest, Identifier, nth, schema, present } from "@destack/schema";
+import type { HostListening, HostSocketAttachment, SocketRefusal } from "@destack/object/workload";
 import { type BuildReader, PackageManifest } from "@destack/package/manifest";
 import { rollout, Rollout } from "@destack/stack/object";
 import type { Installation } from "@destack/object";
@@ -419,13 +425,29 @@ export class TestComputer implements AsyncDisposable {
                 Identifier.create("machine", world.universe.environment),
             );
         const environment = simulation.environment(node);
-        let route: (request: Request) => Promise<Response> = unavailable;
+        let listening: HostListening | undefined;
+        const route = (request: Request) =>
+            listening === undefined ? unavailable() : listening.fetch(request);
+        const sockets = () => present(listening, "the computer's sockets").websocket;
 
-        // publish the listener on the host as well for sandboxed runners, which are host processes
+        // publish the listener on the host as well for sandboxed runners, which are host processes, keeping the computer's sockets
         const serving = {
             hostname: "127.0.0.1",
             port: 0,
-            fetch: (request: Request) => route(request),
+            fetch: route,
+            websocket: {
+                open: (socket: ServerSocket<HostSocketAttachment | SocketRefusal>) =>
+                    sockets().open?.(socket),
+                message: (
+                    socket: ServerSocket<HostSocketAttachment | SocketRefusal>,
+                    message: string | Uint8Array,
+                ) => sockets().message(socket, message),
+                close: (
+                    socket: ServerSocket<HostSocketAttachment | SocketRefusal>,
+                    code: number,
+                    reason: string,
+                ) => sockets().close?.(socket, code, reason),
+            },
         };
         const listener =
             options.runtime === undefined
@@ -448,7 +470,8 @@ export class TestComputer implements AsyncDisposable {
             const published = environment.server.http({
                 hostname: new URL(declared).hostname,
                 port: HTTPS_PORT,
-                fetch: (request) => route(request),
+                fetch: route,
+                websocket: serving.websocket,
             });
             stack.defer(() => published.stop(true));
         }
@@ -490,7 +513,9 @@ export class TestComputer implements AsyncDisposable {
             shutdown: () => {},
         });
         stack.defer(() => computer[Symbol.asyncDispose]());
-        route = (request) => computer.fetch(request);
+        listening = present(computer.machine.hibernation, "the computer's sockets").listen(
+            (request) => computer.fetch(request),
+        );
 
         // publish where local clients call the computer, as its process does
         const published: LoopbackEndpoint = {
@@ -636,14 +661,14 @@ export class TestComputer implements AsyncDisposable {
                     );
                     if (!sent.has(fixture)) {
                         sent.add(fixture);
-                        await home.publish(TestDistribution.lockOf(fixture));
+                        await home.publish(TestDistribution.imageOf(fixture));
                     }
                     await home.install(login.id, owner.home, build, name);
                 }
 
                 // publish each other fixture as the owner, for the organization its name gives
                 for (const fixture of published) {
-                    await home.publish(TestDistribution.lockOf(fixture), owner);
+                    await home.publish(TestDistribution.imageOf(fixture), owner);
                 }
                 await home.close();
 
@@ -772,10 +797,10 @@ export class TestComputer implements AsyncDisposable {
         return created.id;
     }
 
-    /** Publish a lock in the run's store onto the computer's machine, the operator's by default. */
-    async publish(lock: Digest, publisher?: TestPublisher): Promise<void> {
+    /** Publish an image in the run's store on the computer's machine, the operator's by default. */
+    async publish(image: Digest, publisher?: TestPublisher): Promise<void> {
         const by = publisher ?? (await this.world.universe.operator());
-        await this.world.distribution.publish(lock, by, this.machine);
+        await this.world.distribution.publish(image, by, this.machine);
     }
 
     /** Install a build's shipped or published release in a space as a person, until applied. */

@@ -3,23 +3,25 @@ import { CLOUD_RUNTIMES } from "./cloud.ts";
 import { DistributionManifest } from "@destack/package";
 import { WorkerdDistribution } from "@destack/package/workerd";
 import { ServerBundle } from "./bundle.ts";
-import { Once } from "@destack/environment";
 import { ProcessRuntime } from "../runtime/process.ts";
 import { traceSampling } from "@destack/stack/setting";
 import { Directory, type SpaceAddress, UniverseOrigin } from "@destack/account/address";
 import * as accountObject from "@destack/account/object";
 import { AlarmClock, Snapshot } from "@destack/db";
 import { type DurableObjectStorage, Jurisdiction, CONTENT_PATH } from "@destack/db/cloudflare";
-import { Forwarded } from "@destack/environment";
+import { Forwarded, Once, WebSocketUpgrade } from "@destack/environment";
 import { WorkerdEnvironment } from "@destack/environment/workerd";
 import { ClaimLookup, claimTable, InstallationMount, Egress, refusal } from "@destack/object";
 import { Bearer } from "@destack/access/token";
 import {
     ALARM_MILLISECONDS,
     BUILD_PATH,
+    DurableObjectHibernation,
     type DurableObjectWorkloadInstance,
+    type Upgrade,
 } from "@destack/object/cloudflare";
 import type { Alarm } from "@destack/db";
+import { type HibernationHost, SOCKET_HEADER, SocketRefusal } from "@destack/object/workload";
 import { CloudMachine, CONNECTING_IP_HEADER, type MachineBindings } from "./cloud.ts";
 import { type Identifier, present, schema } from "@destack/schema";
 import { SettingValue } from "@destack/setting/object";
@@ -83,6 +85,9 @@ type PartitionObjectState = PartitionState & {
     readonly blockConcurrencyWhile: <Value>(closure: () => Promise<Value>) => Promise<Value>;
 };
 
+/** The tag of the space store's WebSockets, beside the installations' tags their facets keep. */
+const STORE_SOCKET_TAG = "store";
+
 /** The space a partition's object serves, with its storage and its instances' runtime. */
 interface ServedSpace {
     /** The space. */
@@ -111,6 +116,8 @@ export class PartitionObject {
     #served: Promise<ServedSpace | undefined>;
     /** The facets of the installations the object hosts. */
     readonly #facets: FacetHost;
+    /** The space store's WebSockets, kept for its machine's host across hibernation. */
+    readonly #storeHibernation: DurableObjectHibernation;
 
     /** Resume the space the object served before any event. */
     constructor(state: PartitionObjectState, bindings: MachineBindings) {
@@ -120,6 +127,7 @@ export class PartitionObject {
         this.#bindings = bindings;
         this.#alarms = new AlarmClock(state.storage, state.storage);
         this.#facets = new FacetHost(state, bindings, WorkerdEnvironment.system, this.#alarms);
+        this.#storeHibernation = new DurableObjectHibernation(state, STORE_SOCKET_TAG);
 
         // follow the directory in the machine partition's object
         const objects = Jurisdiction.narrow(bindings.PARTITION, bindings.DESTACK_JURISDICTION);
@@ -196,23 +204,60 @@ export class PartitionObject {
             else if (url.pathname.startsWith(`${CONTENT_PATH}/`)) {
                 return await served.host.content(request);
             }
-            // send an npm client on, else serve the space
+            // send an npm client on, else serve the space, keeping the socket of an upgrade its store accepts
             else {
-                return (await machine.npm(request)) ?? (await served.space.fetch(request));
+                const npm = await machine.npm(request);
+                if (npm !== undefined) {
+                    return npm;
+                }
+                const answer = await served.space.fetch(request);
+                const isAccepted =
+                    WebSocketUpgrade.of(request) !== undefined && answer.headers.has(SOCKET_HEADER);
+
+                return isAccepted
+                    ? this.#storeHibernation.accept(
+                          present(served.space.machine.hibernation, "the machine's sockets"),
+                          answer,
+                      )
+                    : answer;
             }
         } catch (error) {
             return refusal(error, WorkerdEnvironment.system.telemetry);
         }
     }
 
-    /** Hand an accepted WebSocket's message to its installation's workload. */
-    webSocketMessage(socket: HibernatingSocket, message: ArrayBuffer | string): Promise<void> {
-        return this.#facets.socket(socket).webSocketMessage(socket, message);
+    /** Hand an accepted WebSocket's message to the space's store, else to its installation. */
+    async webSocketMessage(
+        socket: HibernatingSocket,
+        message: ArrayBuffer | string,
+    ): Promise<void> {
+        // hand the store's message to its machine's host, which delivers each in order
+        if (this.#storeHibernation.has(socket)) {
+            this.#storeHibernation.message(await this.#storeHost(), socket, message);
+        }
+        // hand an installation's to its facet
+        else {
+            await this.#facets.socket(socket).webSocketMessage(socket, message);
+        }
     }
 
-    /** Hand an accepted WebSocket's close to its installation's workload. */
-    webSocketClose(socket: HibernatingSocket): Promise<void> {
-        return this.#facets.socket(socket).webSocketClose(socket);
+    /** Hand an accepted WebSocket's close to the space's store, else to its installation. */
+    async webSocketClose(socket: HibernatingSocket): Promise<void> {
+        // hand the store's close to its machine's host
+        if (this.#storeHibernation.has(socket)) {
+            this.#storeHibernation.close(await this.#storeHost(), socket);
+        }
+        // hand an installation's to its facet
+        else {
+            await this.#facets.socket(socket).webSocketClose(socket);
+        }
+    }
+
+    /** Read the host of the served space's machine, which keeps the store's sockets. */
+    async #storeHost(): Promise<HibernationHost> {
+        const served = present(await this.#served, "the space whose store accepted the socket");
+
+        return present(served.space.machine.hibernation, "the machine's sockets");
     }
 
     /** Wake the directory, the space or each facet whose alarm is due, for at most ten minutes. */
@@ -404,10 +449,16 @@ export class PartitionObject {
             isServingHostnames: false,
             domain: bindings.DESTACK_SPACE_DOMAIN,
             runtimes: [runtime, new ProcessRuntime()],
-            hibernation: undefined,
+            // keep the space store's sockets at the machine's host, installations' facets keeping their own
+            instances: (instanceId) => {
+                throw MachineError.of(
+                    "SOCKET_HANDLER_NOT_FOUND",
+                    `socket handler of '${instanceId}' not found: an installation's facet keeps its sockets`,
+                );
+            },
             alarm: this.#alarms.alarm(SPACE_PARTY),
             // run in process the servers the deploy bundled with the machine
-            server: (lock) => Promise.resolve(bundle.server(lock)),
+            server: (image) => Promise.resolve(bundle.server(image)),
             linked: DistributionManifest.builtins(shipped, "workerd"),
             shipped: DistributionManifest.releases(shipped, "workerd"),
             registry: bindings.DESTACK_REGISTRY,
@@ -462,8 +513,30 @@ export class MachineWorker {
     /** The cloud machine the isolate resolves origins' spaces as, once derived. */
     readonly #cloud = new Once<CloudMachine>();
 
-    /** Answer a request in the object of its space in the residency's jurisdiction. */
+    /** Answer a request in the object of its space, stating a refused upgrade on a socket. */
     async fetch(given: Request, bindings: MachineBindings): Promise<Response> {
+        // answer the request, passing on anything but a refused upgrade
+        const answer = await this.#answer(given, bindings);
+        const refused = await SocketRefusal.of(given, answer);
+        if (refused === undefined) {
+            return answer;
+        }
+
+        // open a socket in the isolate to state the refusal, which a browser cannot read from the answer
+        const pair = new WebSocketPair();
+        pair[1].accept();
+        const end = pair[1];
+        await refused.send({
+            send: async (message) => end.send(message),
+            close: (code, reason) => end.close(code, reason),
+        });
+        const upgrade: Upgrade = { status: 101, webSocket: pair[0] };
+
+        return new Response(null, upgrade);
+    }
+
+    /** Answer a request in the object of its space in the residency's jurisdiction. */
+    async #answer(given: Request, bindings: MachineBindings): Promise<Response> {
         // take a public request's client from Cloudflare, and the head a service binding hands on as it is
         const client = given.headers.get(CONNECTING_IP_HEADER);
         const request = client === null ? given : Forwarded.replace(given, { for: client });

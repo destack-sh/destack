@@ -1,38 +1,18 @@
 import { type PackageVersion, PackageId } from "@destack/package";
 import {
+    CONNECTION_PATH,
+    CONNECTION_SCOPE_PARAMETER,
     InstallationMount,
     PackageMount,
     SpaceMount,
-    ObjectTypePool,
-    ObjectType,
-    storeProcedures,
     RequestBody,
 } from "@destack/object";
-import { present, schema } from "@destack/schema";
-import * as sync from "@destack/sync";
-import { ProcedureRemote } from "@destack/object/client";
 import { HOME_PATH } from "@destack/view/declare";
-import type { Environment } from "@destack/environment";
 import type {} from "@destack/package/import-meta";
 import { MachineError } from "../error/index.ts";
 
-/** The path prefix of the store procedures below a service's mount. */
-const STORE_PREFIX = "/store/";
-
-/** The path of the replica push below a service's mount, which a page sends a scope's primary. */
-const PUSH_PATH = present(storeProcedures.push["~orpc"].route.path, "the replica push's path");
-
-/** The largest push a page sends a scope's primary, in bytes: 100 mutations of 10 KiB. */
-const PUSH_BYTES = 1024 * 1024;
-
 /** The headers bound to the page's own origin: its credentials and its host. */
 const PAGE_HEADERS = ["cookie", "authorization", "host"];
-
-/** A push a page sends a scope's primary: the scope and the mutations' calls. */
-const Push = schema.looseObject({
-    scope: schema.string(),
-    mutations: schema.array(sync.Mutation),
-});
 
 /** Where a page's calls to a scope go through its origin: a space's machine, or the universe. */
 export class ScopePrimary {
@@ -56,14 +36,11 @@ export class ScopePrimary {
           };
     /** Send a request to a package at the primary as the page's person. */
     readonly #send: (request: Request, audience: PackageId) => Promise<Response>;
-    /** The environment the primary's client runs in, whose clock stamps its calls. */
-    readonly #environment: Environment;
 
     /** Take the primary of a scope, sending as the page's person. */
     constructor(
         fields: Pick<ScopePrimary, "scope" | "package" | "url" | "home">,
         send: (request: Request, audience: PackageId) => Promise<Response>,
-        environment: Environment,
     ) {
         // set the scope, its store and the machine serving it
         this.scope = fields.scope;
@@ -71,7 +48,6 @@ export class ScopePrimary {
         this.url = fields.url;
         this.home = fields.home;
         this.#send = send;
-        this.#environment = environment;
     }
 
     /** Read the scope a request's path names below the home path. */
@@ -90,13 +66,12 @@ export class ScopePrimary {
             .slice(1)
             .join("/")}`;
 
-        // push changes of the scope's rows alone to its store
-        if (path === PUSH_PATH) {
-            return this.#push(request);
-        }
-        // call the scope's store procedures
-        else if (path.startsWith(STORE_PREFIX)) {
-            return this.#forward(request, `${this.url}${path}${url.search}`, this.package.id);
+        // connect to the scope's store, confined to the scope's rows
+        if (path === CONNECTION_PATH) {
+            const confined = new URL(`${this.url}${CONNECTION_PATH}`);
+            confined.searchParams.set(CONNECTION_SCOPE_PARAMETER, this.scope);
+
+            return this.#forward(request, confined.href, this.package.id);
         }
         // call an installation's package, or a package the space's store serves, by its mount
         else if (this.home.kind === "space") {
@@ -121,62 +96,9 @@ export class ScopePrimary {
         else {
             throw MachineError.of(
                 "HOME_PATH_NOT_FOUND",
-                "home path not found: a page must call the universe's primary at its store procedures",
+                "home path not found: a page must connect to the universe's primary at its store",
             );
         }
-    }
-
-    /** Push a page's changes of the scope's rows to its store, refusing another scope's. */
-    async #push(request: Request): Promise<Response> {
-        // read the push, refusing one to another scope
-        if (request.method !== "POST") {
-            throw MachineError.of(
-                "HOME_PATH_NOT_FOUND",
-                `home path not found: a page must push to a scope's primary at '${HOME_PATH}/<scope>${PUSH_PATH}'`,
-            );
-        }
-        const body = await RequestBody.json(request, "a push", PUSH_BYTES);
-        const pushed = Push.parse(body);
-        if (pushed.scope !== this.scope) {
-            throw MachineError.of(
-                "PUSH_DENIED",
-                `push is forbidden: a push to the primary of '${this.scope}' can only change rows of '${this.scope}'`,
-            );
-        }
-
-        // refuse a call to another scope, by the types the primary describes, leaving the grant to it
-        const remote = ProcedureRemote.at({
-            scope: this.scope,
-            endpoint: {
-                url: this.url,
-                fetch: (sent: Request) => this.#send(sent, PackageId.parse(this.package.id)),
-            },
-            environment: this.#environment,
-        });
-        const calls = pushed.mutations.flatMap((mutation) => mutation.calls);
-        const types = ObjectTypePool.of([]).declare(
-            await remote.describe(calls.map((call) => call.type)),
-        );
-        const isOutside = calls.some(
-            (call) =>
-                ObjectType.find(types, call)?.readScope(call.method, call.input) !== this.scope,
-        );
-        if (isOutside) {
-            throw MachineError.of(
-                "PUSH_DENIED",
-                `push is forbidden: a push to the primary of '${this.scope}' can only change rows of '${this.scope}'`,
-            );
-        }
-
-        // push to the primary without the page's own credentials
-        return this.#send(
-            new Request(`${this.url}${PUSH_PATH}`, {
-                method: "POST",
-                headers: ScopePrimary.#withoutPageHeaders(request.headers),
-                body: JSON.stringify(body),
-            }),
-            PackageId.parse(this.package.id),
-        );
     }
 
     /** Forward a request to a package at the primary, without the page's own credentials. */

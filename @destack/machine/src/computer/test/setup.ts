@@ -74,21 +74,21 @@ async function setup(
         ];
         await Promise.all(
             builds.map(async ([name, digests, isShipped, build]) => {
-                // lock the package, and each unit a shipped package runs with
-                const { lock, units } = await build();
-                digests[name] = lock;
+                // make an image of the package, and take each unit a shipped package runs with
+                const { image, units } = await build();
+                digests[name] = image;
                 if (isShipped) {
-                    for (const [unit, unitLock] of units) {
-                        built[unit] ??= unitLock;
+                    for (const [unit, unitImage] of units) {
+                        built[unit] ??= unitImage;
                     }
                 }
             }),
         );
 
-        // lock the next release of the fixture updates install
+        // make an image of the next release of the fixture updates install
         built[NEXT_RELEASE.name] = await TestDistribution.release(
             store,
-            present(built[NEXT_RELEASE.fixture], `the run's lock of ${NEXT_RELEASE.fixture}`),
+            present(built[NEXT_RELEASE.fixture], `the run's image of ${NEXT_RELEASE.fixture}`),
             NEXT_RELEASE.version,
         );
 
@@ -97,7 +97,7 @@ async function setup(
         await store.writeLinkedLayer(shipped, COMPUTER_RUNTIMES);
     }
 
-    // hand the locks to the tests
+    // hand the images to the tests
     project.provide("built", built);
     project.provide("scenarios", scenario);
     const variables = { [BUILDS_VARIABLE]: canonicalize(built) };

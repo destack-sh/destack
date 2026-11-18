@@ -319,7 +319,7 @@ export class LocalVolume implements Volume {
     graphs(
         builds: Pick<
             BuildStore,
-            "storeOf" | "contains" | "contents" | "lock" | "attachment" | "graph" | "file"
+            "storeOf" | "contains" | "contents" | "image" | "attachment" | "graph" | "file"
         >,
     ): BunGraphStorage {
         this.#graph ??= this.#lifetime.use(

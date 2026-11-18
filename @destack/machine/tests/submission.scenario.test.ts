@@ -2,7 +2,7 @@ import { fixtureGraph } from "@destack/build/test";
 import { ObjectReference } from "@destack/sync";
 import { checkout } from "../src/computer/checkout/object/index.ts";
 import { TestRegistry } from "../src/test/build.ts";
-import { Lock } from "@destack/package/manifest";
+import { BuildImage } from "@destack/package/manifest";
 import { installation } from "@destack/object";
 import objectPackage from "@destack/object/package";
 import { Plan } from "@destack/resource";
@@ -167,7 +167,7 @@ test("apply a submitted stack build and open its installations' views", async ()
     ).toEqual({
         installationId: notes.installationId,
         revisionId: revised.targetRevisionId,
-        lock: await fixture.registry.find(ids.package, "2026.9.0"),
+        image: await fixture.registry.find(ids.package, "2026.9.0"),
         view: "home",
         description: {
             entrypoint: "view.js",
@@ -274,8 +274,8 @@ test("install an application from a checkout by submitting its build, following 
     ).toEqual({
         installationId: notes.id,
         revisionId: installed.targetRevisionId,
-        lock: await Lock.digest(
-            Lock.of(await BuildStore.digest(reader.manifest, fixture.environment.crypto)),
+        image: await BuildImage.digest(
+            BuildImage.of(await BuildStore.digest(reader.manifest, fixture.environment.crypto)),
             fixture.environment.crypto,
         ),
         view: "home",

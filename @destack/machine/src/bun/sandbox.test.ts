@@ -8,8 +8,8 @@ import { Digest, schema } from "@destack/schema";
 import type { InstanceSpec } from "../runtime/runtime.ts";
 import { type BunWorkloadSandboxOptions, BunWorkloadSandbox } from "./sandbox.ts";
 
-/** The lock of the instance's build, which the test never reads. */
-const LOCK = Digest.parse("1".repeat(64));
+/** The image of the instance's build, which the test never reads. */
+const IMAGE = Digest.parse("1".repeat(64));
 
 /** The world the fixture's builds are hashed in. */
 const fixtureWorld = testSimulation().environment("fixture");
@@ -34,7 +34,7 @@ const spec: InstanceSpec = {
     deploymentId: schema
         .identifier("deployment")
         .parse("deployment-01996ab0-0000-7000-8000-0000000000f5"),
-    lock: LOCK,
+    image: IMAGE,
     build: await MemoryBuild.write(
         new Map(),
         {

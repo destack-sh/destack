@@ -1,5 +1,5 @@
 import type * as Cloudflare from "@cloudflare/workers-types";
-import { MachineKey, Session } from "@destack/account/client";
+import { MachineKey } from "@destack/account/client";
 import * as accountObject from "@destack/account/object";
 import accountPackage from "@destack/account/package";
 import { UniverseOrigin } from "@destack/account/address";
@@ -28,10 +28,9 @@ import { BucketBlobStorage } from "@destack/bucket/blob";
 import { BuildLayer, type AssetBinding } from "@destack/package/manifest";
 import { DurableObjectDatabaseHost, type DurableObjectStorage } from "@destack/db/cloudflare";
 import type { DurableObjectWorkloadInstance } from "@destack/object/cloudflare";
-import { Bookmark, createClient } from "@destack/object/client";
+import { ObjectConnection } from "@destack/object/client";
 import { WorkloadInstance } from "@destack/object/workload";
 import { ResourceContext } from "@destack/resource/context";
-import type { Publisher } from "@destack/sync";
 import type {} from "@destack/package/import-meta";
 import { MachineError } from "../error/index.ts";
 import type { MachineEnrollment } from "../computer/device/object/index.ts";
@@ -296,32 +295,16 @@ export class CloudMachine {
         await database.migrate(CloudMachine.database.tables);
 
         // follow them as the machine through the universe's account package
-        const accounts = createClient(
-            accountPackage,
-            {
-                url: PackageMount.url(this.bindings.DESTACK_UNIVERSE_ORIGIN, accountPackage.id),
-                fetch: new Session(
-                    this.identity.at(this.issuer, (request) =>
-                        this.environment.network.fetch(request),
-                    ),
-                    {
-                        universe: this.bindings.DESTACK_UNIVERSE_ORIGIN,
-                        send: (request) => this.environment.network.fetch(request),
-                        bookmark: new Bookmark(),
-                        environment: this.environment,
-                    },
-                ).fetch(accountPackage.id),
-            },
-            this.environment,
-        );
-        const publisher: Publisher = {
-            async *stream(subscription, signal) {
-                yield* await accounts.store.stream(subscription, { signal });
-            },
-            request: async (subscription) => {
-                await accounts.store.request({ subscription });
-            },
-        };
+        const publisher = ObjectConnection.open({
+            url: ObjectConnection.url(
+                PackageMount.url(this.bindings.DESTACK_UNIVERSE_ORIGIN, accountPackage.id),
+            ),
+            authorize: (request) =>
+                this.identity
+                    .at(this.issuer, (sent) => this.environment.network.fetch(sent))
+                    .authorize(request, accountPackage.id, {}),
+            environment: this.environment,
+        });
         const instance = await WorkloadInstance.start(directoryWorkload, {
             environment: this.environment,
             resources: new ResourceContext().bind(directoryConfiguration, {

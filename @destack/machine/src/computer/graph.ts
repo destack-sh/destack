@@ -27,7 +27,7 @@ export class BunGraphStorage implements ExternalStorage, AsyncDisposable {
     /** The database with the builds. */
     readonly #database: DatabaseConnection;
     /** The builds and graphs the space and its machine store. */
-    readonly #builds: Pick<BuildStore, "storeOf" | "contents" | "lock" | "graph">;
+    readonly #builds: Pick<BuildStore, "storeOf" | "contents" | "image" | "graph">;
     /** The files the indexes are written in before they are stored. */
     readonly #files: FileSystem;
     /** The opened indexes, by build. */
@@ -36,7 +36,7 @@ export class BunGraphStorage implements ExternalStorage, AsyncDisposable {
     /** Index the builds a database records, caching each index in the store with the build. */
     constructor(
         database: DatabaseConnection,
-        builds: Pick<BuildStore, "storeOf" | "contents" | "lock" | "graph">,
+        builds: Pick<BuildStore, "storeOf" | "contents" | "image" | "graph">,
         files: FileSystem,
     ) {
         // store the database, the builds and the files

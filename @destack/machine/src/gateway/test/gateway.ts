@@ -115,6 +115,7 @@ export function openGateway(
                 verifier,
                 runtimes: options.runtimes ?? [],
                 hibernation: undefined,
+                bridge: undefined,
                 send: options.send ?? refuse("call other origins"),
                 // verify no credential, answering none for a call without one as the machine does
                 authenticate: async (request) => {

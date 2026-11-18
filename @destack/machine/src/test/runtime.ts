@@ -17,14 +17,14 @@ export class TestRuntime implements Runtime {
     readonly #earlier: ReadonlySet<string>;
     /** The scheduler a call's module import runs on. */
     readonly #scheduler: Scheduler;
-    /** The builds whose lock's root module a call imports. */
+    /** The builds whose image's root module a call imports. */
     readonly #builds: Pick<BuildStore, "root">;
 
     /** Run instances as a server runtime, bun by default, importing on a world's scheduler. */
     constructor(options: {
         /** The scheduler a call's module import runs on. */
         readonly scheduler: Scheduler;
-        /** The builds whose lock's root module a call imports. */
+        /** The builds whose image's root module a call imports. */
         readonly builds: Pick<BuildStore, "root">;
         /** The server runtime, bun by default. */
         readonly name?: ServerRuntime;
@@ -72,15 +72,15 @@ export class TestRuntime implements Runtime {
         throw new TypeError(`the test runtime delivers nothing to '${instanceId}'`);
     }
 
-    /** Call an export of a lock's root module in this process, as the workspace installs it. */
+    /** Call an export of an image's root module in this process, as the workspace installs it. */
     async call(
-        lock: Digest,
+        image: Digest,
         path: string,
         name: string,
         input: readonly JsonValue[],
     ): Promise<JsonValue> {
         return await callInProcess(
-            await this.#builds.root(lock),
+            await this.#builds.root(image),
             path,
             name,
             input,

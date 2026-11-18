@@ -17,7 +17,7 @@ test("serve a tracked type reading through its space, keeping the space up", asy
 
     // publish the journal as the platform's operator, and install it in the team space
     const build = await TestDistribution.fixture("journal");
-    await home.publish(TestDistribution.lockOf("journal"));
+    await home.publish(TestDistribution.imageOf("journal"));
     await home.install(login.id, space, build, "journal");
     await home.ready(space);
 
@@ -55,7 +55,7 @@ test("refuse serving a type reading through a type without history", async () =>
 
     // install the binders, whose sheets read through binders keeping no history
     const build = await TestDistribution.fixture("binder");
-    await home.publish(TestDistribution.lockOf("binder"));
+    await home.publish(TestDistribution.imageOf("binder"));
     const installing: unknown = await home
         .install(login.id, space, build, "binder")
         .catch((error: unknown) => error);

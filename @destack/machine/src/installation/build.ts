@@ -1,5 +1,6 @@
 import type { RevisionOptions } from "./target.ts";
 import { type Caller, principal } from "@destack/access";
+import type { PublishStore } from "@destack/registry/client";
 import { LATEST_TAG } from "@destack/registry/object";
 import { and, eq, Snapshot } from "@destack/db";
 import { setting, SettingValue } from "@destack/setting/object";
@@ -18,7 +19,7 @@ import { SpaceAddress } from "@destack/account/address";
 import type { GrantRequest } from "@destack/account/authentication";
 import stackPackage from "@destack/stack/package";
 import type { MountFetch, ObjectStore } from "@destack/object/server";
-import { Lock, PackageManifest } from "@destack/package/manifest";
+import { BuildImage, PackageManifest } from "@destack/package/manifest";
 import { PackageId, type PackageRelease } from "@destack/package";
 import { Digest, type Identifier, present, schema } from "@destack/schema";
 import { RequestId, ObjectReference, Scope } from "@destack/sync";
@@ -39,23 +40,9 @@ export type CheckoutSource = Extract<BuildSource, { readonly kind: "checkout" }>
 /** A repository commit source of a build. */
 export type CommitSource = Extract<BuildSource, { readonly kind: "commit" }>;
 
-/** The build store a push or publish reads a lock and its builds from. */
-export type PublishStore = Pick<
-    BuildStore,
-    | "closure"
-    | "contents"
-    | "get"
-    | "head"
-    | "lock"
-    | "putLock"
-    | "read"
-    | "attachments"
-    | "environment"
->;
-
 /** The registry of published releases. */
 export interface Registry {
-    /** Find the digest of a package release's lock, by its version or a distribution tag. */
+    /** Find the digest of a package release's image, by its version or a distribution tag. */
     readonly find: (packageId: PackageId, release: string) => Promise<Digest>;
     /** Read the version a followed release or tag names at its package's forge. */
     readonly version: (packageId: PackageId, followed: ObjectReference) => Promise<string>;
@@ -68,21 +55,21 @@ export interface Registry {
     readonly distribution: readonly PackageRelease[];
     /** Read the address npm clients ask for a handle's packages: its forge's npm mount. */
     readonly npm: (handle: string) => Promise<string>;
-    /** Push a stored lock and its builds to its account's forge. */
+    /** Push a stored image and its builds to its account's forge. */
     readonly push: (
         store: PublishStore,
-        lock: Digest,
+        image: Digest,
         account: Identifier<"account">,
         signal?: AbortSignal,
     ) => Promise<void>;
-    /** Pull a published lock into a store for some runtimes, refusing another package's root. */
+    /** Pull a published image into a store for some runtimes, refusing another package's root. */
     readonly pull: (
-        store: Pick<BuildStore, "get" | "lock" | "pull">,
+        store: Pick<BuildStore, "get" | "image" | "pull">,
         packageId: PackageId,
-        lock: Digest,
+        image: Digest,
         runtimes: readonly Runtime[] | "all",
-    ) => Promise<Lock>;
-    /** Open a published lock's or build's objects at its package's forge, as a build store. */
+    ) => Promise<BuildImage>;
+    /** Open a published image's or build's objects at its package's forge, as a build store. */
     readonly store: (
         packageId: PackageId,
         root: Pick<BuildObject, "kind" | "digest">,
@@ -99,10 +86,10 @@ export interface BuildOptions {
     readonly space: Pick<RevisionOptions["space"], "builds" | "machine">;
     /** The registry the space's builds are pushed to. */
     readonly registry: Registry;
-    /** Publish each of an account's packages in a stored lock for a caller. */
+    /** Publish each of an account's packages in a stored image for a caller. */
     readonly publish: (
         store: PublishStore,
-        lock: Digest,
+        image: Digest,
         account: Identifier<"account">,
         tag: string,
         commit: string | undefined,
@@ -111,7 +98,7 @@ export interface BuildOptions {
     ) => Promise<readonly PackageRelease[]>;
 }
 
-/** Take a build runner's pushes of its files, builds and lock into the space's builds. */
+/** Take a build runner's pushes of its files, builds and image into the space's builds. */
 export function pushMount(builds: BuildStore): MountFetch {
     return async (request, admitted, _context, store) => {
         // read the build below the mount, refusing a caller acting for none of its runners
@@ -140,7 +127,7 @@ export function pushMount(builds: BuildStore): MountFetch {
         }
         requireRunning(row);
 
-        // take pushes of its files, builds and lock into the space's builds, serving no pulls
+        // take pushes of its files, builds and image into the space's builds, serving no pulls
         const mount = new URL(`${url.origin}/${spaceId}/${buildId}/`);
 
         return await builds.fetch(request, mount, {
@@ -152,7 +139,7 @@ export function pushMount(builds: BuildStore): MountFetch {
     };
 }
 
-/** Take a finished build's outcome, requiring the lock its runner pushed. */
+/** Take a finished build's outcome, requiring the image its runner pushed. */
 async function adopt(
     builds: BuildStore,
     outcome: schema.Infer<typeof BuildOutcome>,
@@ -162,11 +149,11 @@ async function adopt(
         return outcome;
     }
 
-    // require the lock
-    if (!(await builds.contains(outcome.lock))) {
+    // require the image
+    if (!(await builds.contains(outcome.image))) {
         throw StackError.of(
             "BUILD_NOT_FOUND",
-            `lock '${outcome.lock}' not found: it was not pushed to the space`,
+            `image '${outcome.image}' not found: it was not pushed to the space`,
         );
     }
 
@@ -236,20 +223,20 @@ export function implementBuild(options: BuildOptions) {
                     const spaceId = schema.identifier("space").parse(context.scope);
                     const source = BuildSource.parse(context.input.source);
                     if (source.kind === "release") {
-                        const { lock } = source;
+                        const { image } = source;
                         const store = options.space.machine.builds;
-                        if (!(await store.contains(lock))) {
+                        if (!(await store.contains(image))) {
                             throw StackError.of(
                                 "RELEASE_BLOCKED",
-                                `cannot create a build of release '${lock}': pull it into the build store first`,
+                                `cannot create a build of release '${image}': pull it into the build store first`,
                             );
                         }
-                        const root = await store.get((await store.lock(lock)).root);
+                        const root = await store.get((await store.image(image)).root);
                         const built = PackageManifest.package(root);
                         if (built.id !== source.package || built.version !== source.version) {
                             throw StackError.of(
                                 "MANIFEST_INVALID",
-                                `lock '${lock}' is invalid: its root builds ${built.id} '${built.version}', not ${source.package} '${source.version}'`,
+                                `image '${image}' is invalid: its root builds ${built.id} '${built.version}', not ${source.package} '${source.version}'`,
                             );
                         }
 
@@ -258,7 +245,7 @@ export function implementBuild(options: BuildOptions) {
                                 input: {
                                     ...context.input,
                                     state: "succeeded",
-                                    lock,
+                                    image,
                                     outputs: Object.keys(root.outputs),
                                     startedAt: context.now,
                                     finishedAt: context.now,
@@ -303,7 +290,7 @@ export function implementBuild(options: BuildOptions) {
                     releases: [
                         ...(await options.publish(
                             options.space.builds,
-                            Build.lock(context.target),
+                            Build.image(context.target),
                             context.input.account,
                             context.input.tag ?? LATEST_TAG,
                             Build.commit(context.target),
@@ -315,12 +302,12 @@ export function implementBuild(options: BuildOptions) {
                 handle: async (context) => context.prepared,
             },
             push: {
-                // push a succeeded build's lock and its builds to its package's forge before the transaction
+                // push a succeeded build's image and its builds to its package's forge before the transaction
                 prepare: async (context) => {
-                    const lock = Build.lock(context.target);
-                    await options.registry.push(options.space.builds, lock, context.input.account);
+                    const image = Build.image(context.target);
+                    await options.registry.push(options.space.builds, image, context.input.account);
 
-                    return { lock };
+                    return { image };
                 },
                 handle: async (context) => context.prepared,
             },
@@ -407,18 +394,18 @@ function reported(
     };
 }
 
-/** Read the fields a finished build records: its failure, or the digest of its stored lock. */
+/** Read the fields a finished build records: its failure, or the digest of its stored image. */
 function ended(adopted: schema.Infer<typeof BuildOutcome>, now: number) {
     // record a failed build's failure
     if (adopted.kind === "failed") {
         return { state: "failed" as const, phase: null, failure: adopted.failure, finishedAt: now };
     }
-    // record a stored build's lock
+    // record a stored build's image
     else {
         return {
             state: "succeeded" as const,
             phase: null,
-            lock: adopted.lock,
+            image: adopted.image,
             finishedAt: now,
         };
     }

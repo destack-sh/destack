@@ -20,7 +20,8 @@ import {
     PackageDescription,
     PackageMount,
     SpaceMount,
-    STORE_PATHS,
+    CallFrame,
+    CONNECTION_PATH,
     RequestBody,
     refusal,
 } from "@destack/object";
@@ -44,7 +45,7 @@ import {
     StepUp,
 } from "@destack/access";
 import { IdentityError, Jwt, type JwtClaims, Proof, PROOF_HEADER } from "@destack/identity";
-import { copyRequest, Forwarded, HostAddress } from "@destack/environment";
+import { copyRequest, Forwarded, HostAddress, WebSocketUpgrade } from "@destack/environment";
 import stackPackage from "@destack/stack/package";
 import type { ImportClosure } from "@destack/build/store";
 import { ObjectReference, Scope, Subject, RequestId } from "@destack/sync";
@@ -126,7 +127,7 @@ const MAX_LINKS = 32;
 const FILE_METHODS = "GET, HEAD";
 
 /** The origins of a space's installations: their views' launch, pages' session and calls. */
-export class ViewOrigin {
+export class InstallationOriginServer {
     /** The space whose installations' origins it serves. */
     readonly #space: GatewaySpace;
     /** The gateway routing a page's calls into the space, exchanging its person's tokens. */
@@ -134,10 +135,10 @@ export class ViewOrigin {
     /** The static site of each build served so far, none for a build without, by build and view. */
     readonly #sites = new Map<string, Promise<StaticHost | undefined>>();
     /** The build of each revision served so far, which a revision never changes, by revision. */
-    readonly #builds = new Map<string, Promise<Pick<Page, "lock" | "reader">>>();
+    readonly #builds = new Map<string, Promise<Pick<Page, "image" | "reader">>>();
     /** The browser import map closure of each build served so far, by build and base. */
     readonly #closures = new Map<string, Promise<ImportClosure>>();
-    /** The assets of each lock's closure by mount base, indexed once. */
+    /** The assets of each image's closure by mount base, indexed once. */
     readonly #assets = new Map<string, Promise<AssetIndex>>();
     /** The catalog paths each build's pages load, by build and base. */
     readonly #catalogs = new Map<string, Promise<string[]>>();
@@ -157,7 +158,7 @@ export class ViewOrigin {
     async serve(given: Request, found: InstallationRollout, mount?: ViewMount): Promise<Response> {
         try {
             // serve the request below a route's base as at the origin's root
-            const request = ViewOrigin.#below(given, mount);
+            const request = InstallationOriginServer.#below(given, mount);
             const url = new URL(request.url);
 
             // complete a sign-in the issuer returns to the open path with its code
@@ -557,7 +558,7 @@ export class ViewOrigin {
         return new Response(null, {
             status: 303,
             headers: {
-                location: ViewOrigin.#location(path),
+                location: InstallationOriginServer.#location(path),
                 "cache-control": "no-store",
                 "set-cookie": new OriginCookie(SESSION_COOKIE, url).write(session, SESSION_SECONDS),
             },
@@ -591,7 +592,8 @@ export class ViewOrigin {
         // serve a route's visitors anonymously, else the person whose session the cookie has
         const visitor =
             mount === undefined ? await this.#visitor(request, url, found) : ANONYMOUS_VISITOR;
-        const linkSecrets = mount === undefined ? ViewOrigin.#linkSecrets(request, url) : [];
+        const linkSecrets =
+            mount === undefined ? InstallationOriginServer.#linkSecrets(request, url) : [];
 
         // read the revision the installation follows and its build
         const revision = await InstallationRevision.followed(this.#space.database, found);
@@ -601,21 +603,25 @@ export class ViewOrigin {
                 `'${found.installation.name}' is unavailable: it has no revision to serve yet`,
             );
         }
-        // read the revision's lock and its root once per revision
-        const { lock, reader } = await ViewOrigin.#memo(this.#builds, revision.id, async () => {
-            // pull the revision's lock and open its root
-            const built = await Build.require(
-                Snapshot.live(this.#space.database),
-                this.#space.id,
-                revision.buildId,
-            );
-            const packageId = PackageId.parse(found.installation.packageId);
-            const root = await this.#space.root(packageId, built.lock);
+        // read the revision's image and its root once per revision
+        const { image, reader } = await InstallationOriginServer.#memo(
+            this.#builds,
+            revision.id,
+            async () => {
+                // pull the revision's image and open its root
+                const built = await Build.require(
+                    Snapshot.live(this.#space.database),
+                    this.#space.id,
+                    revision.buildId,
+                );
+                const packageId = PackageId.parse(found.installation.packageId);
+                const root = await this.#space.root(packageId, built.image);
 
-            return { lock: built.lock, reader: root };
-        });
+                return { image: built.image, reader: root };
+            },
+        );
 
-        return { rollout: found, lock, reader, visitor, linkSecrets, mount: mount ?? ROOT };
+        return { rollout: found, image, reader, visitor, linkSecrets, mount: mount ?? ROOT };
     }
 
     /** Read the person of a session cookie, anonymous on a page load without a valid one. */
@@ -679,25 +685,26 @@ export class ViewOrigin {
 
     /** Call the space's object API or the installation's own package, as the page's person. */
     async #package(request: Request, url: URL, page: Page): Promise<Response> {
-        // answer the object API through the stack package, else the installation's
-        ViewOrigin.#requireSameOrigin(request, url);
+        // connect to the space store through the stack package, else call the installation's
+        InstallationOriginServer.#requireSameOrigin(request, url);
         const { rollout: found } = page;
         const below = url.pathname.slice(PACKAGE_PATH.length) || "/";
-        const isObjectApi = STORE_PATHS.has(below);
+        const isObjectApi = below === CONNECTION_PATH;
         const packageId = PackageId.parse(
             isObjectApi ? stackPackage.id : found.installation.packageId,
         );
 
         // act as the visitor toward that package, with the links they opened the page by
-        const authentication = await this.#authentication(page, packageId, request);
-        const headers = ViewOrigin.#linked(request.headers, page);
+        const headers = InstallationOriginServer.#linked(request.headers, page);
         headers.delete("cookie");
 
-        // call the store's procedures in the space
+        // connect to the space's store, vouching for the visitor anew at each call as each request did
         if (isObjectApi) {
             const mounted = copyRequest(request, { headers }, `${url.origin}${below}${url.search}`);
 
-            return this.#space.call(packageId, mounted, authentication);
+            return this.#space.call(packageId, mounted, async () =>
+                this.#authentication(page, packageId, request),
+            );
         }
         // call the installation's package below its mount
         else {
@@ -708,14 +715,16 @@ export class ViewOrigin {
                 `${mount}${PackageMount.path(packageId)}${below}${url.search}`,
             );
 
-            return await this.#gateway.serve(mounted, authentication);
+            return await this.#gateway.serve(mounted, async () =>
+                this.#authentication(page, packageId, request),
+            );
         }
     }
 
     /** Call a platform service a view declares, as the page's person under their grant. */
     async #platform(request: Request, url: URL, page: Page): Promise<Response> {
         // require a service mount that a view of the installation declares, called from the page's own origin
-        ViewOrigin.#requireSameOrigin(request, url);
+        InstallationOriginServer.#requireSameOrigin(request, url);
         const below = new URL(url);
         below.pathname = url.pathname.slice(PLATFORM_PATH.length);
         const routed = PackageMount.of(new Request(below.href, request));
@@ -734,22 +743,19 @@ export class ViewOrigin {
             );
         }
 
-        // call it as the visitor, with the links they opened the page by
-        const authentication = await this.#authentication(page, packageId, routed.request);
-        const headers = ViewOrigin.#linked(routed.request.headers, page);
+        // call it as the visitor at each call, with the links they opened the page by
+        const headers = InstallationOriginServer.#linked(routed.request.headers, page);
         headers.delete("cookie");
 
-        return this.#space.call(
-            packageId,
-            new Request(routed.request, { headers }),
-            authentication,
+        return this.#space.call(packageId, new Request(routed.request, { headers }), async () =>
+            this.#authentication(page, packageId, routed.request),
         );
     }
 
     /** Forward a page's call below a scope's home path to that scope's primary, as its person. */
     async #primary(request: Request, url: URL, page: Page): Promise<Response> {
         // call a space's stack at the machine serving it, else the account package at the universe
-        ViewOrigin.#requireSameOrigin(request, url);
+        InstallationOriginServer.#requireSameOrigin(request, url);
         const scope = ScopePrimary.scopeOf(url);
         const spaceId = schema.identifier("space").safeParse(scope);
         const { machine } = this.#space;
@@ -776,26 +782,37 @@ export class ViewOrigin {
 
         // send as the visitor with their links, exchanging a person's token per package called
         const { visitor } = page;
-        const primary = new ScopePrimary(
-            { scope, ...reached },
-            async (sent, audience) => {
-                // attach the visitor's links to calls into the serving space alone
-                const isServing = spaceId.success && spaceId.data === this.#space.id;
-                const headers = isServing
-                    ? ViewOrigin.#linked(sent.headers, page)
-                    : new Headers(sent.headers);
-                if (visitor.kind === "person") {
-                    const token = await this.#gateway.exchange(this.#acting(page), visitor, {
-                        audience,
-                        ...(spaceId.success ? { scope: spaceId.data } : {}),
-                    });
-                    headers.set("authorization", `Bearer ${token}`);
-                }
+        const primary = new ScopePrimary({ scope, ...reached }, async (sent, audience) => {
+            // attach the visitor's links to calls into the serving space alone
+            const isServing = spaceId.success && spaceId.data === this.#space.id;
+            const headers = isServing
+                ? InstallationOriginServer.#linked(sent.headers, page)
+                : new Headers(sent.headers);
 
-                return machine.send(new Request(sent, { headers }));
-            },
-            machine.environment,
-        );
+            // take a person's token for the request and for each call of a socket, as the universe vouches for each
+            const token =
+                visitor.kind === "person"
+                    ? () =>
+                          this.#gateway.exchange(this.#acting(page), visitor, {
+                              audience,
+                              ...(spaceId.success ? { scope: spaceId.data } : {}),
+                          })
+                    : undefined;
+            if (token !== undefined) {
+                headers.set("authorization", `Bearer ${await token()}`);
+            }
+            const forwarded = new Request(sent, { headers });
+
+            // forward a socket, signing each of its calls anew, else send the request
+            if (WebSocketUpgrade.of(forwarded) === undefined) {
+                return machine.send(forwarded);
+            }
+            const bridge = present(machine.bridge, "the machine's socket bridge");
+
+            return token === undefined
+                ? bridge.forward(forwarded)
+                : bridge.forward(forwarded, (frame) => CallFrame.authorize(frame, token));
+        });
 
         return primary.forward(request, url);
     }
@@ -806,7 +823,7 @@ export class ViewOrigin {
         if (request.method !== "POST") {
             return new Response(null, { status: 405, headers: { allow: "POST" } });
         }
-        ViewOrigin.#requireSameOrigin(request, url);
+        InstallationOriginServer.#requireSameOrigin(request, url);
 
         // act as the page's person, refusing a visitor
         const { visitor } = page;
@@ -832,7 +849,7 @@ export class ViewOrigin {
                 client: parent,
                 publicKey,
                 proof,
-            } = ViewOrigin.#registration(accountObject.KeyRegistration, body);
+            } = InstallationOriginServer.#registration(accountObject.KeyRegistration, body);
             await accounts.key.create({
                 scope: userId,
                 requestId,
@@ -852,7 +869,7 @@ export class ViewOrigin {
         }
 
         // register the browser as a client of the person
-        const { id, name, platform } = ViewOrigin.#registration(
+        const { id, name, platform } = InstallationOriginServer.#registration(
             accountObject.ClientRegistration,
             body,
         );
@@ -895,7 +912,7 @@ export class ViewOrigin {
                 request: { method: request.method, url: url.href },
             });
         } catch (error) {
-            if (ViewOrigin.#isGone(error)) {
+            if (InstallationOriginServer.#isGone(error)) {
                 return new Response(null, { status: GONE });
             }
             throw error;
@@ -1006,7 +1023,7 @@ export class ViewOrigin {
         if (request.method !== "POST") {
             return new Response(null, { status: 405, headers: { allow: "POST" } });
         }
-        ViewOrigin.#requireSameOrigin(request, url);
+        InstallationOriginServer.#requireSameOrigin(request, url);
 
         // record it as the installation, under the build the page serves
         const signal = OtlpSignal.at(url.pathname);
@@ -1015,7 +1032,7 @@ export class ViewOrigin {
         }
         const body = await RequestBody.json(request, `an OTLP/JSON ${signal} export`);
         await this.#gateway.record(
-            { installation: page.rollout.installationId, build: page.lock },
+            { installation: page.rollout.installationId, build: page.image },
             signal,
             body,
         );
@@ -1029,14 +1046,16 @@ export class ViewOrigin {
         if (request.method !== "GET" && request.method !== "HEAD") {
             return new Response(null, { status: 405, headers: { allow: FILE_METHODS } });
         }
-        const pathname = ViewOrigin.#decoded(url);
+        const pathname = InstallationOriginServer.#decoded(url);
 
         // serve a file of a dependency build the installation's import map reaches, unchanging under its digest
         const { reader, rollout: found } = page;
         const policy = await this.#policy(page);
         const { base } = page.mount;
-        const closure = await ViewOrigin.#memo(this.#closures, `${page.lock} ${base}`, () =>
-            this.#space.imports(page.lock, "browser", `${base}${BUILD_PATH}`),
+        const closure = await InstallationOriginServer.#memo(
+            this.#closures,
+            `${page.image} ${base}`,
+            () => this.#space.imports(page.image, "browser", `${base}${BUILD_PATH}`),
         );
         if (pathname.startsWith(BUILD_PATH)) {
             const [digest = "", ...path] = pathname.slice(BUILD_PATH.length).split("/");
@@ -1047,32 +1066,42 @@ export class ViewOrigin {
             const dependency = await this.#space.builds.contents(reached.data);
             const file = await dependency.file(path.join("/"));
 
-            return ViewOrigin.#file(request, file, () => dependency.load(file.path), {
+            return InstallationOriginServer.#file(request, file, () => dependency.load(file.path), {
                 "cache-control": "public, max-age=31536000, immutable",
                 "permissions-policy": policy,
             });
         }
 
         // serve an asset of the installation's build or of a build its import map reaches, unchanging under its name
-        const assets = await ViewOrigin.#memo(this.#assets, `${page.lock} ${base}`, () =>
-            AssetIndex.of(closure.builds, (digest) => this.#space.builds.contents(digest)),
+        const assets = await InstallationOriginServer.#memo(
+            this.#assets,
+            `${page.image} ${base}`,
+            () => AssetIndex.of(closure.builds, (digest) => this.#space.builds.contents(digest)),
         );
         const published = assets.find(pathname);
         if (published !== undefined) {
             const { reader: emitter, file: emitted } = published;
 
-            return ViewOrigin.#file(request, emitted, () => emitter.load(emitted.path), {
-                "cache-control": "public, max-age=31536000, immutable",
-                "permissions-policy": policy,
-            });
+            return InstallationOriginServer.#file(
+                request,
+                emitted,
+                () => emitter.load(emitted.path),
+                {
+                    "cache-control": "public, max-age=31536000, immutable",
+                    "permissions-policy": policy,
+                },
+            );
         }
 
         // redirect as the static site's host configuration has it, before serving any file
         const files = StaticHost.publicFiles(reader.manifest, await reader.files());
-        const site = await ViewOrigin.#memo(this.#sites, `${page.lock} ${page.mount.view}`, () =>
-            StaticHost.open(reader.manifest, files, page.mount.view, (file) =>
-                reader.load(file.path),
-            ),
+        const site = await InstallationOriginServer.#memo(
+            this.#sites,
+            `${page.image} ${page.mount.view}`,
+            () =>
+                StaticHost.open(reader.manifest, files, page.mount.view, (file) =>
+                    reader.load(file.path),
+                ),
         );
         const redirected = site?.redirect(pathname);
         if (redirected !== undefined) {
@@ -1083,7 +1112,9 @@ export class ViewOrigin {
             return new Response(null, {
                 status: redirected.status,
                 headers: {
-                    location: isPath ? `${base}${ViewOrigin.#location(location)}` : location,
+                    location: isPath
+                        ? `${base}${InstallationOriginServer.#location(location)}`
+                        : location,
                 },
             });
         }
@@ -1092,7 +1123,12 @@ export class ViewOrigin {
         const headers = { "cache-control": "no-cache", "permissions-policy": policy };
         const file = files.get(pathname.slice(1));
         if (file !== undefined) {
-            return ViewOrigin.#file(request, file, () => reader.load(file.path), headers);
+            return InstallationOriginServer.#file(
+                request,
+                file,
+                () => reader.load(file.path),
+                headers,
+            );
         }
 
         // serve a static view's page or asset with its host's headers, or send to its canonical path
@@ -1107,13 +1143,15 @@ export class ViewOrigin {
             const load = () => reader.load(asset.path);
 
             return asset.path.endsWith(".html")
-                ? ViewOrigin.#file(request, asset, load, siteHeaders, {
+                ? InstallationOriginServer.#file(request, asset, load, siteHeaders, {
                       map: closure.map,
-                      build: page.lock,
+                      build: page.image,
                   })
-                : ViewOrigin.#file(request, asset, load, siteHeaders);
+                : InstallationOriginServer.#file(request, asset, load, siteHeaders);
         } else if (resolved?.kind === "redirect") {
-            const location = ViewOrigin.#location(`${base}${resolved.path}${url.search}`);
+            const location = InstallationOriginServer.#location(
+                `${base}${resolved.path}${url.search}`,
+            );
 
             return new Response(null, { status: 307, headers: { location } });
         }
@@ -1128,9 +1166,14 @@ export class ViewOrigin {
             );
             const served = (await dependency.files()).find((each) => each.path === path);
             if (served !== undefined) {
-                return ViewOrigin.#file(request, served, () => dependency.load(served.path), {
-                    "cache-control": "no-cache",
-                });
+                return InstallationOriginServer.#file(
+                    request,
+                    served,
+                    () => dependency.load(served.path),
+                    {
+                        "cache-control": "no-cache",
+                    },
+                );
             }
         }
 
@@ -1153,9 +1196,9 @@ export class ViewOrigin {
         if (!isMounted && missing !== undefined) {
             const load = () => reader.load(missing.path);
 
-            return ViewOrigin.#file(request, missing, load, siteHeaders, {
+            return InstallationOriginServer.#file(request, missing, load, siteHeaders, {
                 map: closure.map,
-                build: page.lock,
+                build: page.image,
                 status: 404,
             });
         }
@@ -1176,7 +1219,7 @@ export class ViewOrigin {
                 requested: [],
             });
         }
-        const target = ViewOrigin.#targetOf(url) ?? page.mount.target;
+        const target = InstallationOriginServer.#targetOf(url) ?? page.mount.target;
 
         // mount it in its context, for the person in their home or for an anonymous visitor
         const { visitor } = page;
@@ -1189,14 +1232,19 @@ export class ViewOrigin {
                 installation: found.installationId,
                 space: this.#space.id,
                 account: space.scope,
-                residencyHome: await ViewOrigin.#memo(this.#residencies, space.scope, () =>
-                    this.#space.residencyHome(schema.identifier("account").parse(space.scope)),
+                residencyHome: await InstallationOriginServer.#memo(
+                    this.#residencies,
+                    space.scope,
+                    () =>
+                        this.#space.residencyHome(schema.identifier("account").parse(space.scope)),
                 ),
                 view: name,
                 base,
                 universe: new URL(this.#space.universe.issuer).origin,
-                catalogs: await ViewOrigin.#memo(this.#catalogs, `${page.lock} ${base}`, () =>
-                    this.#catalogPaths(reader, closure),
+                catalogs: await InstallationOriginServer.#memo(
+                    this.#catalogs,
+                    `${page.image} ${base}`,
+                    () => this.#catalogPaths(reader, closure),
                 ),
                 ...(visitor.kind === "person"
                     ? {
@@ -1357,7 +1405,9 @@ export class ViewOrigin {
 
         // refuse a malformed secret, then store it with the newest others once
         await LinkSecret.digest(secret, this.#space.machine.environment.crypto);
-        const others = ViewOrigin.#linkSecrets(request, url).filter((each) => each !== secret);
+        const others = InstallationOriginServer.#linkSecrets(request, url).filter(
+            (each) => each !== secret,
+        );
         const secrets = [...others, secret].slice(-MAX_LINKS);
 
         // send the visitor on without it, out of the address and its referrers
@@ -1366,7 +1416,7 @@ export class ViewOrigin {
         return new Response(null, {
             status: 303,
             headers: {
-                location: ViewOrigin.#location(`${url.pathname}${url.search}`),
+                location: InstallationOriginServer.#location(`${url.pathname}${url.search}`),
                 "cache-control": "no-store",
                 "set-cookie": new OriginCookie(LINK_COOKIE, url).write(secrets.join(".")),
             },
@@ -1542,8 +1592,8 @@ export class ViewOrigin {
 interface Page {
     /** The rollout of the installation the origin serves. */
     readonly rollout: InstallationRollout;
-    /** The digest of the lock of the build serving the page. */
-    readonly lock: Digest;
+    /** The digest of the image of the build serving the page. */
+    readonly image: Digest;
     /** The build. */
     readonly reader: BuildReader;
     /** Who the page serves: the person whose client launched it, or an anonymous visitor. */

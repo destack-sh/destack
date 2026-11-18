@@ -45,7 +45,7 @@ import {
     type PackageRelease,
 } from "@destack/package";
 import { serveProcess } from "@destack/object/bun";
-import { HibernationHost, WorkloadInstance } from "@destack/object/workload";
+import { type Hibernation, HibernationHost, WorkloadInstance } from "@destack/object/workload";
 import { deviceSetting, SettingValue } from "@destack/setting/object";
 import { type BunIsolation, BunRuntime } from "../bun/index.ts";
 import { ProcessRuntime } from "../runtime/process.ts";
@@ -256,6 +256,7 @@ export class Computer implements AsyncDisposable {
                 // close what opened so far once a step fails, and let the tunnel's requests wait until started
                 await using stack = new AsyncDisposableStack();
                 const started = Promise.withResolvers<Computer>();
+                const partitions = new Map<string, ComputerPartition>();
 
                 // record the tunnel's statuses one after another, in the order the tunnel tells them
                 let recorded = Promise.resolve();
@@ -340,16 +341,6 @@ export class Computer implements AsyncDisposable {
                     () => machine,
                 );
                 stack.defer(() => runtime.close());
-                const hibernation = new HibernationHost(
-                    (instanceId, path, request) =>
-                        runtime.deliver(
-                            schema.identifier("instance").parse(instanceId),
-                            path,
-                            new Request(`http://instance${path}`, request),
-                        ),
-                    options.environment.telemetry,
-                );
-
                 // authenticate the owner, local clients and peers
                 const authenticator = new Authenticator(
                     machineId,
@@ -395,9 +386,23 @@ export class Computer implements AsyncDisposable {
                     isServingHostnames: options.enrollment?.kind === "cloud",
                     domain: LOOPBACK_DOMAIN,
                     runtimes: [runtime, new ProcessRuntime()],
-                    hibernation,
+                    instances: async (instanceId, path, request) => {
+                        // hand a partition's socket event to its servers, and an installation's to its runtime
+                        const partition = partitions.get(instanceId);
+                        const delivered = new Request(`http://instance${path}`, request);
+                        if (partition === undefined) {
+                            return runtime.deliver(
+                                schema.identifier("instance").parse(instanceId),
+                                path,
+                                delivered,
+                            );
+                        }
+                        await partition.hibernation.receive(delivered, partition.instance.sockets);
+
+                        return new Response(null, { status: 204 });
+                    },
                     alarm: undefined,
-                    server: (lock) => processes.server(lock),
+                    server: (image) => processes.server(image),
                     linked,
                     shipped,
                     registry: options.registry,
@@ -450,7 +455,7 @@ export class Computer implements AsyncDisposable {
                     recursive: true,
                     force: true,
                 });
-                const routed = await Computer.#startServers(stack, options, {
+                const routed = await Computer.#startServers(stack, options, partitions, {
                     ...state,
                     machine,
                     runner,
@@ -498,7 +503,7 @@ export class Computer implements AsyncDisposable {
                         compilers,
                         packages: builds,
                         runtime,
-                        hibernation,
+                        hibernation: present(machine.hibernation, "the machine's sockets"),
                     },
                     stack.move(),
                 );
@@ -758,6 +763,7 @@ export class Computer implements AsyncDisposable {
     static async #startServers(
         stack: AsyncDisposableStack,
         options: ComputerOptions,
+        partitions: Map<string, ComputerPartition>,
         opened: Pick<Computer, "machine" | "device" | "authenticator" | "events" | "compilers"> & {
             readonly runner: BuildRunner;
             readonly packages: LocalBuildStore;
@@ -794,31 +800,43 @@ export class Computer implements AsyncDisposable {
         });
 
         // serve the device's partition from the start
-        const instance = await Computer.#startWorkload(
+        const devicePartition = await Computer.#startWorkload(
             deviceWorkload,
             options,
             server,
             opened.authenticator,
         );
+        const { instance } = devicePartition;
+        partitions.set(device.id, devicePartition);
         const objects = await deviceStarted.promise;
-        stack.defer(() => instance.close());
+        stack.defer(async () => {
+            // release its sockets at the machine's host, their clients resuming, then close it
+            partitions.delete(device.id);
+            machine.hibernation?.release(device.id);
+            await instance.close();
+        });
 
         // serve the machine's partition while it serves, its instance replaced at each start
         let partitioned: WorkloadInstance | undefined;
         const partition = async (): Promise<AsyncDisposable> => {
+            // start it, routing its requests and socket events to it
             const started = await Computer.#startWorkload(
                 machineWorkload,
                 options,
                 server,
                 opened.authenticator,
             );
-            partitioned = started;
+            partitioned = started.instance;
+            partitions.set(machine.id, started);
 
             return {
                 [Symbol.asyncDispose]: async () => {
+                    // stop routing to it, release its sockets at the machine's host, then close it
                     partitioned = undefined;
                     machineStarted = undefined;
-                    await started.close();
+                    partitions.delete(machine.id);
+                    machine.hibernation?.release(machine.id);
+                    await started.instance.close();
                 },
             };
         };
@@ -858,7 +876,7 @@ export class Computer implements AsyncDisposable {
         return new ComputerServer({
             device,
             callKey: () => Computer.#callKey(machine),
-            launcher: (loginId) => device.launcher(loginId),
+            launcher: (loginId) => device.launcher(loginId, (request) => machine.send(request)),
             machine,
             runner: opened.runner,
             shutdown: () => options.shutdown(),
@@ -884,17 +902,22 @@ export class Computer implements AsyncDisposable {
         return CallKey.of(machine.keyring, machine.environment.crypto);
     }
 
-    /** Start one of the computer's partitions with its controllers. */
-    static #startWorkload(
+    /** Start one of the computer's partitions, its sockets kept at the machine's host. */
+    static async #startWorkload(
         workload: typeof deviceWorkload,
         options: ComputerOptions,
         server: ComputerServer,
         authenticator: Authenticator,
-    ): Promise<WorkloadInstance> {
+    ): Promise<ComputerPartition> {
+        // keep the partition's sockets at the machine's host under the partition, sending through it in this process
         const { machine, device } = server;
+        const id = workload === deviceWorkload ? device.id : machine.id;
+        const hibernation = present(machine.hibernation, "the machine's sockets").instance(id);
 
-        return WorkloadInstance.start(workload, {
+        // start it
+        const instance = await WorkloadInstance.start(workload, {
             environment: options.environment,
+            hibernation,
             resources: new ResourceContext().bind(computerServer, server),
             callKey: () => Computer.#callKey(machine),
             serverOptions: (handle) => ({
@@ -908,6 +931,8 @@ export class Computer implements AsyncDisposable {
                 authorizeMachine: (hosted) => authenticator.authorizeMachine(hosted),
             }),
         });
+
+        return { instance, hibernation };
     }
 
     /** Connect to a package serving a space as a person signed in on this computer. */
@@ -1323,4 +1348,12 @@ export class Computer implements AsyncDisposable {
             this.#stack.disposeAsync(),
         );
     }
+}
+
+/** One of the computer's partitions: its running workload and its side of the sockets. */
+interface ComputerPartition {
+    /** The partition's running workload. */
+    readonly instance: WorkloadInstance;
+    /** The partition's side of the sockets the machine's host keeps for it. */
+    readonly hibernation: Hibernation;
 }

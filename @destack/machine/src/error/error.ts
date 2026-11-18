@@ -22,6 +22,7 @@ const machineError = defineErrorFamily({
         PREVIEW_NOT_FOUND: {},
         ROUTE_NOT_FOUND: {},
         SIGNAL_NOT_FOUND: {},
+        SOCKET_HANDLER_NOT_FOUND: {},
         SPACE_NOT_FOUND: {},
         VIEW_NOT_FOUND: {},
 
@@ -69,7 +70,6 @@ const machineError = defineErrorFamily({
         PARTITION_TOKEN_DENIED: {},
         PERSON_DENIED: {},
         PUBLISHER_DENIED: {},
-        PUSH_DENIED: {},
         SIGN_IN_DENIED: {},
         VIEW_GRANT_DENIED: {},
         VIEW_PACKAGE_DENIED: {},
@@ -92,7 +92,6 @@ const machineError = defineErrorFamily({
         SOCKETS_UNSUPPORTED: {},
 
         // moved
-        OBJECTS_MOVED: {},
 
         // unavailable
         DEPLOYMENT_UNAVAILABLE: { data: RetryAfter.partial() },
@@ -112,6 +111,7 @@ const machineError = defineErrorFamily({
         OBJECT_UNREACHABLE: {},
         RUNTIME_ACTION_UNREACHABLE: {},
         SETTINGS_UNREACHABLE: {},
+        SOCKET_UNREACHABLE: {},
 
         // broken
         COMMAND_BROKEN: {},

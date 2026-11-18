@@ -203,10 +203,10 @@ test("move a space and back, each source destroying its copy", async () => {
     );
     const record = nth(await target.database.select().from(object.transfer.table), 0);
     const [recorded] = await target.database
-        .select({ lock: object.build.table.lock })
+        .select({ image: object.build.table.image })
         .from(object.build.table)
         .where(eq(object.build.table.id, built.build));
-    const lock = present(recorded?.lock, "the moved build's lock");
+    const image = present(recorded?.image, "the moved build's image");
     const spaces = await target.database
         .select({ id: accountObject.space.table.id })
         .from(accountObject.space.table)
@@ -219,7 +219,7 @@ test("move a space and back, each source destroying its copy", async () => {
         removed,
         placement: await placementOf(universe),
         completed: [record.completedAt !== null, record.sourceId, record.targetId],
-        moved: await (await target.builds()).contains(lock),
+        moved: await (await target.builds()).contains(image),
         reference: replicated.reference,
         kept: kept.map((entry) => [entry.name, entry.provider]),
         databases: (await world.files.readDirectory(join(targetDatabases, ids.space)))
@@ -573,7 +573,7 @@ test("move a space afresh after a cancelled takeover", async () => {
         targetId,
     });
     const paused = target.simulation.network.pause(targetId, UNIVERSE_NODE, (sent) =>
-        sent.endsWith("/store/push"),
+        sent.includes("/store/push"),
     );
     const cancelling = paused.waiting.then(async () => {
         // cancel as the owner before the target's first call to the universe, and let the target's machine see the placement no longer moves here

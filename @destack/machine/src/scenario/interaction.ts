@@ -46,7 +46,7 @@ export const MachineAction = schema.discriminatedUnion("action", [
         action: schema.literal("update"),
         /** The installation's name, such as `apps`. */
         installation: schema.string().min(1),
-        /** The release, by the run's lock of a fixture such as `apps-next`. */
+        /** The release, by the run's image of a fixture such as `apps-next`. */
         release: FixtureName,
     }),
     schema.object({

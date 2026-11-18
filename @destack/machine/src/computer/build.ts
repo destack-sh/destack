@@ -3,7 +3,7 @@ import { join } from "node:path";
 import type { ClientOf } from "@destack/object/client";
 import { type CompilerPool, outputsOf, Workspace, type WorkspacePackage } from "@destack/build";
 import type { PackageVersion } from "@destack/package";
-import type { BuildReader, Lock } from "@destack/package/manifest";
+import type { BuildReader, BuildImage } from "@destack/package/manifest";
 import { type Controller, eq, type Select, Reconciliation } from "@destack/db";
 import { GitLease } from "@destack/git/local";
 import { Digest, type Identifier, schema, Uuid, type Version } from "@destack/schema";
@@ -35,8 +35,8 @@ export class BuildRunner {
     readonly #machine: Machine;
     /** The warm compilers compiling the builds into the machine's local store. */
     readonly #compilers: CompilerPool;
-    /** The linked builtins' locks, pulled once with all their files. */
-    #linked: Promise<readonly Lock[]> | undefined;
+    /** The linked builtins' images, pulled once with all their files. */
+    #linked: Promise<readonly BuildImage[]> | undefined;
     /** The directory of the working trees of the commits being built. */
     readonly #commits: string;
     /** The host the working trees are checked out on, by git. */
@@ -164,7 +164,7 @@ export class BuildRunner {
         );
         const root = await compiled.digest();
 
-        // report storing, then push the build and the graphs the lock attaches
+        // report storing, then push the build and the graphs the image attaches
         await space.build.progress({
             ...target,
             requestId: RequestId.create(this.#machine.environment),
@@ -175,27 +175,27 @@ export class BuildRunner {
             `${endpoint.url}${PUSH_PATH}/${target.spaceId}/${target.id}/`,
             endpoint.fetch,
         );
-        const lock = await workspacePackage.lock(root);
-        await pushing.push(this.#compilers.store, [lock], signal);
+        const image = await workspacePackage.image(root);
+        await pushing.push(this.#compilers.store, [image], signal);
         await space.build.finish({
             ...target,
             requestId: RequestId.create(this.#machine.environment),
-            outcome: { kind: "stored", lock },
+            outcome: { kind: "stored", image },
         });
     }
 
-    /** Pull the linked builtins' locks once with all their files, which a compile reads. */
-    #builtins(): Promise<readonly Lock[]> {
-        // take the locks pulled or pulling already
+    /** Pull the linked builtins' images once with all their files, which a compile reads. */
+    #builtins(): Promise<readonly BuildImage[]> {
+        // take the images pulled or pulling already
         if (this.#linked !== undefined) {
             return this.#linked;
         }
 
-        // pull every build each lock lists with all its files, which the shipped layer lacks
+        // pull every build each image lists with all its files, which the shipped layer lacks
         const { builds, releases, linked } = this.#machine;
         const pulling = Promise.all(
             [...linked.values()].map((release) =>
-                releases.pull(builds, release.package.id, release.lock, "all"),
+                releases.pull(builds, release.package.id, release.image, "all"),
             ),
         );
         this.#linked = pulling;
@@ -204,9 +204,9 @@ export class BuildRunner {
         return pulling;
     }
 
-    /** Pull a required release's lock from its publisher's forge, with every build it lists. */
+    /** Pull a required release's image from its publisher's forge, with every build it lists. */
     async #release(dependency: PackageVersion): Promise<Digest> {
-        // pull the lock of its version whole
+        // pull the image of its version whole
         const { builds, releases } = this.#machine;
         const digest = await releases.find(dependency.id, dependency.version);
         await releases.pull(builds, dependency.id, digest, "all");

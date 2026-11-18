@@ -1,4 +1,4 @@
-import { Lock } from "@destack/package/manifest";
+import { BuildImage } from "@destack/package/manifest";
 import { WORKERD_COMPATIBILITY_DATE } from "@destack/package/runtime";
 import { Miniflare } from "miniflare";
 import { fileURLToPath } from "node:url";
@@ -38,8 +38,8 @@ test("share one graph view per manifest and delete it a lease after its last vie
         world.crypto,
     );
     const manifest = await Digest.json(reader.manifest, world.crypto);
-    const locked = Lock.of(manifest);
-    const lock = await Lock.digest(locked, world.crypto);
+    const built = BuildImage.of(manifest);
+    const image = await BuildImage.digest(built, world.crypto);
     const storage = await TestDatabase.create(spaceTables({}).tables, {
         environment: world,
         isMigrated: true,
@@ -55,11 +55,11 @@ test("share one graph view per manifest and delete it a lease after its last vie
                         kind: "release",
                         package: ids.package,
                         version: "2026.9.0",
-                        lock,
+                        image,
                     },
                     outputs: [],
                     state: "succeeded",
-                    lock,
+                    image,
                     startedAt: 1000,
                     finishedAt: 1000 + index,
                     createdAt: 1000,
@@ -92,7 +92,7 @@ test("share one graph view per manifest and delete it a lease after its last vie
             storage.database,
             {
                 contains: async () => true,
-                lock: async () => locked,
+                image: async () => built,
                 contents: async () => {
                     opened += 1;
 

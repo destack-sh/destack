@@ -1,3 +1,4 @@
+import { present } from "@destack/schema";
 import type { Listener } from "@destack/environment";
 import type { Simulation } from "@destack/environment/simulation";
 import type { Machine } from "../machine/machine.ts";
@@ -22,15 +23,16 @@ export class TestGateway {
 
     /** Answer a machine's origin on the world's network, once per machine. */
     serve(machine: Machine): void {
-        // listen at the machine's origin on its node, handing each request to the machine
+        // listen at the machine's origin on its node, handing each request to the machine and keeping its sockets
         if (this.#listening.has(machine.id)) {
             return;
         }
         const origin = new URL(machine.origin);
+        const host = present(machine.hibernation, "the machine's sockets");
         const listener = this.#simulation.network.server(machine.id).http({
             hostname: origin.hostname,
             port: Number(origin.port || (origin.protocol === "https:" ? HTTPS_PORT : HTTP_PORT)),
-            fetch: (request) => machine.serve(request),
+            ...host.listen((request) => machine.serve(request)),
         });
         this.#listening.set(machine.id, listener);
     }

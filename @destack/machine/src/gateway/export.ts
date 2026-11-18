@@ -5,7 +5,7 @@ import type { PackageFile } from "@destack/package/file";
 import {
     type BuildReader,
     ImportMap,
-    type Lock,
+    type BuildImage,
     type PackageManifest,
     VIEW_ASSET_PATH,
     ViewDescription,
@@ -31,7 +31,7 @@ export class StaticExport {
     /** The directory the files are written below. */
     readonly directory: string;
     /** The store with the view's build and every build its pages import. */
-    readonly #builds: Pick<LocalBuildStore, "contents" | "imports" | "lock">;
+    readonly #builds: Pick<LocalBuildStore, "contents" | "imports" | "image">;
     /** The environment whose file system the export writes to. */
     readonly #environment: Environment<"files">;
     /** The media type of each written file's extension, which the host's headers declare. */
@@ -44,7 +44,7 @@ export class StaticExport {
     /** Export into a directory from a store of builds. */
     constructor(
         directory: string,
-        builds: Pick<LocalBuildStore, "contents" | "imports" | "lock">,
+        builds: Pick<LocalBuildStore, "contents" | "imports" | "image">,
         environment: Environment<"files">,
     ) {
         this.directory = directory;
@@ -52,11 +52,15 @@ export class StaticExport {
         this.#environment = environment;
     }
 
-    /** Write a lock's static view: its pages, its assets and the builds they import. */
-    async write(lock: Digest, view: string, linked: ReadonlyMap<string, Lock>): Promise<void> {
+    /** Write an image's static view: its pages, its assets and the builds they import. */
+    async write(
+        image: Digest,
+        view: string,
+        linked: ReadonlyMap<string, BuildImage>,
+    ): Promise<void> {
         // read the view's build, its public files and its static site, refusing a view without one
-        const locked = await this.#builds.lock(lock);
-        const reader = await this.#builds.contents(locked.root);
+        const opened = await this.#builds.image(image);
+        const reader = await this.#builds.contents(opened.root);
         const files = StaticHost.publicFiles(reader.manifest, await reader.files());
         const site = await StaticHost.open(reader.manifest, files, view, (file) =>
             reader.load(file.path),
@@ -66,7 +70,7 @@ export class StaticExport {
         }
 
         // map the modules the pages import below the build path, as the origin does
-        const closure = await this.#builds.imports(locked, "browser", BUILD_PATH, linked);
+        const closure = await this.#builds.imports(opened, "browser", BUILD_PATH, linked);
 
         // write the build's public files at their paths, then the site's files at the paths it answers, pages with the map
         for (const file of files.values()) {

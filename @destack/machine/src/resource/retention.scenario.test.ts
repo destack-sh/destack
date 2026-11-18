@@ -5,7 +5,7 @@ import { present } from "@destack/schema";
 import { expect, test } from "@destack/test";
 import { BuildStore } from "@destack/build/store";
 import { build } from "@destack/stack/object";
-import { fixtureBuild, ids, lockOf, TestSpace } from "../test/index.ts";
+import { fixtureBuild, ids, imageOf, TestSpace } from "../test/index.ts";
 
 /** The builds of a source a space retains by default, the build retention setting's default. */
 const RETAINED = 10;
@@ -35,8 +35,8 @@ test("expire a build past retention and collect it with its graph after its leas
         );
         const { build: id } = await fixture.recordBuild(built, await fixtureGraph(built));
         const manifest = await BuildStore.digest(built.manifest, fixture.environment.crypto);
-        const lock = await lockOf(built, fixture.environment.crypto);
-        recorded.push({ id, manifest, lock });
+        const image = await imageOf(built, fixture.environment.crypto);
+        recorded.push({ id, manifest, image });
 
         // read the first build's graph while it is live, attaching its index
         if (minor === 0) {
@@ -64,7 +64,7 @@ test("expire a build past retention and collect it with its graph after its leas
     await fixture.simulation.jump(start + WEEK_MILLISECONDS);
     await fixture.simulation.jump(fixture.simulation.clock.now() + GRACE_MILLISECONDS);
 
-    // wait a grace for the builds the dropped lock alone kept, as a writer may still refer to them
+    // wait a grace for the builds the dropped image alone kept, as a writer may still refer to them
     await fixture.simulation.jump(fixture.simulation.clock.now() + GRACE_MILLISECONDS);
 
     // expire it at once, retain it with its graph through its lease, then collect both
@@ -86,6 +86,6 @@ test("expire a build past retention and collect it with its graph after its leas
         isStored: false,
         isIndexedWithinLease: true,
         isIndexed: false,
-        retained: newer.flatMap((each) => [each.manifest, each.lock]).toSorted(),
+        retained: newer.flatMap((each) => [each.manifest, each.image]).toSorted(),
     });
 });

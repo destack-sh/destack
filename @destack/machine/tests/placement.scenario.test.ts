@@ -15,7 +15,7 @@ import { build, database, rollout, installationRevision } from "@destack/stack/o
 import objectPackage from "@destack/object/package";
 import { ObjectReference } from "@destack/sync";
 import stackPackage from "@destack/stack/package";
-import { ids, lockOf, spaceDatabase, TestSpace } from "../src/test/index.ts";
+import { ids, imageOf, spaceDatabase, TestSpace } from "../src/test/index.ts";
 import { t } from "@destack/locale";
 
 /** The stack package the spaces install. */
@@ -142,8 +142,8 @@ test("retain a person's own apply of a placed space's stack, and submit the spac
             crypto,
         );
     const builds = [await declaring(stacked, ["home"]), await declaring(next, ["home", "studio"])];
-    const first = await lockOf(nth(builds, 0), crypto);
-    const second = await lockOf(nth(builds, 1), crypto);
+    const first = await imageOf(nth(builds, 0), crypto);
+    const second = await imageOf(nth(builds, 1), crypto);
     const carried = {
         packageId: stacked.id,
         selection: { kind: "release" as const, version: stacked.version },
@@ -170,15 +170,15 @@ test("retain a person's own apply of a placed space's stack, and submit the spac
         return present(row, "the space's stack");
     };
 
-    // read the lock of a pulled release build
-    const pulledLock = async (buildId: Identifier<"build">) => {
+    // read the image of a pulled release build
+    const pulledImage = async (buildId: Identifier<"build">) => {
         const [row] = await fixture.database
-            .select({ source: build.table.source, lock: build.table.lock })
+            .select({ source: build.table.source, image: build.table.image })
             .from(build.table)
             .where(eq(build.table.id, buildId));
         const found = present(row, `build ${buildId}`);
 
-        return found.source.kind === "release" ? found.lock : "build";
+        return found.source.kind === "release" ? found.image : "build";
     };
 
     // read the build and settings the space's stack follows once the space settles
@@ -188,7 +188,7 @@ test("retain a person's own apply of a placed space's stack, and submit the spac
         const { revision } = await stack();
 
         return {
-            lock: await pulledLock(revision.buildId),
+            image: await pulledImage(revision.buildId),
             settings: present(revision.definition, "the definition")["settings"],
         };
     };
@@ -235,13 +235,13 @@ test("retain a person's own apply of a placed space's stack, and submit the spac
     expect({ steps, revisions: revisions.length }).toEqual({
         steps: [
             // follow the space's first release
-            { lock: first, settings: {} },
+            { image: first, settings: {} },
             // retain the owner's apply of the second release
-            { lock: second, settings: {} },
+            { image: second, settings: {} },
             // submit the space's stack again once it places a setting value
-            { lock: first, settings: placed },
+            { image: first, settings: placed },
             // retain the revision of an unchanged stack
-            { lock: first, settings: placed },
+            { image: first, settings: placed },
         ],
         // record one revision per submission, and one of the owner's build as the placed setting value reaches it first
         revisions: 4,

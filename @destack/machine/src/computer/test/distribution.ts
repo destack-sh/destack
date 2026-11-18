@@ -16,7 +16,7 @@ import {
     PackageName,
     PackageRelease,
 } from "@destack/package";
-import { BuildReader, Lock, PackageManifest } from "@destack/package/manifest";
+import { BuildReader, BuildImage, PackageManifest } from "@destack/package/manifest";
 import { Registry } from "@destack/registry/client";
 import { LATEST_TAG } from "@destack/registry/object";
 import registryPackage from "@destack/registry/package";
@@ -40,7 +40,7 @@ declare module "vitest" {
     }
 }
 
-/** The variable the run's setup writes templates with: its locks' digests by name. */
+/** The variable the run's setup writes templates with: its images' digests by name. */
 export const BUILDS_VARIABLE = "DESTACK_MACHINE_BUILDS";
 
 /** The platform packages a test distribution ships, built from the workspace as releases are. */
@@ -89,7 +89,7 @@ export class TestDistribution implements ReleaseRegistry, AsyncDisposable {
     readonly builds: readonly BuildReader[];
     /** The manifest of the releases the distribution ships, each with its role. */
     readonly manifest: DistributionManifest;
-    /** The platform the manifest has the locks of, the host's. */
+    /** The platform the manifest has the images of, the host's. */
     readonly platform: DistributionPlatform;
     /** The builds with what they run, as a machine ships them in place. */
     readonly layer: BuildLayer;
@@ -119,17 +119,17 @@ export class TestDistribution implements ReleaseRegistry, AsyncDisposable {
         this.#store = store;
     }
 
-    /** Ship the run's locks of the platform and its stacks, and the builds a test adds. */
+    /** Ship the run's images of the platform and its stacks, and the builds a test adds. */
     static async build(
         host: Environment<"files" | "process" | "host">,
         given: readonly BuildReader[] = [],
     ): Promise<TestDistribution> {
-        // read the run's locks in its store
+        // read the run's images in its store
         await using opened = new AsyncDisposableStack();
         const store = opened.use(await testStore(host));
         const built = TestDistribution.built();
-        const lockOf = (name: string) => present(built[name], `the run's lock of ${name}`);
-        const read = async (name: string) => store.root(lockOf(name));
+        const imageOf = (name: string) => present(built[name], `the run's image of ${name}`);
+        const read = async (name: string) => store.root(imageOf(name));
 
         // select the stacks spaces are born with
         const stack = await read(STACK_FIXTURE);
@@ -141,25 +141,25 @@ export class TestDistribution implements ReleaseRegistry, AsyncDisposable {
 
         // ship the computers' own release, the stacks, the packages they install, and the builds the test adds
         const extra = await Promise.all(
-            given.map((build) => TestDistribution.#lockAt(build, store)),
+            given.map((build) => TestDistribution.#imageAt(build, store)),
         );
         const shipped = await TestDistribution.shipped(store, built, extra);
         const target = DistributionPlatform.of(host.host);
         const releases = await Promise.all(
-            shipped.map(async (lock) => {
-                const root = await store.get((await store.lock(lock)).root);
+            shipped.map(async (image) => {
+                const root = await store.get((await store.image(image)).root);
 
                 return {
                     package: PackageManifest.package(root),
                     role: root.role,
-                    locks: { [target]: lock },
+                    images: { [target]: image },
                 };
             }),
         );
         const layer = await TestDistribution.#distribute(shipped, store);
 
         // read the root of every shipped release, which the distribution opens by version
-        const builds = await Promise.all(shipped.map((lock) => store.root(lock)));
+        const builds = await Promise.all(shipped.map((image) => store.root(image)));
 
         // hand the store to the distribution
         opened.move();
@@ -175,11 +175,11 @@ export class TestDistribution implements ReleaseRegistry, AsyncDisposable {
         );
     }
 
-    /** Lock a locked build again at another version, with the builds it runs with. */
-    static async release(store: LocalBuildStore, lock: Digest, version: string): Promise<Digest> {
+    /** Make another image of a build at another version, with the builds it runs with. */
+    static async release(store: LocalBuildStore, image: Digest, version: string): Promise<Digest> {
         // stamp the root build's manifest with the version, keeping its files
-        const locked = await store.lock(lock);
-        const root = await store.contents(locked.root);
+        const previous = await store.image(image);
+        const root = await store.contents(previous.root);
         const manifest = {
             ...root.manifest,
             package: { ...PackageManifest.package(root.manifest), version },
@@ -187,11 +187,11 @@ export class TestDistribution implements ReleaseRegistry, AsyncDisposable {
         const reader = new BuildReader(manifest, root.stream, store.environment.crypto);
         const released = await TestDistribution.#putIndexed(store, reader);
 
-        // lock it in the root's place with the root's links
-        const { [locked.root]: links, ...builds } = locked.builds;
-        const linked = present(links, `the links of build ${locked.root}`);
+        // make an image of it in the root's place with the root's links
+        const { [previous.root]: links, ...builds } = previous.builds;
+        const linked = present(links, `the links of build ${previous.root}`);
 
-        return await store.putLock(Lock.of(released, { ...builds, [released]: linked }));
+        return await store.putImage(BuildImage.of(released, { ...builds, [released]: linked }));
     }
 
     /** Open a fixture package's build in the run's store for a lifetime, the test's by default. */
@@ -201,14 +201,14 @@ export class TestDistribution implements ReleaseRegistry, AsyncDisposable {
         defer: (cleanup: () => Promise<void>) => void = onTestFinished,
     ): Promise<BuildReader> {
         // open the store for
-        const lock = TestDistribution.lockOf(fixture);
+        const image = TestDistribution.imageOf(fixture);
         const store = await testStore(environment);
         defer(() => store[Symbol.asyncDispose]());
 
-        return await store.root(lock);
+        return await store.root(image);
     }
 
-    /** Read the digests of the run's locks by name: the platform, the stacks and the fixtures. */
+    /** Read the digests of the run's images by name: the platform, the stacks and the fixtures. */
     static built(): Readonly<Record<string, Digest>> {
         const written = testHost().process.variables[BUILDS_VARIABLE];
         const built: unknown =
@@ -217,36 +217,36 @@ export class TestDistribution implements ReleaseRegistry, AsyncDisposable {
         return schema.record(schema.string(), Digest).parse(built);
     }
 
-    /** Read the locks of the packages only scenarios install, which no distribution ships. */
+    /** Read the images of the packages only scenarios install, which no distribution ships. */
     static scenarios(): Readonly<Record<string, Digest>> {
         return schema.record(schema.string(), Digest).parse(inject("scenarios") ?? {});
     }
 
-    /** Find the run's lock rooted at a given build, refusing a build the run did not lock. */
-    static async #lockAt(build: BuildReader, store: LocalBuildStore): Promise<Digest> {
-        // compare the build with each run lock's root
+    /** Find the run's image rooted at a given build, refusing a build the run did not image. */
+    static async #imageAt(build: BuildReader, store: LocalBuildStore): Promise<Digest> {
+        // compare the build with each run image's root
         const root = await BuildStore.digest(build.manifest, store.environment.crypto);
-        const locks = [
+        const images = [
             ...Object.values(TestDistribution.built()),
             ...Object.values(TestDistribution.scenarios()),
         ];
-        for (const lock of locks) {
-            if ((await store.lock(lock)).root === root) {
-                return lock;
+        for (const image of images) {
+            if ((await store.image(image)).root === root) {
+                return image;
             }
         }
-        throw new TypeError(`the run locked no build '${root}'`);
+        throw new TypeError(`the run made no image of build '${root}'`);
     }
 
-    /** Read the run's lock of a fixture package. */
-    static lockOf(fixture: string): Digest {
+    /** Read the run's image of a fixture package. */
+    static imageOf(fixture: string): Digest {
         return present(
             TestDistribution.built()[fixture] ?? TestDistribution.scenarios()[fixture],
-            `the run's lock of ${fixture}`,
+            `the run's image of ${fixture}`,
         );
     }
 
-    /** Put a build with its fixture graph attached once, as a builder locks what it ships. */
+    /** Put a build with its fixture graph attached once, as a builder images what it ships. */
     static async #putIndexed(store: LocalBuildStore, reader: BuildReader): Promise<Digest> {
         const digest = await store.put(reader);
         if (!(await store.isIndexed(digest))) {
@@ -256,29 +256,29 @@ export class TestDistribution implements ReleaseRegistry, AsyncDisposable {
         return digest;
     }
 
-    /** Store a build locked with the builds it runs with, answering the lock's digest. */
-    async lock(build: BuildReader, builds: readonly BuildReader[] = []): Promise<Digest> {
+    /** Store a build in an image with the builds it runs with, answering the image's digest. */
+    async image(build: BuildReader, builds: readonly BuildReader[] = []): Promise<Digest> {
         // store each build by its package
-        const locked: Record<string, Digest> = {};
+        const digests: Record<string, Digest> = {};
         for (const each of builds) {
-            locked[each.manifest.package.name] = await TestDistribution.#putIndexed(
+            digests[each.manifest.package.name] = await TestDistribution.#putIndexed(
                 this.#store,
                 each,
             );
         }
         const root = await TestDistribution.#putIndexed(this.#store, build);
 
-        // lock them hoisted
-        const lock = await Lock.hoisted(root, locked, (digest) => this.#store.get(digest));
+        // make an image of them hoisted
+        const image = await BuildImage.hoisted(root, digests, (digest) => this.#store.get(digest));
 
-        return await this.#store.putLock(lock);
+        return await this.#store.putImage(image);
     }
 
-    /** Publish a lock in the run's store into its root package's forge as its publisher. */
-    async publish(lock: Digest, publisher: TestPublisher, machine: Machine): Promise<Digest> {
-        // read the lock's root build
+    /** Publish an image in the run's store into its root package's forge as its publisher. */
+    async publish(image: Digest, publisher: TestPublisher, machine: Machine): Promise<Digest> {
+        // read the image's root build
         const { directory, environment } = machine;
-        const build = await this.#store.root(lock);
+        const build = await this.#store.root(image);
 
         // wait until the machine's replica of the directory has the account of the package's scope
         const { name } = PackageManifest.package(build.manifest);
@@ -303,20 +303,22 @@ export class TestDistribution implements ReleaseRegistry, AsyncDisposable {
         const url = `${origin}${PackageMount.path(registryPackage.id)}`;
         const registry = new Registry(async () => ({ url, space: home, fetch }), environment);
 
-        // push its lock and publish it at the test commit
-        await registry.release(this.#store, [lock], accountId, LATEST_TAG, { commit: TEST_COMMIT });
+        // push its image and publish it at the test commit
+        await registry.release(this.#store, [image], accountId, LATEST_TAG, {
+            commit: TEST_COMMIT,
+        });
 
-        return lock;
+        return image;
     }
 
-    /** List the run's locks a distribution ships: the platform, its stacks, builtins and more. */
+    /** List the run's images a distribution ships: the platform, its stacks, builtins and more. */
     static async shipped(
-        store: Pick<LocalBuildStore, "get" | "lock">,
+        store: Pick<LocalBuildStore, "get" | "image">,
         built: Readonly<Record<string, Digest>>,
         given: readonly Digest[],
     ): Promise<Digest[]> {
-        // take the named packages' locks and the given ones
-        const lockOf = (name: string) => present(built[name], `the run's lock of ${name}`);
+        // take the named packages' images and the given ones
+        const imageOf = (name: string) => present(built[name], `the run's image of ${name}`);
         const named = [
             RUNTIME_PACKAGE,
             ...PLATFORM_PACKAGES,
@@ -324,20 +326,20 @@ export class TestDistribution implements ReleaseRegistry, AsyncDisposable {
             STACK_FIXTURE,
             START_FIXTURE,
         ];
-        const locks = [...named.map((name) => lockOf(name)), ...given];
+        const images = [...named.map((name) => imageOf(name)), ...given];
 
-        // ship every builtin's and library's lock too, as a platform build releases each unit
-        for (const lock of Object.values(built)) {
-            const root = await store.get((await store.lock(lock)).root);
+        // ship every builtin's and library's image too, as a platform build releases each unit
+        for (const image of Object.values(built)) {
+            const root = await store.get((await store.image(image)).root);
             if (root.role !== "app") {
-                locks.push(lock);
+                images.push(image);
             }
         }
 
-        return [...new Set(locks)];
+        return [...new Set(images)];
     }
 
-    /** Write a layer of locked releases once per process as a distribution does, and open it. */
+    /** Write a layer of release images once per process as a distribution does, and open it. */
     static async #distribute(
         releases: readonly Digest[],
         store: LocalBuildStore,
@@ -351,7 +353,7 @@ export class TestDistribution implements ReleaseRegistry, AsyncDisposable {
         return await BuildLayer.open(directory, store.environment);
     }
 
-    /** Write a linked layer of locked releases in the host's store, returning its directory. */
+    /** Write a linked layer of release images in the host's store, returning its directory. */
     static async #write(releases: readonly Digest[]): Promise<string> {
         await using store = await testStore();
 
@@ -404,17 +406,17 @@ export class TestDistribution implements ReleaseRegistry, AsyncDisposable {
         return TestDistribution.compile(workspace, directory);
     }
 
-    /** Build and lock every unit of a workspace package, each unit once per workspace. */
+    /** Build every unit of a workspace package and make its image, once per workspace. */
     static async compile(
         workspace: Workspace,
         directory: string,
-    ): Promise<{ readonly lock: Digest; readonly units: ReadonlyMap<string, Digest> }> {
-        // build and lock each unit
+    ): Promise<{ readonly image: Digest; readonly units: ReadonlyMap<string, Digest> }> {
+        // build and make an image of each unit
         const opened = await workspace.package(directory);
-        const locked = await opened.lockUnits({});
-        const units = new Map([...locked].map(([name, { lock }]) => [name, lock] as const));
+        const imaged = await opened.imageUnits({});
+        const units = new Map([...imaged].map(([name, { image }]) => [name, image] as const));
 
-        return { lock: found(units, opened.root.name), units };
+        return { image: found(units, opened.root.name), units };
     }
 
     /** Select a stack's export at a build's release by its version. */

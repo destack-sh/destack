@@ -1,7 +1,7 @@
 import { eq } from "@destack/db";
 import { assignment, placement } from "@destack/account/object";
 import { Identifier, nth } from "@destack/schema";
-import { expect, test } from "@destack/test";
+import { expect, onTestFinished, test } from "@destack/test";
 import { build } from "@destack/stack/object";
 import { ids, TestSpace } from "../test/index.ts";
 
@@ -43,7 +43,9 @@ test("assign the machine of an unfinished checkout build in the space, and withd
     await record(fixture.machine.id);
 
     // assign only the laptop through the machine's uplink, reading the assignments from the universe's rows
-    const projection = (await fixture.space).assignment((await fixture.space).remote());
+    const connections = new DisposableStack();
+    onTestFinished(() => connections.dispose());
+    const projection = (await fixture.space).assignment((await fixture.space).remote(connections));
     const reconciliation = { signal: new AbortController().signal, changed: async () => {} };
     const assignments = async () => {
         // wait for the space's replica of the universe's assignments, which the fixture follows

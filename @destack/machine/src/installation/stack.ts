@@ -79,14 +79,14 @@ export class StackInstallation {
         // refuse a requested build the stack cannot run
         const application = new ApplicationInstallation(target, this.#options);
         if (call.input.build !== undefined) {
-            await application.requireDeployable(call, chosen.lock);
+            await application.requireDeployable(call, chosen.image);
         }
 
         // record a chosen release as the space's build, and evaluate its export at its inputs
         const built = chosen.build ?? (await application.record(call, chosen.source)).id;
-        const lock = await this.#options.space.builds.lock(chosen.lock);
+        const image = await this.#options.space.builds.image(chosen.image);
         const inputs = await RolloutTarget.inputs(reader, target.installation);
-        const evaluation = await RolloutTarget.evaluate(inputs, lock, this.#options);
+        const evaluation = await RolloutTarget.evaluate(inputs, image, this.#options);
 
         // target the revision of the evaluation
         const revision = await application.revise(call, {

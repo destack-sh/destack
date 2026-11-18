@@ -171,14 +171,14 @@ export async function readStack(database: DatabaseConnection): Promise<Installat
 export async function insertRelease(
     database: DatabaseConnection,
     scope: Identifier<"space">,
-    release: { readonly package: PackageId; readonly version: string; readonly lock: Digest },
+    release: { readonly package: PackageId; readonly version: string; readonly image: Digest },
     outputs: readonly string[],
     environment: Environment,
-): Promise<{ readonly id: Identifier<"build">; readonly lock: Digest }> {
-    // record the build succeeded at the release's lock
+): Promise<{ readonly id: Identifier<"build">; readonly image: Digest }> {
+    // record the build succeeded at the release's image
     const now = environment.clock.now();
     const id = Identifier.create("build", environment);
-    const { lock } = release;
+    const { image } = release;
     await database.transaction(
         async (transaction) =>
             await transaction.insert(build.table).values({
@@ -187,7 +187,7 @@ export async function insertRelease(
                 source: { kind: "release", ...release },
                 outputs: [...outputs],
                 state: "succeeded",
-                lock,
+                image,
                 startedAt: now,
                 finishedAt: now,
                 createdAt: now,
@@ -196,7 +196,7 @@ export async function insertRelease(
     );
     await insertBuildScope(database, scope, id);
 
-    return { id, lock };
+    return { id, image };
 }
 
 /** Insert a build's own scope inside its space's, as creating a build does. */

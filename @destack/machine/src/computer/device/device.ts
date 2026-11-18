@@ -7,7 +7,7 @@ import { pathToFileURL } from "node:url";
 import { AccessContext, Authorization, Caller, principal } from "@destack/access";
 import { SpaceAddress, UniverseOrigin } from "@destack/account/address";
 import type { PlacementEndpoint } from "@destack/account/object";
-import { Issuer } from "@destack/account/client";
+import { Issuer, Session } from "@destack/account/client";
 import {
     CLIENT_KEYS,
     ClientKey,
@@ -30,7 +30,7 @@ import { call, device, type ObjectType, tablesOf } from "@destack/object";
 import objectPackage from "@destack/object/package";
 import { distribution } from "@destack/update/object";
 import { implementPackage, ObjectStore, type PackageImplementation } from "@destack/object/server";
-import { ObjectClient, ProcedureRemote } from "@destack/object/client";
+import { ObjectClient, ObjectRemote } from "@destack/object/client";
 import { PackageVersion, PackageId } from "@destack/package";
 import { Identifier, nth, present, schema } from "@destack/schema";
 import { type Fetch, Package, PackageMount, SpaceMount } from "@destack/object";
@@ -329,25 +329,12 @@ export class Device<
             caller: subject,
             device: subject,
             isMigrated: true,
-            remote: ProcedureRemote.at({
-                scope: subject.id,
-                endpoint: {
-                    url: "http://local.invalid/",
-                    fetch: async () => {
-                        throw MachineError.of(
-                            "METHOD_UNSUPPORTED",
-                            "calling a server from local objects is not supported",
-                        );
-                    },
-                },
-                reconnect: () => {
-                    throw MachineError.of(
-                        "METHOD_UNSUPPORTED",
-                        "moving local objects to a machine is not supported",
-                    );
-                },
-                environment: environment,
-            }),
+            remote: ObjectRemote.local(() =>
+                MachineError.of(
+                    "METHOD_UNSUPPORTED",
+                    "calling a server from local objects is not supported",
+                ),
+            ),
         });
     }
 
@@ -731,17 +718,10 @@ export class Device<
                 caller: isLocal
                     ? principal.device.reference(Scope.universe.id, this.id)
                     : principal.machine.reference(Scope.universe.id, machineId),
-                remote: ProcedureRemote.at({
-                    scope: isLocal ? this.id : machineId,
-                    endpoint: this.loopback.options(first.package.id),
-                    reconnect: (machine) => {
-                        throw MachineError.of(
-                            "OBJECTS_MOVED",
-                            `this computer's objects moved to '${machine}'`,
-                        );
-                    },
-                    environment: this.environment,
-                }),
+                remote: this.loopback.connection(
+                    PackageMount.path(first.package.id),
+                    isLocal ? this.id : machineId,
+                ),
             },
             stack,
         );
@@ -788,8 +768,11 @@ export class Device<
         return launched;
     }
 
-    /** Launch for a signed-in person from this device, proving their client to its own machine. */
-    async launcher(loginId: Identifier<"login">): Promise<Launcher> {
+    /** Launch for a signed-in person from this device, sending through a fetch. */
+    async launcher(
+        loginId: Identifier<"login">,
+        send: Fetch = (request) => this.environment.network.fetch(request),
+    ): Promise<Launcher> {
         // find spaces through this machine's directory, and reach this machine itself with the client's proof
         const login = await this.signedIn(loginId);
         const own = await this.loopback.computer();
@@ -805,13 +788,20 @@ export class Device<
                 const headers = new Headers(request.headers);
                 headers.set("authorization", `Bearer ${await login.prove()}`);
 
-                return this.environment.network.fetch(
-                    new Request(target.href, new Request(request, { headers })),
-                );
+                return send(new Request(target.href, new Request(request, { headers })));
             },
         };
 
-        return new Launcher(machine, login.session);
+        // call as the login's principal, sending through the machine
+        const { session } = login;
+        const through = new Session(session.credential, {
+            universe: session.universe,
+            send,
+            bookmark: session.bookmark,
+            environment: session.environment,
+        });
+
+        return new Launcher(machine, through);
     }
 
     /** Read the account this computer's machine is enrolled in, refusing an unenrolled one. */

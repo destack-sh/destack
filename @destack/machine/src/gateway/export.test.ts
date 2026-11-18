@@ -1,7 +1,7 @@
 import { join } from "node:path";
 import { TestBuildStore } from "@destack/build/test";
 import { PackageVersion, Sandbox } from "@destack/package";
-import { Lock } from "@destack/package/manifest";
+import { BuildImage } from "@destack/package/manifest";
 import { expect, test } from "@destack/test";
 import { testHost } from "@destack/test/host";
 import { MachineError } from "../error/index.ts";
@@ -59,14 +59,14 @@ test("export a static view as a static host serves it: pages with the import map
     );
     const typeface = await store.put(library);
     const root = await store.put(site);
-    const lock = await store.putLock(
-        await Lock.hoisted(root, { "@acme/type": typeface }, (digest) => store.get(digest)),
+    const image = await store.putImage(
+        await BuildImage.hoisted(root, { "@acme/type": typeface }, (digest) => store.get(digest)),
     );
 
     // export it below a fresh directory
     const directory = await host.files.makeTemporaryDirectory("destack-export-");
     try {
-        await new StaticExport(directory, store, host).write(lock, "site", new Map());
+        await new StaticExport(directory, store, host).write(image, "site", new Map());
         const paths = (await host.files.readDirectory(directory, { recursive: true }))
             .filter((entry) => entry.kind === "file")
             .map((entry) => entry.name)
@@ -163,10 +163,10 @@ test("refuse exporting a page that refers to a disk path or an unpublished asset
             { files: new Map([["browser/view/site/index.html", encoder.encode(page)]]) },
             host.crypto,
         );
-        const lock = await store.putLock(Lock.of(await store.put(site)));
+        const image = await store.putImage(BuildImage.of(await store.put(site)));
         const directory = await host.files.makeTemporaryDirectory("destack-export-");
         try {
-            await new StaticExport(directory, store, host).write(lock, "site", new Map());
+            await new StaticExport(directory, store, host).write(image, "site", new Map());
 
             return "exported";
         } catch (error) {

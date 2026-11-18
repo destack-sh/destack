@@ -1,3 +1,4 @@
+import type { Voucher } from "@destack/object/server";
 import type { BuildStore } from "@destack/build/store";
 import type { PageCredential } from "./credential.ts";
 import { ViewState } from "@destack/view/declare";
@@ -5,7 +6,14 @@ import * as accountObject from "@destack/account/object";
 import type { WorkloadInstance } from "@destack/object/workload";
 import { OtlpExport } from "@destack/telemetry/otlp";
 import { DeclarationName, PackageId, PackageName } from "@destack/package";
-import { canonicalize, type Digest, type Identifier, schema, Version } from "@destack/schema";
+import {
+    canonicalize,
+    type Digest,
+    type Identifier,
+    present,
+    schema,
+    Version,
+} from "@destack/schema";
 import {
     CallError,
     Egress,
@@ -29,7 +37,6 @@ import type { Machine } from "../machine/index.ts";
 import { Bearer, Exchange, TOKEN_LIFETIME_MILLISECONDS, TokenCache } from "@destack/access/token";
 import {
     HOOK_PATH,
-    PARTITION_HEADER,
     ROUTE_HEADER,
     SOCKET_HEADER,
     SOCKET_INSTANCE_HEADER,
@@ -46,7 +53,7 @@ import { Bucket, Snapshot } from "@destack/db";
 import { Attribution } from "@destack/package/stack";
 import { OTLP_ORIGIN_PATH, OtlpSignal } from "@destack/telemetry/otlp";
 import { Authentication, Caller, CALLER_HEADER, principal } from "@destack/access";
-import { copyRequest, Forwarded } from "@destack/environment";
+import { copyRequest, Forwarded, WebSocketUpgrade } from "@destack/environment";
 import { type Space, type SpaceStart } from "../space/space.ts";
 import { BucketKind } from "@destack/bucket";
 import { S3_PACKAGE } from "@destack/bucket/s3";
@@ -62,12 +69,13 @@ import {
     type WorkloadResource,
 } from "../runtime/runtime.ts";
 import { Subject } from "@destack/sync";
-import { ViewOrigin } from "./origin.ts";
+import { InstallationOriginServer } from "./origin.ts";
 import { MachineError } from "../error/index.ts";
 import { Failure } from "@destack/error";
 import { HOOK_WORKLOAD } from "@destack/stack/workload";
 import { DOMAINS, InstallationOrigin, S3Origin, SpaceAddress } from "@destack/account/address";
 import { RouteRequest } from "./route.ts";
+import { PartitionRequest } from "../space/route.ts";
 import type {} from "@destack/package/import-meta";
 
 /** The milliseconds a caller waits for a deploying installation: an instance starts in seconds. */
@@ -107,8 +115,8 @@ export type Destination =
           readonly kind: "package";
           /** The package receiving the call. */
           readonly audience: PackageId;
-          /** Serve the call as a verified caller. */
-          readonly fetch: (request: Request, authentication: Authentication) => Promise<Response>;
+          /** Serve the call, each of its calls as the caller a voucher vouches for. */
+          readonly fetch: (request: Request, voucher: Voucher) => Promise<Response>;
       }
     | {
           /** An external API a connection lends its credential to. */
@@ -193,6 +201,7 @@ export type GatewaySpace = Pick<
         | "environment"
         | "runtimes"
         | "hibernation"
+        | "bridge"
         | "send"
         | "serve"
         | "locate"
@@ -207,7 +216,7 @@ export type GatewaySpace = Pick<
 /** A space's gateway: every call into and out of its installations, their origins and telemetry. */
 export class Gateway {
     /** The origins of the space's installations, serving their views' pages. */
-    readonly #views: ViewOrigin;
+    readonly #originServer: InstallationOriginServer;
     /** The space the gateway serves. */
     readonly #space: GatewaySpace;
     /** What the workload's run serves with: the S3 API over the space's buckets. */
@@ -239,7 +248,7 @@ export class Gateway {
         this.#tokens = tokens;
 
         // serve the installations' origins through the gateway
-        this.#views = new ViewOrigin(space, this);
+        this.#originServer = new InstallationOriginServer(space, this);
     }
 
     /** List the packages the space's store serves now. */
@@ -275,7 +284,7 @@ export class Gateway {
     }
 
     /** Serve a request to the space: its routes, origins, package mounts and installations. */
-    async serve(request: Request, authentication?: Authentication): Promise<Response> {
+    async serve(request: Request, voucher?: Voucher): Promise<Response> {
         try {
             // mount an origin's request below its installation, else a route's below its mount
             const origin =
@@ -285,7 +294,7 @@ export class Gateway {
                     : undefined;
             const routed =
                 origin === undefined
-                    ? await this.#route(request, authentication)
+                    ? await this.#route(request, voucher)
                     : await this.#origin(origin, request);
             if (routed instanceof Response) {
                 return routed;
@@ -297,7 +306,7 @@ export class Gateway {
                 return await this.#space.call(
                     PackageId.parse(mounted.packageId),
                     mounted.request,
-                    authentication,
+                    voucher,
                 );
             }
 
@@ -305,8 +314,8 @@ export class Gateway {
             const forwarded = routed ?? request;
 
             return (
-                (await this.#installations(forwarded, authentication)) ??
-                (await this.#space.call(stackPackage.id, forwarded, authentication))
+                (await this.#installations(forwarded, voucher)) ??
+                (await this.#space.call(stackPackage.id, forwarded, voucher))
             );
         } catch (error) {
             // answer a request its caller aborted as closed by the client, and refuse any other failure
@@ -325,10 +334,7 @@ export class Gateway {
     }
 
     /** Serve a routed request by its rule: a response, its views, its mount or another site. */
-    async #route(
-        request: Request,
-        authentication: Authentication | undefined,
-    ): Promise<Response | undefined> {
+    async #route(request: Request, voucher: Voucher | undefined): Promise<Response | undefined> {
         // return the route's own response
         const routed = await RouteRequest.mount(
             this.#space.database,
@@ -349,12 +355,16 @@ export class Gateway {
             });
 
             return routed.respond(
-                await this.#views.serve(RouteRequest.strip(routed.request), found, routed.mount),
+                await this.#originServer.serve(
+                    RouteRequest.strip(routed.request),
+                    found,
+                    routed.mount,
+                ),
             );
         }
         // hand the mount its request
         else if (routed.kind === "mount") {
-            const response = await this.#installations(routed.request, authentication);
+            const response = await this.#installations(routed.request, voucher);
 
             return routed.respond(response ?? new Response(null, { status: 404 }));
         }
@@ -388,14 +398,14 @@ export class Gateway {
         }
         // serve any other path at the origin: its platform paths, build files and views
         else {
-            return this.#views.serve(request, found);
+            return this.#originServer.serve(request, found);
         }
     }
 
     /** Serve a request of the space's installations: calls, webhooks, sockets, telemetry, S3. */
     async #installations(
         request: Request,
-        authentication: Authentication | undefined,
+        voucher: Voucher | undefined,
     ): Promise<Response | undefined> {
         // take the workloads' calls out, sockets and telemetry
         const url = new URL(request.url);
@@ -413,13 +423,13 @@ export class Gateway {
         }
         // take telemetry: an instance's by its secret, a page's or a machine's by its verified caller
         else if (url.pathname.startsWith(`${OTLP_ORIGIN_PATH}/`)) {
-            const verified = authentication ?? (await this.#signed(request));
+            const verified = (await voucher?.(request)) ?? (await this.#signed(request));
 
             return await this.#telemetry(request, verified?.caller.subject);
         }
         // send a person's own tool's call through one of their connections, its credential applied
         else if (url.pathname.startsWith(`${CONNECTION_PATH}/`)) {
-            return await this.#connect(url, request, authentication);
+            return await this.#connect(url, request, await voucher?.(request));
         }
         // serve the buckets over S3 at the host their client signed, which a front door forwards
         else if (isS3) {
@@ -427,7 +437,7 @@ export class Gateway {
         }
         // serve a call or a webhook to an installation
         else if (installed !== undefined) {
-            return await this.#installation(installed, authentication);
+            return await this.#installation(installed, voucher);
         }
         // answer nothing for any other request
         else {
@@ -503,7 +513,7 @@ export class Gateway {
     /** Deliver a mount's request, a routed request or a call to an installation. */
     async #installation(
         mounted: NonNullable<ReturnType<typeof InstallationMount.of>>,
-        authentication: Authentication | undefined,
+        voucher: Voucher | undefined,
     ): Promise<Response> {
         // count the request's bytes as they stream in, once the installation serving it is known
         const { database } = this.#space;
@@ -518,7 +528,7 @@ export class Gateway {
             (handle) => handle.id === served.installation.packageId,
         );
         if (isStored) {
-            const answered = await this.#store(served, installed, authentication);
+            const answered = await this.#store(served, installed, voucher);
 
             return traffic.countEgress(scope, installationId, answered);
         }
@@ -534,25 +544,29 @@ export class Gateway {
         // hand a request at a mount its package declares to the newest deployment, as it speaks no release
         const path = new URL(installed.request.url).pathname;
         const own = PackageId.parse(served.installation.packageId);
+        const calls: Voucher = async (call) => {
+            const each = { ...installed, request: call };
+
+            return (await this.#authenticate(each, served, own, voucher)).authentication;
+        };
         if (this.#isAdapted(served.installationId, own, path)) {
-            const called = await this.#authenticate(installed, served, own, authentication);
-            const answered = await this.#adapted(
-                served.installationId,
-                path,
-                installed.request,
-                called.authentication,
-            );
+            const called = await this.#authenticate(installed, served, own, voucher);
+            const answered = await this.#adapted(served.installationId, path, installed.request, {
+                authentication: called.authentication,
+                voucher: calls,
+            });
 
             return traffic.countEgress(scope, installationId, answered);
         }
 
         // verify the caller for the installation's package and route the call to the deployment serving its release
-        const called = await this.#authenticate(installed, served, own, authentication);
+        const called = await this.#authenticate(installed, served, own, voucher);
         const answered = await this.ingress(
             called.rollout.installationId,
             path,
             installed.request,
             called.authentication,
+            calls,
         );
 
         return traffic.countEgress(called.rollout.scope, called.rollout.installationId, answered);
@@ -562,7 +576,7 @@ export class Gateway {
     async #store(
         served: InstallationRollout,
         installed: NonNullable<ReturnType<typeof InstallationMount.of>>,
-        authentication: Authentication | undefined,
+        voucher: Voucher | undefined,
     ): Promise<Response> {
         // hand a call below its package's path or a protocol's the package implements over as its verified caller
         const packageId = PackageId.parse(served.installation.packageId);
@@ -580,10 +594,14 @@ export class Gateway {
                 `route '${path}' in the installation's package not found`,
             );
         }
+        // verify each call the package serves, a connection's each on its own
         const audience = PackageId.parse(mounted.packageId);
-        const called = await this.#authenticate(installed, served, audience, authentication);
 
-        return this.#space.call(packageId, mounted.request, called.authentication);
+        return this.#space.call(packageId, mounted.request, async (call) => {
+            const called = { ...installed, request: call };
+
+            return (await this.#authenticate(called, served, audience, voucher)).authentication;
+        });
     }
 
     /** Verify an installation's caller for a package it serves, taking one handed verified. */
@@ -591,7 +609,7 @@ export class Gateway {
         installed: NonNullable<ReturnType<typeof InstallationMount.of>>,
         served: InstallationRollout,
         audience: PackageId,
-        handed: Authentication | undefined,
+        voucher: Voucher | undefined,
     ) {
         // verify another space's installation by its space's token
         const { request } = installed;
@@ -600,7 +618,8 @@ export class Gateway {
             return peer.receive(this.#space, installed);
         }
 
-        // take a caller verified for the called package, else verify the request
+        // take a caller vouched for the called package, else verify the request
+        const handed = await voucher?.(request);
         const authentication =
             handed?.credential.audience === audience
                 ? handed
@@ -615,6 +634,7 @@ export class Gateway {
         path: string,
         request: Request,
         authentication: Authentication | undefined,
+        voucher?: Voucher,
     ): Promise<Response> {
         // require the release the caller speaks
         const header = request.headers.get(VERSION_HEADER);
@@ -644,20 +664,16 @@ export class Gateway {
 
         // forward the caller
         const runtime = this.#runtime(serving.runtime);
-        const named = request.headers.get(PARTITION_HEADER) ?? undefined;
+        const named = PartitionRequest.named(request);
 
         // forward a large body or one of unknown length once, to the partition the call selects
         const resendable = await Gateway.#resendable(request);
         if (resendable === undefined) {
-            const answered = await runtime.fetch(
-                serving.instanceId,
-                path,
-                request,
+            return this.#forward(runtime, serving.instanceId, path, request, {
                 authentication,
-                named,
-            );
-
-            return Gateway.#accepted(answered, serving.instanceId);
+                voucher,
+                partition: named,
+            });
         }
 
         // resend a small body once to the partition the store points to
@@ -669,24 +685,51 @@ export class Gateway {
                     : named;
             const call = copyRequest(request, { body });
 
-            return runtime.fetch(serving.instanceId, path, call, authentication, partition);
+            return this.#forward(runtime, serving.instanceId, path, call, {
+                authentication,
+                voucher,
+                ...(partition === undefined ? {} : { partition }),
+            });
         });
 
-        return Gateway.#accepted(answered, serving.instanceId);
+        return answered;
     }
 
-    /** Add the instance that accepts a socket to its answer to an upgrade. */
-    static #accepted(answer: Response, instanceId: string): Response {
+    /** Forward a request to an instance, vouching for each call of a socket it accepts. */
+    async #forward(
+        runtime: Runtime,
+        instanceId: Identifier<"instance">,
+        path: string,
+        request: Request,
+        caller: {
+            /** The request's verified caller, which an upgrade leaves to each of its calls. */
+            readonly authentication: Authentication | undefined;
+            /** The voucher of a socket's calls, absent for anonymous ones. */
+            readonly voucher?: Voucher | undefined;
+            /** The partition the request selects. */
+            readonly partition?: string | undefined;
+        },
+    ): Promise<Response> {
+        // forward a plain request with its caller, an upgrade without one
+        const isUpgrade = WebSocketUpgrade.of(request) !== undefined;
+        const forwarded = isUpgrade ? undefined : caller.authentication;
+        const answer = await runtime.fetch(instanceId, path, request, forwarded, caller.partition);
+
         // pass on an answer accepting no socket
         if (!answer.headers.has(SOCKET_HEADER)) {
             return answer;
         }
 
-        // add the instance beside the acceptance
+        // add the instance beside the acceptance, and vouch for each of the socket's calls
         const headers = new Headers(answer.headers);
         headers.set(SOCKET_INSTANCE_HEADER, instanceId);
+        const accepted = new Response(answer.body, { status: answer.status, headers });
+        if (caller.voucher !== undefined) {
+            const host = present(this.#space.machine.hibernation, "the machine's sockets");
+            host.vouch(accepted, request.url, caller.voucher);
+        }
 
-        return new Response(answer.body, { status: answer.status, headers });
+        return accepted;
     }
 
     /** Report whether a path below an installation is at a mount its package declares. */
@@ -714,15 +757,16 @@ export class Gateway {
         installationId: Identifier<"installation">,
         path: string,
         request: Request,
-        authentication: Authentication | undefined,
+        caller: { readonly authentication: Authentication | undefined; readonly voucher: Voucher },
     ): Promise<Response> {
         const newest = await this.#newest(installationId, () => true, "serves its mounts");
 
-        return this.#runtime(newest.runtime).fetch(
+        return this.#forward(
+            this.#runtime(newest.runtime),
             newest.instanceId,
             path,
             request,
-            authentication,
+            caller,
         );
     }
 
@@ -911,12 +955,12 @@ export class Gateway {
 
         // serve an installation or package on this machine, as the caller or its asked subject
         if (destination.kind === "installation" || destination.kind === "package") {
-            const authentication =
+            const voucher = async () =>
                 asked === undefined ? own() : await this.act(acting, asked, target);
 
             return destination.kind === "installation"
-                ? this.ingress(destination.installationId, destination.path, call, authentication)
-                : destination.fetch(call, authentication);
+                ? this.ingress(destination.installationId, destination.path, call, await voucher())
+                : destination.fetch(call, voucher);
         }
         // call out with the installation's token, or its subject's exchanged one
         else {
@@ -932,6 +976,36 @@ export class Gateway {
         }
     }
 
+    /** Add the token a call to a remote address carries, as each connection call does. */
+    async authorize(caller: EgressCaller, request: Request): Promise<Request> {
+        // require an address
+        const routed = Egress.of(request);
+        if (routed === undefined) {
+            throw MachineError.of(
+                "EGRESS_ADDRESS_NOT_FOUND",
+                "egress address of the request not found",
+            );
+        }
+
+        // leave a call this machine serves, which it vouches for itself, and an external one, which its connection lends
+        const { pathname } = new URL(routed.request.url);
+        const destination = await this.resolve(caller, routed.address, pathname);
+        if (destination.kind !== "remote") {
+            return request;
+        }
+
+        // sign the installation's token for the remote machine
+        const now = this.#space.machine.clock.now();
+        const token = await this.#sign(
+            Gateway.#authentication(caller, destination, now),
+            caller.scope,
+        );
+        const headers = new Headers(request.headers);
+        headers.set("authorization", `Bearer ${token}`);
+
+        return new Request(request, { headers });
+    }
+
     /** Resolve an address an installation calls, from an instance or its store. */
     async resolve(caller: EgressCaller, address: string, path: string): Promise<Destination> {
         // take a package the space serves for every workload as a caller verified here
@@ -940,8 +1014,7 @@ export class Gateway {
             return {
                 kind: "package",
                 audience: served.id,
-                fetch: (request, authentication) =>
-                    this.#space.call(served.id, request, authentication),
+                fetch: (request, voucher) => this.#space.call(served.id, request, voucher),
             };
         }
 
@@ -1233,7 +1306,7 @@ export class Gateway {
     /** Append an instance's OTLP/JSON export to its space as the machine, stamped by emitter. */
     async telemetry(spec: InstanceSpec, signal: OtlpSignal, body: unknown): Promise<void> {
         const emitter = { installation: spec.installationId, instance: spec.instanceId };
-        await this.record({ ...emitter, build: spec.lock }, signal, body);
+        await this.record({ ...emitter, build: spec.image }, signal, body);
     }
 
     /** Record an installation's export: stamp its emitter, attribute its frames, forward it. */

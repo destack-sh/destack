@@ -43,16 +43,16 @@ export class ServerBundle {
         return new ServerBundle(servers, shipped);
     }
 
-    /** Find the bundled server of a shipped release's lock, none without one, refusing others. */
-    server(lock: Digest): PackageImplementation | undefined {
-        // refuse a lock the deploy did not ship
+    /** Find the bundled server of a shipped release's image, none without one, refusing others. */
+    server(image: Digest): PackageImplementation | undefined {
+        // refuse an image the deploy did not ship
         const release = DistributionManifest.releases(this.#shipped, "workerd").find(
-            (each) => each.lock === lock,
+            (each) => each.image === image,
         );
         if (release === undefined) {
             throw MachineError.of(
                 "SERVER_BROKEN",
-                `a cloud machine runs in its process only the servers its deploy ships, not lock '${lock}'`,
+                `a cloud machine runs in its process only the servers its deploy ships, not image '${image}'`,
             );
         }
 

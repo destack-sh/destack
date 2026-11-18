@@ -302,7 +302,7 @@ export class ComputerServer {
         }
         // forward anything else to its target
         else {
-            return (await this.device.launcher(loginId.data)).forward(request, target);
+            return (await this.launcher(loginId.data)).forward(request, target);
         }
     }
 

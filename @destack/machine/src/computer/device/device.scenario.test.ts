@@ -1,6 +1,5 @@
 import { currentLogin, currentSpace } from "@destack/account/native";
 import { PackageMount } from "@destack/object";
-import { ProcedureRemote } from "@destack/object/client";
 import { rollout } from "@destack/stack/object";
 import stackPackage from "@destack/stack/package";
 import { setting } from "@destack/setting/object";
@@ -82,18 +81,12 @@ test("refuse to read the account of a machine nobody enrolled", async () => {
     ]);
 });
 
-test("route a describe call without a scope in its body to the stack package of the space its path names", async () => {
-    // call the stack package of the owner's home at its machine, whose describe body has no scope
+test("describe the types a space's store serves over a connection to the stack package of the space", async () => {
+    // connect to the stack package of the owner's home at its machine
     const { home, login } = await TestComputer.home();
     const { device, world } = home;
-    const stack = ProcedureRemote.at({
-        scope: world.owner.home,
-        endpoint: (await device.launcher(login)).endpoint(
-            stackPackage.id,
-            await device.locate(world.owner.home),
-        ),
-        environment: home.device.environment,
-    });
+    const launcher = await device.launcher(login);
+    const stack = await launcher.connect({ space: world.owner.home }, stackPackage.id);
 
     // describe the rollouts
     const described = await stack.describe([rollout.typeReference]);
@@ -140,21 +133,18 @@ test("forward the owner's calls as a signed-in person to a space's package, refu
     // reach the home's stack package through the machine as the owner's person
     const { home, login } = await TestComputer.home();
     const { device, world } = home;
-    const machine = device.loopback.options(machinePackage.id);
-    const people = `http://127.0.0.1${PackageMount.path(machinePackage.id)}${PEOPLE_PATH}/${login}`;
-    const stack = ProcedureRemote.at({
-        scope: world.owner.home,
-        endpoint: { ...machine, url: `${people}/space/${world.owner.home}/${stackPackage.id}` },
-        environment: device.environment,
-    });
+    const people = `${PackageMount.path(machinePackage.id)}${PEOPLE_PATH}/${login}`;
+    const stack = device.loopback.connection(
+        `${people}/space/${world.owner.home}/${stackPackage.id}`,
+        world.owner.home,
+    );
 
     // describe the rollouts there, and through a target of no kind
     const described = await stack.describe([rollout.typeReference]);
-    const nowhere = ProcedureRemote.at({
-        scope: world.owner.home,
-        endpoint: { ...machine, url: `${people}/elsewhere/${stackPackage.id}` },
-        environment: device.environment,
-    });
+    const nowhere = device.loopback.connection(
+        `${people}/elsewhere/${stackPackage.id}`,
+        world.owner.home,
+    );
 
     // expect the space's answer, as the session gives it directly, and the target refused
     expect({

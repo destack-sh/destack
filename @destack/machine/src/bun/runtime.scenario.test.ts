@@ -1,4 +1,4 @@
-import { Lock } from "@destack/package/manifest";
+import { BuildImage } from "@destack/package/manifest";
 import type { InstanceExit } from "../runtime/runtime.ts";
 import { Program } from "@destack/package/bun";
 import { testHost } from "@destack/test/host";
@@ -140,7 +140,7 @@ test("run an instance as a Bun process bound at the egress, serving forwarded ca
         .parse("space-01996ab0-0000-7000-8000-0000000000eb");
     const exits: InstanceExit[] = [];
     const exit = Promise.withResolvers<void>();
-    const lock = await packages.putLock(Lock.of(await packages.put(build)));
+    const image = await packages.putImage(BuildImage.of(await packages.put(build)));
     const spec: InstanceSpec = {
         settings: {},
         instanceId,
@@ -152,7 +152,7 @@ test("run an instance as a Bun process bound at the egress, serving forwarded ca
             .identifier("deployment")
             .parse("deployment-01996ab0-0000-7000-8000-0000000000e3"),
         build,
-        lock,
+        image,
         output: "bun",
         workload: "notes",
         enabled: [],
@@ -384,7 +384,7 @@ test("keep an instance's data in the runtime's own directory when it runs its bu
         },
         world.crypto,
     );
-    const lock = await store.putLock(Lock.of(await store.put(build)));
+    const image = await store.putImage(BuildImage.of(await store.put(build)));
     const installationId = schema
         .identifier("installation")
         .parse("installation-01996ab0-0000-7000-8000-0000000000f1");
@@ -401,7 +401,7 @@ test("keep an instance's data in the runtime's own directory when it runs its bu
                 .identifier("deployment")
                 .parse("deployment-01996ab0-0000-7000-8000-0000000000f3"),
             build,
-            lock,
+            image,
             output: "bun",
             workload: "notes",
             enabled: [],
@@ -513,7 +513,7 @@ test("deny a sandboxed workload's calls to hosts its capabilities omit", async (
     const instanceId = schema
         .identifier("instance")
         .parse("instance-01996ab0-0000-7000-8000-0000000000d2");
-    const lock = await packages.putLock(Lock.of(await packages.put(build)));
+    const image = await packages.putImage(BuildImage.of(await packages.put(build)));
     const spec: InstanceSpec = {
         settings: {},
         instanceId,
@@ -525,7 +525,7 @@ test("deny a sandboxed workload's calls to hosts its capabilities omit", async (
             .identifier("deployment")
             .parse("deployment-01996ab0-0000-7000-8000-0000000000d3"),
         build,
-        lock,
+        image,
         output: "bun",
         workload: "fetch",
         scope,
@@ -639,7 +639,7 @@ test("import and call a shared package's export as the machine's own instance, a
 
         const root = await packages.put(build);
 
-        return await packages.putLock(Lock.of(root));
+        return await packages.putImage(BuildImage.of(root));
     };
     const [shared, other] = [await stored("@example/shared", 1), await stored("@example/other", 2)];
 
@@ -699,7 +699,7 @@ test("refuse a sandboxed call of a release running a native addon, and load it f
         },
         world.crypto,
     );
-    const lock = await packages.putLock(Lock.of(await packages.put(build)));
+    const image = await packages.putImage(BuildImage.of(await packages.put(build)));
 
     // call it sandboxed, then import it as a host installation does, on one sandboxed runtime
     const runtime = new BunRuntime({
@@ -715,8 +715,8 @@ test("refuse a sandboxed call of a release running a native addon, and load it f
         output: () => {},
     });
     onTestFinished(() => runtime.close());
-    const sandboxed = await refusal(runtime.call(lock, "bun/server.js", "describe", []));
-    const hosted = await runtime.import(lock, "./server");
+    const sandboxed = await refusal(runtime.call(image, "bun/server.js", "describe", []));
+    const hosted = await runtime.import(image, "./server");
 
     // refuse the addon in the sandbox, and load it for the host installation
     expect([

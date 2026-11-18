@@ -19,12 +19,14 @@ import {
     STOP_PATH,
 } from "@destack/object/cloudflare";
 import { WORKLOAD_EXPORT } from "@destack/object/workload";
-import { refusal } from "@destack/object";
+import type { HibernatingSocket, Upgrade } from "@destack/object/cloudflare";
+import { refusal, reportError } from "@destack/object";
 import {
     SocketDescription,
     SOCKET_HEADER,
     SOCKET_PATH,
     SocketAcceptance,
+    SocketMessage,
 } from "@destack/object/workload";
 import { Attribution } from "../attribution.ts";
 import type {} from "@destack/package/import-meta";
@@ -110,29 +112,8 @@ export interface PartitionState {
     readonly setWebSocketAutoResponse: (pair: unknown) => void;
 }
 
-/** The server end of a WebSocket workerd leaves open for a Durable Object across hibernation. */
-export interface HibernatingSocket {
-    /** Send one message. */
-    readonly send: (message: ArrayBuffer | Uint8Array) => void;
-    /** Close the connection. */
-    readonly close: () => void;
-    /** Attach a value to the WebSocket across hibernation. */
-    readonly serializeAttachment: (value: unknown) => void;
-    /** Read the value stored with the WebSocket. */
-    readonly deserializeAttachment: () => unknown;
-}
-
-/** The pair of WebSocket ends workerd creates for an upgrade, the client's first. */
-declare const WebSocketPair: new () => { readonly 0: unknown; readonly 1: HibernatingSocket };
-
 /** A text message and the answer workerd sends to it on a hibernating WebSocket's behalf. */
 declare const WebSocketRequestResponsePair: new (request: string, response: string) => unknown;
-
-/** What workerd answers an upgrade with: the switch, and the client's end of the WebSocket. */
-interface Upgrade extends ResponseInit {
-    /** The client's end of the WebSocket. */
-    readonly webSocket: unknown;
-}
 
 /** The bindings a partition's object reads. */
 export interface PartitionBindings {
@@ -312,8 +293,8 @@ export class InstallationFacet {
         socket: HibernatingSocket,
         message: ArrayBuffer | string,
     ): Promise<void> {
-        const body = typeof message === "string" ? new TextEncoder().encode(message) : message;
-        await this.#event(socket, { method: "POST", body });
+        const bytes = typeof message === "string" ? message : new Uint8Array(message);
+        await this.#event(socket, SocketMessage.request(bytes));
     }
 
     /** Hand the workload an accepted WebSocket's close. */
@@ -334,6 +315,10 @@ export class InstallationFacet {
             `${this.installation}/${description.id}`,
         ]);
         pair[1].serializeAttachment(description);
+        // tell the workload the socket is kept before any of its messages, reporting a failed delivery
+        this.#event(pair[1], { method: "PUT" }).catch((error: unknown) => {
+            reportError(error, this.#environment.telemetry);
+        });
 
         // answer the declared text message without waking the object
         if (acceptance.respond !== undefined) {
@@ -373,6 +358,7 @@ export class InstallationFacet {
             new Request(`https://workload${SOCKET_PATH}/${id}`, {
                 ...request,
                 headers: {
+                    ...Object.fromEntries(new Headers(request.headers)),
                     authorization: `Bearer ${started.workload.start.secret}`,
                     [SOCKET_HEADER]: JSON.stringify(description),
                 },
@@ -425,7 +411,7 @@ export class InstallationFacet {
         }
         // send to it otherwise
         else {
-            socket.send(new Uint8Array(await request.arrayBuffer()));
+            socket.send(await SocketMessage.read(request));
         }
 
         return new Response(null, { status: 204 });
@@ -726,3 +712,5 @@ export class FacetHost {
 }
 
 export type { DurableObjectNamespace };
+
+export type { HibernatingSocket } from "@destack/object/cloudflare";

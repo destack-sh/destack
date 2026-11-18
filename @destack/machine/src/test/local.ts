@@ -36,8 +36,8 @@ export class LocalRuntime implements Runtime {
     readonly #runner: (spec: InstanceSpec) => WorkloadRunnerOptions;
     /** The scheduler a call's module import runs on. */
     readonly #scheduler: Scheduler;
-    /** Open a lock's root build, whose module a call imports. */
-    readonly #root: (lock: Digest) => Promise<BuildReader>;
+    /** Open an image's root build, whose module a call imports. */
+    readonly #root: (image: Digest) => Promise<BuildReader>;
     /** The workloads starting and running. */
     readonly #registry: InstanceRegistry<Running>;
 
@@ -55,8 +55,8 @@ export class LocalRuntime implements Runtime {
         readonly runner: (spec: InstanceSpec) => WorkloadRunnerOptions;
         /** The scheduler a call's module import runs on. */
         readonly scheduler: Scheduler;
-        /** Open a lock's root build, whose module a call imports. */
-        readonly root: (lock: Digest) => Promise<BuildReader>;
+        /** Open an image's root build, whose module a call imports. */
+        readonly root: (image: Digest) => Promise<BuildReader>;
     }) {
         // set the egress, the space identities and the workloads
         this.#egress = options.egress;
@@ -88,14 +88,14 @@ export class LocalRuntime implements Runtime {
         return this.#registry.identify(secret);
     }
 
-    /** Call an export of a lock's root module in this process, as the workspace installs it. */
+    /** Call an export of an image's root module in this process, as the workspace installs it. */
     async call(
-        lock: Digest,
+        image: Digest,
         path: string,
         name: string,
         input: readonly JsonValue[],
     ): Promise<JsonValue> {
-        return await callInProcess(await this.#root(lock), path, name, input, this.#scheduler);
+        return await callInProcess(await this.#root(image), path, name, input, this.#scheduler);
     }
 
     /** Stop every instance. */

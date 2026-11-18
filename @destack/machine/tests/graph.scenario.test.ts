@@ -3,7 +3,7 @@ import { AccessContext, Caller, principal } from "@destack/access";
 import { eq } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
 import { testSimulation } from "@destack/object/test";
-import { ObjectClient, ProcedureRemote } from "@destack/object/client";
+import { ObjectClient } from "@destack/object/client";
 import { graph, PackageId } from "@destack/package";
 import { BuildReader } from "@destack/package/manifest";
 import { MemoryBuild } from "@destack/package/test";
@@ -132,21 +132,13 @@ test("serve a build's modules, declarations and symbols to its readers", async (
         dialect: "sqlite",
     });
     onTestFinished(() => local.close());
-    const endpoint = fixture.as(fixture.owner.subject).endpoint(stackPackage);
     const client = await ObjectClient.open({
         environment: browser,
         database: local.database,
         objects: { module, declaration },
         scope: buildId,
         caller: fixture.owner.subject,
-        remote: ProcedureRemote.at({
-            scope: buildId,
-            endpoint,
-            reconnect: (holder) => {
-                throw new TypeError(`no build moves, yet one moved to '${holder}'`);
-            },
-            environment: browser,
-        }),
+        remote: fixture.as(fixture.owner.subject).connect(stackPackage, { scope: buildId }),
     });
     const stopping = new AbortController();
     const running = client.run(stopping.signal);
@@ -178,7 +170,7 @@ test("refuse to open the graph of a build the space does not record", async () =
         storage.database,
         {
             storeOf: refuse,
-            lock: refuse,
+            image: refuse,
             contents: refuse,
             graph: refuse,
         },

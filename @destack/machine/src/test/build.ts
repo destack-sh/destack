@@ -12,7 +12,7 @@ import { PackageVersion, PackageId, type PackageRelease } from "@destack/package
 import type { PackageFile } from "@destack/package/file";
 import {
     type BuildReader,
-    Lock,
+    BuildImage,
     OutputContent,
     type OutputExport,
 } from "@destack/package/manifest";
@@ -122,7 +122,7 @@ const FIXTURE_NAME_DIGITS = 18;
 export class TestRegistry implements Registry, ReleaseRegistry {
     /** The stored fixture builds. */
     readonly #store: BuildStore;
-    /** The locks of the pushed releases, by package and version. */
+    /** The images of the pushed releases, by package and version. */
     readonly #pushed = new Map<string, Digest>();
 
     /** The fixture app whose declared releases it serves, absent where it serves released ones. */
@@ -154,7 +154,7 @@ export class TestRegistry implements Registry, ReleaseRegistry {
             const crypto = this.#store.environment.crypto;
             const root = await this.#store.put(await fixtureBuild(packageId, version, crypto));
 
-            return await this.#store.putLock(Lock.of(root));
+            return await this.#store.putImage(BuildImage.of(root));
         }
         // refuse any other release, as a forge does
         else {
@@ -239,53 +239,53 @@ export class TestRegistry implements Registry, ReleaseRegistry {
 
     /** Open a release's build, as the universe opens the stacks it applies. */
     async open(packageId: PackageId, named: string): Promise<BuildReader> {
-        const lock = await this.#store.lock(await this.find(packageId, named));
+        const image = await this.#store.image(await this.find(packageId, named));
 
-        return await this.#store.contents(lock.root);
+        return await this.#store.contents(image.root);
     }
 
-    /** Release a build locked with the builds it runs with, answering its lock's digest. */
+    /** Release a build in an image with the builds it runs with, answering its image's digest. */
     async release(build: BuildReader, builds: readonly BuildReader[] = []): Promise<Digest> {
-        // store the builds and their lock
-        const { lock } = await lockBuild(this.#store, build, builds);
+        // store the builds and their image
+        const { image } = await imageBuild(this.#store, build, builds);
         const released = PackageManifest.package(build.manifest);
-        this.#pushed.set(`${released.id}@${released.version}`, lock);
+        this.#pushed.set(`${released.id}@${released.version}`, image);
 
-        return lock;
+        return image;
     }
 
-    /** Receive a stored lock with the builds it lists, as its forge does. */
-    async push(store: Pick<BuildStore, "contents" | "lock">, lock: Digest): Promise<void> {
-        // read the lock the registry has
-        const isStored = await this.#store.contains(lock);
-        const read = isStored ? await this.#store.lock(lock) : await store.lock(lock);
+    /** Receive a stored image with the builds it lists, as its forge does. */
+    async push(store: Pick<BuildStore, "contents" | "image">, image: Digest): Promise<void> {
+        // read the image the registry has
+        const isStored = await this.#store.contains(image);
+        const read = isStored ? await this.#store.image(image) : await store.image(image);
         if (!isStored) {
-            for (const build of Lock.builds(read)) {
+            for (const build of BuildImage.builds(read)) {
                 if (!(await this.#store.contains(build))) {
                     await this.#store.put(await store.contents(build));
                 }
             }
-            await this.#store.putLock(read);
+            await this.#store.putImage(read);
         }
 
-        // record the lock under its root's release
+        // record the image under its root's release
         const released = PackageManifest.package((await this.#store.contents(read.root)).manifest);
-        this.#pushed.set(`${released.id}@${released.version}`, lock);
+        this.#pushed.set(`${released.id}@${released.version}`, image);
     }
 
-    /** Pull a stored lock into a store for some runtimes. */
+    /** Pull a stored image into a store for some runtimes. */
     async pull(
-        store: Pick<BuildStore, "get" | "lock" | "pull">,
+        store: Pick<BuildStore, "get" | "image" | "pull">,
         _packageId: PackageId,
-        lock: Digest,
+        image: Digest,
         runtimes: readonly Runtime[] | "all",
-    ): Promise<Lock> {
-        await store.pull(this.#store, { kind: "lock", digest: lock }, runtimes);
+    ): Promise<BuildImage> {
+        await store.pull(this.#store, { kind: "image", digest: image }, runtimes);
 
-        return await store.lock(lock);
+        return await store.image(image);
     }
 
-    /** Open the stored fixture builds as the store a lock or build is read from. */
+    /** Open the stored fixture builds as the store an image or build is read from. */
     async store(): Promise<Pick<BuildStore, "read">> {
         return this.#store;
     }
@@ -295,8 +295,8 @@ export class TestRegistry implements Registry, ReleaseRegistry {
         return this.#store.attachments(manifest);
     }
 
-    /** The locks of the pushed releases. */
-    get locks(): readonly Digest[] {
+    /** The images of the pushed releases. */
+    get images(): readonly Digest[] {
         return [...this.#pushed.values()];
     }
 
@@ -372,31 +372,34 @@ export async function fixtureBuild(
     return built;
 }
 
-/** Put a build and the builds it runs with in a store, hoisted into a lock, answering both. */
-export async function lockBuild(
-    store: Pick<BuildStore, "get" | "put" | "putLock">,
+/** Put a build and the builds it runs with in a store, hoisted into an image, answering both. */
+export async function imageBuild(
+    store: Pick<BuildStore, "get" | "put" | "putImage">,
     build: BuildReader,
     builds: readonly BuildReader[],
-): Promise<{ readonly lock: Digest; readonly root: Digest }> {
+): Promise<{ readonly image: Digest; readonly root: Digest }> {
     // put each build by its package
-    const locked: Record<string, Digest> = {};
+    const digests: Record<string, Digest> = {};
     for (const each of builds) {
-        locked[each.manifest.package.name] = await store.put(each);
+        digests[each.manifest.package.name] = await store.put(each);
     }
     const root = await store.put(build);
 
-    // lock them hoisted
-    const hoisted = await Lock.hoisted(root, locked, (digest) => store.get(digest));
+    // make an image of them hoisted
+    const hoisted = await BuildImage.hoisted(root, digests, (digest) => store.get(digest));
 
-    return { lock: await store.putLock(hoisted), root };
+    return { image: await store.putImage(hoisted), root };
 }
 
-/** Compute the digest of the lock of a build that runs alone. */
-export async function lockOf(
+/** Compute the digest of the image of a build that runs alone. */
+export async function imageOf(
     build: Pick<BuildReader, "manifest">,
     crypto: Crypto,
 ): Promise<Digest> {
-    return await Lock.digest(Lock.of(await BuildStore.digest(build.manifest, crypto)), crypto);
+    return await BuildImage.digest(
+        BuildImage.of(await BuildStore.digest(build.manifest, crypto)),
+        crypto,
+    );
 }
 
 /** The command every fixture build declares. */

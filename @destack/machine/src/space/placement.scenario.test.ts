@@ -3,6 +3,7 @@ import accountPackage from "@destack/account/package";
 import * as accountObject from "@destack/account/object";
 import { BuildStore } from "@destack/build/store";
 import { eq } from "@destack/db";
+import { CONNECTION_PATH } from "@destack/object";
 import { RequestId } from "@destack/sync";
 import { expect, test } from "@destack/test";
 import { fixtureBuild, ids, reconcile, TestSpace } from "../test/index.ts";
@@ -49,7 +50,7 @@ test("finish removing a deleted space whose universe row is already gone", async
     const fixture = await TestSpace.open();
     await fixture.serve();
 
-    // request the deletion as the owner stepped up, and pause the universe's pages once it arrives here
+    // request the deletion as the owner stepped up, and pause the universe's pages on its connection once it arrives here
     const owner = await fixture.universe.elevate(fixture.owner);
     await owner.client(accountPackage).space.delete({
         accountId: ids.account,
@@ -68,8 +69,10 @@ test("finish removing a deleted space whose universe row is already gone", async
         async () => (await replicated())?.deletedAt !== null,
         new AbortController().signal,
     );
-    const paused = fixture.simulation.network.pause(UNIVERSE_NODE, fixture.machine.id, (sent) =>
-        sent.endsWith("/store/stream"),
+    const paused = fixture.simulation.network.pause(
+        UNIVERSE_NODE,
+        fixture.machine.id,
+        (sent) => sent.includes(CONNECTION_PATH) && sent.includes('"changes":'),
     );
 
     // remove the space and its row at the universe, then look again while its replica still has the row

@@ -90,7 +90,7 @@ export class DurableObjectGraphStorage implements ExternalStorage {
     /** The builds and graphs the spaces store. */
     readonly #builds: Pick<
         BuildStore,
-        "contains" | "contents" | "lock" | "attachment" | "graph" | "file"
+        "contains" | "contents" | "image" | "attachment" | "graph" | "file"
     >;
     /** The index objects, one per manifest. */
     readonly #indexes: DurableObjectNamespace;
@@ -104,7 +104,7 @@ export class DurableObjectGraphStorage implements ExternalStorage {
         database: DatabaseConnection,
         builds: Pick<
             BuildStore,
-            "contains" | "contents" | "lock" | "attachment" | "graph" | "file"
+            "contains" | "contents" | "image" | "attachment" | "graph" | "file"
         >,
         indexes: DurableObjectNamespace,
         leaseMilliseconds = GRAPH_LEASE_MILLISECONDS,

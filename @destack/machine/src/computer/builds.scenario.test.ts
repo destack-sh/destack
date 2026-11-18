@@ -132,8 +132,8 @@ async function servedForge(home: TestComputer, residency: Identifier<"space">, p
         (
             await (
                 await machine.space(residency)
-            ).installations(async (_packageId, lock) =>
-                (await machine.space(residency)).builds.root(lock),
+            ).installations(async (_packageId, image) =>
+                (await machine.space(residency)).builds.root(image),
             )
         ).find(
             (entry) =>
@@ -215,7 +215,7 @@ async function writeSite(directory: string, files: FileSystem): Promise<string> 
         }),
     );
 
-    // lock its dependencies, none, as `bun install` does
+    // make an image of its dependencies, none, as `bun install` does
     await files.writeTextFile(
         join(worktree, "bun.lock"),
         JSON.stringify({
@@ -318,8 +318,8 @@ test("build and deploy each commit a push moves main to", async () => {
     const builds = stored.filter((row) => row.source.kind === "commit");
     const packages = await Promise.all(
         builds.map(async (row) => {
-            const lock = present(row.lock, "the lock");
-            const reader = await (await machine.space(space)).builds.root(lock);
+            const image = present(row.image, "the image");
+            const reader = await (await machine.space(space)).builds.root(image);
 
             return PackageManifest.package(reader.manifest).id;
         }),
@@ -327,7 +327,7 @@ test("build and deploy each commit a push moves main to", async () => {
 
     // root the second build alone in the machine's builds, as the space no longer runs the first
     const root = present((await machine.builds.roots()).get(`space:${space}`), "the space's root");
-    const rooted = builds.map((row) => root.has(present(row.lock, "the lock")));
+    const rooted = builds.map((row) => root.has(present(row.image, "the image")));
     expect([
         builds.map((row) => [row.source, row.outputs, row.state, row.commit]),
         packages,
