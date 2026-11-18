@@ -165,6 +165,7 @@ test("find a published release by version, tag, digest and id, and refuse its na
             requestId: RequestId.create(forge.environment),
             name: "answer",
             visibility: "public",
+            role: "app",
         }),
     );
     expect(taken).toEqual(["CONFLICT", "NAME_EXISTS", "'name' already exists"]);
@@ -279,8 +280,8 @@ test("publish a lock's builds in dependency order", async () => {
     );
 
     // publish greeting twice
-    await releases.publish(store, lock, ACCOUNT_ID, LATEST_TAG, TEST_COMMIT);
-    await releases.publish(store, lock, ACCOUNT_ID, LATEST_TAG, TEST_COMMIT);
+    await releases.publish(store, lock, ACCOUNT_ID, LATEST_TAG, { commit: TEST_COMMIT });
+    await releases.publish(store, lock, ACCOUNT_ID, LATEST_TAG, { commit: TEST_COMMIT });
 
     // record answer's release before greeting's, once each
     const answerId = PackageManifest.package(answer.manifest).id;
@@ -296,6 +297,71 @@ test("publish a lock's builds in dependency order", async () => {
     ]);
 });
 
+test("publish each package at its publishConfig access", async () => {
+    // lock greeting, without an access, with answer, whose package file asks public access
+    const forge = await TestForge.open();
+    const owner = forge.client(forge.owner);
+    const releases = new Registry(async () => forge.registry(), forge.environment);
+    const answer = (await fixtureBuild("answer")).reader;
+    const greeting = (await fixtureBuild("greeting")).reader;
+    await using store = await TestBuildStore.create(forge.environment);
+    const root = await store.put(greeting);
+    const lock = await store.putLock(
+        await Lock.hoisted(root, { "@example/answer": await store.put(answer) }, (digest) =>
+            store.get(digest),
+        ),
+    );
+
+    // publish both, asking no visibility
+    await releases.publish(store, lock, ACCOUNT_ID, LATEST_TAG, { commit: TEST_COMMIT });
+
+    // list answer as its package file asks, and greeting unlisted, the default
+    const listed = await owner.package.list({ spaceId: forge.space, orderBy: { name: "asc" } });
+    expect(listed.items.map((entry) => [entry.name, entry.visibility])).toEqual([
+        ["answer", "public"],
+        ["greeting", "unlisted"],
+    ]);
+});
+
+test("point latest at each released version", async () => {
+    // lock greeting with answer
+    const forge = await TestForge.open();
+    const owner = forge.client(forge.owner);
+    const releases = new Registry(async () => forge.registry(), forge.environment);
+    const answer = (await fixtureBuild("answer")).reader;
+    const greeting = (await fixtureBuild("greeting")).reader;
+    await using store = await TestBuildStore.create(forge.environment);
+    const root = await store.put(greeting);
+    const lock = await store.putLock(
+        await Lock.hoisted(root, { "@example/answer": await store.put(answer) }, (digest) =>
+            store.get(digest),
+        ),
+    );
+
+    // publish both under a stage tag twice, pointing latest too
+    const options = { commit: TEST_COMMIT, tags: [LATEST_TAG] };
+    await releases.publish(store, lock, ACCOUNT_ID, "local", options);
+    await releases.publish(store, lock, ACCOUNT_ID, "local", options);
+
+    // resolve the stage tag and latest of each to its released version
+    const resolve = async (id: PackageId, release: string) =>
+        (await owner.release.resolve({ spaceId: forge.space, parentId: id, release })).version;
+    const tagged = await Promise.all(
+        [answer, greeting].map(async (reader) => {
+            const { id, version } = PackageManifest.package(reader.manifest);
+
+            return {
+                version,
+                local: await resolve(id, "local"),
+                latest: await resolve(id, LATEST_TAG),
+            };
+        }),
+    );
+    expect(tagged).toEqual(
+        tagged.map(({ version }) => ({ version, local: version, latest: version })),
+    );
+});
+
 test("refuse a lock pinning an unreleased version of a hosted package", async () => {
     // host answer's package without releasing it
     const forge = await TestForge.open();
@@ -308,6 +374,7 @@ test("refuse a lock pinning an unreleased version of a hosted package", async ()
         id: PackageManifest.package(answer.manifest).id,
         requestId: RequestId.create(forge.environment),
         name: "answer",
+        role: answer.manifest.role,
     });
 
     // refuse greeting's release while answer has no release

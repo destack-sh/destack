@@ -37,6 +37,7 @@ export async function publishBuild(
                     accountId,
                     name: owner.name.slice(owner.name.indexOf("/") + 1),
                     visibility: "public",
+                    role: build.manifest.role,
                     createdAt: now,
                     updatedAt: now,
                 })
@@ -52,6 +53,7 @@ export async function publishBuild(
                 scope,
                 parentId: owner.id,
                 version: owner.version,
+                role: build.manifest.role,
                 lock,
                 npm: packed.listed,
                 tarball: await Digest.of(packed.bytes, environment.crypto),

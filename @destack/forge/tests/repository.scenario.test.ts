@@ -259,6 +259,7 @@ test("sync an account's references and packages to its readers and spaces", asyn
         requestId: RequestId.create(forge.environment),
         name: "notes",
         visibility: "private",
+        role: "app",
     });
 
     // create a space of the account and one of another account, as their owner does

@@ -110,6 +110,7 @@ export const ReleaseMethod = {
             lock: isRepeated ? taken.lock : lock,
             ...(commit === undefined ? {} : { commit }),
             version,
+            role: contents.manifest.role,
             declarations: await contents.declarations(),
             npm: listed,
             tarball,
@@ -362,7 +363,7 @@ export const ReleaseMethod = {
         }
     },
 
-    /** Plan the package's vocabulary through a release's declarations and advance it. */
+    /** Advance the package's vocabulary and role to a release. */
     async advance(
         context: MethodContextOf<typeof release, "create">,
         packed: Candidate,
@@ -386,6 +387,7 @@ export const ReleaseMethod = {
                     packed.declarations,
                     packed.version,
                 ),
+                role: packed.role,
             }),
         ]);
     },

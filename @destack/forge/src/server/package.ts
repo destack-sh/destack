@@ -66,18 +66,20 @@ const PackageMethod = {
     async publish(
         context: MethodContextOf<typeof packageObject, "publish">,
     ): Promise<ResultOf<typeof packageObject, "publish">> {
-        // create the package
+        // create the package the first time
         const { packageId: id, accountId, name, visibility } = context.input;
+        const { role } = context.prepared;
         await context.mutate(context.caller, [
             packageObject.call("create", {
                 id,
                 accountId,
                 name,
+                role,
                 ...(visibility === undefined ? {} : { visibility }),
             }),
         ]);
 
-        // insert the release
+        // insert the release, which advances the package's role and vocabulary
         await context.mutate(context.self, [
             release.call("create", {
                 parentId: id,

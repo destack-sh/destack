@@ -1,6 +1,9 @@
 {
     "name": "@example/answer",
     "type": "module",
+    "publishConfig": {
+        "access": "public"
+    },
     "exports": {
         ".": "./src/index.ts"
     }
