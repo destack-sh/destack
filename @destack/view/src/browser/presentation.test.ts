@@ -31,7 +31,9 @@ const page: Page = {
             .parse("installation-01996ab0-0000-7000-8000-0000000000e3"),
         space: schema.identifier("space").parse("space-01996ab0-0000-7000-8000-0000000000e4"),
         account: schema.identifier("account").parse("account-01996ab0-0000-7000-8000-0000000000e5"),
-        residencyHome: schema.identifier("space").parse("space-01996ab0-0000-7000-8000-0000000000e7"),
+        residencyHome: schema
+            .identifier("space")
+            .parse("space-01996ab0-0000-7000-8000-0000000000e7"),
         view: "home",
         base: "",
         universe: "https://destack.app",
