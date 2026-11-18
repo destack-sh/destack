@@ -160,8 +160,9 @@ test("generate the module mounting a view with its package's theme and commands,
     const mount = plugins.find((plugin) => plugin.name === "@destack/view");
     const module = entries.get("./view/main");
     const loaded = invoke(mount?.load, [`\0${module}`]);
-    if (typeof loaded !== "string") {
-        throw new TypeError("expected the view's module source");
+    const device = invoke(mount?.load, ["\0virtual:@destack/view/device"]);
+    if (typeof loaded !== "string" || typeof device !== "string") {
+        throw new TypeError("expected the view's and the device's module sources");
     }
 
     // describe the view with only the camera, leaving the network to the workloads' sandbox
@@ -171,12 +172,12 @@ test("generate the module mounting a view with its package's theme and commands,
         stylesheets: () => ["output/browser/view-main.css"],
     });
 
-    // import the declaring module and mount its view with the package's own theme and commands
+    // import the declaring module and mount its view with the package's own theme, commands and one device worker
     const commands = [
         { packageId: owner.id, name: "complete", keybinding: "mod+enter" },
         { packageId: owner.id, name: "archive" },
     ];
-    expect([[...entries.keys()], loaded.split("\n"), described]).toEqual([
+    expect([[...entries.keys()], loaded.split("\n"), device.split("\n"), described]).toEqual([
         ["./view/main"],
         [
             'import "virtual:destack/baseline";',
@@ -184,9 +185,16 @@ test("generate the module mounting a view with its package's theme and commands,
             'import "virtual:stylex.css";',
             'import { BrowserEnvironment, mount } from "@destack/view/browser";',
             'import { main as view } from "/package/src/view.ts";',
-            'import device from "virtual:@destack/view/view/main/device?worker&url";',
+            'import device from "virtual:@destack/view/device?worker&url";',
             ``,
             `await mount(view, ${JSON.stringify({ commands, theme: ocean })}, BrowserEnvironment.system, new URL(device, import.meta.url));`,
+            ``,
+        ],
+        [
+            'import { BrowserEnvironment, serveDevice } from "@destack/view/device";',
+            'import { main as view0 } from "/package/src/view.ts";',
+            ``,
+            `serveDevice([view0], self, BrowserEnvironment.system);`,
             ``,
         ],
         {

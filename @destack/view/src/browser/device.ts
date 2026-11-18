@@ -21,7 +21,7 @@ const DeviceRole = schema.enum(["user", "account", "space"]);
 /** The part a scope plays for a page. */
 export type DeviceRole = schema.Infer<typeof DeviceRole>;
 
-/** What a page's tab asks its device worker for: the person's objects of the view. */
+/** What a page's tab asks its device worker for: the person's objects of the package's views. */
 export const DeviceRequest = schema.object({
     /** The device's name, one per installation and person, shared by the installation's tabs. */
     name: schema.string().min(1),
@@ -35,17 +35,19 @@ export const DeviceRequest = schema.object({
 /** What a page's tab asks its device worker for. */
 export type DeviceRequest = schema.Infer<typeof DeviceRequest>;
 
-/** Serve a view's device from its worker, over the person's database file. */
+/** Serve a package's device from its worker, over the person's database file. */
 export function serveDevice(
-    view: View,
+    views: readonly View[],
     scope: DeviceWorkerScope,
     environment: Environment & Environment<"broadcast" | BrowserCapability>,
 ): void {
     BrowserDevice.listen(scope, async (message) => {
-        // open the device's database file with the tables of every object type the view opens
+        // open the device's database file with the tables of every object type the package's client views open
         const request = DeviceRequest.parse(message);
         const { name } = request;
-        const objects = deviceObjects(view, DEVICE_ROLES);
+        const objects = Object.fromEntries(
+            views.flatMap((view) => Object.entries(deviceObjects(view, DEVICE_ROLES))),
+        );
         const file = await WasmClient.opfs(name, environment);
         const database = connectWasmSqlite(file, ObjectClient.tables(objects), {
             name,

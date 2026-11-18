@@ -29,11 +29,14 @@ import { ViewError } from "../error/error.ts";
 import { VIEW_KIND } from "../declare/view.ts";
 import { ACTION_KIND } from "../declare/action.ts";
 
-/** The prefix of the generated modules rendering each view. */
-export const PREFIX = "virtual:@destack/view/view/";
+/** The prefix of the modules the view build generates. */
+const GENERATED = "virtual:@destack/view/";
 
-/** The suffix of a client view's device worker module, after the view's own module id. */
-const DEVICE_SUFFIX = "/device";
+/** The prefix of the generated modules rendering each view. */
+export const PREFIX = `${GENERATED}view/`;
+
+/** The generated module of the package's device worker, serving every client view's objects. */
+const DEVICE_MODULE = `${GENERATED}device`;
 
 /** The directory of the assets an output emits, as the build names them. */
 const ASSET_DIRECTORY = "asset/";
@@ -395,12 +398,12 @@ export function entryPlugin(views: readonly LocatedView[], compilation: ViewPack
             };
         });
     const declared = JSON.stringify({ commands, ...(theme === undefined ? {} : { theme }) });
-    const generated = new RegExp(`^\\0${RegExp.escape(PREFIX)}`, "u");
+    const generated = new RegExp(`^\\0${RegExp.escape(GENERATED)}`, "u");
 
     return {
         name: VIEW_PACKAGE,
         config: () => ({
-            // build each client view's device worker with the view's framework and entries
+            // build the package's device worker with the views' framework and entries
             worker: {
                 format: "es",
                 plugins: () => [...viewPlugins(false), entryPlugin(views, compilation)],
@@ -409,16 +412,16 @@ export function entryPlugin(views: readonly LocatedView[], compilation: ViewPack
         resolveId: {
             filter: {
                 id: new RegExp(
-                    `^(?:\0?${RegExp.escape(PREFIX)}|${RegExp.escape(STYLESHEETS[0])}$)`,
+                    `^(?:\0?${RegExp.escape(GENERATED)}|${RegExp.escape(STYLESHEETS[0])}$)`,
                     "u",
                 ),
             },
             async handler(source, origin) {
                 // resolve a generated module, and its stylesheet from the module declaring its view
                 const view = views.find((entry) => `\0${PREFIX}${entry.name}` === origin);
-                if (source.startsWith(PREFIX)) {
+                if (source.startsWith(GENERATED)) {
                     return `\0${source}`;
-                } else if (source.startsWith(`\0${PREFIX}`)) {
+                } else if (source.startsWith(`\0${GENERATED}`)) {
                     return source;
                 } else if (view !== undefined) {
                     return await this.resolve(source, view.file, { skipSelf: true });
@@ -430,14 +433,11 @@ export function entryPlugin(views: readonly LocatedView[], compilation: ViewPack
         load: {
             filter: { id: generated },
             handler(id, options) {
-                // write a client view's device worker module, else the module of the view the id has, for the server or the browser
-                const device = views.find(
-                    (entry) => `\0${PREFIX}${entry.name}${DEVICE_SUFFIX}` === id,
-                );
+                // write the package's device worker module, else the module of the id's view
                 const view = views.find((entry) => `\0${PREFIX}${entry.name}` === id);
                 const isServer = options?.ssr === true;
-                if (device !== undefined) {
-                    return deviceModule(device);
+                if (id === `\0${DEVICE_MODULE}`) {
+                    return deviceModule(views.filter((entry) => entry.render.mode !== "static"));
                 }
 
                 return view && entryModule(view, isServer, compilation, declared);
@@ -446,13 +446,20 @@ export function entryPlugin(views: readonly LocatedView[], compilation: ViewPack
     };
 }
 
-/** Write a client view's device worker module, serving the person's device to the tabs. */
-function deviceModule(view: LocatedView): string {
+/** Write the package's device worker module, serving the person's device to its views' tabs. */
+function deviceModule(views: readonly LocatedView[]): string {
+    // import each client view under its position, then serve the device over all of them
+    const imports = views.map(
+        (view, index) =>
+            `import { ${view.export} as view${String(index)} } from ${JSON.stringify(view.file)};`,
+    );
+    const served = views.map((_view, index) => `view${String(index)}`).join(", ");
+
     return [
         `import { BrowserEnvironment, serveDevice } from "${VIEW_PACKAGE}/device";`,
-        `import { ${view.export} as view } from ${JSON.stringify(view.file)};`,
+        ...imports,
         ``,
-        `serveDevice(view, self, BrowserEnvironment.system);`,
+        `serveDevice([${served}], self, BrowserEnvironment.system);`,
         ``,
     ].join("\n");
 }
@@ -489,9 +496,9 @@ function entryModule(
             ``,
         ].join("\n");
     }
-    // mount a client view, starting its device worker from its own bundle
+    // mount a client view, starting the package's one device worker
     else if (view.render.mode !== "static") {
-        const worker = JSON.stringify(`${PREFIX}${view.name}${DEVICE_SUFFIX}?worker&url`);
+        const worker = JSON.stringify(`${DEVICE_MODULE}?worker&url`);
 
         return [
             baseline,
