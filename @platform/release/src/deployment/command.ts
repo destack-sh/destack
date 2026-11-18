@@ -1,3 +1,4 @@
+import { TelemetryScope } from "@destack/telemetry";
 import type { Environment, HostCapability } from "@destack/environment";
 import { printStatus } from "../distribution/output.ts";
 import { CHECKOUT } from "../distribution/distribution.ts";
@@ -56,9 +57,7 @@ export async function deployPlatform(
     // deploy a whole environment
     const [name] = arguments_;
     if (arguments_.length === 1 && name !== undefined && !Root.isStageless(name)) {
-        await Deployment.deployed(name, environment).deploy((title, line) =>
-            printStatus(title, line, environment),
-        );
+        await Deployment.deployed(name, environment).deploy();
     }
     // apply one root
     else {
@@ -76,9 +75,7 @@ export async function publishPlatform(
     if (rest.length > 0) {
         throw new Error(`platform publish takes a stage, then nothing more: '${rest.join(" ")}'`);
     }
-    await Deployment.deployed(name, environment).publish((title, line) =>
-        printStatus(title, line, environment),
-    );
+    await Deployment.deployed(name, environment).publish();
 }
 
 /** Build the checkout's first-party releases into its store. */
@@ -88,7 +85,12 @@ export async function buildPlatform(
 ): Promise<void> {
     none("platform build", arguments_);
     await using build = await PlatformBuild.build(CHECKOUT, environment);
-    printStatus("build", `built ${build.readers.length} releases`, environment);
+    TelemetryScope.of(import.meta.destack.package, environment.telemetry).log.info(
+        "platform.release.built",
+        {
+            "platform.release.count": build.readers.length,
+        },
+    );
 }
 
 /** Seal the keys a deployed stage's custody record lacks, as the operator does once per key. */

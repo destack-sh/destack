@@ -1,4 +1,5 @@
-import type { Environment, HostCapability } from "@destack/environment";
+import { Environment, type HostCapability, Telemetry } from "@destack/environment";
+import { printStatus } from "./distribution/output.ts";
 import { BunEnvironment } from "@destack/environment/bun";
 import { provisionAppleCredential } from "./signing/credential.ts";
 import { archiveBackup } from "./key/archive.ts";
@@ -94,11 +95,16 @@ const COMMANDS: Readonly<Record<string, Command>> = {
     "local cli": cliLocal,
 };
 
-/** The host every command runs on. */
-const system = BunEnvironment.system;
-
 /** The noun and verb the command line requests, followed by the command's arguments. */
-const [noun, verb, ...requestedArguments] = system.process.arguments;
+const [noun, verb, ...requestedArguments] = BunEnvironment.system.process.arguments;
+
+/** The host every command runs on, printing its records as status lines under the noun. */
+const system = Environment.instrument(
+    BunEnvironment.system,
+    Telemetry.local(BunEnvironment.system.clock, (line) =>
+        printStatus(noun ?? "release", line.trimEnd(), BunEnvironment.system),
+    ),
+);
 
 /** The command the noun and verb select. */
 const selected = COMMANDS[`${noun} ${verb}`];

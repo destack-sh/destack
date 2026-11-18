@@ -1,3 +1,4 @@
+import { TelemetryScope } from "@destack/telemetry";
 import { DeclarationReference } from "@destack/package/declare";
 import type { ResidencyCode } from "@destack/account/object";
 import { DOMAINS, UniverseOrigin } from "@destack/account/address";
@@ -88,8 +89,8 @@ interface MachineActor {
 /** The password local Hyperdrive requires, which the trusting local server ignores. */
 const HYPERDRIVE_PASSWORD = "local";
 
-/** The line wrangler prints once local workerd serves a script. */
-const READY_LINE = "Ready on";
+/** The prefix of wrangler's own information lines, such as its access log. */
+const WRANGLER_INFO_PREFIX = "[wrangler:info]";
 
 /** The region a run under workerd's files bucket signs for. */
 const PLACEHOLDER_REGION = "local";
@@ -162,6 +163,8 @@ export class Deployment {
     readonly layout: LoopbackLayout;
     /** The host the deployment's tools run on. */
     readonly environment: Environment<HostCapability>;
+    /** The deployment's telemetry, whose records print as status lines. */
+    readonly scope: TelemetryScope;
 
     /** Deploy the platform at a stage from a host. */
     private constructor(
@@ -169,9 +172,11 @@ export class Deployment {
         layout: LoopbackLayout,
         environment: Environment<HostCapability>,
     ) {
+        // keep the stage, its layout and its host, and record through the host's telemetry
         this.stage = stage;
         this.layout = layout;
         this.environment = environment;
+        this.scope = TelemetryScope.of(import.meta.destack.package, environment.telemetry);
     }
 
     /** Read the deployment of a stage by its name, refusing any other. */
@@ -456,10 +461,9 @@ export class Deployment {
 
             // start local workerd, waiting until it serves or exits
             const port = Number(new URL(script.origin).port);
-            const ready = Promise.withResolvers<void>();
             const child = children.use(
                 LocalProcess.start(
-                    script.name,
+                    script.service,
                     {
                         command: [
                             resolve(ROOT, "node_modules/.bin/wrangler"),
@@ -481,46 +485,46 @@ export class Deployment {
                             WRANGLER_SEND_METRICS: "false",
                         },
                         print: (name, line) => {
-                            print(name, line);
+                            // leave out wrangler's own information lines, its access log among them, as spans record each request
+                            if (!line.startsWith(WRANGLER_INFO_PREFIX)) {
+                                print(name, line);
+                            }
                             if (script.target.kind === "universe") {
                                 mail.push(line);
-                            }
-                            if (line.includes(READY_LINE)) {
-                                ready.resolve();
                             }
                         },
                     },
                     environment,
                 ),
             );
-            const isServing = await Promise.race([
-                ready.promise.then(() => true),
-                child.exited.then(() => false),
+            const answered = await Promise.race([
+                script.waitReady(),
+                child.exited.then(() => undefined),
             ]);
-            if (!isServing) {
+            if (answered === undefined) {
                 throw new Error(`'${script.name}' exited before it served`);
             }
 
-            // require it to answer at its origin
-            await script.smoke();
-            print(script.name, script.origin);
+            print(script.service, script.origin);
         }
 
         // require each residency's home to serve its forge on the residency's cloud machine
         for (const residency of RESIDENCIES) {
-            await this.#smokeForge(residency, custody, build);
-            print("stage", `the home of ${residency.code} serves its forge`);
+            await this.#waitForgeReady(residency, custody, build);
+            this.scope.log.info("platform.residency.served", {
+                "platform.residency.code": residency.code,
+            });
         }
 
         // publish the platform's releases as the local operator
-        await this.publishLocal(build, custody, mail, print);
+        await this.publishLocal(build, custody, mail);
 
         // serve the build until the hold ends
         await hold(build);
     }
 
-    /** Require a residency home's forge to serve on the residency's cloud machine. */
-    async #smokeForge(
+    /** Wait until a residency home's forge serves on the residency's cloud machine. */
+    async #waitForgeReady(
         residency: PlatformResidency,
         custody: Custody,
         build: PlatformBuild,
@@ -705,7 +709,7 @@ export class Deployment {
     }
 
     /** Apply the global root, the universe's and the residencies', then release the Workers. */
-    async deploy(print: (name: string, line: string) => void): Promise<void> {
+    async deploy(): Promise<void> {
         const { environment } = this;
 
         // apply every root in dependency order
@@ -714,33 +718,31 @@ export class Deployment {
         }
 
         // release the Workers onto the applied roots
-        await this.release(print);
+        await this.release();
     }
 
     /** Publish a build's releases as the local operator under the stage's tag, pointing latest. */
-    async publishLocal(
-        build: PlatformBuild,
-        custody: Custody,
-        mail: PrintedMail,
-        print: (name: string, line: string) => void,
-    ): Promise<void> {
+    async publishLocal(build: PlatformBuild, custody: Custody, mail: PrintedMail): Promise<void> {
         // sign the operator in, and publish under the stage's tag as the platform's owner, pointing latest, which installs follow
         const send = (request: Request) => this.environment.network.fetch(request);
         const issuer = new Issuer(this.issuer, send, this.environment, new Bookmark());
         const operator = await Operator.signIn(issuer, mail, this.environment);
+        let published = 0;
         await build.release(
             this.stage.tag,
             this.forges(custody, build, operator),
-            async (reader) => {
-                const { name, version } = PackageManifest.package(reader.manifest);
-                print("publish", `${name}@${version}`);
+            async () => {
+                published += 1;
             },
             { tags: [LATEST_TAG] },
         );
+        this.scope.log.info("platform.release.published", {
+            "platform.release.count": published,
+        });
     }
 
     /** Migrate the universe's database, and deploy the universe and every cloud machine. */
-    async release(print: (name: string, line: string) => void): Promise<void> {
+    async release(): Promise<void> {
         // read the operator, the roots' outputs and the custody record the operator sealed
         const { environment } = this;
         const operator = Root.required("DESTACK_OPERATOR", environment);
@@ -762,7 +764,9 @@ export class Deployment {
 
         // write the releases the Workers ship as their static assets
         await build.writeAssets(this.releases);
-        print("release", `the Workers ship ${build.readers.length} releases`);
+        this.scope.log.info("platform.release.shipped", {
+            "platform.release.count": build.readers.length,
+        });
 
         // deploy every script in order, the universe first and each machine before its tail
         const scripts = this.#scripts(outputs, outputsOf);
@@ -781,14 +785,17 @@ export class Deployment {
         // check every deployed origin answers once it started, a tail answering none
         for (const [script] of scripts) {
             if (script.target.kind !== "tail") {
-                const started = await script.smoke();
-                print("deploy", `${script.name} answers after ${started} ms`);
+                const started = await script.waitReady();
+                this.scope.log.info("platform.deployment.answered", {
+                    "platform.script.name": script.name,
+                    "platform.deployment.duration_ms": started,
+                });
             }
         }
     }
 
     /** Publish the stage's releases into the platform accounts' forge as the release workflow. */
-    async publish(print: (name: string, line: string) => void): Promise<void> {
+    async publish(): Promise<void> {
         // sign in as the workflow's trusted publisher, by the job's OIDC token for the token endpoint
         const { environment } = this;
         const send = (request: Request) => environment.network.fetch(request);
@@ -830,15 +837,18 @@ export class Deployment {
 
         // release each build under the stage's tag in the account of its handle, pointing latest, which installs follow
         await using build = await this.#build();
+        let published = 0;
         await build.release(
             this.stage.tag,
             async (handle) => ({ accountId: await owner(handle), registry }),
-            async (reader) => {
-                const { name, version } = PackageManifest.package(reader.manifest);
-                print("publish", `${name}@${version}`);
+            async () => {
+                published += 1;
             },
             { tags: [LATEST_TAG] },
         );
+        this.scope.log.info("platform.release.published", {
+            "platform.release.count": published,
+        });
     }
 
     /** Seal the keys the stage's custody record lacks under each root's KMS key, for committing. */
@@ -860,7 +870,10 @@ export class Deployment {
             credentials,
             environment,
         );
-        print("custody", `sealed ${file}: commit it before the next deploy`);
+        this.scope.log.info("platform.custody.sealed", {
+            "file.path": file,
+        });
+        print("custody", `commit ${file} before the next deploy`);
     }
 
     /** Read the applied universe and residency roots' outputs. */

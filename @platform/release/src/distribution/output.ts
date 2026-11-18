@@ -1,7 +1,7 @@
 import type { Environment } from "@destack/environment";
 
-/** The width of the name column status lines print under. */
-const NAME_WIDTH = 10;
+/** The width of the status lines' name column: the longest service, `eu-central-tail`. */
+const NAME_WIDTH = 15;
 
 /** Write a line of a release command's output to standard output. */
 export function print(text: string, environment: Environment<"process">): void {

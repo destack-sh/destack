@@ -23,7 +23,13 @@ import {
 import type { Deployment } from "../deployment.ts";
 import { PLATFORM, type PlatformResidency, RESIDENCIES } from "@platform/stack";
 import { CloudflareCredentials } from "./credential.ts";
-import { schema } from "@destack/schema";
+import { present, schema } from "@destack/schema";
+
+/** The pause before asking again when nothing listens at a Worker's origin yet: 0.2 s. */
+const CONNECT_RETRY_MILLISECONDS = 200;
+
+/** How long a Worker may take to answer: four times the slowest local start measured, 15 s. */
+const ANSWER_MILLISECONDS = 60_000;
 
 /** What a starting server answers: its reason and the pause before asking again. */
 const Starting = schema.looseObject({
@@ -105,6 +111,19 @@ export class WorkerScript {
     constructor(deployment: Deployment, target: ScriptTarget) {
         this.deployment = deployment;
         this.target = target;
+    }
+
+    /** The service a stage prints the script's lines under: universe, or a machine's name. */
+    get service(): string {
+        // name the universe, a residency's machine, or the Tail Worker beside it
+        const { target } = this;
+        if (target.kind === "universe") {
+            return "universe";
+        } else if (target.kind === "machine") {
+            return target.residency.machine.name;
+        } else {
+            return `${target.residency.machine.name}-tail`;
+        }
     }
 
     /** The script's name. */
@@ -362,8 +381,8 @@ export class WorkerScript {
         return path;
     }
 
-    /** Require the script to answer at its origin without a server failure, once it started. */
-    async smoke(): Promise<number> {
+    /** Wait until the script answers at its origin without a server failure, in milliseconds. */
+    async waitReady(): Promise<number> {
         // request the issuer's discovery document from the universe, and the origin from a cloud machine
         const isUniverse = this.target.kind === "universe";
         const issuer = UniverseOrigin.issuer(this.origin);
@@ -373,23 +392,42 @@ export class WorkerScript {
         const { network, clock } = this.deployment.environment;
         const asked = clock.now();
 
-        // ask again while the script answers that its server is starting, after the pause it names
-        const ask = async () => {
-            // request the address
-            const answered = await network.fetch(new Request(url, { redirect: "manual" }));
+        // ask again while nothing listens yet or the script answers that it is starting, within the deadline
+        const ask = async (): Promise<{
+            readonly answered?: Response;
+            readonly retryAfter?: number;
+        }> => {
+            // request the address, a refused connection meaning workerd does not listen yet
+            const answered = await network
+                .fetch(new Request(url, { redirect: "manual" }))
+                .catch(() => undefined);
+            if (answered === undefined) {
+                return { retryAfter: CONNECT_RETRY_MILLISECONDS };
+            }
 
             // read a failure's body when it is JSON, as a starting server's is
             const type = answered.headers.get("content-type") ?? "";
             const isJson = !answered.ok && type.startsWith("application/json");
             const body: unknown = isJson ? await answered.clone().json() : undefined;
 
-            return { answered, starting: Starting.safeParse(body).data };
+            // ask again after the pause a starting server names
+            const starting = Starting.safeParse(body).data;
+
+            return starting === undefined
+                ? { answered }
+                : { answered, retryAfter: starting.data.retryAfter };
         };
-        let { answered: response, starting } = await ask();
-        while (starting !== undefined) {
-            await clock.sleep(starting.data.retryAfter);
-            ({ answered: response, starting } = await ask());
+        let reply = await ask();
+        while (reply.retryAfter !== undefined) {
+            if (clock.now() - asked > ANSWER_MILLISECONDS) {
+                throw new Error(
+                    `'${this.name}' did not answer '${url.href}' within ${ANSWER_MILLISECONDS} ms`,
+                );
+            }
+            await clock.sleep(reply.retryAfter);
+            reply = await ask();
         }
+        const response = present(reply.answered, `the answer of '${this.name}'`);
 
         // refuse a server failure, and any failure of the universe
         if (response.status >= 500 || (isUniverse && !response.ok)) {

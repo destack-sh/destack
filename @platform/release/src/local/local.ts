@@ -79,11 +79,12 @@ export class LocalUniverse implements AsyncDisposable {
         await state.createDatabase();
 
         // build the local releases from the checkout
-        state.print("build", "building the first-party releases");
         const build = stack.use(
             await PlatformBuild.build(state.root, state.environment, { isPrerelease: true }),
         );
-        state.print("build", `built ${build.readers.length} releases`);
+        state.scope.log.info("platform.release.built", {
+            "platform.release.count": build.readers.length,
+        });
 
         // list the releases the universe ships, with their locks on the host
         const target = DistributionPlatform.of(state.environment.host);
@@ -137,7 +138,9 @@ export class LocalUniverse implements AsyncDisposable {
         const endpoints: DevelopmentEndpoint[] = [{ name: "universe", url: universe.url.origin }];
 
         // report the universe
-        state.print("universe", "started");
+        state.scope.log.info("platform.universe.started", {
+            "url.full": universe.url.origin,
+        });
 
         // write the distribution once, then start each residency's cloud machine shipping it
         await state.writeDistribution(build);
@@ -147,7 +150,9 @@ export class LocalUniverse implements AsyncDisposable {
             shipped: await BunDistribution.read(directory, environment.files),
             layer: await BuildLayer.open(join(directory, DISTRIBUTION_LAYER), environment),
         };
-        state.print("build", "wrote the distribution the machines ship");
+        state.scope.log.info("platform.distribution.written", {
+            "file.path": directory,
+        });
         for (const residency of RESIDENCIES) {
             const started = await LocalUniverse.#startCloud(
                 residency,
@@ -162,7 +167,10 @@ export class LocalUniverse implements AsyncDisposable {
             // wait until it serves, refusing at the bound with why it does not
             const window = state.environment.clock.timeout(MACHINE_SERVE_MILLISECONDS);
             await started.machine.machine.health.waitUp(window);
-            state.print(residency.machine.name, "up");
+            state.scope.log.info("platform.machine.started", {
+                "platform.machine.name": residency.machine.name,
+                "url.full": local.machineOrigin(residency),
+            });
             endpoints.push({
                 name: residency.machine.name,
                 url: local.machineOrigin(residency),
@@ -170,7 +178,7 @@ export class LocalUniverse implements AsyncDisposable {
         }
 
         // publish the releases into the forge as the local operator
-        await local.publishLocal(build, custody, mail, (name, line) => state.print(name, line));
+        await local.publishLocal(build, custody, mail);
 
         return new LocalUniverse(endpoints, local, stack.move());
     }
@@ -291,7 +299,10 @@ export class LocalUniverse implements AsyncDisposable {
                     pid: environment.process.id,
                     startedAt: now,
                 },
-                shutdown: () => state.print(name, "asked to stop, which just local does on Ctrl-C"),
+                shutdown: () =>
+                    state.scope.log.info("platform.machine.signaled", {
+                        "platform.machine.name": name,
+                    }),
             }),
         );
 

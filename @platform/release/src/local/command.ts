@@ -1,7 +1,5 @@
 import { join } from "node:path";
-import { Environment, type HostCapability, Telemetry } from "@destack/environment";
-import { SeverityNumber } from "@destack/telemetry";
-import { printStatus } from "../distribution/output.ts";
+import type { Environment, HostCapability } from "@destack/environment";
 import { Deployment } from "../deployment/deployment.ts";
 import { CHECKOUT } from "../distribution/distribution.ts";
 import { developDistribution } from "../distribution/develop.ts";
@@ -13,18 +11,8 @@ export async function serveLocal(
     environment: Environment<HostCapability>,
     arguments_: readonly string[],
 ): Promise<void> {
-    // print the warnings and failures of the universe and the cloud machines this process runs
-    const telemetry = Telemetry.local(
-        environment.clock,
-        (line, severity) => {
-            if (severity >= SeverityNumber.WARN) {
-                printStatus("stage", line.trimEnd(), environment);
-            }
-        },
-        environment.telemetry.context,
-    );
-    const staged = Environment.instrument({ ...environment, telemetry }, telemetry);
-    const state = LocalState.of(arguments_, staged);
+    // read the stage's state, recording through the host's telemetry
+    const state = LocalState.of(arguments_, environment);
 
     // serve the universe and the cloud machines as Workers under workerd, as production runs them
     if (state.runtime === "workerd") {
@@ -61,14 +49,10 @@ export async function serveLocal(
     const signal = await interrupted(environment);
 
     // stop everything
-    printStatus(
-        "stop",
-        `${signal}: stopping the machine, the cloud machines and the universe`,
-        environment,
-    );
+    state.scope.log.info("platform.stage.signaled", { "platform.signal": signal });
     await machine[Symbol.asyncDispose]();
     await universe[Symbol.asyncDispose]();
-    printStatus("stop", "stopped", environment);
+    state.scope.log.info("platform.stage.stopped");
 }
 
 /** Wait for an interrupt or a termination, answering the signal that came. */
@@ -126,5 +110,8 @@ export async function resetLocal(
 ): Promise<void> {
     const state = LocalState.of(arguments_, environment);
     await state.reset();
-    state.print("reset", `dropped ${state.database}, removed ${state.directory} and its machine`);
+    state.scope.log.info("platform.stage.reset", {
+        "db.namespace": state.database,
+        "file.path": state.directory,
+    });
 }

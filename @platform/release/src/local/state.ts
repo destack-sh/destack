@@ -1,3 +1,4 @@
+import { TelemetryScope } from "@destack/telemetry";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { PostgresPool } from "@destack/db/postgres";
@@ -68,6 +69,8 @@ export class LocalState {
     readonly home: StageHome;
     /** The host the universe and the machines run on. */
     readonly environment: Environment<HostCapability>;
+    /** The stage's telemetry, whose records print as status lines. */
+    readonly scope: TelemetryScope;
 
     /** Create a state of the local stage, a workerd state apart from the Bun state of its name. */
     private constructor(
@@ -92,6 +95,7 @@ export class LocalState {
                 ? new StageHome(stage, user)
                 : new StageHome(stage, user, resolve(directory, "device"));
         this.environment = environment;
+        this.scope = TelemetryScope.of(import.meta.destack.package, environment.telemetry);
     }
 
     /** Read a local state from `[--runtime <bun|workerd>] [--state <name>]`, refusing more. */
