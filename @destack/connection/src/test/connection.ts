@@ -36,7 +36,7 @@ import { vaultTables } from "@destack/vault/stack";
 import vaultPackage from "@destack/vault/package";
 import { ResourceContext } from "@destack/resource/context";
 import { RequestId, ObjectReference, Scope, Subject } from "@destack/sync";
-import { expect, onTestFinished } from "@destack/test";
+import { onTestFinished } from "@destack/test";
 import { createClient, type ClientOf, ProcedureRemote } from "@destack/object/client";
 import {
     authorizationRequest,
