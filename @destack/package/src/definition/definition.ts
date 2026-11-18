@@ -62,8 +62,11 @@ const WorkspaceSettings = schema.object({
     check: CheckSettings.exactOptional(),
 });
 
+/** The roles a package takes: part of the runtime, bundled by its importers, or installed. */
+export const PACKAGE_ROLES = ["builtin", "library", "app"] as const;
+
 /** What a package is: part of the runtime, bundled by its importers, or installed. */
-export const PackageRole = schema.enum(["builtin", "library", "app"]);
+export const PackageRole = schema.enum(PACKAGE_ROLES);
 /** What a package is: part of the runtime, bundled by its importers, or installed. */
 export type PackageRole = schema.Infer<typeof PackageRole>;
 
