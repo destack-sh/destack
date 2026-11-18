@@ -125,7 +125,7 @@ Each new level of abstraction in programming requires new, higher order processe
 One cannot succeed without the other, because the fragmented software production and deployment process need to be unified.
 A _software engine_ for the _software factory_.
 
-That is Destack: an open-source *software engine* for general purpose apps.
+That is Destack: an open-source _software engine_ for general purpose apps.
 As a coarse analogy, Destack is like GitHub + NPM + Convex + Vercel + Sentry in one: an integrated system for software production with standardised principal building blocks for modern software: auth, migrations, services, multiplayer, workflows, telemetry, testing, and hosting.
 
 Standardising software on a single, expressive software engine enables much greater freedom of movement by reducing variance in the produced software.
@@ -134,11 +134,9 @@ Once every app speaks the same API, feels and looks the same, and works with the
 ![Eleven versions of Picasso's bull, progressing from a detailed animal to a few essential lines.](./picasso-bull.jpg)
 [The Bull, 1945–46](https://drawpaintacademy.com/the-bull/) — Pablo Picasso, reproduction via Draw Paint Academy.
 
-
 <!--Following the game engine model, Destack integrates libraries and tools for interactively building, understanding, and refining software products, all based on modern best practices.
 It's as indestructible as can be, and you can host it entirely yourself, we can tunnel for you, or you could let us take care of everything.
 (Or any combination.)-->
-
 
 And of course, beyond just the software platform and engine,
 _and_ a ready-to-wear suite of common applications built on top.

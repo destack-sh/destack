@@ -2,7 +2,7 @@ import type { SearchEntry } from "./search.ts";
 
 /** The one sentence that says what Destack is, shared by search and link previews. */
 export const tagline =
-    "Build first-class custom software, integrate every app and agent, and control your whole stack.";
+    "Build first-class custom software, integrate every app and agent, control your whole stack.";
 
 /** The site's origin, which absolute links and metadata start from. */
 export const origin = "https://destack.sh";
