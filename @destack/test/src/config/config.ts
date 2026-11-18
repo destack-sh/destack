@@ -128,8 +128,10 @@ export function defineConfiguration(
     // split off the tier, the targets, the projects and the global setup the projects run in the root's place
     const { tier, targets, test, ...rest } = configuration;
     const { globalSetup, ...options } = test ?? {};
-    const tiers = selectedTiers(environment);
+    // keep the root's own options apart from the projects it lists, which the tiers filter
+    const { projects: _listed, ...root } = { projects: undefined, ...options };
     const listed = test !== undefined && "projects" in test ? test.projects : undefined;
+    const tiers = selectedTiers(environment);
     const declared = listed?.filter((project) => tiers === undefined || tiers.has(project.tier));
     const setup = globalSetup === undefined ? {} : { globalSetup };
     const kept = declared?.length === 0 ? undefined : declared;
@@ -147,10 +149,10 @@ export function defineConfiguration(
             ...TEST,
             ...(projects === undefined
                 ? {
-                      ...options,
+                      ...root,
                       ...setup,
                       ...tiered,
-                      ...(tier === undefined ? {} : { provide: { ...options.provide, tier } }),
+                      ...(tier === undefined ? {} : { provide: { ...root.provide, tier } }),
                       // run nothing in a tier the run leaves out
                       ...(isExcluded ? { exclude: ["**"], passWithNoTests: true } : {}),
                   }

@@ -162,6 +162,15 @@ test("run the whole configuration once per combination of its targets without de
     ]);
 });
 
+/** Read what a configuration runs: its projects and its exclusion. */
+function excluded(configuration: ReturnType<typeof defineConfiguration>) {
+    return {
+        projects: configuration.test?.projects,
+        exclude: configuration.test?.exclude,
+        passWithNoTests: configuration.test?.passWithNoTests,
+    };
+}
+
 test("run only the projects of the tiers a run lists, and nothing of a configuration outside them", async () => {
     await using simulation = cachedSimulation({ [TIERS_VARIABLE]: "unit" });
     const environment = simulation.environment("test");
@@ -179,17 +188,23 @@ test("run only the projects of the tiers a run lists, and nothing of a configura
         environment,
     );
     const scenario = defineConfiguration({ tier: "scenario" }, environment);
+    const outside = defineConfiguration(
+        { test: { projects: [{ extends: true, tier: "scenario", test: { name: "scenario" } }] } },
+        environment,
+    );
 
-    // keep the unit project, and run nothing of the scenario configuration
+    // keep the unit project, and run nothing of the scenario configuration or the outside projects
     expect({
         projects: projects.test?.projects?.map((project) =>
             typeof project === "object" && "test" in project ? project.test?.name : project,
         ),
-        scenario: {
-            exclude: scenario.test?.exclude,
-            passWithNoTests: scenario.test?.passWithNoTests,
-        },
-    }).toEqual({ projects: ["unit"], scenario: { exclude: ["**"], passWithNoTests: true } });
+        scenario: excluded(scenario),
+        outside: excluded(outside),
+    }).toEqual({
+        projects: ["unit"],
+        scenario: { projects: undefined, exclude: ["**"], passWithNoTests: true },
+        outside: { projects: undefined, exclude: ["**"], passWithNoTests: true },
+    });
 });
 
 test("measure each project's scenarios in a bench twin", async () => {
