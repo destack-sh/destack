@@ -11,7 +11,7 @@ import type {
 } from "@destack/object/workload";
 import type { BuildReader } from "@destack/package/manifest";
 import { bunSqliteConnector, connectBunSqlite } from "@destack/db/bun";
-import type { Environment } from "@destack/environment";
+import { type Environment, LineExporter } from "@destack/environment";
 import { spaceRunner } from "../client/index.ts";
 import { BunEnvironment } from "@destack/environment/bun";
 
@@ -39,8 +39,11 @@ export class BunWorkload {
         };
 
         return {
-            ...spaceRunner(this.workload, this.resources, environment, (line) =>
-                BunEnvironment.system.process.stderr.writeSync(line),
+            ...spaceRunner(this.workload, this.resources, environment),
+            // print the workload's records to the process's standard error, as its variables ask
+            log: new LineExporter(
+                (line) => BunEnvironment.system.process.stderr.writeSync(line),
+                LineExporter.options(BunEnvironment.system.process.variables),
             ),
             connectors: { [bunSqliteConnector.code]: bunSqliteConnector },
             ephemeral,

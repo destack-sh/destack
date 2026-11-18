@@ -10,8 +10,7 @@ export function spaceRunner(
     workload: Workload,
     resources: Readonly<Record<string, ResourceDeclaration<unknown>>>,
     environment: Environment,
-    write: WorkloadRunnerOptions["write"],
-): Omit<WorkloadRunnerOptions, "ephemeral"> {
+): Omit<WorkloadRunnerOptions, "ephemeral" | "log"> {
     // connect once to each machine URL under each secret
     const clients = new Map<string, StackClient>();
     const connect = (url: string, secret: string) => {
@@ -40,7 +39,6 @@ export function spaceRunner(
         workload,
         resources,
         environment,
-        write,
         remote: (url, secret) =>
             new ProcedureRemote({ store: connect(url, secret).store, environment }),
     };
