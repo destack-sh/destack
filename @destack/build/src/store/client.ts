@@ -35,7 +35,7 @@ export class PackageClient {
         return schema.array(schema.boolean()).parse(await response.json());
     }
 
-    /** Read objects of the lock or build the URL is below as tarball entries, in order. */
+    /** Read objects of the image or build the URL is below as tarball entries, in order. */
     async *read(
         objects: readonly Pick<BuildObject, "kind" | "digest">[],
     ): AsyncIterable<TarballEntry> {
@@ -66,17 +66,17 @@ export class PackageClient {
         await response.body?.cancel();
     }
 
-    /** Push locks' objects and their builds' attached files, writing what the server lacks. */
+    /** Push images' objects and their builds' attached files, writing what the server lacks. */
     async push(
         store: Pick<
             BuildStore,
-            "closure" | "contents" | "head" | "lock" | "read" | "attachments" | "environment"
+            "closure" | "contents" | "head" | "image" | "read" | "attachments" | "environment"
         >,
-        locks: readonly Digest[],
+        images: readonly Digest[],
         signal?: AbortSignal,
     ): Promise<void> {
-        // list every lock's objects, files first, and the files each build attached
-        const roots = locks.map((digest) => ({ kind: "lock", digest }) as const);
+        // list every image's objects, files first, and the files each build attached
+        const roots = images.map((digest) => ({ kind: "image", digest }) as const);
         const objects = await BuildObject.of(store, roots, "all");
         const manifests = objects.filter((object) => object.kind === "manifest");
         const attachments = new Map(

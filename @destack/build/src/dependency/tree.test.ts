@@ -17,7 +17,7 @@ const DefaultExport = schema.looseObject({ default: schema.unknown() });
 /** The scope of a compile's tree. */
 const COMPILE = { kind: "compile" } as const;
 
-test("place npm units of a lock beside their peers, refusing a missing required peer", async () => {
+test("place npm units of an image beside their peers, refusing a missing required peer", async () => {
     // install a renderer
     await using simulation = testSimulation();
     const environment = simulation.environment("test");

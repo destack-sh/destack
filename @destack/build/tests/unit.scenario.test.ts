@@ -4,7 +4,7 @@ import type { Environment, FileSystem } from "@destack/environment";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { CompilerPool, DependencyTree, Workspace } from "../src/index.ts";
-import { Lock } from "@destack/package/manifest";
+import { BuildImage } from "@destack/package/manifest";
 import { present, schema } from "@destack/schema";
 import { BuildStore } from "../src/store/index.ts";
 import { LocalBuildStore } from "../src/store/local.ts";
@@ -75,7 +75,7 @@ async function installLeftPad(
     library: string,
     files: FileSystem,
 ): Promise<void> {
-    // lock the release beside the members
+    // make an image of the release beside the members
     const lockfile = join(workspace, "bun.lock");
     const locked = schema.looseObject({}).parse(JSON.parse(await files.readTextFile(lockfile)));
     const packages = { "left-pad": ["left-pad@1.3.0", "", {}, FIXTURE_INTEGRITY] };
@@ -100,7 +100,7 @@ function isGreeter(value: unknown): value is () => unknown {
     return typeof value === "function";
 }
 
-test("build a workspace's units once, keep the application's build on a library edit, and lock the edited library", async () => {
+test("build a workspace's units once, keep the application's build on a library edit, and make an image of the edited library", async () => {
     // lay out a workspace whose application links its library unit
     await using simulation = testSimulation();
     const environment = simulation.environment("test");
@@ -114,12 +114,12 @@ test("build a workspace's units once, keep the application's build on a library 
         const built = await opened.build({ outputs: OUTPUTS });
         const inputs = await opened.storeDependencies({});
         const unit = present(inputs[LIBRARY], "the library unit");
-        const lock = await store.lock(await opened.lock(await built.digest()));
+        const image = await store.image(await opened.image(await built.digest()));
 
-        return { built, library: unit.manifest, lock };
+        return { built, library: unit.manifest, image };
     };
 
-    // build both units and lock them
+    // build both units and make an image of them
     const first = await build();
     const stored = await countObjects(store);
     const restored = await build();
@@ -132,12 +132,12 @@ test("build a workspace's units once, keep the application's build on a library 
     );
     const edited = await build();
 
-    // run each application output with its locked library placed beside it
+    // run each application output with its library from its image placed beside it
     const greetings: unknown[] = [];
-    for (const [index, { built, lock }] of [first, restored, edited].entries()) {
+    for (const [index, { built, image }] of [first, restored, edited].entries()) {
         const destination = join(directory, `application-${index}`);
         await built.writeDirectory(destination, files);
-        const entries = await store.entriesOf(lock);
+        const entries = await store.entriesOf(image);
         const tree = await DependencyTree.materialize(
             store,
             [present(entries[LIBRARY], "the library build")],
@@ -152,14 +152,14 @@ test("build a workspace's units once, keep the application's build on a library 
         greetings.push(isGreeter(greetWorld) ? greetWorld() : greetWorld);
     }
 
-    // keep one application build under every lock
-    const libraries = [first, restored, edited].map(({ lock }) =>
-        Lock.resolve(lock, lock.root, LIBRARY),
+    // keep one application build under every image
+    const libraries = [first, restored, edited].map(({ image }) =>
+        BuildImage.resolve(image, image.root, LIBRARY),
     );
     expect({
         units: units.units.map((unit) => unit.name),
         written: unchanged - stored,
-        roots: [restored.lock.root, edited.lock.root],
+        roots: [restored.image.root, edited.image.root],
         libraries,
         greetings,
         imports: first.built.manifest.outputs["bun"]?.exports["."]?.imports,
@@ -167,7 +167,7 @@ test("build a workspace's units once, keep the application's build on a library 
     }).toEqual({
         units: [LIBRARY, "@destack/build-unit-application-fixture"],
         written: 0,
-        roots: [first.lock.root, first.lock.root],
+        roots: [first.image.root, first.image.root],
         libraries: [first.library, first.library, edited.library],
         greetings: [
             { name: "world", text: "hello world" },
@@ -211,8 +211,8 @@ test("refuse to cache a unit whose committed sources changed after listing, buil
     const refused = await refusal(stale.build({ outputs: OUTPUTS }));
     const fresh = await (await Workspace.open(application, compilers)).package();
     const built = await fresh.build({ outputs: OUTPUTS });
-    const lock = await store.lock(await fresh.lock(await built.digest()));
-    const dependency = present(Lock.resolve(lock, lock.root, LIBRARY), "the library build");
+    const image = await store.image(await fresh.image(await built.digest()));
+    const dependency = present(BuildImage.resolve(image, image.root, LIBRARY), "the library build");
     const source = await (await store.contents(dependency)).load("src/greeting.ts");
 
     // refuse the stale build, and build the edited source once listed again
@@ -231,7 +231,7 @@ test("refuse to cache a unit whose committed sources changed after listing, buil
     });
 });
 
-test("build and lock a package against a release from outside its workspace, refusing it without a resolver", async () => {
+test("build and make an image of a package against a release from outside its workspace, refusing it without a resolver", async () => {
     // build the library as a release in a workspace of its own
     await using simulation = testSimulation();
     const environment = simulation.environment("test");
@@ -246,7 +246,7 @@ test("build and lock a package against a release from outside its workspace, ref
     const releasing = await (await Workspace.open(library, compilers)).package();
     const released = await releasing.build({ outputs: OUTPUTS });
     const manifest = await BuildStore.digest(released.manifest, crypto);
-    const release = await releasing.lock(manifest);
+    const release = await releasing.image(manifest);
 
     // install it into an application whose workspace has no library member
     await copyUnit("unit-application", application, files);
@@ -274,12 +274,12 @@ test("build and lock a package against a release from outside its workspace, ref
     const built = await resolving.build({ outputs: OUTPUTS });
 
     // require the release's range
-    const lock = await store.lock(await resolving.lock(await built.digest()));
+    const image = await store.image(await resolving.image(await built.digest()));
     expect({
         refused,
         asked,
         requires: built.manifest.requires,
-        lock,
+        image,
     }).toEqual({
         refused: [
             "BAD_REQUEST",
@@ -288,7 +288,7 @@ test("build and lock a package against a release from outside its workspace, ref
         ],
         asked: [LIBRARY],
         requires: { [LIBRARY]: "workspace:*" },
-        lock: Lock.of(await built.digest(), {
+        image: BuildImage.of(await built.digest(), {
             [await built.digest()]: { [LIBRARY]: manifest },
             [manifest]: {},
         }),
@@ -305,7 +305,7 @@ async function declareBuiltin(unit: string, files: FileSystem): Promise<void> {
     );
 }
 
-test("declare a builtin release in a build's requirements, leaving it out of its lock", async () => {
+test("declare a builtin release in a build's requirements, leaving it out of its image", async () => {
     // build the library as a builtin release in a workspace of its own
     await using simulation = testSimulation();
     const environment = simulation.environment("test");
@@ -320,7 +320,7 @@ test("declare a builtin release in a build's requirements, leaving it out of its
     const compilers = await CompilerPool.open(store, async () => Toolchain.workspace());
     const releasing = await (await Workspace.open(library, compilers)).package();
     const released = await releasing.build({ outputs: OUTPUTS });
-    const release = await releasing.lock(await BuildStore.digest(released.manifest, crypto));
+    const release = await releasing.image(await BuildStore.digest(released.manifest, crypto));
 
     // build an application against it
     await copyUnit("unit-application", application, files);
@@ -338,18 +338,18 @@ test("declare a builtin release in a build's requirements, leaving it out of its
     ).package();
     const built = await resolving.build({ outputs: OUTPUTS });
 
-    // require the builtin, and lock nothing
+    // require the builtin, and image nothing
     const root = await built.digest();
     expect({
         requires: built.manifest.requires,
-        lock: await store.lock(await resolving.lock(root)),
+        image: await store.image(await resolving.image(root)),
     }).toEqual({
         requires: { [LIBRARY]: "workspace:*" },
-        lock: Lock.of(root),
+        image: BuildImage.of(root),
     });
 });
 
-test("declare a builtin workspace member in a build's requirements, leaving it out of its lock", async () => {
+test("declare a builtin workspace member in a build's requirements, leaving it out of its image", async () => {
     // lay out a workspace whose application links its builtin library unit from source
     await using simulation = testSimulation();
     const environment = simulation.environment("test");
@@ -364,10 +364,10 @@ test("declare a builtin workspace member in a build's requirements, leaving it o
     const root = await built.digest();
     expect({
         requires: built.manifest.requires,
-        lock: await store.lock(await opened.lock(root)),
+        image: await store.image(await opened.image(root)),
     }).toEqual({
         requires: { [LIBRARY]: "workspace:*" },
-        lock: Lock.of(root),
+        image: BuildImage.of(root),
     });
 });
 

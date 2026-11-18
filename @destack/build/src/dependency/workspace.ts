@@ -10,7 +10,7 @@ import {
     PackageName,
     type graph,
 } from "@destack/package";
-import { type BuildReader, Lock, PackageManifest } from "@destack/package/manifest";
+import { type BuildReader, BuildImage, PackageManifest } from "@destack/package/manifest";
 import { PackageLocator } from "@destack/package/locator";
 import { PRIMARY_RUNTIMES, type Runtime } from "@destack/package/runtime";
 import { Digest, found, nth, present, Version } from "@destack/schema";
@@ -63,13 +63,13 @@ export type WorkspaceUnitOptions = Pick<
 /** The compilers a workspace builds with, and the store they build into. */
 export type WorkspaceCompilers = Pick<CompilerPool, "store" | "fingerprint" | "use">;
 
-/** Find a release outside the workspace by its lock's digest, storing its lock and builds. */
+/** Find a release outside the workspace by its image's digest, storing its image and builds. */
 export type ReleaseResolver = (dependency: PackageVersion) => Promise<Digest>;
 
-/** A release the workspace requires: its lock, its root build and where it comes from. */
+/** A release the workspace requires: its image, its root build and where it comes from. */
 export interface WorkspaceRelease {
-    /** The release's lock. */
-    readonly lock: Lock;
+    /** The release's image. */
+    readonly image: BuildImage;
     /** The release's root build, which its dependents compile against. */
     readonly root: DependencyRelease;
     /** Where the release comes from: the host as a builtin, or the resolver. */
@@ -85,8 +85,8 @@ export interface WorkspaceOptions {
     readonly resolver?: ReleaseResolver;
     /** Which members a build compiles from source, all by default. */
     readonly selection?: WorkspaceSelection;
-    /** The locks of the builtins the host provides, none by default. */
-    readonly host?: readonly Lock[];
+    /** The images of the builtins the host provides, none by default. */
+    readonly host?: readonly BuildImage[];
     /** The version every unit releases at, as a release of the whole workspace gives one. */
     readonly version?: Version;
 }
@@ -105,8 +105,8 @@ export class Workspace {
     readonly npm: NpmInstallation;
     /** Find the releases the units require from outside the workspace, absent for none. */
     readonly resolver: ReleaseResolver | undefined;
-    /** The locks of the builtins the host provides. */
-    readonly host: readonly Lock[];
+    /** The images of the builtins the host provides. */
+    readonly host: readonly BuildImage[];
     /** The version every unit releases at, absent where each build gives its own. */
     readonly version: Version | undefined;
     /** The real directories of the workspace's members. */
@@ -117,8 +117,8 @@ export class Workspace {
     readonly #units = new Map<string, Map<string, WorkspaceUnit>>();
     /** Each unit's stored build, by the options that shape it. */
     readonly #builds = new Map<WorkspaceUnit, Map<string, Promise<DependencyBuild>>>();
-    /** Each unit's lock, by the options that shape its build. */
-    readonly #locks = new Map<WorkspaceUnit, Map<string, Promise<Digest>>>();
+    /** Each unit's image, by the options that shape its build. */
+    readonly #images = new Map<WorkspaceUnit, Map<string, Promise<Digest>>>();
     /** Each manifest read, by its digest, which names its content. */
     readonly #manifests = new Map<Digest, Promise<PackageManifest>>();
 
@@ -253,13 +253,13 @@ export class Workspace {
         return Workspace.#once(this.#builds, unit, shared, start);
     }
 
-    /** Take a unit's lock once per workspace and options, starting it when first asked. */
-    unitLock(
+    /** Take a unit's image once per workspace and options, starting it when first asked. */
+    unitImage(
         unit: WorkspaceUnit,
         shared: WorkspaceUnitOptions,
         start: () => Promise<Digest>,
     ): Promise<Digest> {
-        return Workspace.#once(this.#locks, unit, shared, start);
+        return Workspace.#once(this.#images, unit, shared, start);
     }
 
     /** Take a unit's value started once per options that shape its build: versions and stamping. */
@@ -411,9 +411,9 @@ export class WorkspacePackage {
     readonly workspace: Workspace;
     /** The units, by package name. */
     readonly #named: ReadonlyMap<string, WorkspaceUnit>;
-    /** The releases resolved once a build first needs them, each with its lock and root. */
+    /** The releases resolved once a build first needs them, each with its image and root. */
     #releases: Promise<ReadonlyMap<string, WorkspaceRelease>> | undefined;
-    /** The spans and durations of the units' builds and locks. */
+    /** The spans and durations of the units' builds and images. */
     readonly #scope: TelemetryScope;
 
     /** Store a closure's units in build order, the package last, in its workspace. */
@@ -436,14 +436,14 @@ export class WorkspacePackage {
         return this.#releases;
     }
 
-    /** Resolve each release the units require, and each builtin the host provides, to its lock. */
+    /** Resolve each release the units require, and each builtin the host provides, to its image. */
     async #resolveReleases(): Promise<ReadonlyMap<string, WorkspaceRelease>> {
-        // take each package the host provides as a builtin from its lock
+        // take each package the host provides as a builtin from its image
         const releases = new Map<string, WorkspaceRelease>();
-        for (const lock of this.workspace.host) {
-            const { name } = (await this.workspace.manifest(lock.root)).package;
-            const root = present((await this.#store.entriesOf(lock))[name], `the root of ${name}`);
-            releases.set(name, { lock, root, source: "host" });
+        for (const image of this.workspace.host) {
+            const { name } = (await this.workspace.manifest(image.root)).package;
+            const root = present((await this.#store.entriesOf(image))[name], `the root of ${name}`);
+            releases.set(name, { image, root, source: "host" });
         }
 
         // refuse the other required releases to a workspace without a resolver
@@ -462,14 +462,14 @@ export class WorkspacePackage {
             );
         }
 
-        // resolve each other release to its lock and its root build
+        // resolve each other release to its image and its root build
         for (const dependency of required.values()) {
-            const lock = await this.#store.lock(
+            const image = await this.#store.image(
                 await present(resolver, "the release resolver")(dependency),
             );
-            const entries = await this.#store.entriesOf(lock);
+            const entries = await this.#store.entriesOf(image);
             const root = present(entries[dependency.name], `the root of ${dependency.name}`);
-            releases.set(dependency.name, { lock, root, source: "resolver" });
+            releases.set(dependency.name, { image, root, source: "resolver" });
         }
 
         return releases;
@@ -500,8 +500,8 @@ export class WorkspacePackage {
         return await this.#store.contents(manifest);
     }
 
-    /** Lock the root's build with every build it runs with: units, releases and npm units. */
-    async lock(root: Digest, shared: WorkspaceUnitOptions = {}): Promise<Digest> {
+    /** Make an image of the root's build with every build it runs with, npm units among them. */
+    async image(root: Digest, shared: WorkspaceUnitOptions = {}): Promise<Digest> {
         // build the units it runs with, and attach the graph of each build it ships at once as the pool allows
         const units = await this.#storeEach(shared, this.#dependencies);
         await Promise.all([
@@ -511,28 +511,31 @@ export class WorkspacePackage {
             ),
         ]);
 
-        return await this.#lock(this.root, root, units);
+        return await this.#image(this.root, root, units);
     }
 
-    /** Build and lock every unit, by name. */
-    async lockUnits(
+    /** Build and make an image of every unit, by name. */
+    async imageUnits(
         shared: WorkspaceUnitOptions,
-    ): Promise<ReadonlyMap<string, { readonly build: DependencyBuild; readonly lock: Digest }>> {
-        // build every unit once, attach their graphs at once as the pool allows, then lock each once per workspace
+    ): Promise<ReadonlyMap<string, { readonly build: DependencyBuild; readonly image: Digest }>> {
+        // build every unit once, attach their graphs at once as the pool allows, then make an image of each once per workspace
         const units = await this.#storeEach(shared, this.units);
-        const locks = new Map<string, { readonly build: DependencyBuild; readonly lock: Digest }>();
+        const images = new Map<
+            string,
+            { readonly build: DependencyBuild; readonly image: Digest }
+        >();
         await Promise.all(
             this.units.map((unit) => this.#attachUnitGraph(unit, found(units, unit.name), units)),
         );
         for (const unit of this.units) {
             const build = found(units, unit.name);
-            const lock = await this.workspace.unitLock(unit, shared, () =>
-                this.#lock(unit, build.manifest, units),
+            const image = await this.workspace.unitImage(unit, shared, () =>
+                this.#image(unit, build.manifest, units),
             );
-            locks.set(unit.name, { build, lock });
+            images.set(unit.name, { build, image });
         }
 
-        return locks;
+        return images;
     }
 
     /** Attach a workspace unit's graph to its build, unless the build carries one. */
@@ -552,8 +555,8 @@ export class WorkspacePackage {
         );
     }
 
-    /** Lock a unit's build with every build it runs with. */
-    #lock(
+    /** Make an image of a unit's build with every build it runs with. */
+    #image(
         unit: WorkspaceUnit,
         root: Digest,
         units: ReadonlyMap<string, DependencyBuild>,
@@ -561,12 +564,12 @@ export class WorkspacePackage {
         const attributes = { "destack.package.name": unit.name };
 
         return this.#scope.span("destack.workspace.lock", attributes, () =>
-            this.#storeLock(unit, root, units),
+            this.#storeImage(unit, root, units),
         );
     }
 
-    /** Link a unit's build on to the build each requirement resolves to, then store the lock. */
-    async #storeLock(
+    /** Link a unit's build on to the build each requirement resolves to, then store the image. */
+    async #storeImage(
         unit: WorkspaceUnit,
         root: Digest,
         units: ReadonlyMap<string, DependencyBuild>,
@@ -618,10 +621,10 @@ export class WorkspacePackage {
             builds.set(digest, await this.#peers(digest, builds, linking.get(digest) ?? []));
         }
 
-        return await this.#store.putLock(Lock.of(root, Object.fromEntries(builds)));
+        return await this.#store.putImage(BuildImage.of(root, Object.fromEntries(builds)));
     }
 
-    /** Resolve a locked build's requirements: a release's from its lock, else its installs. */
+    /** Resolve a locked build's requirements: a release's from its image, else its installs. */
     async #links(
         digest: Digest,
         index: {
@@ -966,7 +969,7 @@ export class WorkspacePackage {
         return inputs;
     }
 
-    /** List the npm releases a unit's npm dependencies lock, which its key reads. */
+    /** List the npm releases a unit's npm dependencies image, which its key reads. */
     async #npmReleases(unit: WorkspaceUnit): Promise<string[]> {
         // open each npm dependency and list its closure's releases by name, version and integrity
         const releases = new Set<string>();
@@ -991,7 +994,7 @@ export class WorkspacePackage {
         return { ...Object.fromEntries(built), ...options.versions };
     }
 
-    /** Take a unit's build options on its dependencies, with the links of their locks. */
+    /** Take a unit's build options on its dependencies, with the links of their images. */
     async #options(
         unit: WorkspaceUnit,
         request: WorkspaceBuildOptions,
@@ -1013,11 +1016,11 @@ export class WorkspacePackage {
         };
     }
 
-    /** Read the links of every release's lock, the host's builtins among them, by build. */
+    /** Read the links of every release's image, the host's builtins among them, by build. */
     async #releaseLinks(): Promise<Readonly<Record<Digest, Readonly<Record<string, Digest>>>>> {
         const releases = [...(await this.#resolvedReleases()).values()];
 
-        return Object.fromEntries(releases.flatMap(({ lock }) => Object.entries(lock.builds)));
+        return Object.fromEntries(releases.flatMap(({ image }) => Object.entries(image.builds)));
     }
 
     /** Key a unit's build by its sources, toolchain and its dependencies' interfaces. */

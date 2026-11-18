@@ -430,9 +430,9 @@ test("refuse what a module an extension generates imports until the package decl
     const workspacePackage = await (await Workspace.open(directory, compilers)).package();
     const build = await workspacePackage.build({ outputs: request.outputs });
 
-    // run the generated entry with the leaf's locked build placed beside it
-    const lock = await workspacePackage.lock(await build.digest());
-    const entries = await store.entriesOf(await store.lock(lock));
+    // run the generated entry with the leaf's build from its image placed beside it
+    const image = await workspacePackage.image(await build.digest());
+    const entries = await store.entriesOf(await store.image(image));
     const leaf = present(entries["@fixture/leaf"], "the leaf build");
     const destination = join(root, "deployed");
     await build.writeDirectory(destination, files);

@@ -36,7 +36,7 @@ async function writePackage(
 
 /** Write an application importing three linked dependencies, one undeclared, returning its root. */
 async function writeApplication(files: FileSystem): Promise<string> {
-    // write a dependency for the server only, one the host locks to another release, and one undeclared
+    // write a dependency for the server only, one the host images to another release, and one undeclared
     const root = await files.realPath(
         await files.makeTemporaryDirectory("destack-build-resolution-"),
     );

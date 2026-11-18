@@ -249,7 +249,7 @@ export interface PackageBuildOptions {
     outputs: Readonly<Record<string, ModuleOptions>>;
     /** Exact dependency releases selected by the package resolver. */
     dependencies: Readonly<Record<string, DependencyRelease>>;
-    /** The build each requirement of a dependency's build resolves to, as its lock links it. */
+    /** The build each requirement of a dependency's build resolves to, as its image links it. */
     links: Readonly<Record<Digest, Readonly<Record<string, Digest>>>>;
     /** The TypeScript configuration, absent for the package defaults. */
     configuration?: string;

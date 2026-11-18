@@ -3,7 +3,7 @@ import type { Crypto } from "@destack/environment";
 import { dirname, join } from "node:path";
 import { Simulation } from "@destack/environment/simulation";
 import { PackageVersion, type PackageRole } from "@destack/package";
-import { BuildReader, BuildWriter, Lock, PackageManifest } from "@destack/package/manifest";
+import { BuildReader, BuildWriter, BuildImage, PackageManifest } from "@destack/package/manifest";
 import { Digest, found, present } from "@destack/schema";
 import { expect, refusal, test } from "@destack/test";
 import { testHost } from "@destack/test/host";
@@ -80,12 +80,12 @@ async function written(
     );
 }
 
-/** Store the lock of a build running alone, returning its digest. */
-async function lockAlone(store: BuildStore, root: Digest): Promise<Digest> {
-    return await store.putLock(Lock.of(root));
+/** Store the image of a build running alone, returning its digest. */
+async function imageAlone(store: BuildStore, root: Digest): Promise<Digest> {
+    return await store.putImage(BuildImage.of(root));
 }
 
-/** Read a build's entry of a lock as a tree places it. */
+/** Read a build's entry of an image as a tree places it. */
 function entryOf(reader: BuildReader, manifest: Digest) {
     return {
         kind: "destack" as const,
@@ -107,7 +107,7 @@ test("keep one store in a directory, which a later open of any toolchain reads",
     }
     await using reopened = await LocalBuildStore.open(directory, environment);
 
-    // read the blob from the store's files beside its database and locks
+    // read the blob from the store's files beside its database and images
     const entries = await files.readDirectory(directory);
     expect({
         entries: entries
@@ -133,7 +133,7 @@ test("place a stored file by its blob and a layered one from where its layer kee
     const build = await written("export const answer = 42;", crypto);
     await using distributor = await LocalBuildStore.temporary(environment);
     await distributor.writeLayer(
-        [await lockAlone(distributor, await distributor.put(build))],
+        [await imageAlone(distributor, await distributor.put(build))],
         ["bun"],
         join(directory, "distribution"),
         "linked",
@@ -170,8 +170,8 @@ test("place a stored file by its blob and a layered one from where its layer kee
     ]).toEqual(["stored", "export const answer = 42;"]);
 });
 
-test("keep a lock copied up from the layer once the next layer drops it", async () => {
-    // copy up a lock and its build a store has only through its layer
+test("keep an image copied up from the layer once the next layer drops it", async () => {
+    // copy up an image and its build a store has only through its layer
     await using simulation = testSimulation();
     const environment = simulation.environment("test");
     const { files, crypto } = environment;
@@ -179,9 +179,9 @@ test("keep a lock copied up from the layer once the next layer drops it", async 
     await using store = await LocalBuildStore.open(join(directory, "store"), environment);
     await using distributor = await LocalBuildStore.temporary(environment);
     const release = await distributor.put(await written("export const answer = 42;", crypto));
-    const lock = await lockAlone(distributor, release);
+    const image = await imageAlone(distributor, release);
     const distribution = join(directory, "distribution");
-    await distributor.writeLayer([lock], ["bun"], distribution, "linked");
+    await distributor.writeLayer([image], ["bun"], distribution, "linked");
     {
         await using layered = await LocalBuildStore.of({
             blobs: store.blobs,
@@ -190,18 +190,18 @@ test("keep a lock copied up from the layer once the next layer drops it", async 
             layer: await BuildLayer.open(distribution, environment),
         });
         await layered.copyUp([
-            { kind: "lock", digest: lock },
+            { kind: "image", digest: image },
             { kind: "manifest", digest: release },
         ]);
     }
 
-    // read the lock and its build's module over an empty layer
+    // read the image and its build's module over an empty layer
     await using reopened = await LocalBuildStore.of({
         blobs: store.blobs,
         directory: join(directory, "layered"),
         environment,
     });
-    const read = await reopened.contents((await reopened.lock(lock)).root);
+    const read = await reopened.contents((await reopened.image(image)).root);
     expect(new TextDecoder().decode(await read.load("src/answer.ts"))).toBe(
         "export const answer = 42;",
     );
@@ -214,14 +214,14 @@ test("relink a linked layer's builds that point at a pool an earlier layer forma
     const { files, crypto } = environment;
     await using store = await LocalBuildStore.temporary(environment);
     const release = await store.put(await written("export const answer = 42;", crypto));
-    const lock = await lockAlone(store, release);
+    const image = await imageAlone(store, release);
     const distribution = await files.makeTemporaryDirectory("test-distribution-");
-    await store.writeLayer([lock], ["bun"], distribution, "linked");
+    await store.writeLayer([image], ["bun"], distribution, "linked");
     await files.remove(join(distribution, release));
     await files.symlink(join(distribution, "layered-4", release), join(distribution, release));
 
     // write the layer again and read the build's module through it
-    await store.writeLayer([lock], ["bun"], distribution, "linked");
+    await store.writeLayer([image], ["bun"], distribution, "linked");
     await using layered = await LocalBuildStore.of({
         blobs: store.blobs,
         directory: await files.makeTemporaryDirectory("test-layered-"),
@@ -253,7 +253,7 @@ test("ship a build in a layer with its output's maps, reading a map from the lay
     );
     const release = await store.put(build);
     const distribution = join(directory, "distribution");
-    await store.writeLayer([await lockAlone(store, release)], ["bun"], distribution, "linked");
+    await store.writeLayer([await imageAlone(store, release)], ["bun"], distribution, "linked");
     await using layered = await LocalBuildStore.of({
         blobs: store.blobs,
         directory: join(directory, "layered"),
@@ -288,9 +288,9 @@ test("pull every file of a build its layer ships in part, when pulled for all ru
         },
     );
     const release = await distributor.put(build);
-    const lock = await lockAlone(distributor, release);
+    const image = await imageAlone(distributor, release);
     const distribution = join(directory, "distribution");
-    await distributor.writeLayer([lock], ["workerd"], distribution, "addressed");
+    await distributor.writeLayer([image], ["workerd"], distribution, "addressed");
     const fetch = async (input: string) => {
         const file = join(distribution, new URL(input).pathname);
 
@@ -305,8 +305,8 @@ test("pull every file of a build its layer ships in part, when pulled for all ru
         layer: await BuildLayer.assets({ fetch }, crypto),
     });
 
-    // pull the lock for workerd, which the layer lists without the build's files, then for all runtimes
-    const root = { kind: "lock" as const, digest: lock };
+    // pull the image for workerd, which the layer lists without the build's files, then for all runtimes
+    const root = { kind: "image" as const, digest: image };
     const read = async () => {
         const reader = await layered.contents(release);
 
@@ -329,9 +329,9 @@ test("read an addressed layer's builds in assets by digest, without other runtim
     const directory = await files.makeTemporaryDirectory("test-stores-");
     await using store = await LocalBuildStore.open(join(directory, "store"), environment);
     const release = await store.put(await written("export const answer = 42;", crypto));
-    const lock = await lockAlone(store, release);
+    const image = await imageAlone(store, release);
     const distribution = join(directory, "distribution");
-    await store.writeLayer([lock], ["workerd"], distribution, "addressed");
+    await store.writeLayer([image], ["workerd"], distribution, "addressed");
 
     // open it through assets answering the layer's files by path, as a Worker's binding does
     const fetch = async (input: string) => {
@@ -355,7 +355,7 @@ test("read an addressed layer's builds in assets by digest, without other runtim
             .map((entry) => entry.name)
             .toSorted(),
     }).toEqual({
-        releases: [lock],
+        releases: [image],
         read: release,
         blobs: [...new Set([release, ...shipped.map((file) => file.digest)])].toSorted(),
     });
@@ -487,8 +487,8 @@ test("leave the builtins out of a run tree, as the runtime links them", async ()
     const root = await store.put(app);
 
     // place the app and the library alone
-    const lock = Lock.of(root, { [root]: { "@example/library": library }, [library]: {} });
-    const tree = await store.runTree(lock, "bun");
+    const image = BuildImage.of(root, { [root]: { "@example/library": library }, [library]: {} });
+    const tree = await store.runTree(image, "bun");
     expect(Object.keys(tree.directories).toSorted()).toEqual([
         "@example/answer",
         "@example/library",
@@ -567,8 +567,8 @@ test("delete an ended process's temporary directory on the next open, leaving a 
     }).toEqual({ isLive: true, isEnded: false, isEndedLock: false });
 });
 
-test("delete a temporary directory without a lock on the next open", async () => {
-    // leave a directory without a lock behind
+test("delete a temporary directory without an image on the next open", async () => {
+    // leave a directory without an image behind
     await using simulation = testSimulation();
     const environment = simulation.environment("test");
     const { files } = environment;
@@ -591,7 +591,7 @@ test("remove a store's temporary directory when the store closes", async () => {
     const temporary = dirname(await store.makeTemporaryDirectory("build-"));
     await store[Symbol.asyncDispose]();
 
-    // find neither the directory nor its lock
+    // find neither the directory nor its image
     expect({
         isTemporary: await files.exists(temporary),
         isLock: await files.exists(`${temporary}.lock`),
@@ -655,7 +655,7 @@ test("collect an unrooted build's layered copy and the linked layers shipping it
 
             return {
                 build,
-                layer: await store.writeLinkedLayer([await lockAlone(store, build)], []),
+                layer: await store.writeLinkedLayer([await imageAlone(store, build)], []),
             };
         };
         rooted = await put("export const answer = 42;\n");

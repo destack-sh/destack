@@ -14,7 +14,7 @@ import {
     USE_MILLISECONDS,
 } from "./store.ts";
 import { BuildError } from "../error/index.ts";
-import { BuildReader, Lock, MANIFEST_PATH, PackageManifest } from "@destack/package/manifest";
+import { BuildReader, BuildImage, MANIFEST_PATH, PackageManifest } from "@destack/package/manifest";
 import {
     BuildLayer,
     LAYER_BLOBS,
@@ -49,7 +49,7 @@ const LAYERED_DIRECTORY = "layered";
 /** The directory below a store's directory with its linked layers, by releases and runtimes. */
 const LAYERS_DIRECTORY = "layers";
 
-/** The suffix of a lock's run directory while it is written, moved in once whole. */
+/** The suffix of an image's run directory while it is written, moved in once whole. */
 const STAGING_SUFFIX = ".staging";
 
 /** The prefix of a directory's root, forgotten once the directory is gone. */
@@ -354,15 +354,15 @@ export class LocalBuildStore
         return join(this.directory, LAYERED_DIRECTORY, String(LAYER_FORMAT));
     }
 
-    /** Write locked releases to a layer: whole builds for a computer, run files for the cloud. */
+    /** Write release images to a layer: whole builds for a computer, run files for the cloud. */
     writeLayer(
-        locks: readonly Digest[],
+        images: readonly Digest[],
         runtimes: readonly Runtime[],
         directory: string,
         layout: LayerLayout,
     ): Promise<void> {
         return this.scope.span("destack.build.write_layer", {}, () =>
-            this.#writeLayer(locks, runtimes, directory, layout),
+            this.#writeLayer(images, runtimes, directory, layout),
         );
     }
 
@@ -379,20 +379,20 @@ export class LocalBuildStore
         await files.symlink(target, path);
     }
 
-    /** Write the locks' builds in a layout: addressed blobs, or whole builds and run trees. */
+    /** Write the images' builds in a layout: addressed blobs, or whole builds and run trees. */
     async #writeLayer(
-        locks: readonly Digest[],
+        images: readonly Digest[],
         runtimes: readonly Runtime[],
         directory: string,
         layout: LayerLayout,
     ): Promise<void> {
-        // read each lock and its builds
-        const shipped = new Map<Digest, Lock>();
+        // read each image and its builds
+        const shipped = new Map<Digest, BuildImage>();
         const builds = new Set<Digest>();
-        for (const digest of locks) {
-            const lock = await this.lock(digest);
-            shipped.set(digest, lock);
-            for (const build of Lock.builds(lock)) {
+        for (const digest of images) {
+            const image = await this.image(digest);
+            shipped.set(digest, image);
+            for (const build of BuildImage.builds(image)) {
                 builds.add(build);
             }
         }
@@ -433,21 +433,21 @@ export class LocalBuildStore
         const trees = this.trees;
         await files.mkdir(trees, { recursive: true });
         await this.#link(trees, join(directory, LAYER_TREES));
-        for (const lock of isHosting ? shipped.values() : []) {
-            const releases = await Lock.releases(lock, (digest) => this.get(digest));
-            const resolve = (build: Digest, name: string) => Lock.resolve(lock, build, name);
+        for (const image of isHosting ? shipped.values() : []) {
+            const releases = await BuildImage.releases(image, (digest) => this.get(digest));
+            const resolve = (build: Digest, name: string) => BuildImage.resolve(image, build, name);
             await DependencyTree.materialize(this, releases, resolve, trees, { kind: "compile" });
         }
 
-        // write each hosted lock's root with its run tree in a directory of the lock's own
-        for (const [digest, lock] of isHosting ? shipped : []) {
-            const reader = found(readers, lock.root);
+        // write each hosted image's root with its run tree in a directory of the image's own
+        for (const [digest, image] of isHosting ? shipped : []) {
+            const reader = found(readers, image.root);
             const isRunning = Object.values(reader.manifest.outputs).some(
                 (output) => output.runtime === HOST_RUNTIME,
             );
             const run = join(directory, digest);
             if (isRunning && !(await files.exists(run))) {
-                await this.#writeRun(reader, await this.runTree(lock, HOST_RUNTIME, trees), run);
+                await this.#writeRun(reader, await this.runTree(image, HOST_RUNTIME, trees), run);
             }
         }
 
@@ -469,14 +469,14 @@ export class LocalBuildStore
         await BuildLayer.writeIndex(directory, shipped, sizes, [...placed.values()], "path", files);
     }
 
-    /** Write a linked layer of locked releases once, keyed with the runtimes. */
+    /** Write a linked layer of release images once, keyed with the runtimes. */
     async writeLinkedLayer(
-        locks: readonly Digest[],
+        images: readonly Digest[],
         runtimes: readonly Runtime[],
     ): Promise<string> {
         // leave a layer written before in this format
         const { files, crypto } = this.environment;
-        const key = await Digest.json({ format: LAYER_FORMAT, releases: locks, runtimes }, crypto);
+        const key = await Digest.json({ format: LAYER_FORMAT, releases: images, runtimes }, crypto);
         const directory = join(this.directory, LAYERS_DIRECTORY, key);
         if (await files.exists(directory)) {
             return directory;
@@ -485,7 +485,7 @@ export class LocalBuildStore
         // write it in this process's temporary directory, then move it in, leaving one another process moved in first
         const written = await this.makeTemporaryDirectory("layer-");
         await files.mkdir(dirname(directory), { recursive: true });
-        await this.writeLayer(locks, runtimes, written, "linked");
+        await this.writeLayer(images, runtimes, written, "linked");
         await files.rename(written, directory).catch(async (error: unknown) => {
             if (!FileSystemError.is(error, "FILE_EXISTS")) {
                 throw error;
@@ -496,9 +496,9 @@ export class LocalBuildStore
         return directory;
     }
 
-    /** Write what the locks' runtimes run as blobs by digest, the index last. */
+    /** Write what the images' runtimes run as blobs by digest, the index last. */
     async #writeAddressed(
-        locks: ReadonlyMap<Digest, Lock>,
+        images: ReadonlyMap<Digest, BuildImage>,
         runtimes: readonly Runtime[],
         directory: string,
     ): Promise<void> {
@@ -508,30 +508,30 @@ export class LocalBuildStore
         await files.remove(directory, { recursive: true, force: true });
         await files.mkdir(blobs, { recursive: true });
 
-        // list the objects a pull of the locks for the runtimes reads
-        const roots = [...locks.keys()].map((digest) => ({ kind: "lock", digest }) as const);
+        // list the objects a pull of the images for the runtimes reads
+        const roots = [...images.keys()].map((digest) => ({ kind: "image", digest }) as const);
         const objects = await BuildObject.of(this, roots, runtimes);
         const wanted = new Set(
             objects.filter((object) => object.kind === "file").map((object) => object.digest),
         );
 
-        // link the builtins among the locks, as a machine shipping them links their releases
-        const linked = new Map<string, Lock>();
-        for (const lock of locks.values()) {
-            const { manifest } = await this.contents(lock.root);
+        // link the builtins among the images, as a machine shipping them links their releases
+        const linked = new Map<string, BuildImage>();
+        for (const image of images.values()) {
+            const { manifest } = await this.contents(image.root);
             if (manifest.role === "builtin") {
-                linked.set(PackageManifest.package(manifest).name, lock);
+                linked.set(PackageManifest.package(manifest).name, image);
             }
         }
 
-        // read the modules each lock's root reaches on the runtimes loading modules by import
+        // read the modules each image's root reaches on the runtimes loading modules by import
         const reached = new Set<string>();
-        for (const lock of locks.values()) {
+        for (const image of images.values()) {
             for (const runtime of runtimes.filter((each) => LOADED_RUNTIMES.has(each))) {
-                const closure = await this.imports(lock, runtime, CLOSURE_BASE, linked);
-                const root = await this.contents(lock.root);
+                const closure = await this.imports(image, runtime, CLOSURE_BASE, linked);
+                const root = await this.contents(image.root);
                 const modules = await ImportClosure.modules(
-                    await ImportClosure.entries(lock.root, root, runtime),
+                    await ImportClosure.entries(image.root, root, runtime),
                     runtime,
                     closure,
                     CLOSURE_BASE,
@@ -569,10 +569,17 @@ export class LocalBuildStore
 
         // clone the listed files, then write the index
         await this.place(placements);
-        await BuildLayer.writeIndex(directory, locks, sizes, [...placed.values()], "digest", files);
+        await BuildLayer.writeIndex(
+            directory,
+            images,
+            sizes,
+            [...placed.values()],
+            "digest",
+            files,
+        );
     }
 
-    /** Write a lock's root and its run tree in a directory, unless another process did first. */
+    /** Write an image's root and its run tree in a directory, unless another process did first. */
     async #writeRun(reader: BuildReader, tree: DependencyTree, run: string): Promise<void> {
         // stage it under this process's name
         const { files, process } = this.environment;
@@ -635,25 +642,33 @@ export class LocalBuildStore
         await files.writeFile(join(directory, MANIFEST_PATH), manifest, { createNew: true });
     }
 
-    /** Lay out the tree a lock's root runs with on a runtime, a layered one in place. */
-    runTree(lock: Lock, runtime: Runtime, directory: string = this.trees): Promise<DependencyTree> {
+    /** Lay out the tree an image's root runs with on a runtime, a layered one in place. */
+    runTree(
+        image: BuildImage,
+        runtime: Runtime,
+        directory: string = this.trees,
+    ): Promise<DependencyTree> {
         return this.scope.span("destack.build.run_tree", {}, () =>
-            this.#runTree(lock, runtime, directory),
+            this.#runTree(image, runtime, directory),
         );
     }
 
-    /** Place each build of a lock's export closure for a runtime. */
-    async #runTree(lock: Lock, runtime: Runtime, directory: string): Promise<DependencyTree> {
+    /** Place each build of an image's export closure for a runtime. */
+    async #runTree(
+        image: BuildImage,
+        runtime: Runtime,
+        directory: string,
+    ): Promise<DependencyTree> {
         // read the closure of every export, refusing a build the store lacks
         const closure = await this.closure(
-            lock,
+            image,
             runtime,
             async (needed) => {
                 const stored = await this.find(needed);
                 if (stored === undefined) {
                     throw BuildError.of(
                         "DEPENDENCY_INVALID",
-                        `build '${needed}' of lock root '${lock.root}' is invalid: it is missing from the store`,
+                        `build '${needed}' of image root '${image.root}' is invalid: it is missing from the store`,
                     );
                 }
 
@@ -663,8 +678,8 @@ export class LocalBuildStore
         );
 
         // place each closure build's output once
-        const releases = await Lock.releases(lock, (digest) => this.get(digest));
-        const resolve = (build: Digest, name: string) => Lock.resolve(lock, build, name);
+        const releases = await BuildImage.releases(image, (digest) => this.get(digest));
+        const resolve = (build: Digest, name: string) => BuildImage.resolve(image, build, name);
 
         return await DependencyTree.materialize(this, releases, resolve, directory, {
             kind: "run",
@@ -822,7 +837,7 @@ export class LocalBuildStore
             const idle = await files.tryLock(join(location, STORE_LOCK), "exclusive");
             await idle?.close();
 
-            // open the store sharing its lock, then collect it while no other process builds into it
+            // open the store sharing its image, then collect it while no other process builds into it
             const disposables = new AsyncDisposableStack();
             try {
                 const shared = await files.lock(join(location, STORE_LOCK), "shared");
@@ -838,7 +853,7 @@ export class LocalBuildStore
 
                 return store;
             } catch (error) {
-                // release the lock and whatever opened once opening fails
+                // release the image and whatever opened once opening fails
                 await disposables.disposeAsync();
                 throw error;
             }

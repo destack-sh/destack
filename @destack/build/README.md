@@ -4,7 +4,7 @@ Compile Destack packages into one module output per runtime, and keep the builds
 
 ## Overview
 
-`@destack/build` is Vite on Rolldown per package: sandboxed compilers, builds stored by digest, and locks of the builds a package runs with.
+`@destack/build` is Vite on Rolldown per package: sandboxed compilers, builds stored by digest, and images of the builds a package runs with.
 
 Workspaces build packages:
 
@@ -13,20 +13,20 @@ Workspaces build packages:
 - `BuildExtension`: Vite plugins a dependency adds to the packages using it.
 - `Template`: a template package, written out as a new package.
 
-Stores keep builds and locks:
+Stores keep builds and images:
 
-- `BuildStore` and `LocalBuildStore`: builds and locks by digest, as an OCI registry keeps images.
-- `Lock`: a root build and the build of each package it runs with, from `@destack/package`.
-- `PackageClient`: pushes builds and locks to a forge, and reads them for `pull`.
+- `BuildStore` and `LocalBuildStore`: builds and images by digest, as an OCI registry keeps images.
+- `BuildImage`: a root build and the build of each package it runs with, from `@destack/package`.
+- `PackageClient`: pushes builds and images to a forge, and reads them for `pull`.
 
-Build a package, store it, and lock it with what it runs with:
+Build a package, store it, and make an image of it with what it runs with:
 
 ```ts
 import { CompilerPool, outputsOf, Workspace } from "@destack/build";
 import type { LocalBuildStore } from "@destack/build";
 import { Toolchain } from "@destack/check/toolchain";
 
-/** Build a checkout's package, and lock it with its dependencies. */
+/** Build a checkout's package, and make an image of it with its dependencies. */
 export async function buildAndLock(store: LocalBuildStore, directory: string) {
     // build the root on its dependencies' builds
     await using compilers = await CompilerPool.open(store, async () => Toolchain.workspace());
@@ -34,10 +34,10 @@ export async function buildAndLock(store: LocalBuildStore, directory: string) {
     const opened = await workspace.package();
     const build = await opened.build({ outputs: outputsOf(opened.root.packageJson) });
 
-    // store it, and lock it with every build it runs with
+    // store it, and make an image of it with every build it runs with
     const root = await store.put(build);
 
-    return await opened.lock(root);
+    return await opened.image(root);
 }
 ```
 
@@ -46,37 +46,37 @@ export async function buildAndLock(store: LocalBuildStore, directory: string) {
 ### Workspace
 
 `Workspace.open(directory, compilers, { resolver, selection, host })` reads a checkout once, and `workspace.package(directory)` takes a package with the units it requires.
-Each unit compiles only on a key miss, once per workspace, and the host's packages resolve to its locks.
+Each unit compiles only on a key miss, once per workspace, and the host's packages resolve to its images.
 
-| Verb                     | What it does                                    |
-| ------------------------ | ----------------------------------------------- |
-| `build(request)`         | builds the root with given outputs              |
-| `lockUnits(options)`     | builds and locks every unit, by name            |
-| `lock(root, options)`    | locks a root build with every build it requires |
-| `inspect(…)`, `index(…)` | inspects or indexes the root's code             |
+| Verb                     | What it does                                                |
+| ------------------------ | ----------------------------------------------------------- |
+| `build(request)`         | builds the root with given outputs                          |
+| `imageUnits(options)`    | builds and makes an image of every unit, by name            |
+| `image(root, options)`   | makes an image of a root build with every build it requires |
+| `inspect(…)`, `index(…)` | inspects or indexes the root's code                         |
 
 `isPrerelease` stamps each build as a dev version, `<release>-dev.<time>.<key>`.
 
 ### BuildStore
 
-| Verb                              | What it does                                                  |
-| --------------------------------- | ------------------------------------------------------------- |
-| `put(build)`                      | stores a build's missing files, then its manifest             |
-| `putLock(lock)`, `lock(digest)`   | stores or reads a lock                                        |
-| `has(digests)`                    | tells which blobs the store has, one flag per digest          |
-| `read(objects)`, `write(entries)` | reads or writes files, manifests and locks as tarball entries |
-| `pull(source, root, runtimes)`    | pulls a lock's or build's objects from another store          |
-| `record(digest)`                  | records a lock whose blobs arrived, as a moved space's        |
-| `entriesOf(lock)`                 | reads a lock's builds by package name                         |
-| `referencing(digest)`             | lists the manifests and locks referencing a blob or build     |
-| `fetch(request, mount)`           | serves manifests, files and the store's verbs below a mount   |
+| Verb                               | What it does                                                   |
+| ---------------------------------- | -------------------------------------------------------------- |
+| `put(build)`                       | stores a build's missing files, then its manifest              |
+| `putImage(image)`, `image(digest)` | stores or reads an image                                       |
+| `has(digests)`                     | tells which blobs the store has, one flag per digest           |
+| `read(objects)`, `write(entries)`  | reads or writes files, manifests and images as tarball entries |
+| `pull(source, root, runtimes)`     | pulls an image's or build's objects from another store         |
+| `record(digest)`                   | records an image whose blobs arrived, as a moved space's       |
+| `entriesOf(image)`                 | reads an image's builds by package name                        |
+| `referencing(digest)`              | lists the manifests and images referencing a blob or build     |
+| `fetch(request, mount)`            | serves manifests, files and the store's verbs below a mount    |
 
-A `LocalBuildStore` also lays out a lock's tree for a runtime with `runTree`, and writes distribution layers with `writeLayer`.
+A `LocalBuildStore` also lays out an image's tree for a runtime with `runTree`, and writes distribution layers with `writeLayer`.
 
 ### PackageClient
 
 `new PackageClient(url, fetch)` is a build store over HTTP, with the same `has`, `read` and `write`.
-`push(store, locks)` lists the locks' objects, asks which the server has, and writes the rest in bounded uploads.
+`push(store, images)` lists the images' objects, asks which the server has, and writes the rest in bounded uploads.
 
 ## Examples
 
@@ -98,28 +98,28 @@ export async function buildBoth(opened: WorkspacePackage) {
 }
 ```
 
-### Push and pull a lock
+### Push and pull an image
 
-`push` writes only the objects the forge lacks, and `pull` reads a lock in one read per round.
+`push` writes only the objects the forge lacks, and `pull` reads an image in one read per round.
 
 ```ts
 import { PackageClient } from "@destack/build/store";
 import type { LocalBuildStore } from "@destack/build";
 import type { Digest } from "@destack/schema";
 
-/** Push a stored lock to a forge's build mount, then pull it into another store for Bun. */
+/** Push a stored image to a forge's build mount, then pull it into another store for Bun. */
 export async function pushThenPull(
     store: LocalBuildStore,
     other: LocalBuildStore,
     digest: Digest,
     url: string,
 ) {
-    // push the lock's objects the forge lacks
+    // push the image's objects the forge lacks
     await new PackageClient(url, fetch).push(store, [digest]);
 
     // pull what Bun runs of it into the other store
-    const source = new PackageClient(`${url}lock/${digest}/`, fetch);
-    await other.pull(source, { kind: "lock", digest }, ["bun"]);
+    const source = new PackageClient(`${url}image/${digest}/`, fetch);
+    await other.pull(source, { kind: "image", digest }, ["bun"]);
 }
 ```
 
@@ -161,9 +161,9 @@ export async function createSite(parameters: TemplateInput) {
 
 Outputs, plugins and the module graph follow Vite on Rolldown.
 
-| Vite                 | `@destack/build`        | Difference                                               |
-| -------------------- | ----------------------- | -------------------------------------------------------- |
-| one bundle of an app | a build per package     | Only a browser output bundles its dependencies.          |
-| a cache of a project | builds keyed by inputs  | A unit compiles only when its key misses, as Bazel does. |
-| `dist/`              | builds by digest, locks | Stored and fetched as an OCI registry serves images.     |
-| plugins in a config  | `BuildExtension`        | A dependency adds plugins to the packages using it.      |
+| Vite                 | `@destack/build`         | Difference                                               |
+| -------------------- | ------------------------ | -------------------------------------------------------- |
+| one bundle of an app | a build per package      | Only a browser output bundles its dependencies.          |
+| a cache of a project | builds keyed by inputs   | A unit compiles only when its key misses, as Bazel does. |
+| `dist/`              | builds by digest, images | Stored and fetched as an OCI registry serves images.     |
+| plugins in a config  | `BuildExtension`         | A dependency adds plugins to the packages using it.      |

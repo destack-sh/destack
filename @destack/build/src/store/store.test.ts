@@ -13,7 +13,7 @@ import {
     BuildReader,
     BuildWriter,
     type OutputContent,
-    Lock,
+    BuildImage,
     PackageManifest,
 } from "@destack/package/manifest";
 import { CallError } from "@destack/object";
@@ -194,11 +194,11 @@ function browserOutputs(
     };
 }
 
-/** Lock a root build linking the build of each package it runs with, which link none. */
-function locked(root: Digest, builds: Readonly<Record<string, Digest>>): Lock {
+/** Make an image of a root build linking each package's build it runs with, which link none. */
+function imageOf(root: Digest, builds: Readonly<Record<string, Digest>>): BuildImage {
     const leaves = Object.values(builds).map((build) => [build, {}] as const);
 
-    return Lock.of(root, { ...Object.fromEntries(leaves), [root]: builds });
+    return BuildImage.of(root, { ...Object.fromEntries(leaves), [root]: builds });
 }
 
 /** Read a stream's bytes. */
@@ -423,15 +423,15 @@ test("attach a file to a build, retain it with the build, and collect it with th
     });
 });
 
-test("read a build, its lock, files and attachments through a source, reporting only its own builds as contained", async () => {
-    // store a build with a lock and an attached index in a source, and open an empty store over it
+test("read a build, its image, files and attachments through a source, reporting only its own builds as contained", async () => {
+    // store a build with an image and an attached index in a source, and open an empty store over it
     await using simulation = testSimulation();
     const environment = simulation.environment("test");
     await using kept = await openStore(await temporary(environment.files), environment);
     await using empty = await openStore(await temporary(environment.files), environment);
     const source = kept.store;
     const manifest = await source.put(await written(SOURCES, environment.crypto));
-    const lock = await source.putLock(Lock.of(manifest));
+    const image = await source.putImage(BuildImage.of(manifest));
     const bytes = new TextEncoder().encode("[]");
     const index = await PackageFile.describe(
         "code.json",
@@ -443,9 +443,9 @@ test("read a build, its lock, files and attachments through a source, reporting 
     await source.attach(manifest, [index]);
     const store = new BuildStore({ blobs: empty.store.blobs, environment, sources: [source] });
 
-    // read the build, its root through the lock, a file, the index and which store keeps it
+    // read the build, its root through the image, a file, the index and which store keeps it
     const reader = await store.contents(manifest);
-    const root = await store.root(lock);
+    const root = await store.root(image);
     const file = await reader.file("src/answer.ts");
     expect({
         manifest: reader.manifest,
@@ -796,7 +796,7 @@ test("pull a served build into another store in one read per round, reading noth
     });
 });
 
-test("push a stored lock to a store, writing only the objects it lacks", async () => {
+test("push a stored image to a store, writing only the objects it lacks", async () => {
     // store a build, and serve another store that accepts uploads
     await using simulation = testSimulation();
     const environment = simulation.environment("test");
@@ -815,12 +815,12 @@ test("push a stored lock to a store, writing only the objects it lacks", async (
         return target.fetch(request, MOUNT, PUSHING);
     };
 
-    // push the build's lock, then push it again, which asks what the store has and writes nothing
-    const lock = await source.putLock(Lock.of(digest));
+    // push the build's image, then push it again, which asks what the store has and writes nothing
+    const image = await source.putImage(BuildImage.of(digest));
     const client = new PackageClient("https://packages.test/packages/", accepting);
-    await client.push(source, [lock]);
+    await client.push(source, [image]);
     const first = uploads.splice(0);
-    await client.push(source, [lock]);
+    await client.push(source, [image]);
     const list = await build.distributed();
     expect({
         manifest: (await target.contents(digest)).manifest,
@@ -1012,7 +1012,7 @@ test("evict the least recently used builds until the store fits its size, keepin
     }).toEqual({ stored: [true, false, true], isFitting: true, isOlderStored: false });
 });
 
-test("retain a rooted lock with every build it lists", async () => {
+test("retain a rooted image with every build it lists", async () => {
     // store a library importing an npm unit and another library
     await using simulation = testSimulation();
     const environment = simulation.environment("test");
@@ -1031,7 +1031,7 @@ test("retain a rooted lock with every build it lists", async () => {
         ),
     );
 
-    // root the lock of an application importing the library
+    // root the image of an application importing the library
     const application = await store.put(
         await written(
             SOURCES,
@@ -1039,17 +1039,17 @@ test("retain a rooted lock with every build it lists", async () => {
             bunOutputs({ "./serve": ["@example/middle/client"] }, ["./serve"]),
         ),
     );
-    const lock = await store.putLock(
-        locked(application, { "@example/heavy": heavy, "@example/middle": middle, tiny: unit }),
+    const image = await store.putImage(
+        imageOf(application, { "@example/heavy": heavy, "@example/middle": middle, tiny: unit }),
     );
-    await store.retain("space-a", new Set([lock]));
+    await store.retain("space-a", new Set([image]));
     await simulation.jump(simulation.clock.now() + LEASE_MILLISECONDS);
     const collected = await collect(store);
 
-    // keep the lock
+    // keep the image
     expect({
         collected,
-        stored: await store.has([lock, application, middle, heavy, unit]),
+        stored: await store.has([image, application, middle, heavy, unit]),
     }).toEqual({
         collected: { manifests: [], next: undefined },
         stored: [true, true, true, true, true],
@@ -1112,7 +1112,7 @@ test("pull one output of a served build: what its runtime loads and its maps, no
     });
 });
 
-test("refuse a lock listing a build the store lacks", async () => {
+test("refuse an image listing a build the store lacks", async () => {
     // store a build importing a library the store lacks
     await using simulation = testSimulation();
     const environment = simulation.environment("test");
@@ -1128,13 +1128,13 @@ test("refuse a lock listing a build the store lacks", async () => {
         ),
     );
 
-    // refuse its lock
-    const lock = locked(importing, { "@example/lacking": lacking });
-    const digest = await Lock.digest(lock, crypto);
-    expect(await refusal(store.putLock(lock))).toEqual([
+    // refuse its image
+    const image = imageOf(importing, { "@example/lacking": lacking });
+    const digest = await BuildImage.digest(image, crypto);
+    expect(await refusal(store.putImage(image))).toEqual([
         "NOT_FOUND",
         "MANIFEST_NOT_FOUND",
-        `build '${lacking}' of lock '${digest}' not found`,
+        `build '${lacking}' of image '${digest}' not found`,
     ]);
 });
 
@@ -1188,12 +1188,12 @@ test("map a view's browser modules and its dependencies' below a prefix, each bu
     );
 
     // map the application's imports at the root, the library's in its own scope
-    const lock = Lock.of(application, {
+    const image = BuildImage.of(application, {
         [application]: { "@example/middle": middle },
         [middle]: { "@example/deep": deep },
         [deep]: {},
     });
-    const closure = await store.imports(lock, "browser", "/.destack/build/", new Map());
+    const closure = await store.imports(image, "browser", "/.destack/build/", new Map());
 
     expect({ map: closure.map, builds: [...closure.builds] }).toEqual({
         map: {
@@ -1252,13 +1252,13 @@ test("map a library again once a builtin imports it, with what its other exports
         ),
     );
     const closure = await store.imports(
-        locked(application, { "@example/extra": extra, "@example/shared": shared }),
+        imageOf(application, { "@example/extra": extra, "@example/shared": shared }),
         "browser",
         "/.destack/build/",
         new Map([
             [
                 view.name,
-                Lock.of(linked, {
+                BuildImage.of(linked, {
                     [linked]: { "@example/shared": shared },
                     [shared]: { "@example/extra": extra },
                     [extra]: {},
@@ -1320,11 +1320,11 @@ test("map a builtin at its linked build in every scope, with the builds it impor
 
     // map the builtin at the linked build in every scope, and its own imports in its scope
     const closure = await store.imports(
-        locked(application, { "@example/middle": middle }),
+        imageOf(application, { "@example/middle": middle }),
         "browser",
         "/.destack/build/",
         new Map([
-            [view.name, Lock.of(linked, { [linked]: { "@example/deep": deep }, [deep]: {} })],
+            [view.name, BuildImage.of(linked, { [linked]: { "@example/deep": deep }, [deep]: {} })],
         ]),
     );
 

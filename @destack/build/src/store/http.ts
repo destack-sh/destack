@@ -27,7 +27,7 @@ export function isUnchanged(request: Request, etag: string): boolean {
     );
 }
 
-/** Serve immutable manifests, locks and selected files, as the host decides each read. */
+/** Serve immutable manifests, images and selected files, as the host decides each read. */
 export async function serveStore(
     store: BuildStore,
     mount: URL,
@@ -95,12 +95,12 @@ async function read(
     }
     const path = pathname.slice(prefix.length);
 
-    // read objects of a lock or build, receive uploads, and accept reads only otherwise
+    // read objects of an image or build, receive uploads, and accept reads only otherwise
     const [kind, root, verb] = path.split("/");
     const reading = Digest.safeParse(root);
     if (
         request.method === "POST" &&
-        (kind === "lock" || kind === "manifest") &&
+        (kind === "image" || kind === "manifest") &&
         verb === "read" &&
         reading.success
     ) {
@@ -147,8 +147,8 @@ async function select(
     digest: Digest,
     selected: string,
 ): Promise<PackageFile | Response> {
-    // describe the manifest or the lock itself
-    if (selected === MANIFEST_PATH || selected === "lock.json") {
+    // describe the manifest or the image itself
+    if (selected === MANIFEST_PATH || selected === "image.json") {
         return await store.head(digest);
     }
     // find nothing outside the files
@@ -232,7 +232,7 @@ async function serve(
     return new Response(body, { status: range ? 206 : 200, headers });
 }
 
-/** Stream objects of a lock or build as a tarball, refusing any outside its objects. */
+/** Stream objects of an image or build as a tarball, refusing any outside its objects. */
 async function objects(
     store: BuildStore,
     root: Pick<BuildObject, "kind" | "digest">,
@@ -240,7 +240,7 @@ async function objects(
 ): Promise<Response> {
     // read the asked objects, requiring each among the root's
     const asked = schema
-        .array(schema.object({ kind: schema.enum(["file", "manifest", "lock"]), digest: Digest }))
+        .array(schema.object({ kind: schema.enum(["file", "manifest", "image"]), digest: Digest }))
         .parse(await request.json());
     const owned = new Set(
         (await BuildObject.of(store, [root], "all")).map((object) => object.digest),

@@ -126,7 +126,7 @@ export class DependencyTree {
         // find the workspace the tree serves
         const workspace = await DependencyTree.#workspace(directory, store.environment.files);
 
-        // place the dependencies and every build their locks link
+        // place the dependencies and every build their images link
         const builds = Object.values(dependencies);
         const named = new Set(builds.map((build) => build.manifest));
         const linked = new Set(Object.values(links).flatMap((each) => Object.values(each)));
@@ -139,7 +139,7 @@ export class DependencyTree {
             );
         }
 
-        // resolve each requirement through its build's lock, else by name among the dependencies
+        // resolve each requirement through its build's image, else by name among the dependencies
         const resolve = (build: Digest, name: string) =>
             links[build]?.[name] ?? dependencies[name]?.manifest;
         const scope = { kind: "compile" } as const;

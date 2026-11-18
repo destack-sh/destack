@@ -23,7 +23,7 @@ import {
     BuildLayer,
     BuildReader,
     ImportMap,
-    Lock,
+    BuildImage,
     MANIFEST_PATH,
     PackageManifest,
     type PackageOutput,
@@ -75,10 +75,10 @@ export type BlobLocation =
     | { readonly kind: "layered"; readonly size: number }
     | ({ readonly kind: "packed" } & Awaited<ReturnType<BlobStore["placements"]>>[number]);
 
-/** A blob a transfer sends: a file, a build's manifest, or a lock. */
+/** A blob a transfer sends: a file, a build's manifest, or an image. */
 export interface BuildObject {
-    /** What the blob is: a build's file, manifest or lock, or a file attached to a build. */
-    readonly kind: "file" | "manifest" | "lock" | "attachment";
+    /** What the blob is: a build's file, manifest or image, or a file attached to a build. */
+    readonly kind: "file" | "manifest" | "image" | "attachment";
     /** The blob's digest. */
     readonly digest: Digest;
     /** The blob's size in bytes. */
@@ -87,9 +87,9 @@ export interface BuildObject {
 
 /** The objects transfers send: listing them and their tarball paths. */
 export const BuildObject = {
-    /** List the objects of locks and builds for some runtimes: files, manifests, then locks. */
+    /** List the objects of images and builds for some runtimes: files, manifests, then images. */
     async of(
-        store: Pick<BuildStore, "closure" | "contents" | "head" | "lock">,
+        store: Pick<BuildStore, "closure" | "contents" | "head" | "image">,
         roots: readonly Pick<BuildObject, "kind" | "digest">[],
         runtimes: readonly Runtime[] | "all",
     ): Promise<BuildObject[]> {
@@ -97,15 +97,15 @@ export const BuildObject = {
         const builds = new Set<Digest>();
         const imported = new Map<Digest, Set<Runtime>>();
         for (const root of roots) {
-            const lock = root.kind === "lock" ? await store.lock(root.digest) : undefined;
-            for (const build of lock === undefined ? [root.digest] : Lock.builds(lock)) {
+            const image = root.kind === "image" ? await store.image(root.digest) : undefined;
+            for (const build of image === undefined ? [root.digest] : BuildImage.builds(image)) {
                 builds.add(build);
             }
             for (const runtime of runtimes === "all" ? [] : runtimes) {
                 const reached =
-                    lock === undefined
+                    image === undefined
                         ? [root.digest]
-                        : await store.closure(lock, runtime, undefined, "export");
+                        : await store.closure(image, runtime, undefined, "export");
                 for (const build of reached) {
                     imported.set(build, (imported.get(build) ?? new Set()).add(runtime));
                 }
@@ -125,10 +125,10 @@ export const BuildObject = {
             }
         }
 
-        // add the manifests, then the locks
+        // add the manifests, then the images
         const manifests = await Promise.all([...builds].map((build) => store.head(build)));
-        const locks = await Promise.all(
-            roots.filter((root) => root.kind === "lock").map((root) => store.head(root.digest)),
+        const images = await Promise.all(
+            roots.filter((root) => root.kind === "image").map((root) => store.head(root.digest)),
         );
 
         return [
@@ -138,8 +138,8 @@ export const BuildObject = {
                 digest: file.digest,
                 size: file.size,
             })),
-            ...locks.map((file): BuildObject => ({
-                kind: "lock",
+            ...images.map((file): BuildObject => ({
+                kind: "image",
                 digest: file.digest,
                 size: file.size,
             })),
@@ -180,7 +180,7 @@ export const BuildObject = {
         const [kind, named] = path.split("/");
         const digest = Digest.safeParse(named);
         const isKind =
-            kind === "file" || kind === "manifest" || kind === "lock" || kind === "attachment";
+            kind === "file" || kind === "manifest" || kind === "image" || kind === "attachment";
         if (!isKind || !digest.success) {
             throw BuildError.of(
                 "OBJECT_INVALID",
@@ -233,7 +233,7 @@ export interface BuildStoreOptions<StoreEnvironment, Storage extends BlobStorage
     readonly layer?: BuildLayer;
     /** How long a stored build lasts unless a root or a use retains it, by default the blobs'. */
     readonly leaseMilliseconds?: number;
-    /** The stores read through, in order, for builds, locks and files this store lacks. */
+    /** The stores read through, in order, for builds, images and files this store lacks. */
     readonly sources?: readonly BuildStore[];
     /** Pull a build's file this store and its sources lack, such as from its package's forge. */
     readonly pullFile?: (
@@ -270,11 +270,11 @@ export class BuildStore<
     readonly environment: StoreEnvironment;
     /** The reader of each build opened so far, by manifest digest, until its build is deleted. */
     readonly #readers = new Map<string, Promise<BuildReader>>();
-    /** The source keeping each build of a lock read through it, which keeps the lock whole. */
+    /** The source keeping each build of an image read through it, which keeps the image whole. */
     readonly #located = new Map<Digest, BuildStore>();
-    /** The locks read so far, by digest, as locks never change. */
-    readonly #locks = new Map<Digest, Promise<Lock>>();
-    /** What the builds of the locks read so far require, by lock, as locks never change. */
+    /** The images read so far, by digest, as images never change. */
+    readonly #images = new Map<Digest, Promise<BuildImage>>();
+    /** What the builds of the images read so far require, by image, as images never change. */
     readonly #requirements = new Map<Digest, Promise<readonly BuildRequirements[]>>();
     /** The builds of cache keys in flight, so callers asking at once build each key once. */
     readonly #building = new Map<Digest, Promise<CacheOutcome>>();
@@ -284,7 +284,7 @@ export class BuildStore<
     readonly layer: BuildLayer;
     /** How long a stored build lasts before a root or a use retains it, in milliseconds. */
     readonly leaseMilliseconds: number;
-    /** The stores read through, in order, for builds, locks and files this store lacks. */
+    /** The stores read through, in order, for builds, images and files this store lacks. */
     readonly sources: readonly BuildStore[];
     /** Pull a build's file this store and its sources lack, absent where every file is stored. */
     readonly #pullFile: BuildStoreOptions<StoreEnvironment, Storage>["pullFile"];
@@ -526,7 +526,7 @@ export class BuildStore<
                 throw BuildError.of("BLOB_NOT_FOUND", `package file '${object.digest}' not found`);
             }
 
-            // stream a manifest or lock as recorded
+            // stream a manifest or image as recorded
             const head = await this.head(object.digest);
             yield { path: BuildObject.path(object), size: head.size, body: this.#stream(head) };
         }
@@ -567,21 +567,21 @@ export class BuildStore<
         }
     }
 
-    /** Write objects files first, recording the manifests and locks of each pack once stored. */
+    /** Write objects files first, recording the manifests and images of each pack once stored. */
     write(entries: AsyncIterable<TarballEntry>): Promise<void> {
         return this.scope.span("destack.build.write", {}, () =>
             this.#pack(BuildStore.#parsed(entries), "verify"),
         );
     }
 
-    /** Store objects in packs of at most the write limit, then record their manifests and locks. */
+    /** Store objects in packs up to the write limit, then record their manifests and images. */
     async #pack(objects: AsyncIterable<StoredObject>, digests: "verify" | "trust"): Promise<void> {
         // gather objects into packs of at most the write limit, noting the builds the write records
         let gathered: StoredObject[] = [];
         let size = 0;
         const recorded = new Set<Digest>();
         const flush = async () => {
-            // store the pack, verifying digests from outside, then record its manifests and locks from their bytes
+            // store the pack, verifying digests from outside, then record its manifests and images from their bytes
             if (digests === "verify") {
                 await this.#verify(gathered);
             }
@@ -589,7 +589,7 @@ export class BuildStore<
             await this.#put(gathered.filter((object) => object.kind !== "attachment"));
             const buffers = new Map(gathered.map(({ digest, bytes }) => [digest, bytes]));
             await this.#recordObjects(
-                gathered.filter((object) => object.kind === "manifest" || object.kind === "lock"),
+                gathered.filter((object) => object.kind === "manifest" || object.kind === "image"),
                 buffers,
             );
             for (const object of gathered.filter((each) => each.kind === "manifest")) {
@@ -646,7 +646,7 @@ export class BuildStore<
         }
     }
 
-    /** Pull a lock's or build's objects for some runtimes from another store, a read per round. */
+    /** Pull an image's or build's objects for some runtimes from another store, per round. */
     pull(
         source: Pick<BuildStore, "read">,
         root: Pick<BuildObject, "kind" | "digest">,
@@ -655,7 +655,7 @@ export class BuildStore<
         return this.scope.span("destack.build.pull", {}, () => this.#pull(source, root, runtimes));
     }
 
-    /** Read the lock, the builds and their lists a round each, then write what runtimes need. */
+    /** Read the image, the builds and their lists a round each, then write what runtimes need. */
     async #pull(
         source: Pick<BuildStore, "read">,
         root: Pick<BuildObject, "kind" | "digest">,
@@ -664,7 +664,9 @@ export class BuildStore<
         // pull nothing for a root the store has with every build whole
         if ((await this.#head(root.digest)) !== undefined) {
             const builds =
-                root.kind === "lock" ? Lock.builds(await this.lock(root.digest)) : [root.digest];
+                root.kind === "image"
+                    ? BuildImage.builds(await this.image(root.digest))
+                    : [root.digest];
 
             // trust the layer for what runtimes run, which is all it ships of a build
             const isShipped = (build: Digest) =>
@@ -687,20 +689,20 @@ export class BuildStore<
             }
         };
 
-        // read the lock, from its buffer where pulled
-        if (root.kind === "lock") {
+        // read the image, from its buffer where pulled
+        if (root.kind === "image") {
             await gather([root]);
         }
         const bytes = buffers.get(root.digest);
-        const lock =
-            root.kind !== "lock"
+        const image =
+            root.kind !== "image"
                 ? undefined
                 : bytes === undefined
-                  ? await this.lock(root.digest)
-                  : Lock.parse(BuildStore.#json(bytes));
+                  ? await this.image(root.digest)
+                  : BuildImage.parse(BuildStore.#json(bytes));
 
         // open each build, a pulled one over its buffered lists
-        const builds = lock === undefined ? [root.digest] : Lock.builds(lock);
+        const builds = image === undefined ? [root.digest] : BuildImage.builds(image);
         await gather(builds.map((build) => ({ kind: "manifest", digest: build })));
         const readers = new Map<Digest, BuildReader>();
         for (const build of builds) {
@@ -716,9 +718,9 @@ export class BuildStore<
             }
         }
 
-        // list the objects the runtimes need, the buffered manifests and lock among them
+        // list the objects the runtimes need, the buffered manifests and image among them
         const view = {
-            lock: async () => present(lock, `the lock ${root.digest}`),
+            image: async () => present(image, `the image ${root.digest}`),
             contents: async (build: Digest) => found(readers, build),
             head: async (object: Digest) => {
                 const buffer = buffers.get(object);
@@ -728,7 +730,7 @@ export class BuildStore<
                     : BuildStore.#manifestFile(object, buffer.byteLength);
             },
             closure: (
-                pulled: Lock,
+                pulled: BuildImage,
                 runtime: Runtime,
                 read?: ManifestRead,
                 entries?: ClosureEntries,
@@ -758,7 +760,7 @@ export class BuildStore<
         );
     }
 
-    /** List the objects the store lacks: unstored files, unrecorded manifests and locks. */
+    /** List the objects the store lacks: unstored files, unrecorded manifests and images. */
     async #lacking(
         objects: readonly Pick<BuildObject, "kind" | "digest">[],
     ): Promise<Pick<BuildObject, "kind" | "digest">[]> {
@@ -792,15 +794,15 @@ export class BuildStore<
               );
     }
 
-    /** Store a lock once every build it lists is recorded, returning its digest. */
-    putLock(lock: Lock): Promise<Digest> {
+    /** Store an image once every build it lists is recorded, returning its digest. */
+    putImage(image: BuildImage): Promise<Digest> {
         return this.scope.span("destack.build.put_lock", {}, async () => {
-            // write the lock's canonical bytes under their digest
-            const bytes = Lock.serialize(lock);
+            // write the image's canonical bytes under their digest
+            const bytes = BuildImage.serialize(image);
             const digest = await Digest.of(bytes, this.environment.crypto);
             await this.write(
                 (async function* () {
-                    yield TarballEntry.of(BuildObject.path({ kind: "lock", digest }), bytes);
+                    yield TarballEntry.of(BuildObject.path({ kind: "image", digest }), bytes);
                 })(),
             );
 
@@ -808,7 +810,7 @@ export class BuildStore<
         });
     }
 
-    /** List the stored manifests and locks referencing a blob or build. */
+    /** List the stored manifests and images referencing a blob or build. */
     async referencing(digest: Digest): Promise<Digest[]> {
         const rows = await this.database
             .select({ manifest: buildReference.manifest })
@@ -818,57 +820,57 @@ export class BuildStore<
         return rows.map((row) => row.manifest);
     }
 
-    /** Read a stored lock's blob once, as locks never change, recorded or not. */
-    lock(digest: Digest): Promise<Lock> {
-        // read the lock's bytes, forgetting a failed read
-        const known = this.#locks.get(digest);
+    /** Read a stored image's blob once, as images never change, recorded or not. */
+    image(digest: Digest): Promise<BuildImage> {
+        // read the image's bytes, forgetting a failed read
+        const known = this.#images.get(digest);
         if (known !== undefined) {
             return known;
         }
         const reading = (async () => {
-            // read a lock a source has in place
+            // read an image a source has in place
             const location = (await this.locate([digest])).get(digest);
             if (location === undefined) {
-                // place the lock's builds in its source, which keeps it whole
-                const source = present(await this.#sourceOf(digest), `lock '${digest}'`);
-                const read = await source.lock(digest);
-                for (const build of Lock.builds(read)) {
+                // place the image's builds in its source, which keeps it whole
+                const source = present(await this.#sourceOf(digest), `image '${digest}'`);
+                const read = await source.image(digest);
+                for (const build of BuildImage.builds(read)) {
                     this.#located.set(build, source);
                 }
 
                 return read;
             }
 
-            // read the lock's bytes here
+            // read the image's bytes here
             const body = BuildStore.#readable(this.#bytes(digest, location));
 
-            return Lock.deserialize(new Uint8Array(await new Response(body).arrayBuffer()));
+            return BuildImage.deserialize(new Uint8Array(await new Response(body).arrayBuffer()));
         })();
-        this.#locks.set(digest, reading);
-        reading.catch(() => this.#locks.delete(digest));
+        this.#images.set(digest, reading);
+        reading.catch(() => this.#images.delete(digest));
 
         return reading;
     }
 
-    /** Read a lock's builds by package name, its root's among them, each with its package. */
-    async entriesOf(lock: Lock): Promise<Record<string, DependencyRelease>> {
-        return await Lock.entries(lock, (digest) => this.get(digest));
+    /** Read an image's builds by package name, its root's among them, each with its package. */
+    async entriesOf(image: BuildImage): Promise<Record<string, DependencyRelease>> {
+        return await BuildImage.entries(image, (digest) => this.get(digest));
     }
 
-    /** Record a lock whose blobs the store has, as a moved space's: each build, then the lock. */
+    /** Record an image whose blobs the store has, as a moved space's: its builds, then it. */
     async record(digest: Digest): Promise<void> {
-        // read the lock from the blobs
+        // read the image from the blobs
         const stream = BuildStore.#readable(this.blobs.read(digest));
         const bytes = new Uint8Array(await new Response(stream).arrayBuffer());
-        const lock = Lock.parse(
+        const image = BuildImage.parse(
             JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes)),
         );
 
-        // record each build, then the lock
-        const builds = Lock.builds(lock).map(
+        // record each build, then the image
+        const builds = BuildImage.builds(image).map(
             (build) => ({ kind: "manifest", digest: build }) as const,
         );
-        await this.#recordObjects([...builds, { kind: "lock", digest }], new Map());
+        await this.#recordObjects([...builds, { kind: "image", digest }], new Map());
     }
 
     /** Attach stored blobs to a stored build as attachments, refusing another file at a path. */
@@ -1005,32 +1007,32 @@ export class BuildStore<
         return row;
     }
 
-    /** Read what each build of a stored lock requires once, as locks never change. */
-    requirements(lock: Digest): Promise<readonly BuildRequirements[]> {
-        // read each lock's manifests once, forgetting a failed read
-        const known = this.#requirements.get(lock);
+    /** Read what each build of a stored image requires once, as images never change. */
+    requirements(image: Digest): Promise<readonly BuildRequirements[]> {
+        // read each image's manifests once, forgetting a failed read
+        const known = this.#requirements.get(image);
         if (known !== undefined) {
             return known;
         }
         const reading = (async () => {
-            // answer a lock a source keeps from the source, which reads it once for every store reading through
-            const isHere = (await this.locate([lock])).has(lock);
-            const source = isHere ? undefined : await this.#sourceOf(lock);
+            // answer an image a source keeps from the source, which reads it once for every store reading through
+            const isHere = (await this.locate([image])).has(image);
+            const source = isHere ? undefined : await this.#sourceOf(image);
             if (source !== undefined) {
-                return await source.requirements(lock);
+                return await source.requirements(image);
             }
 
-            // read the manifest of each build the lock holds
+            // read the manifest of each build the image holds
             const requirements: BuildRequirements[] = [];
-            for (const build of Lock.builds(await this.lock(lock))) {
+            for (const build of BuildImage.builds(await this.image(image))) {
                 const { package: built, requires } = await this.get(build);
                 requirements.push({ package: built, requires });
             }
 
             return requirements;
         })();
-        this.#requirements.set(lock, reading);
-        reading.catch(() => this.#requirements.delete(lock));
+        this.#requirements.set(image, reading);
+        reading.catch(() => this.#requirements.delete(image));
 
         return reading;
     }
@@ -1040,9 +1042,9 @@ export class BuildStore<
         return (await this.contents(digest)).manifest;
     }
 
-    /** Open the root build of a stored lock. */
-    async root(lock: Digest): Promise<BuildReader> {
-        return await this.contents((await this.lock(lock)).root);
+    /** Open the root build of a stored image. */
+    async root(image: Digest): Promise<BuildReader> {
+        return await this.contents((await this.image(image)).root);
     }
 
     /** Read a stored build's manifest, absent for a build the store does not record. */
@@ -1062,7 +1064,7 @@ export class BuildStore<
 
     /** Open a stored build for selective reads, absent for a build the store does not record. */
     async #find(digest: Digest): Promise<BuildReader | undefined> {
-        // find the build's head in the source a read lock placed it in, else here, else in the first source with it
+        // find the build's head in the source a read image placed it in, else here, else in the first source with it
         const keeper = this.#located.get(digest);
         const placed = keeper === undefined ? undefined : await keeper.#head(digest);
         const local = placed === undefined ? await this.#head(digest) : undefined;
@@ -1194,7 +1196,7 @@ export class BuildStore<
         await this.retain(name, new Set());
     }
 
-    /** Copy in what builds and locks have only through the layer, as overlayfs does. */
+    /** Copy in what builds and images have only through the layer, as overlayfs does. */
     copyUp(roots: readonly Pick<BuildObject, "kind" | "digest">[]): Promise<void> {
         return this.scope.span("destack.build.copy_up", {}, () => this.#copyUp(roots));
     }
@@ -1206,7 +1208,7 @@ export class BuildStore<
             return;
         }
 
-        // list each build's objects and each lock's own record, of the roots the store has
+        // list each build's objects and each image's own record, of the roots the store has
         const unique = [...new Map(roots.map((root) => [root.digest, root])).values()];
         const heads = await Promise.all(
             unique.map(async (root) => ({ ...root, head: await this.#head(root.digest) })),
@@ -1217,12 +1219,12 @@ export class BuildStore<
             isNull(buildManifest.layer),
         );
         const builds = listed.filter((root) => !complete.has(root.digest));
-        const locks = heads.flatMap((root): BuildObject[] =>
-            root.kind === "lock" && root.head !== undefined
-                ? [{ kind: "lock", digest: root.digest, size: root.head.size }]
+        const images = heads.flatMap((root): BuildObject[] =>
+            root.kind === "image" && root.head !== undefined
+                ? [{ kind: "image", digest: root.digest, size: root.head.size }]
                 : [],
         );
-        const objects = [...(await BuildObject.of(this, builds, "all")), ...locks];
+        const objects = [...(await BuildObject.of(this, builds, "all")), ...images];
 
         // find the layered objects the store lacks: files without a pack, records not complete
         const layered = objects.filter((object) =>
@@ -1261,12 +1263,12 @@ export class BuildStore<
             this.#leasedUntil,
         );
 
-        // record the manifests and locks from the layer, trusted as the host's own
+        // record the manifests and images from the layer, trusted as the host's own
         const recorded = copied.filter((object) => object.kind !== "file");
         await this.#pack(this.#readLayered(recorded), "trust");
     }
 
-    /** Find which of some manifests and locks the store records complete, by an accepted row. */
+    /** Find which of some manifests and images the store records complete, by an accepted row. */
     async #complete(
         digests: readonly Digest[],
         accepted: SQLWrapper,
@@ -1397,9 +1399,9 @@ export class BuildStore<
         this.#readers.clear();
     }
 
-    /** Read the builds a lock's root imports on a runtime, from what it runs or every export. */
+    /** Read the builds an image's root imports on a runtime, from what it runs or every export. */
     async closure(
-        lock: Lock,
+        image: BuildImage,
         runtime: Runtime,
         read: ManifestRead = (digest) => this.get(digest),
         entries: ClosureEntries = "run",
@@ -1412,26 +1414,27 @@ export class BuildStore<
 
             return reading;
         };
-        const first = await once(lock.root);
-        const pending = outputsOn(present(first, `the root of lock ${lock.root}`), runtime).flatMap(
-            (output) => {
-                const mounted = new Set(Object.values(output.views).map((view) => view.entrypoint));
-                const started =
-                    entries === "export"
-                        ? Object.keys(output.exports)
-                        : [
-                              ...Object.values(output.workloads).map((each) => each.entrypoint),
-                              ...Object.entries(output.exports)
-                                  .filter(([, exported]) => mounted.has(exported.path))
-                                  .map(([subpath]) => subpath),
-                          ];
+        const first = await once(image.root);
+        const pending = outputsOn(
+            present(first, `the root of image ${image.root}`),
+            runtime,
+        ).flatMap((output) => {
+            const mounted = new Set(Object.values(output.views).map((view) => view.entrypoint));
+            const started =
+                entries === "export"
+                    ? Object.keys(output.exports)
+                    : [
+                          ...Object.values(output.workloads).map((each) => each.entrypoint),
+                          ...Object.entries(output.exports)
+                              .filter(([, exported]) => mounted.has(exported.path))
+                              .map(([subpath]) => subpath),
+                      ];
 
-                return started.map((subpath) => ({ manifest: lock.root, subpath }));
-            },
-        );
+            return started.map((subpath) => ({ manifest: image.root, subpath }));
+        });
 
-        // follow each export once to the lock's builds its chunks import
-        const closure = new Set<Digest>([lock.root]);
+        // follow each export once to the image's builds its chunks import
+        const closure = new Set<Digest>([image.root]);
         const visited = new Set<string>();
         const expanded = new Set<Digest>();
         const units: Digest[] = [];
@@ -1447,7 +1450,7 @@ export class BuildStore<
                 );
                 if (
                     entries === "export" &&
-                    next.manifest === lock.root &&
+                    next.manifest === image.root &&
                     !expanded.has(next.manifest)
                 ) {
                     expanded.add(next.manifest);
@@ -1462,7 +1465,11 @@ export class BuildStore<
                     `the export ${next.subpath} of ${next.manifest}`,
                 );
                 for (const specifier of imports) {
-                    const build = Lock.resolve(lock, next.manifest, DependencyName.of(specifier));
+                    const build = BuildImage.resolve(
+                        image,
+                        next.manifest,
+                        DependencyName.of(specifier),
+                    );
                     const imported = build === undefined ? undefined : await once(build);
                     if (
                         build !== undefined &&
@@ -1485,32 +1492,32 @@ export class BuildStore<
         for (let unit = units.pop(); unit !== undefined; unit = units.pop()) {
             if (!closure.has(unit)) {
                 closure.add(unit);
-                units.push(...Object.values(Lock.links(lock, unit)));
+                units.push(...Object.values(BuildImage.links(image, unit)));
             }
         }
 
         return closure;
     }
 
-    /** Map a lock's modules on a runtime below a URL prefix, builtins at their linked builds. */
+    /** Map an image's modules on a runtime below a URL prefix, builtins at their linked builds. */
     async imports(
-        lock: Lock,
+        image: BuildImage,
         runtime: Runtime,
         base: string,
-        linked: ReadonlyMap<string, Lock>,
+        linked: ReadonlyMap<string, BuildImage>,
         read: (digest: Digest) => Promise<PackageManifest> = async (digest) =>
             present(await this.get(digest), `the manifest of build ${digest}`),
     ): Promise<ImportClosure> {
         // read the builds the root's modules import on the runtime
-        const closure = await this.closure(lock, runtime, read);
+        const closure = await this.closure(image, runtime, read);
         const links = [...linked.values()].flatMap((each) => Object.entries(each.builds));
-        const builtins = Lock.of(lock.root, Object.fromEntries(links));
+        const builtins = BuildImage.of(image.root, Object.fromEntries(links));
 
         // map each dependency's exports in its dependent's scope
         const map: ImportMap = { imports: {}, scopes: {} };
-        const builds = new Set<Digest>([lock.root]);
-        const visited = new Set<string>([`${lock.root} app`]);
-        const pending = [{ digest: lock.root, scope: map.imports, isLinked: false }];
+        const builds = new Set<Digest>([image.root]);
+        const visited = new Set<string>([`${image.root} app`]);
+        const pending = [{ digest: image.root, scope: map.imports, isLinked: false }];
         for (const { digest, scope, isLinked } of pending) {
             for (const output of outputsOn(await read(digest), runtime)) {
                 // take each imported package's build
@@ -1520,16 +1527,16 @@ export class BuildStore<
                     ),
                 );
                 const dependencies = [...names].flatMap((name) => {
-                    // take the lock's build of a name
-                    const locked = isLinked ? undefined : Lock.resolve(lock, digest, name);
-                    const isLocked = locked !== undefined && closure.has(locked);
-                    const manifest = isLocked
-                        ? locked
-                        : ((Lock.lists(builtins, digest)
-                              ? Lock.resolve(builtins, digest, name)
+                    // take the image's build of a name
+                    const pinned = isLinked ? undefined : BuildImage.resolve(image, digest, name);
+                    const isPinned = pinned !== undefined && closure.has(pinned);
+                    const manifest = isPinned
+                        ? pinned
+                        : ((BuildImage.lists(builtins, digest)
+                              ? BuildImage.resolve(builtins, digest, name)
                               : undefined) ?? linked.get(name)?.root);
 
-                    return manifest === undefined ? [] : [{ name, manifest, isLinked: !isLocked }];
+                    return manifest === undefined ? [] : [{ name, manifest, isLinked: !isPinned }];
                 });
                 for (const dependency of dependencies) {
                     // map the dependency's exports to its files below its build's prefix
@@ -1560,7 +1567,7 @@ export class BuildStore<
         return { map, builds };
     }
 
-    /** Find a layered build's or lock's directory, which runtimes run in place. */
+    /** Find a layered build's or image's directory, which runtimes run in place. */
     layered(digest: Digest): string | undefined {
         return this.layer.directory(digest);
     }
@@ -1615,14 +1622,14 @@ export class BuildStore<
         return head;
     }
 
-    /** Describe a manifest's or lock's file, absent for one the store does not record. */
+    /** Describe a manifest's or image's file, absent for one the store does not record. */
     async #head(digest: Digest): Promise<PackageFile | undefined> {
         const record = await this.#recorded(digest);
 
         return record === undefined ? undefined : BuildStore.#manifestFile(digest, record.size);
     }
 
-    /** Describe a manifest's or lock's file by its digest and size. */
+    /** Describe a manifest's or image's file by its digest and size. */
     static #manifestFile(digest: Digest, size: number): PackageFile {
         return { path: MANIFEST_PATH, digest, size, mediaType: "application/json" };
     }
@@ -1644,11 +1651,11 @@ export class BuildStore<
         return digest === undefined ? isNull(column) : or(isNull(column), eq(column, digest));
     }
 
-    /** Read a manifest's or lock's record: the layer's, complete, else the store's row. */
+    /** Read a manifest's or image's record: the layer's, complete, else the store's row. */
     async #recorded(
         digest: Digest,
     ): Promise<{ readonly size: number; readonly isComplete: boolean } | undefined> {
-        // take a layered manifest or lock, which the layer ships complete
+        // take a layered manifest or image, which the layer ships complete
         const layered = this.layer.head(digest);
         if (layered !== undefined) {
             return { size: layered.size, isComplete: true };
@@ -1769,7 +1776,7 @@ export class BuildStore<
         );
     }
 
-    /** Record stored manifests and locks in order, from buffered bytes where given, at once. */
+    /** Record stored manifests and images in order, from buffered bytes where given, at once. */
     async #recordObjects(
         objects: readonly Pick<BuildObject, "kind" | "digest">[],
         buffers: ReadonlyMap<Digest, Uint8Array<ArrayBuffer>>,
@@ -1834,35 +1841,39 @@ export class BuildStore<
                   }
                 : undefined;
 
-        // read each lock
-        const locks: { readonly digest: Digest; readonly size: number; readonly lock: Lock }[] = [];
-        for (const { digest } of objects.filter((object) => object.kind === "lock")) {
+        // read each image
+        const images: {
+            readonly digest: Digest;
+            readonly size: number;
+            readonly image: BuildImage;
+        }[] = [];
+        for (const { digest } of objects.filter((object) => object.kind === "image")) {
             const bytes = await this.#bytesOf(digest, buffers);
-            locks.push({
+            images.push({
                 digest,
                 size: bytes.byteLength,
-                lock: Lock.parse(BuildStore.#json(bytes)),
+                image: BuildImage.parse(BuildStore.#json(bytes)),
             });
         }
 
-        // refuse a lock listing a build recorded neither here nor before
-        const outside = locks
-            .flatMap(({ lock }) => Lock.builds(lock))
+        // refuse an image listing a build recorded neither here nor before
+        const outside = images
+            .flatMap(({ image }) => BuildImage.builds(image))
             .filter((build) => !builds.has(build));
         const recorded = await this.#recordedBuilds([...new Set(outside)]);
-        for (const { digest, lock } of locks) {
-            const absent = Lock.builds(lock).find(
+        for (const { digest, image } of images) {
+            const absent = BuildImage.builds(image).find(
                 (build) => !builds.has(build) && !recorded.has(build),
             );
             if (absent !== undefined) {
                 throw BuildError.of(
                     "MANIFEST_NOT_FOUND",
-                    `build '${absent}' of lock '${digest}' not found`,
+                    `build '${absent}' of image '${digest}' not found`,
                 );
             }
         }
 
-        // record each build whole, else each output whose files are all here, then each lock
+        // record each build whole, else each output whose files are all here, then each image
         await this.database.transaction(async (transaction) => {
             for (const [digest, build] of builds) {
                 await BuildStore.#recordBuild(
@@ -1873,12 +1884,12 @@ export class BuildStore<
                     found(readers, digest),
                 );
             }
-            for (const { digest, size, lock } of locks) {
+            for (const { digest, size, image } of images) {
                 await BuildStore.#recordManifest(
                     transaction,
                     digest,
                     size,
-                    Lock.builds(lock),
+                    BuildImage.builds(image),
                     null,
                 );
             }
@@ -1999,7 +2010,7 @@ export class BuildStore<
         }
     }
 
-    /** Record a whole manifest or lock in a transaction: its distinct references, then it. */
+    /** Record a whole manifest or image in a transaction: its distinct references, then it. */
     static async #recordManifest(
         transaction: DatabaseConnection,
         digest: Digest,
