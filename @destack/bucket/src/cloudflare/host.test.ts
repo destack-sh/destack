@@ -32,6 +32,8 @@ const CREDENTIALS = { accessKeyId: "CELL", secretAccessKey: "cell-secret" };
 
 /** The cell's S3 endpoint. */
 const ENDPOINT = new URL("https://s3.cell.test");
+/** The key prefix of the cell's buckets in the residency's bucket. */
+const PREFIX = "spaces/space-01a1e99e-334f-75c3-be74-db59d62491ce/buckets/";
 
 /** Hash text as a blob digest. */
 function digest(text: string): string {
@@ -95,8 +97,9 @@ test("provision a bucket as a prefix of the residency's bucket beside its catalo
     );
     await using catalogues = new TestCatalogueStore(world);
     await using buckets = new R2BucketHost({
-        files,
-        name: "destack-test-files-eu",
+        bucket: files,
+        name: "destack-test-eu",
+        prefix: PREFIX,
         catalogues,
         endpoint: ENDPOINT,
         region: "auto",
@@ -150,12 +153,12 @@ test("provision a bucket as a prefix of the residency's bucket beside its catalo
         written: written.status,
         read: [read.status, await read.text()],
         packs: [before, after].map((keys) =>
-            keys.map((key) => key.startsWith(`${bucketId}/pack-`)),
+            keys.map((key) => key.startsWith(`${PREFIX}${bucketId}/pack-`)),
         ),
         isReplaced: before[0] !== after[0],
         destroyed: [await listed(), await catalogues.has(bucketId), await buckets.named(bucketId)],
     }).toEqual({
-        provision: { reference: `r2://destack-test-files-eu/${bucketId}/` },
+        provision: { reference: `r2://destack-test-eu/${PREFIX}${bucketId}/` },
         written: 200,
         read: [200, "first"],
         packs: [[true], [true]],
@@ -182,8 +185,9 @@ test("move a bucket from a device host to a cell: snapshot its catalogue and fil
     );
     await using catalogues = new TestCatalogueStore(world);
     await using cell = new R2BucketHost({
-        files,
-        name: "destack-test-files-eu",
+        bucket: files,
+        name: "destack-test-eu",
+        prefix: PREFIX,
         catalogues,
         endpoint: ENDPOINT,
         region: "auto",
@@ -211,7 +215,7 @@ test("move a bucket from a device host to a cell: snapshot its catalogue and fil
         listed.files.map((file) => file.key),
         await present(await received.get("notes/b.txt"), "notes/b.txt").text(),
         (await files.list()).files.map((file) => file.key),
-    ]).toEqual([["notes/b.txt"], "second", [`${bucketId}/${digest("second")}`]]);
+    ]).toEqual([["notes/b.txt"], "second", [`${PREFIX}${bucketId}/${digest("second")}`]]);
 });
 
 test("fence a cell bucket through its provider: refuse presigned and direct writes across a restart, read on, and lift", async () => {
@@ -225,8 +229,9 @@ test("fence a cell bucket through its provider: refuse presigned and direct writ
     );
     await using catalogues = new TestCatalogueStore(world);
     const options = {
-        files,
-        name: "destack-test-files-eu",
+        bucket: files,
+        name: "destack-test-eu",
+        prefix: PREFIX,
         catalogues,
         endpoint: ENDPOINT,
         region: "auto",
@@ -300,8 +305,9 @@ test("list a cell bucket's files and groups in key byte order", async () => {
     );
     await using catalogues = new TestCatalogueStore(world);
     await using buckets = new R2BucketHost({
-        files,
-        name: "destack-test-files-eu",
+        bucket: files,
+        name: "destack-test-eu",
+        prefix: PREFIX,
         catalogues,
         endpoint: ENDPOINT,
         region: "auto",

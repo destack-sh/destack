@@ -21,10 +21,12 @@ const FENCE_FILE = "fence";
 
 /** Where a cell keeps its buckets. */
 export interface R2BucketHostOptions {
-    /** The residency's R2 bucket, keeping each bucket's blobs below the bucket's identifier. */
-    readonly files: Bucket;
-    /** The name of the residency's R2 bucket, such as `destack-production-files-eu`. */
+    /** The residency's R2 bucket. */
+    readonly bucket: Bucket;
+    /** The name of the residency's R2 bucket, such as `destack-production-eu`. */
     readonly name: string;
+    /** The key prefix of the host's buckets, such as `spaces/<space>/buckets/`. */
+    readonly prefix: string;
     /** The databases of the buckets' catalogues. */
     readonly catalogues: CatalogueStore;
     /** The URL serving the host's buckets over S3. */
@@ -42,9 +44,11 @@ export class R2BucketHost extends CatalogueBucketHost {
     /** The provider code of R2 buckets. */
     readonly provider: CatalogueProvider;
     /** The residency's R2 bucket. */
-    readonly #files: Bucket;
+    readonly #bucket: Bucket;
     /** The name of the residency's R2 bucket. */
     readonly name: string;
+    /** The key prefix of the host's buckets. */
+    readonly #prefix: string;
     /** The databases of the buckets' catalogues. */
     readonly #catalogues: CatalogueStore;
     /** The clock, randomness, network and telemetry the catalogues' writes run on. */
@@ -57,8 +61,9 @@ export class R2BucketHost extends CatalogueBucketHost {
         // keep the residency's bucket and the catalogues
         super(options);
         this.provider = "r2";
-        this.#files = options.files;
+        this.#bucket = options.bucket;
         this.name = options.name;
+        this.#prefix = options.prefix;
         this.#catalogues = options.catalogues;
         this.#environment = options.environment;
         this.#scope = TelemetryScope.of(import.meta.destack.package, options.environment.telemetry);
@@ -66,7 +71,7 @@ export class R2BucketHost extends CatalogueBucketHost {
 
     /** Name where a bucket's blobs live: its prefix in the residency's R2 bucket. */
     override reference(bucket: Pick<BucketReference, "bucketId">): string {
-        return `r2://${this.name}/${bucket.bucketId}/`;
+        return `r2://${this.name}/${this.#key(bucket.bucketId)}`;
     }
 
     /** Open the bucket an S3 request addresses by its resource, absent when the host has none. */
@@ -83,7 +88,7 @@ export class R2BucketHost extends CatalogueBucketHost {
     override async fence(bucket: Pick<BucketReference, "bucketId">): Promise<boolean> {
         // mark the bucket fenced below its prefix, then refuse its writes
         const opened = await this.open(bucket);
-        await this.#files.put(`${bucket.bucketId}/${FENCE_FILE}`, new Uint8Array());
+        await this.#bucket.put(`${this.#key(bucket.bucketId)}${FENCE_FILE}`, new Uint8Array());
 
         return await opened.fence();
     }
@@ -92,7 +97,7 @@ export class R2BucketHost extends CatalogueBucketHost {
     override async lift(bucket: Pick<BucketReference, "bucketId">): Promise<void> {
         // remove the fence file, then accept the bucket's writes
         const opened = await this.open(bucket);
-        await this.#files.delete(`${bucket.bucketId}/${FENCE_FILE}`);
+        await this.#bucket.delete(`${this.#key(bucket.bucketId)}${FENCE_FILE}`);
         await opened.lift();
     }
 
@@ -100,8 +105,8 @@ export class R2BucketHost extends CatalogueBucketHost {
     override async destroy(bucket: Pick<BucketReference, "bucketId">): Promise<void> {
         await this.close(bucket);
         await new BucketBlobStorage(
-            this.#files,
-            `${bucket.bucketId}/`,
+            this.#bucket,
+            this.#key(bucket.bucketId),
             this.#environment.random,
         ).clear();
         await this.#catalogues.destroy(bucket.bucketId);
@@ -131,7 +136,7 @@ export class R2BucketHost extends CatalogueBucketHost {
         }
 
         // read whether a transfer fenced the bucket
-        const isFenced = (await this.#files.head(`${bucketId}/${FENCE_FILE}`)) !== null;
+        const isFenced = (await this.#bucket.head(`${this.#key(bucketId)}${FENCE_FILE}`)) !== null;
 
         // connect to the catalogue, logging it in its scope once, and migrate it
         const tables = CatalogueStorage.database.tables;
@@ -148,8 +153,8 @@ export class R2BucketHost extends CatalogueBucketHost {
 
         // open the bucket, its blobs indexed in the catalogue, reconnecting both over the tables beside its own
         const storage = new BucketBlobStorage(
-            this.#files,
-            `${bucketId}/`,
+            this.#bucket,
+            this.#key(bucketId),
             this.#environment.random,
         );
         const environment = this.#environment;
@@ -186,6 +191,11 @@ export class R2BucketHost extends CatalogueBucketHost {
         }
 
         return opened;
+    }
+
+    /** Write a bucket's key prefix in the residency's bucket. */
+    #key(bucketId: string): string {
+        return `${this.#prefix}${bucketId}/`;
     }
 }
 
