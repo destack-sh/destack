@@ -40,6 +40,7 @@ const card = (
 const entry = (type: ReturnType<typeof card>, version: string) => ({
     description: schema.jsonObject().parse(JSON.parse(JSON.stringify(describeObject(type)))),
     symbol: { package: { ...type.package, version } },
+    capabilities: [],
 });
 
 /** The step an output breaking earlier readers plans. */

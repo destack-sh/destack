@@ -19,12 +19,17 @@ const PACKAGE = {
 };
 
 /** A release's manifest entry of a declaration, its description read back from JSON. */
-const entry = (handle: ReturnType<typeof definePackage>, version: string) => ({
+const entry = (
+    handle: ReturnType<typeof definePackage>,
+    version: string,
+    capabilities: readonly string[] = [],
+) => ({
     description: schema.jsonObject().parse(JSON.parse(JSON.stringify(describePackage(handle)))),
     symbol: {
         package: { ...PACKAGE, version },
         symbol: { module: "src/index.ts", name: "declared" },
     },
+    capabilities,
 });
 
 /** The module declaring the package's releases. */
@@ -77,6 +82,53 @@ test("plan a package's mount changes: adding is safe, removing or moving breaks 
             detail: "remove mount retired",
         },
     ]);
+});
+
+test("plan granting what a release asks of the space beyond the earlier one, with the capabilities the installation enables", () => {
+    // ask to read notes always, and to write them with the optional export capability
+    const note = new Policy(MODULE.package, {
+        name: "note",
+        permissions: { read: none(), write: none() },
+    });
+    const earlier = definePackage(
+        {
+            ...testIdentity,
+            access: { permissions: { space: { space: [note.permission("read")] } } },
+        },
+        MODULE,
+    );
+    const later = definePackage(
+        {
+            ...testIdentity,
+            access: { permissions: { space: { space: [note.permission("read")] } } },
+            capabilities: [
+                {
+                    name: "export",
+                    reason: t`Export notes`,
+                    optional: true,
+                    permissions: { space: { space: [note.permission("write")] } },
+                },
+            ],
+        },
+        MODULE,
+    );
+
+    // grant the write once the installation enables export, and nothing while it does not
+    expect({
+        enabled: comparePackage(entry(earlier, "2026.8.0"), entry(later, RELEASE, ["export"]))
+            .steps,
+        disabled: comparePackage(entry(earlier, "2026.8.0"), entry(later, RELEASE)).steps,
+    }).toEqual({
+        enabled: [
+            {
+                action: "grant",
+                target: `access/space/${PACKAGE.id}/note/write`,
+                risk: "privileged",
+                detail: "request write on note",
+            },
+        ],
+        disabled: [],
+    });
 });
 
 test("describe a package's routes, mounts, views, requested permissions, capabilities and errors, with its types' hooks", () => {

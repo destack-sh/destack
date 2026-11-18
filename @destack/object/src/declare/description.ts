@@ -1,7 +1,12 @@
 import { Message } from "@destack/locale";
 import { ReasonDescription } from "@destack/error";
 import { schema, Version } from "@destack/schema";
-import { GrantDeclaration } from "@destack/access";
+import {
+    GrantDeclaration,
+    PermissionReference,
+    PermissionScope,
+    type PermissionSet,
+} from "@destack/access";
 import { defineKind, DeclarationName, type graph, PackageId, Sandbox } from "@destack/package";
 import { SwatchName } from "@destack/theme";
 import type { BuildReader } from "@destack/package/manifest";
@@ -165,6 +170,38 @@ export const PackageDescription = Object.assign(packageDescription, {
         const declared = declarations.find((each) => PACKAGE_KIND.has(each));
 
         return declared === undefined ? undefined : packageDescription.parse(declared.description);
+    },
+
+    /** List the permissions a package asks of a delegator with some capabilities enabled. */
+    asks(
+        description: Pick<schema.Infer<typeof packageDescription>, "permissions" | "capabilities">,
+        enabled: readonly string[],
+        delegator: keyof GrantDeclaration,
+    ): PermissionSet {
+        // gather the package's set and each enabled capability's
+        const sets: PermissionSet[] = [
+            description.permissions[delegator] ?? {},
+            ...Object.entries(description.capabilities)
+                .filter(([name]) => enabled.includes(name))
+                .map(([, capability]) => capability.permissions?.[delegator] ?? {}),
+        ];
+
+        // merge them scope by scope, each permission once
+        return Object.fromEntries(
+            PermissionScope.options.flatMap((scope) => {
+                const merged = sets.flatMap((set) => set[scope] ?? []);
+                const once = merged.filter(
+                    (permission, index) =>
+                        merged.findIndex(
+                            (other) =>
+                                PermissionReference.key(other) ===
+                                PermissionReference.key(permission),
+                        ) === index,
+                );
+
+                return once.length === 0 ? [] : [[scope, once]];
+            }),
+        );
     },
 });
 /** A declared package: its API, objects, mounts, views and requested permissions. */
