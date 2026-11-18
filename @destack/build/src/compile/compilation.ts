@@ -62,6 +62,9 @@ const STYLESHEET = /\.css(?:\?.*)?$/u;
 /** An import with a query, which a build plugin transforms and no runtime loads from a release. */
 const QUERY = /\?/u;
 
+/** The Rolldown warning that plugins took a large share of a build, a timing report. */
+const PLUGIN_TIMINGS = "PLUGIN_TIMINGS";
+
 /** The empty module standing in for a stylesheet a server output imports. */
 const EMPTY_STYLESHEET = "\0destack-empty-stylesheet";
 
@@ -1017,9 +1020,14 @@ function wrapHook<Handler extends (...parameters: never[]) => unknown, Meta>(
     return typeof hook === "object" ? { ...hook, handler: wrap(hook.handler) } : wrap(hook);
 }
 
-/** Fail on Rolldown warnings and pass other logs on. */
+/** Fail on Rolldown warnings other than timings, and pass other logs on. */
 function failOnWarning(level: LogLevel, log: RolldownLog, handler: LogOrStringHandler): void {
-    if (level === "warn") {
+    // NOTE #Suspicious: Rolldown 1.2.19 still reports timings on Vite's path with the check off, so drop that report
+    if (log.code === PLUGIN_TIMINGS) {
+        return;
+    }
+    // fail on any other warning
+    else if (level === "warn") {
         throw BuildError.of("BUNDLE_INVALID", log.message);
     }
     handler(level, log);
