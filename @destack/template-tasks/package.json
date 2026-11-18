@@ -3,6 +3,9 @@
     "license": "Apache-2.0",
     "type": "module",
     "description": "Track a team's tasks in projects and cycles, on a board.",
+    "publishConfig": {
+        "access": "public"
+    },
     "exports": {
         "./package": "./src/package.ts",
         "./object": "./src/object/index.ts",
