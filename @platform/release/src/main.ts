@@ -32,7 +32,6 @@ import {
     initializePlatform,
     publishPlatform,
     sealCustody,
-    testPlatform,
     validatePlatform,
 } from "./deployment/command.ts";
 import { cliLocal, desktopLocal, resetLocal, serveLocal } from "./local/command.ts";
@@ -86,7 +85,6 @@ const COMMANDS: Readonly<Record<string, Command>> = {
     "platform deploy": deployPlatform,
     "platform publish": publishPlatform,
     "custody seal": sealCustody,
-    "platform e2e": testPlatform,
 
     "site deploy": deploySite,
 

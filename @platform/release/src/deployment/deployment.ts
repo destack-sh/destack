@@ -21,7 +21,7 @@ import forgePackage, { FORGE_INSTALLATION } from "@destack/forge/package";
 import type { MailSender } from "@destack/mail/sender";
 import { Issuer } from "@destack/account/client";
 import { Account, account } from "@destack/account/object";
-import { Claim, SpaceMount } from "@destack/object";
+import { Claim } from "@destack/object";
 import registryPackage from "@destack/registry/package";
 import { Registry } from "@destack/registry/client";
 import { ActionsToken } from "../github/oidc.ts";
@@ -66,20 +66,17 @@ const DIRECTORY_SYNC_MILLISECONDS = 60_000;
 /** How long a deployed residency home may take to serve: seconds from cached builds. */
 const HOME_SERVE_MILLISECONDS = 30_000;
 
-/** The identifier an end-to-end run binds where a deployment's state has a real one. */
+/** The identifier a run under workerd binds where a deployment's state has a real one. */
 const PLACEHOLDER_IDENTIFIER = "0".repeat(32);
 
 /** The offset of a script's inspector port from its own port, clear of the loopback ports. */
 const INSPECTOR_OFFSET = 5000;
 
-/** The configuration keys an end-to-end run leaves out: routes, tails and artifacts. */
+/** The configuration keys a run under workerd leaves out: routes, tails and artifacts. */
 const DEPLOYED_KEYS = new Set(["routes", "tail_consumers", "artifacts"]);
 
-/** The directory below a stage's target an end-to-end run plans its local versions in. */
-const E2E_DIRECTORY = "e2e";
-
-/** How often a check asks a space's readiness probe, as a probe is polled. */
-const READY_POLL_MILLISECONDS = 1000;
+/** The directory below a stage's target a run under workerd keeps its files in. */
+const WORKERD_DIRECTORY = "workerd";
 
 /** A residency's cloud machine a check acts as: its sends toward packages, bound to a space. */
 interface MachineActor {
@@ -93,7 +90,7 @@ const HYPERDRIVE_PASSWORD = "local";
 /** The line wrangler prints once local workerd serves a script. */
 const READY_LINE = "Ready on";
 
-/** The region an end-to-end run's files bucket signs for. */
+/** The region a run under workerd's files bucket signs for. */
 const PLACEHOLDER_REGION = "local";
 
 /** The access key a local run binds in place of a provisioned one. */
@@ -306,11 +303,15 @@ export class Deployment {
         };
     }
 
-    /** Serve the local universe and cloud machines under workerd, and check they answer. */
-    async e2e(server: string, print: (name: string, line: string) => void): Promise<void> {
+    /** Serve the local universe and cloud machines under workerd until a hold ends. */
+    async serve(
+        server: string,
+        database: string,
+        print: (name: string, line: string) => void,
+        hold: () => Promise<void>,
+    ): Promise<void> {
         // create a fresh database on the server's maintenance connection
         const { environment } = this;
-        const database = `destack_e2e_${this.stage.name}`;
         const administration = new PostgresPool(`${server}/postgres`, environment, {
             connections: 1,
         });
@@ -344,7 +345,7 @@ export class Deployment {
 
         // serve the universe's files from a local bucket over S3
         await using files = await LocalBucket.open(
-            resolve(CHECKOUT, "target", this.stage.name, E2E_DIRECTORY, "files"),
+            resolve(CHECKOUT, "target", this.stage.name, WORKERD_DIRECTORY, "files"),
             "universe",
             environment,
         );
@@ -439,13 +440,13 @@ export class Deployment {
 
             // require it to answer at its origin
             await script.smoke();
-            print("e2e", `${script.name} answers at ${script.origin}`);
+            print(script.name, script.origin);
         }
 
         // require each residency's home to serve its forge on the residency's cloud machine
         for (const residency of RESIDENCIES) {
             await this.#smokeForge(residency, custody, build);
-            print("e2e", `the home of ${residency.code} serves its forge`);
+            print("stage", `the home of ${residency.code} serves its forge`);
         }
 
         // sign the operator in, and publish the platform's releases under the stage's tag as its owner
@@ -453,13 +454,11 @@ export class Deployment {
         const issuer = new Issuer(this.issuer, send, this.environment, new Bookmark());
         const operator = await Operator.signIn(issuer, mail, this.environment);
         await build.release(this.stage.tag, this.forges(custody, build, operator), async () => {});
-        print("e2e", `the releases are published under ${this.stage.tag}`);
+        print("stage", `the releases are published under ${this.stage.tag}`);
 
-        // sign a person up in the first residency, as the CLI does, and require their home to serve
-        const [first] = RESIDENCIES;
-        const residency = present(first, "a residency");
-        await this.#smokeSignUp(residency, custody, mail);
-        print("e2e", `a person signed up in ${residency.code} and their home serves`);
+        // serve until the hold ends
+        print("ready", `${this.universeOrigin}/ opens Destack in a browser`);
+        await hold();
     }
 
     /** Require a residency home's forge to serve on the residency's cloud machine. */
@@ -493,39 +492,6 @@ export class Deployment {
             forgePackage.id,
             version,
         );
-    }
-
-    /** Sign a person up in a residency with a mailed code, as the CLI does, awaiting their home. */
-    async #smokeSignUp(
-        residency: PlatformResidency,
-        custody: Custody,
-        mail: PrintedMail,
-    ): Promise<void> {
-        // mail a code to a fresh address, and read it from the universe's printed mail
-        const { environment } = this;
-        const send = (request: Request) => environment.network.fetch(request);
-        const issuer = new Issuer(this.issuer, send, environment, new Bookmark());
-        const email = `e2e-${environment.random.bytes(4).toHex()}@example.com`;
-        const printed = mail.lines.length;
-        await issuer.sendCode(email);
-        const code = await mail.code(printed, environment.clock);
-
-        // redeem it on a new client, signing the person up in the residency
-        const { userId } = await issuer.redeemCode(
-            Identifier.create("client", environment),
-            email,
-            code,
-            {
-                name: "E2E",
-                handle: `e2e-${environment.random.bytes(4).toHex()}`,
-                residencyId: residency.code,
-                timeZone: "UTC",
-                locale: "en",
-            },
-        );
-
-        // wait until their home serves every installation of its stack, as its readiness says
-        await this.#waitReady(residency, Account.home(Account.personal(userId)));
     }
 
     /** Open the residency homes' forges, located as their machines, called as the operator. */
@@ -662,28 +628,6 @@ export class Deployment {
             throw new Error(
                 `'${installation}' in '${space}' on '${residency.code}' answered ${response.status}: '${body}'`,
             );
-        }
-    }
-
-    /** Wait until a space on a residency's machine is ready, polling its readiness probe. */
-    async #waitReady(residency: PlatformResidency, space: Identifier<"space">): Promise<void> {
-        // ask the space's probe until it answers ready, or the deadline passes
-        const { clock, network } = this.environment;
-        const url = `${SpaceMount.url(this.machineOrigin(residency), space)}/readyz`;
-        const deadline = clock.now() + DIRECTORY_SYNC_MILLISECONDS + HOME_SERVE_MILLISECONDS;
-        for (;;) {
-            // take a ready answer, refuse at the deadline with the last reason, else ask again
-            const response = await network.fetch(new Request(url));
-            const body = await response.text();
-            if (response.ok) {
-                return;
-            } else if (clock.now() >= deadline) {
-                throw new Error(
-                    `'${space}' on '${residency.code}' is not ready: ${response.status} '${body}'`,
-                );
-            } else {
-                await clock.sleep(READY_POLL_MILLISECONDS);
-            }
         }
     }
 
@@ -923,7 +867,7 @@ export class Deployment {
         return await PlatformBuild.build(CHECKOUT, this.environment, options);
     }
 
-    /** Write the universe root's outputs an end-to-end run binds, its files at an S3 endpoint. */
+    /** Write the universe root's outputs a run under workerd binds, its files at an S3 endpoint. */
     #placeholderUniverse(endpoint: URL): UniverseOutputs {
         return {
             account: PLACEHOLDER_IDENTIFIER,
@@ -938,7 +882,7 @@ export class Deployment {
         return `destack-${this.stage.name}-files-universe`;
     }
 
-    /** Write a residency root's outputs an end-to-end run binds. */
+    /** Write a residency root's outputs a run under workerd binds. */
     #placeholderResidency(residency: PlatformResidency): ResidencyOutputs {
         const host = new URL(this.machineOrigin(residency)).host;
 

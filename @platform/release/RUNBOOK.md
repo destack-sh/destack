@@ -28,7 +28,7 @@ bun run src/main.ts installer build <name>       # installer: build
 bun run src/main.ts signing sign sign <target>   # signing: sign, credential
 bun run src/main.ts update expiry                # update: sign, publish, renew, verify, expiry
 bun run src/main.ts key ceremony verify <root>   # key: ceremony, enroll, generate, rehearse, attest, backup
-bun run src/main.ts platform validate            # platform: validate, format, format-check, init, diff, deploy, e2e
+bun run src/main.ts platform validate            # platform: validate, format, format-check, init, diff, deploy
 bun run src/main.ts custody seal production      # custody: seal
 bun run src/main.ts local serve                  # local: serve, reset
 bun run src/main.ts github credential            # github: credential
@@ -72,8 +72,8 @@ DESTACK_STAGE=local bun run src/main.ts login \
 `WorkerScript` deploys the entries: the universe's `@platform/release/deployment/universe`, and per residency `@destack/machine/cloudflare/worker` with its Tail Worker `@destack/machine/cloudflare/tail`, which posts each space's traced CPU time and Durable Object fetches to the space's object.
 
 ```sh
-# serve the local universe and cloud machines under workerd over a fresh database, smoke
-just @platform/release/e2e
+# serve the local universe and cloud machines as Workers, as production runs them
+just @platform/release/local serve --runtime workerd
 # seal the keys custody/production.json lacks under each root's KMS key, once per key, then commit the record
 just @platform/release/custody seal production
 # apply global, universe, eu and us, migrate, deploy each Worker with the shipped releases as its

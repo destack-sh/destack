@@ -1,6 +1,5 @@
 import type { Environment, HostCapability } from "@destack/environment";
 import { printStatus } from "../distribution/output.ts";
-import { SERVER } from "../local/command.ts";
 import { CHECKOUT } from "../distribution/distribution.ts";
 import { PlatformBuild } from "./build.ts";
 import { Deployment } from "./deployment.ts";
@@ -103,17 +102,6 @@ export async function sealCustody(
         throw new Error(`custody seal takes a stage, then nothing more: '${rest.join(" ")}'`);
     }
     await Deployment.deployed(name, environment).seal((title, line) =>
-        printStatus(title, line, environment),
-    );
-}
-
-/** Serve the local Workers under workerd over a fresh database, and check they answer. */
-export async function testPlatform(
-    environment: Environment<HostCapability>,
-    arguments_: readonly string[],
-): Promise<void> {
-    none("platform e2e", arguments_);
-    await Deployment.of("local", environment).e2e(SERVER, (title, line) =>
         printStatus(title, line, environment),
     );
 }

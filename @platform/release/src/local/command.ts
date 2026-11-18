@@ -4,7 +4,7 @@ import { Stage } from "@destack/update/release";
 import { Environment, type HostCapability, Telemetry } from "@destack/environment";
 import { SeverityNumber } from "@destack/telemetry";
 import { printStatus } from "../distribution/output.ts";
-import { LOOPBACK_LAYOUT } from "../deployment/deployment.ts";
+import { Deployment, LOOPBACK_LAYOUT } from "../deployment/deployment.ts";
 import { CHECKOUT } from "../distribution/distribution.ts";
 import { developDistribution } from "../distribution/develop.ts";
 import { type DevelopmentOptions, LocalUniverse } from "./local.ts";
@@ -15,14 +15,49 @@ export const SERVER = "postgres://postgres@127.0.0.1:55432";
 /** The local state without `--state`: database destack_local, target/local. */
 const DEFAULT_STATE = "local";
 
+/** The flag naming where the cloud machines run. */
+const RUNTIME_FLAG = "--runtime";
+
+/** The runtime that runs the cloud machines as Workers, as production does. */
+const WORKERD = "workerd";
+
+/** Where a local stage's cloud machines run: on Bun here, or as Workers under workerd. */
+const RUNTIMES: ReadonlySet<string> = new Set(["bun", WORKERD]);
+
 /** A local state's name, a PostgreSQL identifier's tail and a directory name. */
 const STATE_NAME = /^[a-z][a-z0-9_]*$/u;
 
-/** Serve a local universe until an interrupt: `local serve [--state <name>]`. */
+/** Serve a local universe until an interrupt: `local serve [--runtime <name>] [--state <name>]`. */
 export async function serveLocal(
     environment: Environment<HostCapability>,
-    arguments_: readonly string[],
+    given: readonly string[],
 ): Promise<void> {
+    // read where the cloud machines run, leaving the state's flags
+    const runtime = given.indexOf(RUNTIME_FLAG);
+    const isWorkerd = runtime >= 0 && given[runtime + 1] === WORKERD;
+    const arguments_ = given.filter(
+        (_word, index) => runtime < 0 || (index !== runtime && index !== runtime + 1),
+    );
+    if (runtime >= 0 && !RUNTIMES.has(given[runtime + 1] ?? "")) {
+        throw new Error(`use ${RUNTIME_FLAG} with one of '${[...RUNTIMES].join(", ")}'`);
+    }
+
+    // serve the universe and the cloud machines as Workers under workerd, as production runs them
+    if (isWorkerd) {
+        const { database } = localOptions(arguments_, environment);
+        const print = (title: string, line: string) => printStatus(title, line, environment);
+        await Deployment.of("local", environment).serve(
+            SERVER,
+            `${database}_${WORKERD}`,
+            print,
+            async () => {
+                await interrupted(environment);
+            },
+        );
+
+        return;
+    }
+
     // print the warnings and failures of the universe and the cloud machines this process runs
     const telemetry = Telemetry.local(
         environment.clock,
@@ -61,12 +96,7 @@ export async function serveLocal(
     printStatus("ready", "Ctrl-C stops everything", environment);
 
     // serve until an interrupt or a termination
-    const stopping = Promise.withResolvers<string>();
-    const interrupt = environment.process.on("SIGINT", () => stopping.resolve("SIGINT"));
-    const termination = environment.process.on("SIGTERM", () => stopping.resolve("SIGTERM"));
-    const signal = await stopping.promise;
-    interrupt[Symbol.dispose]();
-    termination[Symbol.dispose]();
+    const signal = await interrupted(environment);
 
     // stop everything
     printStatus(
@@ -77,6 +107,19 @@ export async function serveLocal(
     await machine[Symbol.asyncDispose]();
     await universe[Symbol.asyncDispose]();
     printStatus("stop", "stopped", environment);
+}
+
+/** Wait for an interrupt or a termination, answering the signal that came. */
+async function interrupted(environment: Environment<"process">): Promise<string> {
+    // resolve at the first of the two signals, then stop listening
+    const stopping = Promise.withResolvers<string>();
+    const interrupt = environment.process.on("SIGINT", () => stopping.resolve("SIGINT"));
+    const termination = environment.process.on("SIGTERM", () => stopping.resolve("SIGTERM"));
+    const signal = await stopping.promise;
+    interrupt[Symbol.dispose]();
+    termination[Symbol.dispose]();
+
+    return signal;
 }
 
 /** Run the desktop app on a local state's device: `local desktop [--state <name>]`. */
