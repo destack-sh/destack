@@ -245,10 +245,7 @@ export class WorkerScript {
             tail_consumers: [{ service: tail.name }],
             migrations: [{ tag: "v1", new_sqlite_classes: Object.values(MACHINE_CLASSES) }],
             worker_loaders: [{ binding: "LOADER" }],
-            r2_buckets: [
-                { binding: "FILES", bucket_name: outputs.files, ...jurisdiction },
-                { binding: "BUILDS", bucket_name: outputs.packages, ...jurisdiction },
-            ],
+            r2_buckets: [{ binding: "BUCKET", bucket_name: outputs.bucket, ...jurisdiction }],
             artifacts: [
                 {
                     binding: "ARTIFACTS",
@@ -269,7 +266,7 @@ export class WorkerScript {
                     this.deployment.machineOrigin(residency),
                 ),
                 DESTACK_HOST: outputs.host,
-                DESTACK_FILES: outputs.files,
+                DESTACK_BUCKET: outputs.bucket,
                 DESTACK_REGISTRY: FORGE_INSTALLATION,
                 DESTACK_RATES: JSON.stringify({
                     skus: Object.fromEntries(

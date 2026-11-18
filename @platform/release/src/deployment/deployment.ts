@@ -1024,8 +1024,7 @@ export class Deployment {
 
         return {
             account: PLACEHOLDER_IDENTIFIER,
-            files: `destack-${this.stage.name}-files-${residency.code}`,
-            packages: `destack-${this.stage.name}-packages-${residency.code}`,
+            bucket: `destack-${this.stage.name}-${residency.code}`,
             host,
             hyperdrive: PLACEHOLDER_IDENTIFIER,
             ...PLACEHOLDER_WORKER,

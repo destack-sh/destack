@@ -1,10 +1,6 @@
-output "packages" {
-  description = "Residency package bucket."
-  value       = cloudflare_r2_bucket.packages.name
-}
-output "files" {
-  description = "Residency application file bucket."
-  value       = cloudflare_r2_bucket.files.name
+output "bucket" {
+  description = "The residency's bucket, keyed by owner."
+  value       = cloudflare_r2_bucket.residency.name
 }
 output "host" {
   description = "The cloud machine's name, which its Worker's routes answer."

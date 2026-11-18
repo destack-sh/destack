@@ -45,8 +45,7 @@ const UniverseOutputs = WorkerOutputs.extend({
 /** The outputs of a residency root, as `tofu output -json` prints them. */
 const ResidencyOutputs = WorkerOutputs.extend({
     account: output(schema.string().min(1)),
-    files: output(schema.string().min(1)),
-    packages: output(schema.string().min(1)),
+    bucket: output(schema.string().min(1)),
     host: output(schema.string().min(1)),
     hyperdrive: output(schema.string().min(1)),
 });
@@ -81,10 +80,8 @@ export interface UniverseOutputs extends WorkerOutputs {
 export interface ResidencyOutputs extends WorkerOutputs {
     /** The Cloudflare account running the machine Worker. */
     readonly account: string;
-    /** The residency's files bucket. */
-    readonly files: string;
-    /** The residency's package bucket, keeping its cloud machine's build store. */
-    readonly packages: string;
+    /** The residency's bucket, keyed by owner. */
+    readonly bucket: string;
     /** The cloud machine's host, which its Worker's routes answer. */
     readonly host: string;
     /** The Hyperdrive configuration the machine Worker reaches the residency's database through. */
@@ -273,8 +270,7 @@ export class Root {
 
         return {
             account: parsed.account.value,
-            files: parsed.files.value,
-            packages: parsed.packages.value,
+            bucket: parsed.bucket.value,
             host: parsed.host.value,
             hyperdrive: parsed.hyperdrive.value,
             ...workerOf(parsed),

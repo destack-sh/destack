@@ -18,15 +18,6 @@ variable "residency" {
     error_message = "Choose eu or us."
   }
 }
-variable "package_import_id" {
-  description = "Existing package bucket to adopt into this deployment's state."
-  type        = string
-  default     = null
-  validation {
-    condition     = var.package_import_id == null || var.package_import_id == "${var.account_id}/destack-${var.environment}-packages-${var.residency}/${var.residency}"
-    error_message = "The imported bucket must match this deployment's account, environment, and residency."
-  }
-}
 variable "machine" {
   description = "The name of the residency's cloud machine, one label of the platform account's machines."
   type        = string
