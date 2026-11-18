@@ -1,3 +1,4 @@
+import { fixtureGraph } from "@destack/build/test";
 import type { Environment } from "@destack/environment";
 import { fileURLToPath } from "node:url";
 import type { StackRelease } from "@destack/account/object";
@@ -186,9 +187,8 @@ export class TestDistribution implements ReleaseRegistry, AsyncDisposable {
             ...root.manifest,
             package: { ...PackageManifest.package(root.manifest), version },
         };
-        const released = await store.put(
-            new BuildReader(manifest, root.stream, store.environment.crypto),
-        );
+        const reader = new BuildReader(manifest, root.stream, store.environment.crypto);
+        const released = await TestDistribution.#putIndexed(store, reader);
 
         // lock it in the root's place with the root's links
         const { [locked.root]: links, ...builds } = locked.builds;
@@ -249,14 +249,27 @@ export class TestDistribution implements ReleaseRegistry, AsyncDisposable {
         );
     }
 
+    /** Put a build with its fixture graph attached once, as a builder locks what it ships. */
+    static async #putIndexed(store: LocalBuildStore, reader: BuildReader): Promise<Digest> {
+        const digest = await store.put(reader);
+        if (!(await store.isIndexed(digest))) {
+            await store.attachGraph(digest, await fixtureGraph(reader));
+        }
+
+        return digest;
+    }
+
     /** Store a build locked with the builds it runs with, answering the lock's digest. */
     async lock(build: BuildReader, builds: readonly BuildReader[] = []): Promise<Digest> {
         // store each build by its package
         const locked: Record<string, Digest> = {};
         for (const each of builds) {
-            locked[each.manifest.package.name] = await this.#store.put(each);
+            locked[each.manifest.package.name] = await TestDistribution.#putIndexed(
+                this.#store,
+                each,
+            );
         }
-        const root = await this.#store.put(build);
+        const root = await TestDistribution.#putIndexed(this.#store, build);
 
         // lock them hoisted
         const lock = await Lock.hoisted(root, locked, (digest) => this.#store.get(digest));
