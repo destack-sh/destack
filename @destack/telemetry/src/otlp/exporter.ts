@@ -237,7 +237,10 @@ export class OtlpExporter {
                 return {
                     traces: {
                         sampler: new RatioSampler(options.ratio ?? 1),
-                        spanProcessors: [tail.spans],
+                        spanProcessors:
+                            options.local === undefined
+                                ? [tail.spans]
+                                : [tail.spans, options.local.spans],
                     },
                     logs: {
                         processors:

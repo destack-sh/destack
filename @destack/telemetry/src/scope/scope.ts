@@ -14,6 +14,7 @@ import {
     EXCEPTION_EVENT,
     type Environment,
     exceptionAttributes,
+    Level,
     SpanRunner,
 } from "@destack/environment";
 import { Failure } from "@destack/error";
@@ -25,14 +26,6 @@ import {
     VISIT_EVENT,
     type VisitDetail,
 } from "../otlp/analytics.ts";
-
-/** The log severity of each capture level. */
-const LEVELS: Readonly<Record<CaptureLevel, readonly [SeverityNumber, string]>> = {
-    fatal: [SeverityNumber.FATAL, "FATAL"],
-    error: [SeverityNumber.ERROR, "ERROR"],
-    warning: [SeverityNumber.WARN, "WARN"],
-    info: [SeverityNumber.INFO, "INFO"],
-};
 
 /** The instruments a package creates on its meter: the synchronous ones. */
 export type PackageMeter = Pick<
@@ -83,13 +76,10 @@ export const TelemetryScope = {
     },
 };
 
-/** How bad a captured failure is. */
-export type CaptureLevel = "fatal" | "error" | "warning" | "info";
-
 /** What a capture adds to the exception it records. */
 export interface CaptureContext {
     /** How bad the failure is, error by default. */
-    readonly level?: CaptureLevel;
+    readonly level?: Level;
     /** Bounded labels to filter and group issues by, such as the feature. */
     readonly tags?: Readonly<Record<string, string>>;
     /** The fingerprint grouping the failure into an issue, replacing the one its frames give. */
@@ -315,7 +305,7 @@ export function emitException(
     telemetry: Pick<Environment["telemetry"], "context" | "clock">,
     capture: CaptureContext = {},
 ): void {
-    const [severityNumber, severityText] = LEVELS[capture.level ?? "error"];
+    const [severityNumber, severityText] = Level.severity(capture.level ?? "error");
     logger.emit({
         eventName: EXCEPTION_EVENT,
         severityNumber,

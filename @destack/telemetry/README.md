@@ -121,7 +121,7 @@ export function reportExport(environment: Environment, error: unknown) {
         environment.telemetry,
     );
     captureException(error, {
-        level: "warning",
+        level: "warn",
         tags: { feature: "export" },
         fingerprint: ["export"],
     });
@@ -273,46 +273,34 @@ Each log record has one of four levels.
 | ------- | ----------------------------------------------------- | ------------------------------------------------------------ |
 | `ERROR` | a failure someone acts on, captured once by its owner | an unexpected throw, a key that keeps failing, a lost export |
 | `WARN`  | a degraded state that recovers on its own             | `destack.replica.silent`, `destack.replica.refused`          |
-| `INFO`  | a lifecycle change, once per change                   | `destack.space.started`, `destack.database.migrated`         |
+| `INFO`  | a lifecycle phase or change, once each                | `destack.space.serve`, `destack.database.migrated`           |
 | `DEBUG` | detail per request or per iteration, off by default   | a page sent, a statement run                                 |
 
-The package's `TelemetryScope` records each level, and spans record requests:
+Spans take the same levels: a lifecycle phase is an info span, and a request is a debug span, the default.
+The package's `TelemetryScope` records both:
 
 ```ts
 import type { Environment } from "@destack/environment";
 import { TelemetryScope } from "@destack/telemetry";
 
-/** Start a space's servers, recording the start once and a failure once. */
+/** Start a space's servers in an info span, which a process prints with its duration once it ends. */
 export async function startSpace(
     environment: Environment,
     space: string,
-    serve: () => Promise<number>,
+    serve: () => Promise<void>,
 ): Promise<void> {
-    const { log, span, captureException } = TelemetryScope.of(
-        import.meta.destack.package,
-        environment.telemetry,
-    );
-    try {
-        const installations = await span(
-            "destack.space.serve",
-            { "destack.space.id": space },
-            serve,
-        );
-        log.info("destack.space.started", {
-            "destack.space.id": space,
-            "destack.space.installations": installations,
-        });
-    } catch (error) {
-        captureException(error);
-    }
+    const { span } = TelemetryScope.of(import.meta.destack.package, environment.telemetry);
+    await span("destack.space.serve", { "destack.space.id": space }, serve, { level: "info" });
 }
 ```
+
+A process prints its log records and spans from the level in `DESTACK_LOG_LEVEL` on, `info` when absent, and exports every level.
 
 Each case uses one kind of record:
 
 | Case                                       | Record                                              |
 | ------------------------------------------ | --------------------------------------------------- |
-| a process reports what it does             | a log record through the package's `TelemetryScope` |
+| a process goes through a phase             | an info span through the package's `TelemetryScope` |
 | a server answers a request                 | a span, with the request's outcome as attributes    |
 | a failure reaches its owner                | one exception, captured by the owner                |
 | a record refers to a user, space or object | the identifier, without secrets or personal content |

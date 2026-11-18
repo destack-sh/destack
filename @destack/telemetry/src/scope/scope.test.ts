@@ -190,7 +190,7 @@ test("capture handled failures and messages as exceptions with their error type 
             }),
         });
         scope.captureException(new Error("could not save the note", { cause: refused }));
-        scope.captureMessage("quota nearly reached", { level: "warning", fingerprint: ["quota"] });
+        scope.captureMessage("quota nearly reached", { level: "warn", fingerprint: ["quota"] });
         await telemetry.flush();
     } finally {
         await telemetry.shutdown();
