@@ -42,10 +42,15 @@ test("plan a meter's change between releases: keep its aggregation and unit", ()
     const outcome = (aggregation: "sum" | "max", unit: string) => {
         try {
             return compareMeter(
-                { description: counting("sum", "request"), symbol: { package: storage } },
+                {
+                    description: counting("sum", "request"),
+                    symbol: { package: storage },
+                    capabilities: [],
+                },
                 {
                     description: counting(aggregation, unit),
                     symbol: { package: { ...storage, version: "2026.10.0" } },
+                    capabilities: [],
                 },
             ).steps;
         } catch (error) {
