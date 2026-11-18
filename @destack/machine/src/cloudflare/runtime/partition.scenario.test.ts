@@ -329,7 +329,7 @@ test("end a stored start once its restarted space refuses the start's secret, th
             503,
             "SERVICE_UNAVAILABLE",
             "WORKLOAD_UNAVAILABLE",
-            "workload is unavailable: its space no longer runs its start",
+            "workload is unavailable: its start ended",
         ],
         after: [
             503,

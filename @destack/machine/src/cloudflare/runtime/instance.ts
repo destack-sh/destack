@@ -193,6 +193,13 @@ export class InstallationFacet {
     #start: Promise<DurableObjectInstanceStart | undefined> | undefined;
     /** Whether the stored start's workload answered here since the object started, so it runs. */
     #isRunning = false;
+    /** The stored start's modules, read from the space until its isolate takes them. */
+    #read:
+        | {
+              readonly secret: string;
+              readonly modules: Promise<Record<string, { readonly js: string }>>;
+          }
+        | undefined;
 
     /** Host an installation's facet in an object, its alarm on the object's clock. */
     constructor(
@@ -521,15 +528,17 @@ export class InstallationFacet {
 
         return {
             fetch: async (request) => {
-                // forget a start the space no longer runs, so later wake-ups find none
-                const response = await facet.fetch(request).catch(async (error: unknown) => {
-                    // rethrow the loader's copy of the refusal as this object's own
-                    if (started !== undefined && MachineError.is(error, "WORKLOAD_UNAVAILABLE")) {
-                        await this.#forget(started);
-                        throw MachineError.of("WORKLOAD_UNAVAILABLE", error.message);
-                    }
-                    throw error;
-                });
+                // read the start's code before its first load, ending a start the space refuses there
+                if (started !== undefined && !this.#isRunning) {
+                    await this.#code(started).catch((error: unknown) => this.#end(started, error));
+                }
+
+                // answer through the workload, ending a start a reload finds refused
+                const response = await facet
+                    .fetch(request)
+                    .catch((error: unknown) =>
+                        started === undefined ? Promise.reject(error) : this.#end(started, error),
+                    );
 
                 // an answer means the workload's code loaded and runs
                 this.#isRunning ||= started !== undefined;
@@ -545,13 +554,13 @@ export class InstallationFacet {
         const bindings = this.#bindings;
         const self = bindings.PARTITION.get(this.#state.id);
         const space = this.#space(started.space);
-        const { secret, instance } = started.workload.start;
+        const { instance } = started.workload.start;
 
         return bindings.LOADER.get(instance, async () => ({
             compatibilityDate: WORKERD_COMPATIBILITY_DATE,
             compatibilityFlags: ["nodejs_compat"],
             mainModule: started.main,
-            modules: await InstallationFacet.#modules(space, secret),
+            modules: await this.#take(started),
             env: {
                 PARTITION: self,
                 // print the workload's records as its host Worker prints its own
@@ -564,6 +573,43 @@ export class InstallationFacet {
             },
             globalOutbound: space,
         }));
+    }
+
+    /** Forget a start that ended and refuse as this object, else rethrow the failure. */
+    async #end(started: DurableObjectInstanceStart, error: unknown): Promise<never> {
+        // rethrow a loader's copy of the refusal as this object's own
+        if (MachineError.is(error, "WORKLOAD_UNAVAILABLE")) {
+            await this.#forget(started);
+            throw MachineError.of("WORKLOAD_UNAVAILABLE", error.message);
+        }
+        throw error;
+    }
+
+    /** Take a start's modules for its isolate, letting go of them once taken. */
+    async #take(
+        started: DurableObjectInstanceStart,
+    ): Promise<Record<string, { readonly js: string }>> {
+        const modules = await this.#code(started);
+        this.#read = undefined;
+
+        return modules;
+    }
+
+    /** Read a start's modules once, again after a failed read, until its isolate takes them. */
+    #code(started: DurableObjectInstanceStart): Promise<Record<string, { readonly js: string }>> {
+        // read the modules of the stored start, keeping the read for the loader
+        if (this.#read?.secret !== started.workload.start.secret) {
+            const modules = InstallationFacet.#modules(
+                this.#space(started.space),
+                started.workload.start.secret,
+            ).catch((error: unknown) => {
+                this.#read = undefined;
+                throw error;
+            });
+            this.#read = { secret: started.workload.start.secret, modules };
+        }
+
+        return this.#read.modules;
     }
 
     /** Read a start's modules through the space serving its builds, in one request. */
@@ -582,7 +628,7 @@ export class InstallationFacet {
             await response.arrayBuffer();
             throw MachineError.of(
                 "WORKLOAD_UNAVAILABLE",
-                "workload is unavailable: its space no longer runs its start",
+                "workload is unavailable: its start ended",
             );
         }
         // refuse any other failure

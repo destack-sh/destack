@@ -1564,17 +1564,13 @@ async function kindCompare(
     build: BuildReader,
     kind: string,
 ): Promise<{ readonly subpath: string; readonly name: string } | undefined> {
-    // read the package's declaration constructors and the kinds they describe
+    // read the comparison the package defines for the kind, from its constructors or its kinds
     const definition = PackageDefinition.parse(
         JSON.parse(new TextDecoder().decode(await build.load("destack.json"))),
     );
-    const described = Object.values(definition.declarations ?? {}).flatMap(
-        (constructor) => constructor.describes,
-    );
-    const compare = described.find(
-        (each) => each.kind === kind && "function" in each && each.compare !== undefined,
-    );
-    const reference = compare !== undefined && "compare" in compare ? compare.compare : undefined;
+    const reference = PackageDefinition.comparisons(definition).find(
+        (each) => each.kind === kind,
+    )?.compare;
     if (reference === undefined) {
         return undefined;
     }
