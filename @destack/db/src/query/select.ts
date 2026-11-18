@@ -1,5 +1,4 @@
 import { fill, render, sql, SQL, type SQLWrapper } from "../sql/index.ts";
-import { mapValues } from "@destack/schema";
 import { type Select, TABLE, type Table } from "../table/table.ts";
 import type { DatabaseDriver } from "../database/driver.ts";
 import { Projection, type Selection, type SelectionResult } from "./selection.ts";
@@ -160,15 +159,11 @@ export class SelectQuery<
         );
 
         // decode the rows, typed as the query's result
-        const decoded = projection.decode(
+        return projection.decode<Result>(
             rows,
             this.state.driver.dialect,
             nullable,
             this.state.driver.state.cipher,
-        );
-
-        return decoded.map((row) =>
-            mapValues<Record<string, unknown>, Result>(row, (value) => value),
         );
     }
 

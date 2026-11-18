@@ -15,7 +15,6 @@ import { Column, type ColumnValue } from "../table/column.ts";
 import { type Insert, TABLE, type Table } from "../table/table.ts";
 import { Projection, type SelectionResult } from "./selection.ts";
 import { DatabaseError } from "../error/error.ts";
-import { mapValues } from "@destack/schema";
 import { BlobStore } from "../blob/store.ts";
 import { textValues } from "./statement.ts";
 
@@ -207,18 +206,12 @@ export class MutationQuery<
                     rows.push(...read);
                 }
                 const projection = new Projection(unqualified(returned));
-                const decoded = projection.decode(
+
+                return projection.decode<SelectionResult<Fields>>(
                     rows,
                     driver.dialect,
                     new Set(),
                     driver.state.cipher,
-                );
-
-                return decoded.map((row) =>
-                    mapValues<Record<string, unknown>, SelectionResult<Fields>>(
-                        row,
-                        (value) => value,
-                    ),
                 );
             },
         });

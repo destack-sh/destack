@@ -57,8 +57,8 @@ interface Leaf {
 
 /** A selected group: its entries by property, leaves or nested groups. */
 interface Group {
-    /** The entries in property order. */
-    readonly entries: readonly (readonly [string, Leaf | Group])[];
+    /** The entries by property, in property order. */
+    readonly entries: Readonly<Record<string, Leaf | Group>>;
 }
 
 /** A selection flattened to fields in order and decoded back into nested records. */
@@ -87,17 +87,16 @@ export class Projection<Selected extends Selection = Selection> {
         );
     }
 
-    /** Decode driver rows into selection records, a nullable group of missing values as null. */
-    decode(
+    /** Decode driver rows into records of a row type, a missing nullable group as null. */
+    decode<Row extends object = SelectionResult<Selected>>(
         rows: readonly (readonly unknown[])[],
         dialect: Dialect,
         nullable: ReadonlySet<string>,
         cipher: ColumnCipher | undefined,
-    ): SelectionResult<Selected>[] {
+    ): Row[] {
         return rows.map((values) =>
-            mapValues<Record<string, unknown>, SelectionResult<Selected>>(
-                decodeGroup(this.#root, values, dialect, nullable, cipher),
-                (value) => value,
+            mapValues<Group["entries"], Row>(this.#root.entries, (entry) =>
+                decodeEntry(entry, values, dialect, nullable, cipher),
             ),
         );
     }
@@ -105,17 +104,19 @@ export class Projection<Selected extends Selection = Selection> {
 
 /** Collect a selection's fields in property order into a group shape. */
 function group(selection: Selection, fields: (Column | SQL | Alias)[]): Group {
-    const entries = Object.entries(selection).map(([property, field]): [string, Leaf | Group] => {
-        // place a selected value at the next position
-        if (field instanceof Column || field instanceof SQL || field instanceof Alias) {
-            fields.push(field);
+    const entries = Object.fromEntries(
+        Object.entries(selection).map(([property, field]): [string, Leaf | Group] => {
+            // place a selected value at the next position
+            if (field instanceof Column || field instanceof SQL || field instanceof Alias) {
+                fields.push(field);
 
-            return [property, { field, index: fields.length - 1 }];
-        }
+                return [property, { field, index: fields.length - 1 }];
+            }
 
-        // nest a table's columns or a nested selection
-        return [property, group(field instanceof Table ? field[TABLE].columns : field, fields)];
-    });
+            // nest a table's columns or a nested selection
+            return [property, group(field instanceof Table ? field[TABLE].columns : field, fields)];
+        }),
+    );
 
     return { entries };
 }
@@ -128,11 +129,8 @@ function decodeGroup(
     nullable: ReadonlySet<string>,
     cipher: ColumnCipher | undefined,
 ): Record<string, unknown> {
-    return Object.fromEntries(
-        shape.entries.map(([property, entry]) => [
-            property,
-            decodeEntry(entry, values, dialect, nullable, cipher),
-        ]),
+    return mapValues<Group["entries"], Record<string, unknown>>(shape.entries, (entry) =>
+        decodeEntry(entry, values, dialect, nullable, cipher),
     );
 }
 
@@ -164,9 +162,11 @@ function isMissingGroup(
     values: readonly unknown[],
     nullable: ReadonlySet<string>,
 ): boolean {
+    const entries = Object.values(shape.entries);
+
     return (
-        shape.entries.length > 0 &&
-        shape.entries.every(([, entry]) =>
+        entries.length > 0 &&
+        entries.every((entry) =>
             "field" in entry
                 ? entry.field instanceof Column &&
                   nullable.has(entry.field.table) &&
