@@ -7,7 +7,6 @@ import {
     none,
     PermissionReference,
     type GrantDeclaration,
-    PermissionScope,
     type GrantContext,
     PermissionSet,
 } from "@destack/access";
@@ -562,31 +561,10 @@ export const Rollout = {
         description: Pick<PackageDescription, "permissions" | "capabilities"> | undefined,
         delegator: keyof GrantDeclaration,
     ): PermissionSet {
-        // gather the package's set and each enabled capability's
-        const enabled = Rollout.enabled(row, description);
-        const sets: PermissionSet[] = [
-            description?.permissions[delegator] ?? {},
-            ...Object.entries(description?.capabilities ?? {})
-                .filter(([name]) => enabled.includes(name))
-                .map(([, capability]) => capability.permissions?.[delegator] ?? {}),
-        ];
-
-        // merge them scope by scope, each permission once
-        return Object.fromEntries(
-            PermissionScope.options.flatMap((scope) => {
-                const merged = sets.flatMap((set) => set[scope] ?? []);
-                const once = merged.filter(
-                    (permission, index) =>
-                        merged.findIndex(
-                            (other) =>
-                                PermissionReference.key(other) ===
-                                PermissionReference.key(permission),
-                        ) === index,
-                );
-
-                return once.length === 0 ? [] : [[scope, once]];
-            }),
-        );
+        // ask nothing without a package, else what it asks with the installation's capabilities
+        return description === undefined
+            ? {}
+            : PackageDescription.asks(description, Rollout.enabled(row, description), delegator);
     },
 
     /** Record what a space serves of each installation: a revision, or why it serves none. */
