@@ -94,14 +94,23 @@ export const Failure = Object.assign(failureSchema, {
         }
         // retry an exhausted resource only when it says when (AIP-194 RetryInfo)
         else if (condition === "EXHAUSTED") {
-            const { data } = failure;
-
-            return typeof data === "object" && data !== null && "retryAfter" in data;
+            return Failure.retryAfter(failure) !== undefined;
         }
         // retry a lost race, a move or an unavailable peer
         else {
             return TRANSIENT_CONDITIONS.has(condition);
         }
+    },
+
+    /** Read how many milliseconds a failure asks its caller to wait before retrying. */
+    retryAfter(failure: Pick<Failure, "data">): number | undefined {
+        const { data } = failure;
+        const retryAfter =
+            typeof data === "object" && data !== null && "retryAfter" in data
+                ? data["retryAfter"]
+                : undefined;
+
+        return typeof retryAfter === "number" ? retryAfter : undefined;
     },
 
     /** Describe a failure no package gave a reason, as HTTP's: its code is its reason. */
