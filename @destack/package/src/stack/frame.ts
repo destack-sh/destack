@@ -1,6 +1,5 @@
 import { schema } from "@destack/schema";
 import { Declaration } from "../graph/declaration.ts";
-import type { Document } from "../graph/document.ts";
 import type { Module } from "../graph/module.ts";
 import { Moniker } from "../graph/moniker.ts";
 
@@ -36,13 +35,19 @@ const GECKO_FRAME = /^\s*(?:(.*?)@)?(.+?):(\d+):(\d+)$/u;
 export const StackFrame = Object.assign(stackFrame, {
     /** Attribute an in-app frame to its innermost symbol and that symbol's declaration. */
     attribute(frame: StackFrame, located: FrameModule): StackFrame {
-        // find the innermost symbol around the frame's offset, leaving a frame outside the module unresolved
+        // find the symbol whose innermost declaration holds the frame's offset, leaving a frame outside the module unresolved
         const lineStart = located.lines[frame.line - 1];
-        if (!frame.isInApp || frame.path !== located.code.path || lineStart === undefined) {
+        if (!frame.isInApp || frame.path !== located.module.path || lineStart === undefined) {
             return frame;
         }
         const offset = lineStart + frame.column - 1;
-        const symbol = located.code.symbols
+        const symbol = located.module.symbols
+            .flatMap((candidate) =>
+                candidate.declarations.map(({ source }) => ({
+                    moniker: candidate.moniker,
+                    source,
+                })),
+            )
             .filter(
                 (candidate) => candidate.source.start <= offset && offset < candidate.source.end,
             )
@@ -146,12 +151,10 @@ export const StackFrame = Object.assign(stackFrame, {
     },
 });
 
-/** The module a frame ran: its code, its declarations and its source's line starts. */
+/** The module a frame ran: its graph file and its source's line starts. */
 export interface FrameModule {
-    /** The module's code from the code index. */
-    readonly code: Document;
     /** The module's graph file from the build. */
-    readonly module: Pick<Module, "declarations">;
+    readonly module: Pick<Module, "path" | "symbols" | "declarations">;
     /** The UTF-16 offsets its source's lines start at. */
     readonly lines: readonly number[];
 }

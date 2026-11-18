@@ -2,11 +2,9 @@ import { schema } from "@destack/schema";
 import { SourceRange } from "../source/location.ts";
 import { Moniker } from "./moniker.ts";
 
-/** A code entity of a module: a declared name or one of its members, as SCIP kinds them. */
-export const Symbol = schema.object({
-    /** The symbol's moniker. */
-    moniker: Moniker,
-    /** The kind of entity. */
+/** One declaration of a symbol: its kind as SCIP kinds them, its range and its signature. */
+export const SymbolDeclaration = schema.object({
+    /** The kind of entity it declares. */
     kind: schema.enum([
         // callables and types
         "function",
@@ -30,11 +28,21 @@ export const Symbol = schema.object({
         "setter",
         "enumMember",
     ]),
-    /** The first declaration's source range. */
+    /** Its source range. */
     source: SourceRange,
-    /** The printed declaration, one line per overload. */
+    /** Its signature as written, one line. */
     signature: schema.string(),
-    /** The first sentence of the documentation, absent without documentation. */
+});
+/** One declaration of a symbol. */
+export type SymbolDeclaration = schema.Infer<typeof SymbolDeclaration>;
+
+/** A code entity of a module: a declared name or a member, with each of its declarations. */
+export const Symbol = schema.object({
+    /** The symbol's moniker. */
+    moniker: Moniker,
+    /** Its declarations in source order: a value and a type, merged ones, or overloads. */
+    declarations: schema.array(SymbolDeclaration).min(1),
+    /** The first sentence of the first declaration's documentation, absent without one. */
     comment: schema.string().min(1).exactOptional(),
     /** Whether a package module exports the symbol, or the symbol of its member. */
     isExported: schema.boolean(),

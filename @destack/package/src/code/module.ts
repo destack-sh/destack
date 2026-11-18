@@ -5,12 +5,10 @@ import { PackageFile, PackagePath } from "../file/file.ts";
 import { SourceRange } from "../source/location.ts";
 import { ErrorDescription } from "./error.ts";
 
-/** A runtime global resolved through the language compiler. */
+/** A runtime global a module reads: a name no scope of it declares. */
 export const GlobalReference = schema.object({
     /** The global identifier used by the module. */
     name: schema.string().min(1),
-    /** The type declaration, absent for compiler-intrinsic globals. */
-    symbol: SymbolReference.exactOptional(),
     /** Statically selected properties following the global identifier. */
     members: schema.array(schema.string().min(1)),
     /** Whether a computed property requires application execution to resolve. */
@@ -20,7 +18,7 @@ export const GlobalReference = schema.object({
     /** The source expression using the global. */
     source: SourceRange,
 });
-/** A runtime global resolved through the language compiler. */
+/** A runtime global a module reads. */
 export type GlobalReference = schema.Infer<typeof GlobalReference>;
 
 /** A public module export referring to its original symbol. */
@@ -50,8 +48,6 @@ export const ModuleDescription = schema.object({
             target: SymbolReference.exactOptional(),
         }),
     ),
-    /** Execution APIs referenced by this source module. */
-    globals: schema.array(GlobalReference),
     /** Throws, calls, handlers, and unresolved error behavior. */
     errors: schema.array(ErrorDescription),
     /** Symbols available to domain inspectors. */

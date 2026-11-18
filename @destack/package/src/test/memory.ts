@@ -95,7 +95,8 @@ export const MemoryBuild = {
             }
         }
 
-        // write each declaring module, describing its declarations at their symbols
+        // write the entry module every package has, then each declaring module with its declarations
+        files.set(ENTRY_MODULE, files.get(ENTRY_MODULE) ?? encoder.encode("export {};\n"));
         const declarations: Declaration[] = [];
         for (const [path, values] of Map.groupBy(
             declared,

@@ -36,22 +36,24 @@ test("encode a module whose declarations sit in it, at itself or its symbols, re
         description: {},
     };
     const digest = await Digest.of(new Uint8Array(), crypto);
-    const module = (at: Moniker): Module => ({
-        path: "src/a.ts",
-        digest,
-        imports: [],
-        exports: [{ name: "a", symbol: DEFINED, isTypeOnly: false }],
-        declarations: [Declaration.at(at, { ...declared, name: "a" })],
-        edges: [],
-    });
+    const module = (at: Moniker): Module =>
+        Module.of({
+            path: "src/a.ts",
+            digest,
+            imports: [],
+            exports: [{ name: "a", symbol: DEFINED, isTypeOnly: false }],
+            declarations: [Declaration.at(at, { ...declared, name: "a" })],
+            symbols: [],
+            edges: [],
+        });
 
     expect({
         encoded: (await Module.file(module(DEFINED), crypto)).digest,
         atModule: (await Module.file(module(MODULE), crypto)).digest,
         refused: await refusal(Module.file(module(ELSEWHERE), crypto)),
     }).toEqual({
-        encoded: "55d4744af36f3fde66dd43c373c471a86359d5fad9047522a96edda64c41591a",
-        atModule: "4cef01dbe758927b81ab590e962c369751b28e85b7c73ca675aec82bb2bc7a4e",
+        encoded: "65494d6d4deccfce094fc4258078efde00b4b14fff9cc29050ed3ec458139c0f",
+        atModule: "a94637c62b6abace2cdc1f60d14dab43ae023a608b271f1a69f602f981380c29",
         refused: [
             "BAD_REQUEST",
             "INSPECTION_INVALID",

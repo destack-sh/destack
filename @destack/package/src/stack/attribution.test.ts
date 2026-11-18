@@ -4,6 +4,7 @@ import { expect, test } from "@destack/test";
 import { PackageId } from "../definition/package.ts";
 import { Moniker } from "../graph/moniker.ts";
 import { MemoryBuild } from "../test/memory.ts";
+import type { Module } from "../graph/module.ts";
 import { Attribution } from "./attribution.ts";
 
 /** The package the note module belongs to. */
@@ -40,7 +41,8 @@ test("attribute an in-app frame to its innermost symbol and its declaration, lea
         { package: owner, role: "app" },
         crypto,
     );
-    const modules = [
+    const rename = SOURCE.indexOf("    rename");
+    const modules: Module[] = [
         {
             path: "src/note.ts",
             digest,
@@ -56,36 +58,31 @@ test("attribute an in-app frame to its innermost symbol and its declaration, lea
                     description: {},
                 },
             ],
+            symbols: [
+                {
+                    moniker: at("Note"),
+                    declarations: [
+                        { kind: "class", source: range(0, SOURCE.length), signature: "class Note" },
+                    ],
+                    isExported: true,
+                },
+                {
+                    moniker: at("Note.rename"),
+                    declarations: [
+                        {
+                            kind: "method",
+                            source: range(rename, SOURCE.lastIndexOf("    }") + 5),
+                            signature: "rename(): never",
+                        },
+                    ],
+                    isExported: true,
+                },
+            ],
+            monikers: [],
             edges: [],
         },
     ];
-    const rename = SOURCE.indexOf("    rename");
-    const attribution = new Attribution(build, {
-        modules,
-        code: [
-            {
-                path: "src/note.ts",
-                digest,
-                symbols: [
-                    {
-                        moniker: at("Note"),
-                        kind: "class",
-                        source: range(0, SOURCE.length),
-                        signature: "class Note",
-                        isExported: true,
-                    },
-                    {
-                        moniker: at("Note.rename"),
-                        kind: "method",
-                        source: range(rename, SOURCE.lastIndexOf("    }") + 5),
-                        signature: "rename(): never",
-                        isExported: true,
-                    },
-                ],
-                edges: [],
-            },
-        ],
-    });
+    const attribution = new Attribution(build, modules);
 
     // attribute a frame inside rename, one in a module the index lacks, and a dependency's
     const inside = { file: "workload.js", line: 3, column: 9, isInApp: true, path: "src/note.ts" };

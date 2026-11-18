@@ -24,7 +24,7 @@ const lineAt = (line: number) =>
         .slice(0, line - 1)
         .join("\n").length + (line > 1 ? 1 : 0);
 
-/** The note module's graph. */
+/** The note module's graph file: its declarations and symbols. */
 const module = graph.Module.parse({
     path: "src/note.ts",
     digest: "0000000000000000000000000000000000000000000000000000000000000000",
@@ -48,36 +48,42 @@ const module = graph.Module.parse({
             description: {},
         },
     ],
-    edges: [],
-});
-
-/** The note module's code, as the code index keeps it. */
-const code = graph.Document.parse({
-    path: "src/note.ts",
-    digest: "0000000000000000000000000000000000000000000000000000000000000000",
     symbols: [
         {
             moniker: `${AT}#Note`,
-            kind: "class",
-            source: { file: "src/note.ts", start: 0, end: lineAt(6) - 1 },
-            signature: "class Note",
+            declarations: [
+                {
+                    kind: "class",
+                    source: { file: "src/note.ts", start: 0, end: lineAt(6) - 1 },
+                    signature: "class Note",
+                },
+            ],
             isExported: true,
         },
         {
             moniker: `${AT}#Note.rename`,
-            kind: "method",
-            source: { file: "src/note.ts", start: lineAt(2), end: lineAt(5) - 1 },
-            signature: "rename(title)",
+            declarations: [
+                {
+                    kind: "method",
+                    source: { file: "src/note.ts", start: lineAt(2), end: lineAt(5) - 1 },
+                    signature: "rename(title)",
+                },
+            ],
             isExported: true,
         },
         {
             moniker: `${AT}#check`,
-            kind: "function",
-            source: { file: "src/note.ts", start: lineAt(6), end: SOURCE.length },
-            signature: "check(title)",
+            declarations: [
+                {
+                    kind: "function",
+                    source: { file: "src/note.ts", start: lineAt(6), end: SOURCE.length },
+                    signature: "check(title)",
+                },
+            ],
             isExported: false,
         },
     ],
+    monikers: [],
     edges: [],
 });
 
@@ -99,8 +105,8 @@ const build = {
 };
 
 test("map frames to their sources and resolve in-app ones to their innermost symbol and the declaration it is or belongs to", async () => {
-    // map the frames through the build's source map, then attribute them through the module's code
-    const located = { code, module, lines: StackFrame.lineStarts(SOURCE) };
+    // map the frames through the build's source map, then attribute them through the module's symbols
+    const located = { module, lines: StackFrame.lineStarts(SOURCE) };
     const frames = await new Symbolicator(build).frames(
         [1, 2, 3].map((line) => ({
             function: "a",
@@ -165,7 +171,7 @@ test("map frames to their sources and resolve in-app ones to their innermost sym
 
 test("leave a frame unattributed outside the module, past its lines, outside any symbol, or out of the app", () => {
     // place frames in another module, past the last line, on the blank line between symbols, and in a dependency
-    const located = { code, module, lines: StackFrame.lineStarts(SOURCE) };
+    const located = { module, lines: StackFrame.lineStarts(SOURCE) };
     const frame = {
         function: "a",
         file: "workload.js",
