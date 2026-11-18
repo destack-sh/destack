@@ -18,6 +18,8 @@
         "noUncheckedSideEffectImports": true,
         "erasableSyntaxOnly": true,
         "verbatimModuleSyntax": true,
+        "incremental": true,
+        "tsBuildInfoFile": "node_modules/.cache/destack/tsc.tsbuildinfo",
         "lib": [
             "ES2024",
             "ESNext.Array",
