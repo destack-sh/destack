@@ -22,11 +22,11 @@ import {
     space,
 } from "@destack/account/object";
 import { type Projection, type Snapshot } from "@destack/db";
-import { type Clock, type Environment, Forwarded } from "@destack/environment";
+import { type Clock, type Environment, Forwarded, WebSocketUpgrade } from "@destack/environment";
 import { Failure } from "@destack/error";
 import { type Identifier, schema } from "@destack/schema";
 import type { Fetch } from "@destack/object";
-import { PackageMount, refusal, reportError } from "@destack/object";
+import { PackageMount, refusal } from "@destack/object";
 import { CLIENT_HEAD_HEADER, ClientHead, PARTITION_HEADER } from "@destack/object/workload";
 import { RelayError } from "../error/index.ts";
 import { PackageId } from "@destack/package";
@@ -151,17 +151,15 @@ export class Relay {
                 throw error;
             }
 
-            // answer a refusal's status alone
-            const reported = reportError(error, this.#telemetry);
-
-            return new Response(null, { status: reported.status });
+            return refusal(error, this.#telemetry);
         }
     }
 
     /** Accept a machine's opening handshake with the token it offers as a WebSocket subprotocol. */
     async handshake(request: Request): Promise<Handshake> {
         // require a machine's token
-        const token = TunnelProtocol.token(request.headers.get("sec-websocket-protocol"));
+        const upgrade = WebSocketUpgrade.of(request);
+        const token = upgrade === undefined ? undefined : TunnelProtocol.token(upgrade);
         if (token === undefined) {
             throw RelayError.of(
                 "SUBPROTOCOL_UNAUTHENTICATED",

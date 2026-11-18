@@ -1,6 +1,10 @@
-import { HttpMethod } from "@destack/environment";
+import {
+    type Environment,
+    HttpMethod,
+    WebSocketClosure,
+    WebSocketUpgrade,
+} from "@destack/environment";
 import { Bearer } from "@destack/access/token";
-import type { Environment } from "@destack/environment";
 import { refusal } from "@destack/object";
 import type { Hibernation, Socket, SocketHandler } from "@destack/object/workload";
 import type {} from "@destack/package/import-meta";
@@ -9,14 +13,17 @@ import { TelemetryScope } from "@destack/telemetry";
 import { RelayError } from "../error/index.ts";
 import relayPackage from "../package.ts";
 import {
+    Head,
     MAX_STREAMS,
     PING_MESSAGE,
     PONG_MESSAGE,
     type Renewal,
+    type ResponseHead,
     Session,
     type Stream,
     TUNNEL_PROTOCOL,
     TUNNEL_PATH,
+    WebSocketFrame,
 } from "@destack/tunnel";
 import type { TunnelToken } from "./token.ts";
 
@@ -37,6 +44,9 @@ export const STANDING_ERRORS = {
     "key-revoked": ["MACHINE_UNAUTHENTICATED", "has no key"],
     "machine-unknown": ["MACHINE_UNAUTHENTICATED", "is not in the directory"],
 } as const;
+
+/** The status a machine answers a forwarded upgrade with once open, as RFC 8441 has it. */
+const SWITCHED_STATUS = 200;
 
 /** The answers that end a socket's standing: unauthorized and forbidden (RFC 9110 15.5). */
 const REFUSED_STATUSES: ReadonlySet<number> = new Set([401, 403]);
@@ -68,6 +78,14 @@ export const TunnelAttachment = schema.object({
 });
 /** The value stored with a hibernated tunnel socket. */
 export type TunnelAttachment = schema.Infer<typeof TunnelAttachment>;
+
+/** The value stored with a client's socket a tunnel forwards to its machine. */
+export const ClientAttachment = schema.object({
+    /** The machine the socket leads to. */
+    machine: schema.identifier("machine"),
+});
+/** The value stored with a forwarded client socket. */
+export type ClientAttachment = schema.Infer<typeof ClientAttachment>;
 
 /** The calls the relay's root makes to a machine's tunnel in its partition. */
 export type TunnelCall = "open" | "forward" | "rename" | "close";
@@ -114,6 +132,14 @@ interface TunnelSocket {
     isVerified: boolean;
 }
 
+/** A client's WebSocket a tunnel forwards to its machine: the stream carrying its frames. */
+interface ForwardedSocket {
+    /** The stream whose readable carries the machine's frames. */
+    readonly stream: Stream;
+    /** The writer sending the client's frames to the machine. */
+    readonly writer: WritableStreamDefaultWriter<Uint8Array>;
+}
+
 /** What a machine's tunnel runs with in its partition. */
 export interface TunnelOptions {
     /** The host of the partition's hibernated sockets. */
@@ -144,6 +170,8 @@ export class Tunnel implements SocketHandler {
     readonly #sockets: TunnelSocket[] = [];
     /** The sockets accepted here that the host has not delivered an event of yet, by identifier. */
     readonly #accepted = new Map<string, TunnelAttachment>();
+    /** The client sockets forwarded to the machine, by identifier, until they close. */
+    readonly #forwarded = new Map<string, ForwardedSocket>();
     /** The sessions over the sockets hibernated before this instance started, once listed. */
     #listing: Promise<void> | undefined;
     /** The name the root last told the tunnel, absent since the instance started. */
@@ -194,14 +222,68 @@ export class Tunnel implements SocketHandler {
         });
     }
 
-    /** Take a hibernated socket's message into its session, once the lapsed sockets closed. */
-    async message(socket: Socket, message: Uint8Array<ArrayBuffer>): Promise<void> {
+    /** Start handing the machine's frames to a forwarded socket once the host keeps it. */
+    async open(socket: Socket): Promise<void> {
+        // leave a machine's tunnel socket, which runs on its first message
+        if (!Tunnel.#isForwarded(socket)) {
+            return;
+        }
+
+        // close a forwarded socket whose stream this instance lost, for its client to reconnect
+        const forwarded = this.#forwarded.get(socket.id);
+        if (forwarded === undefined) {
+            socket.close();
+
+            return;
+        }
+
+        // hand it the machine's frames, forgetting it once they end
+        WebSocketFrame.deliver(forwarded.stream.readable, socket)
+            .catch((error: unknown) => this.#instruments.captureException(error))
+            .finally(() => this.#forwarded.delete(socket.id));
+    }
+
+    /** Take a hibernated socket's binary message into its session, after closing lapsed ones. */
+    async message(socket: Socket, message: string | Uint8Array<ArrayBuffer>): Promise<void> {
+        // send a forwarded socket's message on to the machine, closing one whose stream ended
+        if (Tunnel.#isForwarded(socket)) {
+            const forwarded = this.#forwarded.get(socket.id);
+            await (forwarded === undefined
+                ? socket.close()
+                : forwarded.writer
+                      .write(WebSocketFrame.message(message).encode())
+                      .catch(() => socket.close()));
+
+            return;
+        }
+        // refuse a text frame, which the host answers itself for a liveness ping alone
+        else if (typeof message === "string") {
+            throw RelayError.of(
+                "FRAME_INVALID",
+                "frame is invalid: a tunnel takes binary frames past its liveness ping",
+            );
+        }
+
+        // take it into the running session
         await this.sweep();
         this.#running(socket)?.session.receive(message);
     }
 
     /** Forget a hibernated socket once it closed. */
     async close(socket: Socket): Promise<void> {
+        // tell the machine a forwarded socket closed, ending its stream
+        const forwarded = this.#forwarded.get(socket.id);
+        if (forwarded !== undefined) {
+            this.#forwarded.delete(socket.id);
+            // leave a stream the machine already ended, which needs no close
+            await forwarded.writer
+                .write(WebSocketFrame.close(WebSocketClosure.normal, "").encode())
+                .then(() => forwarded.writer.close())
+                .catch(() => undefined);
+
+            return;
+        }
+
         // forget a socket that never ran, and close a running one's session
         await this.#list();
         this.#accepted.delete(socket.id);
@@ -256,7 +338,66 @@ export class Tunnel implements SocketHandler {
             );
         }
 
-        return this.#send(newest.session, request);
+        // forward a WebSocket upgrade on a stream of its own, and send any other request
+        const isUpgrade = WebSocketUpgrade.of(request) !== undefined;
+
+        return isUpgrade
+            ? this.#forward(newest.session, request)
+            : this.#send(newest.session, request);
+    }
+
+    /** Forward a client's WebSocket to the machine on one stream, as RFC 8441 carries one. */
+    async #forward(session: Session, upgrade: Request): Promise<Response> {
+        // open a stream with the upgrade's head, refusing a socket the machine does not open
+        const stream = session.open(Head.request(upgrade));
+        const answer = await this.#answer(stream);
+        if (answer.status !== SWITCHED_STATUS) {
+            stream.reset(new Error(`the machine answered the upgrade with ${answer.status}`));
+            throw RelayError.of(
+                "ENDPOINT_UNREACHABLE",
+                `could not open a socket at the machine: status ${answer.status}`,
+            );
+        }
+
+        // accept the client's socket with the machine's subprotocol, its frames going to the machine
+        const id = Uuid.v4(this.#options.environment.random);
+        this.#forwarded.set(id, { stream, writer: stream.writable.getWriter() });
+        const protocol = Head.headers(answer).get("sec-websocket-protocol");
+        const attachment: ClientAttachment = { machine: this.machineId };
+
+        return this.#options.hibernation.accept({
+            id,
+            attachment,
+            ...(protocol === null ? {} : { protocol }),
+        });
+    }
+
+    /** Wait for a stream's answer head within the answer timeout. */
+    async #answer(stream: Stream): Promise<ResponseHead> {
+        // fail the stream once the answer timeout passes on the tunnel's clock
+        const answered = new AbortController();
+        void this.#options.environment.clock
+            .sleep(ANSWER_TIMEOUT_MILLISECONDS, answered.signal)
+            .then(
+                () =>
+                    stream.reset(
+                        RelayError.of(
+                            "HEAD_UNREACHABLE",
+                            `could not read a response head from the machine within ${ANSWER_TIMEOUT_MILLISECONDS} ms`,
+                        ),
+                    ),
+                () => undefined,
+            );
+        try {
+            return await stream.answer;
+        } finally {
+            answered.abort();
+        }
+    }
+
+    /** Report whether a hibernated socket is a client's the tunnel forwards. */
+    static #isForwarded(socket: Socket): boolean {
+        return ClientAttachment.safeParse(socket.attachment).success;
     }
 
     /** Take the machine's name from the root, asking the machine to renew once it changed. */
@@ -346,8 +487,17 @@ export class Tunnel implements SocketHandler {
 
     /** Run an unverified session over each socket hibernated before this instance started. */
     async #listHibernated(): Promise<void> {
+        // close the forwarded sockets whose streams this instance lost, for their clients to reconnect
         const listed = await this.#options.hibernation.list();
+        for (const lost of listed.filter(
+            (socket) => Tunnel.#isForwarded(socket) && !this.#forwarded.has(socket.id),
+        )) {
+            lost.close();
+        }
+
+        // run an unverified session over each tunnel socket
         const woken = listed
+            .filter((socket) => !Tunnel.#isForwarded(socket))
             .filter((socket) => !this.#accepted.has(socket.id))
             .filter((socket) => !this.#sockets.some((each) => each.id === socket.id))
             .map((socket) => ({ socket, attachment: TunnelAttachment.parse(socket.attachment) }))

@@ -9,6 +9,9 @@ export const RelayError = defineErrorFamily({
         RENEWAL_ONLY_NOT_FOUND: {},
         TUNNEL_CALL_NOT_FOUND: {},
 
+        // invalid
+        FRAME_INVALID: {},
+
         // required
         CLIENT_HEAD_REQUIRED: {},
         HANDSHAKE_REQUIRED: {},

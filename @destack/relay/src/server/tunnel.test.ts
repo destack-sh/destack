@@ -67,10 +67,15 @@ function openTunnel() {
     const socket = (id: string): Socket => ({
         id,
         attachment: attachments.get(id) ?? null,
-        send: (message) =>
+        send: async (message) => {
+            // refuse a text frame, which a tunnel never sends
+            if (typeof message === "string") {
+                throw new TypeError("a tunnel sends binary frames");
+            }
             void simulation.scheduler.task(() =>
                 Promise.resolve().then(() => machines.get(id)?.receive(message)),
-            ),
+            );
+        },
         close: () => machines.get(id)?.terminate(),
     });
 
@@ -269,7 +274,7 @@ test("run an accepted socket only once its host delivers its first event, and fo
     const strayed = {
         id: stray,
         attachment: attachments.get(stray) ?? null,
-        send: () => {},
+        send: async () => {},
         close: () => {},
     };
     await running.close(strayed);

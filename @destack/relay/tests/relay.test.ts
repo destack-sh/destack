@@ -1,4 +1,6 @@
+import { WebSocketUpgrade } from "@destack/environment";
 import { Failure } from "@destack/error";
+import { CallError } from "@destack/object";
 import { DOMAINS, S3Origin } from "@destack/account/address";
 import accountPackage from "@destack/account/package";
 import { Snapshot } from "@destack/db";
@@ -233,9 +235,7 @@ test("refuse a handshake with a person's token, of a machine left keyless, and o
         environment: computer.environment,
     });
     const offer = (token: string) =>
-        new Request(relay.url, {
-            headers: { "sec-websocket-protocol": TunnelProtocol.offer(token).join(", ") },
-        });
+        WebSocketUpgrade.to(relay.url, TunnelProtocol.offer(token)).request;
     const shake = (token: string) => refusal(handshakes.handshake(offer(token)));
 
     // offer the owner's token, then the machine's after its keys' revoke, then after its deletion
@@ -305,9 +305,7 @@ test("refuse a machine's handshake at a relay of another residency than its acco
         environment: computer.environment,
     });
     const token = await computer.machine.token(relayPackage.id);
-    const offer = new Request(us.url, {
-        headers: { "sec-websocket-protocol": TunnelProtocol.offer(token).join(", ") },
-    });
+    const offer = WebSocketUpgrade.to(us.url, TunnelProtocol.offer(token)).request;
 
     expect(await refusal(handshakes.handshake(offer))).toEqual([
         "FORBIDDEN",
@@ -342,23 +340,50 @@ test("refuse a tunnel without a valid machine token among its subprotocols", asy
     await using computer = await TestTunnelMachine.open();
     const relay = await computer.relay();
 
-    // offer a forged token, a valid one only in the authorization header, and one without the tunnel protocol
-    const upgrade = (headers: Record<string, string>) =>
-        computer.simulation.network
+    // open sockets offering a forged token, the tunnel protocol alone, and a token without the tunnel protocol
+    const stated = async (protocols: readonly string[]) => {
+        const socket = computer.simulation.network
             .of("computer")
-            .fetch(
-                new Request(relay.url, {
-                    headers: { upgrade: "websocket", connection: "upgrade", ...headers },
-                }),
-            )
-            .then((response) => response.status);
+            .websocket(relay.url.replace(/^http/u, "ws"), protocols);
+        const frame = new Promise<unknown>((resolve) => {
+            socket.addEventListener(
+                "message",
+                (message) => resolve(JSON.parse(String(message.data))),
+                {
+                    once: true,
+                },
+            );
+        });
+        const closed = new Promise<CloseEvent>((resolve) => {
+            socket.addEventListener("close", resolve, { once: true });
+        });
+        const [failure, { code }] = await computer.simulation.wait(Promise.all([frame, closed]));
+
+        const { reason, message } = Failure.of(CallError.fromJson(failure));
+
+        return [reason, message, code];
+    };
     const token = await computer.machine.token(relayPackage.id);
     const [, bearer = ""] = TunnelProtocol.offer(token);
+
+    // expect each refused with its reason before a policy close
     expect([
-        await upgrade({ "sec-websocket-protocol": TunnelProtocol.offer("forged").join(", ") }),
-        await upgrade({ authorization: `Bearer ${token}` }),
-        await upgrade({ "sec-websocket-protocol": bearer }),
-    ]).toEqual([401, 401, 401]);
+        await stated(TunnelProtocol.offer("forged")),
+        await stated([TUNNEL_PROTOCOL]),
+        await stated([bearer]),
+    ]).toEqual([
+        ["TOKEN_UNAUTHENTICATED", "invalid access token", 1008],
+        [
+            "SUBPROTOCOL_UNAUTHENTICATED",
+            "authentication required: the bearer subprotocol has no token",
+            1008,
+        ],
+        [
+            "SUBPROTOCOL_UNAUTHENTICATED",
+            "authentication required: the bearer subprotocol has no token",
+            1008,
+        ],
+    ]);
 });
 
 test("open a tunnel with the token offered as a subprotocol, answering the tunnel protocol only", async () => {
@@ -731,4 +756,36 @@ test("close a machine's tunnel as moved at a relay its endpoint no longer leads 
     await elsewhere.reconcile(computer.machine.id);
 
     expect(told).toEqual([["close", { reason: "moved" }]]);
+});
+
+test("forward a client's WebSocket to its machine through the tunnel, its messages both ways and its close", async () => {
+    await using computer = await TestTunnelMachine.open();
+    const relay = await computer.relay({ names: [computer.notes] });
+    await computer.tunnel(relay);
+
+    // open a socket at the space's name, greeting the machine once it opened
+    const socket = computer.simulation.network
+        .of("caller")
+        .websocket(`wss://${computer.notes}/live`);
+    const greeted = new Promise<string>((resolve) => {
+        socket.addEventListener("message", (message) => resolve(String(message.data)), {
+            once: true,
+        });
+    });
+    socket.addEventListener("open", () => socket.send("alice"), { once: true });
+    const greeting = await computer.simulation.wait(greeted);
+
+    // close it from the client
+    const closed = new Promise<CloseEvent>((resolve) => {
+        socket.addEventListener("close", resolve, { once: true });
+    });
+    socket.close(1000, "done");
+    const { code } = await computer.simulation.wait(closed);
+
+    // expect the machine's greeting through the tunnel, the upgrade it opened, and a normal close
+    expect({ greeting, received: computer.received, code }).toEqual({
+        greeting: "hello alice",
+        received: [`WEBSOCKET ${computer.notes}/live`],
+        code: 1000,
+    });
 });

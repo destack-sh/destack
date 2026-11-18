@@ -1,7 +1,7 @@
 import type { UniverseDefinition } from "@destack/control";
 import { testSimulation } from "@destack/test/world";
 import { Failure } from "@destack/error";
-import type { Environment } from "@destack/environment";
+import { type ClientSocket, type Environment, MemoryWebSocket } from "@destack/environment";
 import { DOMAINS, MachineAddress } from "@destack/account/address";
 import { endpoint, type Endpoint, machine, type ResidencyCode } from "@destack/account/object";
 import accountPackage from "@destack/account/package";
@@ -198,6 +198,7 @@ export class TestTunnelMachine implements AsyncDisposable {
             readonly residency?: ResidencyCode;
             readonly hostname?: string;
             readonly installation?: Subject;
+            readonly names?: readonly string[];
         } = {},
     ): Promise<TestRelay> {
         // serve the relay as its residency's cloud machine hosts it, on a node of its own
@@ -249,14 +250,34 @@ export class TestTunnelMachine implements AsyncDisposable {
         return MachineAddress.format({ machine: name, handle: HANDLE }, DOMAINS.machine);
     }
 
+    /** Open a forwarded upgrade's socket in the computer, greeting each message. */
+    #greet(upgrade: Request): ClientSocket {
+        // record the upgrade as the computer's other requests
+        const url = new URL(upgrade.url);
+        this.received.push(`WEBSOCKET ${url.host}${url.pathname}`);
+
+        // answer each message with a greeting, and confirm a close, once open
+        const socket: MemoryWebSocket = new MemoryWebSocket(
+            upgrade.url,
+            (message) => socket.received(`hello ${String(message)}`),
+            (code, reason) => socket.closed(code, reason),
+        );
+        queueMicrotask(() => socket.opened(""));
+
+        return socket;
+    }
+
     /** Open a tunnel from the computer to a relay, which publishes its endpoint at each renewal. */
     async tunnel(
         relay: TestRelay,
         options: Partial<TunnelClientOptions> = {},
     ): Promise<TunnelClient> {
         // record each renewal's name, unless the scenario renews itself
-        const { renewed = (renewal: Renewal) => void this.names.push(renewal.name), ...rest } =
-            options;
+        const {
+            renewed = (renewal: Renewal) => void this.names.push(renewal.name),
+            websocket = (upgrade: Request) => this.#greet(upgrade),
+            ...rest
+        } = options;
         const first = Promise.withResolvers<void>();
         const renew = (renewal: Renewal) => {
             Promise.resolve(renewed(renewal)).then(
@@ -284,6 +305,7 @@ export class TestTunnelMachine implements AsyncDisposable {
                 return new Response(`hello ${request.method} ${url.pathname}${body}`);
             },
             renewed: renew,
+            websocket,
             changed: () => {},
             heartbeat: QUICK.heartbeat,
             retry: QUICK.retry,

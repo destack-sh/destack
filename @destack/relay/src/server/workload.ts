@@ -179,7 +179,7 @@ async function servePartition(
                 url: new URL(origin.read(server.settings)).origin,
                 lapsesAt,
             });
-            await ObjectRemote.run(
+            await ObjectRemote.mutate(
                 server.remote,
                 account,
                 { id: RequestId.create(context.environment), calls: [relayed] },

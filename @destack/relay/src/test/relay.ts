@@ -6,7 +6,7 @@ import { type DatabaseConnection, Snapshot } from "@destack/db";
 import { connectBunSqlite } from "@destack/db/bun";
 import { type Environment, LineExporter, type Listener } from "@destack/environment";
 import { Egress, PackageMount } from "@destack/object";
-import { createClient } from "@destack/object/client";
+import { ObjectConnection } from "@destack/object/client";
 import {
     type EphemeralHost,
     CLIENT_HEAD_HEADER,
@@ -80,6 +80,8 @@ export class TestRelay implements AsyncDisposable {
     readonly #start: (partition: string | undefined) => Promise<Instance>;
     /** The front door's listeners: the relay's origin and the host's egress. */
     readonly #listeners: readonly Pick<Listener, "stop">[];
+    /** The connection to the universe's account store the home's replicas follow through. */
+    readonly #accounts: ObjectConnection;
     /** Call the root or a partition as the installation itself, below its address at the egress. */
     readonly #call: (request: Request) => Promise<Response>;
     /** The URL of the installation's own address at the host's egress. */
@@ -98,6 +100,7 @@ export class TestRelay implements AsyncDisposable {
             readonly start: (partition: string | undefined) => Promise<Instance>;
             readonly call: (request: Request) => Promise<Response>;
             readonly itself: string;
+            readonly accounts: ObjectConnection;
         },
         listeners: readonly Pick<Listener, "stop">[],
     ) {
@@ -111,6 +114,7 @@ export class TestRelay implements AsyncDisposable {
         this.#call = running.call;
         this.#address = running.itself;
         this.#listeners = listeners;
+        this.#accounts = running.accounts;
     }
 
     /** Run a relay installation in its host's residency home, its universe rows from the host. */
@@ -132,24 +136,21 @@ export class TestRelay implements AsyncDisposable {
         const egress = `http://host.${hostname}${Egress.path}`;
 
         // stand in for the home space's replicas: the universe's rows as its machine follows them
-        const accounts = createClient(
-            accountPackage,
-            {
-                url: host.universe.accounts,
-                fetch: host.fetch(accountPackage.id),
-            },
+        const accounts = ObjectConnection.open({
+            url: ObjectConnection.url(host.universe.accounts),
+            authorize: host.authorize(accountPackage.id),
             environment,
-        ).store;
+        });
         const universal = universe.control.store.remote;
         const replicas: ObjectRemote = {
             ...universal,
             async *stream(subscription, signal) {
                 const followed = { ...subscription, target: Scope.universe.id };
-                yield* await accounts.stream(followed, { signal });
+                yield* accounts.stream(followed, signal);
             },
             request: async (subscription) => {
                 const followed = { ...subscription, target: Scope.universe.id };
-                await accounts.request({ subscription: followed });
+                await accounts.request(followed);
             },
             // run the relay's changes at the universe as their signer, as the home's machine sends them
             push: (scope, push, signal) =>
@@ -302,7 +303,8 @@ export class TestRelay implements AsyncDisposable {
                 [ROUTE_HEADER]: "route-names",
                 authorization: `Bearer ${root.secret}`,
             });
-            const answer = await root.runner.fetch(
+
+            return root.runner.fetch(
                 new Request(`http://runner${PackageMount.path(relayPackage.id)}/names`, {
                     method: request.method,
                     headers,
@@ -310,28 +312,15 @@ export class TestRelay implements AsyncDisposable {
                     signal: request.signal,
                 }),
             );
-
-            // hibernate a socket a partition accepted for an upgrade
-            const isAccepted =
-                request.headers.get("upgrade") === "websocket" && answer.headers.has(SOCKET_HEADER);
-
-            return isAccepted ? sockets.accept(answer) : answer;
         };
-        const routeListener = server.http({
-            hostname,
-            port: 80,
-            fetch: route,
-            websocket: sockets.websocket,
-        });
+
+        // keep the sockets a partition accepts, and state a refused upgrade on its socket
+        const listening = sockets.listen(route);
+        const routeListener = server.http({ hostname, port: 80, ...listening });
 
         // answer the names DNS sends to the relay as well
         const named = (options.names ?? []).map((name) =>
-            server.http({
-                hostname: name,
-                port: HTTPS_PORT,
-                fetch: route,
-                websocket: sockets.websocket,
-            }),
+            server.http({ hostname: name, port: HTTPS_PORT, ...listening }),
         );
 
         // start the root at once
@@ -344,7 +333,7 @@ export class TestRelay implements AsyncDisposable {
             universe,
             installation,
             relayOrigin,
-            { instances, memories, start, call, itself },
+            { instances, memories, start, call, itself, accounts },
             [routeListener, egressListener, ...named],
         );
     }
@@ -420,14 +409,18 @@ export class TestRelay implements AsyncDisposable {
         return this.#stopping;
     }
 
-    /** Stop listening, ending every tunnel, then the instances. */
+    /** Stop listening, ending every tunnel, then the instances and their account connection. */
     async #stop(): Promise<void> {
+        // stop listening, ending every tunnel
         for (const listener of this.#listeners) {
             await listener.stop(true);
         }
+
+        // stop the instances, then close the connection they followed through
         for (const started of this.#instances.values()) {
             await (await started).runner.close();
         }
+        this.#accounts.close();
     }
 
     /** Read the instance of a partition, the one it started as before, else a new one. */
