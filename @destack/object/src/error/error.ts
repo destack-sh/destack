@@ -17,8 +17,8 @@ export const ObjectError = defineErrorFamily({
         // not found
         BINDING_NOT_FOUND: {},
         BRANCH_NOT_FOUND: {},
+        CONNECTION_NOT_FOUND: {},
         EPHEMERAL_STORAGE_NOT_FOUND: {},
-        EVENT_NOT_FOUND: {},
         HOME_OR_REPLICA_NOT_FOUND: {},
         HOOKS_NOT_FOUND: {},
         HOOK_SESSION_NOT_FOUND: {},
@@ -60,6 +60,7 @@ export const ObjectError = defineErrorFamily({
         EVENTS_INVALID: {},
         EVENT_INVALID: {},
         EXTERNAL_STORES_SPLIT_INVALID: {},
+        FRAME_INVALID: {},
         HOMES_INVALID: {},
         HOME_INVALID: {},
         INCLUDE_INVALID: {},
@@ -164,6 +165,7 @@ export const ObjectError = defineErrorFamily({
 
         // unavailable
         BUILD_FILE_UNAVAILABLE: {},
+        CONNECTION_UNAVAILABLE: {},
         DATABASE_UNAVAILABLE: {},
         REPLICA_UNAVAILABLE: { data: RetryAfter.partial() },
         SERVER_UNAVAILABLE: { data: RetryAfter.partial() },

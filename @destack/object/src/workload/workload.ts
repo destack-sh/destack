@@ -4,7 +4,6 @@ import type { ControllerSet } from "@destack/db";
 import type { Environment } from "@destack/environment";
 import { type BlobStore, type DatabaseConnection, type Table } from "@destack/db";
 import type { Identifier, JsonValue } from "@destack/schema";
-import type { Publisher } from "@destack/sync";
 import type { ObjectRemote } from "../replica/remote.ts";
 import {
     type SandboxName,
@@ -129,8 +128,8 @@ export interface ServerContext {
     readonly keys: Deriver;
     /** The remote toward the homes of the space's chain and the universe's rows it reads. */
     readonly remote: ObjectRemote;
-    /** Connect to the replicas an installation at `<installation>--<space>` publishes. */
-    readonly publisherAt: (address: string, packageId: PackageId) => Publisher;
+    /** Connect to the store of a package at `<installation>--<space>` through the host's egress. */
+    readonly connect: (address: string, packageId: PackageId) => ObjectRemote;
     /** Call the packages at an address through the host's egress as the installation. */
     readonly at: (address: string) => {
         readonly url: string;

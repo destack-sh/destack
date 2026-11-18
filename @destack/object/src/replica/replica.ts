@@ -1,4 +1,4 @@
-import { present, schema } from "@destack/schema";
+import { schema } from "@destack/schema";
 import { DeclarationName, PackageVersion, PackageId } from "@destack/package";
 import { InstallationName } from "../installation/name.ts";
 import { Expression, LogPosition, Condition, OrderBy, Scalar, type FindOptions } from "@destack/db";
@@ -196,7 +196,6 @@ export const storeProcedures = {
         permission: "rows",
         audit: false,
     })
-        .route({ method: "POST", path: "/store/push" })
         .input(
             schema.object({
                 /** The scope the mutations change. */
@@ -216,7 +215,6 @@ export const storeProcedures = {
         permission: "rows",
         audit: false,
     })
-        .route({ method: "POST", path: "/store/watermark" })
         .input(
             schema.object({
                 /** The scope whose watermark to read. */
@@ -232,7 +230,6 @@ export const storeProcedures = {
         permission: "rows",
         audit: false,
     })
-        .route({ method: "POST", path: "/store/call" })
         .input(
             schema.object({
                 /** The scope the call reads. */
@@ -248,7 +245,6 @@ export const storeProcedures = {
         permission: "rows",
         audit: false,
     })
-        .route({ method: "POST", path: "/store/broadcast" })
         .input(
             schema.object({
                 /** The scope with the object. */
@@ -266,7 +262,6 @@ export const storeProcedures = {
         permission: "rows",
         audit: false,
     })
-        .route({ method: "POST", path: "/store/stream" })
         .input(Subscription)
         .output(eventIterator(Page)),
     request: Procedure.of({
@@ -275,7 +270,6 @@ export const storeProcedures = {
         permission: "rows",
         audit: false,
     })
-        .route({ method: "POST", path: "/store/request" })
         .input(
             schema.object({
                 /** The subscription the follower requests, with the watermark it waits for. */
@@ -289,7 +283,6 @@ export const storeProcedures = {
         permission: "rows",
         audit: false,
     })
-        .route({ method: "POST", path: "/store/describe" })
         .input(
             schema.object({
                 /** The object types to describe, every served one when absent. */
@@ -305,13 +298,6 @@ export const storeProcedures = {
             }),
         ),
 };
-
-/** The paths of the store procedures, the object APIs any caller reaches without a binding. */
-export const STORE_PATHS: ReadonlySet<string> = new Set(
-    Object.values(storeProcedures).map((procedure) =>
-        present(procedure["~orpc"].route.path, "the path of a store procedure"),
-    ),
-);
 
 /** The procedures a client replica or a database replicating the served one uses. */
 export type StoreProcedures = typeof storeProcedures;

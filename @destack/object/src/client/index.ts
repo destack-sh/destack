@@ -7,4 +7,6 @@ export { Bookmark, BOOKMARK_HEADER } from "../procedure/bookmark.ts";
 export { safe } from "@orpc/client";
 export * from "./observable.ts";
 export * from "./description.ts";
-export { ProcedureRemote, ObjectRemote, type Push } from "../replica/remote.ts";
+export { ObjectRemote, type Push } from "../replica/remote.ts";
+export * from "../replica/connection.ts";
+export * from "../replica/frame.ts";

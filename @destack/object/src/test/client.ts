@@ -6,7 +6,7 @@ import { Identifier, type JsonValue, present, schema } from "@destack/schema";
 import type { Driver } from "@destack/test";
 import { principal } from "@destack/access";
 import { Scope } from "@destack/sync";
-import { ObjectClient, ProcedureRemote } from "../client/index.ts";
+import { ObjectClient } from "../client/index.ts";
 import type { ObjectPackage } from "../server/index.ts";
 import { ObjectType } from "../object/index.ts";
 import {
@@ -197,11 +197,7 @@ export class ClientDriver implements Driver<ClientStep, ObjectObservation> {
             objects,
             scope: this.#store.scope,
             caller: principal.user.reference(Scope.universe.id, user),
-            remote: ProcedureRemote.at({
-                scope: this.#store.scope,
-                endpoint: this.#store.as(user).endpoint(served),
-                environment,
-            }),
+            remote: this.#store.as(user).connect(served),
             environment,
         });
         this.#disposables.defer(() => client.close());

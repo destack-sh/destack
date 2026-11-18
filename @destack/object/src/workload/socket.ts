@@ -1,15 +1,24 @@
+import { type CallErrorCode, Failure } from "@destack/error";
 import { schema, type JsonValue } from "@destack/schema";
+import { CallError } from "../error/call.ts";
 import { ObjectError } from "../error/error.ts";
-import type {
-    Environment,
-    ServerUpgrade,
-    ServerSocket,
-    ServerSocketHandler,
+import {
+    type ClientSocket,
+    type Environment,
+    MemoryWebSocket,
+    type ServerSocket,
+    type ServerSocketHandler,
+    type ServerUpgrade,
+    WebSocketClosure,
+    WebSocketUpgrade,
 } from "@destack/environment";
 import { TelemetryScope } from "@destack/telemetry";
 import type {} from "@destack/package/import-meta";
 
 import type { Fetch } from "../declare/fetch.ts";
+import { reportError } from "../error/report.ts";
+import { CallFrame } from "../replica/frame.ts";
+import type { Voucher } from "../server/http.ts";
 
 /** The path where a host and an instance exchange a hibernated socket's messages and closes. */
 export const SOCKET_PATH = "/.destack/socket";
@@ -22,6 +31,12 @@ export const SOCKET_INSTANCE_HEADER = "Destack-Socket-Instance";
 
 /** The most bytes in one WebSocket message: 1 MiB. */
 const MESSAGE_BYTES = 1024 * 1024;
+
+/** The content type of a text message between a host and an instance. */
+const TEXT_TYPE = "text/plain;charset=utf-8";
+
+/** The status of an upgrade's answer that switches to the WebSocket (RFC 6455 4.2.2). */
+const SWITCHING_STATUS = 101;
 
 /** A hibernated socket as a host describes it: its identifier and the value stored beside it. */
 export const SocketDescription = schema.object({
@@ -60,16 +75,18 @@ export interface Socket {
     readonly id: string;
     /** The value the instance stored beside the socket. */
     readonly attachment: JsonValue;
-    /** Send one binary message, in order with the socket's other sends. */
-    readonly send: (message: Uint8Array<ArrayBuffer>) => void;
+    /** Send one text or binary message in order, settling once the client's socket buffered it. */
+    readonly send: (message: string | Uint8Array<ArrayBuffer>) => Promise<void>;
     /** Close the socket. */
     readonly close: () => void;
 }
 
 /** What a workload does with its hibernated sockets' messages and closes. */
 export interface SocketHandler {
-    /** Take one binary message a hibernated socket received. */
-    readonly message: (socket: Socket, message: Uint8Array<ArrayBuffer>) => Promise<void>;
+    /** Take a socket once its host keeps it, before its messages, and after the host rebuilt it. */
+    readonly open?: (socket: Socket) => Promise<void>;
+    /** Take one text or binary message a hibernated socket received. */
+    readonly message: (socket: Socket, message: string | Uint8Array<ArrayBuffer>) => Promise<void>;
     /** Take the close of a hibernated socket. */
     readonly close: (socket: Socket) => Promise<void>;
 }
@@ -82,28 +99,45 @@ export interface SocketHost {
     readonly fetch: Fetch;
 }
 
+/** How an instance proves itself to the host keeping its sockets. */
+export type HibernationProof =
+    | {
+          /** The secret of an instance in another process. */
+          readonly secret: string;
+      }
+    | {
+          /** The name of an instance in the host's own process, which the host trusts. */
+          readonly instance: string;
+      };
+
 /** The WebSockets a host hibernates for an instance while it sleeps. */
 export class Hibernation {
     /** Where the host hibernates the sockets. */
     readonly #host: SocketHost;
-    /** The secret the host and the instance prove each other's requests with. */
-    readonly #secret: string;
+    /** How the instance proves itself to its host. */
+    readonly #proof: HibernationProof;
     /** The instruments capturing a failed send or close that no caller awaits. */
     readonly #instruments: TelemetryScope;
     /** The last send or close of each socket, which the next one follows. */
     readonly #pending = new Map<string, Promise<void>>();
 
-    /** Connect to the sockets at a host with an instance's secret, captures on a telemetry. */
-    constructor(host: SocketHost, secret: string, telemetry: Environment["telemetry"]) {
+    /** Connect to the sockets at a host as an instance proves itself, captures on a telemetry. */
+    constructor(host: SocketHost, proof: HibernationProof, telemetry: Environment["telemetry"]) {
         this.#host = host;
-        this.#secret = secret;
+        this.#proof = proof;
         this.#instruments = TelemetryScope.of(import.meta.destack.package, telemetry);
     }
 
-    /** Answer a WebSocket upgrade by accepting it. */
+    /** Answer a WebSocket upgrade by accepting it, naming an in-process instance beside it. */
     accept(acceptance: SocketAcceptance): Response {
+        const accepted = JSON.stringify(SocketAcceptance.parse(acceptance));
+        const proof = this.#proof;
+
         return new Response(null, {
-            headers: { [SOCKET_HEADER]: JSON.stringify(SocketAcceptance.parse(acceptance)) },
+            headers:
+                "instance" in proof
+                    ? { [SOCKET_HEADER]: accepted, [SOCKET_INSTANCE_HEADER]: proof.instance }
+                    : { [SOCKET_HEADER]: accepted },
         });
     }
 
@@ -132,9 +166,9 @@ export class Hibernation {
 
         return {
             ...description,
-            send: (message) =>
-                this.#enqueue(description.id, { method: "POST", body: message }, url),
-            close: () => this.#enqueue(description.id, { method: "DELETE" }, url),
+            send: async (message) =>
+                this.#enqueue(description.id, SocketMessage.request(message), url),
+            close: () => void this.#enqueue(description.id, { method: "DELETE" }, url),
         };
     }
 
@@ -142,7 +176,27 @@ export class Hibernation {
     attach(id: string, attachment: JsonValue): void {
         const url = `${this.#host.url}/${encodeURIComponent(id)}`;
         const body = JSON.stringify(attachment);
-        this.#enqueue(id, { method: "PUT", body }, url);
+        void this.#enqueue(id, { method: "PUT", body }, url);
+    }
+
+    /** Hand a handler a socket event the host delivered, settling once its sends arrived. */
+    async receive(request: Request, handler: SocketHandler): Promise<void> {
+        // read the socket the host describes
+        const header = request.headers.get(SOCKET_HEADER);
+        const description = SocketDescription.parse(JSON.parse(header ?? "null"));
+        const socket = this.socket(description);
+
+        // hand over its opening, its close or its message
+        if (request.method === "PUT") {
+            await handler.open?.(socket);
+        } else if (request.method === "DELETE") {
+            await handler.close(socket);
+        } else {
+            await handler.message(socket, await SocketMessage.read(request));
+        }
+
+        // settle once the sends the event caused arrived at the host
+        await this.settled(description.id);
     }
 
     /** Wait until a socket's sends and closes so far settled. */
@@ -150,14 +204,17 @@ export class Hibernation {
         await this.#pending.get(id);
     }
 
-    /** Run a socket's send or close after its earlier ones, reporting a failure. */
-    #enqueue(id: string, request: RequestInit, url: string): void {
+    /** Run a socket's send or close after its earlier ones, settling as it arrived or failed. */
+    #enqueue(id: string, request: RequestInit, url: string): Promise<void> {
         // send after the socket's earlier sends and closes
         const previous = this.#pending.get(id) ?? Promise.resolve();
         const next = previous.then(async () => {
-            const response = await this.#host.fetch(
-                new Request(url, { ...request, headers: this.#headers() }),
-            );
+            // prove the instance to its host, and refuse a send the host refused
+            const headers = new Headers(request.headers);
+            for (const [name, value] of Object.entries(this.#headers())) {
+                headers.set(name, value);
+            }
+            const response = await this.#host.fetch(new Request(url, { ...request, headers }));
             await response.arrayBuffer();
             if (!response.ok) {
                 throw ObjectError.of(
@@ -179,19 +236,83 @@ export class Hibernation {
                 this.#pending.delete(id);
             }
         });
+
+        return settled;
     }
 
-    /** The headers proving the instance to its host. */
+    /** The headers proving the instance to its host, none for a host in this process. */
     #headers(): Record<string, string> {
-        return { authorization: `Bearer ${this.#secret}` };
+        return "secret" in this.#proof ? { authorization: `Bearer ${this.#proof.secret}` } : {};
     }
 }
 
+/** What a host keeps beside a socket: the instance that accepted it and its acceptance. */
+export const HostSocketAttachment = schema.object({
+    /** The instance. */
+    instance: schema.string().min(1),
+    /** Its acceptance. */
+    acceptance: SocketAcceptance,
+    /** Whether the host vouches for each of its calls, which a host restart cannot resume. */
+    isVouched: schema.boolean(),
+});
+/** What a host keeps beside a socket. */
+export type HostSocketAttachment = schema.Infer<typeof HostSocketAttachment>;
+
 /** A socket the host hibernates for an instance, with the acceptance the instance answered. */
-type HostSocket = ServerSocket<{
-    readonly instance: string;
-    acceptance: SocketAcceptance;
-}>;
+export type HostSocket = ServerSocket<HostSocketAttachment>;
+
+/** What a listener keeping a host's sockets serves: its requests and its sockets' events. */
+export interface HostListening {
+    /** Answer a request, accepting an upgrade its answer accepts and stating a refusal. */
+    readonly fetch: (
+        request: Request,
+    ) => Promise<Response | ServerUpgrade<HostSocketAttachment | SocketRefusal>>;
+    /** Take the kept sockets' events, and state a refused socket's refusal. */
+    readonly websocket: ServerSocketHandler<HostSocketAttachment | SocketRefusal>;
+}
+
+/** An upgrade's refusal, stated on its socket as one frame and a policy close. */
+export class SocketRefusal {
+    /** The failure the upgrade's answer states. */
+    readonly failure: Failure;
+
+    /** Take the failure a refused upgrade states. */
+    private constructor(failure: Failure) {
+        this.failure = failure;
+    }
+
+    /** Read an answer's refusal of an upgrade, absent for one that switches or accepts a socket. */
+    static async of(request: Request, answer: Response): Promise<SocketRefusal | undefined> {
+        const isRefused =
+            WebSocketUpgrade.of(request) !== undefined &&
+            answer.status !== SWITCHING_STATUS &&
+            !answer.headers.has(SOCKET_HEADER);
+
+        return isRefused ? new SocketRefusal(await Failure.read(answer)) : undefined;
+    }
+
+    /** State the refusal on a socket as it opens: its failure, then a close naming its reason. */
+    async send(socket: Pick<ServerSocket<unknown>, "send" | "close">): Promise<void> {
+        // send the failure as a call error's body, then close
+        const { code, reason, domain, message, data } = this.failure;
+        const error = new CallError<CallErrorCode, JsonValue | undefined>(code, {
+            reason,
+            domain,
+            message,
+            data,
+        });
+        await socket.send(JSON.stringify(error));
+        socket.close(WebSocketClosure.policy, `upgrade refused: ${reason}`);
+    }
+}
+
+/** How a host vouches for an accepted socket's calls: the socket's URL and the caller's voucher. */
+interface Vouching {
+    /** The URL each call is read below. */
+    readonly url: string;
+    /** The voucher of each call's caller. */
+    readonly voucher: Voucher;
+}
 
 /** Hand an instance a request its host makes at a path below its origin. */
 export type SocketDelivery = (
@@ -204,15 +325,33 @@ export type SocketDelivery = (
 export class HibernationHost {
     /** The hibernated sockets, by instance and identifier. */
     readonly #hibernated = new Map<string, Map<string, HostSocket>>();
+    /** The last delivered event of each socket, which the next one follows in order. */
+    readonly #delivering = new Map<HostSocket, Promise<void>>();
     /** Hand an instance its hibernated sockets' events. */
     readonly #deliver: SocketDelivery;
     /** The instruments capturing the closes instances refuse. */
     readonly #instruments: TelemetryScope;
+    /** The telemetry the in-process instances' sides capture on. */
+    readonly #telemetry: Environment["telemetry"];
+    /** The vouchers of answers the host has yet to accept, by instance and socket identifier. */
+    readonly #vouching = new Map<string, Vouching>();
+    /** The vouchers of accepted sockets, by the attachment each socket keeps until it closes. */
+    readonly #vouchers = new WeakMap<HostSocketAttachment, Vouching>();
 
     /** Hibernate sockets, delivering their events to their instances, captures on a telemetry. */
     constructor(deliver: SocketDelivery, telemetry: Environment["telemetry"]) {
         this.#deliver = deliver;
+        this.#telemetry = telemetry;
         this.#instruments = TelemetryScope.of(import.meta.destack.package, telemetry);
+    }
+
+    /** The side of an instance in this process, sending through the host directly. */
+    instance(id: string): Hibernation {
+        return new Hibernation(
+            { url: `http://${id}${SOCKET_PATH}`, fetch: (request) => this.answer(id, request) },
+            { instance: id },
+            this.#telemetry,
+        );
     }
 
     /** The handler a listener serving hibernated sockets takes. */
@@ -220,34 +359,171 @@ export class HibernationHost {
         return {
             maxPayloadLength: MESSAGE_BYTES,
             open: (socket) => {
+                // keep the socket, then tell its instance before any of its messages
                 const { instance, acceptance } = socket.attachment;
                 this.#upsertSockets(instance).set(acceptance.id, socket);
+                this.#enqueue(socket, () => this.#event(socket, { method: "PUT" }));
             },
-            message: (socket, message) => void this.#message(socket, message),
-            close: (socket) => void this.#close(socket),
+            message: (socket, message) =>
+                this.#enqueue(socket, () => this.#message(socket, message)),
+            close: (socket) => this.#enqueue(socket, () => this.#close(socket)),
         };
+    }
+
+    /** Answer a listener's requests through a fetch, keeping the sockets its answers accept. */
+    listen(fetch: (request: Request) => Promise<Response>): HostListening {
+        const kept = this.websocket;
+
+        return {
+            fetch: async (request) => {
+                // answer the request, keeping an accepted upgrade's socket and opening a refused one to state its refusal
+                const answer = await fetch(request);
+                const refusal = await SocketRefusal.of(request, answer);
+                if (refusal !== undefined) {
+                    return { attachment: refusal };
+                } else if (answer.headers.has(SOCKET_HEADER)) {
+                    return this.accept(answer);
+                }
+
+                return answer;
+            },
+            websocket: {
+                maxPayloadLength: MESSAGE_BYTES,
+                open: (socket) => {
+                    // keep an accepted socket
+                    if (HibernationHost.#isAccepted(socket)) {
+                        kept.open?.(socket);
+                    }
+                    // state a refused one's refusal
+                    else if (socket.attachment instanceof SocketRefusal) {
+                        void socket.attachment.send(socket).catch((error: unknown) => {
+                            this.#instruments.captureException(error, { isEscaped: true });
+                        });
+                    }
+                },
+                message: (socket, message) => {
+                    // deliver an accepted socket's message, dropping a refused one's
+                    if (HibernationHost.#isAccepted(socket)) {
+                        kept.message(socket, message);
+                    }
+                },
+                close: (socket, code, reason) => {
+                    // deliver an accepted socket's close, dropping a refused one's
+                    if (HibernationHost.#isAccepted(socket)) {
+                        kept.close?.(socket, code, reason);
+                    }
+                },
+            },
+        };
+    }
+
+    /** Report whether a listener's socket is one an instance accepted. */
+    static #isAccepted(
+        socket: ServerSocket<HostSocketAttachment | SocketRefusal>,
+    ): socket is HostSocket {
+        return !(socket.attachment instanceof SocketRefusal);
+    }
+
+    /** Vouch for each call of the socket an upgrade's answer accepts, through a voucher. */
+    vouch(answer: Response, url: string, voucher: Voucher): void {
+        const { instance, acceptance } = HibernationHost.#accepted(answer);
+        this.#vouching.set(`${instance} ${acceptance.id}`, { url, voucher });
     }
 
     /** Accept the WebSocket an instance accepted in its answer, hibernating it by its instance. */
     accept(answer: Response): ServerUpgrade<HostSocket["attachment"]> {
-        // read the instance's acceptance
+        // attach the instance, its acceptance and whether the host vouches for its calls
+        const { instance, acceptance } = HibernationHost.#accepted(answer);
+        const key = `${instance} ${acceptance.id}`;
+        const vouching = this.#vouching.get(key);
+        this.#vouching.delete(key);
+        const attachment = { instance, acceptance, isVouched: vouching !== undefined };
+
+        // keep the voucher with the attachment, which lives as long as its socket
+        if (vouching !== undefined) {
+            this.#vouchers.set(attachment, vouching);
+        }
+
+        return {
+            attachment,
+            ...(acceptance.protocol === undefined
+                ? {}
+                : { headers: { "sec-websocket-protocol": acceptance.protocol } }),
+        };
+    }
+
+    /** Read the instance and its acceptance an upgrade's answer names. */
+    static #accepted(answer: Response): {
+        readonly instance: string;
+        readonly acceptance: SocketAcceptance;
+    } {
+        // require the acceptance and the instance beside it
         const accepted = answer.headers.get(SOCKET_HEADER);
-        const instanceId = answer.headers.get(SOCKET_INSTANCE_HEADER);
-        if (accepted === null || instanceId === null) {
+        const instance = answer.headers.get(SOCKET_INSTANCE_HEADER);
+        if (accepted === null || instance === null) {
             throw ObjectError.of(
                 "ACCEPTANCE_UNREACHABLE",
                 "could not read a socket acceptance for a named instance in the response",
             );
         }
-        const acceptance = SocketAcceptance.parse(JSON.parse(accepted));
 
-        // attach the instance and its acceptance to the socket
-        return {
-            attachment: { instance: instanceId, acceptance },
-            ...(acceptance.protocol === undefined
-                ? {}
-                : { headers: { "sec-websocket-protocol": acceptance.protocol } }),
-        };
+        return { instance, acceptance: SocketAcceptance.parse(JSON.parse(accepted)) };
+    }
+
+    /** Open a WebSocket in this process: its upgrade through a fetch, its server end kept here. */
+    open(fetch: (request: Request) => Promise<Response>, upgrade: WebSocketUpgrade): ClientSocket {
+        // connect the client's end to the server's end the host keeps
+        let server: HostSocket | undefined;
+        const client: MemoryWebSocket = new MemoryWebSocket(
+            upgrade.request.url.replace(/^http/u, "ws"),
+            (message) => {
+                if (server !== undefined) {
+                    this.websocket.message(server, message);
+                }
+            },
+            (code, reason) => {
+                if (server !== undefined) {
+                    this.websocket.close?.(server, code, reason);
+                }
+                client.closed(code, reason);
+            },
+        );
+
+        // send the upgrade, and keep the end of the socket the instance accepts
+        void fetch(upgrade.request)
+            .then(async (answer) => {
+                // open a socket the instance refused to state its refusal
+                const refusal = await SocketRefusal.of(upgrade.request, answer);
+                if (refusal !== undefined) {
+                    client.opened("");
+                    await refusal.send({
+                        send: async (message) => client.received(message),
+                        close: (code, reason) =>
+                            client.closed(code ?? WebSocketClosure.normal, reason ?? ""),
+                    });
+
+                    return;
+                }
+
+                // keep the accepted socket's server end under its instance, its sends arriving at the client
+                const { attachment } = this.accept(answer);
+                const { acceptance } = attachment;
+                server = {
+                    attachment,
+                    send: async (message) => client.received(message),
+                    close: (code, reason) =>
+                        client.closed(code ?? WebSocketClosure.normal, reason ?? ""),
+                };
+                this.websocket.open?.(server);
+                client.opened(acceptance.protocol ?? "");
+            })
+            .catch((error: unknown) => {
+                // close a socket whose upgrade failed
+                this.#instruments.captureException(error, { isEscaped: true });
+                client.closed(WebSocketClosure.policy, "upgrade failed");
+            });
+
+        return client;
     }
 
     /** Answer an instance's listing of its sockets, or its send, attach or close of one. */
@@ -278,9 +554,9 @@ export class HibernationHost {
             const attachment = schema.json().parse(await request.json());
             socket.attachment.acceptance = { ...socket.attachment.acceptance, attachment };
         }
-        // send to it otherwise
+        // send to it otherwise, answering once its buffer took the message
         else {
-            socket.send(new Uint8Array(await request.arrayBuffer()));
+            await socket.send(await SocketMessage.read(request));
         }
 
         return new Response(null, { status: 204 });
@@ -294,29 +570,92 @@ export class HibernationHost {
         this.#hibernated.delete(instanceId);
     }
 
+    /** Deliver a socket's event after its earlier ones, capturing a failed delivery. */
+    #enqueue(socket: HostSocket, deliver: () => Promise<void>): void {
+        // deliver after the socket's earlier events
+        const previous = this.#delivering.get(socket) ?? Promise.resolve();
+        const delivered = previous
+            .then(deliver)
+            .catch((error: unknown) =>
+                this.#instruments.captureException(error, { isEscaped: true }),
+            );
+        this.#delivering.set(socket, delivered);
+
+        // forget a socket's queue once its last event arrived
+        void delivered.then(() => {
+            if (this.#delivering.get(socket) === delivered) {
+                this.#delivering.delete(socket);
+            }
+        });
+    }
+
     /** Hand a hibernated socket's message to its instance, answering the declared text itself. */
     async #message(socket: HostSocket, message: string | Uint8Array): Promise<void> {
-        // answer the declared text message without the instance
+        // drop a message of a socket its instance released, and answer the declared text message without the instance
         const { respond } = socket.attachment.acceptance;
-        if (respond !== undefined && message === respond.request) {
-            socket.send(respond.response);
+        if (!this.#isKept(socket)) {
+            return;
+        } else if (respond !== undefined && message === respond.request) {
+            await socket.send(respond.response);
 
             return;
         }
 
-        // hand the message over as bytes
-        const body =
-            typeof message === "string"
-                ? new TextEncoder().encode(message)
-                : new Uint8Array(message);
-        await this.#event(socket, { method: "POST", body });
+        // hand the message over as it arrived, a call vouched for by the host
+        const bytes = typeof message === "string" ? message : new Uint8Array(message);
+        const vouched = await this.#vouched(socket, bytes);
+        if (vouched !== undefined) {
+            await this.#event(socket, SocketMessage.request(vouched));
+        }
+    }
+
+    /** Vouch for a message's call through its socket's voucher, absent once it closes. */
+    async #vouched(
+        socket: HostSocket,
+        message: string | Uint8Array<ArrayBuffer>,
+    ): Promise<string | Uint8Array<ArrayBuffer> | undefined> {
+        // pass a message of a socket the host does not vouch for, and a binary one
+        const { isVouched } = socket.attachment;
+        if (!isVouched || typeof message !== "string") {
+            return message;
+        }
+
+        // close a socket whose voucher a restart lost, which its client opens again
+        const vouching = this.#vouchers.get(socket.attachment);
+        if (vouching === undefined) {
+            socket.close(WebSocketClosure.restart, "the host restarted: vouch for the calls anew");
+
+            return undefined;
+        }
+
+        // set the call's caller as the voucher answers, else its refusal
+        const call = CallFrame.request(message, vouching.url);
+        if (call === undefined) {
+            return message;
+        }
+        try {
+            return CallFrame.forward(message, await vouching.voucher(call));
+        } catch (error) {
+            return CallFrame.refuse(message, reportError(error, this.#telemetry));
+        }
     }
 
     /** Hand a hibernated socket's close to its instance and forget the socket. */
     async #close(socket: HostSocket): Promise<void> {
+        // forget the socket, delivering its close to an instance that still keeps it, a released one needing none
+        const isKept = this.#isKept(socket);
         const { instance, acceptance } = socket.attachment;
         this.#hibernated.get(instance)?.delete(acceptance.id);
-        await this.#event(socket, { method: "DELETE" });
+        if (isKept) {
+            await this.#event(socket, { method: "DELETE" });
+        }
+    }
+
+    /** Report whether the host still keeps a socket for its instance, which a release ends. */
+    #isKept(socket: HostSocket): boolean {
+        const { instance, acceptance } = socket.attachment;
+
+        return this.#hibernated.get(instance)?.get(acceptance.id) === socket;
     }
 
     /** Deliver a hibernated socket's event to its instance below the socket's path. */
@@ -324,10 +663,12 @@ export class HibernationHost {
         // deliver the event below the socket's path, describing the socket
         const { instance, acceptance } = socket.attachment;
         const description = HibernationHost.#describe(acceptance);
+        const headers = new Headers(request.headers);
+        headers.set(SOCKET_HEADER, JSON.stringify(description));
         const response = await this.#deliver(
             instance,
             `${SOCKET_PATH}/${encodeURIComponent(acceptance.id)}`,
-            { ...request, headers: { [SOCKET_HEADER]: JSON.stringify(description) } },
+            { ...request, headers: Object.fromEntries(headers) },
         );
         await response.arrayBuffer();
 
@@ -367,3 +708,24 @@ export class HibernationHost {
         return sockets;
     }
 }
+
+/** A socket message as a request between a host and an instance: text by its content type. */
+export const SocketMessage = {
+    /** Send a text or binary message as a request's body. */
+    request(message: string | Uint8Array<ArrayBuffer>): RequestInit {
+        return typeof message === "string"
+            ? {
+                  method: "POST",
+                  body: message,
+                  headers: { "content-type": TEXT_TYPE },
+              }
+            : { method: "POST", body: message };
+    },
+
+    /** Read the text or binary message a request carries. */
+    async read(request: Request): Promise<string | Uint8Array<ArrayBuffer>> {
+        return request.headers.get("content-type") === TEXT_TYPE
+            ? await request.text()
+            : new Uint8Array(await request.arrayBuffer());
+    },
+};

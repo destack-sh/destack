@@ -3,9 +3,8 @@ import { untilAborted } from "@destack/environment";
 import { Failure } from "@destack/error";
 import { present, Uuid } from "@destack/schema";
 import { ObjectError } from "../error/error.ts";
-import type { Authentication } from "@destack/access";
 import type { ResourceContext } from "@destack/resource/context";
-import { Server, type ServerOptions, type PackageHandler } from "../server/index.ts";
+import { Server, type ServerOptions, type PackageHandler, type Voucher } from "../server/index.ts";
 import type { Package } from "../declare/package.ts";
 import { type Alarm, AlarmClock, AlarmStorage, type ControllerSet } from "@destack/db";
 import { Health } from "../server/health.ts";
@@ -19,7 +18,8 @@ import type {
     WorkloadImplementation,
 } from "./workload.ts";
 import { CallKey } from "../audit/key.ts";
-import type { Hibernation, SocketHandler } from "./socket.ts";
+import type { Hibernation, Socket, SocketHandler } from "./socket.ts";
+import { ObjectConnectionAttachment } from "../server/connection.ts";
 import type { Environment } from "@destack/environment";
 
 import type {} from "@destack/package/import-meta";
@@ -172,9 +172,9 @@ export class WorkloadInstance implements AsyncDisposable {
         return this.#current.implements(handle, protocol, request);
     }
 
-    /** What the workload does with its hibernated sockets' events, refused without them. */
-    requireSocketHandler(): SocketHandler {
-        return this.#current.requireSocketHandler();
+    /** What the workload does with its hibernated sockets' events. */
+    get sockets(): SocketHandler {
+        return this.#current.sockets;
     }
 
     /** Settle once every package the workload serves serves, its readiness met. */
@@ -202,8 +202,8 @@ export class WorkloadInstance implements AsyncDisposable {
     }
 
     /** Dispatch a request to a package the current start serves. */
-    fetch(handle: Package, request: Request, authentication?: Authentication): Promise<Response> {
-        return this.#current.fetch(handle, request, authentication);
+    fetch(handle: Package, request: Request, voucher?: Voucher): Promise<Response> {
+        return this.#current.fetch(handle, request, voucher);
     }
 
     /** Close the workload. */
@@ -377,6 +377,7 @@ class WorkloadStart {
         const server = Server.start({
             ...options.serverOptions(handle),
             ...served,
+            ...(options.hibernation === undefined ? {} : { hibernation: options.hibernation }),
             health: new Health(handle.name),
             resources: options.resources,
             environment: options.environment,
@@ -451,13 +452,33 @@ class WorkloadStart {
         await Promise.all([...this.#packages.values()].map(({ server }) => server.ready()));
     }
 
-    /** What the start does with its hibernated sockets' events, refusing a start without them. */
-    requireSocketHandler(): SocketHandler {
-        if (this.#sockets === undefined) {
-            throw ObjectError.of("SOCKET_HANDLER_NOT_FOUND", "workload socket handler not found");
-        }
+    /** What the start does with its sockets' events: a package's connections, else its own. */
+    get sockets(): SocketHandler {
+        const handler = (socket: Socket): SocketHandler => {
+            // hand a connection to the server of its package
+            const connection = ObjectConnectionAttachment.safeParse(socket.attachment);
+            if (connection.success) {
+                const served = this.#packages.get(connection.data.connection);
 
-        return this.#sockets;
+                return present(served, `the server of package '${connection.data.connection}'`)
+                    .server.sockets;
+            }
+            // refuse any other socket without the workload's handler
+            else if (this.#sockets === undefined) {
+                throw ObjectError.of(
+                    "SOCKET_HANDLER_NOT_FOUND",
+                    "workload socket handler not found",
+                );
+            }
+
+            return this.#sockets;
+        };
+
+        return {
+            open: async (socket) => handler(socket).open?.(socket),
+            message: (socket, message) => handler(socket).message(socket, message),
+            close: (socket) => handler(socket).close(socket),
+        };
     }
 
     /** What the start does with its store's hook requests, refusing a start serving none. */
@@ -480,7 +501,7 @@ class WorkloadStart {
     }
 
     /** Dispatch a request to a served package. */
-    fetch(handle: Package, request: Request, authentication?: Authentication): Promise<Response> {
+    fetch(handle: Package, request: Request, voucher?: Voucher): Promise<Response> {
         // require the package
         const server = this.#packages.get(handle.id)?.server;
         if (!server) {
@@ -490,7 +511,7 @@ class WorkloadStart {
             );
         }
 
-        return server.fetch(request, authentication);
+        return server.fetch(request, voucher);
     }
 
     /** Drain the servers and release the resources once. */

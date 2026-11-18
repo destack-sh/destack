@@ -6,7 +6,6 @@ export {
     QueriesParameters,
     ObjectQuery,
     storeProcedures,
-    STORE_PATHS,
     PushResult,
     PackageImplementationDescription,
     type StoreProcedures,
@@ -15,4 +14,6 @@ export {
 export * from "./shape.ts";
 export * from "./key.ts";
 export * from "./remote.ts";
+export * from "./connection.ts";
+export * from "./frame.ts";
 export * from "./channel.ts";

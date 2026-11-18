@@ -5,14 +5,14 @@ import { implementPackage } from "../src/server/index.ts";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { isNull } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
-import { ObjectClient, ProcedureRemote } from "../src/client/index.ts";
+import { ObjectClient, type ObjectConnection } from "../src/client/index.ts";
 import { PackageVersion } from "@destack/package";
 import { present, schema, type Identifier } from "@destack/schema";
 import { createClient, type ClientOptions } from "@destack/object/client";
 import { RequestId, ObjectReference, Scope } from "@destack/sync";
 import { anyone, LinkSecret, principal, Role } from "@destack/access";
 import { page, pageDatabase, pagesPackage } from "./fixture/page.ts";
-import { openSpace, space, unmoved, spacePrincipal } from "../src/test/space.ts";
+import { openSpace, space, spacePrincipal } from "../src/test/space.ts";
 import { testCallKey } from "@destack/object/test";
 import { testEvents } from "../src/test/index.ts";
 import { Environment } from "@destack/environment";
@@ -63,7 +63,7 @@ async function servePages(world: Environment) {
 }
 
 /** Replicate a user's pages on a device. */
-async function openDevice(world: Environment, user: Identifier<"user">, endpoint: ClientOptions) {
+async function openDevice(world: Environment, user: Identifier<"user">, remote: ObjectConnection) {
     // create the local database and replicate the space's pages in it
     const storage = await TestDatabase.create(ObjectClient.tables({ page }), {
         environment: world,
@@ -76,12 +76,7 @@ async function openDevice(world: Environment, user: Identifier<"user">, endpoint
         objects: { page },
         scope: spaceId,
         caller: principal.user.reference("universe", user),
-        remote: ProcedureRemote.at({
-            scope: spaceId,
-            endpoint,
-            reconnect: unmoved,
-            environment: world,
-        }),
+        remote,
     });
 
     // replicate every page of the space, pushing and following until the test finishes
@@ -328,7 +323,7 @@ test("build page trees offline in one mutation, and move and trash pages predict
 
     const { as } = await servePages(world);
     const alice = as(users.alice).client(pagesPackage);
-    const device = await openDevice(world, users.alice, as(users.alice).endpoint(pagesPackage));
+    const device = await openDevice(world, users.alice, as(users.alice).connect(pagesPackage));
 
     // create a tree of three pages in one mutation, shown before the server executes it
     const tree = device.client.mutation(async (mutation) => {
@@ -412,7 +407,7 @@ test("follow a shared tree on a device, dropping pages moved out of it and takin
     });
 
     // replicate the shared tree on bob's device
-    const device = await openDevice(world, users.bob, as(users.bob).endpoint(pagesPackage));
+    const device = await openDevice(world, users.bob, as(users.bob).connect(pagesPackage));
     const titles = async () => {
         const rows = await device.client.database
             .select({ title: page.table.title })
@@ -488,7 +483,7 @@ test("follow the pages below a page on a device as the tree grows", async () => 
     const { client: device } = await openDevice(
         world,
         users.alice,
-        as(users.alice).endpoint(pagesPackage),
+        as(users.alice).connect(pagesPackage),
     );
     const handbook = await alice.page.create({
         spaceId,

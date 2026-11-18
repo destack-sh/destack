@@ -2,13 +2,12 @@ import { isDeepStrictEqual } from "node:util";
 import { onTestFinished } from "@destack/test";
 import { isNull } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
-import { ObjectClient, ProcedureRemote } from "../../src/client/index.ts";
+import { ObjectClient, type ObjectConnection } from "../../src/client/index.ts";
 import { schema, type Identifier } from "@destack/schema";
-import { type ClientOptions } from "@destack/object/client";
 import { note, notebook, notesPackage } from "../../src/test/note.ts";
 import { principal } from "@destack/access";
 import { Scope, type Subject } from "@destack/sync";
-import { space, unmoved } from "../../src/test/space.ts";
+import { space } from "../../src/test/space.ts";
 import { TestObjectStore, worldTelemetry } from "../../src/test/index.ts";
 import type { CapturedException } from "@destack/telemetry/test";
 import type { Environment } from "@destack/environment";
@@ -55,17 +54,23 @@ export async function serveNotes(
     onTestFinished(() => objects[Symbol.asyncDispose]());
 
     // open devices in the store's world, reaching it as their users
-    const endpoint = (user: Identifier<"user">) => objects.as(user).endpoint(notesPackage);
+    const connection = (user: Identifier<"user">) => objects.as(user).connect(notesPackage);
+    const websocket = (user: Identifier<"user">) => objects.as(user).websocket(notesPackage);
     const openDevice = (
         user: Identifier<"user">,
         queried?: readonly (typeof notebook | typeof note)[],
         device: Omit<DeviceOptions, "environment"> = {},
     ) =>
-        Device.open(user, endpoint(user), queried, { ...device, environment: objects.environment });
+        Device.open(user, connection(user), queried, {
+            ...device,
+            environment: objects.environment,
+        });
 
     return {
         connect: (user: Identifier<"user">) => objects.as(user).client(notesPackage),
-        endpoint,
+        connection,
+        websocket,
+        authorize: (user: Identifier<"user">) => objects.as(user).authorize(notesPackage),
         openDevice,
         server: objects.server(notesPackage),
         database: objects.database,
@@ -100,7 +105,7 @@ export class Device {
     /** Open a user's device on a new local database file, offline until it goes online. */
     static async open(
         user: Identifier<"user">,
-        endpoint: ClientOptions,
+        remote: ObjectConnection,
         queried: readonly (typeof notebook | typeof note)[] = [notebook, note],
         options: DeviceOptions,
     ) {
@@ -118,12 +123,7 @@ export class Device {
             caller: principal.user.reference("universe", user),
             ...rest,
             environment,
-            remote: ProcedureRemote.at({
-                scope: spaceId,
-                endpoint,
-                reconnect: unmoved,
-                environment: environment,
-            }),
+            remote,
         });
         for (const object of queried) {
             client.queryType(object).findMany().subscribe();

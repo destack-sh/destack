@@ -31,8 +31,6 @@ export const TestRemote = {
             push: writes.push ?? TestRemote.refused("pushes"),
             call: writes.call ?? TestRemote.refused("calls"),
             broadcast: writes.broadcast ?? TestRemote.refused("events"),
-            moves: new AbortController().signal,
-            redirect: () => false,
         };
     },
 

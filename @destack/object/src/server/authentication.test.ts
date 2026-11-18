@@ -135,7 +135,7 @@ test("serve a caller handed over in-process while it is current for this package
             { router: definition },
             {
                 url: "https://fixture.test",
-                fetch: (request) => server.fetch(request, authentication),
+                fetch: (request) => server.fetch(request, async () => authentication),
             },
             world,
         ).me();

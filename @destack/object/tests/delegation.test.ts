@@ -118,7 +118,7 @@ test("act with the space's delegation to its installation, refusing without one,
         settings: {},
         capabilities: ["push"],
         keys: await testKeys(world),
-        publisherAt: () => {
+        connect: () => {
             throw new TypeError("the fixture reaches no installation");
         },
         at: () => {

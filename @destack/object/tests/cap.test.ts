@@ -72,7 +72,7 @@ async function serveInstalledNotes(world: Environment) {
         settings: {},
         capabilities: [],
         keys: await testKeys(world),
-        publisherAt: () => {
+        connect: () => {
             throw new TypeError("the fixture reaches no installation");
         },
         at: () => {

@@ -9,14 +9,16 @@ import { TestAccess } from "@destack/access/test";
 import { ControlLoop, defineDatabase, eq } from "@destack/db";
 import { present, schema } from "@destack/schema";
 import { definePackage } from "@destack/object";
-import { type ClientOptions, createClient } from "@destack/object/client";
+import { createClient } from "@destack/object/client";
 import { RequestId, Feed, Replica, Scope } from "@destack/sync";
 import { defineObject, defineShape, field } from "../src/index.ts";
-import { ObjectClient, ProcedureRemote } from "../src/client/index.ts";
+import { ObjectClient, ObjectConnection } from "../src/client/index.ts";
 import { ObjectStore } from "../src/server/index.ts";
 import { Bookmark } from "../src/procedure/bookmark.ts";
-import { TestBearer, TestObjectStore } from "../src/test/index.ts";
-import { spacePrincipal, unmoved, space } from "../src/test/space.ts";
+import { TestObjectStore } from "../src/test/index.ts";
+import { spacePrincipal, space } from "../src/test/space.ts";
+import { TEST_CONNECTION_URL } from "../src/test/caller.ts";
+import { calledPath, tapSocket } from "./fixture/socket.ts";
 import { userContext, users } from "./fixture/user.ts";
 import { Environment } from "@destack/environment";
 import { tablesOf } from "../src/stack/db.ts";
@@ -186,23 +188,31 @@ async function serveHomes(world: Environment, options: { readonly isFollowing?: 
 
     // call each server as alice, recording the requests each receives
     const writes: string[] = [];
-    const recorded = (
-        name: string,
-        server: { readonly fetch: (request: Request) => Promise<Response> },
-    ) =>
-        ({
-            url: "https://objects.test",
-            headers: {
-                authorization: TestBearer.header(principal.user.reference("universe", users.alice)),
-            },
-            fetch: (request: Request) => {
-                writes.push(`${name} ${new URL(request.url).pathname}`);
-
-                return server.fetch(request);
-            },
-        }) satisfies ClientOptions;
     const homeServed = TestObjectStore.serve(home);
     const replicaServed = TestObjectStore.serve(replica);
+    const recorded =
+        (name: string, served: TestObjectStore) =>
+        (scope: string): ObjectConnection =>
+            ObjectConnection.open({
+                scope,
+                url: TEST_CONNECTION_URL,
+                authorize: served.as(users.alice).authorize(preferences),
+                websocket: (url, protocols) =>
+                    tapSocket(
+                        served.as(users.alice).websocket(preferences)(url, protocols),
+                        (frame) => {
+                            // record each procedure the server receives
+                            const path = calledPath(frame);
+                            if (path !== undefined) {
+                                writes.push(`${name} ${path}`);
+                            }
+
+                            return frame;
+                        },
+                    ),
+                homes: (enclosing) => recorded("home", homeServed)(enclosing),
+                environment: world,
+            });
     onTestFinished(async () => {
         await replicaServed[Symbol.asyncDispose]();
         await homeServed[Symbol.asyncDispose]();
@@ -215,8 +225,8 @@ async function serveHomes(world: Environment, options: { readonly isFollowing?: 
         homeDatabase: homeStorage.database,
         follow,
         writes,
-        homeEndpoint: recorded("home", homeServed.server(preferences)),
-        replicateEndpoint: recorded("replica", replicaServed.server(preferences)),
+        homeConnection: recorded("home", homeServed),
+        replicaConnection: recorded("replica", replicaServed),
     };
 }
 
@@ -267,13 +277,7 @@ async function openRoom(world: Environment, served: Awaited<ReturnType<typeof se
         scope: roomId,
         caller: principal.user.reference(Scope.universe.id, users.alice),
         environment: world,
-        remote: ProcedureRemote.at({
-            scope: roomId,
-            endpoint: served.replicateEndpoint,
-            reconnect: unmoved,
-            homes: () => served.homeEndpoint,
-            environment: world,
-        }),
+        remote: served.replicaConnection(roomId),
     });
     const live = client.query.preference.findMany().subscribe();
 
@@ -428,13 +432,7 @@ test("read a universe row the room's replica holds through a client of the room,
         scope: roomId,
         caller: principal.user.reference(Scope.universe.id, users.alice),
         environment: world,
-        remote: ProcedureRemote.at({
-            scope: roomId,
-            endpoint: served.replicateEndpoint,
-            reconnect: unmoved,
-            homes: () => served.homeEndpoint,
-            environment: world,
-        }),
+        remote: served.replicaConnection(roomId),
     });
 
     // follow her person through the room until it arrives
@@ -475,13 +473,7 @@ test("read a person's own universe row through a client of their scope at their 
         scope: personId,
         caller: principal.user.reference(Scope.universe.id, users.alice),
         environment: world,
-        remote: ProcedureRemote.at({
-            scope: personId,
-            endpoint: served.homeEndpoint,
-            reconnect: unmoved,
-            homes: () => served.homeEndpoint,
-            environment: world,
-        }),
+        remote: served.homeConnection(personId),
     });
 
     // follow her person until it arrives

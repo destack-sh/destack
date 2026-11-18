@@ -23,11 +23,10 @@ import {
     type ObjectType,
 } from "../src/index.ts";
 import { implementPackage, EphemeralStorage } from "../src/server/index.ts";
-import { type LiveQuery, ObjectClient, ProcedureRemote } from "../src/client/index.ts";
-import type { ClientOptions } from "@destack/object/client";
+import { type LiveQuery, ObjectClient, type ObjectConnection } from "../src/client/index.ts";
 import { definePackage } from "@destack/object";
 import { user } from "./schema.ts";
-import { openSpace, space, unmoved, spacePrincipal } from "../src/test/space.ts";
+import { openSpace, space, spacePrincipal } from "../src/test/space.ts";
 import { request, type RequestInput } from "./fixture/request.ts";
 import { Environment } from "@destack/environment";
 import { tablesOf } from "../src/index.ts";
@@ -528,8 +527,8 @@ async function serveBoards(world: Environment) {
 
         return {
             store,
-            /** Call the instance over HTTP as a user. */
-            endpoint: (as: Identifier<"user">) => served.as(as).endpoint(boardsPackage),
+            /** Connect to the instance as a user. */
+            connection: (as: Identifier<"user">) => served.as(as).connect(boardsPackage),
             /** Call a method as a user. */
             call: async <Object extends ObjectType, Name extends CallableName<Object>>(
                 as: Identifier<"user">,
@@ -592,7 +591,7 @@ function context(as: Identifier<"user">, world: Environment) {
 /** Open a user's client of the boards over one instance. */
 async function openClient(
     world: Environment,
-    instance: { readonly endpoint: (user: Identifier<"user">) => ClientOptions },
+    instance: { readonly connection: (user: Identifier<"user">) => ObjectConnection },
     as: Identifier<"user">,
 ) {
     // store the boards and presence in a local database
@@ -608,12 +607,7 @@ async function openClient(
         objects: { board, profile, presence },
         scope: spaceId,
         caller: principal.user.reference("universe", as),
-        remote: ProcedureRemote.at({
-            scope: spaceId,
-            endpoint: instance.endpoint(as),
-            reconnect: unmoved,
-            environment: world,
-        }),
+        remote: instance.connection(as),
     });
 
     // run until stopped, failing on any captured failure

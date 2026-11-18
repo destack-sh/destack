@@ -457,10 +457,8 @@ interface StoreComposition {
     readonly provisioned?: ResourceControllerOptions;
 }
 
-/** A store's routes: each served object's procedures by its key, and the store procedures. */
-export type ObjectRouter = Readonly<Record<string, Router<ProcedureRouter, RequestContext>>> & {
-    readonly store: Router<StoreProcedures, RequestContext>;
-};
+/** A store's routes: each served object's procedures by its key. */
+export type ObjectRouter = Readonly<Record<string, Router<ProcedureRouter, RequestContext>>>;
 
 /** A store serving object types' methods over one database. */
 export class ObjectStore {
@@ -1096,7 +1094,6 @@ export class ObjectStore {
 
     /** Serve in-process followers: stream its replicas, and run their calls as the signer. */
     #remote(): ObjectRemote {
-        const moves = new AbortController().signal;
         const callerOf = (signer: Subject | undefined) =>
             AccessContext.of(
                 Caller.of(present(signer, "the signer of an in-process follower's call")),
@@ -1134,8 +1131,6 @@ export class ObjectStore {
                     await remote.broadcast(scope, object, event);
                 }
             },
-            moves,
-            redirect: () => false,
         };
     }
 
@@ -1255,6 +1250,7 @@ export class ObjectStore {
                 ? {}
                 : { ready: (signal, health) => this.#waitReady(signal, health) }),
             router: this.router(routed),
+            connections: { store: this.procedures() },
         };
     }
 
@@ -1589,7 +1585,7 @@ export class ObjectStore {
         };
     }
 
-    /** Route the served objects' methods, or some of them, and the store procedures. */
+    /** Route the served objects' methods, or some of them. */
     router(types: readonly ObjectType[] = this.#catalog.declared): ObjectRouter {
         // route each object under its key, which its package's handle makes unique
         const routers: Record<string, Router<ProcedureRouter, RequestContext>> = {};
@@ -1597,7 +1593,7 @@ export class ObjectStore {
             routers[object.key] = this.#route(object);
         }
 
-        return { store: this.#procedures(), ...routers };
+        return routers;
     }
 
     /** Route an object's methods to the call pipeline. */
@@ -1613,8 +1609,8 @@ export class ObjectStore {
         return routes;
     }
 
-    /** Route the store procedures. */
-    #procedures(): Router<StoreProcedures, RequestContext> {
+    /** Route the store procedures a connection calls. */
+    procedures(): Router<StoreProcedures, RequestContext> {
         const store = implement(storeProcedures).$context<RequestContext>();
 
         return store.router({
@@ -1662,15 +1658,9 @@ export class ObjectStore {
 
                 return {};
             }),
-            stream: store.stream.handler(({ input, context, lastEventId }) => {
-                const { after: _after, ...subscription } = input;
-                const after = ObjectStore.#resumed(input.after, lastEventId);
-
-                return this.source.relayed(
-                    after === undefined ? subscription : { ...subscription, after },
-                    context,
-                );
-            }),
+            stream: store.stream.handler(({ input, context }) =>
+                this.source.relayed(input, context),
+            ),
             request: store.request.handler(async ({ input, context }) => {
                 // record the caller's request of its own stream
                 await this.source.requestFrom(input.subscription, context);
@@ -1896,7 +1886,7 @@ export class ObjectStore {
             const sent = sync.Mutation.parse(mutation);
 
             if (this.outbox === undefined) {
-                return ObjectRemote.run(home.remote, home.home, sent, caller.subject);
+                return ObjectRemote.mutate(home.remote, home.home, sent, caller.subject);
             }
             const origin = Outbox.origin(caller.subject);
             await this.outbox.queue(sent, origin);
@@ -4151,26 +4141,6 @@ export class ObjectStore {
         });
     }
 
-    /** Throw a failed settlement. */
-    /** Read where a resumed sync continues. */
-    static #resumed(
-        after: LogPosition | undefined,
-        lastEventId: string | undefined,
-    ): LogPosition | undefined {
-        // parse the last event identifier
-        if (lastEventId !== undefined) {
-            const [log, epoch, sequence] = lastEventId.split("/");
-            const position = LogPosition.safeParse({ log, epoch, sequence: Number(sequence) });
-            if (!position.success) {
-                throw ObjectError.of("EVENT_NOT_FOUND", `event '${lastEventId}' not found`);
-            }
-
-            return position.data;
-        }
-
-        return after;
-    }
-
     /** Give a prepared creation without an identifier a fresh one, for its prepared work. */
     static #identified(call: Expansion, environment: UuidEnvironment): Expansion {
         const method = call.object.method(call.name);
@@ -4252,7 +4222,7 @@ export class ObjectStore {
             }
 
             // publish the partition through its installation's root
-            root ??= server.publisherAt(
+            root ??= server.connect(
                 Egress.address(server.name, server.scope),
                 store().origin.package.id,
             );

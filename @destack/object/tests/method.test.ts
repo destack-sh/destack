@@ -155,9 +155,8 @@ test("route every served object, create once per request identifier and take cho
 
     const { store, database, execute, events, observed } = await serveTasks(simulation);
 
-    // route the replica procedures and each served object
+    // route each served object, the store procedures served over connections alone
     expect(Object.keys(store.router())).toEqual([
-        "store",
         "task",
         "comment",
         "taskVersion",

@@ -1,3 +1,4 @@
+import { CallFrame } from "../replica/frame.ts";
 import { Caller } from "@destack/access";
 import { ObjectError } from "../error/error.ts";
 import type { Deriver } from "@destack/identity";
@@ -19,13 +20,7 @@ import { Egress } from "../declare/egress.ts";
 import { PackageMount } from "../declare/mount.ts";
 import { WorkloadInstance } from "./instance.ts";
 import { HOOK_PATH, type WorkloadStart } from "./start.ts";
-import {
-    SocketDescription,
-    Hibernation,
-    SOCKET_HEADER,
-    SOCKET_PATH,
-    type SocketHost,
-} from "./socket.ts";
+import { Hibernation, SOCKET_PATH, type SocketHost } from "./socket.ts";
 import type { Alarm } from "@destack/db";
 import type { EphemeralHost, ServerContext, Workload } from "./workload.ts";
 import { CallKey } from "../audit/key.ts";
@@ -174,7 +169,10 @@ export class WorkloadRunner implements AsyncDisposable {
         build: BuildReader,
         environment: Environment,
         connections: AsyncDisposableStack,
-    ): Promise<{ readonly instance: WorkloadInstance; readonly hibernation: Hibernation }> {
+    ): Promise<{
+        readonly instance: WorkloadInstance;
+        readonly hibernation: Hibernation;
+    }> {
         // connect the resources, open the keys, and start the instance
         const resources = await WorkloadRunner.#connect(runner, start, connections);
         const keys = await InstallationRoot.open(
@@ -187,7 +185,7 @@ export class WorkloadRunner implements AsyncDisposable {
             url: Egress.beside(start.egress, SOCKET_PATH),
             fetch: (request: Request) => runner.environment.network.fetch(request),
         };
-        const hibernation = new Hibernation(host, start.secret, environment.telemetry);
+        const hibernation = new Hibernation(host, { secret: start.secret }, environment.telemetry);
         const instance = await WorkloadInstance.start(runner.workload, {
             resources,
             server: WorkloadRunner.#server(runner, start, { build, stack, resources, keys }),
@@ -251,7 +249,7 @@ export class WorkloadRunner implements AsyncDisposable {
             keys,
             environment: runner.environment,
             remote: runner.remote(stack, start.secret),
-            publisherAt: (address, packageId) =>
+            connect: (address, packageId) =>
                 runner.remote(
                     `${Egress.url(start.egress, address)}${PackageMount.path(packageId)}`,
                     start.secret,
@@ -329,24 +327,9 @@ export class WorkloadRunner implements AsyncDisposable {
     /** Hand the workload a hibernated socket's message or close, as the host describes it. */
     async #socket(request: Request): Promise<Response> {
         try {
-            // read the socket the host describes
-            const header = request.headers.get(SOCKET_HEADER);
-            const description = SocketDescription.parse(JSON.parse(header ?? "null"));
-            const socket = this.#hibernation.socket(description);
-            const handler = this.instance.requireSocketHandler();
-
             // hand the event over once the workload serves, its replicas ready as its requests wait for
             await this.instance.ready();
-
-            // hand over its close or its message
-            if (request.method === "DELETE") {
-                await handler.close(socket);
-            } else {
-                await handler.message(socket, new Uint8Array(await request.arrayBuffer()));
-            }
-
-            // answer once the sends the event caused arrived at the host
-            await this.#hibernation.settled(description.id);
+            await this.#hibernation.receive(request, this.instance.sockets);
 
             return new Response(null, { status: 204 });
         }
@@ -454,7 +437,15 @@ export class WorkloadRunner implements AsyncDisposable {
             scope: start.scope,
             instance: start.instance,
             drainTimeout: DRAIN_MILLISECONDS,
-            authenticate: async (request: Request) => Caller.forwarded(request),
+            authenticate: async (request: Request) => {
+                // answer a call its host refused as that refusal, else read the caller it forwarded
+                const refused = CallFrame.refusal(request);
+                if (refused !== undefined) {
+                    throw refused;
+                }
+
+                return Caller.forwarded(request);
+            },
             authorizeMachine: async ({
                 access,
             }: {

@@ -53,7 +53,7 @@ export async function testServerContext(
             Promise.reject(new Error(`the fixture sends no request to '${request.url}'`)),
         url: `https://fixture--${space}.test`,
         remote: IDLE,
-        publisherAt: () => IDLE,
+        connect: () => IDLE,
         at: (address) => ({
             url: address,
             fetch: () => Promise.reject(new Error(`the idle machine cannot call '${address}'`)),

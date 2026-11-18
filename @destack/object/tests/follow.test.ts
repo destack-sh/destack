@@ -1888,7 +1888,7 @@ test("replicate a scoped table an installation's database declares beside its fo
             ...following,
             installation: schema.identifier("installation").parse(followingId),
             remote: uplink,
-            publisherAt: () => uplink,
+            connect: () => uplink,
         },
         servers: serversOf([comment], {
             follows: [DOCUMENTS.at({ key: { scope: Scope.universe.id } })],

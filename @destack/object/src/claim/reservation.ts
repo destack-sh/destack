@@ -1,4 +1,3 @@
-import { Failure } from "@destack/error";
 import { ObjectError } from "../error/error.ts";
 import { AccessContext, Caller } from "@destack/access";
 import {
@@ -25,7 +24,7 @@ import { ObjectKey, type ObjectType } from "../object/object.ts";
 import { Condition } from "../object/condition.ts";
 import { Claim, Claimant, ClaimRefusal, RESERVATION_MILLISECONDS } from "./claim.ts";
 import type { ClaimType } from "./method.ts";
-import type { PushResult } from "../replica/replica.ts";
+import { ObjectRemote } from "../replica/remote.ts";
 
 import type {} from "@destack/package/import-meta";
 import { TelemetryScope } from "@destack/telemetry";
@@ -50,36 +49,13 @@ export interface RemoteStore {
     readonly query: (call: sync.Call) => Promise<unknown>;
 }
 
-/** The replica procedures of a store elsewhere, as a client calls them. */
-export interface ReplicaClient {
-    /** Push mutations to a scope, answering each one's outcome. */
-    readonly push: (input: {
-        readonly scope: string;
-        readonly mutations: sync.Mutation[];
-    }) => Promise<Pick<PushResult, "outcomes">>;
-    /** Run a reading call in a scope. */
-    readonly call: (input: {
-        readonly scope: string;
-        readonly call: sync.Call;
-    }) => Promise<unknown>;
-}
-
 /** The stores elsewhere a store calls. */
 export const RemoteStore = {
-    /** Call a store elsewhere in one scope through its replica procedures. */
-    of(replica: ReplicaClient, scope: string): RemoteStore {
+    /** Call a store elsewhere in one scope through a remote. */
+    of(remote: ObjectRemote, scope: string): RemoteStore {
         return {
-            mutate: async (mutation) => {
-                // push the mutation alone, and throw its failure
-                const { outcomes } = await replica.push({ scope, mutations: [mutation] });
-                const { outcome } = present(outcomes[0], "the pushed mutation's outcome");
-                if (!("value" in outcome)) {
-                    throw Failure.error(outcome.error);
-                }
-
-                return schema.array(schema.json()).parse(outcome.value);
-            },
-            query: (call) => replica.call({ scope, call }),
+            mutate: (mutation) => ObjectRemote.mutate(remote, scope, mutation),
+            query: (call) => remote.call(scope, call),
         };
     },
 

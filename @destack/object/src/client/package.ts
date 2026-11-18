@@ -43,31 +43,9 @@ export function createClient<
     options: ClientOptions<Context>,
     environment: Environment,
 ): Client<Definition, Context> {
-    // create the client telemetry, and read each called procedure's release once
+    // create the client telemetry, and read each called procedure's release and edition once
     const traced = traceCalls("client", "orpc", environment);
-    const releases = new Map<string, string>();
-    const releaseOf = (path: readonly string[]) => {
-        // read a path's release the first time it is called
-        const key = path.join(".");
-        const release =
-            releases.get(key) ?? ProcedureMetadata.at(target.router, path).package.version;
-        releases.set(key, release);
-
-        return release;
-    };
-
-    // read the edition of each called procedure's input once
-    const editions = new Map<string, number>();
-    const editionOf = (path: readonly string[]) => {
-        // read a path's edition the first time it is called
-        const key = path.join(".");
-        const edition =
-            editions.get(key) ??
-            Edition.of(ProcedureMetadata.at(target.router, path).convert ?? {});
-        editions.set(key, edition);
-
-        return edition;
-    };
+    const headersOf = procedureHeaders(target.router);
 
     // create the HTTP transport, sending through the environment's network unless the endpoint fetches
     const link = new OpenAPILink<Context>(target.router, {
@@ -93,8 +71,9 @@ export function createClient<
             async (call) => {
                 // send the release and the required watermarks, the transport sending the trace
                 const headers = call.request.headers;
-                headers.set(VERSION_HEADER, releaseOf(call.path));
-                headers.set(EDITION_HEADER, String(editionOf(call.path)));
+                for (const [name, value] of Object.entries(headersOf(call.path))) {
+                    headers.set(name, value);
+                }
                 const bookmark = options.bookmark;
                 if (bookmark !== undefined && bookmark.watermarks.length > 0) {
                     headers.set(BOOKMARK_HEADER, bookmark.format());
@@ -142,6 +121,32 @@ export function createClient<
     return createORPCClient<Client<Definition, Context>>({
         call: (path, input, callOptions) => traced(path, () => link.call(path, input, callOptions)),
     });
+}
+
+/** Read the release and edition headers a call to a router's procedure sends. */
+export function procedureHeaders(
+    router: ProcedureRouter,
+): (path: readonly string[]) => Readonly<Record<string, string>> {
+    const known = new Map<string, Readonly<Record<string, string>>>();
+
+    return (path) => {
+        // answer a path called before
+        const key = path.join(".");
+        const cached = known.get(key);
+        if (cached !== undefined) {
+            return cached;
+        }
+
+        // read its release and edition the first time it is called
+        const metadata = ProcedureMetadata.at(router, path);
+        const headers = {
+            [VERSION_HEADER]: metadata.package.version,
+            [EDITION_HEADER]: String(Edition.of(metadata.convert ?? {})),
+        };
+        known.set(key, headers);
+
+        return headers;
+    };
 }
 
 /** Read the pause a starting server asks for before a retry (RFC 9110 10.2.3). */

@@ -26,7 +26,6 @@ import { untilAborted, waitAborted } from "@destack/environment";
 import type { ObjectStore, Subscriber } from "./store.ts";
 import { replicaRequest } from "../replica/request.ts";
 import { followKey } from "../replica/key.ts";
-import { ObjectRemote } from "../replica/remote.ts";
 
 /** The cursor deciding the replicas a store follows, whose checkpoint each decision moves. */
 const SUBSCRIPTIONS_CURSOR = "destack.replica.request";
@@ -571,9 +570,8 @@ export class ObjectSink {
         until: AbortSignal,
         following: Following,
     ): Promise<void> {
-        // read the replica, its publisher, and the remote whose moves redirect it
+        // read the replica and its publisher
         const publisher = subscriber.publisher(present(request.home, `the home of ${request.key}`));
-        const remote = ObjectRemote.is(publisher) ? publisher : undefined;
         const replica = this.store.source.buildReplica(request.subscription);
         const publication = this.store.source.publication(request.subscription);
         const { audience } = publication;
@@ -582,51 +580,41 @@ export class ObjectSink {
         const isQueries = publication === this.store.source.queriesPublication;
         const prediction = isQueries ? this.store.outbox?.prediction : undefined;
         const { synced } = following;
-        while (!until.aborted) {
-            const moves = remote?.moves;
-            const streaming = moves === undefined ? until : AbortSignal.any([until, moves]);
-            try {
-                // follow the replica until stopped or its scope moves
-                const follow = replica.follow(
-                    this.store.database,
-                    (from, stream, subscription) =>
-                        publisher.stream(
-                            { ...present(subscription, "the followed subscription"), ...from },
-                            stream,
-                        ),
-                    streaming,
-                    {
-                        get subscription() {
-                            return current.subscription;
-                        },
-                        audience,
-                        synced,
-                        lag: this.store.authorizer.lag,
-                        received: (page) => this.store.receive(page),
-                        ...(prediction === undefined ? {} : { prediction }),
+        try {
+            // follow the replica until stopped
+            const follow = replica.follow(
+                this.store.database,
+                (from, stream, subscription) =>
+                    publisher.stream(
+                        { ...present(subscription, "the followed subscription"), ...from },
+                        stream,
+                    ),
+                until,
+                {
+                    get subscription() {
+                        return current.subscription;
                     },
-                );
-                await Promise.all([
-                    follow,
-                    ObjectSink.#forward(current, publisher, this.store.database, streaming),
-                ]);
-            } catch (error) {
-                // end quietly on the follow's own abort, follow a moved scope at its new machine, and fail on any other error
-                const isAbort =
-                    until.aborted &&
-                    (error === until.reason ||
-                        (error instanceof Error && error.name === "AbortError"));
-                if (isAbort) {
-                    return;
-                } else if (
-                    moves !== undefined &&
-                    (moves.aborted || remote?.redirect(error, moves) === true)
-                ) {
-                    continue;
-                }
-                this.store.refuse(error);
-                throw error;
+                    audience,
+                    synced,
+                    lag: this.store.authorizer.lag,
+                    received: (page) => this.store.receive(page),
+                    ...(prediction === undefined ? {} : { prediction }),
+                },
+            );
+            await Promise.all([
+                follow,
+                ObjectSink.#forward(current, publisher, this.store.database, until),
+            ]);
+        } catch (error) {
+            // end quietly on the follow's own abort, failing on any other error
+            const isAbort =
+                until.aborted &&
+                (error === until.reason || (error instanceof Error && error.name === "AbortError"));
+            if (isAbort) {
+                return;
             }
+            this.store.refuse(error);
+            throw error;
         }
     }
 

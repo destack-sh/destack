@@ -42,7 +42,6 @@ const query = (procedures: ProcedureRouter): ObjectDeclaration => ({
     typeReference: { packageId: PACKAGE.id, type: "query" },
     hooks: {},
     procedures,
-    shared: {},
     requireValid: () => {},
 });
 

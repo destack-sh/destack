@@ -28,6 +28,10 @@ test("start the workload on the object's alarm before any event, serve requests 
 
                 return value;
             },
+            acceptWebSocket: () => {
+                throw new TypeError("the test workload accepts no WebSocket");
+            },
+            getTags: () => [],
         },
         async (alarm) => {
             await alarm.setAlarm(1000);

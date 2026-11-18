@@ -16,17 +16,17 @@ import { RequestId, Scope, type Subject } from "@destack/sync";
 import { TestDatabase } from "@destack/db/test";
 import { type DatabaseConnection, Snapshot } from "@destack/db";
 import { BrowserSimulation } from "@destack/environment/browser/simulation";
-import { Identifier, nth, present } from "@destack/schema";
+import { Identifier, nth } from "@destack/schema";
 import { definePackage } from "@destack/object";
 import { testCallKey } from "@destack/object/test";
 import { testEvents, serversOf } from "../src/test/index.ts";
 import { type BrowserDevice, BrowserTab } from "../src/browser/index.ts";
-import { deviceDatabase, deviceWorker } from "./fixture/browser.ts";
+import { deviceDatabase, deviceWorker, holdRemote } from "./fixture/browser.ts";
 import { WasmClient, connectWasmSqlite } from "@destack/db/browser";
-import { ObjectClient, ProcedureRemote, type ObjectAccess } from "../src/client/index.ts";
+import { ObjectClient, type ObjectAccess } from "../src/client/index.ts";
 import { ObjectStore, implementPackage } from "../src/server/index.ts";
 import { serveNotes, spaceId } from "./fixture/device.ts";
-import { space, spacePrincipal, unmoved } from "../src/test/space.ts";
+import { space, spacePrincipal } from "../src/test/space.ts";
 import { draft, memo, memosPackage, panel, sticky, user } from "./fixture/local.ts";
 import { note, notebook } from "../src/test/note.ts";
 import { tablesOf } from "../src/index.ts";
@@ -43,7 +43,7 @@ test("read a local object one tab writes in another tab through their device, ou
     const simulation = testSimulation();
     const world = simulation.environment("test");
 
-    const { endpoint } = await serveNotes({ simulation, node: "browser" });
+    const { connection } = await serveNotes({ simulation, node: "browser" });
     const alice = Identifier.create("user", world);
 
     // open two tabs of one browser sharing one device worker
@@ -56,7 +56,7 @@ test("read a local object one tab writes in another tab through their device, ou
         objects,
         caller,
         device: browser,
-        endpoint: endpoint(alice),
+        remote: (scope: string) => connection(alice).at(scope),
         environment,
     });
     const open = () =>
@@ -98,28 +98,22 @@ test("replicate a space tab's scope chain from its device once the device's repl
     // open a device whose machine answers only once the tab asked for the space's access rows
     const simulation = testSimulation();
     const world = simulation.environment("test");
-    const { endpoint } = await serveNotes({ simulation, node: "browser" });
+    const { connection } = await serveNotes({ simulation, node: "browser" });
     const alice = Identifier.create("user", world);
     const environment = new BrowserSimulation(simulation).environment("browser");
     const objects = { notebook, note, draft };
     const caller = principal.user.reference("universe", alice);
     const browser = principal.device.reference("universe", Identifier.create("device", world));
     const answering = Promise.withResolvers<void>();
-    const reached = endpoint(alice);
+    const reached = connection(alice);
     const served: BrowserDevice[] = [];
     const worker = deviceWorker({
         database: await deviceDatabase(objects, environment),
         objects,
         caller,
         device: browser,
-        endpoint: {
-            ...reached,
-            fetch: async (...called) => {
-                await answering.promise;
-
-                return await present(reached.fetch, "the endpoint's fetch")(...called);
-            },
-        },
+        remote: (scope: string) =>
+            holdRemote(reached.at(scope), answering.promise, new Set(["stream", "push"])),
         environment,
         served: (opened) => served.push(opened),
     });
@@ -189,7 +183,7 @@ test("hide a user's local objects from another user on the same device, and the 
     const simulation = testSimulation();
     const world = simulation.environment("test");
 
-    const { endpoint, environment } = await serveNotes({ simulation });
+    const { connection, environment } = await serveNotes({ simulation });
     const [alice, bob] = [Identifier.create("user", world), Identifier.create("user", world)];
     const [laptop, phone] = [
         Identifier.create("device", world),
@@ -209,12 +203,7 @@ test("hide a user's local objects from another user on the same device, and the 
             caller: principal.user.reference("universe", person),
             device: principal.device.reference("universe", on),
             isMigrated: true,
-            remote: ProcedureRemote.at({
-                scope: spaceId,
-                endpoint: endpoint(person),
-                reconnect: unmoved,
-                environment: environment,
-            }),
+            remote: connection(person).at(spaceId),
         });
     const aliceLaptop = await openClient(alice, laptop);
     const bobLaptop = await openClient(bob, laptop);
@@ -549,21 +538,15 @@ async function openOwnScope() {
     const objects = { memo, draft };
     const browser = principal.device.reference("universe", Identifier.create("device", world));
     const answering = Promise.withResolvers<void>();
-    const reached = served.as(alice).endpoint(memosPackage);
+    const reached = served.as(alice).connect(memosPackage, { scope: alice });
     const worker = deviceWorker({
         database: await deviceDatabase(objects, environment),
         objects,
         caller,
         device: browser,
         scope: alice,
-        endpoint: {
-            ...reached,
-            fetch: async (...called) => {
-                await answering.promise;
-
-                return await present(reached.fetch, "the endpoint's fetch")(...called);
-            },
-        },
+        remote: (scope: string) =>
+            holdRemote(reached.at(scope), answering.promise, new Set(["stream", "push"])),
         environment,
     });
     const open = async () => ({

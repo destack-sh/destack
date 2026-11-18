@@ -364,10 +364,8 @@ test("accept a hibernated socket, hand its messages and close to the workload, a
                             packages: [{ package: notes, router: {} }],
                             sockets: {
                                 message: async (socket, message) => {
-                                    socket.send(
-                                        new TextEncoder().encode(
-                                            `echo ${new TextDecoder().decode(message)}`,
-                                        ),
+                                    await socket.send(
+                                        `echo ${typeof message === "string" ? message : new TextDecoder().decode(message)}`,
                                     );
                                 },
                                 close: async (socket) => {

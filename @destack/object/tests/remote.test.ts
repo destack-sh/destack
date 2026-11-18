@@ -11,7 +11,9 @@ import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { TABLE } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
 import { present, schema, Uuid } from "@destack/schema";
-import { ProcedureRemote } from "../src/client/index.ts";
+import { ObjectConnection } from "../src/client/index.ts";
+import { tapSocket } from "./fixture/socket.ts";
+import { TEST_CONNECTION_URL } from "../src/test/caller.ts";
 import { implementPackage } from "../src/server/index.ts";
 import { testEvents } from "../src/test/index.ts";
 import { defineDatabase } from "@destack/db";
@@ -47,11 +49,7 @@ async function connectNotes(served: Awaited<ReturnType<typeof serveNotes>>) {
         ObjectDescription.of(notebook),
         ObjectDescription.of(note),
     ]);
-    const client = ProcedureRemote.at({
-        environment: served.environment,
-        scope: spaceId,
-        endpoint: served.endpoint(users.alice),
-    });
+    const client = served.connection(users.alice);
 
     return { client, type: typeOf(objects) };
 }
@@ -108,27 +106,24 @@ test("list every row across a server's pages, continuing each from its cursor, a
         ObjectDescription.of(notebook),
         ObjectDescription.of(note),
     ]);
-    const endpoint = served.endpoint(users.alice);
+    const websocket = served.websocket(users.alice);
     const pages: unknown[] = [];
     const type = typeOf(objects);
-    const client = ProcedureRemote.at({
-        environment: served.environment,
+    const client = ObjectConnection.open({
         scope: spaceId,
-        endpoint: {
-            ...endpoint,
-            fetch: async (request: Request) => {
-                const text = await request.text();
-                const page = /"limit":(\d+)/u.exec(text);
-                pages.push([page?.[1], text.includes('"cursor"')]);
+        url: TEST_CONNECTION_URL,
+        authorize: served.authorize(users.alice),
+        websocket: (url, protocols) =>
+            tapSocket(websocket(url, protocols), (frame) => {
+                // record each page a call asks for, and cut it to one row
+                const page = /"limit":(\d+)/u.exec(frame);
+                if (page !== null) {
+                    pages.push([page[1], frame.includes('"cursor"')]);
+                }
 
-                return endpoint.fetch(
-                    new Request(request, {
-                        method: request.method,
-                        body: text.replace(/"limit":\d+/u, '"limit":1'),
-                    }),
-                );
-            },
-        },
+                return frame.replace(/"limit":\d+/u, '"limit":1');
+            }),
+        environment: served.environment,
     });
     const book = Identified.parse(await client.run(type("notebook"), "create", { name: "Travel" }));
     for (const title of ["Maps", "Tickets", "Visas"]) {
@@ -270,11 +265,9 @@ test("read objects of a scope inside the space a client is bound to, refusing a 
 
     // create a shelf, store a bookmark on it, and read the bookmark through a client of the space
     const type = typeOf([shelf, bookmark]);
-    const client = ProcedureRemote.at({
-        environment: world,
+    const client = served.as(users.alice).connect(shelves, {
         scope: spaceId,
-        endpoint: served.as(users.alice).endpoint(shelves),
-        homes: () => served.as(users.alice).endpoint(shelves),
+        homes: (home) => served.as(users.alice).connect(shelves, { scope: home }),
     });
     const created = Identified.parse(
         await client.run(type("shelf"), "create", { name: "Reading" }),

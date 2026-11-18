@@ -82,7 +82,7 @@ import {
     type ScopeRoute,
     type ObjectSchema,
 } from "../method/procedure.ts";
-import { storeProcedures, type ObjectQuery, type StoreProcedures } from "../replica/replica.ts";
+import type { ObjectQuery } from "../replica/replica.ts";
 import { record } from "../trait/record.ts";
 import { series, type SeriesMethodMap } from "../trait/series.ts";
 import {
@@ -1364,11 +1364,6 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
     /** The procedures of the object's methods. */
     get procedures(): ObjectProcedures<ObjectType<Configuration>> {
         return objectProcedures<ObjectType<Configuration>>(this);
-    }
-
-    /** The procedures every object type shares. */
-    get shared(): { readonly store: StoreProcedures } {
-        return { store: storeProcedures };
     }
 
     /** Derive the audit action `Noun.method` recording one method. */

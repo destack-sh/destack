@@ -868,8 +868,8 @@ test("serve the cards of the platform and of an installed package from one store
         { packageId: OTHER_PACKAGE, type: "card" },
     ]);
     expect(store.packages.map((served) => Object.keys(served.router))).toEqual([
-        ["store", "card"],
-        ["store", "card"],
+        ["card"],
+        ["card"],
     ]);
 });
 

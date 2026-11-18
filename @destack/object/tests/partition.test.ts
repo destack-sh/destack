@@ -186,7 +186,7 @@ test("follow an installation's root chain from its machine, and a partition's ch
                 ...(await testServerContext(PackageVersion.of(roomsPackage), spaceId, world)),
                 partition,
                 remote: machine,
-                publisherAt: (address, packageId) => {
+                connect: (address, packageId) => {
                     called.push(`${address} ${packageId}`);
 
                     return root;
@@ -255,7 +255,7 @@ test("list the types a home and a follower decide in the chain subscription, add
             server: {
                 ...(await testServerContext(card.package, spaceId, world)),
                 remote: idles.machine,
-                publisherAt: () => idles.root,
+                connect: () => idles.root,
             },
         });
         const listed = await store.sink.chains(spaceId, Snapshot.live(storage.database));

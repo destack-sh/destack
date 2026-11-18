@@ -7,17 +7,15 @@ import { TestDatabase } from "@destack/db/test";
 import { journal, ViewSubscriber } from "../src/index.ts";
 import { eq, Snapshot } from "@destack/db";
 import { type BrowserDevice, BrowserTab } from "../src/browser/index.ts";
-import { deviceDatabase, deviceWorker } from "./fixture/browser.ts";
+import { deviceDatabase, deviceWorker, holdRemote } from "./fixture/browser.ts";
 import { BrowserSimulation } from "@destack/environment/browser/simulation";
-import { ObjectClient, ProcedureRemote, RelationalQuery } from "../src/client/index.ts";
+import { ObjectClient, RelationalQuery } from "../src/client/index.ts";
 import { nth, schema, present } from "@destack/schema";
 import { RequestId, ObjectReference, type Page } from "@destack/sync";
-import { getEventMeta } from "@destack/object";
 import { note, notebook } from "../src/test/note.ts";
 import { principal } from "@destack/access";
 
 import { serveNotes, spaceId } from "./fixture/device.ts";
-import { unmoved } from "../src/test/space.ts";
 
 /** The feed's heartbeat, after which a caught-up stream publishes its position: 10 s. */
 const HEARTBEAT_MILLISECONDS = 10_000;
@@ -187,7 +185,7 @@ test("store notes private until shared, move them between notebooks and sync the
 });
 
 test("queue notes offline, write batches atomically, drop rejected predictions and rebase", async () => {
-    const { connect, endpoint, database, openDevice, environment } = await serveNotes();
+    const { connect, connection, database, openDevice, environment } = await serveNotes();
     const alice = connect(users.alice);
 
     // queue a notebook and its first note in one offline mutation
@@ -212,12 +210,7 @@ test("queue notes offline, write batches atomically, drop rejected predictions a
         objects: { notebook, note },
         scope: spaceId,
         caller: principal.user.reference("universe", users.alice),
-        remote: ProcedureRemote.at({
-            scope: spaceId,
-            endpoint: endpoint(users.alice),
-            reconnect: unmoved,
-            environment: environment,
-        }),
+        remote: connection(users.alice).at(spaceId),
     });
     expect(await restarted.prediction.pending(restarted.database)).toEqual(queued);
     expect(queued.map((mutation) => mutation.calls)).toEqual([
@@ -444,7 +437,7 @@ test("count a notebook's notes outside the trash, predicted on a device before t
 
 test("share one device between tabs, letting a closed tab's queries lapse and handing it over when the leading tab closes", async () => {
     const simulation = testSimulation();
-    const { connect, endpoint } = await serveNotes({ simulation, node: "browser" });
+    const { connect, connection } = await serveNotes({ simulation, node: "browser" });
     const alice = connect(users.alice);
 
     // share one browser's locks, channel and device worker between tabs
@@ -458,7 +451,7 @@ test("share one device between tabs, letting a closed tab's queries lapse and ha
         objects,
         caller,
         device,
-        endpoint: endpoint(users.alice),
+        remote: (scope: string) => connection(users.alice).at(scope),
         environment,
         served: (opened) => {
             served = opened;
@@ -522,7 +515,7 @@ test("share one device between tabs, letting a closed tab's queries lapse and ha
 
 test("reject a tab's write the home refuses after its device queued it, with the home's failure", async () => {
     const simulation = testSimulation();
-    const { connect, endpoint } = await serveNotes({ simulation, node: "browser" });
+    const { connect, connection } = await serveNotes({ simulation, node: "browser" });
     const alice = connect(users.alice);
     const request = () => ({
         spaceId,
@@ -535,23 +528,13 @@ test("reject a tab's write the home refuses after its device queued it, with the
     const caller = principal.user.reference("universe", users.alice);
     const device = principal.device.reference("universe", "device-browser");
     const released = Promise.withResolvers<void>();
-    const home = endpoint(users.alice);
+    const home = connection(users.alice);
     const worker = deviceWorker({
         database: await deviceDatabase(objects, environment),
         objects,
         caller,
         device,
-        endpoint: {
-            ...home,
-            fetch: async (sent: Request) => {
-                // hold the device's pushes until released
-                if (new URL(sent.url).pathname.endsWith("/store/push")) {
-                    await released.promise;
-                }
-
-                return await present(home.fetch, "the home's fetch")(sent);
-            },
-        },
+        remote: (scope: string) => holdRemote(home.at(scope), released.promise, new Set(["push"])),
         environment,
     });
     const tab = await BrowserTab.open({
@@ -589,7 +572,7 @@ test("reject a tab's write the home refuses after its device queued it, with the
 
 test("forget a closed tab's outcomes on its device once the tab lets go of its party lock", async () => {
     const simulation = testSimulation();
-    const { connect, endpoint } = await serveNotes({ simulation, node: "browser" });
+    const { connect, connection } = await serveNotes({ simulation, node: "browser" });
     const alice = connect(users.alice);
     const request = () => ({
         spaceId,
@@ -602,24 +585,14 @@ test("forget a closed tab's outcomes on its device once the tab lets go of its p
     const caller = principal.user.reference("universe", users.alice);
     const device = principal.device.reference("universe", "device-browser");
     const released = Promise.withResolvers<void>();
-    const home = endpoint(users.alice);
+    const home = connection(users.alice);
     let served: BrowserDevice | undefined;
     const worker = deviceWorker({
         database: await deviceDatabase(objects, environment),
         objects,
         caller,
         device,
-        endpoint: {
-            ...home,
-            fetch: async (sent: Request) => {
-                // hold the device's pushes until released
-                if (new URL(sent.url).pathname.endsWith("/store/push")) {
-                    await released.promise;
-                }
-
-                return await present(home.fetch, "the home's fetch")(sent);
-            },
-        },
+        remote: (scope: string) => holdRemote(home.at(scope), released.promise, new Set(["push"])),
         environment,
         served: (opened) => {
             served = opened;
@@ -742,66 +715,62 @@ test("decide checks on a device as the server decides them, for a group its auth
     expect(device.errors).toEqual([]);
 });
 
-test("resume a store stream from the last event it sent, at that page's position", async () => {
+test("resume a store stream after a page's position without a new snapshot", async () => {
     // run in a world of its own
     const simulation = testSimulation();
-    const world = simulation.environment("test");
-
-    const { connect, endpoint, environment } = await serveNotes({ simulation });
+    const { connect, connection, environment } = await serveNotes({ simulation });
     const alice = connect(users.alice);
     await alice.notebook.create({
         spaceId,
         requestId: RequestId.create(environment),
         name: "Research",
     });
-    const store = ProcedureRemote.procedures(endpoint(users.alice), world);
+    const { store } = connection(users.alice);
     const subscription = {
         name: "access",
         publication: "access",
         scope: spaceId,
         target: spaceId,
         parameters: {},
+        revision: FOLLOWER_REVISION,
     };
 
-    // read a stream's first complete page and the event identifier it came with
-    const complete = async (lastEventId?: string) => {
+    // read a stream's first complete page, from a position or from a snapshot
+    const complete = async (after?: Page["position"]) => {
         const controller = new AbortController();
-        const options = lastEventId === undefined ? {} : { lastEventId };
         const pages = await store.stream(
-            { ...subscription, revision: FOLLOWER_REVISION },
-            { signal: controller.signal, ...options },
+            after === undefined ? subscription : { ...subscription, after },
+            { signal: controller.signal },
         );
         for await (const page of pages) {
             if (page.complete) {
                 controller.abort();
 
-                return { reset: page.reset, position: page.position, id: getEventMeta(page)?.id };
+                return { reset: page.reset, position: page.position };
             }
         }
         throw new TypeError("the stream ended before a complete page");
     };
 
-    // resume a second stream from the first one's event, at its position without starting over
+    // resume a second stream after the first one's position, without starting over
     const first = await complete();
-    const resumed = await complete(first.id);
-    const { log, epoch, sequence } = first.position;
+    const resumed = await complete(first.position);
     expect([first, resumed]).toEqual([
-        { reset: true, position: first.position, id: `${log}/${epoch}/${sequence}` },
-        { reset: false, position: first.position, id: first.id },
+        { reset: true, position: first.position },
+        { reset: false, position: first.position },
     ]);
 });
 
 test("follow a caller's access rows on behalf of the caller itself as without a subject", async () => {
     // run in a world of its own, alice with a notebook
     const simulation = testSimulation();
-    const world = simulation.environment("test");
-    const { connect, endpoint, environment } = await serveNotes({ simulation });
+    const { connect, connection, environment } = await serveNotes({ simulation });
     await connect(users.alice).notebook.create({
         spaceId,
         requestId: RequestId.create(environment),
         name: "Research",
     });
-    const store = ProcedureRemote.procedures(endpoint(users.alice), world);
+    const { store } = connection(users.alice);
     const subscription = {
         name: "access",
         publication: "access",
@@ -837,9 +806,7 @@ test("follow a caller's access rows on behalf of the caller itself as without a 
 test("restart a caller's access stream only on access changes concerning the caller", async () => {
     // run in a world of its own
     const simulation = testSimulation();
-    const world = simulation.environment("test");
-
-    const { connect, endpoint, environment } = await serveNotes({ simulation });
+    const { connect, connection, environment } = await serveNotes({ simulation });
     const alice = connect(users.alice);
     const research = await alice.notebook.create({
         spaceId,
@@ -851,7 +818,7 @@ test("restart a caller's access stream only on access changes concerning the cal
     const controller = new AbortController();
     onTestFinished(() => controller.abort());
     const pages: Page[] = [];
-    const store = ProcedureRemote.procedures(endpoint(users.bob), world);
+    const { store } = connection(users.bob);
     const subscription = {
         name: "access",
         publication: "access",
@@ -887,7 +854,7 @@ test("restart a caller's access stream only on access changes concerning the cal
     await share(users.carol);
 
     // have bob's stream publish the position past carol's share at the feed's next heartbeat, so a restart for it would show first
-    const watermark = await ProcedureRemote.procedures(endpoint(users.alice), world).watermark({
+    const watermark = await connection(users.alice).store.watermark({
         scope: spaceId,
         homes: [],
     });
@@ -1082,7 +1049,7 @@ async function reached<Value>(
 }
 
 test("fail the queries open once the source refuses to follow, and refuse later ones again", async () => {
-    const { endpoint, environment } = await serveNotes();
+    const { connection, environment } = await serveNotes();
 
     // follow a space the store does not serve, as alice
     const storage = await TestDatabase.create(ObjectClient.tables({ notebook, note }), {
@@ -1096,12 +1063,9 @@ test("fail the queries open once the source refuses to follow, and refuse later 
         scope: schema.identifier("space").parse("space-01996ab0-0000-7000-8000-0000000000ff"),
         caller: principal.user.reference("universe", users.alice),
         environment,
-        remote: ProcedureRemote.at({
-            scope: schema.identifier("space").parse("space-01996ab0-0000-7000-8000-0000000000ff"),
-            endpoint: endpoint(users.alice),
-            reconnect: unmoved,
-            environment: environment,
-        }),
+        remote: connection(users.alice).at(
+            schema.identifier("space").parse("space-01996ab0-0000-7000-8000-0000000000ff"),
+        ),
     });
     const stopping = new AbortController();
     const running = client.run(stopping.signal);

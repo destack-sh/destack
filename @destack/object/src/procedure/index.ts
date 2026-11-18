@@ -2,7 +2,6 @@ export { Procedure, type ProcedureAccess, EDITION_HEADER, VERSION_HEADER } from 
 
 /** Describe event streams. */
 export { eventIterator } from "@orpc/contract";
-export { getEventMeta, withEventMeta } from "@orpc/client";
 
 export type {
     AnyContractRouter as ProcedureRouter,

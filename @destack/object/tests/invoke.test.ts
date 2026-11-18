@@ -313,7 +313,10 @@ test("invoke methods as the space in a caller's call, writing objects the caller
 
     // refuse a client pushing a method left out of its routes
     const mutationId = RequestId.create(world);
-    const pushed = createRouterClient(store.router(), { context: context }).store.push({
+    const pushed = createRouterClient(
+        { store: store.procedures() },
+        { context: context },
+    ).store.push({
         scope: spaceId,
         mutations: [
             {

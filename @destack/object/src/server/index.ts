@@ -19,3 +19,4 @@ export * from "./handler.ts";
 export type { ProcedureContext, ProcedureAudit } from "./procedure.ts";
 export * from "./health.ts";
 export * from "./context.ts";
+export { ObjectConnectionAttachment, ObjectConnectionHost } from "./connection.ts";

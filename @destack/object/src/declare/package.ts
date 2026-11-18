@@ -45,8 +45,6 @@ export interface ObjectDeclaration {
     readonly hooks: Readonly<Record<string, readonly string[]>>;
     /** The declaration's procedures. */
     readonly procedures: ProcedureRouter;
-    /** The procedures every declaration of its kind shares. */
-    readonly shared: ProcedureRouter;
     /** Require its members and traits valid, as describing or serving it does. */
     readonly requireValid: () => void;
 }
@@ -161,7 +159,7 @@ export type PackageRouter<Options extends PackageOptions> = Extract<
     Options["objects"] extends readonly ObjectDeclaration[]
         ? {
               readonly [Each in Options["objects"][number] as RouteOf<Each>]: Each["procedures"];
-          } & Options["objects"][number]["shared"]
+          }
         : {},
     ProcedureRouter
 >;
@@ -291,7 +289,7 @@ function handleOf<const Options extends PackageOptions, Identity extends object>
         ...(options.since === undefined ? {} : { since: Version.parse(options.since) }),
         get router(): PackageRouter<Options> {
             router ??= mapValues<Record<string, unknown>, PackageRouter<Options>>(
-                routeObjects(owner, objects),
+                routeObjects(objects),
                 (procedures) => procedures,
             );
 
@@ -367,27 +365,13 @@ export function defineMount<const Name extends string>(
     });
 }
 
-/** Route each declaration under its name, with the shared procedures once. */
+/** Route each declaration under its name. */
 function routeObjects(
-    owner: PackageVersion,
     objects: Readonly<Record<string, ObjectDeclaration>>,
 ): Record<string, unknown> {
-    // route each declaration under its name and collect the shared procedures
-    const derived: Record<string, unknown> = {};
-    const shared: Record<string, unknown> = {};
-    for (const [key, declaration] of Object.entries(objects)) {
-        derived[key] = declaration.procedures;
-        Object.assign(shared, declaration.shared);
-    }
-
-    // refuse a name taken twice
-    const taken = [...Object.keys(objects), ...Object.keys(shared)];
-    const collision = taken.find((key, position) => taken.indexOf(key) !== position);
-    if (collision !== undefined) {
-        throw new TypeError(`package '${owner.name}' routes two procedures under '${collision}'`);
-    }
-
-    return Object.assign(derived, shared);
+    return Object.fromEntries(
+        Object.entries(objects).map(([key, declaration]) => [key, declaration.procedures]),
+    );
 }
 
 /** Key declarations by their names, refusing two of one name. */

@@ -9,7 +9,7 @@ import type { DatabaseConnection } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
 import { Identifier, schema } from "@destack/schema";
 import { testCallKey } from "@destack/object/test";
-import { ObjectClient, ProcedureRemote } from "../src/client/index.ts";
+import { ObjectClient, ObjectConnection } from "../src/client/index.ts";
 import { defineObject, field } from "../src/index.ts";
 import { testEvents, serversOf } from "../src/test/index.ts";
 import { serveNotes, spaceId } from "./fixture/device.ts";
@@ -22,6 +22,12 @@ import { TestObjectStore } from "../src/test/index.ts";
 import { shareable } from "../src/index.ts";
 import { argument, plural, t } from "@destack/locale";
 import { testWorldOptions } from "@destack/test/world";
+
+/** The connection URL of the machine the space moves from. */
+const SOURCE_URL = "wss://source.test/store/connect";
+
+/** The connection URL of the machine the space moves to. */
+const TARGET_URL = "wss://target.test/store/connect";
 
 /** A labelled marker of a space, whose label stays editable while the space moves. */
 const marker = defineObject(
@@ -71,15 +77,18 @@ test("send a client's writes on to the machine serving a moved scope", async () 
         objects: { notebook, note },
         scope: spaceId,
         caller: principal.user.reference("universe", users.alice),
-        remote: ProcedureRemote.at({
+        remote: ObjectConnection.open({
             scope: spaceId,
-            endpoint: source.endpoint(users.alice),
-            reconnect: (machine) => {
+            url: SOURCE_URL,
+            authorize: source.authorize(users.alice),
+            machine: (machine) => {
                 machines.push(machine);
 
-                return target.endpoint(users.alice);
+                return TARGET_URL;
             },
-            environment: environment,
+            websocket: (url, protocols) =>
+                (url === TARGET_URL ? target : source).websocket(users.alice)(url, protocols),
+            environment,
         }),
     });
     const stopping = new AbortController();
@@ -97,6 +106,67 @@ test("send a client's writes on to the machine serving a moved scope", async () 
         await titles(source.database),
         await titles(target.database),
     ]).toEqual([[moved], [], [], ["Ideas"]]);
+});
+
+test("follow a moved scope to its machine on a socket of its own, leaving the origin's to other scopes", async () => {
+    // serve the space on its source and on the machine it moves to, and fence the source
+    await using simulation = new Simulation({
+        world: testWorldOptions(),
+        seed: 1,
+        start: Date.UTC(2026, 9, 1),
+    });
+    const source = await serveNotes({ simulation, node: "source" });
+    const target = await serveNotes({ simulation, node: "target" });
+    const { clock, environment } = source;
+    const world = testSimulation().environment("test");
+    const moved = Identifier.create("machine", world);
+    await Transaction.run(source.database, (transaction) =>
+        Scope.fence(transaction, spaceId, moved, clock.now()),
+    );
+
+    // connect the space and another scope of the origin over one socket, recording each opening
+    const opened: string[] = [];
+    const connection = ObjectConnection.open({
+        scope: spaceId,
+        url: SOURCE_URL,
+        authorize: source.authorize(users.alice),
+        machine: () => TARGET_URL,
+        websocket: (url, protocols) => {
+            opened.push(url);
+
+            return (url === TARGET_URL ? target : source).websocket(users.alice)(url, protocols);
+        },
+        environment,
+    });
+    onTestFinished(() => connection.close());
+    const other = connection.at(Identifier.create("space", world));
+
+    // describe through the other scope, then push the moved space's note, then describe again
+    await other.describe();
+    const storage = await TestDatabase.create(ObjectClient.tables({ notebook, note }), {
+        environment,
+        dialect: "sqlite",
+    });
+    onTestFinished(() => storage.close());
+    const client = await ObjectClient.open({
+        environment,
+        database: storage.database,
+        objects: { notebook, note },
+        scope: spaceId,
+        caller: principal.user.reference("universe", users.alice),
+        remote: connection,
+    });
+    const stopping = new AbortController();
+    const running = client.run(stopping.signal);
+    onTestFinished(async () => {
+        stopping.abort();
+        await running;
+    });
+    await client.mutate(note).create({ title: "Ideas" }).confirmed;
+    await other.describe();
+
+    // expect one socket at each machine: the other scope stays on the origin's
+    expect([opened, await titles(target.database)]).toEqual([[SOURCE_URL, TARGET_URL], ["Ideas"]]);
 });
 
 test("allow the calls of moving permissions in a fenced scope and refuse every other call", async () => {

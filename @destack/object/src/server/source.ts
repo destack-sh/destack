@@ -29,7 +29,6 @@ import {
 import { canonicalize, Duration, present, schema } from "@destack/schema";
 import { CallError } from "../error/call.ts";
 import { type RequestContext } from "./context.ts";
-import { withEventMeta } from "../procedure/index.ts";
 import { RelationGraph } from "../query/query.ts";
 import * as sync from "@destack/sync";
 import {
@@ -873,7 +872,7 @@ export class ObjectSource {
         try {
             for await (const page of subscribed) {
                 const read = [...new Set([...audience.chain, ...held.map((each) => each.scope)])];
-                yield ObjectSource.#marked({ ...page, scopes: read });
+                yield { ...page, scopes: read };
             }
         } finally {
             watching.abort();
@@ -1055,10 +1054,13 @@ export class ObjectSource {
             );
             const watching = this.#watchAccess(audience, since, revised, signal);
 
-            // follow until access changes, and from a snapshot after
-            yield* follow(audience, signal, isFirst);
-            revised.abort();
-            await watching;
+            // follow until access changes, and from a snapshot after, ending the watch however the follow ends
+            try {
+                yield* follow(audience, signal, isFirst);
+            } finally {
+                revised.abort();
+                await watching;
+            }
             isFirst = false;
         }
     }
@@ -1937,22 +1939,13 @@ export class ObjectSource {
         marks: Pick<sync.Page, "scopes" | "subjects">,
     ): AsyncGenerator<sync.Page> {
         for await (const page of pages) {
-            yield ObjectSource.#marked({ ...page, ...marks });
+            yield { ...page, ...marks };
         }
     }
 
     /** Read the tracker topic of a scope's object events. */
     static #eventTopic(scope: string): string {
         return `event/${scope}`;
-    }
-
-    /** Mark a completed page with its position as event identifier, for resumed streams. */
-    static #marked(page: sync.Page): sync.Page {
-        return page.complete
-            ? withEventMeta(page, {
-                  id: `${page.position.log}/${page.position.epoch}/${page.position.sequence}`,
-              })
-            : page;
     }
 
     /** Widen each query to the scopes a held replica has rows of a table of its tree for. */

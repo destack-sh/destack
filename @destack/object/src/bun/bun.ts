@@ -6,7 +6,7 @@ import {
     type Server,
 } from "@destack/environment";
 import { ObjectError } from "../error/error.ts";
-import { type HibernationHost, SOCKET_HEADER } from "../workload/socket.ts";
+import type { HibernationHost } from "../workload/socket.ts";
 
 import { observeProcess, startTelemetry } from "@destack/telemetry/bun";
 import type { Telemetry, TelemetryOptions } from "@destack/telemetry/sdk";
@@ -106,18 +106,13 @@ function listen(server: Server, endpoint: BunEndpoint): Pick<Listener, "url" | "
         });
     }
 
-    // hibernate the WebSockets the instances accept
+    // keep the WebSockets the instances accept
+    const listening = hibernation.listen(async (request) => endpoint.fetch(request));
+
     return server.http({
         ...address,
-        fetch: async (request, peer) => {
-            // answer the request, and hibernate the socket of an accepted upgrade
-            const answer = await endpoint.fetch(received(request, peer));
-            const isAccepted =
-                request.headers.get("upgrade") === "websocket" && answer.headers.has(SOCKET_HEADER);
-
-            return isAccepted ? hibernation.accept(answer) : answer;
-        },
-        websocket: hibernation.websocket,
+        fetch: (request, peer) => listening.fetch(received(request, peer)),
+        websocket: listening.websocket,
     });
 }
 

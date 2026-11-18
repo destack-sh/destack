@@ -71,7 +71,7 @@ const serverIn = async (world: Environment): Promise<ServerContext> => ({
         Promise.reject(new Error(`the fixture sends no request to '${request.url}'`)),
     url: "https://notes--home.test",
     remote,
-    publisherAt: () => remote,
+    connect: () => remote,
     at: (address) => ({
         url: address,
         fetch: () => Promise.reject(new Error("the fixture installation cannot call an address")),

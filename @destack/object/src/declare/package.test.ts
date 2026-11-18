@@ -8,14 +8,6 @@ import { defineInstallationBinding } from "./binding.ts";
 import { Capability } from "./description.ts";
 import { t } from "@destack/locale";
 
-/** A procedure every object type shares. */
-const push = Procedure.of({
-    package: PackageVersion.of(import.meta.destack.package),
-    authentication: "identity",
-    permission: { principals: [principal.user, principal.machine, principal.installation] },
-    audit: false,
-});
-
 /** A procedure of the note type. */
 const create = Procedure.of({
     package: PackageVersion.of(import.meta.destack.package),
@@ -24,14 +16,13 @@ const create = Procedure.of({
     audit: false,
 });
 
-/** A note type routing a separate create beside the shared push. */
+/** A note type routing a create. */
 const note: ObjectDeclaration = {
     package: { name: "@destack/object" },
     name: "note",
     typeReference: { packageId: "package-01a0d462-1b26-7401-be27-6258e0a32141", type: "note" },
     hooks: {},
     procedures: { create },
-    shared: { replica: { push } },
     requireValid: () => {},
 };
 
@@ -58,7 +49,7 @@ test("declare a package handle with its identity, the router its objects derive,
         identity: ["package-01a0d462-1b26-7401-be27-6258e0a32141", "@destack/object"],
         declaring: { id: handle.id, name: handle.name, version: handle.version },
         since: "2026.9.0",
-        routes: ["note", "replica"],
+        routes: ["note"],
         mounts: {
             npm: { package: declaring, name: "npm", path: "/npm" },
             hook: {
@@ -165,17 +156,7 @@ test("refuse a name taken twice in one namespace, resources and secrets sharing 
     ]);
 });
 
-test("refuse routing an object type under the name of shared procedures, and route each name once", () => {
-    // refuse a type taking the shared name
-    expect(
-        () =>
-            definePackage({
-                ...testIdentity,
-                objects: [{ ...note, name: "replica" }],
-            }).router,
-    ).toThrow(new TypeError("package '@destack/object' routes two procedures under 'replica'"));
-
-    // route each type and the shared procedures once
+test("route each object type under its name", () => {
     const notebook = { ...note, name: "notebook" };
     expect(
         Object.keys(
@@ -184,7 +165,7 @@ test("refuse routing an object type under the name of shared procedures, and rou
                 objects: [note, notebook],
             }).router,
         ),
-    ).toEqual(["note", "notebook", "replica"]);
+    ).toEqual(["note", "notebook"]);
 });
 
 test("bundle what a capability needs: its sandbox abilities, permissions and features", () => {

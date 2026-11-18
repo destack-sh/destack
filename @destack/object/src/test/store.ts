@@ -14,9 +14,9 @@ import { TOKEN_LIFETIME_MILLISECONDS } from "@destack/access/token";
 import { TestAccess } from "@destack/access/test";
 import { connectBunSqlite } from "@destack/db/bun";
 import { TestDatabase } from "@destack/db/test";
-import { Clock, type Environment } from "@destack/environment";
+import { Clock, type Environment, WebSocketUpgrade } from "@destack/environment";
 import { Simulation, SimulatedScheduler } from "@destack/environment/simulation";
-import { PackageVersion, type PackageId } from "@destack/package";
+import { PackageVersion, PackageId } from "@destack/package";
 import { ResourceContext } from "@destack/resource/context";
 import { Identifier, present } from "@destack/schema";
 import {
@@ -30,6 +30,7 @@ import { ObjectType } from "../object/object.ts";
 import type { Package } from "../declare/package.ts";
 import { Health } from "../server/health.ts";
 import { type PackageHandler, Server } from "../server/http.ts";
+import type { ClientSocket } from "@destack/environment";
 import {
     implementPackage,
     type PackageImplementation,
@@ -43,6 +44,7 @@ import { tablesOf } from "../stack/db.ts";
 import objectPackage from "../package.ts";
 import { TestBearer } from "./bearer.ts";
 import { TestCaller, type TestScope } from "./caller.ts";
+import { ObjectConnectionHost } from "../server/connection.ts";
 import { testCallKey } from "./context.ts";
 import { testEvents } from "./events.ts";
 
@@ -119,6 +121,8 @@ export class TestObjectStore implements TestScope, AsyncDisposable {
     readonly #servers = new Map<PackageId, Server>();
     /** The handler each server serves. */
     readonly #handlers = new WeakMap<Server, PackageHandler>();
+    /** The connections' sockets, kept in this process. */
+    readonly #sockets: ObjectConnectionHost;
     /** The replaced servers still draining. */
     readonly #draining = new Set<Promise<void>>();
     /** How its callers prove who they are. */
@@ -160,6 +164,9 @@ export class TestObjectStore implements TestScope, AsyncDisposable {
         this.#disposables = run.disposables;
         this.#scopes = run.scopes;
         this.telemetry = worldTelemetry(store.environment);
+
+        // keep the connections' sockets in this process, as a machine's listener does
+        this.#sockets = new ObjectConnectionHost(store.environment.telemetry);
 
         // run the store's jobs, failing the world once the loop fails
         this.#running = store
@@ -210,6 +217,7 @@ export class TestObjectStore implements TestScope, AsyncDisposable {
 
     /** Start the server of a package's handler. */
     #start(handler: PackageHandler): void {
+        // start the server, keeping its connections' sockets in this process
         const server = Server.start({
             environment: this.store.environment,
             ...handler,
@@ -218,11 +226,13 @@ export class TestObjectStore implements TestScope, AsyncDisposable {
             resources: new ResourceContext(),
             health: new Health(handler.package.name),
             drainTimeout: DRAIN_MILLISECONDS,
+            hibernation: this.#sockets.hibernation,
             // add no host requirement, as a host serving no machines or installations
             authorizeMachine: async () => {},
             authenticate: (request) => this.#credential.authenticate(request, handler.package.id),
         });
         this.#servers.set(handler.package.id, server);
+        this.#sockets.serve(handler.package.id, server);
         this.#handlers.set(server, handler);
     }
 
@@ -462,6 +472,20 @@ export class TestObjectStore implements TestScope, AsyncDisposable {
                     now: store.clock.now(),
                 }),
         };
+    }
+
+    /** Open a socket to a package's server, its upgrade signed as a caller. */
+    open(
+        handle: Package,
+        signer: TestSigner,
+        url: string,
+        protocols: readonly string[],
+    ): ClientSocket {
+        return this.#sockets.open(
+            async (upgrade) =>
+                this.simulation.wait(this.server(handle).fetch(await this.sign(upgrade, signer))),
+            WebSocketUpgrade.to(url, protocols),
+        );
     }
 
     /** Sign a request as a caller of a package with the callers' credential. */

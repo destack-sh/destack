@@ -550,10 +550,6 @@ export class Catalog {
             return new TypeError(
                 `${earlierDescription} and ${laterDescription} both implement ${type.name} objects of '${type.package.id}'`,
             );
-        } else if (Object.hasOwn(type.shared, type.key)) {
-            return new TypeError(
-                `object ${type.name} has the same name as the shared '${type.key}' procedures`,
-            );
         }
         // refuse a local type outside the scope of the store's principal and device
         else if (

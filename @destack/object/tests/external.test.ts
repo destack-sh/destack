@@ -12,11 +12,11 @@ import { subjectContext, testCallKey } from "@destack/object/test";
 import { testEvents, serversOf } from "../src/test/index.ts";
 import { expect, onTestFinished, test } from "@destack/test";
 import { implementPackage } from "../src/server/index.ts";
-import { ObjectClient, ProcedureRemote } from "../src/client/index.ts";
+import { ObjectClient } from "../src/client/index.ts";
 import { definePackage, type MethodVisibility } from "@destack/object";
 import { notebook, notesPackage } from "../src/test/note.ts";
 import objectPackage from "../src/package.ts";
-import { openSpace, space, unmoved, spacePrincipal } from "../src/test/space.ts";
+import { openSpace, space, spacePrincipal } from "../src/test/space.ts";
 import { tablesOf } from "../src/index.ts";
 import { TestObjectStore } from "../src/test/index.ts";
 import { nested } from "../src/index.ts";
@@ -211,12 +211,7 @@ test("read external objects named by their key from the database their files ope
         objects: { notebook, entry },
         scope: spaceId,
         caller: principal.user.reference("universe", users.alice),
-        remote: ProcedureRemote.at({
-            scope: spaceId,
-            endpoint: served.as(users.alice).endpoint(notebooks),
-            reconnect: unmoved,
-            environment: world,
-        }),
+        remote: served.as(users.alice).connect(notebooks, { scope: spaceId }),
     });
     const stopping = new AbortController();
     const running = client.run(stopping.signal);

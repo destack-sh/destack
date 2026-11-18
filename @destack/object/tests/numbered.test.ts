@@ -5,10 +5,8 @@ import { RequestId, Scope } from "@destack/sync";
 import { expect, refusal, test } from "@destack/test";
 import { Snapshot } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
-import type { ClientOptions } from "@destack/object/client";
 import type { Identifier } from "@destack/schema";
-import { ObjectClient, ProcedureRemote } from "../src/client/index.ts";
-import { unmoved } from "../src/test/space.ts";
+import { ObjectClient, type ObjectConnection } from "../src/client/index.ts";
 import { onTestFinished } from "@destack/test";
 import { present, schema } from "@destack/schema";
 import {
@@ -347,9 +345,9 @@ test("leave an order created on a device unnumbered until its store numbers it, 
         scope: space.reference(Scope.universe.id, "space-01996ab0-0000-7000-8000-000000000324"),
         owners: [principal.user.reference(Scope.universe.id, users.alice)],
     });
-    const endpoint = objects.as(users.alice).endpoint(issuesPackage);
-    const laptop = await openDevice(objects.environment, objects.scope, users.alice, endpoint);
-    const phone = await openDevice(objects.environment, objects.scope, users.alice, endpoint);
+    const connection = () => objects.as(users.alice).connect(issuesPackage);
+    const laptop = await openDevice(objects.environment, objects.scope, users.alice, connection());
+    const phone = await openDevice(objects.environment, objects.scope, users.alice, connection());
 
     // create an order on each, unnumbered while predicted
     const first = laptop.client.mutate(order).create({ total: 40 });
@@ -437,7 +435,7 @@ async function openDevice(
     world: Environment,
     scope: string,
     user: Identifier<"user">,
-    endpoint: ClientOptions,
+    remote: ObjectConnection,
 ) {
     // create the local database and replicate the space's orders in it
     const storage = await TestDatabase.create(ObjectClient.tables({ order }), {
@@ -451,12 +449,7 @@ async function openDevice(
         objects: { order },
         scope,
         caller: principal.user.reference("universe", user),
-        remote: ProcedureRemote.at({
-            scope: scope,
-            endpoint,
-            reconnect: unmoved,
-            environment: world,
-        }),
+        remote,
     });
     client.query.order.findMany().subscribe();
     const controller = new AbortController();

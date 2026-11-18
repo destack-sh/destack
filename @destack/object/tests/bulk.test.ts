@@ -12,10 +12,10 @@ import { schema, nth, type Identifier } from "@destack/schema";
 import { RequestId, ObjectReference, Scope } from "@destack/sync";
 import { testCallKey } from "@destack/object/test";
 import { testEvents, serversOf } from "../src/test/index.ts";
-import { ObjectClient, ProcedureRemote } from "../src/client/index.ts";
+import { ObjectClient } from "../src/client/index.ts";
 import { defineObject, field } from "../src/index.ts";
 import { implementPackage } from "../src/server/index.ts";
-import { openSpace, space, spacePrincipal, unmoved } from "../src/test/space.ts";
+import { openSpace, space, spacePrincipal } from "../src/test/space.ts";
 import { userContext, users, userName } from "./fixture/user.ts";
 import { request, type RequestInput } from "./fixture/request.ts";
 import { Environment } from "@destack/environment";
@@ -277,12 +277,7 @@ test("undo a bulk creation by deleting each created object on the device and the
         objects: { label },
         scope: spaceId,
         caller: principal.user.reference("universe", users.alice),
-        remote: ProcedureRemote.at({
-            scope: spaceId,
-            endpoint: served.as(users.alice).endpoint(labels),
-            reconnect: unmoved,
-            environment: world,
-        }),
+        remote: served.as(users.alice).connect(labels, { scope: spaceId }),
     });
     client.queryType(label).findMany().subscribe();
     const stopping = new AbortController();
@@ -350,8 +345,8 @@ test("run a sent createMany once though it arrives twice, replaying its request"
         ],
     };
     const user = principal.user.reference("universe", users.frank);
-    await ObjectRemote.run(store.remote, spaceId, sent, user);
-    await ObjectRemote.run(store.remote, spaceId, sent, user);
+    await ObjectRemote.mutate(store.remote, spaceId, sent, user);
+    await ObjectRemote.mutate(store.remote, spaceId, sent, user);
 
     expect(await read()).toEqual(["frank blue blue live", "frank red red live"]);
 });

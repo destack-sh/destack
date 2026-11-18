@@ -1,5 +1,5 @@
 import type { Simulation } from "@destack/environment/simulation";
-import type { Environment } from "@destack/environment";
+import type { ClientSocket, Environment } from "@destack/environment";
 import type { Example } from "@destack/package/declare";
 import { principal, universe } from "@destack/access";
 import { schema } from "@destack/schema";
@@ -11,9 +11,17 @@ import { MethodContext } from "../method/context.ts";
 import type { Client, ProcedureRouter } from "../procedure/index.ts";
 import type { Server } from "../server/http.ts";
 import type { TestSigner } from "./store.ts";
+import {
+    CONNECTION_PATH,
+    type ConnectionOptions,
+    ObjectConnection,
+} from "../replica/connection.ts";
 
 /** The origin test clients address the servers at, which no request leaves the process for. */
-const TEST_ORIGIN = "https://objects.test";
+export const TEST_ORIGIN = "https://objects.test";
+
+/** The URL test connections open at, below the test origin. */
+export const TEST_CONNECTION_URL = `wss://objects.test${CONNECTION_PATH}`;
 
 /** A scope test callers call: its packages' servers and their object types. */
 export interface TestScope {
@@ -35,6 +43,13 @@ export interface TestScope {
     ) => { readonly type: ObjectType; readonly handle: Package } | undefined;
     /** Sign a request as a caller of a package. */
     readonly sign: (request: Request, signer: TestSigner) => Promise<Request>;
+    /** Open a socket to a package's server, its upgrade signed as a caller. */
+    readonly open: (
+        handle: Package,
+        signer: TestSigner,
+        url: string,
+        protocols: readonly string[],
+    ) => ClientSocket;
 }
 
 /** A caller of a served scope, calling through typed clients and making examples' calls. */
@@ -109,6 +124,37 @@ export class TestCaller {
                 return this.#scope.simulation.wait(answer());
             },
         };
+    }
+
+    /** Open sockets to a package's server, each upgrade signed as the caller. */
+    websocket(handle: Package): (url: string, protocols: readonly string[]) => ClientSocket {
+        return (url, protocols) => this.#scope.open(handle, this.#signer(handle), url, protocols);
+    }
+
+    /** Sign a connection's upgrade and each call as the caller, fresh each time. */
+    authorize(handle: Package): (request: Request) => Promise<Request> {
+        return (request) => this.#scope.sign(request, this.#signer(handle));
+    }
+
+    /** Describe the caller signing for a package. */
+    #signer(handle: Package): TestSigner {
+        return { subject: this.subject, audience: handle.id, isSteppedUp: this.#isSteppedUp };
+    }
+
+    /** Connect to the store through a package's server, following the scope served by default. */
+    connect(
+        handle: Package,
+        options: Omit<ConnectionOptions, "url" | "authorize" | "websocket" | "environment"> = {
+            scope: this.#scope.scope,
+        },
+    ): ObjectConnection {
+        return ObjectConnection.open({
+            ...options,
+            url: TEST_CONNECTION_URL,
+            authorize: this.authorize(handle),
+            websocket: this.websocket(handle),
+            environment: this.#scope.environment,
+        });
     }
 
     /** Make a call through the client of its type's package, answering its parsed result. */

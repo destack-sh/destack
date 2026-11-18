@@ -11,9 +11,24 @@ import type { ProcedureRouter } from "../procedure/index.ts";
 
 import { refusal, reportError } from "../error/report.ts";
 import { BOOKMARK_HEADER, type Bookmark } from "../procedure/bookmark.ts";
-import { LINK_SECRET_HEADER, RequestContext, type ServerAccess } from "./context.ts";
+import {
+    LINK_SECRET_HEADER,
+    RequestContext,
+    type RequestContextOptions,
+    type ServerAccess,
+} from "./context.ts";
+import { ObjectConnectionServer, type ObjectConnectionAttachment } from "./connection.ts";
+import {
+    CONNECTION_PING,
+    CONNECTION_PONG,
+    CONNECTION_PROTOCOL,
+    CONNECTION_SCOPE_PARAMETER,
+    ObjectConnection,
+} from "../replica/connection.ts";
+import type { Hibernation, SocketHandler } from "../workload/socket.ts";
 import type { ProcedureContext } from "./procedure.ts";
 import { copyRequest, type Environment, LONGEST_DELAY } from "@destack/environment";
+import { Uuid } from "@destack/schema";
 
 import type {} from "@destack/package/import-meta";
 
@@ -41,6 +56,11 @@ export class Server implements AsyncDisposable {
     #readiness?: Promise<void>;
     /** The lapse of each credential in use by its key and expiry, one timer per credential. */
     readonly #lapses = new Map<string, AbortSignal>();
+    /** The open connections by their sockets' identifiers, each with its upgrade's request. */
+    readonly #connections = new Map<
+        string,
+        { readonly connection: ObjectConnectionServer; readonly controller: AbortController }
+    >();
 
     /** Wait until the server stopped. */
     get stopped(): Promise<void> {
@@ -138,8 +158,8 @@ export class Server implements AsyncDisposable {
         await this.health.waitUp(window).catch(() => undefined);
     }
 
-    /** Serve a request, as a caller verified elsewhere in this process where one is given. */
-    async fetch(request: Request, authentication?: Authentication): Promise<Response> {
+    /** Serve a request, each of its calls as the caller a voucher in this process vouches for. */
+    async fetch(request: Request, voucher?: Voucher): Promise<Response> {
         // answer probes
         const probe = this.health.probe(request);
         if (probe) {
@@ -165,8 +185,16 @@ export class Server implements AsyncDisposable {
             // dispatch authenticated protocols or procedures
             const accepted = copyRequest(request, { signal });
             this.#requests.set(controller, accepted);
-            const context = await this.#authenticate(accepted, authentication);
+            const verified = await this.#authenticate(accepted, voucher);
             signal.throwIfAborted();
+
+            // accept a connection, which stays open as one request until its socket closes
+            if (ObjectConnection.isUpgrade(accepted)) {
+                return this.#headers(this.#connect(accepted, verified, controller, voucher));
+            }
+
+            // dispatch a request
+            const context = new RequestContext(accepted, verified);
             const response = await this.#dispatch(accepted, context);
 
             return this.#respond(this.#headers(response), controller, signal);
@@ -181,6 +209,116 @@ export class Server implements AsyncDisposable {
             // answer the failure as a refusal, with when to retry
             return this.#headers(refusal(error, this.#options.environment.telemetry));
         }
+    }
+
+    /** Take the connections' frames and closes from the host that keeps their sockets. */
+    get sockets(): SocketHandler {
+        return {
+            message: async (socket, message) => {
+                const connection = this.#connections.get(socket.id)?.connection;
+                // close a socket the server no longer serves, as after hibernation, for its client to resume
+                if (connection === undefined) {
+                    socket.close();
+                }
+                // refuse a binary frame
+                else if (typeof message !== "string") {
+                    throw ObjectError.of(
+                        "FRAME_INVALID",
+                        "frame is invalid: a connection takes JSON text frames",
+                    );
+                }
+                // start the frame's call
+                else {
+                    connection.message(message);
+                }
+            },
+            close: (socket) => this.#end(socket.id),
+        };
+    }
+
+    /** End a connection once: close its socket, wait for its calls, then release its request. */
+    async #end(id: string): Promise<void> {
+        // end a connection still open
+        const open = this.#connections.get(id);
+        if (open === undefined) {
+            return;
+        }
+        this.#connections.delete(id);
+
+        // close its socket, let its calls and follows finish, then release the upgrade's request from the drain
+        open.connection.socket.close();
+        await open.connection.close();
+        this.#finish(open.controller);
+    }
+
+    /** Accept a connection's upgrade, closing it as the server drains. */
+    #connect(
+        upgrade: Request,
+        verified: RequestContextOptions,
+        controller: AbortController,
+        voucher: Voucher | undefined,
+    ): Response {
+        // require procedures to connect to and a host that keeps sockets
+        const { hibernation } = this.#options;
+        const handler = this.#handler.connections;
+        if (handler === undefined) {
+            throw ObjectError.of(
+                "CONNECTION_NOT_FOUND",
+                `connection not found: package '${this.#options.package.id}' serves no store`,
+            );
+        } else if (hibernation === undefined) {
+            throw ObjectError.of(
+                "CONNECTION_UNAVAILABLE",
+                "connection is unavailable: the server's host keeps no sockets",
+            );
+        }
+
+        // refuse a connection confined to a scope outside its credential's, then serve its calls
+        Server.#confine(upgrade, verified);
+        const id = Uuid.v7(this.#options.environment);
+        const attachment: ObjectConnectionAttachment = {
+            connection: this.#options.package.id,
+        };
+        const socket = hibernation.socket({ id, attachment });
+        const connection = new ObjectConnectionServer(
+            socket,
+            upgrade,
+            handler,
+            this.#options.environment.telemetry,
+            async (request) =>
+                // vouch for an in-process caller again at each call, and verify any other call's own credential
+                Server.#confine(upgrade, await this.#authenticate(request, voucher)),
+        );
+        this.#connections.set(id, { connection, controller });
+
+        // end the connection as the server drains, its follows ending at their sessions' lapses
+        this.#draining.signal.addEventListener("abort", () => void this.#end(id), { once: true });
+
+        // answer the client's liveness pings at the host, without waking the server
+        return hibernation.accept({
+            id,
+            attachment,
+            protocol: CONNECTION_PROTOCOL,
+            respond: { request: CONNECTION_PING, response: CONNECTION_PONG },
+        });
+    }
+
+    /** Confine a connection to the scope its upgrade names, inside its credential's own scope. */
+    static #confine(upgrade: Request, verified: RequestContextOptions): RequestContextOptions {
+        // take the credential's scope without a named one
+        const confined = new URL(upgrade.url).searchParams.get(CONNECTION_SCOPE_PARAMETER);
+        if (confined === null) {
+            return verified;
+        }
+        // refuse a scope outside the credential's
+        else if (verified.scope !== undefined && verified.scope !== confined) {
+            throw ObjectError.of(
+                "SCOPE_OUTSIDE_REQUEST_NOT_FOUND",
+                `scope '${confined}' in the request's scope not found`,
+            );
+        }
+
+        return { ...verified, scope: confined };
     }
 
     /** Dispatch an authenticated request to a protocol the server routes or to a procedure. */
@@ -243,17 +381,18 @@ export class Server implements AsyncDisposable {
     /** Authenticate a request, or take a caller verified elsewhere in this process. */
     async #authenticate(
         request: Request,
-        given: Authentication | undefined,
-    ): Promise<RequestContext> {
+        voucher: Voucher | undefined,
+    ): Promise<RequestContextOptions> {
         // read the server's options and its drain
         const options = this.#options;
         const draining = this.#draining.signal;
 
-        // take the given caller, else authenticate the request, and require it current for the package or a protocol it implements
+        // take the caller a voucher in this process vouches for, else verify the call's own credential, and require it current for the package or a protocol it implements
         let audience: PackageId = options.package.id;
         let authenticated: Authentication | undefined;
         let authenticationError: Error | undefined;
         try {
+            const given = await voucher?.(request);
             const verified = given ?? (await options.authenticate(request));
             if (verified !== undefined) {
                 const { credential } = verified;
@@ -284,7 +423,7 @@ export class Server implements AsyncDisposable {
         const linkSecrets = await Server.#linkSecrets(request, this.#options.environment.crypto);
         const scope = Server.#scopeOf(options.scopes, authenticated?.credential.scope);
 
-        return new RequestContext(request, {
+        return {
             audience,
             ...(scope === undefined ? {} : { scope }),
             ...(authenticated === undefined ? {} : { authentication: authenticated }),
@@ -297,7 +436,7 @@ export class Server implements AsyncDisposable {
             ...(authenticated === undefined
                 ? {}
                 : { lapse: this.#lapseOf(authenticated.credential) }),
-        });
+        };
     }
 
     /** Read the signal a credential's lapse aborts, shared by its requests until it lapses. */
@@ -549,7 +688,12 @@ export interface ServerOptions extends PackageHandler {
     readonly authorizeMachine: (call: ProcedureContext<RequestContext>) => Promise<void>;
     /** The longest drain, in milliseconds. */
     drainTimeout: number;
+    /** The host's keeping of the connections' sockets, absent for a host without sockets. */
+    readonly hibernation?: Hibernation;
 }
+
+/** Vouch for an in-process caller at one call, absent for an anonymous one. */
+export type Voucher = (call: Request) => Promise<Authentication | undefined>;
 
 /** The procedures and enforcement of a package. */
 export interface PackageHandler extends Omit<

@@ -3,6 +3,7 @@ import { isCallError } from "../error/call.ts";
 import { reportError } from "../error/report.ts";
 import { ObjectError } from "../error/error.ts";
 import { OpenAPIHandler, type OpenAPIHandlerOptions } from "@orpc/openapi/fetch";
+import { StandardRPCHandler } from "@orpc/server/standard";
 import {
     type AnyProcedure,
     isProcedure,
@@ -50,6 +51,8 @@ export { createRouterClient, implement } from "@orpc/server";
 export class RequestHandler<State extends RequestState> extends OpenAPIHandler<State> {
     /** The health. */
     readonly health: Health;
+    /** The procedures a connection calls, checked and traced as requests are, absent for none. */
+    readonly connections: StandardRPCHandler<State> | undefined;
 
     /** Create the handler. */
     constructor(router: Router<ProcedureRouter, State>, options: HandlerOptions<State>) {
@@ -81,6 +84,37 @@ export class RequestHandler<State extends RequestState> extends OpenAPIHandler<S
             adapterInterceptors: [...(options.adapterInterceptors ?? [])],
         });
         this.health = options.health;
+
+        // dispatch a connection's calls through the same release checks and call interceptors
+        const { connections } = options;
+        this.connections =
+            connections === undefined
+                ? undefined
+                : RequestHandler.#connections(connections, options);
+    }
+
+    /** Build the handler of a connection's calls, checked and traced as requests are. */
+    static #connections<State extends RequestState>(
+        connections: Router<ProcedureRouter, State>,
+        options: HandlerOptions<State>,
+    ): StandardRPCHandler<State> {
+        // reject missing enforcement, and collect each procedure's requirements
+        const metas = new Map<string, ProcedureMetadata>();
+        RequestHandler.#checkAccess(connections, options, [], new Set(), metas);
+
+        return new StandardRPCHandler(connections, {
+            plugins: [
+                RequestHandler.#releasePlugin<State>(
+                    options.package,
+                    metas,
+                    options.environment.telemetry,
+                ),
+            ],
+            clientInterceptors: [
+                ...RequestHandler.#callInterceptors(options, metas),
+                ...(options.clientInterceptors ?? []),
+            ],
+        });
     }
 
     /** Convert a procedure's payload schema for HTTP decoding once a request needs it. */
@@ -353,6 +387,8 @@ export interface HandlerOptions<State extends Context> extends OpenAPIHandlerOpt
     authorize?(call: ProcedureContext<State>): Promise<void>;
     /** Record an audit event. */
     audit?(event: ProcedureAudit<State>): Promise<void>;
+    /** The procedures a connection calls over its socket alone, absent for none. */
+    readonly connections?: Router<ProcedureRouter, State>;
 }
 
 export type { Context, Middleware, Router } from "@orpc/server";

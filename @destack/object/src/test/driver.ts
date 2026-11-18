@@ -6,7 +6,7 @@ import type { Driver } from "@destack/test";
 import { testSimulation } from "./world.ts";
 import { principal } from "@destack/access";
 import { Scope } from "@destack/sync";
-import { ProcedureRemote } from "../client/index.ts";
+import { ObjectConnection } from "../client/index.ts";
 import type { ObjectPackage } from "../server/index.ts";
 import { ObjectType } from "../object/index.ts";
 import { ObjectStep, objectInteraction, type ObjectObservation } from "../scenario/interaction.ts";
@@ -33,7 +33,7 @@ export class ObjectDriver implements Driver<ObjectStep, ObjectObservation> {
     /** The identifiers each call bound, by name, in call order. */
     readonly #bound = new Map<string, string[]>();
     /** The remote calling each type as each person, by type and person. */
-    readonly #remotes = new Map<string, ProcedureRemote>();
+    readonly #remotes = new Map<string, ObjectConnection>();
 
     /** Take a started world and the store serving the given packages. */
     constructor(
@@ -154,7 +154,7 @@ export class ObjectDriver implements Driver<ObjectStep, ObjectObservation> {
     }
 
     /** Read the remote calling a type as a person, one per type and person as an app has one. */
-    #remote(name: string, person: string): ProcedureRemote {
+    #remote(name: string, person: string): ObjectConnection {
         // reuse the remote, else reach the package serving the type as the person
         const key = `${name} ${person}`;
         const known = this.#remotes.get(key);
@@ -166,11 +166,7 @@ export class ObjectDriver implements Driver<ObjectStep, ObjectObservation> {
             this.#packages.find((each) => Object.values(each.objects).includes(type)),
             `the package serving ${name}`,
         );
-        const remote = ProcedureRemote.at({
-            scope: this.#store.scope,
-            endpoint: this.#store.as(this.#person(person)).endpoint(served),
-            environment: this.#store.environment,
-        });
+        const remote = this.#store.as(this.#person(person)).connect(served);
         this.#remotes.set(key, remote);
 
         return remote;

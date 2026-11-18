@@ -6,10 +6,9 @@ import { principal, relation, union } from "@destack/access";
 import { type DatabaseConnection, defineDatabase, eq, Snapshot } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
 import { PackageVersion } from "@destack/package";
-import { type ClientOptions } from "@destack/object/client";
 import { definePackage } from "@destack/object";
 import { RequestId, Scope } from "@destack/sync";
-import { ObjectClient, ProcedureRemote } from "../src/client/index.ts";
+import { ObjectClient, type ObjectConnection } from "../src/client/index.ts";
 import {
     chunk,
     CHUNK_CHARACTERS,
@@ -26,7 +25,7 @@ import {
 } from "../src/index.ts";
 import { implementPackage } from "../src/server/index.ts";
 import { user } from "./schema.ts";
-import { openSpace, space, unmoved, spacePrincipal } from "../src/test/space.ts";
+import { openSpace, space, spacePrincipal } from "../src/test/space.ts";
 import { testCallKey } from "@destack/object/test";
 import { testEvents, serversOf } from "../src/test/index.ts";
 import { nth, schema, type Identifier } from "@destack/schema";
@@ -110,14 +109,14 @@ async function serveDocuments(world: Environment) {
         }),
     );
     onTestFinished(() => served[Symbol.asyncDispose]());
-    const endpoint = (name: Identifier<"user">) => served.as(name).endpoint(documentsPackage);
+    const connection = (name: Identifier<"user">) => served.as(name).connect(documentsPackage);
     const connect = (name: Identifier<"user">) => served.as(name).client(documentsPackage);
 
-    return { connect, endpoint, database };
+    return { connect, connection, database };
 }
 
 /** Open a user's client of the space on a new local database, following every document. */
-async function openClient(world: Environment, name: Identifier<"user">, endpoint: ClientOptions) {
+async function openClient(world: Environment, name: Identifier<"user">, remote: ObjectConnection) {
     // create the local database and follow the documents
     const tables = ObjectClient.tables({ document });
     const storage = await TestDatabase.create(tables, {
@@ -132,12 +131,7 @@ async function openClient(world: Environment, name: Identifier<"user">, endpoint
         objects: { document },
         scope: spaceId,
         caller: principal.user.reference("universe", name),
-        remote: ProcedureRemote.at({
-            scope: spaceId,
-            endpoint,
-            reconnect: unmoved,
-            environment: world,
-        }),
+        remote,
     });
     const live = client.query.document.findMany().subscribe();
 
@@ -356,10 +350,10 @@ test("predict edits on two clients, converge after push, undo one exactly and hi
     const simulation = testSimulation();
     const world = simulation.environment("test");
     await (async () => {
-        const { endpoint } = await serveDocuments(world);
-        const alice = await openClient(world, users.alice, endpoint(users.alice));
-        const bob = await openClient(world, users.bob, endpoint(users.bob));
-        const carol = await openClient(world, users.carol, endpoint(users.carol));
+        const { connection } = await serveDocuments(world);
+        const alice = await openClient(world, users.alice, connection(users.alice));
+        const bob = await openClient(world, users.bob, connection(users.bob));
+        const carol = await openClient(world, users.carol, connection(users.carol));
 
         // create a shared document with a first line
         const created = alice.client.mutate(document).create({ title: "Plan" });
@@ -417,9 +411,9 @@ test("type in a new run after the store refuses an edit, so later typing lands",
     // run in a world of its own
     const world = testSimulation().environment("test");
 
-    const { endpoint } = await serveDocuments(world);
-    const alice = await openClient(world, users.alice, endpoint(users.alice));
-    const bob = await openClient(world, users.bob, endpoint(users.bob));
+    const { connection } = await serveDocuments(world);
+    const alice = await openClient(world, users.alice, connection(users.alice));
+    const bob = await openClient(world, users.bob, connection(users.bob));
     const share = (granted: "viewer" | "editor") =>
         alice.client.mutate(document).grant({
             id,
@@ -456,9 +450,9 @@ test("type into a live text by offsets, one change after another, and converge o
     // run in a world of its own
     const world = testSimulation().environment("test");
 
-    const { endpoint } = await serveDocuments(world);
-    const alice = await openClient(world, users.alice, endpoint(users.alice));
-    const bob = await openClient(world, users.bob, endpoint(users.bob));
+    const { connection } = await serveDocuments(world);
+    const alice = await openClient(world, users.alice, connection(users.alice));
+    const bob = await openClient(world, users.bob, connection(users.bob));
 
     // create a document shared with bob and follow its body as a sequence
     const created = alice.client.mutate(document).create({ title: "Plan" });
@@ -491,8 +485,8 @@ test("undo typing a burst at a time, apart at pauses, deletions, pastes and clos
     const simulation = testSimulation();
     const world = simulation.environment("test");
 
-    const { endpoint } = await serveDocuments(world);
-    const alice = await openClient(world, users.alice, endpoint(users.alice));
+    const { connection } = await serveDocuments(world);
+    const alice = await openClient(world, users.alice, connection(users.alice));
     const created = alice.client.mutate(document).create({ title: "Plan" });
     const { id } = await created.predicted;
     await created.confirmed;
@@ -779,8 +773,8 @@ test("predict a mark last on a client until the store orders it, then read it or
     // run in a world of its own
     const world = testSimulation().environment("test");
 
-    const { endpoint } = await serveDocuments(world);
-    const alice = await openClient(world, users.alice, endpoint(users.alice));
+    const { connection } = await serveDocuments(world);
+    const alice = await openClient(world, users.alice, connection(users.alice));
     const created = alice.client.mutate(document).create({ title: "Plan" });
     const { id } = await created.predicted;
     await created.confirmed;

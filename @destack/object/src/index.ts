@@ -20,13 +20,11 @@ export * from "./declare/index.ts";
 export {
     type Client,
     eventIterator,
-    getEventMeta,
     type ProcedureAccess,
     type ProcedureRouter,
     type Route,
     EDITION_HEADER,
     VERSION_HEADER,
-    withEventMeta,
 } from "./procedure/index.ts";
 export * from "./procedure/bookmark.ts";
 export * from "./health/index.ts";

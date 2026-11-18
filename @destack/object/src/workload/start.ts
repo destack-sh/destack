@@ -9,6 +9,9 @@ export const ROUTE_HEADER = "Destack-Route";
 /** The header that gives the partition of an installation a call goes to. */
 export const PARTITION_HEADER = "Destack-Partition";
 
+/** The query parameter giving a WebSocket's partition, as a socket's opening sends no header. */
+export const PARTITION_PARAMETER = "partition";
+
 /** The header carrying the head of the client's request a front door hands on. */
 export const CLIENT_HEAD_HEADER = "Destack-Client-Head";
 

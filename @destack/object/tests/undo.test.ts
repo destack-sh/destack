@@ -9,14 +9,14 @@ import { definePackage } from "@destack/object";
 import { RequestId, Scope } from "@destack/sync";
 import { testCallKey } from "@destack/object/test";
 import { testEvents } from "../src/test/index.ts";
-import { ObjectClient, ProcedureRemote } from "../src/client/index.ts";
+import { ObjectClient } from "../src/client/index.ts";
 import { undoEntry } from "../src/client/undo.ts";
 import { defineObject, field, type Step } from "../src/index.ts";
 import { implementPackage } from "../src/server/index.ts";
 import { found, schema } from "@destack/schema";
 import { serveNotes, spaceId } from "./fixture/device.ts";
 import { note, notebook } from "../src/test/note.ts";
-import { openSpace, space, unmoved, spacePrincipal } from "../src/test/space.ts";
+import { openSpace, space, spacePrincipal } from "../src/test/space.ts";
 import { principal } from "@destack/access";
 import { tablesOf } from "../src/index.ts";
 import objectPackage from "../src/package.ts";
@@ -276,7 +276,7 @@ test("invert each trait's methods into the calls that undo them, and leave the r
 });
 
 test("undo and redo a party's mutations, restoring only what no one changed since, across a restart", async () => {
-    const { connect, endpoint, openDevice, environment } = await serveNotes();
+    const { connect, connection, openDevice, environment } = await serveNotes();
     const alice = connect(users.alice);
     const device = await openDevice(users.alice);
     device.online();
@@ -331,12 +331,7 @@ test("undo and redo a party's mutations, restoring only what no one changed sinc
         scope: spaceId,
         caller: principal.user.reference("universe", users.alice),
         isMigrated: true,
-        remote: ProcedureRemote.at({
-            scope: spaceId,
-            endpoint: endpoint(users.alice),
-            reconnect: unmoved,
-            environment: environment,
-        }),
+        remote: connection(users.alice).at(spaceId),
     });
     const stopping = new AbortController();
     const running = restarted.run(stopping.signal);
@@ -572,12 +567,7 @@ test("undo an update of an exact integer, restoring its value on the device and 
         objects: { tally },
         scope: spaceId,
         caller: principal.user.reference("universe", users.alice),
-        remote: ProcedureRemote.at({
-            scope: spaceId,
-            endpoint: served.as(users.alice).endpoint(tallies),
-            reconnect: unmoved,
-            environment: world,
-        }),
+        remote: served.as(users.alice).connect(tallies, { scope: spaceId }),
     });
     client.queryType(tally).findMany().subscribe();
     const stopping = new AbortController();
@@ -655,12 +645,7 @@ test("undo an update of a bytes field, restoring its bytes on the device and the
         objects: { stamp },
         scope: spaceId,
         caller: principal.user.reference("universe", users.alice),
-        remote: ProcedureRemote.at({
-            scope: spaceId,
-            endpoint: served.as(users.alice).endpoint(stamps),
-            reconnect: unmoved,
-            environment: world,
-        }),
+        remote: served.as(users.alice).connect(stamps, { scope: spaceId }),
     });
     client.queryType(stamp).findMany().subscribe();
     const stopping = new AbortController();
