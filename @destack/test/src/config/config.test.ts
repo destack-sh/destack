@@ -1,7 +1,7 @@
 import { testHost } from "../host/host.ts";
 import { TEST_START, testSimulation } from "../world/world.ts";
 import { expect, test } from "vitest";
-import { defineConfiguration, SCENARIO_MODULES } from "./config.ts";
+import { defineConfiguration, SCENARIO_MODULES, TIERS_VARIABLE } from "./config.ts";
 
 /** The modules every project leaves to Bun: those in the pinned cache directory. */
 const SERVER = { deps: { external: [/\/cache\//u] } };
@@ -31,13 +31,13 @@ const BENCH = {
 };
 
 /** Run a world whose person's cache directory is pinned, as the configuration reads it. */
-function cachedSimulation() {
+function cachedSimulation(variables: Readonly<Record<string, string>> = {}) {
     const host = testHost();
 
     return testSimulation(TEST_START, {
         process: {
             arguments: [],
-            variables: { XDG_CACHE_HOME: "/cache" },
+            variables: { XDG_CACHE_HOME: "/cache", ...variables },
             workingDirectory: "/",
             id: 1,
             userId: host.process.userId,
@@ -160,6 +160,36 @@ test("run the whole configuration once per combination of its targets without de
             },
         ],
     ]);
+});
+
+test("run only the projects of the tiers a run lists, and nothing of a configuration outside them", async () => {
+    await using simulation = cachedSimulation({ [TIERS_VARIABLE]: "unit" });
+    const environment = simulation.environment("test");
+
+    // declare a unit and a scenario project, and a configuration in the scenario tier alone
+    const projects = defineConfiguration(
+        {
+            test: {
+                projects: [
+                    { extends: true, tier: "unit", test: { name: "unit" } },
+                    { extends: true, tier: "scenario", test: { name: "scenario" } },
+                ],
+            },
+        },
+        environment,
+    );
+    const scenario = defineConfiguration({ tier: "scenario" }, environment);
+
+    // keep the unit project, and run nothing of the scenario configuration
+    expect({
+        projects: projects.test?.projects?.map((project) =>
+            typeof project === "object" && "test" in project ? project.test?.name : project,
+        ),
+        scenario: {
+            exclude: scenario.test?.exclude,
+            passWithNoTests: scenario.test?.passWithNoTests,
+        },
+    }).toEqual({ projects: ["unit"], scenario: { exclude: ["**"], passWithNoTests: true } });
 });
 
 test("measure each project's scenarios in a bench twin", async () => {

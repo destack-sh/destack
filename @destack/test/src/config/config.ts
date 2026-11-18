@@ -61,6 +61,9 @@ export const TEST_TIERS = {
     bench: { slow: 600_000, hang: 600_000 },
 } as const satisfies Record<TestTier, { readonly slow: number; readonly hang: number }>;
 
+/** The variable listing the tiers a run includes, comma separated, every tier when absent. */
+export const TIERS_VARIABLE = "DESTACK_TEST_TIERS";
+
 /** The test options a tier sets, which configurations leave to it. */
 type TierOption = "testTimeout" | "hookTimeout" | "slowTestThreshold";
 
@@ -125,13 +128,18 @@ export function defineConfiguration(
     // split off the tier, the targets, the projects and the global setup the projects run in the root's place
     const { tier, targets, test, ...rest } = configuration;
     const { globalSetup, ...options } = test ?? {};
-    const declared = test !== undefined && "projects" in test ? test.projects : undefined;
+    const tiers = selectedTiers(environment);
+    const listed = test !== undefined && "projects" in test ? test.projects : undefined;
+    const declared = listed?.filter((project) => tiers === undefined || tiers.has(project.tier));
     const setup = globalSetup === undefined ? {} : { globalSetup };
-    const projects = configuredProjects(declared, tier, targets, setup)?.map((project) => ({
+    const kept = declared?.length === 0 ? undefined : declared;
+    const projects = configuredProjects(kept, tier, targets, setup)?.map((project) => ({
         ...project,
         test: { ...project.test, server: withCaches(project.test?.server, environment) },
     }));
     const tiered = tier === undefined ? {} : tierOptions(tier);
+    const isExcluded =
+        (tier !== undefined && tiers !== undefined && !tiers.has(tier)) || declared?.length === 0;
 
     return vitest.defineConfig({
         ...rest,
@@ -143,6 +151,8 @@ export function defineConfiguration(
                       ...setup,
                       ...tiered,
                       ...(tier === undefined ? {} : { provide: { ...options.provide, tier } }),
+                      // run nothing in a tier the run leaves out
+                      ...(isExcluded ? { exclude: ["**"], passWithNoTests: true } : {}),
                   }
                 : { ...options, projects }),
             server: withCaches(options.server, environment),
@@ -261,6 +271,22 @@ function configuredProjects(
     else {
         return undefined;
     }
+}
+
+/** Read the tiers a run includes from the environment, every tier when it lists none. */
+function selectedTiers(environment: Environment<"process">): ReadonlySet<TestTier> | undefined {
+    // read the listed tiers, refusing an unknown one
+    const listed = environment.process.variables[TIERS_VARIABLE];
+    if (listed === undefined || listed === "") {
+        return undefined;
+    }
+    const tiers = listed.split(",").map((each) => each.trim());
+    const unknown = tiers.find((each) => !(each in TEST_TIERS));
+    if (unknown !== undefined) {
+        throw new TypeError(`${TIERS_VARIABLE} lists unknown tier '${unknown}'`);
+    }
+
+    return new Set(tiers.filter((each): each is TestTier => each in TEST_TIERS));
 }
 
 /** List a project, and beside one playing scenario modules its bench twin measuring them. */
