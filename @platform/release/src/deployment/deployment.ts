@@ -32,8 +32,7 @@ import { Bookmark } from "@destack/object/client";
 import { VERSION_HEADER } from "@destack/object";
 import type { Fetch } from "@destack/object";
 import * as relay from "@destack/relay/declare";
-import { resolve } from "node:path";
-import { PostgresPool } from "@destack/db/postgres";
+import { join, resolve } from "node:path";
 import {
     type SuppliedModules,
     UNIVERSE_MODULE,
@@ -345,24 +344,13 @@ export class Deployment {
     async serve(
         server: string,
         database: string,
+        custody: Custody,
+        storage: string,
         print: (name: string, line: string) => void,
         hold: (build: PlatformBuild) => Promise<void>,
     ): Promise<void> {
-        // create a fresh database on the server's maintenance connection
+        // address the state's database, which keeps the universe between runs
         const { environment } = this;
-        const administration = new PostgresPool(`${server}/postgres`, environment, {
-            connections: 1,
-        });
-        try {
-            await administration.run(environment, async (sql) => {
-                await sql.unsafe(`DROP DATABASE IF EXISTS "${database}" WITH (FORCE)`);
-                await sql.unsafe(`CREATE DATABASE "${database}"`);
-            });
-        } finally {
-            await administration.end();
-        }
-
-        // address the empty database
         const url = `${server}/${database}`;
 
         // connect local Hyperdrive with the password it requires
@@ -372,8 +360,7 @@ export class Deployment {
         // build the checkout
         await using build = await this.#build({ isPrerelease: true });
 
-        // declare the universe over keys in the clear with the stacks built from the checkout
-        const custody = await Custody.local(this.#machineIds(), environment);
+        // declare the universe over the state's keys with the stacks built from the checkout
         const declaration = await this.universe(
             Operator.LOCAL,
             custody,
@@ -469,6 +456,9 @@ export class Deployment {
                             resolve(ROOT, "node_modules/.bin/wrangler"),
                             "dev",
                             "--local",
+                            // keep each Worker's storage in the state between runs, apart from its rebuilt bundle
+                            "--persist-to",
+                            join(storage, script.service),
                             "--config",
                             path,
                             "--ip",
@@ -949,11 +939,6 @@ export class Deployment {
                     : [[id, { clientId: PROVIDER_CLIENT_IDS[id], clientSecret }]];
             }),
         );
-    }
-
-    /** List the cloud machines of every residency. */
-    #machineIds(): string[] {
-        return RESIDENCIES.map((residency) => residency.machine.id);
     }
 
     /** Build the checkout's first-party releases into the stage's store. */

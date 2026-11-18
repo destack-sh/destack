@@ -92,7 +92,7 @@ export class LocalUniverse implements AsyncDisposable {
 
         // start the universe as its declaration declares it over the fixed local keys, printing its mail
         const mail = new PrintedMail();
-        const custody = await LocalUniverse.#custody(state.environment);
+        const custody = await LocalUniverse.custody(state.environment);
         const declaration = await local.universe(
             Operator.LOCAL,
             custody,
@@ -194,7 +194,7 @@ export class LocalUniverse implements AsyncDisposable {
     }
 
     /** Keep the fixed local root keys in the clear with each cloud machine's key they derive. */
-    static async #custody(environment: LocalState["environment"]): Promise<Custody> {
+    static async custody(environment: LocalState["environment"]): Promise<Custody> {
         const machines = await Promise.all(
             RESIDENCIES.map(async (residency) => {
                 // derive the machine's key from its fixed root keys

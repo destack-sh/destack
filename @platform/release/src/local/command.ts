@@ -18,18 +18,27 @@ export async function serveLocal(
     if (state.runtime === "workerd") {
         const deployment = Deployment.of("local", environment);
 
-        // start the state fresh, as each run serves a fresh universe and fresh Workers' storage
-        await state.reset();
+        // keep the state between runs, as the Bun stage does: its database, its keys and its Workers' storage
+        await state.createDatabase();
+        const custody = await LocalUniverse.custody(state.environment);
+        const storage = join(state.directory, "workers");
         const print = (title: string, line: string) => state.print(title, line);
-        await deployment.serve(state.server, state.database, print, async (build) => {
-            // ship the served build on the state's machine, started against the Workers
-            await state.writeDistribution(build);
-            await using machine = await state.startMachine(deployment.universeOrigin);
+        await deployment.serve(
+            state.server,
+            state.database,
+            custody,
+            storage,
+            print,
+            async (build) => {
+                // ship the served build on the state's machine, started against the Workers
+                await state.writeDistribution(build);
+                await using machine = await state.startMachine(deployment.universeOrigin);
 
-            // serve until an interrupt or a termination
-            state.printReady();
-            await interrupted(environment);
-        });
+                // serve until an interrupt or a termination
+                state.printReady();
+                await interrupted(environment);
+            },
+        );
 
         return;
     }

@@ -35,7 +35,7 @@ const USAGE =
     "use local <serve|reset|desktop|cli> [--runtime <bun|workerd>] [--state <name>], a name of a-z, 0-9 and _";
 
 /** The directories of a state the universe and the cloud machines keep, which a reset removes. */
-const STATE_DIRECTORIES = ["universe", "machines"] as const;
+const STATE_DIRECTORIES = ["universe", "machines", "workers"] as const;
 
 /** How long the local stage's machine may take to answer after it starts, in milliseconds. */
 const MACHINE_START_MILLISECONDS = 30_000;
