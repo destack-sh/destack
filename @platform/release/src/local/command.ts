@@ -110,6 +110,12 @@ export async function cliLocal(
         stdout: "inherit",
         stderr: "inherit",
     });
+
+    // pass an interrupt, a termination or a hangup to the cli while it runs, so it never outlives this process
+    using forwarded = new DisposableStack();
+    for (const signal of ["SIGINT", "SIGTERM", "SIGHUP"] as const) {
+        forwarded.use(process.on(signal, () => child.kill(signal)));
+    }
     process.exitCode = await child.exited;
 }
 
