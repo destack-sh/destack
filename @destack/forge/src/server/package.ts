@@ -62,7 +62,7 @@ const PackageMethod = {
         return { version: Version.parse(version) };
     },
 
-    /** Create the package the first time, then insert the checked lock's release as the package. */
+    /** Create the package once, then insert the checked image's release as the package. */
     async publish(
         context: MethodContextOf<typeof packageObject, "publish">,
     ): Promise<ResultOf<typeof packageObject, "publish">> {

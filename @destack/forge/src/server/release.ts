@@ -29,7 +29,7 @@ export interface ReleaseOptions {
 
 /** The release methods' handlers: preparing, publishing, resolving, deprecating and yanking. */
 export const ReleaseMethod = {
-    /** Check and copy up a pushed lock before the publish's transaction. */
+    /** Check and copy up a pushed image before the publish's transaction. */
     async prepare(
         context: MethodContextOf<typeof packageObject, "publish", Candidate | undefined>,
         options: ReleaseOptions,
@@ -37,23 +37,23 @@ export const ReleaseMethod = {
         // refuse a tag a range reads
         const store = options.store;
         TagName.require(context.input.tag ?? LATEST_TAG);
-        const { packageId: parentId, accountId, name: local, lock, commit } = context.input;
+        const { packageId: parentId, accountId, name: local, image, commit } = context.input;
         const request = present(context.requestId, "the release's request");
         const until = new Date(RequestId.expiry(request, context.now));
-        await store.lease(lock, until);
+        await store.lease(image, until);
 
-        // require a pushed lock
-        if (!(await store.contains(lock))) {
-            throw ForgeError.of("BUILD_NOT_FOUND", `lock '${lock}' not found`);
+        // require a pushed image
+        if (!(await store.contains(image))) {
+            throw ForgeError.of("BUILD_NOT_FOUND", `image '${image}' not found`);
         }
-        const read = await store.lock(lock);
+        const read = await store.image(image);
         const contents = await store.contents(read.root);
 
         // require the root build's graph, which every release carries for its readers
         if (!(await store.isIndexed(read.root))) {
             throw ForgeError.of(
                 "BUILD_INVALID",
-                `lock '${lock}' is invalid: its root build carries no graph`,
+                `image '${image}' is invalid: its root build carries no graph`,
             );
         }
 
@@ -61,7 +61,7 @@ export const ReleaseMethod = {
         if (commit === undefined && !Version.isPrerelease(contents.manifest.package.version)) {
             throw ForgeError.of(
                 "BUILD_INVALID",
-                `lock '${lock}' is invalid: a release of uncommitted changes must be a prerelease`,
+                `image '${image}' is invalid: a release of uncommitted changes must be a prerelease`,
             );
         }
 
@@ -75,7 +75,7 @@ export const ReleaseMethod = {
         if (named.accountId !== accountId || PackageName.split(name).local !== local) {
             throw ForgeError.of(
                 "BUILD_INVALID",
-                `lock '${lock}' is invalid: its root is a build of '${name}', not of the published package`,
+                `image '${image}' is invalid: its root is a build of '${name}', not of the published package`,
             );
         } else if (named.package !== undefined && named.package.id !== parentId) {
             throw ForgeError.of("NPM_NAME_EXISTS", "npm name already exists");
@@ -90,24 +90,24 @@ export const ReleaseMethod = {
         const entries = await store.entriesOf(read);
         await ReleaseMethod.requirePublished(context, id, entries);
 
-        // answer the release of this version again when another lock of the same build published it
+        // answer the release of this version again when another image of the same build published it
         const [taken] = await context
             .read(release)
             .findMany({ where: { parentId, version }, limit: 1 });
         const isRepeated =
             taken !== undefined &&
-            taken.lock !== lock &&
-            (await store.lock(taken.lock)).root === read.root;
+            taken.image !== image &&
+            (await store.image(taken.image)).root === read.root;
 
-        // copy up the lock and every build it lists that the host's distribution ships
+        // copy up the image and every build it lists that the host's distribution ships
         const builds = Object.values(entries).map((entry) => ({
             kind: "manifest" as const,
             digest: entry.manifest,
         }));
-        await store.copyUp([{ kind: "lock", digest: lock }, ...builds]);
+        await store.copyUp([{ kind: "image", digest: image }, ...builds]);
 
         // pack the tarball npm clients download once, and store it for the release to refer to
-        const { bytes, listed } = await NpmTarball.pack(store, lock, context.environment);
+        const { bytes, listed } = await NpmTarball.pack(store, image, context.environment);
         const tarball = await store.blobs.write(
             (async function* () {
                 yield bytes;
@@ -115,7 +115,7 @@ export const ReleaseMethod = {
         );
 
         return {
-            lock: isRepeated ? taken.lock : lock,
+            image: isRepeated ? taken.image : image,
             ...(commit === undefined ? {} : { commit }),
             version,
             role: contents.manifest.role,
@@ -125,12 +125,12 @@ export const ReleaseMethod = {
         };
     },
 
-    /** Insert a release of an unused version, or answer this lock's, and point its tag at it. */
+    /** Insert a release of an unused version, or answer this image's, and point its tag at it. */
     async publish(
         context: MethodContextOf<typeof release, "create">,
         next: NextOf<typeof release, "create">,
     ): Promise<ResultOf<typeof release, "create">> {
-        // answer the release this lock published at its version
+        // answer the release this image published at its version
         const { parentId, tag: pointed, ...packed } = context.input;
         const published = await ReleaseMethod.published(context, packed);
         const answered = published ?? (await ReleaseMethod.insert(context, next, packed));
@@ -161,7 +161,7 @@ export const ReleaseMethod = {
         return await next(context);
     },
 
-    /** Read the release of the lock's version, refusing one of another lock or a yanked one. */
+    /** Read the release of the image's version, refusing one of another image or a yanked one. */
     async published(
         context: MethodContextOf<typeof release, "create">,
         packed: Candidate,
@@ -172,11 +172,11 @@ export const ReleaseMethod = {
             limit: 1,
         });
 
-        // refuse another lock's release
-        if (taken !== undefined && taken.lock !== packed.lock) {
+        // refuse another image's release
+        if (taken !== undefined && taken.image !== packed.image) {
             throw ForgeError.of(
                 "RELEASE_EXISTS",
-                `release '${packed.version}' of '${context.input.parentId}' already exists: another lock published it`,
+                `release '${packed.version}' of '${context.input.parentId}' already exists: another image published it`,
             );
         } else if (taken !== undefined && taken.yankedAt !== null) {
             throw ForgeError.of(

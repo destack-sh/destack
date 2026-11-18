@@ -504,16 +504,16 @@ export class Forge {
         return decision.permitted.has(0);
     }
 
-    /** Require the caller to read a package with a release whose lock is the digest or lists it. */
+    /** Require the caller to read a package whose release's image is the digest or lists it. */
     async #readable(digest: Digest, context: RequestContext, objects: ObjectStore): Promise<void> {
-        // find the packages of the releases of the lock
+        // find the packages of the releases of the image
         const missing = `build '${digest}' not found`;
         const table = release.table;
-        const locks = [digest, ...(await this.store.referencing(digest))];
+        const images = [digest, ...(await this.store.referencing(digest))];
         const rows = await objects.database
             .selectDistinct({ scope: table.scope, id: table.parentId })
             .from(table)
-            .where(inArray(table.lock, locks));
+            .where(inArray(table.image, images));
 
         // pass at the first package the caller reads, concealing every refusal
         for (const owner of rows) {

@@ -5,7 +5,7 @@ import { expect, refusal, test } from "@destack/test";
 import { Digest, found, Identifier, present } from "@destack/schema";
 import { RequestId } from "@destack/sync";
 import { PackageVersion, PackageId } from "@destack/package";
-import { Lock, PackageManifest } from "@destack/package/manifest";
+import { BuildImage, PackageManifest } from "@destack/package/manifest";
 import { TestBuildStore } from "@destack/build/test";
 import { MemoryBuild } from "@destack/package/test";
 import { Registry } from "@destack/registry/client";
@@ -24,7 +24,7 @@ async function code(attempt: Promise<unknown>): Promise<string> {
     return refused === "done" ? "accepted" : refused[0];
 }
 
-test("publish pushed locks as releases", async () => {
+test("publish pushed images as releases", async () => {
     // publish a package, tagging it latest
     const forge = await TestForge.open();
     const answer = await forge.publish((await fixtureBuild("answer")).reader);
@@ -35,16 +35,16 @@ test("publish pushed locks as releases", async () => {
         requestId: RequestId.create(forge.environment),
         parentId: answer.packageId,
         name: "answer",
-        lock: await forge.push((await fixtureBuild("answer", "2026.9.1")).reader),
+        image: await forge.push((await fixtureBuild("answer", "2026.9.1")).reader),
         tag: "next",
     };
     const created = { ...uncommitted, commit: TEST_COMMIT };
     const next = await forge.release(created);
 
-    // record each pushed lock, and answer the release again for a replayed or repeated request
+    // record each pushed image, and answer the release again for a replayed or repeated request
     expect([
-        [answer.release.version, answer.release.commit, answer.release.lock],
-        [next.version, next.commit, next.lock],
+        [answer.release.version, answer.release.commit, answer.release.image],
+        [next.version, next.commit, next.image],
         (await forge.release(created)).id,
         (
             await forge.release({
@@ -57,8 +57,8 @@ test("publish pushed locks as releases", async () => {
             entry.version,
         ]),
     ]).toEqual([
-        ["2026.9.0", TEST_COMMIT, answer.lock],
-        ["2026.9.1", TEST_COMMIT, uncommitted.lock],
+        ["2026.9.0", TEST_COMMIT, answer.image],
+        ["2026.9.1", TEST_COMMIT, uncommitted.image],
         next.id,
         next.id,
         [
@@ -85,9 +85,9 @@ test("publish pushed locks as releases", async () => {
         );
     expect([
         await attempt({ ...created, tag: "x" }),
-        await attempt({ ...created, lock: missing }),
+        await attempt({ ...created, image: missing }),
         await attempt(uncommitted),
-        await attempt({ ...created, lock: greeting.lock }),
+        await attempt({ ...created, image: greeting.image }),
         await attempt(created, forge.stranger()),
     ]).toEqual([
         [
@@ -95,11 +95,11 @@ test("publish pushed locks as releases", async () => {
             "TAG_INVALID",
             "distribution tag 'x' is invalid: it must not be a version range",
         ],
-        ["NOT_FOUND", "BUILD_NOT_FOUND", `lock '${missing}' not found`],
+        ["NOT_FOUND", "BUILD_NOT_FOUND", `image '${missing}' not found`],
         [
             "BAD_REQUEST",
             "BUILD_INVALID",
-            `lock '${created.lock}' is invalid: a release of uncommitted changes must be a prerelease`,
+            `image '${created.image}' is invalid: a release of uncommitted changes must be a prerelease`,
         ],
         ["BAD_REQUEST", "BUILD_INVALID", "build is invalid: it belongs to another package"],
         ["FORBIDDEN", "PERMISSION_DENIED", "permission 'publish' is forbidden: it is not granted"],
@@ -109,7 +109,7 @@ test("publish pushed locks as releases", async () => {
     const prerelease = await forge.release({
         ...uncommitted,
         requestId: RequestId.create(forge.environment),
-        lock: await forge.push((await prereleaseBuild()).reader),
+        image: await forge.push((await prereleaseBuild()).reader),
         tag: "dev",
     });
     expect([prerelease.version, prerelease.commit]).toEqual([PRERELEASE_VERSION, null]);
@@ -122,27 +122,27 @@ test("find a published release by version, tag, digest and id, and refuse its na
     const owner = forge.client(forge.owner);
     const releases = new Registry(async () => forge.registry(), forge.environment);
 
-    // name the same lock by version and by tag
+    // name the same image by version and by tag
     const { packageId } = answer;
     const spaceId = forge.space;
     const reader = await releases.open(packageId, LATEST_TAG);
     expect([
-        (await owner.release.resolve({ spaceId, parentId: packageId, release: "2026.9.0" })).lock,
+        (await owner.release.resolve({ spaceId, parentId: packageId, release: "2026.9.0" })).image,
         await releases.find(packageId, LATEST_TAG),
         await reader.distributed(),
         await refusal(owner.release.resolve({ spaceId, parentId: packageId, release: "next" })),
     ]).toEqual([
-        answer.lock,
-        answer.lock,
+        answer.image,
+        answer.image,
         await answer.reader.distributed(),
         ["NOT_FOUND", "RELEASE_NOT_FOUND", `release 'next' of '${packageId}' not found`],
     ]);
 
-    // store the lock of the build alone, and the build by its digest
+    // store the image of the build alone, and the build by its digest
     const store = await forge.store();
     const pushed = await store.contents(answer.manifest);
-    expect([await store.lock(answer.lock), pushed.manifest, await pushed.distributed()]).toEqual([
-        Lock.of(answer.manifest),
+    expect([await store.image(answer.image), pushed.manifest, await pushed.distributed()]).toEqual([
+        BuildImage.of(answer.manifest),
         answer.reader.manifest,
         await answer.reader.distributed(),
     ]);
@@ -171,7 +171,7 @@ test("find a published release by version, tag, digest and id, and refuse its na
     expect(taken).toEqual(["CONFLICT", "NAME_EXISTS", "'name' already exists"]);
 });
 
-test("release one lock of a version under each tag, refusing another lock of it", async () => {
+test("release one image of a version under each tag, refusing another image of it", async () => {
     // store two prerelease builds of answer at one version with other files
     const forge = await TestForge.open();
     const owner = forge.client(forge.owner);
@@ -180,28 +180,28 @@ test("release one lock of a version under each tag, refusing another lock of it"
     const { id, name } = PackageManifest.package((await fixtureBuild("answer")).reader.manifest);
     const version = PackageVersion.parse({ id, name, version: PRERELEASE_VERSION });
     await using store = await TestBuildStore.create(forge.environment);
-    const locked = async (notes: string) => {
+    const pushImage = async (notes: string) => {
         const build = await MemoryBuild.of(version, [], crypto, {
             files: new Map([["notes.txt", new TextEncoder().encode(notes)]]),
         });
 
-        return await store.putLock(Lock.of(await store.putIndexed(build)));
+        return await store.putImage(BuildImage.of(await store.putIndexed(build)));
     };
-    const released = await locked("released");
-    const other = await locked("other");
+    const released = await pushImage("released");
+    const other = await pushImage("other");
 
-    // release under next, then the same lock under latest, and refuse the other lock under next
+    // release under next, then the same image under latest, and refuse the other image under next
     await releases.release(store, [released], ACCOUNT_ID, "next");
     await releases.release(store, [released], ACCOUNT_ID, LATEST_TAG);
     const refused = await refusal(releases.release(store, [other], ACCOUNT_ID, "next"));
 
-    // keep one release of the released lock, which both tags point at
+    // keep one release of the released image, which both tags point at
     expect([
         refused,
         (await owner.release.list({ spaceId: forge.space })).items.map((entry) => [
             entry.parentId,
             entry.version,
-            entry.lock,
+            entry.image,
         ]),
         (await owner.tag.list({ spaceId: forge.space })).items
             .map((entry) => `${entry.name} ${entry.version}`)
@@ -213,7 +213,7 @@ test("release one lock of a version under each tag, refusing another lock of it"
         [
             "CONFLICT",
             "RELEASE_EXISTS",
-            `release '${PRERELEASE_VERSION}' of '${id}' already exists: another lock published it`,
+            `release '${PRERELEASE_VERSION}' of '${id}' already exists: another image published it`,
         ],
         [[id, PRERELEASE_VERSION, released]],
         [`${LATEST_TAG} ${PRERELEASE_VERSION}`, `next ${PRERELEASE_VERSION}`],
@@ -223,8 +223,8 @@ test("release one lock of a version under each tag, refusing another lock of it"
     ]);
 });
 
-test("keep a version's first release when another lock of its build publishes", async () => {
-    // lock one build of answer with two builds of a library it depends on
+test("keep a version's first release when another image of its build publishes", async () => {
+    // image one build of answer with two builds of a library it depends on
     const forge = await TestForge.open();
     const owner = forge.client(forge.owner);
     const releases = new Registry(async () => forge.registry(), forge.environment);
@@ -238,34 +238,34 @@ test("keep a version's first release when another lock of its build publishes", 
     });
     await using store = await TestBuildStore.create(forge.environment);
     const root = await store.putIndexed(await MemoryBuild.of(version, [], crypto));
-    const locked = async (notes: string) => {
+    const pushImage = async (notes: string) => {
         const files = new Map([["notes.txt", new TextEncoder().encode(notes)]]);
         const built = await store.putIndexed(await MemoryBuild.of(library, [], crypto, { files }));
 
-        return await store.putLock(
-            Lock.of(root, { [root]: { [library.name]: built }, [built]: {} }),
+        return await store.putImage(
+            BuildImage.of(root, { [root]: { [library.name]: built }, [built]: {} }),
         );
     };
-    const first = await locked("first");
-    const second = await locked("second");
+    const first = await pushImage("first");
+    const second = await pushImage("second");
 
-    // release both locks at the version
+    // release both images at the version
     await releases.release(store, [first], ACCOUNT_ID, LATEST_TAG);
     await releases.release(store, [second], ACCOUNT_ID, LATEST_TAG);
 
-    // keep the one release of the first lock
+    // keep the one release of the first image
     expect([
         (await owner.release.list({ spaceId: forge.space })).items.map((entry) => [
             entry.parentId,
             entry.version,
-            entry.lock,
+            entry.image,
         ]),
         await releases.find(id, PRERELEASE_VERSION),
     ]).toEqual([[[id, PRERELEASE_VERSION, first]], first]);
 });
 
-test("publish a lock's builds in dependency order", async () => {
-    // lock greeting with the answer build it requires in one store
+test("publish an image's builds in dependency order", async () => {
+    // image greeting with the answer build it requires in one store
     const forge = await TestForge.open();
     const owner = forge.client(forge.owner);
     const releases = new Registry(async () => forge.registry(), forge.environment);
@@ -273,15 +273,17 @@ test("publish a lock's builds in dependency order", async () => {
     const greeting = (await fixtureBuild("greeting")).reader;
     await using store = await TestBuildStore.create(forge.environment);
     const root = await store.putIndexed(greeting);
-    const lock = await store.putLock(
-        await Lock.hoisted(root, { "@example/answer": await store.putIndexed(answer) }, (digest) =>
-            store.get(digest),
+    const image = await store.putImage(
+        await BuildImage.hoisted(
+            root,
+            { "@example/answer": await store.putIndexed(answer) },
+            (digest) => store.get(digest),
         ),
     );
 
     // publish greeting twice
-    await releases.publish(store, lock, ACCOUNT_ID, LATEST_TAG, { commit: TEST_COMMIT });
-    await releases.publish(store, lock, ACCOUNT_ID, LATEST_TAG, { commit: TEST_COMMIT });
+    await releases.publish(store, image, ACCOUNT_ID, LATEST_TAG, { commit: TEST_COMMIT });
+    await releases.publish(store, image, ACCOUNT_ID, LATEST_TAG, { commit: TEST_COMMIT });
 
     // record answer's release before greeting's, once each
     const answerId = PackageManifest.package(answer.manifest).id;
@@ -298,7 +300,7 @@ test("publish a lock's builds in dependency order", async () => {
 });
 
 test("publish each package at its publishConfig access", async () => {
-    // lock greeting, without an access, with answer, whose package file asks public access
+    // image greeting, without an access, with answer, whose package file asks public access
     const forge = await TestForge.open();
     const owner = forge.client(forge.owner);
     const releases = new Registry(async () => forge.registry(), forge.environment);
@@ -306,14 +308,16 @@ test("publish each package at its publishConfig access", async () => {
     const greeting = (await fixtureBuild("greeting")).reader;
     await using store = await TestBuildStore.create(forge.environment);
     const root = await store.putIndexed(greeting);
-    const lock = await store.putLock(
-        await Lock.hoisted(root, { "@example/answer": await store.putIndexed(answer) }, (digest) =>
-            store.get(digest),
+    const image = await store.putImage(
+        await BuildImage.hoisted(
+            root,
+            { "@example/answer": await store.putIndexed(answer) },
+            (digest) => store.get(digest),
         ),
     );
 
     // publish both, asking no visibility
-    await releases.publish(store, lock, ACCOUNT_ID, LATEST_TAG, { commit: TEST_COMMIT });
+    await releases.publish(store, image, ACCOUNT_ID, LATEST_TAG, { commit: TEST_COMMIT });
 
     // list answer as its package file asks, and greeting unlisted, the default
     const listed = await owner.package.list({ spaceId: forge.space, orderBy: { name: "asc" } });
@@ -324,7 +328,7 @@ test("publish each package at its publishConfig access", async () => {
 });
 
 test("point latest at each released version", async () => {
-    // lock greeting with answer
+    // image greeting with answer
     const forge = await TestForge.open();
     const owner = forge.client(forge.owner);
     const releases = new Registry(async () => forge.registry(), forge.environment);
@@ -332,16 +336,18 @@ test("point latest at each released version", async () => {
     const greeting = (await fixtureBuild("greeting")).reader;
     await using store = await TestBuildStore.create(forge.environment);
     const root = await store.putIndexed(greeting);
-    const lock = await store.putLock(
-        await Lock.hoisted(root, { "@example/answer": await store.putIndexed(answer) }, (digest) =>
-            store.get(digest),
+    const image = await store.putImage(
+        await BuildImage.hoisted(
+            root,
+            { "@example/answer": await store.putIndexed(answer) },
+            (digest) => store.get(digest),
         ),
     );
 
     // publish both under a stage tag twice, pointing latest too
     const options = { commit: TEST_COMMIT, tags: [LATEST_TAG] };
-    await releases.publish(store, lock, ACCOUNT_ID, "local", options);
-    await releases.publish(store, lock, ACCOUNT_ID, "local", options);
+    await releases.publish(store, image, ACCOUNT_ID, "local", options);
+    await releases.publish(store, image, ACCOUNT_ID, "local", options);
 
     // resolve the stage tag and latest of each to its released version
     const resolve = async (id: PackageId, release: string) =>
@@ -362,7 +368,7 @@ test("point latest at each released version", async () => {
     );
 });
 
-test("refuse a lock pinning an unreleased version of a hosted package", async () => {
+test("refuse an image pinning an unreleased version of a hosted package", async () => {
     // host answer's package without releasing it
     const forge = await TestForge.open();
     const answer = (await fixtureBuild("answer")).reader;
@@ -594,7 +600,7 @@ test("deprecate and yank releases", async () => {
                 requestId: RequestId.create(forge.environment),
                 parentId: answer.packageId,
                 name: "answer",
-                lock: next.lock,
+                image: next.image,
                 commit: TEST_COMMIT,
             }),
         ),
@@ -701,7 +707,7 @@ test("show packages to readers by their visibility", async () => {
     expect([
         [resolved.id, resolved.name],
         (await resolveRelease(LATEST_TAG)).version,
-        (await resolveRelease("2026.9.0")).lock,
+        (await resolveRelease("2026.9.0")).image,
         await refusal(resolveRelease("next")),
         await refusal(resolve(stranger, "@other/answer")),
         (await resolve(forge.owner, "@example/greeting")).name,
@@ -709,7 +715,7 @@ test("show packages to readers by their visibility", async () => {
     ]).toEqual([
         [answer.packageId, "answer"],
         "2026.9.0",
-        answer.lock,
+        answer.image,
         ["NOT_FOUND", "RELEASE_NOT_FOUND", `release 'next' of '${answer.packageId}' not found`],
         ["NOT_FOUND", "PACKAGE_NOT_FOUND", "package not found"],
         "greeting",
@@ -743,7 +749,7 @@ test("publish builtins under the platform's account alone", async () => {
             { role: "builtin" },
         );
         const packageId = PackageManifest.package(build.manifest).id;
-        const lock = await forge.push(build, person);
+        const image = await forge.push(build, person);
 
         // release it as the manager
         return refusal(
@@ -753,7 +759,7 @@ test("publish builtins under the platform's account alone", async () => {
                     parentId: packageId,
                     name: "kernel",
                     accountId,
-                    lock,
+                    image,
                     commit: TEST_COMMIT,
                 },
                 person,

@@ -3,7 +3,7 @@ import type { TestPerson } from "@destack/account/test";
 import { expect, refusal, test } from "@destack/test";
 import { BuildObject, BuildStore, PackageClient } from "@destack/build/store";
 import { TestBuildStore } from "@destack/build/test";
-import { Lock, PackageManifest } from "@destack/package/manifest";
+import { BuildImage, PackageManifest } from "@destack/package/manifest";
 import { Digest } from "@destack/schema";
 import { RequestId } from "@destack/sync";
 import { UNRELEASED_MILLISECONDS } from "../src/server/index.ts";
@@ -106,8 +106,8 @@ test("stage a machine's push without releasing it", async () => {
         new PackageClient(`${url}${forgePackage.mounts.builds.path}/${packageId}/`, fetch);
     const handle = PackageName.split(build.manifest.package.name).handle;
     await using pushed = await TestBuildStore.create(forge.environment);
-    const lock = await pushed.putLock(Lock.of(await pushed.putIndexed(build.reader)));
-    const staged = await refusal(builds(handle).push(pushed, [lock]));
+    const image = await pushed.putImage(BuildImage.of(await pushed.putIndexed(build.reader)));
+    const staged = await refusal(builds(handle).push(pushed, [image]));
 
     // store the staged build, and release nothing
     const released = await forge.client(forge.owner).release.list({ spaceId: forge.space });
@@ -132,8 +132,8 @@ test("authorize manifest pushes by the account's publisher relation", async () =
     const stranger = forge.stranger();
     const handle = PackageName.split(build.reader.manifest.package.name).handle;
     await using pushed = await TestBuildStore.create(forge.environment);
-    const lock = await pushed.putLock(Lock.of(await pushed.putIndexed(build.reader)));
-    const push = async () => refusal(forge.builds(handle, stranger).push(pushed, [lock]));
+    const image = await pushed.putImage(BuildImage.of(await pushed.putIndexed(build.reader)));
+    const push = async () => refusal(forge.builds(handle, stranger).push(pushed, [image]));
 
     // post the manifest as the owner outside an account and as the stranger below its handle
     const builds = `${forge.origin}${forgePackage.mounts.builds.path}`;
@@ -235,7 +235,7 @@ test("collect an unreleased build a grace after its lease ends", async () => {
     expect(sizes).toEqual(files.map((file) => file.size));
 });
 
-test("retain a pushed build a release locks past its lease", async () => {
+test("retain a pushed build a release images past its lease", async () => {
     // push a build, then release it as the owner signed in again
     const forge = await TestForge.open();
     await forge.publish((await fixtureBuild("answer")).reader);
@@ -251,12 +251,12 @@ test("retain a pushed build a release locks past its lease", async () => {
     await forge.simulation.jump(clock.now() + GRACE_MILLISECONDS);
     await forge.simulation.jump(clock.now() + GRACE_MILLISECONDS);
 
-    // keep the build the release locks, and every file of it
+    // keep the build the release images, and every file of it
     const store = await forge.store();
     const files = await (await store.contents(manifest)).distributed();
     const sizes = await Promise.all(files.map(async (file) => (await store.file(file)).length));
     expect({
-        root: (await store.lock(released.release.lock)).root,
+        root: (await store.image(released.release.image)).root,
         isStored: await store.contains(manifest),
         sizes,
     }).toEqual({
@@ -306,11 +306,11 @@ test("serve and retain a release's npm units and Bun output", async () => {
     });
     const buildManifest = await BuildStore.digest(build.manifest, crypto);
 
-    // publish the build locked with its unit
+    // publish the build in an image with its unit
     const published = await forge.publish(build, "private", [unit]);
     await using copied = await TestBuildStore.create(environment);
     const builds = `${forge.origin}${forgePackage.mounts.builds.path}`;
-    const root = { kind: "lock", digest: published.lock } as const;
+    const root = { kind: "image", digest: published.image } as const;
     const source = new PackageClient(
         `${builds}/${BuildObject.path(root)}/`,
         forge.endpoint(forge.owner).fetch,

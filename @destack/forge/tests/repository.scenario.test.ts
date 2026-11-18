@@ -1,5 +1,6 @@
 import { FOLLOWER_REVISION } from "@destack/sync/test";
-import { expect, refusal, test } from "@destack/test";
+import forgePackage from "../src/package.ts";
+import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { and, eq, inArray, isNull, Snapshot } from "@destack/db";
 import { secret } from "@destack/vault/object";
 import { RequestId, Scope } from "@destack/sync";
@@ -270,7 +271,9 @@ test("sync an account's references and packages to its readers and spaces", asyn
     // follow the account's references as the reader and as a stranger
     const query = async (user: TestPerson) => {
         const controller = new AbortController();
-        const pages = await forge.client(user).store.stream(
+        const connection = forge.home.person(user).connect(forgePackage);
+        onTestFinished(() => connection.close());
+        const pages = await connection.store.stream(
             {
                 name: "objects",
                 publication: QUERIES_PUBLICATION,
@@ -296,24 +299,26 @@ test("sync an account's references and packages to its readers and spaces", asyn
     // follow the selected branch as a space for a target space
     const follow = async (space: Identifier<"space">, target: string) => {
         const controller = new AbortController();
-        const pages = await forge
+        const connection = forge.home
             .as(principal.space.reference(Scope.universe.id, space))
-            .store.stream(
-                {
-                    ...Shape.subscription(
-                        forge.space,
-                        [
-                            {
-                                shape: referenceShape,
-                                keys: [{ id: main.id }],
-                            },
-                        ],
-                        { target },
-                    ),
-                    revision: FOLLOWER_REVISION,
-                },
-                { signal: controller.signal },
-            );
+            .connect(forgePackage);
+        onTestFinished(() => connection.close());
+        const pages = await connection.store.stream(
+            {
+                ...Shape.subscription(
+                    forge.space,
+                    [
+                        {
+                            shape: referenceShape,
+                            keys: [{ id: main.id }],
+                        },
+                    ],
+                    { target },
+                ),
+                revision: FOLLOWER_REVISION,
+            },
+            { signal: controller.signal },
+        );
         const page = await pages[Symbol.asyncIterator]().next();
         controller.abort();
         if (page.done === true) {

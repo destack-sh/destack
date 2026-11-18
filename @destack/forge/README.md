@@ -4,12 +4,12 @@ Host the Git repositories of accounts and publish, resolve and distribute their 
 
 ## Overview
 
-`@destack/forge` is GitHub-style hosting that implements `@destack/registry`: Git repositories, packages, releases by lock, and tags, per residency.
+`@destack/forge` is GitHub-style hosting that implements `@destack/registry`: Git repositories, packages, releases by image, and tags, per residency.
 
 The forge serves the registry's object types:
 
 - `repository`: an account's Git repository, hosted here, mirrored from a remote, or reported by a machine.
-- `package`, `release` and `tag`: published packages, their versions by lock, and their tags.
+- `package`, `release` and `tag`: published packages, their versions by image, and their tags.
 
 It also keeps:
 
@@ -48,7 +48,7 @@ export async function createSite(
 
 ### Releases
 
-A release is created from a pushed lock, at the version its root build has, and refused while a required package has no release in range.
+A release is created from a pushed image, at the version its root build has, and refused while a required package has no release in range.
 Prereleases are dev versions, and the forge keeps each package's newest ones and the tagged ones, deleting the rest.
 
 ### npm clients
@@ -100,7 +100,7 @@ export async function mirrorSite(
 
 ### Publish from a checkout
 
-`destack publish` builds a checkout's package in the space, pushes its lock, and releases it under a tag.
+`destack publish` builds a checkout's package in the space, pushes its image, and releases it under a tag.
 
 ```sh
 destack publish ./@acme/site --tag latest
@@ -148,5 +148,5 @@ Repositories, releases and tags follow GitHub's.
 | GitHub          | `@destack/forge`      | Difference                                                         |
 | --------------- | --------------------- | ------------------------------------------------------------------ |
 | repositories    | `repository`          | Also mirrors GitHub or any remote, with its credential in a vault. |
-| releases        | `release`             | A release is a lock of builds, checked by content.                 |
+| releases        | `release`             | A release is an image of builds, checked by content.               |
 | one global host | each residency's home | Repositories and releases stay in the account's residency.         |

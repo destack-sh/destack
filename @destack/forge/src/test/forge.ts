@@ -23,7 +23,7 @@ import registryPackage from "@destack/registry/package";
 import objectPackage from "@destack/object/package";
 import { testBuild } from "@destack/object/test";
 import { PackageVersion, PackageName, type PackageId } from "@destack/package";
-import { type BuildReader, Lock, PackageManifest } from "@destack/package/manifest";
+import { type BuildReader, BuildImage, PackageManifest } from "@destack/package/manifest";
 import { type Digest, Identifier, present, schema } from "@destack/schema";
 import { join } from "node:path";
 import settingPackage from "@destack/setting/package";
@@ -232,8 +232,8 @@ export interface Published {
     readonly packageId: PackageId;
     /** The digest of the release's build manifest. */
     readonly manifest: Digest;
-    /** The digest of the lock the owner pushed, which the release records. */
-    readonly lock: Digest;
+    /** The digest of the image the owner pushed, which the release records. */
+    readonly image: Digest;
     /** The release as the forge resolves it by version once published. */
     readonly release: Release;
 }
@@ -444,11 +444,11 @@ export class TestForge {
         visibility: Select<typeof packageObject.table>["visibility"] = "private",
         builds: readonly BuildReader[] = [],
     ): Promise<Published> {
-        // push its lock
+        // push its image
         const publisher = this.client(this.owner);
         const { id: packageId, version } = PackageManifest.package(reader.manifest);
         const { local: name } = PackageName.split(reader.manifest.package.name);
-        const lock = await this.push(reader, this.owner, builds);
+        const image = await this.push(reader, this.owner, builds);
         await publisher.package.publish({
             spaceId: this.space,
             requestId: RequestId.create(this.environment),
@@ -456,7 +456,7 @@ export class TestForge {
             accountId: ACCOUNT_ID,
             name,
             visibility,
-            lock,
+            image,
             commit: TEST_COMMIT,
         });
         const release = await publisher.release.resolve({
@@ -466,23 +466,23 @@ export class TestForge {
         });
         const manifest = await BuildStore.digest(reader.manifest, this.environment.crypto);
 
-        return { reader, packageId, manifest, lock, release };
+        return { reader, packageId, manifest, image, release };
     }
 
-    /** Publish a pushed lock of a package as a person, answering the release its tag points at. */
+    /** Publish a pushed image of a package as a person, answering the release its tag points at. */
     async release(
         input: {
             readonly parentId: PackageId;
             readonly name: string;
             readonly accountId?: Identifier<"account">;
-            readonly lock: Digest;
+            readonly image: Digest;
             readonly requestId?: string;
             readonly commit?: string;
             readonly tag?: string;
         },
         person: TestPerson = this.owner,
     ): Promise<Release> {
-        // publish the lock
+        // publish the image
         const client = this.client(person);
         await client.package.publish({
             spaceId: this.space,
@@ -490,7 +490,7 @@ export class TestForge {
             packageId: input.parentId,
             accountId: input.accountId ?? ACCOUNT_ID,
             name: input.name,
-            lock: input.lock,
+            image: input.image,
             ...(input.commit === undefined ? {} : { commit: input.commit }),
             ...(input.tag === undefined ? {} : { tag: input.tag }),
         });
@@ -502,28 +502,28 @@ export class TestForge {
         });
     }
 
-    /** Push a build locked with the builds it runs with, answering the lock's digest. */
+    /** Push a build in an image with the builds it runs with, answering the image's digest. */
     async push(
         reader: BuildReader,
         person: TestPerson = this.owner,
         builds: readonly BuildReader[] = [],
     ): Promise<Digest> {
-        // store the builds and lock them by package name
+        // store the builds and make an image of them by package name
         await using store = await TestBuildStore.create(this.environment);
         const root = await store.putIndexed(reader);
-        const locked: Record<string, Digest> = {};
+        const named: Record<string, Digest> = {};
         for (const build of builds) {
-            locked[build.manifest.package.name] = await store.putIndexed(build);
+            named[build.manifest.package.name] = await store.putIndexed(build);
         }
-        const lock = await store.putLock(
-            await Lock.hoisted(root, locked, (digest) => store.get(digest)),
+        const image = await store.putImage(
+            await BuildImage.hoisted(root, named, (digest) => store.get(digest)),
         );
 
-        // push the lock's objects below the account's handle
+        // push the image's objects below the account's handle
         const uploads = this.builds(PackageName.split(reader.manifest.package.name).handle, person);
-        await uploads.push(store, [lock]);
+        await uploads.push(store, [image]);
 
-        return lock;
+        return image;
     }
 
     /** Connect to the forge's uploads below an account's handle as a person, the owner first. */
@@ -762,6 +762,6 @@ export class TestForge {
 
         const store = await this.store();
 
-        return await store.contents((await store.lock(resolved.lock)).root);
+        return await store.contents((await store.image(resolved.image)).root);
     }
 }

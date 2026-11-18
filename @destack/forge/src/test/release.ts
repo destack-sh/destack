@@ -1,5 +1,5 @@
 import type { DatabaseConnection } from "@destack/db";
-import { type BuildReader, Lock, PackageManifest } from "@destack/package/manifest";
+import { type BuildReader, BuildImage, PackageManifest } from "@destack/package/manifest";
 import type { Environment } from "@destack/environment";
 import { Digest, Identifier } from "@destack/schema";
 import { NpmTarball } from "@destack/registry/npm";
@@ -14,7 +14,7 @@ export const resolvedRelease = release.implement({
     methods: { resolve: (call) => ReleaseMethod.resolve(call) },
 });
 
-/** Record a build locked alone as a package's published release in a space, tagged. */
+/** Record a build in an image alone as a package's published release in a space, tagged. */
 export async function publishBuild(
     database: DatabaseConnection,
     scope: Identifier<"space">,
@@ -26,7 +26,7 @@ export async function publishBuild(
     const now = environment.clock.now();
     const owner = PackageManifest.package(build.manifest);
     const manifest = await Digest.json(build.manifest, environment.crypto);
-    const lock = await Lock.digest(Lock.of(manifest), environment.crypto);
+    const image = await BuildImage.digest(BuildImage.of(manifest), environment.crypto);
     await database.transaction(
         async (transaction) =>
             await transaction
@@ -54,7 +54,7 @@ export async function publishBuild(
                 parentId: owner.id,
                 version: owner.version,
                 role: build.manifest.role,
-                lock,
+                image,
                 npm: packed.listed,
                 tarball: await Digest.of(packed.bytes, environment.crypto),
                 commit: TEST_COMMIT,
