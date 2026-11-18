@@ -57,6 +57,8 @@ const viewContext = schema.object({
     space: schema.string().min(1),
     /** The account of the space. */
     account: schema.string().min(1),
+    /** The home space of the account's residency, where its platform installations run. */
+    residencyHome: schema.identifier("space"),
     /** The declared view's name. */
     view: DeclarationName,
     /** The route path the page serves below, empty at its installation's own origin. */

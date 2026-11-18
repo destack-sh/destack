@@ -3,8 +3,8 @@ import type { ObjectAccess } from "@destack/object/client";
 import { schema } from "@destack/schema";
 import type { Setting } from "@destack/setting";
 import { SettingValue } from "@destack/setting/object";
-import { type Accessor, createSignal, onCleanup } from "solid-js";
-import { useView } from "../page/context.ts";
+import { type Accessor, createMemo, createSignal, onCleanup, useContext } from "solid-js";
+import { useView, ViewMountContext } from "../page/context.ts";
 import { useClient } from "../page/view.ts";
 import { ViewContext } from "../declare/context.ts";
 import { ViewError } from "../error/error.ts";
@@ -28,6 +28,27 @@ export function useHome<const Objects extends Readonly<Record<string, ObjectType
     objects: Objects,
 ): ObjectAccess<Objects> {
     return useClient(ViewContext.scope(useView(), "home")).of(objects);
+}
+
+/** Read and change object types of a space by key, opening one outside the view's context. */
+export function useScope<const Objects extends Readonly<Record<string, ObjectType>>>(
+    scope: Accessor<string>,
+    objects: Objects,
+): Accessor<ObjectAccess<Objects>> {
+    const mount = useContext(ViewMountContext);
+
+    return createMemo(() => {
+        // take a scope the view's context opens, else open the space until it changes or the component goes
+        const current = scope();
+        const opened = mount.clients.get(current);
+        if (opened !== undefined) {
+            return opened.of(objects);
+        }
+        const stopping = new AbortController();
+        onCleanup(() => stopping.abort());
+
+        return mount.open(current, stopping.signal).then((client) => client.of(objects));
+    });
 }
 
 /** Follow a setting's value for the page's person, their device's value first. */

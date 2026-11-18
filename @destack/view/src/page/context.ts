@@ -11,6 +11,8 @@ export interface ViewMount {
     readonly context: ViewContext;
     /** The clients of the scopes the view opens, by scope. */
     readonly clients: ReadonlyMap<string, ObjectClient>;
+    /** Open another space with the objects the view opens in spaces, until the signal aborts. */
+    readonly open: (scope: string, signal: AbortSignal) => Promise<ObjectClient>;
     /** How the view calls the packages it declares, by package identifier. */
     readonly packages: ReadonlyMap<string, ClientOptions>;
     /** Address a path below the page's origin with the page's credential. */

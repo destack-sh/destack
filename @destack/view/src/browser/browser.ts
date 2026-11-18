@@ -23,6 +23,7 @@ import { Snapshot } from "@destack/db";
 import { Presentation, type Page, PRESENTED_SETTINGS } from "./presentation.ts";
 import type { View } from "../declare/view.ts";
 import { CONTEXT_SCOPES } from "../declare/context.ts";
+import type { ViewMount } from "../page/context.ts";
 import { renderView } from "../page/mount.ts";
 import { recordVisits } from "./visit.ts";
 import { DeviceRequest, type DeviceRole, deviceObjects } from "./device.ts";
@@ -84,7 +85,12 @@ export async function mount(
         : undefined;
     const authorization = new PageAuthorization(root, environment);
     const call = pageOrigin(root, authorization);
-    const tabs = await openTabs(context, view, { device, root, worker: deviceWorker }, environment);
+    const { tabs, open } = await openTabs(
+        context,
+        view,
+        { device, root, worker: deviceWorker },
+        environment,
+    );
     const clients = new Map([...tabs].map(([scope, tab]) => [scope, tab.client]));
     const packages = mountPackages(view.packages, call);
 
@@ -120,7 +126,7 @@ export async function mount(
                 package: { ...view.package, version: release },
                 environment: { ...environment, telemetry },
                 localization,
-                mount: { context, clients, packages, origin: call, actions },
+                mount: { context, clients, open, packages, origin: call, actions },
             }),
         {
             owner: view.package.id,
@@ -442,7 +448,7 @@ async function fetchCatalogs(
     return fetched.flat();
 }
 
-/** Open a tab for each scope a view's context opens over the person's device. */
+/** Open a tab for each scope a view's context opens over the person's device, and others later. */
 async function openTabs(
     context: ViewContext,
     view: View,
@@ -452,7 +458,10 @@ async function openTabs(
         readonly worker: URL;
     },
     environment: Environment<"workers" | BrowserCapability>,
-): Promise<Map<string, BrowserTab>> {
+): Promise<{
+    readonly tabs: Map<string, BrowserTab>;
+    readonly open: ViewMount["open"];
+}> {
     // follow a person's own settings and profile, and list the parts each scope plays for the view
     const { device } = devices;
     const roles = new Map<string, DeviceRole[]>(
@@ -467,9 +476,10 @@ async function openTabs(
         }
     }
 
-    // ask for the person's one device, which every tab of the origin shares
-    const name = context.user.id;
+    // ask for the person's device of this installation, which its tabs share, as installations below one origin keep apart
+    const name = `${context.installation}.${context.user.id}`;
     const request = {
+        name,
         caller: context.user,
         ...(device === undefined ? {} : { device }),
         root: devices.root,
@@ -481,20 +491,35 @@ async function openTabs(
         environment,
     );
 
-    return new Map(
+    // open a scope's tab over the device, ready once its access replica holds the scope's chain
+    const openTab = async (scope: string, played: readonly DeviceRole[]) => {
+        const tab = await BrowserTab.open({
+            name,
+            worker,
+            objects: deviceObjects(view, played),
+            scope,
+            caller: context.user,
+            ...(device === undefined ? {} : { device }),
+            environment,
+        });
+        await tab.ready;
+
+        return tab;
+    };
+
+    // open another space of the person while a component asks, closing its tab once it stops
+    const open = async (scope: string, signal: AbortSignal) => {
+        const tab = await openTab(scope, ["space"]);
+        signal.addEventListener("abort", () => void tab.close(), { once: true });
+
+        return tab.client;
+    };
+
+    // open the context's scopes, each in the parts it plays
+    const tabs = new Map(
         await Promise.all(
             [...roles].map(async ([scope, played]) => {
-                // open the scope's tab over the device, ready once its access replica holds the scope's chain
-                const tab = await BrowserTab.open({
-                    name,
-                    worker,
-                    objects: deviceObjects(view, played),
-                    scope,
-                    caller: context.user,
-                    ...(device === undefined ? {} : { device }),
-                    environment,
-                });
-                await tab.ready;
+                const tab = await openTab(scope, played);
 
                 // keep the person's own settings and profile synced for the page, once their first rows arrive
                 if (scope === context.user.id) {
@@ -514,6 +539,8 @@ async function openTabs(
             }),
         ),
     );
+
+    return { tabs, open };
 }
 
 /** Call a path below the page's origin and base, which its session cookie authenticates. */

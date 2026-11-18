@@ -28,6 +28,11 @@ function noOrigin(path: string): never {
     throw new TypeError(`a test page reaches no '${path}'`);
 }
 
+/** Open no other space, as a test page's view opens only its context's scopes. */
+function noSpace(scope: string): never {
+    throw new TypeError(`a test page opens no '${scope}'`);
+}
+
 /** The longest a test waits for a render, far above the few microtasks a local resource takes. */
 const RENDER_MILLISECONDS = 2000;
 
@@ -42,6 +47,7 @@ const CONTEXT: ViewContext = {
     installation: "installation-notes",
     space: "space-personal",
     account: "account-florian",
+    residencyHome: schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000e05"),
     view: "notes",
     base: "",
     universe: "https://destack.app",
@@ -74,6 +80,7 @@ function readText(locale: LocaleTag, environment: BrowserEnvironment): string {
             context: CONTEXT,
             clients: new Map(),
             packages: new Map(),
+            open: noSpace,
             origin: noOrigin,
         },
         localization: Localization.of(locale, CATALOGS),
@@ -172,6 +179,7 @@ test("call a package the view declares where the host mounts it, and refuse it t
             context: CONTEXT,
             clients: new Map(),
             packages,
+            open: noSpace,
             origin: noOrigin,
         },
         localization: Localization.of(SOURCE_LOCALE, []),
@@ -203,6 +211,7 @@ test("call a package the view declares where the host mounts it, and refuse it t
                 context: CONTEXT,
                 clients: new Map(),
                 packages: new Map(),
+                open: noSpace,
                 origin: noOrigin,
             },
             localization: Localization.of(SOURCE_LOCALE, []),
@@ -235,6 +244,7 @@ test("show the time on the view's clock, moving on each second until the view go
             context: CONTEXT,
             clients: new Map(),
             packages: new Map(),
+            open: noSpace,
             origin: noOrigin,
         },
         localization: Localization.of(SOURCE_LOCALE, []),

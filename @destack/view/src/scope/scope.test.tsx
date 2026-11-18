@@ -9,7 +9,7 @@ import { Scope } from "@destack/sync";
 import { expect, onTestFinished, test } from "@destack/test";
 import { renderView } from "../page/mount.ts";
 import { Errored, For, Loading } from "../solid/flow.ts";
-import { useQuery, useSetting, useSpace } from "./index.ts";
+import { useQuery, useScope, useSetting, useSpace } from "./index.ts";
 import { defineSetting } from "@destack/setting/declare";
 import { deviceSetting, setting } from "@destack/setting/object";
 import { changed } from "../test/dom.ts";
@@ -20,6 +20,11 @@ import { ActionRegistry } from "../page/action.ts";
 /** A page origin that calls nothing, as a test page has none. */
 function noOrigin(path: string): never {
     throw new TypeError(`a test page reaches no '${path}'`);
+}
+
+/** Open no other space, as a test page's view opens only its context's scopes. */
+function noSpace(scope: string): never {
+    throw new TypeError(`a test page opens no '${scope}'`);
 }
 
 /** The longest a test waits for a render, far above the few microtasks a local resource takes. */
@@ -66,6 +71,7 @@ const CONTEXT = {
     installation: "installation-cards",
     space: BOARD_ID,
     account: "account-01996ab0-0000-7000-8000-000000000002",
+    residencyHome: schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000003"),
     view: "cards",
     base: "",
     universe: "https://destack.app",
@@ -156,6 +162,7 @@ test("show a query's rows after loading, and re-render only the row a predicted 
                     context: CONTEXT,
                     clients: new Map([[BOARD_ID, client]]),
                     packages: new Map(),
+                    open: noSpace,
                     origin: noOrigin,
                 },
                 localization: Localization.of(SOURCE_LOCALE, []),
@@ -173,6 +180,58 @@ test("show a query's rows after loading, and re-render only the row a predicted 
     apples.click();
     await changed(element, () => element.textContent === "Apples!Bread", RENDER_MILLISECONDS);
     expect(element.querySelectorAll("li")[1]).toBe(bread);
+});
+
+test("open and close another space with a component", async () => {
+    // keep a card in a space the view's context does not open, and open it on request
+    const { simulation, tab } = testWorld();
+    const client = await openClient(simulation.environment("view"));
+    await client.mutation(async (mutation) => {
+        await mutation.call(card).create({ title: "Apples" });
+    }).predicted;
+    const asked: string[] = [];
+    let closing: AbortSignal | undefined;
+    const open = async (scope: string, signal: AbortSignal) => {
+        asked.push(scope);
+        closing = signal;
+
+        return client;
+    };
+
+    // list the space's cards by its identifier
+    const Opened = () => {
+        const space = useScope(() => BOARD_ID, { card });
+        const cards = useQuery(() => space().query.card.findMany({ orderBy: { title: "asc" } }));
+
+        return <For each={cards()}>{(entry) => <li>{entry.title}</li>}</For>;
+    };
+    const element = document.createElement("main");
+    const unmount = renderView(
+        () => (
+            <Loading fallback={<p>Loading</p>}>
+                <Opened />
+            </Loading>
+        ),
+        element,
+        {
+            package: import.meta.destack.package,
+            mount: {
+                actions: new ActionRegistry(),
+                context: CONTEXT,
+                clients: new Map(),
+                open,
+                packages: new Map(),
+                origin: noOrigin,
+            },
+            localization: Localization.of(SOURCE_LOCALE, []),
+            environment: tab,
+        },
+    );
+    await changed(element, () => element.textContent === "Apples", RENDER_MILLISECONDS);
+    unmount();
+
+    // open the space once, and stop it with the component
+    expect({ asked, isClosed: closing?.aborted }).toEqual({ asked: [BOARD_ID], isClosed: true });
 });
 
 test("fail access to an object type the view's space does not hold into the error boundary", async () => {
@@ -199,6 +258,7 @@ test("fail access to an object type the view's space does not hold into the erro
                     context: CONTEXT,
                     clients: new Map([[BOARD_ID, client]]),
                     packages: new Map(),
+                    open: noSpace,
                     origin: noOrigin,
                 },
                 localization: Localization.of(SOURCE_LOCALE, []),
@@ -271,6 +331,7 @@ test("show a setting's value for the page's person, and the device's value once 
                 },
                 clients: new Map([[CONTEXT.user.id, client]]),
                 packages: new Map(),
+                open: noSpace,
                 origin: noOrigin,
             },
             localization: Localization.of(SOURCE_LOCALE, []),
@@ -322,6 +383,7 @@ test("refuse following a space's setting as the page's person into the error bou
                     context: CONTEXT,
                     clients: new Map([[BOARD_ID, client]]),
                     packages: new Map(),
+                    open: noSpace,
                     origin: noOrigin,
                 },
                 localization: Localization.of(SOURCE_LOCALE, []),
