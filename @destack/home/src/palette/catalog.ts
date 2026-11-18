@@ -9,7 +9,6 @@ import {
 } from "@destack/object";
 import {
     type ClientOptions,
-    ObjectClient,
     ObjectStoreDescription,
     ProcedureRemote,
 } from "@destack/object/client";
@@ -252,10 +251,10 @@ export class SpaceCatalog {
     /** Report whether a command applies to all of some objects, as the person may call it. */
     async appliesTo(entry: CommandEntry, ids: readonly string[]): Promise<boolean> {
         const command = this.command(entry);
-        const rows = await this.#client(entry.installation, command.object).list(
-            command.object,
-            { ...command.query(ids), limit: ids.length },
-        );
+        const rows = await this.#client(entry.installation, command.object).list(command.object, {
+            ...command.query(ids),
+            limit: ids.length,
+        });
 
         return rows.length === ids.length;
     }

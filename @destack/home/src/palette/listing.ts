@@ -23,7 +23,6 @@ import type { Environment } from "@destack/environment";
 /** The most objects the person opened lately that the palette offers: a screenful. */
 const RECENT_LIMIT = 20;
 
-
 /** A window of this computer, as its local objects list it. */
 const WindowRow = schema.looseObject({
     /** The window. */
@@ -196,7 +195,10 @@ export class PaletteListing {
         environment: Environment,
     ): Promise<{ readonly reached: LocalObjects; readonly entries: PaletteEntry[] }> {
         const reached = await LocalObjects.open(origin, device, environment);
-        const [windows, recent] = await Promise.all([reached.windows(), reached.recent(user, home)]);
+        const [windows, recent] = await Promise.all([
+            reached.windows(),
+            reached.recent(user, home),
+        ]);
 
         return { reached, entries: [...windows, ...recent] };
     }
