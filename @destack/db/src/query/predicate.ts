@@ -57,6 +57,8 @@ export interface Binding<Value, Decision = Value> {
     readonly exists: (via: string, where: Condition) => Decision;
     /** Resolve whether the row's searched text contains each word as a word's prefix. */
     readonly search: (words: readonly string[]) => Decision;
+    /** Stand in for a compared literal of a field, in the order a key walk collects them. */
+    readonly slot?: (field: Value, literal: Comparable) => Value;
 }
 
 /** A condition resolved against its row's fields, which rendering and matching walk. */
@@ -95,6 +97,7 @@ export const Predicate = {
     require: requireComparable,
     bind,
     render,
+    key,
     compile,
     matches,
     unbound,
@@ -314,8 +317,10 @@ function bind(
     table: Table,
     placeholders: Readonly<Record<string, Scalar>> = {},
     namespace: Namespace = { extras: {} },
+    slot?: (field: SQLWrapper, literal: Comparable) => SQLWrapper,
 ): Binding<SQLWrapper> {
     return {
+        ...(slot === undefined ? {} : { slot }),
         field: (name) =>
             Object.hasOwn(namespace.extras, name)
                 ? Order.expression(table, name, namespace)
@@ -403,6 +408,45 @@ function render(predicate: Predicate, binding: Binding<SQLWrapper>): SQL {
             return sql`${binding.exists(predicate.via, predicate.where)}`;
         case "search":
             return sql`${binding.search(predicate.words)}`;
+    }
+}
+
+/** Write a predicate's shape as a key, collecting its compared literals in render order. */
+function key(predicate: Predicate, literals: Comparable[]): string {
+    switch (predicate.kind) {
+        case "compare": {
+            // slot a literal, writing a reference or a placeholder into the key
+            const { value } = predicate;
+            if (isReference(value)) {
+                return `(${predicate.name} ${predicate.operator} @${value.field})`;
+            } else if (value instanceof Placeholder) {
+                return `(${predicate.name} ${predicate.operator} :${value.placeholder})`;
+            }
+            literals.push(value);
+
+            return `(${predicate.name} ${predicate.operator} ?)`;
+        }
+        case "oneOf":
+            literals.push(...predicate.values);
+
+            return `(${predicate.name} in ${predicate.values.length})`;
+        case "missing":
+            return `(${predicate.name} null)`;
+        case "like":
+            return `(${predicate.name} like ${predicate.isInsensitive ? "i" : "s"} ${JSON.stringify(predicate.pattern)})`;
+        case "characters":
+            return `(${predicate.name} chars ${JSON.stringify(predicate.set)})`;
+        case "length":
+            return `(${predicate.name} length ${key(predicate.predicate, literals)})`;
+        case "all":
+        case "any":
+            return `(${predicate.kind} ${predicate.predicates.map((nested) => key(nested, literals)).join(" ")})`;
+        case "not":
+            return `(not ${key(predicate.predicate, literals)})`;
+        case "exists":
+            return `(exists ${predicate.via} ${JSON.stringify(predicate.where)})`;
+        case "search":
+            return `(search ${JSON.stringify(predicate.words)})`;
     }
 }
 
@@ -538,7 +582,10 @@ function renderValue(
         return binding.field(value.field);
     }
 
-    // bind a literal or a placeholder's value
+    // stand a slot in for a literal, else bind a literal or a placeholder's value
+    if (binding.slot !== undefined && !(value instanceof Placeholder)) {
+        return binding.slot(field, value);
+    }
     const scalar = value instanceof Placeholder ? binding.placeholder(value.placeholder) : value;
 
     return Column.is(field) && scalar !== null && !Column.isPlain(field)

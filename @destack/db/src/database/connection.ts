@@ -1,4 +1,5 @@
 import type { Clock, Environment } from "@destack/environment";
+import { PreparedQueryCache } from "../query/prepared.ts";
 import { Digest, schema } from "@destack/schema";
 import { TelemetryScope } from "@destack/telemetry";
 import type {} from "@destack/package/import-meta";
@@ -730,6 +731,9 @@ export interface ConnectionOptions {
     readonly environment: DatabaseEnvironment;
 }
 
+/** Whether a database or a write logs: through change triggers, through none, or unknown. */
+export type Logging = "logged" | "unlogged" | "unknown";
+
 /** The operations, shutdown and commit watch of one physical connection. */
 export class ConnectionState {
     /** Where the connection's database runs. */
@@ -780,10 +784,12 @@ export class ConnectionState {
     readonly valueCache: ReadCache<unknown[][]>;
     /** The cache of live `all` reads, by statement, each at its tables' commit versions. */
     readonly recordCache: ReadCache<Record<string, unknown>[]>;
+    /** The prepared query of each query shape, such as a snapshot's reads. */
+    readonly preparedQueries: PreparedQueryCache;
     /** The cipher of sensitive columns, absent until the database is keyed. */
     cipher: ColumnCipher | undefined = undefined;
     /** Whether the database has a log, unknown until a write first looks. */
-    isLogged: boolean | undefined = undefined;
+    logging: Logging = "unknown";
     /** The end of the latest serialized work, which the next one waits for. */
     #serialized: Promise<unknown> = Promise.resolve();
     /** The operations to finish before close. */
@@ -829,6 +835,7 @@ export class ConnectionState {
             "record",
             this.scope,
         );
+        this.preparedQueries = new PreparedQueryCache(this.scope);
         this.declaredReplicas = new Set(options.replicated);
         this.#replicated = this.declaredReplicas;
         this.openChannel = openChannel;
