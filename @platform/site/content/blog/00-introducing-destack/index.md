@@ -1,7 +1,7 @@
 ---
 title: "Introducing Destack"
 subtitle: "The software factory needs a software engine."
-date: "2026-11-14"
+date: "2026-11-25"
 author: "Florian"
 ---
 
@@ -11,12 +11,12 @@ author: "Florian"
 >
 > Destack **standardises software production and deployment**:
 >
-> 1. **Build custom software**, with your own AI, in a standardised pipeline.
+> 1. **Build first-class custom software**, with your own AI, in a standardised pipeline.
 > 2. **Integrate every app and agent**: one account, one database, no walls.
 > 3. **Control your whole stack**: your data, your context, your machine.
 >
 > The Destack comprises both the platform core for building malleable software _and_ standard apps for common use cases (think Notion, Linear, Miro).
-> Everything built on Destack is fully standardised and integrated by default, and thus fully hackable and programmable by your agents.
+> Everything built on Destack is standardised and integrated by construction, and thus accessible and programmable by agents.
 >
 > [Skip to The Destack](#the-destack)
 
@@ -101,14 +101,14 @@ Fundamentally, there is not a single test, certificate, proof, or magic gate tha
 The correctness of any complex software system spans many granularities, and mathematical "proof", green tests, smoke tests, and passing gates all mean nothing if it's not what I actually _meant_.
 
 The only way to ensure "correctness" for general purpose software - that is: does it do what it should? - is to look, to see the software in motion, from many different angles and granularities.
-Notably, this is not an intelligence problem at all - it's a human problem, and a real world integration problem.
+Notably, this is not an intelligence problem at all - it's a human problem, a real world integration problem.
 I just don't know what I want until I see it.
 
 ![Reshaping walls, gates and buildings in Tiny Glade.](./tiny-glade.mp4){width=600 poster=./tiny-glade.webp}
 [Building in Tiny Glade](https://store.steampowered.com/app/2198150/Tiny_Glade/) — Pounce Light, release date trailer excerpt.
 
-The continuous process of _shaping_ is critical not just for "malleable" software but - because programming is just reified problem solving - for all software.
-Software production - from databases to web apps to spreadsheets - spans one continuous that has been separated into rigid planes only by historical happenstance, and now must be standardised and unified.
+Thus, the continuous process of _shaping_ is critical not just for "malleable" software but - because programming is just reified problem solving - for all software.
+Software production from databases to web apps to spreadsheets spans one continuum that has been separated into rigid planes only by historical happenstance, and now must be standardised and unified.
 
 Until now, the cardinal sin of malleable software has been that "userland malleability" as in spreadsheets is too limited, while general software is annoying to build and maintain.
 Now, the equation has flipped: building is cheap, and the lack of integration is expensive.
@@ -121,20 +121,28 @@ Where is the higher order software?
 
 # The Destack
 
-Higher order programming requires higher order processes _with_ higher order specifications.
-The fragmented pieces of the software production and deployment process must be unified and integrated into one cohesive whole.
-We need a complete _software engine_ that provides both the building blocks for development and the platform services for deployment.
+Each new level of abstraction in programming requires new, higher order processes _with_ new, higher order specifications.
+One cannot succeed without the other, because the fragmented software production and deployment process need to be unified.
+A _software engine_ for the _software factory_.
 
-That is Destack: an open-source software engine for general purpose apps.
-As a coarse analogy, Destack is like GitHub + NPM + Convex + Vercel + Sentry in one: a integrated system of software production, standardised principal building blocks for modern software, _and_ a ready-to-wear suite of common applications built on top.
+That is Destack: an open-source *software engine* for general purpose apps.
+As a coarse analogy, Destack is like GitHub + NPM + Convex + Vercel + Sentry in one: an integrated system for software production with standardised principal building blocks for modern software: auth, migrations, services, multiplayer, workflows, telemetry, testing, and hosting.
+
+Standardising software on a single, expressive software engine enables much greater freedom of movement by reducing variance in the produced software.
+Once every app speaks the same API, feels and looks the same, and works with the same building blocks, reviews are much simpler, integration pain disappears, and exploration is seamless.
 
 ![Eleven versions of Picasso's bull, progressing from a detailed animal to a few essential lines.](./picasso-bull.jpg)
 [The Bull, 1945–46](https://drawpaintacademy.com/the-bull/) — Pablo Picasso, reproduction via Draw Paint Academy.
 
-Standardising software on a single, expressive software engine enables much greater freedom of movement by reducing variance in software production.
-Once every app speaks the same API, feels and looks the same, and works with the same building blocks - then reviews are simpler, integration pain disappears, and exploration is basically free.
+
 <!--Following the game engine model, Destack integrates libraries and tools for interactively building, understanding, and refining software products, all based on modern best practices.
 It's as indestructible as can be, and you can host it entirely yourself, we can tunnel for you, or you could let us take care of everything.
 (Or any combination.)-->
 
-TODO
+
+And of course, beyond just the software platform and engine,
+_and_ a ready-to-wear suite of common applications built on top.
+
+Destack is fully open source and you can try it yourself or with your agent in a few minutes:
+
+TODO CTA
