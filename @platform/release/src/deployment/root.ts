@@ -88,15 +88,15 @@ export interface ResidencyOutputs extends WorkerOutputs {
     readonly hyperdrive: string;
 }
 
-/** The roots no stage selects: the platform's identities and its global infrastructure. */
-export const STAGELESS_ROOTS = ["access", "global"] as const;
+/** The roots every universe shares: the platform's identities and its global infrastructure. */
+export const SHARED_ROOTS = ["access", "global"] as const;
 
 /** An action over one deployment's state, plans and credentials, OpenTofu's verbs. */
 export type RootAction = "init" | "diff" | "deploy";
 
 /** An OpenTofu root: infrastructure managed apart from the others. */
 export class Root {
-    /** The deployment path within its stage. */
+    /** The deployment path within its universe. */
     readonly name: string;
     /** The OpenTofu root directory. */
     readonly directory: string;
@@ -109,34 +109,34 @@ export class Root {
     /** The host the tools run on. */
     readonly environment: Environment<HostCapability>;
 
-    /** Select the platform's identities, the global infrastructure, or one stage and scope. */
+    /** Select the platform's identities, the global infrastructure, or one universe and scope. */
     constructor(selection: readonly string[], environment: Environment<HostCapability>) {
         // select a stageless root, or one stage and scope
-        const [stage, scope] = selection;
-        if (selection.length === 1 && Root.isStageless(stage)) {
-            this.name = stage;
-            this.directory = resolve(ROOT, "src/deployment/roots", stage);
-            this.state = `${stage}.tfstate`;
+        const [universe, scope] = selection;
+        if (selection.length === 1 && Root.isShared(universe)) {
+            this.name = universe;
+            this.directory = resolve(ROOT, "src/deployment/roots", universe);
+            this.state = `${universe}.tfstate`;
         }
         // select one stage and scope
         else if (
             selection.length === 2 &&
-            stage === "production" &&
+            universe === "production" &&
             (scope === "universe" || RESIDENCIES.some((residency) => residency.code === scope))
         ) {
-            this.name = `${stage}/${scope}`;
+            this.name = `${universe}/${scope}`;
             this.directory = resolve(
                 ROOT,
                 "src/deployment/roots",
                 scope === "universe" ? "universe" : "residency",
             );
-            this.state = `${stage}/${scope}.tfstate`;
+            this.state = `${universe}/${scope}.tfstate`;
         }
         // refuse anything else
         else {
             const scopes = ["universe", ...RESIDENCIES.map((residency) => residency.code)];
             throw new Error(
-                `select '${STAGELESS_ROOTS.join(", ")}', or production followed by '${scopes.join("|")}'`,
+                `select '${SHARED_ROOTS.join(", ")}', or production followed by '${scopes.join("|")}'`,
             );
         }
 
@@ -146,16 +146,16 @@ export class Root {
         this.environment = environment;
     }
 
-    /** Report whether a name selects a root no stage selects. */
-    static isStageless(name: string | undefined): name is (typeof STAGELESS_ROOTS)[number] {
-        return STAGELESS_ROOTS.some((stageless) => stageless === name);
+    /** Report whether a name selects a root every universe shares. */
+    static isShared(name: string | undefined): name is (typeof SHARED_ROOTS)[number] {
+        return SHARED_ROOTS.some((shared) => shared === name);
     }
 
-    /** List a stage's roots in dependency order: global, the universe, then each residency. */
-    static all(stage: string, environment: Environment<HostCapability>): Root[] {
+    /** List a universe's roots in dependency order: global, the universe, then each residency. */
+    static all(universe: string, environment: Environment<HostCapability>): Root[] {
         const scopes = ["universe", ...RESIDENCIES.map((residency) => residency.code)];
 
-        return [["global"], ...scopes.map((scope) => [stage, scope])].map(
+        return [["global"], ...scopes.map((scope) => [universe, scope])].map(
             (selection) => new Root(selection, environment),
         );
     }

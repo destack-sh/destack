@@ -1,4 +1,4 @@
-import { Stage } from "@destack/update/release";
+import { Universe } from "@destack/update/release";
 import type { Environment } from "@destack/environment";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -8,7 +8,7 @@ import { run } from "./command.ts";
 export async function configureApplication(
     root: string,
     directory: string,
-    identity: Stage,
+    identity: Universe,
     version: string,
     environment: Environment<"files" | "process" | "host">,
 ): Promise<string> {

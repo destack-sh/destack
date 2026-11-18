@@ -44,7 +44,7 @@ const EXPORTS = {
     space: "SPACE_STACK",
 } as const satisfies Record<keyof PlatformDefinition["stacks"], keyof typeof stacks>;
 
-/** The exports declaring each residency home's stack, the same on every stage. */
+/** The exports declaring each residency home's stack, the same on every universe. */
 const STACK_EXPORTS = RESIDENCIES.map(
     (residency) => residency.stack,
 ) satisfies readonly (keyof typeof stacks)[];
@@ -58,7 +58,7 @@ export const DESKTOP_ENTRY = "@destack/desktop/src/machine.ts";
 /** The desktop package, whose workspace builds the release of the program computers run. */
 const DESKTOP = "@destack/desktop";
 
-/** The checkout's store of first-party releases, which every stage and target shares. */
+/** The checkout's store of first-party releases, which every universe and target shares. */
 export const RELEASES_DIRECTORY = "target/releases";
 
 /** A forge a platform build releases into: its account and the registry calling it. */

@@ -1,6 +1,6 @@
 import { Bookmark } from "@destack/object/client";
 import { Loopback } from "@destack/machine/computer";
-import { Stage } from "@destack/update/release";
+import { Universe } from "@destack/update/release";
 import type { Environment, HostCapability } from "@destack/environment";
 import { present, schema } from "@destack/schema";
 import { join } from "node:path";
@@ -34,7 +34,7 @@ export async function verifyInstallation(environment: Environment<HostCapability
     const configuration = new RepositoryConfiguration(environment);
     const directory = await environment.files.makeTemporaryDirectory("destack-installation-");
     const state = join(directory, "state");
-    const executable = join(state, "bin", new Stage("production").command);
+    const executable = join(state, "bin", new Universe("production").command);
     const installation: Installation = { directory: state, executable, isRunning: false };
     let failure: Error | undefined;
     try {

@@ -55,7 +55,7 @@ export async function deployPlatform(
 ): Promise<void> {
     // deploy a whole environment
     const [name] = arguments_;
-    if (arguments_.length === 1 && name !== undefined && !Root.isStageless(name)) {
+    if (arguments_.length === 1 && name !== undefined && !Root.isShared(name)) {
         await Deployment.deployed(name, environment).deploy();
     }
     // apply one root
@@ -64,15 +64,17 @@ export async function deployPlatform(
     }
 }
 
-/** Publish a deployed stage's releases into the platform accounts' forge, as its workflow. */
+/** Publish a deployed universe's releases into the platform accounts' forge, as its workflow. */
 export async function publishPlatform(
     environment: Environment<HostCapability>,
     arguments_: readonly string[],
 ): Promise<void> {
-    // refuse arguments beyond the stage
+    // refuse arguments beyond the universe
     const [name, ...rest] = arguments_;
     if (rest.length > 0) {
-        throw new Error(`platform publish takes a stage, then nothing more: '${rest.join(" ")}'`);
+        throw new Error(
+            `platform publish takes a universe, then nothing more: '${rest.join(" ")}'`,
+        );
     }
     await Deployment.deployed(name, environment).publish();
 }
@@ -86,15 +88,15 @@ export async function buildPlatform(
     await using _build = await PlatformBuild.build(CHECKOUT, environment);
 }
 
-/** Seal the keys a deployed stage's custody record lacks, as the operator does once per key. */
+/** Seal the keys a deployed universe's custody record lacks, as the operator does once per key. */
 export async function sealCustody(
     environment: Environment<HostCapability>,
     arguments_: readonly string[],
 ): Promise<void> {
-    // refuse arguments beyond the stage
+    // refuse arguments beyond the universe
     const [name, ...rest] = arguments_;
     if (rest.length > 0) {
-        throw new Error(`custody seal takes a stage, then nothing more: '${rest.join(" ")}'`);
+        throw new Error(`custody seal takes a universe, then nothing more: '${rest.join(" ")}'`);
     }
     await Deployment.deployed(name, environment).seal((title, line) =>
         printStatus(title, line, environment),

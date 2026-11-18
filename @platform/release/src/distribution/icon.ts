@@ -2,25 +2,25 @@ import { CHECKOUT } from "./distribution.ts";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { Environment, HostCapability } from "@destack/environment";
-import { Stage } from "@destack/update/release";
+import { Universe } from "@destack/update/release";
 import { run } from "./command.ts";
 
 /** The brand package's icon directory, resolved through its exports. */
 const BRAND_ICONS = dirname(fileURLToPath(import.meta.resolve("@platform/brand/icon/icon.svg")));
 
-/** Build every stage's macOS icons into the brand package. */
+/** Build every universe's macOS icons into the brand package. */
 export async function buildIcons(environment: Environment<HostCapability>): Promise<void> {
     // refuse a host without the macOS image tools
     if (environment.host.os !== "darwin") {
         throw new Error("the macOS icons are built on macOS");
     }
 
-    // build every stage's icons in a directory of their own
+    // build every universe's icons in a directory of their own
     const { files } = environment;
     const temporary = await files.makeTemporaryDirectory("destack-icon-");
     const tauri = join(CHECKOUT, "@destack/desktop/node_modules/@tauri-apps/cli/tauri.js");
     try {
-        for (const { suffix } of Stage.names.map((name) => Stage.of(name))) {
+        for (const { suffix } of Universe.names.map((name) => Universe.of(name))) {
             await buildMacIcon(suffix, tauri, join(temporary, `icon${suffix}`), environment);
         }
     } finally {
@@ -28,7 +28,7 @@ export async function buildIcons(environment: Environment<HostCapability>): Prom
     }
 }
 
-/** Pad a stage's raster icon as macOS applications are, and generate its `.icns` container. */
+/** Pad a universe's raster icon as macOS applications are, and generate its `.icns` container. */
 async function buildMacIcon(
     suffix: string,
     tauri: string,

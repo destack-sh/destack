@@ -1,6 +1,6 @@
 import { DistributionPlatform } from "@destack/package";
 import { CHECKOUT } from "./distribution.ts";
-import { Stage } from "@destack/update/release";
+import { Universe } from "@destack/update/release";
 import { checkDistribution } from "./check.ts";
 import { buildSandboxTools } from "./tools.ts";
 import { DESKTOP_ENTRY, PlatformBuild } from "../deployment/index.ts";
@@ -57,7 +57,7 @@ export async function buildDistribution(
     const release = new Release(version, selected ?? Release.target(os, architecture));
     const target = release.target;
     const platform = Platform.of(target);
-    const stage = new Stage("production");
+    const universe = new Universe("production");
     if (os !== platform.system) {
         throw new Error("build desktop distributions on their target operating system");
     }
@@ -73,8 +73,8 @@ export async function buildDistribution(
     const directory = await files.makeTemporaryDirectory(`${target}-`, { directory: staging });
 
     // compile the commands, bundle the desktop and place the commands inside it
-    await compileExecutables(directory, platform, stage, version, environment);
-    const application = await bundleDesktop(directory, platform, stage, version, environment);
+    await compileExecutables(directory, platform, universe, version, environment);
+    const application = await bundleDesktop(directory, platform, universe, version, environment);
     const helpers = join(application, platform.bundle.helpers);
     await placeCommands(directory, helpers, platform, environment);
 
@@ -103,7 +103,7 @@ export async function buildDistribution(
 async function compileExecutables(
     directory: string,
     platform: Platform,
-    stage: Stage,
+    universe: Universe,
     version: string,
     environment: Environment<HostCapability>,
 ): Promise<void> {
@@ -144,7 +144,7 @@ async function compileExecutables(
                 target: platform.target,
                 runtime: platform.runtime,
                 version,
-                stage,
+                universe,
                 ...executable.options,
             },
             environment,
@@ -168,14 +168,20 @@ async function compileExecutables(
 async function bundleDesktop(
     directory: string,
     platform: Platform,
-    stage: Stage,
+    universe: Universe,
     version: string,
     environment: Environment<HostCapability>,
 ): Promise<string> {
-    // build the native window with the stage's identity and icons
+    // build the native window with the universe's identity and icons
     const output = join(CHECKOUT, "dist/.native");
     const tauri = join(CHECKOUT, "@destack/desktop/node_modules/@tauri-apps/cli/tauri.js");
-    const configuration = await configureApplication(CHECKOUT, output, stage, version, environment);
+    const configuration = await configureApplication(
+        CHECKOUT,
+        output,
+        universe,
+        version,
+        environment,
+    );
     const { target, bundle } = platform;
     const arguments_ = ["run", tauri, "build", "--target", target, "--config", configuration];
     arguments_.push(
@@ -186,7 +192,7 @@ async function bundleDesktop(
         arguments_,
         environment,
         join(CHECKOUT, "@destack/desktop/native"),
-        { CARGO_TARGET_DIR: output, DESTACK_STAGE: stage.name },
+        { CARGO_TARGET_DIR: output, DESTACK_UNIVERSE: universe.name },
     );
     const { files } = environment;
 
@@ -194,7 +200,7 @@ async function bundleDesktop(
     const compiled = join(output, target, "release");
     const application = join(directory, bundle.application);
     if (bundle.tauri === "app") {
-        await files.copy(join(compiled, `bundle/macos/${stage.title}.app`), application);
+        await files.copy(join(compiled, `bundle/macos/${universe.title}.app`), application);
 
         return application;
     }
@@ -210,7 +216,7 @@ async function bundleDesktop(
     if (platform.system === "linux") {
         await files.copyFile(
             fileURLToPath(
-                import.meta.resolve(`@platform/brand/icon/icon${stage.suffix}-rounded.svg`),
+                import.meta.resolve(`@platform/brand/icon/icon${universe.suffix}-rounded.svg`),
             ),
             join(application, "icon.svg"),
         );

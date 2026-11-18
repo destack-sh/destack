@@ -34,10 +34,10 @@ export interface UniverseBindings {
     readonly DATABASE: { readonly connectionString: string };
     /** The releases the Worker version ships, a build layer in its static assets. */
     readonly RELEASES: AssetBinding;
-    /** The S3 bucket keeping the universe's files, as `S3Location` JSON. */
-    readonly DESTACK_FILES: string;
+    /** The universe's bucket, an S3 location in its residency, as `S3Location` JSON. */
+    readonly DESTACK_BUCKET: string;
     /** The universe's issuer, its origin, such as https://destack.app. */
-    readonly DESTACK_UNIVERSE: string;
+    readonly DESTACK_UNIVERSE_ORIGIN: string;
     /** The location hint starting the object near its database, such as weur. */
     readonly DESTACK_LOCATION: string;
     /** How the universe's root keys are sealed, as `EnvelopeConfiguration` JSON. */
@@ -91,7 +91,7 @@ async function startUniverse(bindings: UniverseBindings, alarm: Alarm) {
 
     // open the universe's files over S3
     const files = S3Client.of(
-        { location: S3Location.parse(JSON.parse(bindings.DESTACK_FILES)), credentials },
+        { location: S3Location.parse(JSON.parse(bindings.DESTACK_BUCKET)), credentials },
         environment,
     );
 
@@ -111,7 +111,7 @@ async function startUniverse(bindings: UniverseBindings, alarm: Alarm) {
             },
         }),
         definition: UniverseDefinition.parse(declared.default),
-        origin: bindings.DESTACK_UNIVERSE,
+        origin: bindings.DESTACK_UNIVERSE_ORIGIN,
         database,
         keyring,
         callKey: () => key,

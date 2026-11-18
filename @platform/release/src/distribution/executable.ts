@@ -1,4 +1,4 @@
-import type { Stage } from "@destack/update/release";
+import type { Universe } from "@destack/update/release";
 import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 import { basename, dirname, join, relative, resolve } from "node:path";
@@ -83,8 +83,8 @@ export interface ExecutableOptions {
     external?: string[];
     /** Distribution version injected into executable package metadata. */
     version?: string;
-    /** The stage of the executable: its identity, issuer and device directory. */
-    stage?: Stage;
+    /** The universe of the executable: its identity, issuer and device directory. */
+    universe?: Universe;
 }
 
 /** Write the options of a program loading native tools, such as rolldown, from their copies. */
@@ -239,7 +239,7 @@ async function bundleProgram(
         // write each map apart from its bundle, which names none, as observability reads them and nobody installs them
         sourcemap: "external",
         external,
-        ...(options.stage !== undefined && { banner: channelBanner(options.stage) }),
+        ...(options.universe !== undefined && { banner: channelBanner(options.universe) }),
         // let the caller's plugins load their modules first, as the module plugin answers every other
         plugins: [
             ...(options.plugins ?? []),
@@ -358,10 +358,10 @@ async function optionalPeers(root: string, environment: Environment<"files">): P
     return names.flatMap((name) => [name, `${name}/*`]);
 }
 
-/** Write the module banner that sets a stage's name, issuer and device directory. */
-function channelBanner(stage: Stage): string {
+/** Write the module banner that sets a universe's name, issuer and device directory. */
+function channelBanner(universe: Universe): string {
     return `import { homedir as destackHome } from "node:os"; import { join as destackPath } from "node:path";
-    process.env.DESTACK_STAGE = ${JSON.stringify(stage.name)};
-    process.env.DESTACK_UNIVERSE ??= ${JSON.stringify(stage.universe)};
-    process.env.DESTACK_DIRECTORY ??= destackPath(destackHome(), ${JSON.stringify(stage.directory)});`;
+    process.env.DESTACK_UNIVERSE = ${JSON.stringify(universe.name)};
+    process.env.DESTACK_UNIVERSE_ORIGIN ??= ${JSON.stringify(universe.origin)};
+    process.env.DESTACK_DIRECTORY ??= destackPath(destackHome(), ${JSON.stringify(universe.directory)});`;
 }

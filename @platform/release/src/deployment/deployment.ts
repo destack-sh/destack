@@ -1,11 +1,12 @@
 import { TelemetryScope } from "@destack/telemetry";
 import { DeclarationReference } from "@destack/package/declare";
+import { UNIT_SKUS } from "@platform/pricing";
 import type { ResidencyCode } from "@destack/account/object";
 import { DOMAINS, UniverseOrigin } from "@destack/account/address";
 import { ProviderId } from "@destack/account/authentication";
 import type { ProviderClients } from "@destack/account/better-auth";
 import type { Jurisdiction } from "@destack/db/cloudflare";
-import { Stage } from "@destack/update/release";
+import { Universe } from "@destack/update/release";
 import { Identifier, type JsonValue, present, schema } from "@destack/schema";
 import type { UniverseDefinition } from "@destack/control";
 import type { WorkspaceUnitOptions } from "@destack/build";
@@ -76,7 +77,7 @@ const INSPECTOR_OFFSET = 5000;
 /** The configuration keys a run under workerd leaves out: routes, tails and artifacts. */
 const DEPLOYED_KEYS = new Set(["routes", "tail_consumers", "artifacts"]);
 
-/** The directory below a stage's target a run under workerd keeps its files in. */
+/** The directory below a universe's target a run under workerd keeps its files in. */
 const WORKERD_DIRECTORY = "workerd";
 
 /** A residency's cloud machine a check acts as: its sends toward packages, bound to a space. */
@@ -85,7 +86,7 @@ interface MachineActor {
     readonly fetch: (audience: PackageId, partition?: Identifier<"space">) => Fetch;
 }
 
-/** What a stage's local Workers share as they start: modules, keys, storage, mail, processes. */
+/** What a universe's local Workers share as they start: modules, keys, storage, mail, processes. */
 interface LocalWorkers {
     /** The modules the Workers bundle. */
     readonly modules: SuppliedModules;
@@ -95,11 +96,11 @@ interface LocalWorkers {
     readonly placeholders: ProviderClients;
     /** The directory each Worker keeps its storage below. */
     readonly storage: string;
-    /** The local Hyperdrive connection to the stage's database. */
+    /** The local Hyperdrive connection to the universe's database. */
     readonly hyperdrive: URL;
     /** The mail the universe prints, read for sign-in codes. */
     readonly mail: PrintedMail;
-    /** The Worker processes, stopped with the stage. */
+    /** The Worker processes, stopped with the universe. */
     readonly children: AsyncDisposableStack;
     /** Print a Worker's line under its service. */
     readonly print: (name: string, line: string) => void;
@@ -124,7 +125,7 @@ const PROVIDER_SECRETS: Readonly<Record<ProviderId, string>> = {
     microsoft: "MICROSOFT_CLIENT_SECRET",
 };
 
-/** The client identifier of Destack's application at each sign-in provider, for every stage. */
+/** The client identifier of Destack's application at each sign-in provider, for every universe. */
 const PROVIDER_CLIENT_IDS: Readonly<Record<ProviderId, string>> = {
     github: "Iv23li2jZs0kDg8Bc3sg",
     google: "969772309074-tqcvgqsuj4mt3u6au8t2vbonmch2f40t.apps.googleusercontent.com",
@@ -140,7 +141,7 @@ const MAIL_FROM = "Destack <notices@destack.app>";
 /** What a local run's roots provision for a Worker, whose local custody envelopes nothing. */
 const PLACEHOLDER_WORKER: WorkerOutputs = { envelope: { kind: "local" }, access: PLACEHOLDER_KEY };
 
-/** The loopback interface the local stage's processes listen on. */
+/** The loopback interface the local universe's processes listen on. */
 const LOOPBACK = "127.0.0.1";
 
 /** The domain the cloud machines answer below, each one label as `<machine>--platform`. */
@@ -149,14 +150,14 @@ const MACHINE_DOMAIN = "destack.computer";
 /** The provider running the cloud machines. */
 const PROVIDER = "cloudflare";
 
-/** The local universe's loopback port, which the stage's other ports follow. */
-const UNIVERSE_PORT = Number(new URL(Stage.of("local").universe).port);
+/** The local universe's loopback port, which the universe's other ports follow. */
+const UNIVERSE_PORT = Number(new URL(Universe.of("local").origin).port);
 
-/** The loopback port each service of the local stage listens on. */
+/** The loopback port each service of the local universe listens on. */
 export interface LoopbackLayout {
     /** The universe's port, its issuer's. */
     readonly universe: number;
-    /** This computer's own machine's port, which the local stage's people use. */
+    /** This computer's own machine's port, which the local universe's people use. */
     readonly machine: number;
     /** Each residency's cloud machine's port, by residency code. */
     readonly machines: Readonly<Record<ResidencyCode, number>>;
@@ -164,63 +165,74 @@ export interface LoopbackLayout {
     readonly universeWorker: number;
 }
 
-/** The loopback layout of `just local`: the universe, this machine, then each residency's. */
-export const LOOPBACK_LAYOUT: LoopbackLayout = {
-    universe: UNIVERSE_PORT,
-    machine: UNIVERSE_PORT + 1,
-    machines: Object.fromEntries(
-        RESIDENCIES.map((residency, index) => [residency.code, UNIVERSE_PORT + 2 + index]),
-    ),
-    universeWorker: UNIVERSE_PORT + 2 + RESIDENCIES.length,
+/** The loopback layouts of local universes. */
+export const LoopbackLayout = {
+    /** Lay a local universe out from its universe's port, the other services following it. */
+    at(universe: number): LoopbackLayout {
+        return {
+            universe,
+            machine: universe + 1,
+            machines: Object.fromEntries(
+                RESIDENCIES.map((residency, index) => [residency.code, universe + 2 + index]),
+            ),
+            universeWorker: universe + 2 + RESIDENCIES.length,
+        };
+    },
 };
 
-/** The platform deployed at a stage: its universe, residencies and Workers. */
+/** The loopback layout of the default local universe. */
+export const LOOPBACK_LAYOUT = LoopbackLayout.at(UNIVERSE_PORT);
+
+/** The platform deployed at a universe: its universe, residencies and Workers. */
 export class Deployment {
-    /** The stage deployed. */
-    readonly stage: Stage;
-    /** The loopback port each service of the local stage listens on. */
+    /** The universe deployed, at its origin. */
+    readonly universe: Universe;
+    /** The loopback port each service of the local universe listens on. */
     readonly layout: LoopbackLayout;
     /** The host the deployment's tools run on. */
     readonly environment: Environment<HostCapability>;
     /** The deployment's telemetry, whose records print as status lines. */
     readonly scope: TelemetryScope;
 
-    /** Deploy the platform at a stage from a host. */
+    /** Deploy the platform at a universe from a host. */
     private constructor(
-        stage: Stage,
+        universe: Universe,
         layout: LoopbackLayout,
         environment: Environment<HostCapability>,
     ) {
-        // keep the stage, its layout and its host, and record through the host's telemetry
-        this.stage = stage;
+        // keep the universe, a local one at its layout's port, its layout and its host
+        this.universe =
+            universe.name === "local"
+                ? new Universe(universe.name, `http://${LOOPBACK}:${layout.universe}`)
+                : universe;
         this.layout = layout;
         this.environment = environment;
         this.scope = TelemetryScope.of(import.meta.destack.package, environment.telemetry);
     }
 
-    /** Read the deployment of a stage by its name, refusing any other. */
+    /** Read the deployment of a universe by its name, refusing any other. */
     static of(name: string | undefined, environment: Environment<HostCapability>): Deployment {
-        return new Deployment(Stage.of(name), LOOPBACK_LAYOUT, environment);
+        return new Deployment(Universe.of(name), LOOPBACK_LAYOUT, environment);
     }
 
-    /** The format the stage's Workers print in: lines locally, JSON for Workers Logs. */
+    /** The format the universe's Workers print in: lines locally, JSON for Workers Logs. */
     get logFormat(): LogFormat {
-        return this.stage.name === "local" ? "line" : "json";
+        return this.universe.name === "local" ? "line" : "json";
     }
 
-    /** Read the local stage's deployment listening on a loopback layout. */
+    /** Read the local universe's deployment listening on a loopback layout. */
     static loopback(layout: LoopbackLayout, environment: Environment<HostCapability>): Deployment {
-        return new Deployment(Stage.of("local"), layout, environment);
+        return new Deployment(Universe.of("local"), layout, environment);
     }
 
-    /** Read a deployed stage's deployment by its name, refusing the local stage and any other. */
+    /** Read a deployed universe's deployment by its name, refusing the local one and any other. */
     static deployed(
         name: string | undefined,
         environment: Environment<HostCapability>,
     ): Deployment {
         const deployment = Deployment.of(name, environment);
-        if (deployment.stage.name === "local") {
-            throw new Error("the local stage runs under just local and deploys nothing");
+        if (deployment.universe.name === "local") {
+            throw new Error("the local universe runs under just local and deploys nothing");
         }
 
         return deployment;
@@ -228,21 +240,14 @@ export class Deployment {
 
     /** The directory of the releases the Workers ship as their static assets, a build layer. */
     get releases(): string {
-        return resolve(CHECKOUT, "target", this.stage.name, "cloud");
-    }
-
-    /** The origin of the universe the stage signs people in at. */
-    get universeOrigin(): string {
-        return this.stage.name === "local"
-            ? `http://${LOOPBACK}:${this.layout.universe}`
-            : this.stage.universe;
+        return resolve(CHECKOUT, "target", this.universe.name, "cloud");
     }
 
     /** The origin the universe's Worker answers at: its own port behind the edge locally. */
     get universeWorkerOrigin(): string {
-        return this.stage.name === "local"
+        return this.universe.name === "local"
             ? `http://${LOOPBACK}:${this.layout.universeWorker}`
-            : this.universeOrigin;
+            : this.universe.origin;
     }
 
     /** Address a request at the universe's domain, as the edge does. */
@@ -270,7 +275,7 @@ export class Deployment {
     /** The origin the cloud machine serving a residency answers at. */
     machineOrigin(residency: PlatformResidency): string {
         // answer on its loopback port locally
-        if (this.stage.name === "local") {
+        if (this.universe.name === "local") {
             const port = this.layout.machines[residency.code];
 
             return `http://${LOOPBACK}:${present(port, `the port of ${residency.code}`)}`;
@@ -281,7 +286,7 @@ export class Deployment {
 
     /** The origin machines open their tunnels at to a residency's relay, its machine's locally. */
     relayOrigin(residency: PlatformResidency): string {
-        return this.stage.name === "local"
+        return this.universe.name === "local"
             ? this.machineOrigin(residency)
             : `https://relay-${residency.code}.${DOMAINS.machine}`;
     }
@@ -303,12 +308,12 @@ export class Deployment {
 
     /** The jurisdiction keeping a residency's objects and files: none locally, as in workerd. */
     jurisdiction(residency: PlatformResidency): Jurisdiction {
-        return this.stage.name === "local" ? "none" : residency.jurisdiction;
+        return this.universe.name === "local" ? "none" : residency.jurisdiction;
     }
 
-    /** Where the stage's Workers send mail: through SES in production, else to their own logs. */
+    /** Where the universe's Workers send mail: through SES in production, else to their logs. */
     get mail(): MailSender {
-        return this.stage.name === "production"
+        return this.universe.name === "production"
             ? { kind: "ses", region: MAIL_REGION, from: MAIL_FROM }
             : { kind: "print" };
     }
@@ -316,24 +321,27 @@ export class Deployment {
     /** The setting values the residency homes' platform stack places, by setting key. */
     get settings(): Readonly<Record<string, JsonValue>> {
         return {
-            [DeclarationReference.key(tag.reference)]: this.stage.tag,
+            [DeclarationReference.key(tag.reference)]: this.universe.tag,
             [DeclarationReference.key(github.reference)]:
-                this.stage.name === "production"
+                this.universe.name === "production"
                     ? { kind: "app", appId: GITHUB_APP }
                     : { kind: "none" },
             [DeclarationReference.key(provider.reference)]:
-                this.stage.name === "production" ? "stripe" : "none",
+                this.universe.name === "production" ? "stripe" : "none",
         };
     }
 
-    /** Declare the stage's universe. */
-    async universe(
+    /** Declare the universe's definition. */
+    async definition(
         operator: string,
         custody: Custody,
         stacks: PlatformDefinition["stacks"],
         homes: PlatformDefinition["homes"],
     ): Promise<UniverseDefinition> {
-        // declare each residency's cloud machine under the key its custody keeps
+        // declare each residency's cloud machine under the key its custody keeps, rating its spaces by the platform's SKUs
+        const rates = Object.fromEntries(
+            UNIT_SKUS.map((sku) => [sku.meterKey, DeclarationReference.key(sku.reference)]),
+        );
         const machines = [];
         for (const residency of RESIDENCIES) {
             machines.push({
@@ -344,6 +352,7 @@ export class Deployment {
                 location: residency.location,
                 key: custody.machine(residency.machine.id).publicKey,
                 origin: this.machineOrigin(residency),
+                rates,
             });
         }
 
@@ -386,16 +395,16 @@ export class Deployment {
         await using build = await this.#build({ isPrerelease: true });
 
         // declare the universe over the state's keys with the stacks built from the checkout
-        const declaration = await this.universe(
+        const declaration = await this.definition(
             Operator.LOCAL,
             custody,
-            build.stacks(this.stage.tag),
+            build.stacks(this.universe.tag),
             await this.homes(build),
         );
 
         // serve the universe's files from a local bucket over S3
         await using files = await LocalBucket.open(
-            resolve(CHECKOUT, "target", this.stage.name, WORKERD_DIRECTORY, "files"),
+            resolve(CHECKOUT, "target", this.universe.name, WORKERD_DIRECTORY, "files"),
             "universe",
             environment,
         );
@@ -597,7 +606,7 @@ export class Deployment {
         const accounts = createClient(
             accountPackage,
             {
-                url: PackageMount.url(this.universeOrigin, accountPackage.id),
+                url: PackageMount.url(this.universe.origin, accountPackage.id),
                 fetch: machine.fetch(accountPackage.id),
             },
             this.environment,
@@ -629,7 +638,7 @@ export class Deployment {
             const accounts = createClient(
                 accountPackage,
                 {
-                    url: PackageMount.url(this.universeOrigin, accountPackage.id),
+                    url: PackageMount.url(this.universe.origin, accountPackage.id),
                     fetch: signedIn.fetch(accountPackage.id),
                 },
                 environment,
@@ -696,7 +705,7 @@ export class Deployment {
 
         // send as the machine toward a package, bound to a space when given
         const session = new Session(identity.at(issuer, send), {
-            universe: this.universeOrigin,
+            universe: this.universe.origin,
             send,
             bookmark: new Bookmark(),
             environment,
@@ -768,7 +777,7 @@ export class Deployment {
 
     /** The URL of the universe's issuer. */
     get issuer(): string {
-        return UniverseOrigin.issuer(this.universeOrigin);
+        return UniverseOrigin.issuer(this.universe.origin);
     }
 
     /** Apply the global root, the universe's and the residencies', then release the Workers. */
@@ -776,7 +785,7 @@ export class Deployment {
         const { environment } = this;
 
         // apply every root in dependency order
-        for (const root of Root.all(this.stage.name, environment)) {
+        for (const root of Root.all(this.universe.name, environment)) {
             await root.operate("deploy");
         }
 
@@ -784,13 +793,13 @@ export class Deployment {
         await this.release();
     }
 
-    /** Publish a build's releases as the local operator under the stage's tag, pointing latest. */
+    /** Publish a build's releases as the local operator under the universe's tag and latest. */
     async publishLocal(build: PlatformBuild, custody: Custody, mail: PrintedMail): Promise<void> {
-        // sign the operator in, and publish under the stage's tag as the platform's owner, pointing latest, which installs follow
+        // sign the operator in, and publish under the universe's tag as the platform's owner, pointing latest, which installs follow
         const send = (request: Request) => this.environment.network.fetch(request);
         const issuer = new Issuer(this.issuer, send, this.environment, new Bookmark());
         const operator = await Operator.signIn(issuer, mail, this.environment);
-        await build.release(this.stage.tag, this.forges(custody, build, operator), {
+        await build.release(this.universe.tag, this.forges(custody, build, operator), {
             tags: [LATEST_TAG],
         });
     }
@@ -802,17 +811,17 @@ export class Deployment {
         const operator = Root.required("DESTACK_OPERATOR", environment);
         const { outputs, outputsOf } = await this.#outputs();
         const custody = await Custody.read(
-            Custody.file(this.stage.name),
+            Custody.file(this.universe.name),
             Deployment.#envelopes(outputs, outputsOf),
             environment,
         );
 
         // declare the universe over the record
         await using build = await this.#build();
-        const declaration: UniverseDefinition = await this.universe(
+        const declaration: UniverseDefinition = await this.definition(
             operator,
             custody,
-            build.stacks(this.stage.tag),
+            build.stacks(this.universe.tag),
             await this.homes(build),
         );
 
@@ -848,7 +857,7 @@ export class Deployment {
         }
     }
 
-    /** Publish the stage's releases into the platform accounts' forge as the release workflow. */
+    /** Publish the universe's releases into the platform's forge as the release workflow. */
     async publish(): Promise<void> {
         // sign in as the workflow's trusted publisher, by the job's OIDC token for the token endpoint
         const { environment } = this;
@@ -857,7 +866,7 @@ export class Deployment {
             assert: (endpoint: string) => ActionsToken.request(endpoint, environment),
         };
         const session = new Session(new IssuerCredential(signer, this.issuer, send, environment), {
-            universe: this.universeOrigin,
+            universe: this.universe.origin,
             send,
             bookmark: new Bookmark(),
             environment,
@@ -889,16 +898,16 @@ export class Deployment {
         const fetch = session.fetch(registryPackage.id, { partition: home });
         const registry = new Registry(async () => ({ url, space: home, fetch }), environment);
 
-        // release each build under the stage's tag in the account of its handle, pointing latest, which installs follow
+        // release each build under the universe's tag in the account of its handle, pointing latest, which installs follow
         await using build = await this.#build();
         await build.release(
-            this.stage.tag,
+            this.universe.tag,
             async (handle) => ({ accountId: await owner(handle), registry }),
             { tags: [LATEST_TAG] },
         );
     }
 
-    /** Seal the keys the stage's custody record lacks under each root's KMS key, for committing. */
+    /** Seal the keys the universe's custody record lacks under each root's KMS key. */
     async seal(print: (name: string, line: string) => void): Promise<void> {
         // seal as the operator, with the AWS key allowed to generate and encrypt under the roots' keys
         const { environment } = this;
@@ -910,7 +919,7 @@ export class Deployment {
 
         // seal the keys the record lacks under the applied roots' envelopes
         const { outputs, outputsOf } = await this.#outputs();
-        const file = Custody.file(this.stage.name);
+        const file = Custody.file(this.universe.name);
         await Custody.seal(
             file,
             Deployment.#envelopes(outputs, outputsOf),
@@ -930,13 +939,13 @@ export class Deployment {
     }> {
         // read the universe root's outputs
         const { environment } = this;
-        const universe = new Root([this.stage.name, "universe"], environment);
+        const universe = new Root([this.universe.name, "universe"], environment);
         const outputs = await universe.universe(await universe.initialize());
 
         // read each residency root's outputs
         const residencies = new Map<string, ResidencyOutputs>();
         for (const residency of RESIDENCIES) {
-            const deployment = new Root([this.stage.name, residency.code], environment);
+            const deployment = new Root([this.universe.name, residency.code], environment);
             const variables = await deployment.initialize();
             residencies.set(residency.code, await deployment.residency(variables));
         }
@@ -998,7 +1007,7 @@ export class Deployment {
         );
     }
 
-    /** Build the checkout's first-party releases into the stage's store. */
+    /** Build the checkout's first-party releases into the universe's store. */
     async #build(options: Pick<WorkspaceUnitOptions, "isPrerelease"> = {}): Promise<PlatformBuild> {
         return await PlatformBuild.build(CHECKOUT, this.environment, options);
     }
@@ -1013,9 +1022,9 @@ export class Deployment {
         };
     }
 
-    /** The name of the stage's universe files bucket. */
+    /** The name of the universe's universe files bucket. */
     get #files(): string {
-        return `destack-${this.stage.name}-files-universe`;
+        return `destack-${this.universe.name}-files-universe`;
     }
 
     /** Write a residency root's outputs a run under workerd binds. */
@@ -1024,7 +1033,7 @@ export class Deployment {
 
         return {
             account: PLACEHOLDER_IDENTIFIER,
-            bucket: `destack-${this.stage.name}-${residency.code}`,
+            bucket: `destack-${this.universe.name}-${residency.code}`,
             host,
             hyperdrive: PLACEHOLDER_IDENTIFIER,
             ...PLACEHOLDER_WORKER,

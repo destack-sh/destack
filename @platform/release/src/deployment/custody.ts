@@ -10,7 +10,7 @@ import {
 import { schema } from "@destack/schema";
 import { ROOT } from "./root.ts";
 
-/** The directory keeping each stage's custody record, beside the release's sources. */
+/** The directory keeping each universe's custody record, beside the release's sources. */
 const CUSTODY_DIRECTORY = resolve(ROOT, "custody");
 
 /** The universe's sealed keys: its envelope and its root keyset. */
@@ -31,17 +31,17 @@ const MachineKeys = UniverseKeys.extend({
 /** A cloud machine's sealed keys. */
 export type MachineKeys = schema.Infer<typeof MachineKeys>;
 
-/** A stage's custody record: the universe's sealed keys and each cloud machine's, by its id. */
+/** A universe's custody record: the universe's sealed keys and each cloud machine's, by its id. */
 const CustodyRecord = schema.object({
     /** The universe's keys. */
     universe: UniverseKeys,
     /** Each cloud machine's keys, by machine id. */
     machines: schema.record(schema.string(), MachineKeys),
 });
-/** A stage's custody record. */
+/** A universe's custody record. */
 type CustodyRecord = schema.Infer<typeof CustodyRecord>;
 
-/** The KMS keys a stage envelopes under: the universe's and each cloud machine's, by machine id. */
+/** The KMS keys a universe envelopes under: the universe's and each cloud machine's, by id. */
 export interface CustodyEnvelopes {
     /** The universe's envelope. */
     readonly universe: EnvelopeConfiguration;
@@ -49,12 +49,12 @@ export interface CustodyEnvelopes {
     readonly machines: ReadonlyMap<string, EnvelopeConfiguration>;
 }
 
-/** A stage's key custody: each Worker's sealed root keys and each cloud machine's sealed key. */
+/** A universe's key custody: each Worker's sealed root keys and each cloud machine's sealed key. */
 export class Custody {
     /** The record. */
     readonly record: CustodyRecord;
 
-    /** Keep a stage's record. */
+    /** Keep a universe's record. */
     constructor(record: CustodyRecord) {
         this.record = record;
     }
@@ -80,18 +80,18 @@ export class Custody {
         });
     }
 
-    /** Write the file of a stage's record. */
-    static file(stage: string): string {
-        return resolve(CUSTODY_DIRECTORY, `${stage}.json`);
+    /** Write the file of a universe's record. */
+    static file(universe: string): string {
+        return resolve(CUSTODY_DIRECTORY, `${universe}.json`);
     }
 
-    /** Read a stage's record as a deploy does, refusing a missing key or one sealed otherwise. */
+    /** Read a universe's record as a deploy does, refusing a missing or otherwise sealed key. */
     static async read(
         file: string,
         envelopes: CustodyEnvelopes,
         environment: Environment<"files">,
     ): Promise<Custody> {
-        // refuse a stage the operator has not sealed
+        // refuse a universe the operator has not sealed
         if (!(await environment.files.exists(file))) {
             throw new Error(
                 `the custody record '${file}' is missing: the operator seals it with custody seal and commits it`,
@@ -108,7 +108,7 @@ export class Custody {
         return new Custody(record);
     }
 
-    /** Seal the keys a stage's record lacks as the operator does, refusing one sealed otherwise. */
+    /** Seal the keys a universe's record lacks as the operator does, refusing others. */
     static async seal(
         file: string,
         envelopes: CustodyEnvelopes,

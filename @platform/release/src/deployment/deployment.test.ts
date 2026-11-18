@@ -14,7 +14,7 @@ import { Custody, Deployment } from "./index.ts";
 import { type ScriptTarget, WorkerScript } from "./cloudflare/script.ts";
 import { testSimulation } from "@destack/test/world";
 
-test("declare each stage's universe with its residencies, the reserved handles and a cloud machine per residency at its origin under the key its custody keeps", async () => {
+test("declare each universe's universe with its residencies, the reserved handles and a cloud machine per residency at its origin under the key its custody keeps", async () => {
     // keep each machine's key in a local custody record
     const host = testSimulation().environment("deployment");
     const custody = await Custody.local(
@@ -23,13 +23,13 @@ test("declare each stage's universe with its residencies, the reserved handles a
     );
 
     // declare the dev and the production universe
-    const local = await Deployment.of("local", host).universe(
+    const local = await Deployment.of("local", host).definition(
         "operator@destack.test",
         custody,
         STACKS,
         HOMES,
     );
-    const production = await Deployment.of("production", host).universe(
+    const production = await Deployment.of("production", host).definition(
         "ops@destack.test",
         custody,
         STACKS,
@@ -37,7 +37,7 @@ test("declare each stage's universe with its residencies, the reserved handles a
     );
     const keys = RESIDENCIES.map((residency) => custody.machine(residency.machine.id).publicKey);
 
-    // declare the same names on every stage, the public ones at the platform residency
+    // declare the same names on every universe, the public ones at the platform residency
     const names = [
         ["destack.space", "destack.computer", "destack.app", "destack.sh"],
         {
@@ -142,9 +142,9 @@ test("select each residency home's stack release with its relay's origin, reside
             settings: { ...settings },
         }),
     };
-    const read = async (stage: "local" | "production") =>
+    const read = async (universe: "local" | "production") =>
         Object.fromEntries(
-            Object.entries(await Deployment.of(stage, host).homes(build)).map(([code, home]) => [
+            Object.entries(await Deployment.of(universe, host).homes(build)).map(([code, home]) => [
                 code,
                 [
                     home.export,
@@ -187,15 +187,15 @@ test("select each residency home's stack release with its relay's origin, reside
     });
 });
 
-test("refuse the local stage where a deployment is asked for", () => {
+test("refuse the local universe where a deployment is asked for", () => {
     const host = testSimulation().environment("deployment");
     expect(() => Deployment.deployed("local", host)).toThrow(
-        new Error("the local stage runs under just local and deploys nothing"),
+        new Error("the local universe runs under just local and deploys nothing"),
     );
 });
 
 test("charge through Stripe in production alone", () => {
-    // read each stage's payment provider
+    // read each universe's payment provider
     const host = testSimulation().environment("deployment");
     const providers = (["local", "production"] as const).map(
         (name) => Deployment.of(name, host).settings[DeclarationReference.key(provider.reference)],
@@ -206,7 +206,7 @@ test("charge through Stripe in production alone", () => {
     });
 });
 
-test("sign people in through GitHub, Google and Microsoft with each secret a stage holds, binding them on the universe's script alone", async () => {
+test("sign people in through GitHub, Google and Microsoft with each secret a universe holds, binding them on the universe's script alone", async () => {
     // read the applications with every secret, and with none
     const host = testSimulation().environment("deployment");
     const custody = await Custody.local(

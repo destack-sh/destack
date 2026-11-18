@@ -74,9 +74,9 @@ diff +deployment:
 deploy +deployment:
     {{bun}} run src/main.ts platform deploy {{deployment}}
 
-# seal the keys a stage's custody record lacks, as the operator does once per key before committing it
-custody verb stage:
-    {{bun}} run src/main.ts custody {{verb}} {{stage}}
+# seal the keys a universe's custody record lacks, as the operator does once per key before committing it
+custody verb universe:
+    {{bun}} run src/main.ts custody {{verb}} {{universe}}
 
 # serve the local universe, its cloud machines on Bun or as Workers with --runtime workerd, or drop its state with local reset;
 #  run the desktop app or the cli on it with local desktop and local cli

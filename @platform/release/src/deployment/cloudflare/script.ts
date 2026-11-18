@@ -1,4 +1,3 @@
-import { DeclarationReference } from "@destack/package/declare";
 import type { ProviderClients } from "@destack/account/better-auth";
 import { FORGE_INSTALLATION } from "@destack/forge/package";
 import { WORKERD_COMPATIBILITY_DATE } from "@destack/package/runtime";
@@ -9,8 +8,6 @@ import { type Plugin, rolldown } from "rolldown";
 import { DOMAINS, InstallationOrigin, UniverseOrigin } from "@destack/account/address";
 import { ModuleTransformer } from "@destack/package/transform";
 import { modulePlugin } from "@destack/package/vite";
-import { DURABLE_OBJECT_GIGABYTES } from "@platform/pricing/cloudflare";
-import { UNIT_SKUS } from "@platform/pricing";
 import type { Custody } from "../custody.ts";
 import {
     Root,
@@ -115,20 +112,20 @@ export type ScriptTarget =
           readonly residency: PlatformResidency;
       };
 
-/** One of the Worker scripts a stage deploys. */
+/** One of the Worker scripts a universe deploys. */
 export class WorkerScript {
-    /** The stage the script deploys to. */
+    /** The universe the script deploys to. */
     readonly deployment: Deployment;
     /** What the script deploys. */
     readonly target: ScriptTarget;
 
-    /** Describe the script deploying a target to a stage. */
+    /** Describe the script deploying a target to a universe. */
     constructor(deployment: Deployment, target: ScriptTarget) {
         this.deployment = deployment;
         this.target = target;
     }
 
-    /** The service a stage prints the script's lines under: universe, or a machine's name. */
+    /** The service a universe prints the script's lines under: universe, or a machine's name. */
     get service(): string {
         // name the universe, a residency's machine, or the Tail Worker beside it
         const { target } = this;
@@ -146,8 +143,8 @@ export class WorkerScript {
         const target = this.target;
 
         return target.kind === "universe"
-            ? `destack-${this.deployment.stage.name}-universe`
-            : `destack-${this.deployment.stage.name}-${target.kind}-${target.residency.code}`;
+            ? `destack-${this.deployment.universe.name}-universe`
+            : `destack-${this.deployment.universe.name}-${target.kind}-${target.residency.code}`;
     }
 
     /** The module the script runs, as its engine package ships it. */
@@ -222,9 +219,9 @@ export class WorkerScript {
             hyperdrive: [{ binding: "DATABASE", id: outputs.hyperdrive }],
             vars: {
                 DESTACK_LOG_FORMAT: this.deployment.logFormat,
-                DESTACK_FILES: JSON.stringify(outputs.files),
-                DESTACK_UNIVERSE: this.deployment.universeOrigin,
+                DESTACK_UNIVERSE_ORIGIN: this.deployment.universe.origin,
                 DESTACK_LOCATION: UNIVERSE_LOCATION,
+                DESTACK_BUCKET: JSON.stringify(outputs.files),
                 DESTACK_MAIL: JSON.stringify(this.deployment.mail),
             },
         };
@@ -264,7 +261,7 @@ export class WorkerScript {
             artifacts: [
                 {
                     binding: "ARTIFACTS",
-                    namespace: `destack-${this.deployment.stage.name}-repositories-${residency.code}`,
+                    namespace: `destack-${this.deployment.universe.name}-repositories-${residency.code}`,
                 },
             ],
             services: [
@@ -274,25 +271,16 @@ export class WorkerScript {
             routes: this.#routes(outputs, residency),
             vars: {
                 DESTACK_LOG_FORMAT: this.deployment.logFormat,
-                DESTACK_MACHINE_ID: residency.machine.id,
-                DESTACK_UNIVERSE: this.deployment.universeOrigin,
+                DESTACK_UNIVERSE_ORIGIN: this.deployment.universe.origin,
                 DESTACK_JURISDICTION: kept,
+                DESTACK_BUCKET: outputs.bucket,
+                DESTACK_MAIL: JSON.stringify(this.deployment.mail),
+                DESTACK_MACHINE_ID: residency.machine.id,
+                DESTACK_HOST: outputs.host,
                 DESTACK_SPACE_DOMAIN: InstallationOrigin.domain(
                     this.deployment.machineOrigin(residency),
                 ),
-                DESTACK_HOST: outputs.host,
-                DESTACK_BUCKET: outputs.bucket,
                 DESTACK_REGISTRY: FORGE_INSTALLATION,
-                DESTACK_RATES: JSON.stringify({
-                    skus: Object.fromEntries(
-                        UNIT_SKUS.map((sku) => [
-                            sku.meterKey,
-                            DeclarationReference.key(sku.reference),
-                        ]),
-                    ),
-                    gigabytes: DURABLE_OBJECT_GIGABYTES,
-                }),
-                DESTACK_MAIL: JSON.stringify(this.deployment.mail),
                 DESTACK_PEERS: JSON.stringify(
                     Object.fromEntries(
                         peers.flatMap(({ binding, hosts }) => hosts.map((host) => [host, binding])),
@@ -392,7 +380,7 @@ export class WorkerScript {
     async write(configuration: WranglerConfiguration, modules: SuppliedModules): Promise<string> {
         // bundle the script into a fresh directory unless its last bundle read the same inputs
         const { files } = this.deployment.environment;
-        const directory = resolve(ROOT, ".wrangler", this.deployment.stage.name, this.name);
+        const directory = resolve(ROOT, ".wrangler", this.deployment.universe.name, this.name);
         const inputs = resolve(directory, INPUTS_FILE);
         if (!(await this.#isBundled(directory, modules))) {
             await this.deployment.scope.span(

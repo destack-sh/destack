@@ -52,19 +52,21 @@ Stage.deployed("production").machineOrigin(RESIDENCIES[0]);
 
 ## Local universe
 
-`just local` migrates `destack_dev` on the PostgreSQL of `just postgres up`, starts the universe, a cloud machine per residency and the local stage's machine, and stops them on Ctrl-C.
+`just local` creates `destack_local` on the PostgreSQL of `just postgres up`, starts the universe, a cloud machine per residency and the local universe's machine, and stops them on Ctrl-C.
+Each local universe keeps its database, its directory under `target/` and its own block of ports, so several run side by side.
 
 ```sh
-# universe 127.0.0.1:4100, eu-central :4102, us-east :4103, machine :4101; mail printed
-just local
-# drop destack_dev, target/dev and the local stage's machine with its keychain entries
+# universe 127.0.0.1:4100, machine :4101, eu-central :4102, us-east :4103; mail printed
+just local serve
+# the same universe on workerd, as production runs it
+just local serve --runtime workerd
+# drop the universe's database, its directory and its machine with its keychain entries
 just local reset
-# serve or drop another state: destack_slice, target/slice, its machine in target/slice/device
-just local serve --state slice
-just local reset --state slice
-# in @destack/cli, with DESTACK_DIRECTORY=target/<state>/device for another state
-DESTACK_STAGE=local bun run src/main.ts login \
-    --email ada@destack.test --handle ada --residency eu
+# serve or drop another local universe: destack_slice, target/slice, the next free ports (4110, 4120, ...)
+just local serve --universe slice
+just local reset --universe slice
+# run the cli or the desktop app on a local universe
+just local cli --universe slice login --email ada@destack.test --handle ada --residency eu
 ```
 
 ## Workers
@@ -255,7 +257,7 @@ const { targets, snapshot, timestamp } = await readReleaseKeys();
 `update expiry` fails once root is within 90 days of expiring, targets within 30, and snapshot and timestamp within 3.
 
 ```sh
-DESTACK_STAGE=production bun run @platform/release/src/main.ts update expiry
+DESTACK_UNIVERSE=production bun run @platform/release/src/main.ts update expiry
 ```
 
 ## Environments

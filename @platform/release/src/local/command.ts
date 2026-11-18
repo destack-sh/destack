@@ -3,39 +3,39 @@ import type { Environment, HostCapability } from "@destack/environment";
 import { Deployment } from "../deployment/deployment.ts";
 import { CHECKOUT } from "../distribution/distribution.ts";
 import { developDistribution } from "../distribution/develop.ts";
+import { BunCloud } from "./cloud.ts";
 import { LocalUniverse } from "./local.ts";
-import { LocalState } from "./state.ts";
 
-/** Serve a local universe until an interrupt: `local serve [<flags of LocalState>]`. */
+/** Serve a local universe until an interrupt: `local serve [<flags of LocalUniverse>]`. */
 export async function serveLocal(
     environment: Environment<HostCapability>,
     arguments_: readonly string[],
 ): Promise<void> {
-    // read the stage's state, recording through the host's telemetry
-    const state = LocalState.of(arguments_, environment);
+    // read the universe's local, recording through the host's telemetry
+    const local = await LocalUniverse.of(arguments_, environment);
 
     // serve the universe and the cloud machines as Workers under workerd, as production runs them
-    if (state.runtime === "workerd") {
-        const deployment = Deployment.of("local", environment);
+    if (local.runtime === "workerd") {
+        const deployment = Deployment.loopback(local.layout, environment);
 
-        // keep the state between runs, as the Bun stage does: its database, its keys and its Workers' storage
-        await state.createDatabase();
-        const custody = await LocalUniverse.custody(state.environment);
-        const storage = join(state.directory, "workers");
-        const print = (title: string, line: string) => state.print(title, line);
+        // keep the local between runs, as a Bun local universe does: its database, its keys and its Workers' storage
+        await local.createDatabase();
+        const custody = await local.custody();
+        const storage = join(local.directory, "workers");
+        const print = (title: string, line: string) => local.print(title, line);
         await deployment.serve(
-            state.server,
-            state.database,
+            local.server,
+            local.database,
             custody,
             storage,
             print,
             async (build) => {
                 // ship the served build on the state's machine, started against the Workers
-                await state.writeDistribution(build);
-                await using machine = await state.startMachine(deployment.universeOrigin);
+                await local.writeDistribution(build);
+                await using machine = await local.startMachine(deployment.universe.origin);
 
                 // serve until an interrupt or a termination
-                state.printReady();
+                local.printReady();
                 await interrupted(environment);
             },
         );
@@ -44,24 +44,24 @@ export async function serveLocal(
     }
 
     // start the universe and its cloud machines, then the state's machine
-    const universe = await LocalUniverse.start(state);
-    const machine = await state.startMachine(universe.deployment.universeOrigin);
+    const universe = await BunCloud.start(local);
+    const machine = await local.startMachine(universe.deployment.universe.origin);
 
     // print where everything answers
     for (const endpoint of universe.endpoints) {
-        state.print(endpoint.name, endpoint.url);
+        local.print(endpoint.name, endpoint.url);
     }
-    state.print("machine", `http://127.0.0.1:${state.layout.machine}`);
-    state.printReady();
+    local.print("machine", `http://127.0.0.1:${local.layout.machine}`);
+    local.printReady();
 
     // serve until an interrupt or a termination
     const signal = await interrupted(environment);
 
     // stop everything
-    state.scope.log.info("platform.stage.signaled", { "platform.signal": signal });
+    local.scope.log.info("platform.universe.signaled", { "platform.signal": signal });
     await machine[Symbol.asyncDispose]();
     await universe[Symbol.asyncDispose]();
-    state.scope.log.info("platform.stage.stopped");
+    local.scope.log.info("platform.universe.stopped");
 }
 
 /** Wait for an interrupt or a termination, answering the signal that came. */
@@ -77,28 +77,28 @@ async function interrupted(environment: Environment<"process">): Promise<string>
     return signal;
 }
 
-/** Run the desktop app on a local state's device: `local desktop [<flags of LocalState>]`. */
+/** Run the desktop app on a local state's device: `local desktop [<flags of LocalUniverse>]`. */
 export async function desktopLocal(
     environment: Environment<HostCapability>,
     arguments_: readonly string[],
 ): Promise<void> {
-    const state = LocalState.of(arguments_, environment);
-    await developDistribution(environment, state.variables);
+    const local = await LocalUniverse.of(arguments_, environment);
+    await developDistribution(environment, local.variables);
 }
 
-/** Run the cli on a local state's device: `local cli [<flags of LocalState>] <command>`. */
+/** Run the cli on a local state's device: `local cli [<flags of LocalUniverse>] <command>`. */
 export async function cliLocal(
     environment: Environment<HostCapability>,
     arguments_: readonly string[],
 ): Promise<void> {
-    // split the state from the cli's own command
-    const { state, rest: command } = LocalState.read(arguments_, environment);
+    // split the local from the cli's own command
+    const { local, rest: command } = await LocalUniverse.read(arguments_, environment);
 
     // run the cli from its sources with the terminal attached, and exit with its status
     const { process } = environment;
     const child = process.spawn([process.executable, "run", "src/main.ts", ...command], {
         workingDirectory: join(CHECKOUT, "@destack/cli"),
-        variables: { ...process.variables, ...state.variables },
+        variables: { ...process.variables, ...local.variables },
         stdin: "inherit",
         stdout: "inherit",
         stderr: "inherit",
@@ -112,15 +112,15 @@ export async function cliLocal(
     process.exitCode = await child.exited;
 }
 
-/** Drop a local universe's state: `local reset [<flags of LocalState>]`. */
+/** Drop a local universe's local: `local reset [<flags of LocalUniverse>]`. */
 export async function resetLocal(
     environment: Environment<HostCapability>,
     arguments_: readonly string[],
 ): Promise<void> {
-    const state = LocalState.of(arguments_, environment);
-    await state.reset();
-    state.scope.log.info("platform.stage.reset", {
-        "db.namespace": state.database,
-        "file.path": state.directory,
+    const local = await LocalUniverse.of(arguments_, environment);
+    await local.reset();
+    local.scope.log.info("platform.universe.reset", {
+        "db.namespace": local.database,
+        "file.path": local.directory,
     });
 }

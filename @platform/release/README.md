@@ -10,13 +10,13 @@ A release builds and ships:
 
 - Distribution: the desktop, the CLI and the machine for one target, as an archive and an installer.
 - Feed: the TUF repository at `download.destack.sh`, its root signed by two of three YubiKeys.
-- `Stage`: a build's identity, `production`, `dev` or `local`.
+- `Universe`: the universe a build belongs to, `production` or `local`, with its origin.
 
 A release deploys:
 
-- Deployment: the platform at a stage, with its universe, residencies and cloud machines.
+- Deployment: the platform deployed for a universe, with its residencies and cloud machines.
 - Roots: OpenTofu roots with encrypted remote state: `access`, `global`, `universe` and `residency`.
-- Custody: each Worker's root keys, encrypted under an AWS KMS key, in `custody/<stage>.json`.
+- Custody: each Worker's root keys, encrypted under an AWS KMS key, in `custody/<universe>.json`.
 
 Build, pack, review and deploy:
 
@@ -34,10 +34,10 @@ just @platform/release/deploy production
 | Recipe                           | What it does                                               |
 | -------------------------------- | ---------------------------------------------------------- |
 | `build`, `pack`                  | builds the distribution, and packs archives and installers |
-| `diff <stage> <root>`            | shows a root's planned changes                             |
-| `deploy <stage>`                 | deploys the platform at a stage                            |
+| `diff <universe> <root>`         | shows a root's planned changes                             |
+| `deploy <universe>`              | deploys the platform for a universe                        |
 | `release`                        | releases main as the month's next `vYYYY.M.N`              |
-| `custody seal <stage>`           | encrypts the root keys a stage's record lacks under KMS    |
+| `custody seal <universe>`        | encrypts the root keys a universe's record lacks under KMS |
 | `just local`, `just local reset` | runs a local universe, or resets its state                 |
 
 The release workflow releases main once a day.
@@ -53,16 +53,16 @@ The `install` script installs the Linux archive, and the macOS DMG's app registe
 curl -fsSL https://download.destack.sh/install | sh
 ```
 
-### Name a build's stage
+### Name a build's universe
 
-`Stage` gives a build its identity.
+`Universe` gives a build its identity and the origin people sign in at.
 
 ```ts
-import { Stage } from "@destack/update/release";
+import { Universe } from "@destack/update/release";
 
-// read the production build's title and the local stage's command
-export const title = Stage.of("production").title;
-export const command = Stage.of("local").command;
+// read the production build's title and the local universe's command
+export const title = Universe.of("production").title;
+export const command = Universe.of("local").command;
 ```
 
 ## Comparison

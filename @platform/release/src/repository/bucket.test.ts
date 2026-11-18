@@ -21,7 +21,7 @@ test("publish exact bytes at the bucket's root, and reject stale replacements th
         process: {
             arguments: [],
             variables: {
-                DESTACK_STAGE: "production",
+                DESTACK_UNIVERSE: "production",
                 DESTACK_RELEASE_BUCKET: "rehearsal",
                 DESTACK_RELEASE_S3_URL: "http://127.0.0.1:9000/",
                 DESTACK_RELEASE_ORIGIN: "http://127.0.0.1:9000/",

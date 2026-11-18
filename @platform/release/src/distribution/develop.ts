@@ -1,4 +1,4 @@
-import { Stage } from "@destack/update/release";
+import { Universe } from "@destack/update/release";
 import { join } from "node:path";
 import type { Environment, HostCapability } from "@destack/environment";
 import { configureApplication } from "./application.ts";
@@ -14,7 +14,7 @@ export async function developDistribution(
     const staging = join(CHECKOUT, "dist/.build");
     await files.mkdir(staging, { recursive: true });
     const directory = await files.makeTemporaryDirectory("desktop-dev-", { directory: staging });
-    const identity = Stage.of("local");
+    const identity = Universe.of("local");
     const version = releaseVersion(environment);
 
     // retain generated icons for Cargo's build and the complete interactive lifetime
@@ -32,8 +32,9 @@ export async function developDistribution(
                 ...process.variables,
                 ...device,
                 TAURI_CONFIG: configuration,
-                DESTACK_STAGE: identity.name,
-                DESTACK_UNIVERSE: process.variables["DESTACK_UNIVERSE"] ?? identity.universe,
+                DESTACK_UNIVERSE: identity.name,
+                DESTACK_UNIVERSE_ORIGIN:
+                    process.variables["DESTACK_UNIVERSE_ORIGIN"] ?? identity.origin,
                 CARGO_TARGET_DIR: join(CHECKOUT, "dist/.native"),
             },
             stdin: "inherit",

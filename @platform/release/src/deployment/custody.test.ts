@@ -23,7 +23,7 @@ const SEAL: EnvelopeConfiguration = {
 /** The same key under another ARN, as a replaced residency key would be. */
 const MOVED: EnvelopeConfiguration = { ...SEAL, keyId: `${TEST_KMS_KEY_ID}-moved` };
 
-test("seal the keys a stage lacks inside KMS once, read them as each deploy does, refuse a moved key and a missing record, and open them as each Worker does", async () => {
+test("seal the keys a universe lacks inside KMS once, read them as each deploy does, refuse a moved key and a missing record, and open them as each Worker does", async () => {
     // seal the universe's and two machines' keys, then seal again with nothing missing
     const world = testSimulation().environment("operator");
     const directory = await world.files.makeTemporaryDirectory("destack-custody-");
@@ -43,7 +43,7 @@ test("seal the keys a stage lacks inside KMS once, read them as each deploy does
     const read = await Custody.read(file, envelopes(SEAL), environment);
     const keeping = kms.operations.length - sealed;
 
-    // refuse a machine whose key moved, sealing and deploying alike, and a stage never sealed
+    // refuse a machine whose key moved, sealing and deploying alike, and a universe never sealed
     const moved =
         "the keys of 'machine machine-us' are sealed under " +
         `${JSON.stringify(SEAL)}, not ${JSON.stringify(MOVED)}: rewrap them, never regenerate`;
