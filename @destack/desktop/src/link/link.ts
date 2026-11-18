@@ -1,4 +1,4 @@
-import type { Stage } from "@destack/update/release";
+import type { Universe } from "@destack/update/release";
 import { InstallationOrigin, SpaceAddress, SpaceOrigin, OPEN_PATH } from "@destack/account/address";
 import {
     OBJECT_PARAMETER,
@@ -10,9 +10,9 @@ import {
     objectUrl,
 } from "@destack/view/declare";
 
-/** The deep links to views and objects under a stage's desktop scheme. */
+/** The deep links to views and objects under a universe's desktop scheme. */
 export class Link {
-    /** The URL scheme the system routes to the stage's desktop, which is the stage's command. */
+    /** The URL scheme the system routes to the universe's desktop: the universe's command. */
     readonly scheme: string;
 
     /** Write and read links under a scheme. */
@@ -20,14 +20,14 @@ export class Link {
         this.scheme = scheme;
     }
 
-    /** Write and read the links of a stage's desktop. */
-    static of(stage: Stage): Link {
-        return new Link(stage.command);
+    /** Write and read the links of a universe's desktop. */
+    static of(universe: Universe): Link {
+        return new Link(universe.command);
     }
 
     /** Read the view or object of a link, or nothing for neither. */
     parse(href: string): Address | undefined {
-        // require this stage's scheme without a port or credentials
+        // require this universe's scheme without a port or credentials
         if (!URL.canParse(href)) {
             return undefined;
         }

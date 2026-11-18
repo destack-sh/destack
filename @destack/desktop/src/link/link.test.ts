@@ -1,6 +1,6 @@
 import type { Address } from "@destack/view/declare";
 import { expect, test } from "@destack/test";
-import { Stage } from "@destack/update/release";
+import { Universe } from "@destack/update/release";
 import { Link } from "./link.ts";
 
 /** The links of the stable desktop. */
@@ -92,9 +92,9 @@ test("read nothing from foreign schemes and malformed addresses", () => {
     expect(hrefs.map((href) => links.parse(href))).toEqual(hrefs.map(() => undefined));
 });
 
-test("route each stage by its scheme", () => {
-    // read and write local links only on the local stage
-    const local = Link.of(new Stage("local"));
+test("route each universe by its scheme", () => {
+    // read and write local links only on the local universe
+    const local = Link.of(new Universe("local"));
     const href = "destack-local://notes--personal--florian/home";
     const address = local.parse(href);
     expect({

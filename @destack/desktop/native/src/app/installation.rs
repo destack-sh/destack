@@ -41,12 +41,12 @@ pub fn forward() -> io::Result<bool> {
     if cfg!(debug_assertions) || !cfg!(windows) {
         return Ok(false);
     }
-    let identity =
-        option_env!("DESTACK_STAGE").ok_or_else(|| io::Error::other("missing desktop stage"))?;
+    let identity = option_env!("DESTACK_UNIVERSE")
+        .ok_or_else(|| io::Error::other("missing desktop universe"))?;
     let name = match identity {
         "production" => PRODUCTION_DIRECTORY,
         "local" => return Ok(false),
-        _ => return Err(io::Error::other("invalid desktop stage")),
+        _ => return Err(io::Error::other("invalid desktop universe")),
     };
 
     // use the same explicit override and Windows home directory as the compiled CLI

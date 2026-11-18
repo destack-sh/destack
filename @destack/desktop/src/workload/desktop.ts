@@ -6,7 +6,7 @@ import type { SpaceAddress } from "@destack/account/address";
 import { currentLogin, type Login } from "@destack/account/native";
 import { MachineProcess } from "@destack/machine/computer";
 import { checkForUpdates, distribution, restartToUpdate } from "@destack/update/object";
-import { Stage } from "@destack/update/release";
+import { Universe } from "@destack/update/release";
 import { computer, Device } from "@destack/machine/device";
 import { type ObjectClient, RelationalQuery } from "@destack/object/client";
 import { schema } from "@destack/schema";
@@ -59,7 +59,7 @@ export class Desktop implements AsyncDisposable {
     readonly #distributions: ObjectClient<{ readonly distribution: typeof distribution }>;
     /** This computer's record followed from its machine, with the enrollment a person needs. */
     readonly computers: ObjectClient<{ readonly computer: typeof computer }>;
-    /** The links of this stage's desktop. */
+    /** The links of this universe's desktop. */
     readonly links: Link;
     /** The host's language the desktop shows its menus in, as native applications do. */
     readonly localization: Localization;
@@ -125,7 +125,7 @@ export class Desktop implements AsyncDisposable {
         await MachineProcess.current(environment).start(MACHINE_ENTRY);
         await using native = await Device.current(environment);
         await using lock = await new DesktopLock(native.home, environment).acquire();
-        const links = Link.of(Stage.current(environment));
+        const links = Link.of(Universe.current(environment));
         await using desktop = await Desktop.open(native, shell, links, environment);
 
         // open the link the desktop launched with

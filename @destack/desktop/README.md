@@ -49,7 +49,7 @@ await Desktop.start(BunEnvironment.system);
 
 ### Link
 
-`Link.of(stage)` writes and reads the deep links of a stage's scheme, such as `destack://`.
+`Link.of(universe)` writes and reads the deep links of a universe's scheme, such as `destack://`.
 
 | Verb                  | What it does                           |
 | --------------------- | -------------------------------------- |
@@ -88,14 +88,14 @@ The shell is a Tauri process on the host's private pipes, one JSON line per comm
 
 ### Link to a view
 
-`format` writes a view's deep link under the stage's scheme, and leaves out the view's root location.
+`format` writes a view's deep link under the universe's scheme, and leaves out the view's root location.
 
 ```ts
 import { Link } from "@destack/desktop";
-import { Stage } from "@destack/update/release";
+import { Universe } from "@destack/update/release";
 
 // link to the open projects on a space's task board
-export const href = Link.of(Stage.of("production")).format({
+export const href = Link.of(Universe.of("production")).format({
     space: "work--acme",
     installation: "tasks",
     view: "board",
@@ -109,11 +109,11 @@ export const href = Link.of(Stage.of("production")).format({
 
 ```ts
 import { Link } from "@destack/desktop";
-import { Stage } from "@destack/update/release";
+import { Universe } from "@destack/update/release";
 
-/** Read the name a deep link's window shows under, absent for a link of another stage. */
+/** Read the name a deep link's window shows under, absent for a link of another universe. */
 export function windowTitle(href: string): string | undefined {
-    const address = Link.of(Stage.of("production")).parse(href);
+    const address = Link.of(Universe.of("production")).parse(href);
 
     return address === undefined ? undefined : Link.title(address);
 }

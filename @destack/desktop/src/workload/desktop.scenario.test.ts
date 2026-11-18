@@ -2,7 +2,7 @@ import { OWNER_EMAIL, TestComputer } from "@destack/machine/computer/test";
 import { schema } from "@destack/schema";
 import { expect, test } from "@destack/test";
 import { testHost } from "@destack/test/host";
-import { Stage } from "@destack/update/release";
+import { Universe } from "@destack/update/release";
 import { Link } from "../link/index.ts";
 import { openShell } from "../test/index.ts";
 import { Desktop } from "./desktop.ts";
@@ -53,7 +53,7 @@ test("show a person another program signs in after the desktop started, once the
     // start the desktop, which opens the issuer's sign-in in a window while nobody is signed in
     const { shell, sent, next, emit, close } = openShell();
     const environment = { ...laptop.environment, process: testHost().process };
-    const desktop = await Desktop.open(native, shell, Link.of(new Stage("local")), environment);
+    const desktop = await Desktop.open(native, shell, Link.of(new Universe("local")), environment);
     const running = desktop.run(undefined);
     await world.simulation.wait(next(isAction("window.open")));
 
