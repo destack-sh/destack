@@ -3,6 +3,7 @@ import { Digest, present, schema } from "@destack/schema";
 import { PackageFile, PackagePath } from "../file/file.ts";
 import { SourceMapReference } from "../source/map.ts";
 import { Declaration } from "../graph/declaration.ts";
+import { Edge } from "../graph/edge.ts";
 import { PackageError } from "../error/index.ts";
 import { PackageLocation, PackageManifest } from "./manifest.ts";
 import type { Runtime } from "../runtime/runtime.ts";
@@ -136,10 +137,10 @@ export class BuildReader {
 
     /** List the files the manifest lists directly: its lists and each output's. */
     references(): PackageFile[] {
-        const { files, sourceMaps, declarations } = this.manifest.lists;
+        const { files, sourceMaps, declarations, relationships } = this.manifest.lists;
         const outputs = Object.values(this.manifest.outputs).map((output) => output.files);
 
-        return [files, sourceMaps, declarations, ...outputs];
+        return [files, sourceMaps, declarations, relationships, ...outputs];
     }
 
     /** Collect all distributed file records for complete downloads and verification. */
@@ -149,21 +150,35 @@ export class BuildReader {
 
     /** Read the package's declarations, without the members they derive. */
     async declarations(): Promise<Declaration[]> {
-        const listed = await this.#declarations.get(() =>
+        return (await this.#declared()).filter((declaration) => !Declaration.isMember(declaration));
+    }
+
+    /** Read the members the package's declarations derive. */
+    async members(): Promise<Declaration[]> {
+        return (await this.#declared()).filter((declaration) => Declaration.isMember(declaration));
+    }
+
+    /** Read the relationships between the package's declarations and members, as edges. */
+    relationships(): Promise<Edge[]> {
+        return this.read<Edge[]>(this.manifest.lists.relationships);
+    }
+
+    /** Read the declaration list once. */
+    #declared(): Promise<readonly Declaration[]> {
+        return this.#declarations.get(() =>
             this.read<Declaration[]>(this.manifest.lists.declarations),
         );
-
-        return listed.filter((declaration) => !Declaration.isMember(declaration));
     }
 
     /** Refuse lists without their formats, as a store checks a build it takes in from outside. */
     async check(): Promise<void> {
         // parse each list against its format
-        const { files, sourceMaps, declarations } = this.manifest.lists;
+        const { files, sourceMaps, declarations, relationships } = this.manifest.lists;
         const checked = [
             [files, schema.array(PackageFile)],
             [sourceMaps, schema.array(SourceMapReference)],
             [declarations, schema.array(Declaration)],
+            [relationships, schema.array(Edge)],
             ...Object.values(this.manifest.outputs).map(
                 (output) => [output.files, schema.array(PackageFile)] as const,
             ),

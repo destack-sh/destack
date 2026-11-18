@@ -2,6 +2,7 @@ import type { Crypto } from "@destack/environment";
 import { canonicalize, Digest, type Version } from "@destack/schema";
 import type { NpmPackage, PackageVersion, PackageRole } from "../definition/index.ts";
 import type { Declaration } from "../graph/declaration.ts";
+import type { Edge } from "../graph/edge.ts";
 import { PackageError } from "../error/error.ts";
 import { PackageFile } from "../file/file.ts";
 import type { SourceMapReference } from "../source/map.ts";
@@ -14,6 +15,7 @@ const MANIFEST_LISTS = {
     files: "manifest/files.json",
     sourceMaps: "manifest/sourceMaps.json",
     declarations: "manifest/declarations.json",
+    relationships: "manifest/relationships.json",
 } as const;
 
 /** The directory of each output's list of the files its runtime loads, inside the build. */
@@ -134,6 +136,8 @@ export interface BuildContent {
     readonly sourceMaps?: readonly SourceMapReference[];
     /** The declarations the build's evaluation described, none when absent. */
     readonly declarations?: readonly Declaration[];
+    /** The relationships between the declarations and members, none when absent. */
+    readonly relationships?: readonly Edge[];
     /** Whether the package extends its dependents' builds, whose interface then has every file. */
     readonly isExtension?: boolean;
 }
@@ -224,6 +228,10 @@ export class BuildWriter {
             declarations: await this.#writeJson(
                 MANIFEST_LISTS.declarations,
                 contents.declarations ?? [],
+            ),
+            relationships: await this.#writeJson(
+                MANIFEST_LISTS.relationships,
+                contents.relationships ?? [],
             ),
         };
 

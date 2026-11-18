@@ -23,8 +23,10 @@ export const ManifestLists = schema.object({
     files: PackageFile,
     /** The source maps of generated files. */
     sourceMaps: PackageFile,
-    /** The declarations the build's evaluation described. */
+    /** The declarations the build's evaluation described, with the members they derive. */
     declarations: PackageFile,
+    /** The relationships between the declarations and members, as edges. */
+    relationships: PackageFile,
 });
 /** The list files of a build. */
 export type ManifestLists = schema.Infer<typeof ManifestLists>;

@@ -27,6 +27,12 @@ const FIELDS = {
             size: 2,
             mediaType: "application/json",
         },
+        relationships: {
+            path: "manifest/relationships.json",
+            digest: "0".repeat(64),
+            size: 2,
+            mediaType: "application/json",
+        },
     },
     interface: "0".repeat(64),
     outputs: {},
