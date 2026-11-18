@@ -130,8 +130,8 @@ export const catalog = defineObject({
     },
 });
 
-/** A build's view of its manifest's graph as rows: the build, its manifest and its finish. */
-export class GraphView {
+/** A build's graph as object rows: the build, its manifest and its finish. */
+export class BuildGraph {
     /** The index tables, one per graph object type. */
     static readonly tables = [
         module.table,
@@ -150,7 +150,7 @@ export class GraphView {
     readonly finishedAt: number;
 
     /** Record a build's place in its manifest's index. */
-    constructor(fields: Pick<GraphView, "build" | "space" | "manifest" | "finishedAt">) {
+    constructor(fields: Pick<BuildGraph, "build" | "space" | "manifest" | "finishedAt">) {
         // store the build, its space, its manifest and its finish
         this.build = fields.build;
         this.space = fields.space;
@@ -161,7 +161,7 @@ export class GraphView {
     /** Insert an index's rows table by table, each statement within a storage's parameters. */
     static async write(
         transaction: Pick<DatabaseConnection, "insert">,
-        rows: Awaited<ReturnType<GraphView["rows"]>>,
+        rows: Awaited<ReturnType<BuildGraph["rows"]>>,
         parameters: number,
     ): Promise<void> {
         const tables = [
@@ -185,7 +185,7 @@ export class GraphView {
         database: DatabaseConnection,
         scope: string,
         builds: Pick<BuildStore, "lock">,
-    ): Promise<GraphView> {
+    ): Promise<BuildGraph> {
         // read the build's space
         const id = schema.identifier("build").parse(scope);
         const [found] = await database
@@ -203,7 +203,7 @@ export class GraphView {
         const record = present(found, `build ${scope}`);
         const finishedAt = present(record.finishedAt, "a succeeded build's finish");
 
-        return new GraphView({
+        return new BuildGraph({
             build: id,
             space: record.scope,
             manifest: (await builds.lock(Build.lock(record))).root,
