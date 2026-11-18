@@ -183,7 +183,7 @@ test("request one replica of the references a space's installations follow", asy
         requests
             .map((request) => request.subscription)
             .filter((subscription) => subscription.scope === home),
-    ).toEqual([Shape.subscription(home, [{ shape: referenceShape, keys }], ids.space)]);
+    ).toEqual([Shape.subscription(home, [{ shape: referenceShape, keys }], { target: ids.space })]);
 });
 
 test("refuse an installation following another account's reference", async () => {

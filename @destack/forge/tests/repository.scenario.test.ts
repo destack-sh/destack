@@ -308,7 +308,7 @@ test("sync an account's references and packages to its readers and spaces", asyn
                                 keys: [{ id: main.id }],
                             },
                         ],
-                        target,
+                        { target },
                     ),
                     revision: FOLLOWER_REVISION,
                 },
