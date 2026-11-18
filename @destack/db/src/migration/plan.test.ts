@@ -476,7 +476,7 @@ test("name what the declarations must fix instead of planning", async () => {
     ).toEqual([
         "PRECONDITION_FAILED",
         "PLAN_BLOCKED",
-        "cannot reach the desired state: table/destack__db__task: declare a default for the required column owner; table/destack__db__label: table exists without applied state",
+        "cannot reach the desired state: table/destack__db__task: declare a default for the required column owner, or assign it in a new edition's conversion; table/destack__db__label: table exists without applied state",
     ]);
 });
 
@@ -751,7 +751,7 @@ test("narrow values and require a new column without a default only over a table
         refused: [
             {
                 target: `table/${table(preferenceStrict)}`,
-                detail: "declare a default for the required column theme",
+                detail: "declare a default for the required column theme, or assign it in a new edition's conversion",
             },
             {
                 target: `table/${table(preferenceStrict)}/column/mode`,
@@ -759,6 +759,121 @@ test("narrow values and require a new column without a default only over a table
             },
         ],
     });
+});
+
+/** Tasks in the next release, requiring a priority its conversion derives from the urgent flag. */
+const taskRequired = defineTable(
+    "task",
+    {
+        id: text("id").primaryKey(),
+        scope: text("scope").notNull(),
+        title: text("title").notNull(),
+        urgent: integer("urgent").notNull(),
+        priority: text("priority").notNull(),
+        dueAt: integer("due_at"),
+    },
+    {
+        log: {},
+        convert: {
+            2: {
+                priority: Expression.case(
+                    Expression.column("urgent"),
+                    [{ when: 1, then: Expression.literal("high") }],
+                    Expression.literal("normal"),
+                ),
+            },
+        },
+        constraints: (task) => [index("task_due").on(task.dueAt)],
+    },
+    NEXT_RELEASE,
+);
+
+test("fill a new required column without a default by its edition's conversion over existing rows", async () => {
+    // migrate tasks with rows to a release requiring a priority its conversion derives
+    const database = await open([taskRequired]);
+    await database.migrate([taskTwo]);
+    await database.transaction(
+        async (transaction) =>
+            await transaction.run(
+                sql`INSERT INTO ${sql.relation(table(taskTwo))} (id, scope, title, urgent, due_at) VALUES ('a', 'inbox', 'Plan', 1, NULL), ('b', 'inbox', 'Ship', 0, 5)`,
+            ),
+    );
+    const plan = await database.migrate([taskRequired]);
+
+    // fill each row, then refuse a row without a priority
+    const refused = await database
+        .transaction(
+            async (transaction) =>
+                await transaction.run(
+                    sql`INSERT INTO ${sql.relation(table(taskRequired))} (id, scope, title, urgent) VALUES ('c', 'inbox', 'Rest', 0)`,
+                ),
+        )
+        .then(
+            () => "inserted",
+            () => "refused",
+        );
+    expect({
+        steps: review(plan),
+        rows: await database.select().from(taskRequired).orderBy(taskRequired.id),
+        refused,
+    }).toEqual({
+        steps:
+            TestDatabase.target() === "sqlite"
+                ? [
+                      `safe replace table/${table(taskRequired)}: rebuild table: add priority`,
+                      `fallible convert table/${table(taskRequired)}: convert rows to edition 2`,
+                  ]
+                : [
+                      `safe create table/${table(taskRequired)}/column/priority: add column priority`,
+                      `fallible convert table/${table(taskRequired)}: convert rows to edition 2`,
+                      `fallible update table/${table(taskRequired)}/column/priority: require column priority`,
+                  ],
+        rows: [
+            { id: "a", scope: "inbox", title: "Plan", urgent: 1, priority: "high", dueAt: null },
+            { id: "b", scope: "inbox", title: "Ship", urgent: 0, priority: "normal", dueAt: 5 },
+        ],
+        refused: "refused",
+    });
+});
+
+/** Leases keyed by their holder alone, as first released. */
+const leaseOne = defineTable("lease", {
+    holder: text("holder").primaryKey(),
+    until: integer("until").notNull(),
+});
+
+/** Leases in the next release, keyed by holder and a new required owner its conversion fills. */
+const leaseOwned = defineTable(
+    "lease",
+    {
+        holder: text("holder").primaryKey(),
+        owner: text("owner").primaryKey(),
+        until: integer("until").notNull(),
+    },
+    { convert: { 2: { owner: Expression.literal("store") } } },
+    NEXT_RELEASE,
+);
+
+test("fill a new required key column by its edition's conversion over existing rows", async () => {
+    // key existing leases by a new owner their conversion fills
+    const database = await open([leaseOwned]);
+    await database.migrate([leaseOne]);
+    await database.run(
+        sql`INSERT INTO ${sql.relation(table(leaseOne))} (holder, until) VALUES ('a', 1), ('b', 2)`,
+    );
+    await database.migrate([leaseOwned]);
+
+    // keep each lease under the store, and take a second owner of one holder
+    await database.run(
+        sql`INSERT INTO ${sql.relation(table(leaseOwned))} (holder, owner, until) VALUES ('a', 'client', 3)`,
+    );
+    expect(
+        await database.select().from(leaseOwned).orderBy(leaseOwned.holder, leaseOwned.owner),
+    ).toEqual([
+        { holder: "a", owner: "client", until: 3 },
+        { holder: "a", owner: "store", until: 1 },
+        { holder: "b", owner: "store", until: 2 },
+    ]);
 });
 
 /** Themes the next release adds. */

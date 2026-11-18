@@ -30,6 +30,8 @@ const TRIGGERS: readonly TriggerSet[] = [
 
 /** One change of a database plan to one table, addressed as `table/<name>` and its entries. */
 export interface TableStep extends Step {
+    /** When the step runs: with the table changes, or on the rows after them. */
+    readonly phase: TablePhase;
     /** The step's SQL, empty for tree rebuilds and log updates. */
     readonly statements: readonly string[];
     /** The tree a rebuild step reconstructs. */
@@ -39,6 +41,9 @@ export interface TableStep extends Step {
     /** The table a SQLite replace step rebuilds, written with the plan's other rebuilds. */
     readonly rebuild?: statement.TableRebuild;
 }
+
+/** When a table step runs: with the table changes, or on the rows after them and the triggers. */
+export type TablePhase = "tables" | "rows";
 
 /** The steps from a database's applied state to its declared tables. */
 export interface TablePlan extends Plan<TableStep> {
@@ -131,7 +136,7 @@ export function planTables(input: PlanInput): TablePlan {
 
             return {
                 ...step("replace", target, "safe", detail, []),
-                rebuild: { table, copied: copied.map((column) => column.name) },
+                rebuild: { table, copied: copied.map((column) => column.name), filled: {} },
             };
         }),
     ];
@@ -337,17 +342,23 @@ function planChange(
             ),
         );
     }
-    const changes = changeTable(
+    const assigned = assignedColumns(state, previous);
+    const changed = changeTable(
         { ...previous.table, name },
         state.table,
         state.moved?.columns ?? {},
+        assigned,
         isEmpty,
         problems,
         isFollowing,
     );
 
-    // convert rows, backfill newly bridged columns and rebuild a changed tree's index
+    // change the tables, convert rows, then run the changes that need the converted rows
+    const changes = changed.filter((each) => each.phase === "tables");
     changes.push(...convertSteps(state, previous, isEmpty, problems));
+    changes.push(...changed.filter((each) => each.phase === "rows"));
+
+    // backfill newly bridged columns and rebuild a changed tree's index
     changes.push(...bridgeSteps(state, previous));
     changes.push(...treeSteps(state, previous));
     changes.push(...fullTextSteps(state, previous));
@@ -411,6 +422,7 @@ function bridgeSteps(state: TableState, previous: TableState): TableStep[] {
                 "fallible",
                 `copy ${bridge.from} into ${bridge.to}`,
                 [`UPDATE ${quote(name)} SET ${quote(bridge.to)} = ${quote(bridge.from)}`],
+                "rows",
             ),
         );
 }
@@ -427,6 +439,7 @@ function treeSteps(state: TableState, previous: TableState): TableStep[] {
         "safe",
         "rebuild the ancestor index",
         [],
+        "rows",
     );
 
     return [{ ...rebuild, tree: state.tree }];
@@ -646,6 +659,7 @@ function changeTable(
     previous: TableDescription,
     next: TableDescription,
     moved: Readonly<Record<string, string>>,
+    assigned: Readonly<Record<string, string>>,
     isEmpty: boolean,
     problems: Problem[],
     isFollowing: boolean,
@@ -687,24 +701,25 @@ function changeTable(
         return old !== undefined && isChanged ? [{ applied: old, declared: column }] : [];
     });
 
-    // require a value for each new required column of a table with rows
+    // require a value for each new required column of a table with rows that no conversion assigns
     const unfilled = added.filter(
-        (column) =>
-            !isEmpty && !column.nullable && column.default === undefined && !column.generated,
+        (column) => !isEmpty && isUndefaulted(column) && assigned[column.name] === undefined,
     );
     for (const column of unfilled) {
         problems.push({
             target: Address.join("table", next.name),
-            detail: `declare a default for the required column ${column.name}`,
+            detail: `declare a default for the required column ${column.name}, or assign it in a new edition's conversion`,
         });
     }
 
-    // lower the changes per dialect
+    // lower the changes per dialect: add, convert, then require the columns a conversion fills
+    const filled = filledColumns(added, assigned);
+
     return [
         ...steps,
         ...(next.dialect === "sqlite"
-            ? changeSQLiteTable(current, next, added, removed, changed, isFollowing)
-            : changePostgresTable(current, next, added, removed, changed)),
+            ? changeSQLiteTable(current, next, added, removed, changed, filled, isFollowing)
+            : changePostgresTable(current, next, added, removed, changed, filled)),
     ];
 }
 
@@ -715,17 +730,16 @@ function changeSQLiteTable(
     added: readonly TableDescription["columns"][number][],
     removed: readonly TableDescription["columns"][number][],
     changed: readonly ColumnChange[],
+    filled: Readonly<Record<string, string>>,
     isFollowing: boolean,
 ): TableStep[] {
-    // rebuild to follow a rebuilt table, for changes beyond additions and indexes, or a new required column only an empty table takes
+    // rebuild to follow a rebuilt table, for changes beyond additions and indexes, or a new required column, which SQLite cannot require in place
     const isRebuilt =
         isFollowing ||
         removed.length > 0 ||
         changed.length > 0 ||
         added.some((column) => column.generated?.mode === "stored") ||
-        added.some(
-            (column) => !column.nullable && column.default === undefined && !column.generated,
-        ) ||
+        added.some((column) => isUndefaulted(column)) ||
         canonicalize(previous.constraints) !== canonicalize(next.constraints);
     if (isRebuilt) {
         const copied = next.columns
@@ -767,7 +781,7 @@ function changeSQLiteTable(
                     `rebuild table: ${detail || reason}`,
                     [],
                 ),
-                rebuild: { table: next, copied },
+                rebuild: { table: next, copied, filled },
             },
         ];
     }
@@ -797,6 +811,7 @@ function changePostgresTable(
     added: readonly TableDescription["columns"][number][],
     removed: readonly TableDescription["columns"][number][],
     changed: readonly ColumnChange[],
+    filled: Readonly<Record<string, string>>,
 ): TableStep[] {
     // drop the changed constraints and indexes first, as dropping a column drops those using it
     const constraints = changeConstraints(previous, next);
@@ -812,7 +827,13 @@ function changePostgresTable(
                 Address.join("table", next.name, "column", column.name),
                 "safe",
                 `add column ${column.name}`,
-                [statement.addColumn(next.name, column, "postgresql")],
+                [
+                    statement.addColumn(
+                        next.name,
+                        Object.hasOwn(filled, column.name) ? { ...column, nullable: true } : column,
+                        "postgresql",
+                    ),
+                ],
             ),
         ),
         ...removed.map((column) =>
@@ -859,7 +880,24 @@ function changePostgresTable(
     }
 
     // create the changed constraints and indexes over the altered columns
-    return [...steps, ...constraints.created, ...indexes.created];
+    const created = [...constraints.created, ...indexes.created];
+    if (Object.keys(filled).length === 0) {
+        return [...steps, ...created];
+    }
+
+    // require the columns a conversion fills once it converted the rows, then create the constraints over them
+    const required = Object.keys(filled).map((column) =>
+        step(
+            "update",
+            Address.join("table", next.name, "column", column),
+            "fallible",
+            `require column ${column}`,
+            [`ALTER TABLE ${quote(next.name)} ALTER COLUMN ${quote(column)} SET NOT NULL`],
+            "rows",
+        ),
+    );
+
+    return [...steps, ...required, ...created.map((each) => ({ ...each, phase: "rows" as const }))];
 }
 
 /** Plan the drops and creations replacing differing PostgreSQL constraints. */
@@ -1093,6 +1131,7 @@ function convertRows(
             "fallible",
             `convert rows to edition ${edition}`,
             [`UPDATE ${quote(name)} SET ${set}`],
+            "rows",
         ),
         converted: { table: name, columns: Object.keys(assignments) },
     };
@@ -1145,6 +1184,39 @@ function changeValues(
     return steps;
 }
 
+/** Read the assignments of the conversions the applied state lacks, by column. */
+function assignedColumns(state: TableState, previous: TableState): Record<string, string> {
+    // take the new editions in order, a later edition's assignment replacing an earlier one's
+    const conversions = Object.entries(state.conversions ?? {})
+        .filter(([edition]) => previous.conversions?.[edition] === undefined)
+        .toSorted(([left], [right]) => Number(left) - Number(right));
+
+    return Object.fromEntries(
+        conversions.flatMap(([, assignments]) => Object.entries(assignments)),
+    );
+}
+
+/** Decide whether a column needs a value from each row: required, without default or generator. */
+function isUndefaulted(column: TableDescription["columns"][number]): boolean {
+    return !column.nullable && column.default === undefined && column.generated === undefined;
+}
+
+/** Map each added required column a conversion assigns to its assignment. */
+function filledColumns(
+    added: readonly TableDescription["columns"][number][],
+    assigned: Readonly<Record<string, string>>,
+): Record<string, string> {
+    return Object.fromEntries(
+        added.flatMap((column) => {
+            const assignment = assigned[column.name];
+
+            return isUndefaulted(column) && assignment !== undefined
+                ? [[column.name, assignment]]
+                : [];
+        }),
+    );
+}
+
 /** Build a step. */
 function step(
     action: Action,
@@ -1152,6 +1224,7 @@ function step(
     risk: Risk,
     detail: string,
     statements: readonly string[],
+    phase: TablePhase = "tables",
 ): TableStep {
-    return { action, target, risk, detail, statements };
+    return { action, target, risk, detail, phase, statements };
 }

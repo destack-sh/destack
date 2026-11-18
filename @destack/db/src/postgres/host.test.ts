@@ -138,6 +138,7 @@ test("provision a PostgreSQL schema twice with the same log, plan and apply it, 
                 target: `table/${qualified}`,
                 risk: "safe",
                 detail: "create table",
+                phase: "tables",
                 statements: [
                     `CREATE TABLE "${qualified}" (\n    "id" text COLLATE "C" NOT NULL,\n    "title" text COLLATE "C",\n    CONSTRAINT "${qualified}_id_pk" PRIMARY KEY ("id")\n)`,
                 ],

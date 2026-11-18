@@ -29,7 +29,7 @@ export async function applyPlan(
     const changes = [
         lock,
         ...plan.before,
-        ...plan.steps.filter((step) => !isLogged(step)).flatMap((step) => step.statements),
+        ...plan.steps.filter((step) => step.phase === "tables").flatMap((step) => step.statements),
         ...plan.after,
         insertEpoch(Uuid.v7(environment), namespace),
     ];
@@ -57,7 +57,7 @@ async function applySteps(
 
         // convert rows and rebuild trees after the triggers
         let pending: string[] = [];
-        for (const step of plan.steps.filter(isLogged)) {
+        for (const step of plan.steps.filter((each) => each.phase === "rows")) {
             // flush the batch and rebuild the tree
             if (step.tree !== undefined) {
                 await runStatements(transaction, pending, manager);
@@ -128,11 +128,6 @@ async function runStatements(
             );
         }
     }
-}
-
-/** Decide whether a step writes rows the log records. */
-function isLogged(step: TableStep): boolean {
-    return step.action === "convert" || step.tree !== undefined;
 }
 
 /** Require a conversion's written JSON values to pass their columns' recorded schemas. */
