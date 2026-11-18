@@ -133,6 +133,12 @@ const UNKEPT = () => ({
     fetch: () => Promise.reject(new TypeError("the scenario has no content")),
 });
 
+/** How long the reader waits for note w at most, far above the write's delay. */
+const READER_WAIT_MILLISECONDS = 20_000;
+
+/** How long the object waits before writing note w, so the reader waits first. */
+const READER_WRITE_DELAY_MILLISECONDS = 200;
+
 /** A Durable Object that stores notes in its SQLite storage through a Destack connection. */
 export class NoteStore {
     /** The host the object runs on, the Workers runtime's. */
@@ -166,11 +172,69 @@ export class NoteStore {
             return await this.rows();
         } else if (pathname === "/reader") {
             return await this.reader();
+        } else if (pathname === "/reader-wait") {
+            return await this.readerWait();
+        } else if (pathname === "/reader-refused") {
+            return await this.readerRefused();
         } else if (pathname === DATABASE_PATH) {
             return await this.databases.read(request);
         }
 
         return await this.notes();
+    }
+
+    /** Wait through a reader of a database the object never opened, failing at the refusal. */
+    async readerRefused(): Promise<Response> {
+        // wait through a reader of an unopened namespace, taking the failure's message
+        const reader = DurableObjectReader.connect(
+            { fetch: (sent) => this.fetch(sent) },
+            [note],
+            this.environment,
+            "unopened",
+        );
+        const signal = this.environment.clock.timeout(READER_WAIT_MILLISECONDS);
+        const failure = await reader.log
+            .waitUntil(async () => false, signal)
+            .then(
+                () => "waited",
+                (error: unknown) => (error instanceof Error ? error.message : String(error)),
+            );
+
+        return Response.json({ failure, isAborted: signal.aborted });
+    }
+
+    /** Wait through a reader for a row the object writes after, woken by the write's commit. */
+    async readerWait(): Promise<Response> {
+        // store the notes, and wait for note w through a reader of them
+        const database = this.databases.connect([note]);
+        await database.migrate([note]);
+        const reader = DurableObjectReader.connect(
+            { fetch: (sent) => this.fetch(sent) },
+            [note],
+            this.environment,
+        );
+        const { clock } = this.environment;
+        const started = clock.now();
+        const waiting = reader.log.waitUntil(
+            async () =>
+                (await Snapshot.live(reader)
+                    .read(note)
+                    .findFirst({ where: { id: "w" } })) !== undefined,
+            clock.timeout(READER_WAIT_MILLISECONDS),
+        );
+
+        // write note w once the reader waits, and settle the wait
+        await clock.sleep(READER_WRITE_DELAY_MILLISECONDS);
+        await database.transaction(
+            async (transaction) =>
+                await transaction.insert(note).values({ id: "w", title: "Waited for" }),
+        );
+        const isFound = await waiting;
+
+        return Response.json({
+            isFound,
+            isWoken: clock.now() - started < READER_WAIT_MILLISECONDS,
+        });
     }
 
     /** Rebuild a table other tables' rows reference, and read those rows after. */

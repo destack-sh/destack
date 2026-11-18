@@ -1,5 +1,5 @@
 import type { DatabaseEnvironment } from "../database/connection.ts";
-import { Digest, schema } from "@destack/schema";
+import { Digest, schema, Uuid } from "@destack/schema";
 import { Plan, ResourceId, ResourceRecord } from "@destack/resource";
 import { DatabaseHandle } from "../database/handle.ts";
 import { type DatabaseKind, DatabaseSpec } from "../declare/database.ts";
@@ -27,6 +27,12 @@ export const DURABLE_OBJECT_PROVIDER = "durable-object";
 /** The pool name of an object's storage queue, its one connection. */
 const DURABLE_OBJECT_POOL = "durable_object";
 
+/** The name of an object's database without a namespace, its storage's own. */
+export const STORAGE_NAME = "storage";
+
+/** How long the host holds a reader's wait for a commit: 25 s, below common 30 s idle timeouts. */
+const COMMIT_WAIT_MILLISECONDS = 25_000;
+
 /** The path below which an object answers operations on its databases. */
 export const DATABASE_PATH = "/.destack/database";
 
@@ -41,6 +47,34 @@ const DatabaseRecord = schema.object({
     /** The provider's reference once provisioned. */
     reference: schema.string().min(1).nullable(),
 });
+
+/** A position in a database's commits: the host's connection to it and its commit count there. */
+export const CommitPosition = schema.object({
+    /** The id of the connection the host opened, new at each opening. */
+    connection: schema.string(),
+    /** The commits the connection made since it opened. */
+    generation: schema.number().int(),
+});
+/** A position in a database's commits. */
+export type CommitPosition = schema.Infer<typeof CommitPosition>;
+
+/** A commit wait's answer: the position then, and the tables committed since the reader's. */
+export const CommitWait = schema.object({
+    /** The position of the database's commits once the wait ends. */
+    position: CommitPosition,
+    /** The SQL names of the tables committed during the wait, or every table for a new reader. */
+    tables: schema.array(schema.string()),
+});
+/** A commit wait's answer. */
+export type CommitWait = schema.Infer<typeof CommitWait>;
+
+/** A connection the host opened to one of its databases, with the id of that opening. */
+interface HostConnection {
+    /** The id of the opening, which a restart or a reopening changes. */
+    readonly id: string;
+    /** The connection. */
+    readonly database: SqliteDatabase<DurableObjectClient>;
+}
 
 /** An operation on an object's databases, as another object sends it. */
 const DurableObjectDatabaseOperation = schema.discriminatedUnion("operation", [
@@ -97,6 +131,14 @@ const DurableObjectDatabaseOperation = schema.discriminatedUnion("operation", [
     schema.object({
         /** Count the object's database bytes, and take the rows they read and wrote. */
         operation: schema.literal("measure"),
+    }),
+    schema.object({
+        /** Wait for a database's commit past a position, answering the position then. */
+        operation: schema.literal("wait"),
+        /** The database's name in the object's storage. */
+        name: schema.string().min(1),
+        /** The commit position the reader saw last, absent before the first. */
+        after: CommitPosition.exactOptional(),
     }),
     SQLStatement.extend({
         /** Read rows of the object's storage, refusing a statement that writes. */
@@ -161,6 +203,8 @@ export class DurableObjectDatabaseHost implements DatabaseHost {
     readonly environment: DatabaseEnvironment;
     /** The rows the databases read and wrote since the last measure. */
     #rows = { rowsRead: 0, rowsWritten: 0 };
+    /** The connections the host opened, by database name, whose commits other objects wait for. */
+    readonly #connections = new Map<string, HostConnection>();
 
     /** Store databases in an object's storage, in the object's environment. */
     constructor(storage: DurableObjectStorage, environment: DatabaseEnvironment) {
@@ -194,13 +238,18 @@ export class DurableObjectDatabaseHost implements DatabaseHost {
         tables: declaration.Database<Models> | readonly Table[],
         options: DurableObjectConnectOptions,
     ): SqliteDatabase<DurableObjectClient, Models> {
-        return new SqliteDatabase(
+        // open the database, recorded by name for the readers waiting for its commits
+        const name = options.namespace ?? STORAGE_NAME;
+        const database = new SqliteDatabase(
             new DurableObjectClient(this, { kind: "queued" }),
             tables,
             "embedded",
             "writer",
-            { ...options, environment: this.environment, name: options.namespace ?? "storage" },
+            { ...options, environment: this.environment, name },
         );
+        this.#connections.set(name, { id: Uuid.v4(this.environment.random), database });
+
+        return database;
     }
 
     /** Add the rows a statement read and wrote, once its rows are read. */
@@ -375,15 +424,22 @@ export class DurableObjectDatabaseHost implements DatabaseHost {
             }
             case "measure":
                 return Response.json(this.measure());
+            case "wait":
+                return Response.json(await this.#waitCommit(body.name, body.after));
             case "read":
                 return Response.json({ rows: await this.#read(body) });
         }
     }
 
-    /** Answer a read another object sends, refusing every other operation. */
+    /** Answer a read or a commit wait another object sends, refusing every other operation. */
     async read(request: Request): Promise<Response> {
+        // wait for a database's next commit as a reader asks
         const body = DurableObjectDatabaseOperation.parse(await request.json());
-        if (body.operation !== "read") {
+        if (body.operation === "wait") {
+            return Response.json(await this.#waitCommit(body.name, body.after));
+        }
+        // refuse anything but a read
+        else if (body.operation !== "read") {
             throw DatabaseError.of(
                 "QUERY_INVALID",
                 `operation '${body.operation}' is invalid: this object only accepts reads`,
@@ -391,6 +447,45 @@ export class DurableObjectDatabaseHost implements DatabaseHost {
         }
 
         return Response.json({ rows: await this.#read(body) });
+    }
+
+    /** Wait for a database's commit past a position, for a wait's time at most. */
+    async #waitCommit(name: string, after: CommitPosition | undefined): Promise<CommitWait> {
+        // find the connection the host opened to the database
+        const connection = this.#connections.get(name);
+        if (connection === undefined) {
+            throw DatabaseError.of(
+                "CONNECTION_UNAVAILABLE",
+                `connection to database '${name}' is unavailable: this object has not opened it`,
+            );
+        }
+
+        // wait for a commit past the reader's generation, at once for another connection's
+        const { id, database } = connection;
+        const generation = after?.connection === id ? after.generation : undefined;
+        const signal = this.environment.clock.timeout(COMMIT_WAIT_MILLISECONDS);
+        let committed: string[] = [];
+        await database.log
+            .waitUntil(
+                async (tables) => {
+                    committed = [...tables];
+
+                    return tables.size > 0;
+                },
+                signal,
+                generation,
+            )
+            .catch((error: unknown) => {
+                // end quietly at the wait's time, passing any other failure on
+                if (!signal.aborted) {
+                    throw error;
+                }
+            });
+
+        // answer the position reached and the tables committed on the way
+        const position = { connection: id, generation: database.state.commits.generation };
+
+        return { position, tables: committed };
     }
 
     /** Read a statement's rows in JSON form, undoing and refusing a statement that writes. */

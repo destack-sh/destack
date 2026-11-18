@@ -180,3 +180,28 @@ test("read another object's database through its reader, refusing other operatio
         },
     ]);
 });
+
+test("wake a reader in another object waiting for a row once the object commits it, before its wait ends", async () => {
+    const worker = await start();
+    const objects = await worker.getDurableObjectNamespace("NOTES");
+    const response = await objects
+        .get(objects.idFromName("waited"))
+        .fetch("https://object.test/reader-wait");
+
+    // find the row, woken by the commit rather than the wait's end
+    expect(await response.json()).toEqual({ isFound: true, isWoken: true });
+});
+
+test("fail a reader's wait for a database its object never opened, before the wait ends", async () => {
+    const worker = await start();
+    const objects = await worker.getDurableObjectNamespace("NOTES");
+    const response = await objects
+        .get(objects.idFromName("refused"))
+        .fetch("https://object.test/reader-refused");
+
+    // fail with the object's refusal rather than wait in silence
+    expect(await response.json()).toEqual({
+        failure: "connection to database 'unopened' is unavailable: this object has not opened it",
+        isAborted: false,
+    });
+});
