@@ -1124,10 +1124,12 @@ async function sqliteTemplate(
         return file;
     }
 
-    // migrate a file beside it and checkpoint its WAL, then move it in whole
+    // migrate a file beside it and checkpoint its WAL, then move it in whole, recording to the host as shared setup
     await HOST.files.mkdir(directory, { recursive: true });
     const written = join(directory, `${Uuid.v7(HOST)}.db`);
-    const database = await sqlite.connectBunSqlite(written, tables, { environment });
+    const database = await sqlite.connectBunSqlite(written, tables, {
+        environment: { ...environment, telemetry: HOST.telemetry },
+    });
     await database.migrate(tables, { isReplica, replicated });
     await database.executeScript("PRAGMA wal_checkpoint(TRUNCATE)");
     await database.close();
