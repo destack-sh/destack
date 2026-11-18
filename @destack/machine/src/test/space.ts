@@ -63,6 +63,7 @@ import {
     schema,
 } from "@destack/schema";
 import objectPackage from "@destack/object/package";
+import objectDefinition from "@destack/object/destack.json" with { type: "json" };
 import { Simulation } from "@destack/environment/simulation";
 import { StackDocument, type StackRecordType } from "@destack/stack/declare";
 import { Handoff } from "../transfer/handoff.ts";
@@ -83,7 +84,7 @@ import {
 import type { TestPerson } from "@destack/account/test";
 import type { ClientOf } from "@destack/object/client";
 import stackPackage, { PUSH_PATH } from "@destack/stack/package";
-import { lockBuild, lockOf, TestRegistry } from "./build.ts";
+import { fixtureOutputs, lockBuild, lockOf, TestRegistry } from "./build.ts";
 import { TestSpaceStorage } from "./storage.ts";
 import { TestGateway } from "./gateway.ts";
 import { TestRuntime } from "./runtime.ts";
@@ -119,6 +120,10 @@ export interface StackReleases {
     readonly sourceLock: Digest;
     /** The digest of the stack package's release's lock. */
     readonly lock: Digest;
+    /** The object package's release, with its real definition, its kinds' code in process. */
+    readonly object: BuildReader;
+    /** The digest of the object package's release's lock. */
+    readonly objectLock: Digest;
 }
 
 /** The residency a test universe declares, whose home a residency fixture hosts. */
@@ -892,6 +897,26 @@ export class TestSpace implements AsyncDisposable, TestScope {
             crypto,
         );
 
+        // build the object package's release, which machines link, its kinds' exports loading in process
+        const files = new Map([
+            ["destack.json", new TextEncoder().encode(JSON.stringify(objectDefinition))],
+        ]);
+        const inspect = { "./inspect": { path: "server/inspect.js", imports: [] } };
+        const objectRelease = await MemoryBuild.of(PackageVersion.of(objectPackage), [], crypto, {
+            role: "builtin",
+            files,
+            outputs: fixtureOutputs({
+                server: { runtime: "bun", emit: true, workloads: {}, views: {}, exports: inspect },
+                worker: {
+                    runtime: "workerd",
+                    emit: true,
+                    workloads: {},
+                    views: {},
+                    exports: inspect,
+                },
+            }),
+        });
+
         // follow the space stack at its release, each build identified by its lock alone
         const source = {
             ...STACKS.space,
@@ -904,6 +929,8 @@ export class TestSpace implements AsyncDisposable, TestScope {
             source,
             sourceLock: await lockOf(empty, crypto),
             lock: await lockOf(stack, crypto),
+            object: objectRelease,
+            objectLock: await lockOf(objectRelease, crypto),
         };
     }
 
@@ -1094,6 +1121,7 @@ export class TestSpace implements AsyncDisposable, TestScope {
         const linked = new Map<PackageId, PackageRelease>(
             [
                 { package: PackageVersion.of(stackPackage), lock: stack.lock },
+                { package: PackageVersion.of(objectPackage), lock: stack.objectLock },
                 ...(lifetime.linked ?? []),
                 ...shipped,
             ].map((release) => [release.package.id, release]),
@@ -1354,6 +1382,7 @@ export class TestSpace implements AsyncDisposable, TestScope {
         for (const release of [
             fixture.releases.space,
             fixture.releases.stack,
+            fixture.releases.object,
             ...(options.releases ?? []),
         ]) {
             await registry.release(release);

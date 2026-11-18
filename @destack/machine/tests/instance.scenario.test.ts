@@ -244,6 +244,7 @@ async function notesBuild(
     sandbox: Sandbox = {},
     workloads: readonly string[] = ["main"],
     requires: Readonly<Record<string, string>> = {},
+    version: string = notesPackage.version,
 ): Promise<BuildReader> {
     // make the workload use every declared resource in both server outputs
     const used = {
@@ -283,7 +284,7 @@ async function notesBuild(
 
     // declare each resource as its provisioned kind's, and each other declaration as its definer's
     const built = await MemoryBuild.of(
-        notesPackage,
+        { ...notesPackage, version },
         declared.map((entry) => ({
             ...("resource" in entry
                 ? { ...entry.resource.identity, provisioned: true as const }
@@ -1665,15 +1666,22 @@ test("grant an application its requested permissions until uninstalled", async (
 
 /** Run notes, hold a revision asking to read the space, and read the change request it opens. */
 async function holdForAccess() {
-    // run notes, then hold a revision asking to read the space
+    // run notes, then hold the next release's revision asking to read the space
     const fixture = await TestSpace.open();
     const { database } = fixture;
     const { crypto } = fixture.environment;
-    const notes = await installNotes(fixture, ids.notes, await notesBuild([main], crypto));
+    const notes = await installNotes(
+        fixture,
+        ids.notes,
+        await notesBuild([main, requesting({})], crypto),
+    );
     const { store } = await serveControllers(fixture);
     await fixture.simulation.idle();
     const request = requesting({ space: { space: [space.permission("read")] } });
-    await recordBuild(fixture, await notesBuild([main, request], crypto));
+    await recordBuild(
+        fixture,
+        await notesBuild([main, request], crypto, {}, ["main"], {}, "2026.10.0"),
+    );
     await fixture.simulation.idle();
 
     // read the change request its rollout opened and the one approval it asks
@@ -1745,7 +1753,7 @@ test("grant held access once a manager approves its change request", async () =>
                 steps: [
                     {
                         action: "grant",
-                        target: `installation/notes/access/space/${space.permission("read").packageId}/space/read`,
+                        target: `installation/notes/release/2026.10.0/access/space/${space.permission("read").packageId}/space/read`,
                         risk: "privileged",
                         detail: "request read on space",
                     },
