@@ -18,7 +18,7 @@ import {
 import * as logs from "@opentelemetry/sdk-logs";
 import * as metrics from "@opentelemetry/sdk-metrics";
 import * as traces from "@opentelemetry/sdk-trace";
-import { LineExporter } from "./line.ts";
+import { LineExporter, type LineExporterOptions } from "./line.ts";
 
 /** The setter writing trace fields into HTTP headers. */
 const HEADERS_SETTER: TextMapSetter<Headers> = {
@@ -73,16 +73,18 @@ export const Telemetry = {
         };
     },
 
-    /** Write log records as lines to the runtime's own log, exporting nothing else. */
+    /** Write log records and info spans as lines to the runtime's own log, exporting nothing. */
     local(
         clock: Clock,
         write: ConstructorParameters<typeof LineExporter>[0],
         context: ContextManager = new RootContextManager(),
+        options: LineExporterOptions = LineExporter.options({}),
     ): Telemetry {
-        const exporter = new LineExporter(write);
+        const exporter = new LineExporter(write, options);
 
         return {
             ...Telemetry.none(clock, context),
+            tracers: new traces.TracerProvider({ spanProcessors: [exporter.spans] }),
             loggers: new logs.LoggerProvider({ processors: [exporter.processor] }),
         };
     },

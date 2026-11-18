@@ -21,6 +21,7 @@ export const WorkerdEnvironment = {
                 Clock.system,
                 (line, severity) => LineExporter.console(line, severity),
                 new AsyncLocalStorageContextManager().enable(),
+                LineExporter.options(process.env),
             );
             const base = { ...Environment.system, network: Network.workerd };
             system = Environment.instrument(base, telemetry);

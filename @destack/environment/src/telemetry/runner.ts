@@ -1,3 +1,4 @@
+import type { Level } from "./level.ts";
 import {
     type Attributes,
     type Histogram,
@@ -30,6 +31,12 @@ const SPAN_KINDS = { client: SpanKind.CLIENT, server: SpanKind.SERVER } as const
 /** The milliseconds in a second, as OpenTelemetry records durations in seconds. */
 const MILLISECONDS_PER_SECOND = 1000;
 
+/** The attribute listing a leveled span's totals, which local logs leave out of its line. */
+export const SPAN_TOTALS_ATTRIBUTE = "destack.span.totals";
+
+/** The attribute marking a span's level, which local logs print at info and above. */
+export const SPAN_LEVEL_ATTRIBUTE = "destack.span.level";
+
 /** The nanoseconds in a second, as span times count seconds and nanoseconds. */
 const NANOSECONDS_PER_SECOND = 1_000_000_000;
 
@@ -41,6 +48,8 @@ export interface SpanOptions {
     readonly duration?: SpanDuration | false;
     /** The spans that caused this one apart from its parent, such as the commits waking a pass. */
     readonly links?: readonly Link[];
+    /** The span's level: info for a lifecycle phase a process prints, debug by default. */
+    readonly level?: Level;
 }
 
 /** The duration a span records: its metric's name and its bounded attributes, never identifiers. */
@@ -106,7 +115,15 @@ export const SpanRunner = {
             const kind = how.kind === undefined ? SpanKind.INTERNAL : SPAN_KINDS[how.kind];
             const startTime = clock.now();
             const links = [...(how.links ?? [])];
-            const span = tracer.startSpan(name, { attributes, kind, startTime, links }, parent);
+            const leveled =
+                how.level === undefined
+                    ? attributes
+                    : { ...attributes, [SPAN_LEVEL_ATTRIBUTE]: how.level };
+            const span = tracer.startSpan(
+                name,
+                { attributes: leveled, kind, startTime, links },
+                parent,
+            );
             const entered = SpanPath.enter(
                 trace.setSpan(parent, span),
                 SpanPath.label(name, attributes),
@@ -126,7 +143,10 @@ export const SpanRunner = {
                     recordSpanException(span, failure);
                     span.setStatus({ code: SpanStatusCode.ERROR });
                 }
-                span.setAttributes({ ...failed, ...SpanPath.totals(entered) });
+                const totals = SpanPath.totals(entered);
+                const listed =
+                    how.level === undefined ? {} : { [SPAN_TOTALS_ATTRIBUTE]: Object.keys(totals) };
+                span.setAttributes({ ...failed, ...totals, ...listed });
                 span.end(clock.now());
                 if (how.duration !== false) {
                     const seconds = (monotonic.now() - started) / MILLISECONDS_PER_SECOND;
