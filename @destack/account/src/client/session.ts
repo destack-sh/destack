@@ -1,6 +1,12 @@
 import type { Environment } from "@destack/environment";
 import { CallError, type Fetch, PackageMount, type Package } from "@destack/object";
-import { type Bookmark, type ClientOptions, createClient } from "@destack/object/client";
+import {
+    type Bookmark,
+    type ClientOptions,
+    type ConnectionOptions,
+    createClient,
+    ObjectConnection,
+} from "@destack/object/client";
 import objectPackage from "@destack/object/package";
 import type { StepUp } from "@destack/access";
 import type { PackageId } from "@destack/package";
@@ -66,6 +72,25 @@ export class Session<Principal extends Credential = Credential> {
             },
             this.environment,
         );
+    }
+
+    /** Connect to the store of a package below an endpoint, as the principal bound as asked. */
+    connect(
+        handle: Package,
+        endpoint: string,
+        options: Pick<ConnectionOptions, "scope" | "homes" | "signing" | "machine"> & {
+            readonly binding?: TokenBinding;
+        } = {},
+    ): ObjectConnection {
+        const { binding = {}, ...connection } = options;
+
+        return ObjectConnection.open({
+            ...connection,
+            url: ObjectConnection.url(PackageMount.url(endpoint, handle.id)),
+            authorize: (request) => this.credential.authorize(request, handle.id, binding),
+            bookmark: this.bookmark,
+            environment: this.environment,
+        });
     }
 
     /** Connect to the account package the universe serves. */

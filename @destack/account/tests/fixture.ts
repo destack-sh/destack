@@ -60,13 +60,13 @@ export async function firstPage(pages: AsyncIterable<Page>): Promise<Page> {
 
 /** Reserve and confirm a place's names at the universe as a caller, in an environment. */
 export async function claimNames(
-    caller: Pick<TestCaller, "client">,
+    caller: Pick<TestCaller, "connect">,
     database: DatabaseConnection,
     claimant: Claimant,
     environment: Environment,
 ): Promise<void> {
     // reserve the names at the universe, refusing a taken one, then confirm them
-    const home = RemoteStore.of(caller.client(accountPackage).store, Scope.universe.id);
+    const home = RemoteStore.of(caller.connect(accountPackage), Scope.universe.id);
     const request = RequestId.create(environment);
     const [reserved] = await home.mutate({
         id: RequestId.create(environment),

@@ -73,7 +73,7 @@ function chain(space: string, accountId: string) {
 async function replicas(caller: TestCaller, space: string, accountId: string): Promise<Refusal> {
     const controller = new AbortController();
     const replicated = caller
-        .client(accountPackage)
+        .connect(accountPackage)
         .store.stream(
             {
                 ...chain(space, accountId),
@@ -89,7 +89,7 @@ async function replicas(caller: TestCaller, space: string, accountId: string): P
 /** Read the accounts a residency home reads among the universe's rows, by identifier. */
 async function accounts(caller: TestCaller, space: string): Promise<string[]> {
     const controller = new AbortController();
-    const pages = await caller.client(accountPackage).store.stream(
+    const pages = await caller.connect(accountPackage).store.stream(
         {
             name: space,
             scope: Scope.universe.id,

@@ -42,13 +42,10 @@ export const AccountAuthentication = {
         verifier: TokenVerifier,
         verification: TokenVerification,
     ): Promise<Authentication | undefined> {
-        // leave a request without a bearer token to the protocol it speaks, such as a client's credentials
-        const authorization = request.headers.get("authorization");
-        if (authorization === null || !/^bearer /iu.test(authorization)) {
-            return undefined;
-        }
+        // leave a request without a bearer token, in its header or a WebSocket's subprotocol, to the protocol it speaks
+        const token = Bearer.read(request.headers);
 
-        return verifier.verify(Bearer.require(request.headers), verification);
+        return token === undefined ? undefined : verifier.verify(token, verification);
     },
 
     /** Authenticate a person signed in through an active session, with its assurance and email. */

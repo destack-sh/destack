@@ -143,7 +143,7 @@ function move(
 /** Read the machine rows a machine replicates of the directory, with their statuses. */
 async function machines(copier: TestCaller): Promise<unknown[][]> {
     const controller = new AbortController();
-    const pages = await copier.client(accountPackage).store.stream(
+    const pages = await copier.connect(accountPackage).store.stream(
         {
             ...Shape.subscription(Scope.universe.id, [{ shape: directoryShape, keys: [{}] }], {
                 target: copier.subject.id,
@@ -240,7 +240,7 @@ function claims(caller: TestCaller): ClaimLookup {
 /** Read the spaces a machine replicates as giving it work. */
 async function assignments(caller: TestCaller): Promise<unknown[]> {
     const controller = new AbortController();
-    const pages = await caller.client(accountPackage).store.stream(
+    const pages = await caller.connect(accountPackage).store.stream(
         {
             ...Shape.subscription(
                 Scope.universe.id,
@@ -361,7 +361,7 @@ test("store the account's row in the chain replica of a space storing accounts",
     const following = new AbortController();
     const chain = await fixture
         .as(laptop)
-        .client(accountPackage)
+        .connect(accountPackage)
         .store.stream(
             {
                 name: CHAIN_PUBLICATION,
@@ -419,7 +419,7 @@ test("follow a machine's chain as a space of its account, and refuse a space of 
         const following = new AbortController();
         const chain = fixture
             .as(spaceId)
-            .client(accountPackage)
+            .connect(accountPackage)
             .store.stream(
                 {
                     name: CHAIN_PUBLICATION,
@@ -474,7 +474,7 @@ test("follow a machine's chain via the universe as a machine of its account, and
     const { accountId, identity, peer, outsider } = opened;
     const follow = async (caller: typeof peer) => {
         const following = new AbortController();
-        const chain = caller.client(accountPackage).store.stream(
+        const chain = caller.connect(accountPackage).store.stream(
             {
                 name: CHAIN_PUBLICATION,
                 scope: Scope.universe.id,

@@ -30,7 +30,7 @@ test("replicate every account of a residency to its cloud machine as it is creat
         controller.signal,
         fixture.clock.timeout(REPLICA_MILLISECONDS),
     ]);
-    const stream = await machine.client(accountPackage).store.stream(
+    const stream = await machine.connect(accountPackage).store.stream(
         {
             ...Shape.subscription(
                 Scope.universe.id,

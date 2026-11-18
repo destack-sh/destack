@@ -418,7 +418,7 @@ test("follow a space's chain at the universe as the space, through the tokens it
     const controller = new AbortController();
     const followed = fixture
         .as(spaceId)
-        .client(accountPackage)
+        .connect(accountPackage)
         .store.stream({ ...chain, revision: FOLLOWER_REVISION }, { signal: controller.signal })
         .then((pages) => firstPage(pages));
 

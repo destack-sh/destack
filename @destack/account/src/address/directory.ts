@@ -9,7 +9,7 @@ import {
     PackageMount,
     SpaceMount,
 } from "@destack/object";
-import { type ClientOf, createClient } from "@destack/object/client";
+import { type ClientOf, createClient, ObjectConnection } from "@destack/object/client";
 import objectPackage from "@destack/object/package";
 import type { ObjectReference, Publisher } from "@destack/sync";
 import { account } from "../object/account.ts";
@@ -201,13 +201,25 @@ export class Directory<View extends Pick<Snapshot, "read"> = Snapshot> {
     }
 
     /** Stream follows of a space's rows from its object package, where its machine answers. */
-    publisher(this: Directory, scope: string, fetch: Fetch, environment: Environment): Publisher {
-        // connect to the space's object package where the directory places it
+    publisher(
+        this: Directory,
+        scope: string,
+        authorize: (request: Request) => Promise<Request>,
+        environment: Environment,
+    ): Publisher & Disposable {
+        // connect to the space's object package where the directory places it, closing the connection to where it was
         const spaceId = schema.identifier("space").parse(scope);
+        let current: ObjectConnection | undefined;
         const connect = async (located: PlacementEndpoint) => {
-            const url = `${SpaceMount.url(located.url, spaceId)}${PackageMount.path(objectPackage.id)}`;
+            // reuse the connection to where the space is, else open one
+            const mounted = `${SpaceMount.url(located.url, spaceId)}${PackageMount.path(objectPackage.id)}`;
+            const url = ObjectConnection.url(mounted);
+            if (current?.url !== url) {
+                current?.close();
+                current = ObjectConnection.open({ scope, url, authorize, environment });
+            }
 
-            return createClient(objectPackage, { url, fetch }, environment);
+            return current;
         };
         const whenPlaced = (signal: AbortSignal) =>
             this.waitPlaced(spaceId, environment.clock, signal);
@@ -217,13 +229,15 @@ export class Directory<View extends Pick<Snapshot, "read"> = Snapshot> {
             stream: async function* (followed, signal) {
                 // wait until the replicated directory places the space at a machine that answers
                 const objects = await connect(await whenPlaced(signal));
-                yield* await objects.store.stream(followed, { signal });
+                yield* objects.stream(followed, signal);
             },
             // request only after a stream, once the space is placed
             request: async (subscription) => {
                 const objects = await connect(await located());
-                await objects.store.request({ subscription });
+                await objects.request(subscription);
             },
+            // close the connection to where the space is
+            [Symbol.dispose]: () => current?.close(),
         };
     }
 
