@@ -4,12 +4,7 @@
     "role": "library",
     "language": "typescript",
     "template": {
-        "files": [
-            "src",
-            "package.json",
-            "destack.json",
-            "justfile"
-        ]
+        "files": ["src", "package.json", "destack.json", "justfile"]
     },
     "runtimes": ["bun", "workerd"],
     "exports": {

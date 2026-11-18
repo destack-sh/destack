@@ -4,13 +4,7 @@
     "role": "app",
     "language": "typescript",
     "template": {
-        "files": [
-            "src",
-            "package.json",
-            "destack.json",
-            "justfile",
-            "bunfig.toml"
-        ],
+        "files": ["src", "package.json", "destack.json", "justfile", "bunfig.toml"],
         "dependencies": ["@destack/template-stack"]
     },
     "runtimes": ["browser", "bun", "workerd"]
