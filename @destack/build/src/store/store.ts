@@ -1104,8 +1104,28 @@ export class BuildStore<
             object.kind === "file" ? !packed.has(object.digest) : !rows.has(object.digest),
         );
 
-        // store them from the layer, trusted as the host's own
-        await this.#pack(this.#readLayered(copied), "trust");
+        // store the files from the layer, each read as its pack reaches it
+        await this.blobs.put(
+            copied
+                .filter((object) => object.kind === "file")
+                .map(({ digest }) => ({
+                    digest,
+                    size: present(this.layer.size(digest), `the layered blob ${digest}`),
+                    open: async () => {
+                        const bytes = await present(
+                            this.layer.read(digest),
+                            `the layered blob ${digest}`,
+                        );
+
+                        return BuildStore.#chunks(bytes);
+                    },
+                })),
+            this.#leasedUntil,
+        );
+
+        // record the manifests and locks from the layer, trusted as the host's own
+        const recorded = copied.filter((object) => object.kind !== "file");
+        await this.#pack(this.#readLayered(recorded), "trust");
     }
 
     /** Find which of some manifests and locks the store records complete, by an accepted row. */
@@ -1531,10 +1551,9 @@ export class BuildStore<
             const bytes = await present(this.layer.read(digest), `the layered blob ${digest}`);
             yield bytes.subarray(offset, Math.min(bytes.byteLength, offset + length));
         }
-        // read the range from its pack
+        // read the range from its pack through the blob store
         else {
-            const end = Math.min(location.size, offset + length);
-            yield* this.blobs.storage.slice(location.pack, location.offset + offset, end - offset);
+            yield* this.blobs.slicePlaced(location, offset, length);
         }
     }
 
@@ -2058,7 +2077,7 @@ export const ImportClosure = {
             .map((output) => `${output.directory}/`);
 
         // leave out each module below them that no root reaches, with the source map beside it
-        const left = files.filter((file) => {
+        const isLeft = (file: PackageFile) => {
             const module = file.path.endsWith(MAP_SUFFIX)
                 ? file.path.slice(0, -MAP_SUFFIX.length)
                 : file.path;
@@ -2067,7 +2086,11 @@ export const ImportClosure = {
                 directories.some((directory) => module.startsWith(directory));
 
             return isModule && !modules.has(`${build}/${module}`);
-        });
+        };
+
+        // keep bytes a kept file shares, such as a reached module copied for two runtimes
+        const kept = new Set(files.filter((file) => !isLeft(file)).map((file) => file.digest));
+        const left = files.filter((file) => isLeft(file) && !kept.has(file.digest));
 
         return new Set(left.map((file) => file.digest));
     },

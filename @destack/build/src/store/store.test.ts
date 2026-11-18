@@ -1296,6 +1296,42 @@ function moduleBytes(code: string): Uint8Array<ArrayBuffer> {
     return new TextEncoder().encode(code);
 }
 
+test("keep a reached module that shares bytes with an unreached one", async () => {
+    // write a library whose browser and workerd outputs have the same module, and one module only workerd has
+    const { crypto } = testSimulation().environment("test");
+    const output = { emit: true, workloads: {}, views: {}, exports: {} } as const;
+    const shared = moduleBytes("export const web = 1;");
+    const kit = await MemoryBuild.write(
+        new Map([
+            ["output/browser/web.js", shared],
+            ["output/workerd/web.js", shared],
+            ["output/workerd/server.js", moduleBytes("export const server = 1;")],
+        ]),
+        {
+            role: "library",
+            package: { name: "@example/kit", version: "1.0.0", integrity: "sha512-kit" },
+            outputs: {
+                browser: { ...output, runtime: "browser", directory: "output/browser" },
+                workerd: { ...output, runtime: "workerd", directory: "output/workerd" },
+            },
+        },
+        crypto,
+    );
+
+    // reach only the browser's copy
+    const digest = await kit.digest();
+    const unreached = ImportClosure.unused(
+        digest,
+        kit,
+        await kit.files(),
+        new Set([`${digest}/output/browser/web.js`]),
+    );
+
+    // leave out the workerd-only module alone, keeping the shared bytes the browser's copy needs
+    const paths = new Map((await kit.files()).map((file) => [file.digest, file.path]));
+    expect([...unreached].map((each) => found(paths, each))).toEqual(["output/workerd/server.js"]);
+});
+
 test("reach the modules an entry imports across builds, a whole build for a computed name, and list the rest unreached", async () => {
     // write an app importing one module of a kit, and a kit whose loader imports by a computed name
     const { crypto } = testSimulation().environment("test");
