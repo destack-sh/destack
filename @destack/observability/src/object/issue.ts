@@ -1,5 +1,5 @@
 import { space } from "@destack/account/object";
-import { type Select } from "@destack/db";
+import { Expression, type Select } from "@destack/db";
 import { argument, plural, t } from "@destack/locale";
 import { activity, announcement, subscription } from "@destack/notification/object";
 import { defineNotification } from "@destack/notification/declare";
@@ -23,8 +23,8 @@ export const ISSUE_TITLE_LENGTH = 500;
 /** The namespace of issue identifiers, derived from their space, installation and fingerprint. */
 export const ISSUE_NAMESPACE: Uuid = "6f1d2c8a-3b7e-4a59-9c4d-2e8b5a7f1c30";
 
-/** A person exceptions affected, with when they last saw one. */
-export const AffectedPerson = schema.object({
+/** A person who saw an issue's exceptions, and when they last saw one. */
+export const Sighting = schema.object({
     /** The person. */
     person: schema.string().min(1),
     /** When they last saw one, in Unix milliseconds. */
@@ -32,17 +32,17 @@ export const AffectedPerson = schema.object({
 });
 
 /** An exception an issue records: the person it happened to, and when. */
-export const RecordedOccurrence = schema.object({
+export const Occurrence = schema.object({
     /** The person it happened to, absent when unknown. */
     person: schema.string().min(1).exactOptional(),
     /** When it happened, in Unix milliseconds. */
     at: schema.number().int().nonnegative(),
 });
 /** An exception an issue records. */
-export type RecordedOccurrence = schema.Infer<typeof RecordedOccurrence>;
+export type Occurrence = schema.Infer<typeof Occurrence>;
 
 /** The levels of an issue, from its most severe exception. */
-export const ISSUE_LEVELS = ["fatal", "error", "warning", "info"] as const;
+export const ISSUE_LEVELS = ["fatal", "error", "warn", "info"] as const;
 
 /** The fields opening an issue at its first exceptions. */
 export const IssueOpening = schema.object({
@@ -158,6 +158,16 @@ export const issue = defineObject(
         plural: "issues",
         title: t`${plural(argument("count"), { one: "Issue", other: "Issues" })}`,
         scope: space,
+        // edition 2: store a warning's level as warn, as the telemetry levels say
+        convert: {
+            2: {
+                level: Expression.case(
+                    Expression.column("level"),
+                    [{ when: "warning", then: Expression.literal("warn") }],
+                    Expression.column("level"),
+                ),
+            },
+        },
         fields: {
             /** The installation whose exceptions it groups. */
             installation: field.reference(
@@ -285,7 +295,7 @@ export const issue = defineObject(
                 /** How many exceptions to add. */
                 count: schema.int().min(1),
                 /** The people the exceptions affected, with when each last saw one. */
-                people: schema.array(AffectedPerson),
+                people: schema.array(Sighting),
             }),
         }),
         /** Record exceptions into their issue, opening or reopening it, as its reader does. */
@@ -301,7 +311,7 @@ export const issue = defineObject(
                 /** The fields opening the issue at its first exceptions. */
                 opening: IssueOpening,
                 /** The exceptions, each appended once by its identity. */
-                occurrences: schema.array(RecordedOccurrence).min(1),
+                occurrences: schema.array(Occurrence).min(1),
                 /** When the latest revision the exceptions ran was made, absent when unknown. */
                 revisedAt: schema.number().int().nonnegative().exactOptional(),
             }),

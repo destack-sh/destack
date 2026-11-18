@@ -12,7 +12,7 @@ const UNKNOWN_ERROR_TYPE = "_OTHER";
 const LEVELS = [
     [21, "fatal"],
     [17, "error"],
-    [13, "warning"],
+    [13, "warn"],
     [1, "info"],
 ] as const;
 
