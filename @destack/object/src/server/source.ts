@@ -619,6 +619,24 @@ export class ObjectSource {
               );
     }
 
+    /** Report whether a queries request reads a type the store follows at its home. */
+    #isReplicated(parameters: JsonObject): boolean {
+        // read the asked queries the store follows on demand
+        const follow = this.store.queriesFollow;
+        const asked = Object.values(
+            this.#served(QueriesParameters.parse(parameters).queries) ?? {},
+        );
+
+        return asked.some((query) =>
+            (follow?.shape.objects ?? []).some(
+                (type) =>
+                    type.name === query.object &&
+                    type.package.id === query.package &&
+                    type.storage !== "local",
+            ),
+        );
+    }
+
     /** Follow a scope's durable objects for a follower. */
     async *#durable(
         subscription: sync.Subscription,
@@ -1203,7 +1221,8 @@ export class ObjectSource {
         await demand?.take(subscription.parameters);
 
         // relay a replica the store follows from elsewhere once it has a position, else stream the store's own rows
-        const pages = (await this.#isRelayed(subscription, signal))
+        const isDemanded = demand !== undefined;
+        const pages = (await this.#isRelayed(subscription, publication, isDemanded, signal))
             ? this.#replicateAs(subscription, signal, demand?.take)
             : this.#own(subscription, replica, signal, demand?.take);
 
@@ -1274,12 +1293,25 @@ export class ObjectSource {
     }
 
     /** Report whether the store relays a scope's replica, waiting for its position. */
-    async #isRelayed(subscription: sync.Subscription, signal: AbortSignal): Promise<boolean> {
-        // relay a replica the store has, and any scope a predicting store follows beside its own partitions
-        const { name, scope } = subscription;
+    async #isRelayed(
+        subscription: sync.Subscription,
+        publication: sync.Publication,
+        isDemanded: boolean,
+        signal: AbortSignal,
+    ): Promise<boolean> {
+        // relay rows the store follows at their home: access rows, or queried types it replicates
+        const { name, scope, parameters } = subscription;
+        const isFollowed =
+            isDemanded &&
+            (publication === this.accessPublication || this.#isReplicated(parameters));
+
+        // relay a scope a predicting store follows beside its own partitions
         const { database, outbox } = this.store;
+        const isElsewhere = outbox !== undefined && !this.store.isOwn(scope);
+
+        // relay a replica the store has, else stream its own rows
         const has = async () => (await sync.Replica.origin(database, name, scope)) !== undefined;
-        if (!(await has()) && (outbox === undefined || this.store.isOwn(scope))) {
+        if (!isFollowed && !isElsewhere && !(await has())) {
             return false;
         }
 
@@ -1648,6 +1680,13 @@ export class ObjectSource {
         request: sync.Subscription,
         follower: ReplicaFollower,
     ): Promise<sync.Audience> {
+        // relay a chain's access rows to the store's principal whole, as their source published them to it
+        const isPrincipal =
+            "subject" in follower && Subject.same(follower.subject, this.store.principal);
+        if (publication === this.accessPublication && isPrincipal) {
+            return sync.EVERYONE;
+        }
+
         // read the scopes a follower outside the chains replicas them via
         const isContained = publication.audience === "contained";
         const via = isContained ? (ObjectSource.#chainParameters(request)?.via ?? []) : [];

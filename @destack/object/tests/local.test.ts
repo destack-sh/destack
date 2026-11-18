@@ -7,18 +7,19 @@ import { AccessContext, accessTables, Caller, CONTAINED, principal } from "@dest
 import { TestAccess } from "@destack/access/test";
 import { RequestId, Scope, type Subject } from "@destack/sync";
 import { TestDatabase } from "@destack/db/test";
+import { type DatabaseConnection, Snapshot } from "@destack/db";
 import { BrowserSimulation } from "@destack/environment/browser/simulation";
-import { Identifier, nth } from "@destack/schema";
+import { Identifier, nth, present } from "@destack/schema";
 import { definePackage } from "@destack/object";
 import { testCallKey } from "@destack/object/test";
 import { testEvents, serversOf } from "../src/test/index.ts";
-import { BrowserTab } from "../src/browser/index.ts";
+import { type BrowserDevice, BrowserTab } from "../src/browser/index.ts";
 import { deviceDatabase, deviceWorker } from "./fixture/browser.ts";
 import { ObjectClient, ProcedureRemote, type ObjectAccess } from "../src/client/index.ts";
 import { ObjectStore, implementPackage } from "../src/server/index.ts";
 import { serveNotes, spaceId } from "./fixture/device.ts";
 import { spacePrincipal, unmoved } from "../src/test/space.ts";
-import { draft, panel, sticky, user } from "./fixture/local.ts";
+import { draft, memo, memosPackage, panel, sticky, user } from "./fixture/local.ts";
 import { note, notebook } from "../src/test/note.ts";
 import { tablesOf } from "../src/index.ts";
 import objectPackage from "../src/package.ts";
@@ -83,6 +84,96 @@ test("read a local object one tab writes in another tab through their device, ou
     await drafts.close();
     await second.close();
     await first.close();
+});
+
+test("replicate a space tab's scope chain from its device once the device's replica arrives", async () => {
+    // open a device whose machine answers only once the tab asked for the space's access rows
+    const simulation = testSimulation();
+    const world = simulation.environment("test");
+    const { endpoint } = await serveNotes({ simulation, node: "browser" });
+    const alice = Identifier.create("user", world);
+    const environment = new BrowserSimulation(simulation).environment("browser");
+    const objects = { notebook, note, draft };
+    const caller = principal.user.reference("universe", alice);
+    const browser = principal.device.reference("universe", Identifier.create("device", world));
+    const answering = Promise.withResolvers<void>();
+    const reached = endpoint(alice);
+    const served: BrowserDevice[] = [];
+    const worker = deviceWorker({
+        database: await deviceDatabase(objects, environment),
+        objects,
+        caller,
+        device: browser,
+        endpoint: {
+            ...reached,
+            fetch: async (...called) => {
+                await answering.promise;
+
+                return await present(reached.fetch, "the endpoint's fetch")(...called);
+            },
+        },
+        environment,
+        served: (opened) => served.push(opened),
+    });
+
+    // open the tab on the space, then let the machine answer
+    const tab = await BrowserTab.open({
+        environment,
+        name: "notes",
+        objects,
+        scope: spaceId,
+        caller,
+        device: browser,
+        worker,
+    });
+    answering.resolve();
+    await tab.ready;
+
+    // read the space's chain in the tab as the device has it, once the tab is ready
+    expect({
+        tab: await readChain(tab.client.database),
+        device: await readChain(nth(served, 0).client.database),
+    }).toEqual({ tab: [spaceId, Scope.universe.id], device: [spaceId, Scope.universe.id] });
+    await tab.close();
+});
+
+test("replicate the person's own scope chain to a tab opened before the device's replica arrives", async () => {
+    // serve the person's own scope, answering the device only once its tab asked
+    const { caller, alice, open, answer } = await openOwnScope();
+    const { tab } = await open();
+    answer();
+    await tab.ready;
+
+    // read the person's chain in the tab, relayed once the device's replica arrived
+    expect(
+        (await Scope.chain(Snapshot.live(tab.client.database), alice)).map(
+            (link) => link.object.id,
+        ),
+    ).toEqual([caller.id, Scope.universe.id]);
+    await tab.close();
+});
+
+test("follow a tab's replicated memos in the person's own scope after its local drafts", async () => {
+    // write a memo at the person's home, and open a tab reading only local drafts first
+    const { alice, open, answer, home, world } = await openOwnScope();
+    answer();
+    await home.memo.create({
+        userId: alice,
+        requestId: RequestId.create(world),
+        text: "Call the bank",
+    });
+    const { tab } = await open();
+    await tab.ready;
+    const drafts = tab.client.query.draft.findMany().subscribe();
+    await drafts.ready;
+
+    // read the memo, which the device relays once its replica arrives
+    const memos = tab.client.query.memo.findMany({ where: { scope: alice } }).subscribe();
+    await memos.ready;
+    expect((await memos.read()).map((row) => row.text)).toEqual(["Call the bank"]);
+    await memos.close();
+    await drafts.close();
+    await tab.close();
 });
 
 test("hide a user's local objects from another user on the same device, and the device's from another device", async () => {
@@ -424,3 +515,67 @@ test("refuse a tab's readiness with the reason its device worker could not open 
         "database 'notes' is unavailable: this browser cannot open it: InvalidStateError: the handle is held",
     ]);
 });
+
+/** Read the space's chain as a database holds its scope rows, nearest first. */
+async function readChain(database: DatabaseConnection): Promise<string[]> {
+    return (await Scope.chain(Snapshot.live(database), spaceId)).map((link) => link.object.id);
+}
+
+/** Serve a person's own scope with memos, opening tabs over a device answered once told. */
+async function openOwnScope() {
+    // serve memos at the person's own scope
+    const simulation = testSimulation();
+    const world = simulation.environment("test");
+    const alice = Identifier.create("user", world);
+    const caller = principal.user.reference("universe", alice);
+    const served = await TestObjectStore.open({
+        packages: [memosPackage],
+        scope: caller,
+        simulation,
+        node: "browser",
+    });
+    onTestFinished(() => served[Symbol.asyncDispose]());
+
+    // open the person's device on their own scope, its machine answering once told
+    const environment = new BrowserSimulation(simulation).environment("browser");
+    const objects = { memo, draft };
+    const browser = principal.device.reference("universe", Identifier.create("device", world));
+    const answering = Promise.withResolvers<void>();
+    const reached = served.as(alice).endpoint(memosPackage);
+    const worker = deviceWorker({
+        database: await deviceDatabase(objects, environment),
+        objects,
+        caller,
+        device: browser,
+        scope: alice,
+        endpoint: {
+            ...reached,
+            fetch: async (...called) => {
+                await answering.promise;
+
+                return await present(reached.fetch, "the endpoint's fetch")(...called);
+            },
+        },
+        environment,
+    });
+    const open = async () => ({
+        tab: await BrowserTab.open({
+            environment,
+            name: "notes",
+            objects,
+            scope: alice,
+            caller,
+            device: browser,
+            worker,
+        }),
+    });
+
+    return {
+        caller,
+        alice,
+        open,
+        answer: () => answering.resolve(),
+        home: served.as(alice).client(memosPackage),
+        world,
+    };
+}

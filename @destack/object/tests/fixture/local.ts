@@ -1,6 +1,7 @@
 import { principal, through } from "@destack/access";
 import { schema } from "@destack/schema";
-import { defineObject, device, field } from "../../src/index.ts";
+import { defineObject, definePackage, device, field } from "../../src/index.ts";
+import { testIdentity } from "../../src/test/index.ts";
 import { argument, plural, t } from "@destack/locale";
 
 /** People, the user principal local drafts belong to. */
@@ -72,3 +73,26 @@ export const sticky = defineObject(
         create: method.create("use"),
     }),
 );
+
+/** A memo in its user's scope, replicated from the user's home. */
+export const memo = defineObject(
+    {
+        name: "memo",
+        plural: "memos",
+        title: t`${plural(argument("count"), { one: "Memo", other: "Memos" })}`,
+        scope: user,
+        fields: { text: field.string(schema.string().max(1000)) },
+        access: {
+            permissions: ["read", "edit"],
+        },
+    },
+    (method) => ({
+        create: method.create("edit"),
+    }),
+);
+
+/** The memos package, served at a user's own scope. */
+export const memosPackage = definePackage({
+    ...testIdentity,
+    objects: [memo],
+});

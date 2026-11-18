@@ -27,12 +27,14 @@ export function deviceWorker(options: {
     readonly device: Subject;
     readonly endpoint: ClientOptions;
     readonly environment: SimulatedBrowserEnvironment;
+    /** The device's own scope, the space by default. */
+    readonly scope?: string;
     /** Take each device the worker serves, such as to read its holds. */
     readonly served?: (device: BrowserDevice) => void;
 }): BrowserTabWorker {
     return async () => {
-        // serve the device on the tabs' channel in the space, the one scope the fixture's machine serves, following each scope through it
-        const { environment } = options;
+        // serve the device on the tabs' channel in its scope, following each scope through the fixture's machine
+        const { environment, scope: own = spaceId } = options;
         const remotes = new Map<string, ProcedureRemote>();
         const publisher = (scope: string) => {
             const remote =
@@ -50,8 +52,8 @@ export function deviceWorker(options: {
         const device = await BrowserDevice.serve({
             ...options,
             channel: broadcastChannel("destack:notes", environment),
-            scope: spaceId,
-            remote: publisher(spaceId),
+            scope: own,
+            remote: publisher(own),
             publisher,
         });
 
