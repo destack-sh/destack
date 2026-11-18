@@ -150,7 +150,7 @@ export class TunnelClient {
             } else if (!this.#stopping.signal.aborted) {
                 failures += 1;
                 this.#instruments.captureMessage(`tunnel to ${this.#options.url} did not open`, {
-                    level: "warning",
+                    level: "warn",
                 });
             }
 
@@ -182,7 +182,7 @@ export class TunnelClient {
             this.#instruments.captureMessage(
                 `dialing ${this.#options.url} failed: ${String(error)}`,
                 {
-                    level: "warning",
+                    level: "warn",
                 },
             );
 
