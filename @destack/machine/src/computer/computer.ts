@@ -7,7 +7,6 @@ import { defineDatabase } from "@destack/db";
 import { BUILD_STORE_TABLES } from "@destack/build/store";
 import { build } from "@destack/stack/object";
 import { join } from "node:path";
-import { inspect } from "node:util";
 import { Distribution, DISTRIBUTION_DIRECTORY } from "@destack/update";
 import { Toolchain } from "@destack/check/toolchain";
 import { distribution } from "@destack/update/object";
@@ -56,7 +55,6 @@ import { SeverityNumber, TelemetryScope } from "@destack/telemetry";
 import { startTelemetry } from "@destack/telemetry/bun";
 import { OTLP_ORIGIN_PATH, OtlpExporter } from "@destack/telemetry/otlp";
 import stackPackage from "@destack/stack/package";
-import type { Telemetry } from "@destack/telemetry/sdk";
 import type { DistributionHost } from "@destack/update/server";
 import {
     DRAIN_TIMEOUT_MILLISECONDS,
@@ -74,7 +72,7 @@ import { computer, type MachineEnrollment, signIn, visit } from "./device/object
 import { MachineProcess, LOCK_FILE, StageHome } from "./process/index.ts";
 import { BuildRunner } from "./build.ts";
 import { computerServer, machineWorkload, deviceWorkload } from "./server/workload.ts";
-import { Environment, HostAddress, LineExporter } from "@destack/environment";
+import { Environment, HostAddress, LineExporter, Telemetry } from "@destack/environment";
 import { DOMAINS, MachineAddress } from "@destack/account/address";
 import { PartitionRequest } from "../space/index.ts";
 
@@ -1283,7 +1281,7 @@ export class Computer implements AsyncDisposable {
     static async #startTelemetry(
         environment: Environment<"process">,
         machine: () => Machine | undefined,
-    ): Promise<Telemetry> {
+    ): ReturnType<typeof startTelemetry> {
         // post each export to the telemetry of the owner's home where its machine answers, nothing before it enrolls
         const target = {
             endpoint: `${OWN_TELEMETRY_ORIGIN}${OTLP_ORIGIN_PATH}`,
@@ -1298,33 +1296,21 @@ export class Computer implements AsyncDisposable {
                 return send(new Request(`${SpaceMount.url(url, home)}${pathname}`, request));
             },
         };
+        // write every record to the machine's own log too, beside its owner's home, and the export's own failures there alone
+        const write = (line: string) => environment.process.stderr.writeSync(line);
+        const local = new LineExporter(write);
+        const own = TelemetryScope.of(MACHINE_PACKAGE, Telemetry.local(environment.clock, write));
         const exporter = new OtlpExporter(
             async (signal, body, abort) => {
-                const own = machine();
-                if (own !== undefined && (await own.isEnrolled())) {
+                const running = machine();
+                if (running !== undefined && (await running.isEnrolled())) {
                     await OtlpExporter.post(target, signal, body, abort);
                 }
             },
-            // print a failure of the telemetry with its causes
-            (error) => environment.process.stderr.writeSync(`telemetry: ${inspect(error)}\n`),
+            (error) => own.captureException(error, { isEscaped: true }),
         );
 
-        // write every record to the machine's own log too, beside its owner's home
-        const options = exporter.options(MACHINE_PACKAGE);
-        const local = new LineExporter((line) => environment.process.stderr.writeSync(line));
-
-        return startTelemetry(
-            {
-                ...options,
-                signals: (meters) => {
-                    const signals = options.signals(meters);
-                    const processors = [...(signals.logs?.processors ?? []), local.processor];
-
-                    return { ...signals, logs: { ...signals.logs, processors } };
-                },
-            },
-            environment,
-        );
+        return startTelemetry(exporter.options(MACHINE_PACKAGE, { local }), environment);
     }
 
     /** Stop serving and close what the machine opened, last opened first. */

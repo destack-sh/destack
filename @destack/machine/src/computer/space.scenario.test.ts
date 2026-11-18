@@ -29,7 +29,7 @@ import { DOMAINS, UniverseOrigin } from "@destack/account/address";
 import accountPackage from "@destack/account/package";
 import { createClient } from "@destack/object/client";
 import { RequestId, Scope, ObjectReference } from "@destack/sync";
-import { defineWorkload, type RunnerOptions } from "@destack/object/workload";
+import { defineWorkload, type WorkloadRunnerOptions } from "@destack/object/workload";
 import { BucketError } from "@destack/bucket";
 import { bucket } from "@destack/stack/object";
 import * as stackObject from "@destack/stack/object";
@@ -166,7 +166,7 @@ function visitorBuild(echoRelease: BuildReader, crypto: Crypto): Promise<BuildRe
 }
 
 /** Run the echo scenarios' workloads in the test's own process, on a node's clock and network. */
-function workloads(environment: Environment): ReadonlyMap<string, RunnerOptions> {
+function workloads(environment: Environment): ReadonlyMap<string, WorkloadRunnerOptions> {
     return new Map([
         [echo.id, new BunWorkload(echoWorkload, {}).runner(environment)],
         [visitor.id, new BunWorkload(visitorWorkload, { peer: peerBinding }).runner(environment)],

@@ -526,6 +526,12 @@ export class Space {
                     start.store.resolve(store);
                     start.gateway.resolve(new Gateway(this, start, store));
 
+                    // record the start
+                    this.machine.scope.log.info("destack.space.started", {
+                        "destack.space.id": this.id,
+                        "destack.space.installations": start.installed.length,
+                    });
+
                     return {
                         packages: store.packages,
                         store,
@@ -2715,8 +2721,12 @@ export class Space {
 
     /** Forward a telemetry export to each installation taking it, as the space itself. */
     async observe(signal: OtlpSignal, body: unknown): Promise<void> {
+        // leave an export no installation receives, whose records the process that made them printed locally
         const self = principal.space.reference(Scope.universe.id, this.id);
         const receivers = this.#current().mounts.filter((each) => each.name === OTLP_MOUNT);
+        if (receivers.length === 0) {
+            return;
+        }
         for (const receiver of receivers) {
             // post the export below the receiver's mount, refusing a failed answer
             const url = new URL(`${receiver.path}/${signal}`, this.machine.origin);

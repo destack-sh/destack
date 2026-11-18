@@ -5,7 +5,7 @@ import type { Digest, Identifier, JsonValue } from "@destack/schema";
 import type { BuildReader } from "@destack/package/manifest";
 import { Egress, InstallationMount, CallError, VERSION_HEADER } from "@destack/object";
 import type { Deriver } from "@destack/identity";
-import { type RunnerOptions, WorkloadRunner } from "@destack/object/workload";
+import { type WorkloadRunnerOptions, WorkloadRunner } from "@destack/object/workload";
 import { InstanceRegistry, InstanceSpec, type Runtime, WorkloadRequest } from "../runtime/index.ts";
 import { callInProcess } from "./runtime.ts";
 
@@ -33,7 +33,7 @@ export class LocalRuntime implements Runtime {
     /** Read the identity of a space, which its installations' roots derive from. */
     readonly #identity: (scope: Identifier<"space">) => Promise<Pick<Deriver, "derive">>;
     /** Select the runner options of an instance's workload. */
-    readonly #runner: (spec: InstanceSpec) => RunnerOptions;
+    readonly #runner: (spec: InstanceSpec) => WorkloadRunnerOptions;
     /** The scheduler a call's module import runs on. */
     readonly #scheduler: Scheduler;
     /** Open a lock's root build, whose module a call imports. */
@@ -52,7 +52,7 @@ export class LocalRuntime implements Runtime {
         /** Read the identity of a space, which its installations' roots derive from. */
         readonly identity: (scope: Identifier<"space">) => Promise<Pick<Deriver, "derive">>;
         /** Select the runner options of an instance's workload. */
-        readonly runner: (spec: InstanceSpec) => RunnerOptions;
+        readonly runner: (spec: InstanceSpec) => WorkloadRunnerOptions;
         /** The scheduler a call's module import runs on. */
         readonly scheduler: Scheduler;
         /** Open a lock's root build, whose module a call imports. */
