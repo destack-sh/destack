@@ -3,6 +3,9 @@ import { schema } from "@destack/schema";
 /** The workerd compatibility date Destack's Workers and workloads run at. */
 export const WORKERD_COMPATIBILITY_DATE = "2026-07-30";
 
+/** The memory Cloudflare bills an active Durable Object at, in GB: 128 MB / 1 GB. */
+export const DURABLE_OBJECT_GIGABYTES = 0.128;
+
 /** The runtimes hosts execute workloads in. */
 export const SERVER_RUNTIMES = ["bun", "workerd"] as const;
 
