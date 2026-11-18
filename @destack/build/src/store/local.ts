@@ -22,6 +22,7 @@ import {
     LAYER_INDEX,
     LAYER_TREES,
     LayerIndex,
+    type LayerFile,
 } from "@destack/package/manifest";
 import { DependencyTree, STAGING_DIRECTORY } from "../dependency/tree.ts";
 import { Digest, found, JsonValue, present, schema, Uuid } from "@destack/schema";
@@ -378,14 +379,20 @@ export class LocalBuildStore
 
         // index each build's manifest and files last
         const sizes: LayerIndex["builds"] = {};
-        const placed: LayerIndex["files"] = {};
+        const placed = new Map<Digest, LayerFile>();
         for (const [digest, reader] of readers) {
             sizes[digest] = PackageManifest.serialize(reader.manifest).byteLength;
             for (const file of await reader.distributed()) {
-                placed[file.digest] ??= { path: `${digest}/${file.path}`, size: file.size };
+                if (!placed.has(file.digest)) {
+                    placed.set(file.digest, {
+                        digest: file.digest,
+                        path: `${digest}/${file.path}`,
+                        size: file.size,
+                    });
+                }
             }
         }
-        await BuildLayer.writeIndex(directory, shipped, sizes, placed, files);
+        await BuildLayer.writeIndex(directory, shipped, sizes, [...placed.values()], "path", files);
     }
 
     /** Write a linked layer of locked releases once, keyed with the runtimes. */
@@ -465,7 +472,7 @@ export class LocalBuildStore
 
         // write each build's manifest at its digest, and list the wanted files of it that run
         const sizes: LayerIndex["builds"] = {};
-        const placed: LayerIndex["files"] = {};
+        const placed = new Map<Digest, LayerFile>();
         const placements: FilePlacement[] = [];
         for (const { digest } of objects.filter((object) => object.kind === "manifest")) {
             const reader = await this.contents(digest);
@@ -476,19 +483,20 @@ export class LocalBuildStore
             const unreached = ImportClosure.unused(digest, reader, distributed, reached);
             for (const file of distributed) {
                 const isWanted = wanted.has(file.digest) && !unreached.has(file.digest);
-                if (isWanted && placed[file.digest] === undefined) {
+                if (isWanted && !placed.has(file.digest)) {
                     placements.push({ file, destination: join(blobs, file.digest) });
-                    placed[file.digest] = {
+                    placed.set(file.digest, {
+                        digest: file.digest,
                         path: `${LAYER_BLOBS}/${file.digest}`,
                         size: file.size,
-                    };
+                    });
                 }
             }
         }
 
         // clone the listed files, then write the index
         await this.place(placements);
-        await BuildLayer.writeIndex(directory, locks, sizes, placed, files);
+        await BuildLayer.writeIndex(directory, locks, sizes, [...placed.values()], "digest", files);
     }
 
     /** Write a lock's root and its run tree in a directory, unless another process did first. */
