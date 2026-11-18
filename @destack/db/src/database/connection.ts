@@ -362,6 +362,14 @@ export class DatabaseConnection<
                 const { plan } = migrated;
                 span.setAttribute("destack.migration.steps", plan.steps.length);
 
+                // record a migration that changed the tables, once
+                if (outcome === "applied" && plan.steps.length > 0) {
+                    this.state.scope.log.info("destack.database.migrated", {
+                        "destack.migration.manager": options.manager ?? DATABASE_MANAGER,
+                        "destack.migration.steps": plan.steps.length,
+                    });
+                }
+
                 return plan;
             },
             { duration: { attributes: () => ({ "destack.migration.outcome": outcome }) } },
