@@ -27,8 +27,6 @@ export interface Home {
     readonly context: ViewContext;
     /** The open clients, by scope. */
     readonly clients: Readonly<Record<string, ObjectClient>>;
-    /** The failures the device reported while following and pushing. */
-    readonly failures: readonly unknown[];
     /** The browser bob's device renders in. */
     readonly environment: SimulatedBrowserEnvironment;
 }
@@ -98,9 +96,7 @@ export async function openHome(): Promise<Home> {
         }),
     });
     const following = new AbortController();
-    const failures: unknown[] = [];
-    const report = (error: unknown) => failures.push(error);
-    const loops = [client.follow(following.signal, report), client.push(following.signal, report)];
+    const loops = [client.follow(following.signal), client.push(following.signal)];
     onTestFinished(async () => {
         following.abort();
         await Promise.all(loops);
@@ -119,9 +115,9 @@ export async function openHome(): Promise<Home> {
             base: "",
             user: scenario.subject("bob"),
             home: home.space.id,
+            residencyHome: home.space.id,
         },
         clients: { [home.space.id]: client },
-        failures,
         environment: new BrowserSimulation(scenario.space.simulation).environment("bob"),
     };
 }

@@ -29,12 +29,12 @@ export default defineConfiguration(
                 },
                 {
                     extends: false,
-                    tier: "unit",
-                    // render the views over the database a browser stores in
+                    tier: "scenario",
+                    // render the views over the database a browser stores in, in a simulated home
                     targets: { database: ["sqlite"] },
                     ...view.defineConfiguration(
                         {
-                            tier: "unit",
+                            tier: "scenario",
                             root: fileURLToPath(new URL(".", import.meta.url)),
                             test: {
                                 name: "view",

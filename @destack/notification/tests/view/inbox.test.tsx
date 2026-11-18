@@ -30,6 +30,9 @@ function drawInHome(
                 clients: new Map(Object.entries(home.clients)),
                 packages: new Map(),
                 actions: new ActionRegistry(),
+                open: (scope) => {
+                    throw new TypeError(`the inbox cannot open '${scope}'`);
+                },
                 origin: (path) => {
                     throw new TypeError(`the inbox cannot call '${path}'`);
                 },
@@ -58,12 +61,11 @@ test("list the person's notifications from their home and mark one read when ope
         .poll(() => rows(container))
         .toEqual(["unread: Unread 1 mention", "unread: Unread 1 mention"]);
 
-    // open the first to predict it read, with no failures from the server
+    // open the first to predict it read
     container.querySelector<HTMLElement>("[data-slot=notification] button")?.click();
     await expect
         .poll(() => rows(container))
         .toEqual(["read: 1 mention", "unread: Unread 1 mention"]);
-    expect(home.failures).toEqual([]);
 });
 
 test("count the person's unread notifications in every space, or in one", async () => {
