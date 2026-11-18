@@ -9,8 +9,11 @@ const WIDTH = `min(${frame.max}, 100vw - 2 * ${frame.margin})`;
 /** The height of the top bar, the footer and toolbar rows. */
 const BAR = "56px";
 
-/** The height of one homepage section on desktop. */
-const SECTION = `clamp(720px, calc(100svh - ${BAR}), 1080px)`;
+/** The shortest section that fits its rows: the nine-row ledger's rows reach 44px at 944px. */
+const SECTION_FLOOR = "944px";
+
+/** The height of one homepage section on desktop: one window, never shorter than its rows need. */
+const SECTION = `clamp(${SECTION_FLOOR}, calc(100svh - ${BAR}), 1080px)`;
 
 /** The height of every dictionary entry on desktop, so the sections line up. */
 const ENTRY = "13rem";

@@ -354,7 +354,7 @@ const styles = style.create({
     ledger: {
         containerType: "inline-size",
         display: "grid",
-        minHeight: { default: 0, [media.maxLg]: "30rem", [media.maxMd]: 0 },
+        minHeight: 0,
     },
     frame: {
         [ledgerVariables.surface]: color.background,
@@ -394,7 +394,7 @@ const styles = style.create({
     },
     blocks: {
         display: "grid",
-        gridAutoRows: { default: "minmax(2.25rem, 1fr)", [media.maxMd]: "auto" },
+        gridAutoRows: { default: "minmax(2.25rem, 1fr)", [media.maxLg]: "auto" },
         gridColumn: "1 / -1",
         gridTemplateColumns: "subgrid",
         rowGap: 0,
@@ -442,7 +442,7 @@ const styles = style.create({
         gap: "0.625rem",
         insetInlineStart: 0,
         minWidth: 0,
-        paddingBlock: { default: 0, [media.maxMd]: "0.5rem" },
+        paddingBlock: { default: 0, [media.maxLg]: "0.5rem" },
         paddingInlineStart: ROW_INSET,
         // pin the names only where a phone narrows the ledger past its figures
         position: { default: "static", [media.maxSm]: "sticky" },

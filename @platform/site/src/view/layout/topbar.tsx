@@ -82,10 +82,11 @@ export function TopBar(properties: { readonly path: string }) {
                                 ))}
                             </nav>
 
-                            {/* keep search, the repository, appearance, the product and the install at the row's end */}
+                            {/* keep search, the repository and community, appearance, the product and the install at the row's end */}
                             <div {...style.attrs(styles.tools)}>
                                 <CommandPalette appearance={appearance} />
                                 <SocialLink destination={github} />
+                                <SocialLink destination={discord} />
                                 <AppearanceToggle appearance={appearance} />
                                 <a
                                     href={product}

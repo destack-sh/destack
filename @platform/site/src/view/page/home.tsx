@@ -150,7 +150,7 @@ export function Home() {
                 onPick={pick}
                 prompt={promptOf(picks())}
             />
-            <BottomBar isOpen={isOpen()} forms={FORMS} />
+            <BottomBar isOpen={isOpen()} />
             <Interval />
             <ThumbIndex forms={FORMS} />
         </>

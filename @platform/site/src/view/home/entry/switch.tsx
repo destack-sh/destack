@@ -11,8 +11,7 @@ import { isMotionReduced } from "@destack/view/motion";
 import { palette } from "../../palette.stylex";
 
 import { commandEvents } from "../../layout/command";
-import { type Form, Syllables } from "./entry";
-import { ThumbMenu } from "./thumb";
+import { Syllables } from "./entry";
 import { media } from "@destack/style/media.stylex";
 import { typeScale } from "../../layout/type.stylex";
 import { press } from "../../layout/press";
@@ -42,6 +41,7 @@ export function StackSwitch(properties: {
         <span {...style.attrs(styles.place, isInLabel() && styles.placeLabel)}>
             <Toggle
                 isHinted={properties.isHinted === true}
+                isFlat={!isInLabel()}
                 isOn={properties.isOpen}
                 off={stacked}
                 on={destacked}
@@ -60,6 +60,7 @@ export function StackSwitch(properties: {
 /** Switch between two states as a title block: two ruled cells, the current one filled. */
 export function Toggle(properties: {
     isHinted?: boolean;
+    isFlat?: boolean;
     isOn: boolean;
     off: readonly string[];
     on: readonly string[];
@@ -124,7 +125,11 @@ export function Toggle(properties: {
                     touch();
                     properties.onToggle();
                 }}
-                {...style.attrs(press.key, styles.switch)}
+                {...style.attrs(
+                    properties.isFlat !== true && press.key,
+                    styles.switch,
+                    properties.isFlat === true && styles.flat,
+                )}
             >
                 {/* the thumb, on the current side, leaning toward the other while it counts down */}
                 <span
@@ -150,7 +155,7 @@ export function Toggle(properties: {
 }
 
 /** Hold the bottom bar below the thumb index's widths, from the first figure to the footer. */
-export function BottomBar(properties: { isOpen: boolean; forms: readonly Form[] }) {
+export function BottomBar(properties: { isOpen: boolean }) {
     // find where the figures start and where the page ends, once the page is drawn
     let bar: HTMLDivElement | undefined;
     const [first, setFirst] = createSignal<Element>();
@@ -187,7 +192,6 @@ export function BottomBar(properties: { isOpen: boolean; forms: readonly Form[] 
                 <Icon icon={arrowUp} xstyle={styles.barIcon} />
             </Button>
             <StackSwitch isOpen={properties.isOpen} place="bar" />
-            <ThumbMenu forms={properties.forms} />
             <Button
                 variant="ghost"
                 size="icon"
@@ -230,8 +234,12 @@ const styles = style.create({
         fontFamily: font.code,
         gridTemplateColumns: "1fr 1fr",
         padding: 0,
+        width: "100%",
         position: "relative",
         zIndex: 1,
+    },
+    flat: {
+        borderColor: color.border,
     },
     thumb: {
         backgroundColor: color.primary,
@@ -286,10 +294,11 @@ const styles = style.create({
         boxShadow: `0 6px 24px color-mix(in srgb, ${color.foreground} 14%, transparent)`,
         boxSizing: "border-box",
         display: { default: "none", "@media (max-width: 1399px)": "grid" },
-        gridTemplateColumns: "auto minmax(0, 1fr) auto auto",
+        gridTemplateColumns: "auto minmax(0, 1fr) auto",
         height: "3.5rem",
         insetInline: "1rem",
-        justifyItems: "center",
+        columnGap: "0.5rem",
+        justifyItems: "stretch",
         marginInline: "auto",
         maxWidth: "28rem",
         paddingInline: "0.5rem",

@@ -171,7 +171,7 @@ const styles = style.create({
     app: {
         gridColumn: { default: "1 / 8", [media.maxLg]: "1 / -1" },
         gridTemplateRows: "auto minmax(0, 1fr)",
-        minHeight: { default: 0, [media.maxLg]: "24rem" },
+        minHeight: { default: 0, [media.maxLg]: "36rem" },
     },
     console: {
         gridColumn: { default: "8 / -1", [media.maxLg]: "1 / -1" },

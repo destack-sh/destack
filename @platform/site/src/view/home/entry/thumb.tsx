@@ -78,40 +78,6 @@ export function ThumbIndex(properties: { forms: readonly Form[] }) {
     );
 }
 
-/** List the page's sections from the bottom bar below the widths the thumb index fits. */
-export function ThumbMenu(properties: { forms: readonly Form[] }) {
-    // follow the section the reader is in, the first before any
-    let menu: HTMLDetailsElement | undefined;
-    const folio = createFolio(() => true);
-    const current = createMemo(() => Math.max(1, folio()?.index ?? 1));
-    const form = () => present(properties.forms[current() - 1], "the current section's form");
-
-    return (
-        <details ref={menu} {...style.attrs(styles.menu)}>
-            {/* the current section, opening the list of every section */}
-            <summary aria-label="Sections" {...style.attrs(styles.summary)}>
-                <span {...style.attrs(styles.number)}>{folioNumber(current())}</span>
-                <span {...style.attrs(styles.word)}>{form().syllables.join("·")}</span>
-            </summary>
-
-            {/* every section, closing the list once one is chosen */}
-            <nav {...style.attrs(styles.list)}>
-                {properties.forms.map((each, index) => (
-                    <a
-                        href={`#${anchorOf(each)}`}
-                        onClick={() => menu?.removeAttribute("open")}
-                        {...style.attrs(styles.item, current() === index + 1 && styles.chosen)}
-                    >
-                        <span {...style.attrs(styles.number)}>{folioNumber(index + 1)}</span>
-                        {each.syllables.join("·")}
-                        <span {...style.attrs(styles.part)}>{each.partOfSpeech}</span>
-                    </a>
-                ))}
-            </nav>
-        </details>
-    );
-}
-
 /** The thumb index styles. */
 const styles = style.create({
     index: {
@@ -158,64 +124,10 @@ const styles = style.create({
         width: { default: "3.25rem", [ROOMY]: "11rem" },
     },
     form: {
+        display: { default: "none", [ROOMY]: "inline" },
         fontFamily: font.text,
         fontSize: "0.9375rem",
         fontWeight: 600,
         letterSpacing: 0,
-    },
-    menu: {
-        position: "relative",
-    },
-    summary: {
-        alignItems: "center",
-        columnGap: "0.5rem",
-        cursor: "pointer",
-        display: "flex",
-        fontFamily: font.code,
-        fontSize: "0.75rem",
-        listStyle: "none",
-        paddingInline: "0.5rem",
-        whiteSpace: "nowrap",
-        "::-webkit-details-marker": { display: "none" },
-    },
-    number: {
-        color: color.primary,
-        fontWeight: 600,
-    },
-    word: {
-        display: { default: "inline", "@media (max-width: 399px)": "none" },
-    },
-    list: {
-        backgroundColor: color.background,
-        borderColor: color.border,
-        borderStyle: "solid",
-        borderWidth: "1px",
-        bottom: "calc(100% + 1.25rem)",
-        boxShadow: `0 6px 24px color-mix(in srgb, ${color.foreground} 14%, transparent)`,
-        display: "grid",
-        minWidth: "18rem",
-        padding: "0.375rem",
-        position: "absolute",
-        right: "-3rem",
-    },
-    item: {
-        alignItems: "baseline",
-        color: color.foreground,
-        columnGap: "0.75rem",
-        display: "grid",
-        fontFamily: font.code,
-        fontSize: "0.8125rem",
-        gridTemplateColumns: "auto 1fr auto",
-        paddingBlock: "0.625rem",
-        paddingInline: "0.75rem",
-        textDecorationLine: "none",
-    },
-    chosen: {
-        backgroundColor: `color-mix(in srgb, ${color.primary} 10%, transparent)`,
-    },
-    part: {
-        color: color.mutedForeground,
-        fontSize: "0.6875rem",
-        whiteSpace: "nowrap",
     },
 });
