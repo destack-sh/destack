@@ -208,6 +208,8 @@ export class TestRelay implements AsyncDisposable {
                 {
                     workload: relayWorkload,
                     resources: {},
+                    // leave the relay's local lines unprinted, as the tests read its records from its export
+                    write: () => {},
                     remote: () => replicas,
                     socketHost: {
                         url: `http://host.${hostname}${SOCKET_PATH}`,
