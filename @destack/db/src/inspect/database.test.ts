@@ -32,6 +32,7 @@ const entry = (description: unknown, version: string) => ({
         package: { ...PACKAGE, version },
         symbol: { module: "src/index.ts", name: "declared" },
     },
+    capabilities: [],
 });
 
 test("plan a database's table changes between releases once across dialects", () => {
