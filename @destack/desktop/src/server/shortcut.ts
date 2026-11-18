@@ -2,7 +2,7 @@ import { Snapshot } from "@destack/db";
 import type { Identifier } from "@destack/schema";
 import type { ObjectClient } from "@destack/object/client";
 import { type setting, SettingValue } from "@destack/setting/object";
-import { shortcut } from "@destack/view/declare";
+import { shortcut } from "@destack/view/setting";
 import type { Shell } from "../shell/index.ts";
 
 /** A global shortcut the shell reports by identity, its keys the person's `shortcut` setting. */

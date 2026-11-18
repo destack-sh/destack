@@ -8,7 +8,6 @@
     },
     "exports": {
         "./view": "./src/view/index.ts",
-        "./setting": "./src/setting/index.ts",
         "./package": "./src/package.ts"
     },
     "devDependencies": {

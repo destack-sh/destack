@@ -7,9 +7,6 @@
     "exports": {
         "./view": {
             "runtimes": ["browser"]
-        },
-        "./setting": {
-            "runtimes": ["browser", "bun"]
         }
     }
 }
