@@ -42,6 +42,7 @@ const entry = (description: unknown, version: string) => ({
         package: { ...PACKAGE, version },
         symbol: { module: "src/index.ts", name: "declared" },
     },
+    capabilities: [],
 });
 
 /** The resolution of the editor mode to its default for the fixture's selection. */
