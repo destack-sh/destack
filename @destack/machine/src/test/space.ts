@@ -730,9 +730,15 @@ export class TestSpace implements AsyncDisposable, TestScope {
             world: value.machine,
         });
         defer(async () => {
+            // close the universe and the machine, then their databases
             await closing.disposeAsync();
             await databases.machine.close();
             await databases.universe.close();
+
+            // close the spaces' databases the restore copied
+            for (const volume of copy.volumes.values()) {
+                await volume.close();
+            }
         });
 
         // hold each space's written database on the machine before it follows
@@ -1027,6 +1033,14 @@ export class TestSpace implements AsyncDisposable, TestScope {
             }
         });
 
+        // close the spaces' databases the machine created once it stops
+        const created = new Set<TestDatabase>();
+        defer(async () => {
+            for (const database of created) {
+                await database.close();
+            }
+        });
+
         // open the volumes over the main database, with the machine's resources' providers
         const storage = simulation.environment(test.id);
         const { dialect } = universe.storage.database;
@@ -1037,12 +1051,17 @@ export class TestSpace implements AsyncDisposable, TestScope {
             databases: lifetime.databases ?? new Map(),
             create:
                 lifetime.create ??
-                (() =>
-                    TestDatabase.create(TestSpace.#base(options), {
+                (async () => {
+                    // create a new space's database, closed with the others once the machine stops
+                    const database = await TestDatabase.create(TestSpace.#base(options), {
                         environment: storage,
                         dialect,
                         isMigrated: true,
-                    })),
+                    });
+                    created.add(database);
+
+                    return database;
+                }),
             objects: TestSpaceStorage.objects(options.packages ?? []),
             environment: storage,
             files: { directory, buckets },
