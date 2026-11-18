@@ -14,7 +14,7 @@ concurrency:
 
 jobs:
     repository:
-        name: Check workflows and documents, list affected packages
+        name: Check the repository, list affected packages
         runs-on: ubuntu-24.04
         timeout-minutes: 10
         outputs:
@@ -39,10 +39,8 @@ jobs:
                   echo "${SHA256}  ${archive}" | sha256sum --check --strict
                   tar -xzf "${archive}" actionlint
                   sudo install actionlint /usr/local/bin/actionlint
-            - name: Lint workflows
-              run: actionlint
-            - name: Check repository documents
-              run: bun run destack-check check README.md AGENTS.md CONTRIBUTING.md SECURITY.md
+            - name: Check the workflows, the repository's documents and the shared settings
+              run: just check-repository
             - name: Restore the test durations
               uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
               with:
@@ -57,7 +55,7 @@ jobs:
                   BASE_REF: ${{ github.base_ref }}
                   BEFORE: ${{ github.event.before }}
               run: |
-                  # gate the pull request's or the push's affected packages, and every package for a release
+                  # check the pull request's or the push's affected packages, and every package for a release
                   base=""
                   if [ "$EVENT" = pull_request ]; then
                       base="origin/$BASE_REF"
@@ -71,13 +69,13 @@ jobs:
                   runners="[]"
                   if [ -n "$packages" ]; then
                       # shellcheck disable=SC2086
-                      runners="$(just gate-runners "$HOME/.cache/destack/durations.json" $packages)"
+                      runners="$(just check-runners "$HOME/.cache/destack/durations.json" $packages)"
                   fi
                   echo "runners=$runners" >> "$GITHUB_OUTPUT"
                   jq --raw-output '.[] | "runner \(.runner): \(.milliseconds / 1000 | round) s, " + ([.work[].package] | join(" "))' <<< "$runners"
 
-    gate:
-        name: Gate ${{ matrix.runner }} of ${{ strategy.job-total }}
+    check:
+        name: Check ${{ matrix.runner }} of ${{ strategy.job-total }}
         needs: [repository]
         if: needs.repository.outputs.runners != '[]'
         runs-on: ubuntu-24.04
@@ -102,7 +100,7 @@ jobs:
               uses: ./.github/actions/setup-platform
             - name: Set up the sandbox
               uses: ./.github/actions/setup-sandbox
-            - name: Install the gates' other system tools
+            - name: Install the checks' other system tools
               uses: ./.github/actions/setup-apt
               with:
                   packages: zsh age
@@ -122,7 +120,7 @@ jobs:
                       ~/.cache/destack/templates
                   key: destack-test-records-2-${{ runner.os }}-${{ github.sha }}
                   restore-keys: destack-test-records-2-${{ runner.os }}-
-            - name: Run the gates
+            - name: Run the checks
               env:
                   WORK: ${{ toJSON(matrix.work) }}
                   RUNNER: ${{ matrix.runner }}
@@ -139,21 +137,21 @@ jobs:
                       # check and time the package
                       if [ "$(jq --raw-output .isChecked <<< "$item")" = true ]; then
                           started="${EPOCHREALTIME/./}"
-                          just gate-check "$package" || failed+=("$package checks")
+                          just check-package "$package" || failed+=("$package checks")
                           milliseconds=$(( (${EPOCHREALTIME/./} - started) / 1000 ))
                           record="$(jq --arg package "$package" --argjson milliseconds "$milliseconds" '.checks[$package] = $milliseconds' <<< "$record")"
                       fi
 
                       # test and time the files or the whole package
                       started="${EPOCHREALTIME/./}"
-                      just gate-test "$package" "${files[@]}" || failed+=("$package tests")
+                      just test "$package" "${files[@]}" || failed+=("$package tests")
                       milliseconds=$(( (${EPOCHREALTIME/./} - started) / 1000 ))
                       if [ "${#files[@]}" -eq 0 ]; then
                           record="$(jq --arg package "$package" --argjson milliseconds "$milliseconds" '.scripts[$package] = $milliseconds' <<< "$record")"
                       fi
 
                       # record each file's share of the run
-                      durations="$(just gate-durations "$package" "$milliseconds")"
+                      durations="$(just test-durations "$package" "$milliseconds")"
                       record="$(jq --argjson durations "$durations" '.files += $durations' <<< "$record")"
                       echo "::endgroup::"
                   done < <(jq --compact-output '.[]' <<< "$WORK")
@@ -165,8 +163,8 @@ jobs:
                   # name the failures and fail the job
                   if [ "${#failed[@]}" -gt 0 ]; then
                       for title in "${failed[@]}"; do
-                          echo "::error::gate failed: $title"
-                          echo "- gate failed: $title" >> "$GITHUB_STEP_SUMMARY"
+                          echo "::error::check failed: $title"
+                          echo "- check failed: $title" >> "$GITHUB_STEP_SUMMARY"
                       done
                       exit 1
                   fi
@@ -192,7 +190,7 @@ jobs:
 
     durations:
         name: Record the test durations
-        needs: [repository, gate]
+        needs: [repository, check]
         if: ${{ !cancelled() && needs.repository.outputs.runners != '[]' }}
         runs-on: ubuntu-24.04
         timeout-minutes: 5

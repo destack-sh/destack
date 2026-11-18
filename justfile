@@ -6,7 +6,7 @@ set dotenv-filename := ".env.local"
 # run every database test on SQLite and the test PostgreSQL
 export DESTACK_TEST_POSTGRES := "postgres://postgres@127.0.0.1:55432/postgres"
 
-# the CI gate runners: 54 gates paid 81 of 108 runner minutes in setup, 8 pay 12
+# the CI check runners: 54 checks paid 81 of 108 runner minutes in setup, 8 pay 12
 runners := "8"
 
 _default:
@@ -28,33 +28,8 @@ build:
 generate:
     just @platform/site/generate
 
-# typecheck
-typecheck:
-    just @destack/typecheck
-    just @platform/typecheck
-
-# lint the workflows, every scope and the repository's documents
-lint:
-    actionlint
-    just @destack/lint
-    just @platform/lint
-    bun run destack-check check README.md AGENTS.md CONTRIBUTING.md SECURITY.md @platform/site/content
-
-# check formatting
-format-check:
-    just @destack/format-check
-    just @platform/format-check
-
-# typecheck, lint and check formatting
-check: typecheck lint format-check
-
-# test
-test: (postgres "up")
-    just @destack/test
-    just @platform/test
-
-# regenerate the lint and format settings, then format every package
-format:
+# regenerate every tool root's settings, then format every package: the only recipe that writes
+fix:
     #!/usr/bin/env bash
     set -euo pipefail
     # regenerate each tool root's settings: the workspace's and each template's, never a test's byte-exact fixtures
@@ -64,7 +39,47 @@ format:
     just @destack/format
     just @platform/format
 
-alias fmt := format
+alias fmt := fix
+
+# check the workflows, the repository's documents and the shared settings, writing nothing
+check-repository:
+    actionlint
+    bun run destack-check check README.md AGENTS.md CONTRIBUTING.md SECURITY.md @platform/site/content
+
+# check the repository, then check and test each package the changes since a base affect, as CI does
+check base="": (postgres "up")
+    #!/usr/bin/env bash
+    set -euo pipefail
+    just check-repository
+    base="{{base}}"
+    for directory in $(just affected "${base:-$(git merge-base HEAD origin/main)}"); do
+        echo "check $directory"
+        just check-package "$directory"
+        just test "$directory"
+    done
+
+# check the same packages with their unit tests alone, the loop while working
+check-fast base="":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    just check-repository
+    base="{{base}}"
+    for directory in $(just affected "${base:-$(git merge-base HEAD origin/main)}"); do
+        echo "check $directory"
+        just check-package "$directory"
+        just test "$directory" --fast
+    done
+
+# check and test every package in every tier, as a release does
+check-all: (postgres "up")
+    #!/usr/bin/env bash
+    set -euo pipefail
+    just check-repository
+    for directory in $(just affected); do
+        echo "check $directory"
+        just check-package "$directory"
+        just test "$directory"
+    done
 
 # list the packages the changes since a base commit affect with their dependents, or every package
 affected base="":
@@ -85,31 +100,11 @@ affected base="":
         fi
     done
 
-# run each package's gates: formatting, types, lints, and tests
-gate +directories:
-    #!/usr/bin/env bash
-    set -euo pipefail
-    # regenerate the generated settings locally, as CI checks them against the committed ones
-    if [ -z "${CI:-}" ]; then
-        for root in $(git ls-files '.oxfmtrc.json' '*/.oxfmtrc.json' | grep -v '/tests/' | xargs -n1 dirname); do
-            (cd "{{justfile_directory()}}/$root" && bun run destack-check configure)
-        done
-    fi
-    for directory in {{directories}}; do
-        echo "gate $directory"
-        just gate-check "$directory"
-        just gate-test "$directory"
-    done
-
-# check a package's formatting, types and lints
-gate-check directory:
+# check a package's formatting, types and lints, writing nothing
+check-package directory:
     #!/usr/bin/env bash
     set -euo pipefail
     cd "{{justfile_directory()}}/{{directory}}"
-    # regenerate the package's compiler settings locally, as CI checks them
-    if [ -z "${CI:-}" ]; then
-        bun run destack-check configure
-    fi
     bun run destack-check format-check
     # typecheck through the package's script, which also compiles its README listings
     if [ -n "$(jq -r '.scripts.typecheck // ""' package.json)" ]; then
@@ -119,10 +114,19 @@ gate-check directory:
     fi
     bun run destack-check check
 
-# test a package, or the given test files of it
-gate-test directory *files:
+# test a package in every tier, or its unit tier with --fast, or the given test files of it
+test directory *arguments:
     #!/usr/bin/env bash
     set -euo pipefail
+    # read --fast as the unit tier alone, the other arguments as test files
+    files=()
+    for argument in {{arguments}}; do
+        if [ "$argument" = --fast ]; then
+            export DESTACK_TEST_TIERS=unit
+        else
+            files+=("$argument")
+        fi
+    done
     # give each test worker two cores, as a scenario test runs its workloads beside it
     cores="$(getconf _NPROCESSORS_ONLN)"
     workers=$(( cores / 2 > 4 ? 4 : (cores / 2 < 1 ? 1 : cores / 2) ))
@@ -131,8 +135,8 @@ gate-test directory *files:
 
     # run vitest with the files, other scripts as written
     if [[ "$test" == *"vitest run"* && "$test" != *"&&"* && "$test" != *";"* ]]; then
-        bun run test --maxWorkers="$workers" {{files}}
-    elif [ -n "{{files}}" ]; then
+        bun run test --maxWorkers="$workers" ${files[@]+"${files[@]}"}
+    elif [ "${#files[@]}" -gt 0 ]; then
         echo "error: {{directory}} runs no single vitest to filter" >&2
         exit 1
     elif [[ "$test" == *vitest* ]]; then
@@ -142,7 +146,7 @@ gate-test directory *files:
     fi
 
 # list a package's vitest test files
-gate-files directory:
+test-files directory:
     #!/usr/bin/env bash
     set -euo pipefail
     cd "{{justfile_directory()}}/{{directory}}"
@@ -157,7 +161,7 @@ gate-files directory:
     fi
 
 # print each test file's share of a run's milliseconds as JSON
-gate-durations directory milliseconds:
+test-durations directory milliseconds:
     #!/usr/bin/env bash
     set -euo pipefail
     cd "{{justfile_directory()}}/{{directory}}"
@@ -177,7 +181,7 @@ gate-durations directory milliseconds:
 # pack each package or part onto the lightest runner, heaviest first
 # check a package on the runner with its largest share
 # divide packages across the runners as JSON
-gate-runners durations +directories:
+check-runners durations +directories:
     #!/usr/bin/env bash
     set -euo pipefail
     # read the recorded durations, if any
@@ -188,7 +192,7 @@ gate-runners durations +directories:
 
     # list each package's test files
     for directory in {{directories}}; do
-        just gate-files "$directory" | jq --raw-input --slurp --compact-output --arg package "$directory" \
+        just test-files "$directory" | jq --raw-input --slurp --compact-output --arg package "$directory" \
             '{ package: $package, files: (split("\n") | map(select(. != ""))) }'
     done | jq --slurp --compact-output --argjson runners "{{runners}}" --slurpfile table "$durations" '
         def median: sort | if length == 0 then null else .[length / 2 | floor] end;
@@ -267,8 +271,9 @@ postgres action:
     set -euo pipefail
     bin="$(brew --prefix postgresql@18)/bin"
     data=target/postgres
+    # leave a server that already answers, such as CI's service, else start the local one
     if [ "{{action}}" = up ]; then
-        "$bin/pg_ctl" --pgdata "$data" status >/dev/null 2>&1 || just postgres start
+        pg_isready --host 127.0.0.1 --port 55432 >/dev/null 2>&1 || "$bin/pg_ctl" --pgdata "$data" status >/dev/null 2>&1 || just postgres start
         exit 0
     fi
     if [ "{{action}}" = start ] && [ ! -d "$data" ]; then
