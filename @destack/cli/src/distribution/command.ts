@@ -1,5 +1,5 @@
 import { MachineProcess } from "@destack/machine/computer";
-import { Stage } from "@destack/update/release";
+import { Universe } from "@destack/update/release";
 import { type Verb, type Group, OptionValue } from "../command/command.ts";
 
 import type { Context } from "../context/context.ts";
@@ -63,7 +63,7 @@ export function selfCommand(context: Context): Group {
                 description: "Stage the latest signed Destack release and restart into it",
                 json: true,
                 options: {
-                    stage: {
+                    universe: {
                         type: "boolean",
                         description: "Download and verify without restarting",
                     },
@@ -117,8 +117,8 @@ export function completionCommand(context: Context): Verb {
                 );
             }
 
-            // print the script for this stage's command
-            const { command } = Stage.current(context.environment);
+            // print the script for this universe's command
+            const { command } = Universe.current(context.environment);
             await context.terminal.print(Completion.write(found, command));
         },
     };

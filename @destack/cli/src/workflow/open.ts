@@ -1,4 +1,4 @@
-import { Stage } from "@destack/update/release";
+import { Universe } from "@destack/update/release";
 import { Link } from "@destack/desktop/link";
 import { window } from "@destack/desktop/object";
 import { present } from "@destack/schema";
@@ -25,9 +25,9 @@ export function openCommand(context: Context): Verb {
             browser: { type: "boolean", description: "Open in the browser" },
         },
         async run({ arguments: { target: given }, options, json }) {
-            // read the link of this stage's desktop, or the object of an identifier in the space
+            // read the link of this universe's desktop, or the object of an identifier in the space
             const target = present(given, "the target argument");
-            const links = Link.of(Stage.current(context.environment));
+            const links = Link.of(Universe.current(context.environment));
             const view = OptionValue.string(options["view"], "view");
             const address = URL.canParse(target)
                 ? links.parse(target)

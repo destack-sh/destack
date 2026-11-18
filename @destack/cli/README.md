@@ -36,14 +36,14 @@ Each type the space installs adds a plural and a singular, such as `notebooks` a
 
 `destack` without words lists the verbs by journey, as this table does.
 
-| Journey  | Verbs                                                         |
-| -------- | ------------------------------------------------------------- |
-| you      | `login`, `logout`, `whoami`, `self`, `completion`             |
-| spaces   | `switch`                                                      |
+| Journey  | Verbs                                                                |
+| -------- | -------------------------------------------------------------------- |
+| you      | `login`, `logout`, `whoami`, `self`, `completion`                    |
+| spaces   | `switch`                                                             |
 | apps     | `install`, `uninstall`, `open`, `apply`, `plan`, `approve`, `reject` |
-| share    | `share`, `invited`, `accept`                                  |
-| build    | `new`, `dev`, `build`, `publish`, `tag`                       |
-| settings | `setting`, `settings`                                         |
+| share    | `share`, `invited`, `accept`                                         |
+| build    | `new`, `dev`, `build`, `publish`, `tag`                              |
+| settings | `setting`, `settings`                                                |
 
 ### Flags
 
@@ -59,12 +59,12 @@ destack notebook plans delete --yes         # delete without the question
 
 A failed command prints one error and exits with a status.
 
-| Status | Means                    |
-| ------ | ------------------------ |
-| 1      | the command failed       |
-| 2      | the command was misused  |
-| 4      | nobody is signed in      |
-| 130    | the command was stopped  |
+| Status | Means                   |
+| ------ | ----------------------- |
+| 1      | the command failed      |
+| 2      | the command was misused |
+| 4      | nobody is signed in     |
+| 130    | the command was stopped |
 
 ## Examples
 
@@ -198,7 +198,7 @@ Plural listings, `--watch` and declarative `apply` follow kubectl.
 
 The gutter of an event follows cargo's right-aligned status words.
 
-| cargo                 | `destack`                 | Difference                                           |
-| --------------------- | ------------------------- | ---------------------------------------------------- |
-| `   Compiling`, green | `  Building`, by state    | Questions, hints and errors share the same gutter.   |
-| `error:` at the edge  | `error` in the gutter     | Causes and the trace follow as hints below it.       |
+| cargo                 | `destack`              | Difference                                         |
+| --------------------- | ---------------------- | -------------------------------------------------- |
+| `   Compiling`, green | `  Building`, by state | Questions, hints and errors share the same gutter. |
+| `error:` at the edge  | `error` in the gutter  | Causes and the trace follow as hints below it.     |

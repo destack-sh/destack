@@ -1,6 +1,6 @@
 import { join } from "node:path";
 import { MACHINE_ENTRY, Application } from "@destack/desktop/workload";
-import { Autostart, MachineProcess, StageHome } from "@destack/machine/computer";
+import { Autostart, MachineProcess, UniverseHome } from "@destack/machine/computer";
 import { Release } from "@destack/update/release";
 import { RequestId } from "@destack/sync";
 import { present } from "@destack/schema";
@@ -31,10 +31,10 @@ const RESTART_TIMEOUT_MILLISECONDS = 60_000;
 /** How often to ask whether the machine came back, in milliseconds, one loopback call each. */
 const POLL_MILLISECONDS = 250;
 
-/** This computer's Destack setup in a stage's home: its machine, OS supervision and desktop. */
+/** This computer's Destack setup in a universe's home: its machine, OS supervision and desktop. */
 export class Setup {
-    /** The stage's home the setup installs in, with the machine's state. */
-    readonly home: StageHome;
+    /** The universe's home the setup installs in, with the machine's state. */
+    readonly home: UniverseHome;
     /** The machine process of the home's state directory. */
     readonly machine: MachineProcess;
     /** The machine's supervision by the OS at login. */
@@ -46,14 +46,14 @@ export class Setup {
     /** The terminal the setup reports to. */
     readonly terminal: Terminal;
 
-    /** Take the setup of a stage's home in an environment, with its supervision and desktop. */
+    /** Take the setup of a universe's home in an environment, with its supervision and desktop. */
     constructor(fields: {
-        readonly home: StageHome;
+        readonly home: UniverseHome;
         readonly autostart: Autostart;
         readonly desktop: Application;
         readonly environment: CliEnvironment;
     }) {
-        // set the stage's home, the supervision, the desktop, the environment and its terminal
+        // set the universe's home, the supervision, the desktop, the environment and its terminal
         this.home = fields.home;
         this.machine = new MachineProcess(fields.home.directory, fields.environment);
         this.autostart = fields.autostart;
@@ -62,9 +62,9 @@ export class Setup {
         this.terminal = new Terminal(fields.environment.process, fields.environment.timeZone);
     }
 
-    /** Read the setup of this stage in an environment. */
+    /** Read the setup of this universe in an environment. */
     static async current(environment: CliEnvironment): Promise<Setup> {
-        const home = StageHome.current(environment);
+        const home = UniverseHome.current(environment);
         const autostart = await Autostart.of(home.directory, environment);
 
         return new Setup({
@@ -132,7 +132,7 @@ export class Setup {
         }
     }
 
-    /** The stage's installed distribution in the home. */
+    /** The universe's installed distribution in the home. */
     distribution(): Distribution {
         return this.home.distribution(this.environment).distribution;
     }
@@ -155,7 +155,7 @@ export class Setup {
         return computer?.version;
     }
 
-    /** Stage the stage's latest release through this computer's distribution. */
+    /** Stage the universe's latest release through this computer's distribution. */
     async update(options: { readonly isStaging: boolean; readonly json: boolean }): Promise<void> {
         // find this computer's distribution, which development builds have none of
         const { scope: deviceId } = await this.machine.loopback.computer();
@@ -196,7 +196,7 @@ export class Setup {
         );
     }
 
-    /** Activate the staged release of this stage's distribution. */
+    /** Activate the staged release of this universe's distribution. */
     async activate(): Promise<void> {
         // open the installed distribution and require a staged release
         const distribution = this.distribution();
@@ -330,7 +330,7 @@ export class Setup {
         if (application !== undefined) {
             await verifyApplication(
                 application,
-                this.home.stage.applicationIdentifier,
+                this.home.universe.applicationIdentifier,
                 this.environment,
             );
         }
@@ -401,7 +401,7 @@ export class Setup {
         return true;
     }
 
-    /** Download, stage and activate the stage's latest release, and register it. */
+    /** Download, stage and activate the universe's latest release, and register it. */
     async #installRelease(source: string | undefined): Promise<void> {
         // open the first installation, refusing to replace a native package with an archive
         const distribution = this.distribution();
@@ -543,13 +543,13 @@ export class Setup {
         }
     }
 
-    /** Remove the stage's launcher, the distribution files and the application. */
+    /** Remove the universe's launcher, the distribution files and the application. */
     async #remove(paths: readonly string[], isNative: boolean): Promise<void> {
         // unregister the launcher from the shell and the Linux desktop
         const { home, environment } = this;
-        const { stage } = home;
+        const { universe } = home;
         const bin = join(home.directory, "bin");
-        const launcher = join(bin, isNative ? `${stage.command}.cmd` : stage.command);
+        const launcher = join(bin, isNative ? `${universe.command}.cmd` : universe.command);
         await this.distribution().unlink({ isShell: !home.isCustom });
 
         // remove the closed files and the registration
