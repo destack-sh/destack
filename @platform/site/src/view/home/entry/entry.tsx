@@ -46,11 +46,7 @@ export function Syllables(properties: { syllables: readonly string[] }) {
         <>
             {properties.syllables.map((syllable, index) => (
                 <>
-                    {index > 0 && (
-                        <span aria-hidden="true" {...style.attrs(styles.interpunct)}>
-                            ·
-                        </span>
-                    )}
+                    {index > 0 && <span aria-hidden="true">·</span>}
                     {syllable}
                 </>
             ))}
@@ -349,9 +345,6 @@ const styles = style.create({
         letterSpacing: tracking.display,
         lineHeight: 1.15,
         whiteSpace: "nowrap",
-    },
-    interpunct: {
-        marginInline: "0.05em",
     },
     definition: {
         fontSize: typeScale.display,
