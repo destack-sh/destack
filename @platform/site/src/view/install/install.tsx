@@ -21,12 +21,9 @@ type Desktop = Pick<ReturnType<typeof createDownloads>, "system" | "selected">;
 type Way = { name: () => string; field: () => JSX.Element };
 
 /** Draw a field's key: the icon at its end that says what pressing the field does. */
-function Key(properties: { isPrimary?: boolean; children: JSX.Element }) {
+function Key(properties: { children: JSX.Element }) {
     return (
-        <span
-            aria-hidden="true"
-            {...style.attrs(styles.key, properties.isPrimary === true && styles.keyPrimary)}
-        >
+        <span aria-hidden="true" {...style.attrs(styles.key)}>
             {properties.children}
         </span>
     );
@@ -64,7 +61,7 @@ function DownloadField(properties: { system: System | undefined; download: Downl
                     {...style.attrs(press.key, styles.field, styles.tiled)}
                 >
                     <Product />
-                    <Key isPrimary>
+                    <Key>
                         <Glyph name="download" size={16} />
                     </Key>
                 </a>
@@ -330,9 +327,5 @@ const styles = style.create({
         height: "2.25rem",
         justifyContent: "center",
         width: "2.25rem",
-    },
-    keyPrimary: {
-        backgroundColor: color.primary,
-        color: color.primaryForeground,
     },
 });
