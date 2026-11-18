@@ -1,16 +1,16 @@
 import { yieldToEventLoop } from "@destack/environment";
-import { testSimulation } from "../test/world.ts";
+import { testSimulation } from "../src/test/world.ts";
 import { expect, refusal, test } from "@destack/test";
 import { testHost } from "@destack/test/host";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { PackageBuild, Compiler } from "../index.ts";
+import { PackageBuild, Compiler } from "../src/index.ts";
 import type { PackageManifest } from "@destack/package/manifest";
-import { request } from "../../tests/fixture/library/request.ts";
-import { expectFiles, importBuilt, isNoteModule, type NoteModule } from "../../tests/fixture.ts";
+import { request } from "./fixture/library/request.ts";
+import { expectFiles, importBuilt, isNoteModule, type NoteModule } from "./fixture.ts";
 import { present } from "@destack/schema";
-import { LocalBuildStore } from "../store/local.ts";
-import { BuildStore } from "../store/store.ts";
+import { LocalBuildStore } from "../src/store/local.ts";
+import { BuildStore } from "../src/store/store.ts";
 import { Toolchain } from "@destack/check/toolchain";
 
 /** How long a cancelled build runs before it aborts: well inside the library's build. */
@@ -20,7 +20,7 @@ test("rebuild edited source, reject incompatible APIs, restore distributed outpu
     await using simulation = testSimulation();
     const environment = simulation.environment("test");
     const { files } = environment;
-    const fixture = new URL("../../tests/fixture/library/", import.meta.url);
+    const fixture = new URL("./fixture/library/", import.meta.url);
     const directory = await files.makeTemporaryDirectory("build-library-");
     const source = join(directory, "source");
     const destination = join(directory, "build");
@@ -222,7 +222,7 @@ test("reject invalid outputs and recover the retained compiler", async () => {
     // build once before any rejected request
     await using simulation = testSimulation();
     const environment = simulation.environment("test");
-    const source = fileURLToPath(new URL("../../tests/fixture/library/source/", import.meta.url));
+    const source = fileURLToPath(new URL("./fixture/library/source/", import.meta.url));
     const library = { ...request, directory: source };
     await using store = await LocalBuildStore.temporary(environment);
     await using builder = await Compiler.start(source, {
@@ -262,9 +262,7 @@ test("reject invalid outputs and recover the retained compiler", async () => {
 test("terminate compilation on cancellation and deadline, and build again with the same builder", async () => {
     // run on the host, as a compiler's deadline bounds the host's time a build takes
     const environment = testHost();
-    const directory = fileURLToPath(
-        new URL("../../tests/fixture/library/source/", import.meta.url),
-    );
+    const directory = fileURLToPath(new URL("./fixture/library/source/", import.meta.url));
     const library = { ...request, directory };
     const controller = new AbortController();
     await using store = await LocalBuildStore.temporary(environment);
@@ -308,7 +306,7 @@ while (!(await Bun.file(${JSON.stringify(release)}).exists())) {
 }
 `,
     );
-    const source = fileURLToPath(new URL("../../tests/fixture/library/source/", import.meta.url));
+    const source = fileURLToPath(new URL("./fixture/library/source/", import.meta.url));
     await using store = await LocalBuildStore.temporary(environment);
     const builder = await Compiler.start(source, {
         command: {
@@ -701,7 +699,7 @@ test("bundle a module a page starts as a worker, and refuse one it references as
     try {
         // add an echo worker to the library
         await files.copy(
-            fileURLToPath(new URL("../../tests/fixture/library/source/", import.meta.url)),
+            fileURLToPath(new URL("./fixture/library/source/", import.meta.url)),
             source,
         );
         await files.writeTextFile(
@@ -760,7 +758,7 @@ test("run the browser baseline first in a worker, leaving a library's entries al
     try {
         // start an echo worker from the library's note module
         await files.copy(
-            fileURLToPath(new URL("../../tests/fixture/library/source/", import.meta.url)),
+            fileURLToPath(new URL("./fixture/library/source/", import.meta.url)),
             source,
         );
         await files.writeTextFile(
