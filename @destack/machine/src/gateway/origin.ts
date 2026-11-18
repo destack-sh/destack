@@ -1076,10 +1076,10 @@ export class ViewOrigin {
             return new Response(null, { status: 307, headers: { location } });
         }
 
-        // serve a release dependency's catalog from its runtime build the views reach
+        // serve a release dependency's catalog from its runtime build the views import
         const catalog = Catalog.at(pathname.slice(1));
         if (catalog?.dependency !== undefined) {
-            const dependency = await this.#reached(closure, catalog.dependency);
+            const dependency = await this.#build(closure, catalog.dependency);
             const path = Catalog.path(
                 { package: catalog.dependency, locale: catalog.locale },
                 catalog.dependency,
@@ -1207,8 +1207,8 @@ export class ViewOrigin {
         return [...new Set(listed.flat())].toSorted();
     }
 
-    /** Find a package's runtime build among those a page's views reach, refusing others. */
-    async #reached(closure: ImportClosure, packageId: PackageId): Promise<BuildReader> {
+    /** Find a package's runtime build among the builds a page's views import, refusing others. */
+    async #build(closure: ImportClosure, packageId: PackageId): Promise<BuildReader> {
         for (const digest of closure.builds) {
             const reader = await this.#space.builds.contents(digest);
             if (

@@ -9,7 +9,7 @@ import { LocalBlobStorage } from "@destack/bucket/bun";
 import type { PackageFile } from "@destack/package/file";
 import { Digest, present } from "@destack/schema";
 import type { BuildStore } from "@destack/build/store";
-import { catalog, declaration, GraphView, module, symbol } from "@destack/stack/object";
+import { catalog, declaration, BuildGraph, module, symbol } from "@destack/stack/object";
 
 /** The most parameters SQLite binds to a statement: SQLITE_MAX_VARIABLE_NUMBER since 3.32. */
 const SQLITE_PARAMETERS = 32_766;
@@ -73,7 +73,7 @@ export class BunGraphStorage implements ExternalStorage, AsyncDisposable {
     /** Open a succeeded build's view of its manifest's index, writing the index on a cache miss. */
     async #open(scope: string): Promise<OpenedIndex> {
         // read the build's place in its manifest's index, and the store with the build
-        const index = await GraphView.of(this.#database, scope, this.#builds);
+        const index = await BuildGraph.of(this.#database, scope, this.#builds);
         const { manifest } = index;
         const store = present(
             await this.#builds.storeOf(manifest),
@@ -95,7 +95,7 @@ export class BunGraphStorage implements ExternalStorage, AsyncDisposable {
 
         // read it as the build's rows: in its scope, made when it finished
         const database = new Database(storage.path(stored.digest), { readonly: true });
-        for (const table of GraphView.tables) {
+        for (const table of BuildGraph.tables) {
             const { sqlName } = table[TABLE];
             database.run(
                 `CREATE TEMP VIEW "${sqlName}" AS ${index.select(table, `main."${sqlName}"`)}`,
@@ -103,7 +103,7 @@ export class BunGraphStorage implements ExternalStorage, AsyncDisposable {
         }
 
         return {
-            database: await connectBunSqlite(database, GraphView.tables, { environment }),
+            database: await connectBunSqlite(database, BuildGraph.tables, { environment }),
         };
     }
 
@@ -116,7 +116,7 @@ export class BunGraphStorage implements ExternalStorage, AsyncDisposable {
 
     /** Write a manifest's index into a file, then store it under its cache key. */
     async #cache(
-        index: GraphView,
+        index: BuildGraph,
         store: BuildStore,
         key: Digest,
         environment: DatabaseEnvironment,
@@ -156,7 +156,7 @@ interface OpenedIndex {
 
 /** Write a manifest's objects into a new index file, in the rollback journal mode readers open. */
 async function write(
-    index: GraphView,
+    index: BuildGraph,
     builds: Pick<BuildStore, "contents" | "graph">,
     file: string,
     environment: DatabaseEnvironment,
@@ -165,13 +165,13 @@ async function write(
     const rows = await index.rows(builds, environment.crypto);
 
     // write them in one transaction
-    const database = await connectBunSqlite(new Database(file), GraphView.tables, {
+    const database = await connectBunSqlite(new Database(file), BuildGraph.tables, {
         environment,
     });
     try {
-        await database.migrate(GraphView.tables);
+        await database.migrate(BuildGraph.tables);
         await database.transaction((transaction) =>
-            GraphView.write(transaction, rows, SQLITE_PARAMETERS),
+            BuildGraph.write(transaction, rows, SQLITE_PARAMETERS),
         );
     } finally {
         await database.close();

@@ -46,7 +46,7 @@ import {
     claimTable,
     type CursorPage,
     Egress,
-    HookSandbox,
+    Isolate,
     installation,
     InstallationBinding,
     InstallationMount,
@@ -231,17 +231,17 @@ export interface InstallationBuild {
     readonly declarations: graph.Declaration[];
 }
 
-/** An installation's server as one start serves it: its load, and its server or sandbox. */
+/** An installation's server as one start serves it: its load, and its server or isolate. */
 interface ServedEntry {
-    /** Its build's load: a trusted server or none, a sandbox, or why it failed. */
+    /** Its build's load: a trusted server or none, an isolate, or why it failed. */
     readonly load:
         | { readonly kind: "host"; readonly server: PackageImplementation | undefined }
-        | { readonly kind: "sandbox" }
+        | { readonly kind: "isolate" }
         | { readonly kind: "failed"; readonly error: unknown };
-    /** The server or sandbox serving it, or why it failed to load or start. */
+    /** The server or isolate serving it, or why it failed to load or start. */
     readonly served:
         | { readonly kind: "server"; readonly server: PackageImplementation }
-        | { readonly kind: "sandbox"; readonly sandbox: HookSandbox }
+        | { readonly kind: "isolate"; readonly isolate: Isolate }
         | {
               readonly kind: "failed";
               readonly reason: Extract<ServingReason, "LoadFailed" | "StartFailed">;
@@ -520,11 +520,11 @@ export class Space {
                 // prepare the start, then serve the store and route the installations' calls through the gateway
                 const start = await this.prepare(context);
                 try {
-                    const { servers, sandboxes } = await this.#servers(
+                    const { servers, isolates } = await this.#servers(
                         start.installed,
                         context.signal,
                     );
-                    const store = openStore(this, start, this.#storeServers(servers), sandboxes);
+                    const store = openStore(this, start, this.#storeServers(servers), isolates);
                     start.store.resolve(store);
                     start.gateway.resolve(new Gateway(this, start, store));
 
@@ -658,13 +658,13 @@ export class Space {
         return (await this.#current().gateway.promise).send(caller, request);
     }
 
-    /** Run an installation's hooks in a sandbox, their calls sent through the gateway. */
-    #sandbox(
+    /** Run an installation's hooks in an isolate, their calls sent through the gateway. */
+    #isolate(
         row: InstallationRollout,
         server: ServerContext,
         declarations: readonly graph.Declaration[],
-    ): HookSandbox {
-        return new HookSandbox({
+    ): Isolate {
+        return new Isolate({
             server,
             declarations,
             send: async (request) =>
@@ -1043,13 +1043,13 @@ export class Space {
         };
     }
 
-    /** Serve each installation main applied: a trusted one in the store, another in its sandbox. */
+    /** Serve each installation main applied: a trusted one in the store, another in its isolate. */
     async #servers(
         installed: readonly InstallationBuild[],
         signal: AbortSignal,
     ): Promise<{
         readonly servers: readonly PackageImplementation[];
-        readonly sandboxes: readonly HookSandbox[];
+        readonly isolates: readonly Isolate[];
         readonly serving: ReadonlyMap<Identifier<"installation">, Serving>;
     }> {
         // keep this start's servers served before, by installation, revision and lock
@@ -1068,7 +1068,7 @@ export class Space {
                 if (kept !== undefined) {
                     return kept.load;
                 } else if (row.installation.isolation !== "host" && !isLinked) {
-                    return { kind: "sandbox" } as const;
+                    return { kind: "isolate" } as const;
                 }
                 try {
                     return { kind: "host", server: await this.machine.server(lock) } as const;
@@ -1083,10 +1083,10 @@ export class Space {
             each.kind === "host" && each.server !== undefined ? [each.server] : [],
         );
 
-        // serve each installation in the store or in its sandbox, keeping the earlier ones
+        // serve each installation in the store or in its isolate, keeping the earlier ones
         const entries = new Map<string, ServedEntry>();
         const servers: PackageImplementation[] = [];
-        const sandboxes: HookSandbox[] = [];
+        const isolates: Isolate[] = [];
         const serving = new Map<Identifier<"installation">, Serving>();
         for (const [index, entry] of installed.entries()) {
             const key = present(keys[index], "the installation's key");
@@ -1109,7 +1109,7 @@ export class Space {
                       );
             entries.set(key, { load, served });
 
-            // serve each installation in its store or its sandbox, else record why it failed
+            // serve each installation in its store or its isolate, else record why it failed
             const { installationId } = entry.rollout;
             if (served.kind === "failed") {
                 serving.set(installationId, {
@@ -1121,14 +1121,14 @@ export class Space {
                 serving.set(installationId, { revisionId: entry.revisionId });
                 this.#failed.delete(installationId);
             } else {
-                sandboxes.push(served.sandbox);
+                isolates.push(served.isolate);
                 serving.set(installationId, { revisionId: entry.revisionId });
                 this.#failed.delete(installationId);
             }
         }
         this.#served = { signal, entries };
 
-        return { servers, sandboxes, serving };
+        return { servers, isolates, serving };
     }
 
     /** Build the controller applying the space's installed set at each start and change of it. */
@@ -1164,10 +1164,10 @@ export class Space {
         const store = await start.store.promise;
         const { signal } = start.context;
         const before = this.#served?.signal === signal ? this.#serving() : undefined;
-        const { servers, sandboxes, serving } = await this.#servers(installed, signal);
+        const { servers, isolates, serving } = await this.#servers(installed, signal);
         const after = this.#serving();
         if (before === undefined || before.symmetricDifference(after).size > 0) {
-            start.context.serve(store.apply(this.#storeServers(servers), sandboxes));
+            start.context.serve(store.apply(this.#storeServers(servers), isolates));
         }
 
         // record what the start serves of each installation, the ones its store leaves out with why
@@ -1334,7 +1334,7 @@ export class Space {
         return `${installationId}@${revisionId}@${lock}@${JSON.stringify(capabilities)}`;
     }
 
-    /** Serve one installation: a loaded server in the store, else its hooks in a sandbox. */
+    /** Serve one installation: a loaded server in the store, else its hooks in an isolate. */
     async #serve(
         { rollout: row, revisionId, lock, declarations }: InstallationBuild,
         load: ServedEntry["load"],
@@ -1366,12 +1366,12 @@ export class Space {
 
             return { kind: "server", server: stored.at({ ...context, activation }) };
         }
-        // run another package's hooks in its sandbox, which binds its resources itself
+        // run another package's hooks in its isolate, which binds its resources itself
         else {
             const caller = this.#callerOnce(row, { resources: {} }, bindings);
             const context = await this.#context(row, lock, new ResourceContext(), caller);
 
-            return { kind: "sandbox", sandbox: this.#sandbox(row, context, declarations) };
+            return { kind: "isolate", isolate: this.#isolate(row, context, declarations) };
         }
     }
 

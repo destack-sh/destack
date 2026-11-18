@@ -10,7 +10,7 @@ import {
     type Follow,
     grantShape,
     type ObjectType,
-    type HookSandbox,
+    type Isolate,
     relationship,
 } from "@destack/object";
 import {
@@ -105,7 +105,7 @@ export function openStore(
     space: Space,
     start: SpaceStart,
     servers: readonly PackageImplementation[],
-    sandboxes: readonly HookSandbox[],
+    isolates: readonly Isolate[],
 ): ObjectStore {
     const store: ObjectStore = new ObjectStore({
         servers,
@@ -167,7 +167,7 @@ export function openStore(
                   publisher: (scope: string) => homePublisher(space, start, scope),
               }),
         machine: space.machine.id,
-        sandboxes,
+        isolates,
     });
 
     return store;
