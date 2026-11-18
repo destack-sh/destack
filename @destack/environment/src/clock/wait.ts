@@ -15,6 +15,32 @@ export function waitAborted(signal: AbortSignal): Promise<void> {
     });
 }
 
+/** Wait until a promise settles or the signal aborts, then stop listening to the signal. */
+export function untilAborted(promise: PromiseLike<unknown>, signal: AbortSignal): Promise<void> {
+    return new Promise((resolve, reject) => {
+        // settle at once for an aborted signal
+        if (signal.aborted) {
+            resolve();
+
+            return;
+        }
+
+        // settle with whichever comes first, removing the abort listener once the promise settles
+        const abort = () => resolve();
+        signal.addEventListener("abort", abort, { once: true });
+        promise.then(
+            () => {
+                signal.removeEventListener("abort", abort);
+                resolve();
+            },
+            (error: unknown) => {
+                signal.removeEventListener("abort", abort);
+                reject(error);
+            },
+        );
+    });
+}
+
 /** Let the event loop run its waiting tasks before going on, like the web's `scheduler.yield`. */
 export function yieldToEventLoop(): Promise<void> {
     return new Promise((resolve) => {
