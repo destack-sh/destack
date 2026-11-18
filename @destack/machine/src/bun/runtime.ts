@@ -685,11 +685,9 @@ export class BunRuntime implements Runtime {
             return { build: written, roots: () => Promise.resolve(roots) };
         }
 
-        // write the build's Bun output with its maps, its manifest and its closure's links in a staging directory beside its place
+        // write the build's Bun output with its maps, its manifest and its closure's links in the store's temporary directory
         await files.mkdir(dirname(written), { recursive: true });
-        const staging = await files.makeTemporaryDirectory(`${digest}.`, {
-            directory: dirname(written),
-        });
+        const staging = await this.#packages.makeTemporaryDirectory("run-");
         const staged = join(staging, "build");
         const isRunning = Object.values(build.manifest.outputs).some(
             (each) => each.runtime === BUN_RUNTIME,
