@@ -4,7 +4,7 @@ import { machine, Residency } from "@destack/account/object";
 import accountPackage from "@destack/account/package";
 import { type DatabaseConnection, Snapshot } from "@destack/db";
 import { connectBunSqlite } from "@destack/db/bun";
-import { type Environment, type Listener } from "@destack/environment";
+import { type Environment, LineExporter, type Listener } from "@destack/environment";
 import { Egress, PackageMount } from "@destack/object";
 import { createClient } from "@destack/object/client";
 import {
@@ -209,7 +209,7 @@ export class TestRelay implements AsyncDisposable {
                     workload: relayWorkload,
                     resources: {},
                     // leave the relay's local lines unprinted, as the tests read its records from its export
-                    write: () => {},
+                    log: new LineExporter(() => {}),
                     remote: () => replicas,
                     socketHost: {
                         url: `http://host.${hostname}${SOCKET_PATH}`,
