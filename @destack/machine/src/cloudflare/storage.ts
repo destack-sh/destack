@@ -1,3 +1,4 @@
+import { DURABLE_OBJECT_GIGABYTES } from "@destack/package/runtime";
 import type {} from "@destack/package/import-meta";
 import { TelemetryScope } from "@destack/telemetry";
 import type { SpaceProvider } from "@destack/stack/object";
@@ -76,8 +77,6 @@ export interface DurableObjectSpaceStorageOptions {
     readonly graphs: DurableObjectNamespace;
     /** The jurisdiction of the objects, empty for none. */
     readonly jurisdiction: Jurisdiction;
-    /** The rate of a gigabyte-second of the space's instances' memory. */
-    readonly gigabytes: Parameters<typeof Reading.instances>[3];
     /** The machine's root keys, sealing personal event data. */
     readonly keyring: Keyring;
     /** Send a request as the machine, as Artifacts calls go out. */
@@ -388,7 +387,7 @@ export class DurableObjectVolume implements Volume {
 
         // read the run time and the bytes stored
         const readings = [
-            ...(await Reading.instances(database, from, to, this.#options.gigabytes)),
+            ...(await Reading.instances(database, from, to, DURABLE_OBJECT_GIGABYTES)),
             ...(await Reading.space(space, () => objectBytes({ scope: space }))),
             ...(await Reading.installations(database, (installed) =>
                 objectBytes(

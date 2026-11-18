@@ -449,7 +449,9 @@ export class Space {
                 await this.#root(installed, unavailable);
                 const forge = this.forge();
                 const accounts = this.accounts();
-                const isMetered = machine.skus !== undefined && role === "primary";
+                const rates =
+                    role === "primary" ? await machine.rates() : new Map<string, string>();
+                const isMetered = rates.size > 0;
                 const start: SpaceStart = {
                     role,
                     context,
@@ -473,7 +475,7 @@ export class Space {
                                       new SpaceMeter(store, {
                                           space: this.id,
                                           measure: (from, to) => this.measure(from, to),
-                                          skus: present(machine.skus, "the SKUs rating the space"),
+                                          rates,
                                           account: () => this.account(),
                                           traffic: (signal) => machine.traffic.next(signal),
                                       }).controller(),

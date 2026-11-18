@@ -69,7 +69,7 @@ import { LOOPBACK_DOMAIN } from "@destack/account/address";
 import { ComputerServer } from "./server/index.ts";
 import { LocalSpaceStorage } from "./storage.ts";
 import { computer, type MachineEnrollment, signIn, visit } from "./device/object/index.ts";
-import { MachineProcess, LOCK_FILE, StageHome } from "./process/index.ts";
+import { MachineProcess, LOCK_FILE, UniverseHome } from "./process/index.ts";
 import { BuildRunner } from "./build.ts";
 import { computerServer, machineWorkload, deviceWorkload } from "./server/workload.ts";
 import { Environment, HostAddress, LineExporter, Telemetry } from "@destack/environment";
@@ -400,7 +400,6 @@ export class Computer implements AsyncDisposable {
                     server: (lock) => processes.server(lock),
                     linked,
                     shipped,
-                    skus: undefined,
                     registry: options.registry,
                     endpoint,
                     destack: { oldest: OLDEST_DESTACK, newest: MACHINE_PACKAGE.version },
@@ -991,14 +990,14 @@ export class Computer implements AsyncDisposable {
         /** The directory of the distribution the computer ships: its manifest and its layer. */
         readonly shipped: string;
     } {
-        // take the universe the environment names, else the stage's
+        // take the universe the environment names, else the universe's
         const environment = host.process.variables;
-        const home = StageHome.current(host);
-        const { universe } = home;
+        const home = UniverseHome.current(host);
+        const universe = home.universe.origin;
         if (!URL.canParse(universe)) {
             throw MachineError.of(
                 "CONFIGURATION_BROKEN",
-                `DESTACK_UNIVERSE is not a URL: '${universe}'`,
+                `DESTACK_UNIVERSE_ORIGIN is not a URL: '${universe}'`,
             );
         }
 
@@ -1020,7 +1019,7 @@ export class Computer implements AsyncDisposable {
         const relay: ComputerOptions["relay"] =
             url !== undefined
                 ? { kind: "url", url }
-                : home.stage.name === "production"
+                : home.universe.name === "production"
                   ? { kind: "residency" }
                   : undefined;
 
@@ -1095,7 +1094,7 @@ export class Computer implements AsyncDisposable {
 
         // compose the machine with the system's keychains, this channel's distribution and its toolchain
         const stopping = new AbortController();
-        const home = StageHome.current(environment);
+        const home = UniverseHome.current(environment);
         const installed = home.distribution(environment);
         const toolchain = environment.process.runtime.isStandalone
             ? () => installed.distribution.toolchain()
@@ -1117,7 +1116,7 @@ export class Computer implements AsyncDisposable {
                 pid: environment.process.id,
                 startedAt: environment.clock.now(),
             },
-            ...(home.stage.name === "local" ? {} : { distribution: installed }),
+            ...(home.universe.name === "local" ? {} : { distribution: installed }),
             toolchain,
             shutdown: () => stopping.abort(),
         });

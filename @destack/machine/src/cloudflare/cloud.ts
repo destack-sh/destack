@@ -53,8 +53,6 @@ export interface CloudflareStorageBindings {
     readonly ARTIFACTS: ArtifactsNamespace;
     /** The releases the Worker version ships, a build layer in its static assets. */
     readonly RELEASES: AssetBinding;
-    /** The rates of the spaces' use, as `RateCard` JSON. */
-    readonly DESTACK_RATES: string;
     /** Where the spaces' mail goes, as `MailSender` JSON. */
     readonly DESTACK_MAIL: string;
     /** The Worker's AWS access key: decrypting its sealed keys and sending the spaces' mail. */
@@ -76,7 +74,7 @@ export interface MachineBindings extends PartitionBindings, CloudflareStorageBin
     /** The machine's private key, as `KeyPair.generate` writes it, sealed as its envelope says. */
     readonly DESTACK_MACHINE_KEY: string;
     /** The universe's origin, serving the account package. */
-    readonly DESTACK_UNIVERSE: string;
+    readonly DESTACK_UNIVERSE_ORIGIN: string;
     /** The objects of the builds' graph views, one per manifest. */
     readonly GRAPH: DurableObjectNamespace;
     /** The jurisdiction of the machine's objects, empty for none. */
@@ -191,7 +189,8 @@ export class CloudMachine {
                         // call the universe, and a peer machine or its relay, through their bindings
                         const peer = peers.get(new URL(request.url).host);
                         if (
-                            UniverseOrigin.of(request.url, bindings.DESTACK_UNIVERSE) !== undefined
+                            UniverseOrigin.of(request.url, bindings.DESTACK_UNIVERSE_ORIGIN) !==
+                            undefined
                         ) {
                             return bindings.UNIVERSE.fetch(request);
                         } else if (peer !== undefined) {
@@ -236,7 +235,7 @@ export class CloudMachine {
             identity,
             environment,
             replica,
-            issuer: UniverseOrigin.issuer(bindings.DESTACK_UNIVERSE),
+            issuer: UniverseOrigin.issuer(bindings.DESTACK_UNIVERSE_ORIGIN),
         });
     }
 
@@ -258,7 +257,7 @@ export class CloudMachine {
         return {
             kind: "cloud",
             residencyId: row.residencyId,
-            universe: this.bindings.DESTACK_UNIVERSE,
+            universe: this.bindings.DESTACK_UNIVERSE_ORIGIN,
             status: "enrolled",
         };
     }
@@ -299,13 +298,13 @@ export class CloudMachine {
         const accounts = createClient(
             accountPackage,
             {
-                url: PackageMount.url(this.bindings.DESTACK_UNIVERSE, accountPackage.id),
+                url: PackageMount.url(this.bindings.DESTACK_UNIVERSE_ORIGIN, accountPackage.id),
                 fetch: new Session(
                     this.identity.at(this.issuer, (request) =>
                         this.environment.network.fetch(request),
                     ),
                     {
-                        universe: this.bindings.DESTACK_UNIVERSE,
+                        universe: this.bindings.DESTACK_UNIVERSE_ORIGIN,
                         send: (request) => this.environment.network.fetch(request),
                         bookmark: new Bookmark(),
                         environment: this.environment,

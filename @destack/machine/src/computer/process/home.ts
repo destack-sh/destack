@@ -3,61 +3,53 @@ import { dirname, join, resolve } from "node:path";
 import { Distribution, Release } from "@destack/update";
 import type { DistributionHost } from "@destack/update/server";
 import type {} from "@destack/package/import-meta";
-import { Stage } from "@destack/update/release";
+import { Universe } from "@destack/update/release";
 
-/** A stage installed at a device directory for one user. */
-export class StageHome {
-    /** The stage installed here. */
-    readonly stage: Stage;
-    /** The device directory, the stage's own in the user's home unless one is set. */
+/** A universe installed at a device directory for one user. */
+export class UniverseHome {
+    /** The universe installed here, with the origin people sign in at. */
+    readonly universe: Universe;
+    /** The device directory, the universe's own in the user's home unless one is set. */
     readonly directory: string;
-    /** The origin of the universe people sign in at, the stage's unless one is set. */
-    readonly universe: string;
-    /** The user's home directory, with the stage's own directory and applications. */
+    /** The user's home directory, with the universe's own directory and applications. */
     readonly #user: string;
 
-    /** Place a stage in a user's home, in its own device directory at its universe unless given. */
+    /** Place a universe in a user's home, in its own device directory unless one is given. */
     constructor(
-        stage: Stage,
+        universe: Universe,
         user: string,
-        directory: string = join(user, stage.directory),
-        universe: string = stage.universe,
+        directory: string = join(user, universe.directory),
     ) {
-        // take the stage, the device directory, the universe and the user's home
-        this.stage = stage;
-        this.directory = directory;
+        // take the universe, the device directory and the user's home
         this.universe = universe;
+        this.directory = directory;
         this.#user = user;
     }
 
-    /** Read the home of the stage the build selected, with its directory and universe set. */
-    static current(environment: Environment<"process" | "host">): StageHome {
-        const stage = Stage.current(environment);
-        const { variables } = environment.process;
-
-        return new StageHome(
-            stage,
+    /** Read the home of the universe the build selected, with its directory set. */
+    static current(environment: Environment<"process" | "host">): UniverseHome {
+        return new UniverseHome(
+            Universe.current(environment),
             environment.host.home,
-            variables["DESTACK_DIRECTORY"],
-            variables["DESTACK_UNIVERSE"],
+            environment.process.variables["DESTACK_DIRECTORY"],
         );
     }
 
-    /** Whether the device directory is an explicit one, apart from the stage's own. */
+    /** Whether the device directory is an explicit one, apart from the universe's own. */
     get isCustom(): boolean {
-        return resolve(this.directory) !== join(this.#user, this.stage.directory);
+        return resolve(this.directory) !== join(this.#user, this.universe.directory);
     }
 
-    /** The installed distribution of this stage's executables. */
+    /** The installed distribution of this universe's executables. */
     distribution(environment: Environment<"files" | "process" | "host">): DistributionHost {
         // describe the installation this executable belongs to
-        const { stage } = this;
+        const { universe } = this;
         const { variables, executable } = environment.process;
         const { os, architecture } = environment.host;
         const applications = this.isCustom ? resolve(this.directory) : this.#user;
         const distribution = new Distribution({
             home: this.directory,
-            repository: new URL(variables["DESTACK_UPDATE_URL"] ?? stage.feed),
+            repository: new URL(variables["DESTACK_UPDATE_URL"] ?? universe.feed),
             root: Distribution.root(),
             running: new Release(
                 import.meta.destack.package.version,
@@ -65,7 +57,7 @@ export class StageHome {
             ),
             executable,
             applications: join(applications, "Applications"),
-            stage,
+            universe,
             environment,
         });
 

@@ -52,7 +52,7 @@ import {
     Visit,
     visit,
 } from "./object/index.ts";
-import { Loopback, StageHome } from "../process/index.ts";
+import { Loopback, UniverseHome } from "../process/index.ts";
 import { type Clock, type Environment, FileSystemError } from "@destack/environment";
 
 /** The file of the device's local objects, in the machine's directory. */
@@ -148,9 +148,9 @@ export class Device<
     static current(
         environment: Environment<"files" | "process" | "host" | "server">,
     ): Promise<Device<MachineCredential>> {
-        const home = StageHome.current(environment);
+        const home = UniverseHome.current(environment);
 
-        return Device.open({ home: home.directory, environment, universe: home.universe });
+        return Device.open({ home: home.directory, environment, universe: home.universe.origin });
     }
 
     /** Create the device and its local objects at the machine's first start, with the keychain. */

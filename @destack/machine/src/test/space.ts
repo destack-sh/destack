@@ -1200,7 +1200,6 @@ export class TestSpace implements AsyncDisposable, TestScope {
                     ),
                 linked: world.machines.get(test.id)?.linked ?? linked,
                 shipped: [],
-                skus: undefined,
                 endpoint:
                     options.origin ?? (await test.directory.answering(test.id, test.clock.now())),
                 registry: FORGE_INSTALLATION,

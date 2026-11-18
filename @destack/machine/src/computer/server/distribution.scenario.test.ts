@@ -2,7 +2,7 @@ import { testHost } from "@destack/test/host";
 import { join } from "node:path";
 import { RequestId } from "@destack/sync";
 import { expect, refusal, test } from "@destack/test";
-import { Distribution, Release, Stage } from "@destack/update";
+import { Distribution, Release, Universe } from "@destack/update";
 import { distribution } from "@destack/update/object";
 import updatePackage from "@destack/update/package";
 import { SignedRepository } from "@destack/update/publish";
@@ -36,7 +36,7 @@ test("record this machine's distribution, stage the published release and hand i
         running: new Release("2026.9.0", repository.target),
         executable: join(home, "bin", "destack"),
         applications: join(home, "Applications"),
-        stage: new Stage("production"),
+        universe: new Universe("production"),
         environment: repository.environment,
     });
     try {
@@ -84,7 +84,7 @@ test("record this machine's distribution, stage the published release and hand i
     }
 });
 
-test("report a stage its repository refuses as the controller's failure", async () => {
+test("report a universe its repository refuses as the controller's failure", async () => {
     // follow a repository whose origin finds nothing, in the computer's world
     const world = await TestComputer.world();
     const { files } = world.simulation.environment(FILES_NODE);
@@ -105,7 +105,7 @@ test("report a stage its repository refuses as the controller's failure", async 
             running: new Release("2026.9.0", "x86_64-unknown-linux-gnu"),
             executable: join(home, "bin", "destack"),
             applications: join(home, "Applications"),
-            stage: new Stage("production"),
+            universe: new Universe("production"),
             environment: fixture.environment,
         });
 
@@ -129,7 +129,7 @@ test("report a stage its repository refuses as the controller's failure", async 
             taken: world.telemetry.take().map((captured) => captured.message),
         }).toEqual({
             captured: [
-                "destack.distribution.stage",
+                "destack.distribution.universe",
                 key,
                 "metadata not found: metadata request failed: HTTP 404",
             ],

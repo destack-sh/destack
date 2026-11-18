@@ -87,7 +87,7 @@ test("read a space's use each round, resuming after a failed round or restart", 
     const measured: [number, number][] = [];
     const options = {
         space: spaceId,
-        skus: SKUS,
+        rates: SKUS,
         account: async () => accountId,
         traffic: quiet,
         measure: async (from: number, to: number) => {
@@ -191,7 +191,7 @@ test("read nothing while a space idles, then its use a minute into its next traf
     const measured: [number, number][] = [];
     const meters = new SpaceMeter(store, {
         space: spaceId,
-        skus: SKUS,
+        rates: SKUS,
         account: async () => fixture.account,
         traffic: (signal) => traffic.next(signal),
         measure: async (from, to) => {

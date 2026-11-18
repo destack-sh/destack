@@ -27,7 +27,7 @@ export interface MeterOptions {
     /** Read what the space used over an interval. */
     readonly measure: (from: number, to: number) => Promise<readonly Reading[]>;
     /** The key of the SKU rating each meter at its attribute values, by their `Meter.key`. */
-    readonly skus: ReadonlyMap<string, string>;
+    readonly rates: ReadonlyMap<string, string>;
     /** Read the account the space belongs to. */
     readonly account: () => Promise<Identifier<"account">>;
     /** Wait until the space's traffic is counted, or until the signal aborts. */
@@ -87,7 +87,7 @@ export class SpaceMeter {
         const measured = await this.#options.measure(from, now);
 
         // append each reading at its SKU and the space's account, a level as constant over each month of the interval
-        const { space, skus } = this.#options;
+        const { space, rates } = this.#options;
         if (measured.length > 0) {
             const account = await this.#options.account();
             const items = await Promise.all(
@@ -96,7 +96,7 @@ export class SpaceMeter {
                         each,
                         from,
                         now,
-                        SpaceMeter.#skuOf(skus, each),
+                        SpaceMeter.#skuOf(rates, each),
                         account,
                         this.#store.environment.crypto,
                     ),
@@ -197,10 +197,10 @@ export class SpaceMeter {
     }
 
     /** Find the SKU rating a reading's meter and attributes, refusing one rated by none. */
-    static #skuOf(skus: ReadonlyMap<string, string>, measured: Reading): string {
+    static #skuOf(rates: ReadonlyMap<string, string>, measured: Reading): string {
         // look the SKU up by the meter's key with the reading's attributes
         const key = measured.meter.key(measured.attributes);
-        const sku = skus.get(key);
+        const sku = rates.get(key);
         if (sku === undefined) {
             throw MachineError.of("CONFIGURATION_BROKEN", `the machine rates '${key}' with no sku`);
         }

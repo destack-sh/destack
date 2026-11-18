@@ -4,7 +4,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { CommandHost } from "./command.ts";
 import { Release } from "@destack/update/release";
-import { StageHome } from "./home.ts";
+import { UniverseHome } from "./home.ts";
 import { type LoopbackEndpoint, ENDPOINT_FILE, LOCK_FILE, Loopback } from "./endpoint.ts";
 import { MachineError } from "../../error/index.ts";
 import { Autostart } from "../autostart/index.ts";
@@ -24,8 +24,8 @@ const ENVIRONMENT = [
     "TEMP",
     "LANG",
     "LC_ALL",
-    "DESTACK_STAGE",
     "DESTACK_UNIVERSE",
+    "DESTACK_UNIVERSE_ORIGIN",
     "DESTACK_PORT",
     "DESTACK_DISTRIBUTION",
 ];
@@ -74,7 +74,7 @@ export class MachineProcess {
 
     /** Address the machine process of the current release home. */
     static current(environment: CommandHost): MachineProcess {
-        return new MachineProcess(StageHome.current(environment).directory, environment);
+        return new MachineProcess(UniverseHome.current(environment).directory, environment);
     }
 
     /** Locate the machine executable beside this standalone executable, else this runtime. */

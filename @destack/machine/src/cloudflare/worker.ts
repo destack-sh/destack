@@ -38,7 +38,6 @@ import { type Space, SPACE_HEADER, SpaceRequest } from "../space/index.ts";
 import { Attribution, TRACES_PATH } from "./attribution.ts";
 import { TraceCount } from "../gateway/index.ts";
 import { DurableObjectSpaceStorage } from "./storage.ts";
-import { RateCard } from "./rates.ts";
 import type {} from "@destack/package/import-meta";
 import { MachineError } from "../error/index.ts";
 
@@ -282,7 +281,6 @@ export class PartitionObject {
         const space = schema.identifier("space").parse(spaceId);
         const bindings = this.#bindings;
         const cloud = await this.#machine();
-        const rates = RateCard.parse(JSON.parse(bindings.DESTACK_RATES));
         const host = await DurableObjectSpaceStorage.open({
             space,
             environment: cloud.environment,
@@ -294,7 +292,6 @@ export class PartitionObject {
             facet: (installation) => this.#facets.facet(installation),
             graphs: bindings.GRAPH,
             jurisdiction: bindings.DESTACK_JURISDICTION,
-            gigabytes: rates.gigabytes,
             keyring: cloud.keyring,
             send: (request) => cloud.environment.network.fetch(request),
             mail: cloud.mail(),
@@ -377,7 +374,6 @@ export class PartitionObject {
             linked: DistributionManifest.builtins(shipped, "workerd"),
             shipped: DistributionManifest.releases(shipped, "workerd"),
             registry: bindings.DESTACK_REGISTRY,
-            skus: rates.skus,
             endpoint: `https://${bindings.DESTACK_HOST}`,
             destack: { oldest: OLDEST_DESTACK, newest: machinePackage.version },
             authenticate: async (request, audience, partition) => {
@@ -436,7 +432,7 @@ export class MachineWorker {
         const request = client === null ? given : Forwarded.replace(given, { for: client });
 
         // hand the universe its issuer and package mounts at its origin, which it serves behind the machines
-        if (UniverseOrigin.of(request.url, bindings.DESTACK_UNIVERSE) !== undefined) {
+        if (UniverseOrigin.of(request.url, bindings.DESTACK_UNIVERSE_ORIGIN) !== undefined) {
             return bindings.UNIVERSE.fetch(request);
         }
 

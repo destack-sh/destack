@@ -118,7 +118,6 @@ export type MachineOptions = Pick<
     | "hibernation"
     | "alarm"
     | "server"
-    | "skus"
     | "endpoint"
     | "authenticate"
     | "authorizeSpace"
@@ -221,8 +220,6 @@ export class Machine {
     readonly #linked: Map<PackageId, PackageRelease>;
     /** The releases the machine ships, by package. */
     readonly shipped: ReadonlyMap<PackageId, PackageRelease>;
-    /** The SKU key rating each meter at its attribute values, by `Meter.key`, absent unbilled. */
-    readonly skus: ReadonlyMap<string, string> | undefined;
     /** The URL the machine answers at: a cloud machine's declared origin, else its local one. */
     readonly endpoint: string;
     /** The origin the machine answers at: its endpoint, else its relayed name once renewed. */
@@ -295,7 +292,6 @@ export class Machine {
         this.#trusted = new Set(
             [...options.shipped, ...options.linked.values()].map((release) => release.lock),
         );
-        this.skus = options.skus;
 
         // set where peers call the machine and how it verifies and reports
         this.endpoint = options.endpoint;
@@ -482,6 +478,18 @@ export class Machine {
     /** Report whether this machine is enrolled. */
     async isEnrolled(): Promise<boolean> {
         return (await this.#enrollment()) !== undefined;
+    }
+
+    /** Read the SKU rating each meter of this machine's spaces, as its universe declares. */
+    async rates(): Promise<ReadonlyMap<string, string>> {
+        // read the machine's own replicated row, which arrived before it serves any space
+        const [row] = await this.database
+            .select({ rates: accountObject.machine.table.rates })
+            .from(accountObject.machine.table)
+            .where(eq(accountObject.machine.table.id, this.id));
+        const { rates } = present(row, `the replica of machine '${this.id}'`);
+
+        return new Map(Object.entries(rates));
     }
 
     /** Read the account package's URL and the issuer of the universe this machine enrolled at. */
