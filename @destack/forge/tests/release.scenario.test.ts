@@ -185,7 +185,7 @@ test("release one lock of a version under each tag, refusing another lock of it"
             files: new Map([["notes.txt", new TextEncoder().encode(notes)]]),
         });
 
-        return await store.putLock(Lock.of(await store.put(build)));
+        return await store.putLock(Lock.of(await store.putIndexed(build)));
     };
     const released = await locked("released");
     const other = await locked("other");
@@ -237,10 +237,10 @@ test("keep a version's first release when another lock of its build publishes", 
         version: "2026.9.0",
     });
     await using store = await TestBuildStore.create(forge.environment);
-    const root = await store.put(await MemoryBuild.of(version, [], crypto));
+    const root = await store.putIndexed(await MemoryBuild.of(version, [], crypto));
     const locked = async (notes: string) => {
         const files = new Map([["notes.txt", new TextEncoder().encode(notes)]]);
-        const built = await store.put(await MemoryBuild.of(library, [], crypto, { files }));
+        const built = await store.putIndexed(await MemoryBuild.of(library, [], crypto, { files }));
 
         return await store.putLock(
             Lock.of(root, { [root]: { [library.name]: built }, [built]: {} }),
@@ -272,9 +272,9 @@ test("publish a lock's builds in dependency order", async () => {
     const answer = (await fixtureBuild("answer")).reader;
     const greeting = (await fixtureBuild("greeting")).reader;
     await using store = await TestBuildStore.create(forge.environment);
-    const root = await store.put(greeting);
+    const root = await store.putIndexed(greeting);
     const lock = await store.putLock(
-        await Lock.hoisted(root, { "@example/answer": await store.put(answer) }, (digest) =>
+        await Lock.hoisted(root, { "@example/answer": await store.putIndexed(answer) }, (digest) =>
             store.get(digest),
         ),
     );
@@ -305,9 +305,9 @@ test("publish each package at its publishConfig access", async () => {
     const answer = (await fixtureBuild("answer")).reader;
     const greeting = (await fixtureBuild("greeting")).reader;
     await using store = await TestBuildStore.create(forge.environment);
-    const root = await store.put(greeting);
+    const root = await store.putIndexed(greeting);
     const lock = await store.putLock(
-        await Lock.hoisted(root, { "@example/answer": await store.put(answer) }, (digest) =>
+        await Lock.hoisted(root, { "@example/answer": await store.putIndexed(answer) }, (digest) =>
             store.get(digest),
         ),
     );
@@ -331,9 +331,9 @@ test("point latest at each released version", async () => {
     const answer = (await fixtureBuild("answer")).reader;
     const greeting = (await fixtureBuild("greeting")).reader;
     await using store = await TestBuildStore.create(forge.environment);
-    const root = await store.put(greeting);
+    const root = await store.putIndexed(greeting);
     const lock = await store.putLock(
-        await Lock.hoisted(root, { "@example/answer": await store.put(answer) }, (digest) =>
+        await Lock.hoisted(root, { "@example/answer": await store.putIndexed(answer) }, (digest) =>
             store.get(digest),
         ),
     );

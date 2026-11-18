@@ -49,6 +49,14 @@ export const ReleaseMethod = {
         const read = await store.lock(lock);
         const contents = await store.contents(read.root);
 
+        // require the root build's graph, which every release carries for its readers
+        if (!(await store.isIndexed(read.root))) {
+            throw ForgeError.of(
+                "BUILD_INVALID",
+                `lock '${lock}' is invalid: its root build carries no graph`,
+            );
+        }
+
         // refuse a release of uncommitted changes that is no prerelease
         if (commit === undefined && !Version.isPrerelease(contents.manifest.package.version)) {
             throw ForgeError.of(

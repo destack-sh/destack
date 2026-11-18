@@ -106,7 +106,7 @@ test("stage a machine's push without releasing it", async () => {
         new PackageClient(`${url}${forgePackage.mounts.builds.path}/${packageId}/`, fetch);
     const handle = PackageName.split(build.manifest.package.name).handle;
     await using pushed = await TestBuildStore.create(forge.environment);
-    const lock = await pushed.putLock(Lock.of(await pushed.put(build.reader)));
+    const lock = await pushed.putLock(Lock.of(await pushed.putIndexed(build.reader)));
     const staged = await refusal(builds(handle).push(pushed, [lock]));
 
     // store the staged build, and release nothing
@@ -132,7 +132,7 @@ test("authorize manifest pushes by the account's publisher relation", async () =
     const stranger = forge.stranger();
     const handle = PackageName.split(build.reader.manifest.package.name).handle;
     await using pushed = await TestBuildStore.create(forge.environment);
-    const lock = await pushed.putLock(Lock.of(await pushed.put(build.reader)));
+    const lock = await pushed.putLock(Lock.of(await pushed.putIndexed(build.reader)));
     const push = async () => refusal(forge.builds(handle, stranger).push(pushed, [lock]));
 
     // post the manifest as the owner outside an account and as the stranger below its handle

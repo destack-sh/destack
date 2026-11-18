@@ -510,10 +510,10 @@ export class TestForge {
     ): Promise<Digest> {
         // store the builds and lock them by package name
         await using store = await TestBuildStore.create(this.environment);
-        const root = await store.put(reader);
+        const root = await store.putIndexed(reader);
         const locked: Record<string, Digest> = {};
         for (const build of builds) {
-            locked[build.manifest.package.name] = await store.put(build);
+            locked[build.manifest.package.name] = await store.putIndexed(build);
         }
         const lock = await store.putLock(
             await Lock.hoisted(root, locked, (digest) => store.get(digest)),
