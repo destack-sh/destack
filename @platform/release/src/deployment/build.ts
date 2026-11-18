@@ -131,7 +131,7 @@ export class PlatformBuild implements AsyncDisposable {
             await workspace.package(join(root, DESKTOP)),
         ];
 
-        // build and lock each unit, a unit both packages share once
+        // build and lock each unit, a unit both packages share once, the lock attaching its graph
         const releases = new Map<string, BuildReader>();
         const locks = new Map<string, Digest>();
         for (const unitPackage of packages) {
