@@ -303,7 +303,7 @@ export class Computer implements AsyncDisposable {
                 const linked = DistributionManifest.builtins(options.shipped, platform);
 
                 // open the machine's builds over the shipped builds read in place, the compilers and the spaces' storage
-                const builds = await Computer.#openBuilds(options, linked, database);
+                const builds = stack.use(await Computer.#openBuilds(options, linked, database));
 
                 // share the builtins with the servers the machine loads, from its compiled table or its files
                 const program = await Program.current(
