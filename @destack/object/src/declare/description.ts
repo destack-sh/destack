@@ -60,16 +60,6 @@ export const ProcedureDescription = schema.object({
 /** A procedure's address, payloads and errors. */
 export type ProcedureDescription = schema.Infer<typeof ProcedureDescription>;
 
-/** The procedures of a package. */
-export const RouterDescription = schema.object({
-    /** The name of the package routing them. */
-    name: schema.string().min(1),
-    /** The procedures. */
-    procedures: schema.array(ProcedureDescription),
-});
-/** The procedures of a package. */
-export type RouterDescription = schema.Infer<typeof RouterDescription>;
-
 /** A route to an object type, with the phases the package's code attaches by method. */
 export const ObjectRoute = schema.object({
     /** The object type. */
@@ -134,8 +124,6 @@ const packageDescription = schema.object({
     color: SwatchName,
     /** The oldest caller release the package serves, every release when absent. */
     since: Version.exactOptional(),
-    /** The procedures its objects derive. */
-    api: RouterDescription,
     /** The object types it serves with its code's phases, by route name. */
     objects: schema.record(schema.string().min(1), ObjectRoute),
     /** The packages whose protocols it implements, whose tables its installation owns. */

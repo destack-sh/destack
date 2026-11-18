@@ -64,7 +64,7 @@ import { type Delivery, EventKind, type EventRetention, EventTable } from "@dest
 import { Field, type FieldsByColumn, type ReferenceOf, type TextField } from "../field/field.ts";
 import { type Handler, type TypesOf } from "../method/context.ts";
 import { CallSite } from "../method/site.ts";
-import { Method, type MethodKind, type Phase } from "../method/method.ts";
+import { Method, METHOD_KINDS, type MethodKind, type Phase } from "../method/method.ts";
 import { MethodBuilder } from "../method/builder.ts";
 import { InputSchema } from "../method/input.ts";
 import {
@@ -632,23 +632,35 @@ export interface ObjectIndex {
     readonly renamed?: "former" | "released";
 }
 
-/** A method as callers call it: kind, permission, route, and input and output as JSON Schema. */
-export interface MethodDescription {
+/** A method as callers call it: kind, permission, route, payloads and input conversions. */
+export const MethodDescription = schema.object({
     /** The method's kind. */
-    readonly kind: MethodKind;
+    kind: schema.enum(METHOD_KINDS),
     /** The permission the caller needs. */
-    readonly permission: string;
+    permission: schema.string().min(1),
     /** Whether the method changes state. */
-    readonly mutates: boolean;
+    mutates: schema.boolean(),
     /** What callers call the method on: one object, or the scope without an object. */
-    readonly target: "object" | "scope";
+    target: schema.enum(["object", "scope"]),
     /** The HTTP method and path callers call the method at. */
-    readonly route: { readonly method: string; readonly path: string };
+    route: schema.object({
+        /** The HTTP method. */
+        method: schema.string().min(1),
+        /** The path. */
+        path: schema.string().min(1),
+    }),
     /** The input as JSON Schema, without the request a change replays under. */
-    readonly input: JsonObject;
+    input: schema.jsonObject(),
     /** The output as JSON Schema. */
-    readonly output: JsonObject;
-}
+    output: schema.jsonObject(),
+    /** The input fields each edition computes from an earlier input's fields, by edition. */
+    convert: schema.record(
+        schema.string().regex(/^[1-9]\d*$/u),
+        schema.record(schema.string().min(1), Expression.schema),
+    ),
+});
+/** A method as callers call it. */
+export type MethodDescription = schema.Infer<typeof MethodDescription>;
 
 /** An object as readers see it: logged fields and texts, without guarded fields they lack. */
 export type InstanceOf<Type extends ObjectType> =
@@ -1334,6 +1346,7 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
                 },
                 input: JsonValue.object(toJsonSchema(this.input(name))),
                 output: JsonValue.object(toJsonSchema(output)),
+                convert: this.conversions(name),
             };
         }
 

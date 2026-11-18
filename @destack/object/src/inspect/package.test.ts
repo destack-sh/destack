@@ -3,12 +3,10 @@ import { none, Policy } from "@destack/access";
 import { defineErrorFamily } from "@destack/error";
 import { expect, test } from "@destack/test";
 import { schema } from "@destack/schema";
-import { Expression } from "@destack/db";
-import { PackageId, PackageVersion } from "@destack/package";
+import { PackageId } from "@destack/package";
 import { defineMount, definePackage, type ObjectDeclaration } from "../declare/package.ts";
 import type { ProcedureRouter } from "../procedure/index.ts";
-import { Procedure } from "../procedure/index.ts";
-import { comparePackage, describePackage, packageSymbols } from "./package.ts";
+import { comparePackage, describePackage } from "./package.ts";
 import { t } from "@destack/locale";
 
 /** The release under comparison. */
@@ -21,8 +19,8 @@ const PACKAGE = {
 };
 
 /** A release's manifest entry of a declaration, its description read back from JSON. */
-const entry = (description: unknown, version: string) => ({
-    description: schema.jsonObject().parse(JSON.parse(JSON.stringify(description))),
+const entry = (handle: ReturnType<typeof definePackage>, version: string) => ({
+    description: schema.jsonObject().parse(JSON.parse(JSON.stringify(describePackage(handle)))),
     symbol: {
         package: { ...PACKAGE, version },
         symbol: { module: "src/index.ts", name: "declared" },
@@ -43,148 +41,17 @@ const query = (procedures: ProcedureRouter): ObjectDeclaration => ({
     requireValid: () => {},
 });
 
-/** A procedure without requirements. */
-const procedure = (convert?: Readonly<Record<string, Readonly<Record<string, Expression>>>>) =>
-    Procedure.of({
-        package: PackageVersion.of(import.meta.destack.package),
-        authentication: "public",
-        permission: "anyone",
-        audit: false,
-        ...(convert === undefined ? {} : { convert }),
-    });
-
-test("plan a package's API changes between releases, converting narrowed inputs and refusing unconverted ones", () => {
-    // describe an earlier release of the package's queries
-    const before = describePackage(
+test("plan a package's mount changes: adding is safe, removing or moving breaks callers", () => {
+    // define a release of the package's mounts
+    const release = (mounts: Readonly<Record<string, `/${string}`>>) =>
         definePackage(
             {
                 ...testIdentity,
-                objects: [
-                    query({
-                        search: procedure()
-                            .input(schema.object({ text: schema.string() }))
-                            .output(
-                                schema.object({
-                                    hits: schema.array(schema.string()),
-                                    total: schema.number(),
-                                }),
-                            ),
-                        count: procedure().input(schema.object({ text: schema.string() })),
-                        retired: procedure(),
-                    }),
-                ],
+                mounts: Object.entries(mounts).map(([name, path]) =>
+                    defineMount({ name, path }, MODULE),
+                ),
             },
             MODULE,
-        ),
-    );
-
-    // rename the search input and narrow the count input
-    const release = (count: ReturnType<typeof procedure>) =>
-        describePackage(
-            definePackage(
-                {
-                    ...testIdentity,
-                    since: RELEASE,
-                    objects: [
-                        query({
-                            search: procedure({ 2: { query: Expression.column("text") } })
-                                .input(schema.object({ query: schema.string() }))
-                                .output(schema.object({ hits: schema.array(schema.string()) })),
-                            count: count.input(schema.object({ text: schema.string().min(3) })),
-                            suggest: procedure(),
-                        }),
-                    ],
-                },
-                MODULE,
-            ),
-        );
-    const converted = release(
-        procedure({
-            2: {
-                text: Expression.coalesce(Expression.column("text"), Expression.literal("any")),
-            },
-        }),
-    );
-    const unconverted = release(procedure());
-    const outcome = (after: ReturnType<typeof describePackage>) => {
-        try {
-            return comparePackage(entry(before, "2026.8.0"), entry(after, RELEASE)).steps;
-        } catch (error) {
-            // read the refusal's message
-            if (!(error instanceof Error)) {
-                throw new TypeError("comparing packages failed with a value that is no error", {
-                    cause: error,
-                });
-            }
-
-            return error.message;
-        }
-    };
-
-    // plan the release's steps
-    expect([outcome(before), outcome(converted), outcome(unconverted)]).toEqual([
-        [],
-        [
-            {
-                action: "update",
-                target: "api",
-                risk: "backward-incompatible",
-                detail: "serve callers from 2026.9.0: earlier callers stay on their release",
-            },
-            {
-                action: "convert",
-                target: "api/procedure/query.count/input",
-                risk: "fallible",
-                detail: "convert values to 2026.9.0",
-            },
-            {
-                action: "convert",
-                target: "api/procedure/query.search/input",
-                risk: "fallible",
-                detail: "convert values to 2026.9.0",
-            },
-            {
-                action: "update",
-                target: "api/procedure/query.search/output",
-                risk: "backward-incompatible",
-                detail: "incompatible values: earlier readers stay on their release",
-            },
-            {
-                action: "create",
-                target: "api/procedure/query.suggest",
-                risk: "safe",
-                detail: "add procedure query.suggest",
-            },
-            {
-                action: "delete",
-                target: "api/procedure/query.retired",
-                risk: "backward-incompatible",
-                detail: "remove procedure query.retired: earlier callers stay on their release",
-            },
-        ],
-        "cannot reach the desired state: api/procedure/query.count/input: declare a conversion for 2026.9.0",
-    ]);
-
-    // refuse a later release changing the conversion to an edition the earlier release has
-    const rewritten = release(procedure({ 2: { text: Expression.literal("other") } }));
-    expect(() => comparePackage(entry(converted, RELEASE), entry(rewritten, "2026.10.0"))).toThrow(
-        "cannot reach the desired state: api/procedure/query.count/input: changes the conversion to edition 2 that release 2026.9.0 has: add a new edition",
-    );
-});
-
-test("plan a package's mount changes: adding is safe, removing or moving breaks callers", () => {
-    // describe a release of the package's mounts
-    const release = (mounts: Readonly<Record<string, `/${string}`>>) =>
-        describePackage(
-            definePackage(
-                {
-                    ...testIdentity,
-                    mounts: Object.entries(mounts).map(([name, path]) =>
-                        defineMount({ name, path }, MODULE),
-                    ),
-                },
-                MODULE,
-            ),
         );
     const before = release({ feed: "/feed", npm: "/npm", retired: "/retired" });
     const after = release({ feed: "/feed", npm: "/registry", archive: "/archive" });
@@ -208,46 +75,6 @@ test("plan a package's mount changes: adding is safe, removing or moving breaks 
             target: "mount/retired",
             risk: "backward-incompatible",
             detail: "remove mount retired",
-        },
-    ]);
-});
-
-test("list a package's procedures as members the package serves", () => {
-    // describe a package with a nested procedure
-    const handle = definePackage(
-        {
-            ...testIdentity,
-            objects: [
-                query({
-                    search: procedure().input(schema.object({ text: schema.string() })),
-                    index: { rebuild: procedure() },
-                }),
-            ],
-        },
-        MODULE,
-    );
-    const [rebuild, search] = describePackage(handle).api.procedures;
-
-    expect(packageSymbols(handle)).toEqual([
-        {
-            relationships: [
-                {
-                    kind: "serves",
-                    symbol: { kind: "procedure", name: "query.index.rebuild" },
-                },
-                {
-                    kind: "serves",
-                    symbol: { kind: "procedure", name: "query.search" },
-                },
-            ],
-        },
-        {
-            member: { kind: "procedure", name: "query.index.rebuild", description: rebuild },
-            relationships: [],
-        },
-        {
-            member: { kind: "procedure", name: "query.search", description: search },
-            relationships: [],
         },
     ]);
 });
@@ -285,7 +112,6 @@ test("describe a package's routes, mounts, views, requested permissions, capabil
 
     expect(describePackage(handle)).toEqual({
         ...testIdentity,
-        api: { name: handle.name, procedures: [] },
         objects: {
             query: { type: custom.typeReference, hooks: { create: ["authorize"] } },
         },
@@ -311,27 +137,6 @@ test("describe a package's routes, mounts, views, requested permissions, capabil
         },
         errors: [{ domain: MODULE.package.name, reason: "QUERY_DENIED", code: "FORBIDDEN" }],
     });
-});
-
-test("refuse describing a procedure whose payload JSON Schema cannot describe, as a build does", () => {
-    // describe a query whose input checks its name by code
-    const refined = query({
-        read: procedure().input(
-            schema.object({ name: schema.string().refine((name) => name !== "latest") }),
-        ),
-    });
-
-    expect(() =>
-        describePackage(
-            definePackage(
-                {
-                    ...testIdentity,
-                    objects: [refined],
-                },
-                MODULE,
-            ),
-        ),
-    ).toThrow("unsupported schema check: 'custom'");
 });
 
 test("refuse a package listing an object type another package defines, which that package alone serves", () => {

@@ -1,27 +1,16 @@
 import { Address, Plan, type Comparator, type Step } from "@destack/resource";
-import { unreachablePlan } from "@destack/resource/error";
-import { type JsonSchema, Edition, schema, Version } from "@destack/schema";
-import { graph } from "@destack/package";
-import type { ProcedureRouter } from "../procedure/index.ts";
-import { describeProcedures } from "./procedure.ts";
-import {
-    PackageDescription,
-    ProcedureDescription,
-    RouterDescription,
-} from "../declare/description.ts";
+import { Version } from "@destack/schema";
+import { PackageDescription } from "../declare/description.ts";
 import type { ObjectDeclaration } from "../declare/package.ts";
 import type { Package, PackageIdentity } from "../declare/package.ts";
 
-/** The releases at which a procedure converts earlier callers' inputs. */
-const CONVERSIONS = schema.jsonObject();
-
-/** The address of a package's API in its release plans. */
-const API_TARGET = "api";
+/** The address of the oldest caller release a package serves in its release plans. */
+const SINCE_TARGET = "since";
 
 /** The address of a package's mounts in its release plans. */
 const MOUNT_TARGET = "mount";
 
-/** Describe a package: the API its objects derive, its objects, mounts and views. */
+/** Describe a package: its objects, mounts and views. */
 export function describePackage(handle: Package & PackageIdentity): PackageDescription {
     return PackageDescription.parse({
         title: handle.title,
@@ -29,7 +18,6 @@ export function describePackage(handle: Package & PackageIdentity): PackageDescr
         icon: handle.icon,
         color: handle.color,
         ...(handle.since === undefined ? {} : { since: handle.since }),
-        api: describeRouter(handle.name, handle.router),
         objects: describeObjects(handle.id, handle.objects),
         protocols: handle.protocols.map((each) => each.id),
         mounts: Object.fromEntries(
@@ -64,26 +52,32 @@ export function describeObjects(
     );
 }
 
-/** Describe a router. */
-export function describeRouter(name: string, router: ProcedureRouter): RouterDescription {
-    return RouterDescription.parse({ name, procedures: describeProcedures(router) });
-}
-
-/** Plan a package's API and mount changes between releases. */
+/** Plan a package's caller and mount changes between releases. */
 export const comparePackage: Comparator = (earlier, later) => {
     // read both releases
     const before = PackageDescription.parse(earlier.description);
     const after = PackageDescription.parse(later.description);
-    const releases = {
-        from: earlier.symbol.package.version,
-        release: later.symbol.package.version,
-    };
 
     return Plan.join([
-        () => compareApi(before, after, API_TARGET, releases),
+        () => compareSince(before.since, after.since),
         () => compareMounts(before.mounts, after.mounts),
     ]);
 };
+
+/** Plan raising the oldest caller release a package serves, which earlier callers lose. */
+function compareSince(before: string | undefined, after: string | undefined): Plan {
+    // refuse earlier callers no longer served
+    const isRaised =
+        before === undefined || (after !== undefined && Version.compare(after, before) > 0);
+    if (after === undefined || !isRaised) {
+        return { steps: [] };
+    }
+    const detail = `serve callers from ${after}: earlier callers stay on their release`;
+
+    return {
+        steps: [{ action: "update", target: SINCE_TARGET, risk: "backward-incompatible", detail }],
+    };
+}
 
 /** Plan the mount changes between releases for the callers of earlier ones. */
 function compareMounts(
@@ -131,149 +125,4 @@ function compareMounts(
     });
 
     return { steps };
-}
-
-/** List a package's procedures as its member symbols, each served by the package. */
-export function packageSymbols(handle: Package): graph.MemberSymbol[] {
-    return apiSymbols(describeRouter(handle.name, handle.router), undefined);
-}
-
-/** Plan the changes of an API between releases for the callers of earlier ones. */
-export function compareApi(
-    before: Pick<PackageDescription, "since" | "api">,
-    after: Pick<PackageDescription, "since" | "api">,
-    target: string,
-    releases: { readonly from: string; readonly release: string },
-): Plan {
-    // collect the plans of each change, a step each
-    const plans: (() => Plan)[] = [];
-    const step = (entry: Step) => plans.push(() => ({ steps: [entry] }));
-
-    // refuse earlier callers no longer served
-    if (
-        after.since !== undefined &&
-        (before.since === undefined || Version.compare(after.since, before.since) > 0)
-    ) {
-        step({
-            action: "update",
-            target,
-            risk: "backward-incompatible",
-            detail: `serve callers from ${after.since}: earlier callers stay on their release`,
-        });
-    }
-
-    // compare each procedure of the later release with the earlier one
-    const remaining = new Map(
-        before.api.procedures.map((procedure) => [procedure.name.join("."), procedure]),
-    );
-    for (const procedure of after.api.procedures) {
-        const name = procedure.name.join(".");
-        const previous = remaining.get(name);
-        remaining.delete(name);
-        const at = Address.join(target, "procedure", name);
-
-        // add a new procedure
-        if (previous === undefined) {
-            step({ action: "create", target: at, risk: "safe", detail: `add procedure ${name}` });
-        }
-        // plan the payloads for earlier callers
-        else {
-            plans.push(...payloadPlans(previous, procedure, at, releases));
-        }
-    }
-
-    // remove the procedures the later release no longer serves
-    for (const name of remaining.keys()) {
-        step({
-            action: "delete",
-            target: Address.join(target, "procedure", name),
-            risk: "backward-incompatible",
-            detail: `remove procedure ${name}: earlier callers stay on their release`,
-        });
-    }
-
-    return Plan.join(plans);
-}
-
-/** List an API's procedures as member symbols served by their declaration. */
-export function apiSymbols(
-    api: RouterDescription,
-    parent: { readonly kind: string; readonly name: string } | undefined,
-): graph.MemberSymbol[] {
-    const procedures = api.procedures.map((procedure) => ({
-        kind: "procedure",
-        name: procedure.name.join("."),
-        description: procedure,
-    }));
-
-    return schema.array(graph.MemberSymbol).parse([
-        {
-            relationships: procedures.map((procedure) => ({
-                kind: "serves",
-                symbol: {
-                    kind: "procedure",
-                    name: procedure.name,
-                    ...(parent === undefined ? {} : { parent }),
-                },
-            })),
-        },
-        ...procedures.map((member) => ({ member, relationships: [] })),
-    ]);
-}
-
-/** Plan a staying procedure's input for earlier callers' inputs, and its output for them. */
-function payloadPlans(
-    previous: ProcedureDescription,
-    procedure: ProcedureDescription,
-    target: string,
-    releases: { readonly from: string; readonly release: string },
-): (() => Plan)[] {
-    // read whether the later release converts earlier callers' inputs: its edition is higher
-    const { release } = releases;
-    const edition = (described: ProcedureDescription) =>
-        Edition.of(CONVERSIONS.parse(described.metadata?.["convert"] ?? {}));
-    const isConverted = edition(procedure) > edition(previous);
-
-    return [
-        () => {
-            // refuse a conversion of an edition the earlier release has that the later one changes
-            const earlier = CONVERSIONS.parse(previous.metadata?.["convert"] ?? {});
-            const later = CONVERSIONS.parse(procedure.metadata?.["convert"] ?? {});
-            const changed = Edition.changed(earlier, later);
-            if (changed.length > 0) {
-                const detail = `changes the conversion to edition ${changed.join(", ")} that release ${releases.from} has: add a new edition`;
-                throw unreachablePlan([{ target: Address.join(target, "input"), detail }]);
-            }
-
-            return { steps: [] };
-        },
-        () =>
-            Plan.of({
-                target: Address.join(target, "input"),
-                before: payload(previous.input),
-                after: payload(procedure.input),
-                release,
-                compatibility: "backward",
-                isConverted,
-            }),
-        () =>
-            Plan.of({
-                target: Address.join(target, "output"),
-                before: payload(previous.output),
-                after: payload(procedure.output),
-                release,
-                compatibility: "forward",
-                isConverted: false,
-            }),
-    ];
-}
-
-/** Read a payload's value schema, or the event schema of a stream. */
-function payload(description: ProcedureDescription["input"]): JsonSchema {
-    // accept anything without a payload
-    if (description === undefined) {
-        return {};
-    }
-
-    return description.kind === "value" ? description.schema : description.yields;
 }

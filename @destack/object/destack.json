@@ -39,6 +39,7 @@
                 {
                     "kind": "object",
                     "function": "./inspect#describeObject",
+                    "compare": "./inspect#compareObject",
                     "vocabulary": "./inspect#objectVocabulary",
                     "symbols": "./inspect#objectSymbols"
                 }
@@ -58,8 +59,7 @@
                 {
                     "kind": "package",
                     "function": "./inspect#describePackage",
-                    "compare": "./inspect#comparePackage",
-                    "symbols": "./inspect#packageSymbols"
+                    "compare": "./inspect#comparePackage"
                 }
             ]
         },

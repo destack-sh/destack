@@ -17,7 +17,7 @@ import { ObjectTypeReference } from "@destack/sync";
 import { field, Field, FIELD_MODIFIERS } from "../field/field.ts";
 import { Method } from "../method/method.ts";
 import { method } from "../method/builder.ts";
-import { ObjectType, type ObjectDefinition } from "./object.ts";
+import { MethodDescription, ObjectType, type ObjectDefinition } from "./object.ts";
 import * as objectIndexExports from "./index.ts";
 import * as fieldExports from "../field/index.ts";
 import * as methodExports from "../method/index.ts";
@@ -196,6 +196,8 @@ const objectDescription = schema.object({
     package: PackageVersion,
     /** The definition as written beside its name, special values tagged. */
     definition: schema.jsonObject(),
+    /** The methods callers call, by name, which releases compare for earlier callers. */
+    methods: schema.record(schema.string().min(1), MethodDescription),
 });
 
 /** The verb a person reads for each standard permission, any other permission its own name. */
@@ -232,7 +234,12 @@ export const ObjectDescription = Object.assign(objectDescription, {
         const { source } = type;
         const { name: _name, ...definition } = Position.root(type.name).encodeObject(source);
 
-        return { name: type.name, package: identity(type.package), definition };
+        return {
+            name: type.name,
+            package: identity(type.package),
+            definition,
+            methods: type.describeMethods(),
+        };
     },
 
     /** Key a description's type by its policy: the type's, or the principal kind it represents. */

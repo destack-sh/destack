@@ -137,6 +137,7 @@ test("describe the methods callers call: kind, permission, target, route, and in
                 required: ["value"],
                 additionalProperties: false,
             },
+            convert: {},
         },
         reset: {
             kind: "custom",
@@ -157,6 +158,7 @@ test("describe the methods callers call: kind, permission, target, route, and in
                 properties: {},
                 additionalProperties: false,
             },
+            convert: {},
         },
     });
 });
