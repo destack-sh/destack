@@ -1,3 +1,4 @@
+import { TelemetryScope } from "@destack/telemetry";
 import { join } from "node:path";
 import type { StackRelease } from "@destack/account/object";
 import type { PlatformDefinition } from "@destack/account/server";
@@ -102,6 +103,21 @@ export class PlatformBuild implements AsyncDisposable {
         host: Environment<"files" | "process" | "host">,
         options: Pick<WorkspaceUnitOptions, "isPrerelease"> = {},
     ): Promise<PlatformBuild> {
+        // build in a span, which records the build once it succeeds
+        return await TelemetryScope.of(import.meta.destack.package, host.telemetry).span(
+            "platform.release.build",
+            {},
+            () => PlatformBuild.#build(root, host, options),
+            { level: "info" },
+        );
+    }
+
+    /** Build the stacks' closure and a checkout's published packages into its store, unrecorded. */
+    static async #build(
+        root: string,
+        host: Environment<"files" | "process" | "host">,
+        options: Pick<WorkspaceUnitOptions, "isPrerelease">,
+    ): Promise<PlatformBuild> {
         // open the store and the compilers, closing the store when a build fails
         await using opened = new AsyncDisposableStack();
         const store = opened.use(await LocalBuildStore.open(join(root, RELEASES_DIRECTORY), host));
@@ -132,21 +148,22 @@ export class PlatformBuild implements AsyncDisposable {
     }
 
     /** Release each lock under a tag into its account's forge, a dependency layer at a time. */
-    async release(
-        tag: string,
-        open: ForgeOpen,
-        released: (reader: BuildReader) => Promise<void>,
-        options: PublishOptions = {},
-    ): Promise<void> {
-        // release each handle's locks at once into its account's forge, after the handles they require
-        for (const { handle, names } of PlatformBuild.#runs(this.releases)) {
-            const { accountId, registry } = await open(handle);
-            const locks = names.map((name) => found(this.locks, name));
-            const releases = await registry.release(this.store, locks, accountId, tag, options);
-            for (const each of releases) {
-                await released(found(this.releases, each.package.name));
-            }
-        }
+    async release(tag: string, open: ForgeOpen, options: PublishOptions = {}): Promise<void> {
+        // release in a span, which records the releases once they succeed
+        const { telemetry } = this.store.environment;
+        await TelemetryScope.of(import.meta.destack.package, telemetry).span(
+            "platform.release.publish",
+            { "platform.release.tag": tag },
+            async () => {
+                // release each handle's locks at once into its account's forge, after the handles they require
+                for (const { handle, names } of PlatformBuild.#runs(this.releases)) {
+                    const { accountId, registry } = await open(handle);
+                    const locks = names.map((name) => found(this.locks, name));
+                    await registry.release(this.store, locks, accountId, tag, options);
+                }
+            },
+            { level: "info" },
+        );
     }
 
     /** Group releases by handle, each handle after the handles its releases require. */

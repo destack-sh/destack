@@ -206,6 +206,7 @@ export class WorkerScript {
             migrations: [{ tag: "v1", new_sqlite_classes: [UNIVERSE_CLASS] }],
             hyperdrive: [{ binding: "DATABASE", id: outputs.hyperdrive }],
             vars: {
+                DESTACK_LOG_FORMAT: this.deployment.logFormat,
                 DESTACK_FILES: JSON.stringify(outputs.files),
                 DESTACK_UNIVERSE: this.deployment.universeOrigin,
                 DESTACK_LOCATION: UNIVERSE_LOCATION,
@@ -260,6 +261,7 @@ export class WorkerScript {
             ],
             routes: this.#routes(outputs, residency),
             vars: {
+                DESTACK_LOG_FORMAT: this.deployment.logFormat,
                 DESTACK_MACHINE_ID: residency.machine.id,
                 DESTACK_UNIVERSE: this.deployment.universeOrigin,
                 DESTACK_JURISDICTION: kept,
@@ -324,7 +326,10 @@ export class WorkerScript {
                     },
                 ],
             },
-            vars: { DESTACK_JURISDICTION: this.deployment.jurisdiction(residency) },
+            vars: {
+                DESTACK_LOG_FORMAT: this.deployment.logFormat,
+                DESTACK_JURISDICTION: this.deployment.jurisdiction(residency),
+            },
         };
     }
 

@@ -1,4 +1,3 @@
-import { TelemetryScope } from "@destack/telemetry";
 import type { Environment, HostCapability } from "@destack/environment";
 import { printStatus } from "../distribution/output.ts";
 import { CHECKOUT } from "../distribution/distribution.ts";
@@ -84,13 +83,7 @@ export async function buildPlatform(
     arguments_: readonly string[],
 ): Promise<void> {
     none("platform build", arguments_);
-    await using build = await PlatformBuild.build(CHECKOUT, environment);
-    TelemetryScope.of(import.meta.destack.package, environment.telemetry).log.info(
-        "platform.release.built",
-        {
-            "platform.release.count": build.readers.length,
-        },
-    );
+    await using _build = await PlatformBuild.build(CHECKOUT, environment);
 }
 
 /** Seal the keys a deployed stage's custody record lacks, as the operator does once per key. */

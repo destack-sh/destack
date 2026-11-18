@@ -59,7 +59,7 @@ import { PackageManifest } from "@destack/package/manifest";
 import { LATEST_TAG } from "@destack/registry/object";
 import { SERVER_BUNDLE_MODULE } from "@destack/machine/cloudflare";
 import { InstallationMount, PackageMount } from "@destack/object";
-import type { Environment, HostCapability } from "@destack/environment";
+import type { Environment, HostCapability, LogFormat } from "@destack/environment";
 
 /** How long a started machine's directory replica may take to sync: a minute. */
 const DIRECTORY_SYNC_MILLISECONDS = 60_000;
@@ -83,6 +83,26 @@ const WORKERD_DIRECTORY = "workerd";
 interface MachineActor {
     /** Send as the machine toward a package, bound to a space when given. */
     readonly fetch: (audience: PackageId, partition?: Identifier<"space">) => Fetch;
+}
+
+/** What a stage's local Workers share as they start: modules, keys, storage, mail, processes. */
+interface LocalWorkers {
+    /** The modules the Workers bundle. */
+    readonly modules: SuppliedModules;
+    /** The keys the Workers' secrets come from. */
+    readonly custody: Custody;
+    /** The placeholder providers the Workers call. */
+    readonly placeholders: ProviderClients;
+    /** The directory each Worker keeps its storage below. */
+    readonly storage: string;
+    /** The local Hyperdrive connection to the stage's database. */
+    readonly hyperdrive: URL;
+    /** The mail the universe prints, read for sign-in codes. */
+    readonly mail: PrintedMail;
+    /** The Worker processes, stopped with the stage. */
+    readonly children: AsyncDisposableStack;
+    /** Print a Worker's line under its service. */
+    readonly print: (name: string, line: string) => void;
 }
 
 /** The password local Hyperdrive requires, which the trusting local server ignores. */
@@ -181,6 +201,11 @@ export class Deployment {
     /** Read the deployment of a stage by its name, refusing any other. */
     static of(name: string | undefined, environment: Environment<HostCapability>): Deployment {
         return new Deployment(Stage.of(name), LOOPBACK_LAYOUT, environment);
+    }
+
+    /** The format the stage's Workers print in: lines locally, JSON for Workers Logs. */
+    get logFormat(): LogFormat {
+        return this.stage.name === "local" ? "line" : "json";
     }
 
     /** Read the local stage's deployment listening on a loopback layout. */
@@ -432,85 +457,133 @@ export class Deployment {
         await using children = new AsyncDisposableStack();
         const mail = new PrintedMail();
         const placeholders = this.providers(() => PLACEHOLDER_KEY.secretAccessKey);
-        for (const [script, configuration] of scripts) {
-            // write the configuration without what only a deployment binds
-            const local = Object.fromEntries(
-                Object.entries(configuration).filter(([key]) => !DEPLOYED_KEYS.has(key)),
-            );
-            const path = await script.write(local, modules);
-            const secrets = script.secrets(custody, PLACEHOLDER_KEY, placeholders);
-            const variables = Object.entries(secrets).map(([name, value]) => `${name}=${value}\n`);
-            await environment.files.writeTextFile(
-                resolve(path, "..", ".dev.vars"),
-                variables.join(""),
-                { mode: 0o600 },
-            );
+        const workers: LocalWorkers = {
+            modules,
+            custody,
+            placeholders,
+            storage,
+            hyperdrive,
+            mail,
+            children,
+            print,
+        };
 
-            // start local workerd, waiting until it serves or exits
-            const port = Number(new URL(script.origin).port);
-            const child = children.use(
-                LocalProcess.start(
-                    script.service,
-                    {
-                        command: [
-                            resolve(ROOT, "node_modules/.bin/wrangler"),
-                            "dev",
-                            "--local",
-                            // keep each Worker's storage in the state between runs, apart from its rebuilt bundle
-                            "--persist-to",
-                            join(storage, script.service),
-                            "--config",
-                            path,
-                            "--ip",
-                            LOOPBACK,
-                            "--port",
-                            String(port),
-                            "--inspector-port",
-                            String(port + INSPECTOR_OFFSET),
-                        ],
-                        directory: ROOT,
-                        variables: {
-                            ...Root.inherited(environment.process.variables, WRANGLER_VARIABLES),
-                            CLOUDFLARE_HYPERDRIVE_LOCAL_CONNECTION_STRING_DATABASE: hyperdrive.href,
-                            WRANGLER_SEND_METRICS: "false",
-                        },
-                        print: (name, line) => {
-                            // leave out wrangler's own information lines, its access log among them, as spans record each request
-                            if (!line.startsWith(WRANGLER_INFO_PREFIX)) {
-                                print(name, line);
-                            }
-                            if (script.target.kind === "universe") {
-                                mail.push(line);
-                            }
-                        },
-                    },
-                    environment,
+        // start the universe first, which the machines bind, then the machines at once
+        const [universeScript, ...machineScripts] = scripts;
+        const [universeWorker, universeConfiguration] = present(
+            universeScript,
+            "the universe's script",
+        );
+        await this.#startWorker(universeWorker, universeConfiguration, workers);
+        await Promise.all(
+            machineScripts.map(([script, configuration]) =>
+                this.#startWorker(script, configuration, workers),
+            ),
+        );
+
+        // wait until each residency's home serves its forge on its cloud machine, the residencies at once
+        await Promise.all(
+            RESIDENCIES.map((residency) =>
+                this.scope.span(
+                    "platform.residency.serve",
+                    { "platform.residency.code": residency.code },
+                    () => this.#waitForgeReady(residency, custody, build),
+                    { level: "info" },
                 ),
-            );
-            const answered = await Promise.race([
-                script.waitReady(),
-                child.exited.then(() => undefined),
-            ]);
-            if (answered === undefined) {
-                throw new Error(`'${script.name}' exited before it served`);
-            }
-
-            print(script.service, script.origin);
-        }
-
-        // require each residency's home to serve its forge on the residency's cloud machine
-        for (const residency of RESIDENCIES) {
-            await this.#waitForgeReady(residency, custody, build);
-            this.scope.log.info("platform.residency.served", {
-                "platform.residency.code": residency.code,
-            });
-        }
+            ),
+        );
 
         // publish the platform's releases as the local operator
         await this.publishLocal(build, custody, mail);
 
         // serve the build until the hold ends
         await hold(build);
+    }
+
+    /** Start a script's local workerd and wait until it answers, recording its start. */
+    async #startWorker(
+        script: WorkerScript,
+        configuration: WranglerConfiguration,
+        workers: LocalWorkers,
+    ): Promise<void> {
+        // start it in a span, which records the start once the Worker answers
+        const { environment } = this;
+        const { modules, custody, placeholders, storage, hyperdrive, mail, children, print } =
+            workers;
+        await this.scope.span(
+            "platform.worker.start",
+            { "platform.worker.name": script.service, "url.full": script.origin },
+            async () => {
+                // write the configuration without what only a deployment binds
+                const local = Object.fromEntries(
+                    Object.entries(configuration).filter(([key]) => !DEPLOYED_KEYS.has(key)),
+                );
+                const path = await script.write(local, modules);
+                const secrets = script.secrets(custody, PLACEHOLDER_KEY, placeholders);
+                const variables = Object.entries(secrets).map(
+                    ([name, value]) => `${name}=${value}\n`,
+                );
+                await environment.files.writeTextFile(
+                    resolve(path, "..", ".dev.vars"),
+                    variables.join(""),
+                    { mode: 0o600 },
+                );
+
+                // start local workerd, waiting until it serves or exits
+                const port = Number(new URL(script.origin).port);
+                const child = children.use(
+                    LocalProcess.start(
+                        script.service,
+                        {
+                            command: [
+                                resolve(ROOT, "node_modules/.bin/wrangler"),
+                                "dev",
+                                "--local",
+                                // keep each Worker's storage in the state between runs, apart from its rebuilt bundle
+                                "--persist-to",
+                                join(storage, script.service),
+                                "--config",
+                                path,
+                                "--ip",
+                                LOOPBACK,
+                                "--port",
+                                String(port),
+                                "--inspector-port",
+                                String(port + INSPECTOR_OFFSET),
+                            ],
+                            directory: ROOT,
+                            variables: {
+                                ...Root.inherited(
+                                    environment.process.variables,
+                                    WRANGLER_VARIABLES,
+                                ),
+                                CLOUDFLARE_HYPERDRIVE_LOCAL_CONNECTION_STRING_DATABASE:
+                                    hyperdrive.href,
+                                WRANGLER_SEND_METRICS: "false",
+                            },
+                            print: (name, line) => {
+                                // leave out wrangler's own information lines, its access log among them, as spans record each request
+                                if (!line.startsWith(WRANGLER_INFO_PREFIX)) {
+                                    print(name, line);
+                                }
+                                if (script.target.kind === "universe") {
+                                    mail.push(line);
+                                }
+                            },
+                        },
+                        environment,
+                    ),
+                );
+                const answered = await Promise.race([
+                    script.waitReady(),
+                    child.exited.then(() => undefined),
+                ]);
+                if (answered === undefined) {
+                    throw new Error(`'${script.name}' exited before it served`);
+                }
+            },
+            { level: "info" },
+        );
     }
 
     /** Wait until a residency home's forge serves on the residency's cloud machine. */
@@ -717,17 +790,8 @@ export class Deployment {
         const send = (request: Request) => this.environment.network.fetch(request);
         const issuer = new Issuer(this.issuer, send, this.environment, new Bookmark());
         const operator = await Operator.signIn(issuer, mail, this.environment);
-        let published = 0;
-        await build.release(
-            this.stage.tag,
-            this.forges(custody, build, operator),
-            async () => {
-                published += 1;
-            },
-            { tags: [LATEST_TAG] },
-        );
-        this.scope.log.info("platform.release.published", {
-            "platform.release.count": published,
+        await build.release(this.stage.tag, this.forges(custody, build, operator), {
+            tags: [LATEST_TAG],
         });
     }
 
@@ -827,18 +891,11 @@ export class Deployment {
 
         // release each build under the stage's tag in the account of its handle, pointing latest, which installs follow
         await using build = await this.#build();
-        let published = 0;
         await build.release(
             this.stage.tag,
             async (handle) => ({ accountId: await owner(handle), registry }),
-            async () => {
-                published += 1;
-            },
             { tags: [LATEST_TAG] },
         );
-        this.scope.log.info("platform.release.published", {
-            "platform.release.count": published,
-        });
     }
 
     /** Seal the keys the stage's custody record lacks under each root's KMS key, for committing. */

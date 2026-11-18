@@ -82,9 +82,6 @@ export class LocalUniverse implements AsyncDisposable {
         const build = stack.use(
             await PlatformBuild.build(state.root, state.environment, { isPrerelease: true }),
         );
-        state.scope.log.info("platform.release.built", {
-            "platform.release.count": build.readers.length,
-        });
 
         // list the releases the universe ships, with their locks on the host
         const target = DistributionPlatform.of(state.environment.host);
