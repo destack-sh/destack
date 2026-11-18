@@ -10,7 +10,6 @@ import {
 } from "@destack/db";
 import { none, relation, through, union } from "@destack/access";
 import { defineObject, defineShape, field } from "@destack/object";
-import { PackageFile } from "@destack/package/file";
 import { PackageId, PackageRelease } from "@destack/package";
 import type { ResultsOf } from "@destack/object";
 import type { Call } from "@destack/sync";
@@ -95,20 +94,7 @@ const FailedBuild = schema.object({
     failure: Failure,
 });
 
-/** How a runner reports a build's end: stored under its lock, or failed. */
-export const BuildEnd = schema.discriminatedUnion("kind", [
-    schema.object({
-        /** A build whose files the runner stored. */
-        kind: schema.literal("stored"),
-        /** The digest of the lock the runner pushed: its build and every build it runs with. */
-        lock: Digest,
-        /** The digest and size of its code index, which the runner stored as a file. */
-        code: PackageFile.pick({ digest: true, size: true }),
-    }),
-    FailedBuild,
-]);
-
-/** How a build ended, as its space records it. */
+/** How a build ended: stored under the lock its runner pushed, or failed. */
 export const BuildOutcome = schema.discriminatedUnion("kind", [
     schema.object({
         /** A build whose lock the space stores. */
@@ -303,7 +289,7 @@ export const build = defineObject(
         finish: method.mutation({
             title: t`Finish`,
             permission: "run",
-            input: schema.object({ end: BuildEnd }),
+            input: schema.object({ outcome: BuildOutcome }),
             output: schema.object({}),
             prepared: BuildOutcome,
         }),

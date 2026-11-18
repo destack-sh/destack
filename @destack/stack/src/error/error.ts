@@ -9,6 +9,7 @@ export const StackError = defineErrorFamily({
         ACTIVE_TRANSFER_NOT_FOUND: {},
         BLOB_NOT_FOUND: {},
         BUILD_NOT_FOUND: {},
+        GRAPH_NOT_FOUND: {},
         HANDOFF_NOT_FOUND: {},
         HOSTNAME_NOT_FOUND: {},
         INSTALLATION_NOT_FOUND: {},
