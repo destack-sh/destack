@@ -518,11 +518,24 @@ export class DependencyTree {
         await files.symlink(isSibling ? relative(dirname(moved), target) : target, link);
     }
 
-    /** List a build's files a tree places: a whole build for a compile, else what a run runs. */
+    /** List a build's files a tree places: what a compile reads, else what a run runs. */
     static async #placed(reader: BuildReader, scope: TreeScope): Promise<readonly PackageFile[]> {
-        // place every file for a compile
+        // place a compile's sources, every output's modules, and the maps of the host's output
         if (scope.kind === "compile") {
-            return await reader.distributed();
+            const outputs = Object.entries(reader.manifest.outputs);
+            const directories = outputs.map(([, output]) => `${output.directory}/`);
+            const sources = (await reader.distributed()).filter(
+                (file) => !directories.some((directory) => file.path.startsWith(directory)),
+            );
+            const loaded = await Promise.all(
+                outputs.map(async ([name, output]) => [
+                    ...(await reader.loaded(name)),
+                    ...(output.runtime === HOST_RUNTIME ? await reader.maps(name) : []),
+                ]),
+            );
+            const placed = [...sources, ...loaded.flat()];
+
+            return [...new Map(placed.map((file) => [file.path, file])).values()];
         }
         // place the output a running tree runs, refusing a build without one
         else {
