@@ -162,7 +162,7 @@ export class Updater implements AsyncDisposable {
     stage(download: Download): Promise<StagedRelease> {
         const attributes = { "destack.update.version": download.release.version };
 
-        return this.#scope.span("destack.update.universe", attributes, () => this.#stage(download));
+        return this.#scope.span("destack.update.stage", attributes, () => this.#stage(download));
     }
 
     /** Authenticate a download again, then stage and remember its verified release. */
