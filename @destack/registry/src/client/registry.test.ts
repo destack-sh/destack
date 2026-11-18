@@ -20,7 +20,7 @@ test("answer a shipped release by its version or prerelease, and ask the forges 
     const registry = new Registry(
         (owner) => Promise.reject(new TypeError(`asked the forge of ${JSON.stringify(owner)}`)),
         environment,
-        [{ package: finance(prerelease), lock: Digest.parse("1".repeat(64)) }],
+        [{ package: finance(prerelease), image: Digest.parse("1".repeat(64)) }],
     );
     const { id } = finance("2026.9.0");
     const asked = `asked the forge of ${JSON.stringify({ package: id })}`;

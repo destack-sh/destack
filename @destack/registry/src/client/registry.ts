@@ -5,7 +5,7 @@ import { type PackageId, PackageName, PackageRelease } from "@destack/package";
 import { PackageFile } from "@destack/package/file";
 import {
     BuildReader,
-    Lock,
+    BuildImage,
     type PackageLocation,
     PackageManifest,
 } from "@destack/package/manifest";
@@ -42,15 +42,15 @@ type ForgeEndpoint = {
     readonly fetch: Fetch;
 };
 
-/** The store a publisher pushes and releases locks from. */
-type LockStore = Pick<
+/** The build store a publish reads images and their builds from. */
+export type PublishStore = Pick<
     BuildStore,
     | "closure"
     | "contents"
     | "get"
     | "head"
-    | "lock"
-    | "putLock"
+    | "image"
+    | "putImage"
     | "read"
     | "attachments"
     | "environment"
@@ -299,24 +299,24 @@ export class Registry {
         return client.repository.open({ spaceId: forge.space, id: repositoryId, mode: "read" });
     }
 
-    /** Find the digest of the lock of a shipped release, or of a package's published one. */
+    /** Find the digest of the image of a shipped release, or of a package's published one. */
     async find(packageId: PackageId, named: string): Promise<Digest> {
         // take a shipped release first, a dev build of it among them
         const shipped = PackageRelease.select(this.#releases, packageId, named);
         if (shipped !== undefined) {
-            return shipped.lock;
+            return shipped.image;
         }
 
         // resolve the release at its forge
-        const { lock } = await this.resolve(packageId, named);
+        const { image } = await this.resolve(packageId, named);
 
-        return lock;
+        return image;
     }
 
-    /** Push a stored lock and the builds it lists to its account's forge, staging it unreleased. */
+    /** Push a stored image and its builds to its account's forge, staging it unreleased. */
     async push(
-        store: LockStore,
-        lock: Digest,
+        store: PublishStore,
+        image: Digest,
         account: Identifier<"account">,
         signal?: AbortSignal,
     ): Promise<void> {
@@ -324,21 +324,21 @@ export class Registry {
             "destack.registry.push",
             { "destack.account.id": account },
             async () => {
-                // push the lock's objects below the account's handle
-                const read = await store.lock(lock);
+                // push the image's objects below the account's handle
+                const read = await store.image(image);
                 const { handle } = PackageName.split(
                     PackageManifest.package(await store.get(read.root)).name,
                 );
                 const forge = await this.#find({ account });
-                await Registry.#uploads(forge, handle).push(store, [lock], signal);
+                await Registry.#uploads(forge, handle).push(store, [image], signal);
             },
         );
     }
 
-    /** Release stored locks' roots under a tag at their account's forge, required ones first. */
+    /** Release stored images' roots under a tag at their account's forge, required ones first. */
     async release(
-        store: LockStore,
-        locks: readonly Digest[],
+        store: PublishStore,
+        images: readonly Digest[],
         account: Identifier<"account">,
         tagName: string,
         options: PublishOptions = {},
@@ -347,23 +347,23 @@ export class Registry {
             "destack.registry.release",
             { "destack.account.id": account },
             async () => {
-                // read each lock and its root's package
-                const read = await Promise.all(locks.map((lock) => store.lock(lock)));
+                // read each image and its root's package
+                const read = await Promise.all(images.map((image) => store.image(image)));
                 const roots = new Map<Digest, PackageRelease>();
                 for (const [index, each] of read.entries()) {
                     const own = PackageManifest.package(await store.get(each.root));
-                    roots.set(each.root, { lock: nth(locks, index), package: own });
+                    roots.set(each.root, { image: nth(images, index), package: own });
                 }
                 if (roots.size === 0) {
                     return [];
                 }
 
                 // order the roots by dependency layer, each after the ones it requires
-                const merged = Lock.of(
+                const merged = BuildImage.of(
                     nth(read, 0).root,
                     Object.fromEntries(read.flatMap((each) => Object.entries(each.builds))),
                 );
-                const layers = Lock.layers(merged).map((layer) =>
+                const layers = BuildImage.layers(merged).map((layer) =>
                     layer.flatMap((digest) => {
                         const root = roots.get(digest);
 
@@ -381,11 +381,11 @@ export class Registry {
                 );
                 const pending = new Set(
                     [...roots.values()]
-                        .filter((root, index) => tagged[index] !== root.lock)
-                        .map((root) => root.lock),
+                        .filter((root, index) => tagged[index] !== root.image)
+                        .map((root) => root.image),
                 );
 
-                // push the pending locks' objects once below the account's handle
+                // push the pending images' objects once below the account's handle
                 if (pending.size > 0) {
                     const { handle } = PackageName.split(nth([...roots.values()], 0).package.name);
                     await Registry.#uploads(forge, handle).push(store, [...pending]);
@@ -394,7 +394,7 @@ export class Registry {
                     for (const layer of layers) {
                         await Promise.all(
                             layer
-                                .filter((root) => pending.has(root.lock))
+                                .filter((root) => pending.has(root.image))
                                 .map(async (root) => {
                                     // take the visibility asked, else the package file's
                                     const visibility =
@@ -427,10 +427,10 @@ export class Registry {
         );
     }
 
-    /** Release the account's packages in a stored lock under a tag, each under its own lock. */
+    /** Release the account's packages in a stored image under a tag, each under its own image. */
     async publish(
-        store: LockStore,
-        lock: Digest,
+        store: PublishStore,
+        image: Digest,
         account: Identifier<"account">,
         tagName: string,
         options: PublishOptions = {},
@@ -439,19 +439,19 @@ export class Registry {
             "destack.registry.publish",
             { "destack.account.id": account },
             async () => {
-                // lock each of the account's Destack builds within the lock
-                const read = await store.lock(lock);
+                // make an image of each of the account's Destack builds within the image
+                const read = await store.image(image);
                 const { handle } = PackageName.split(
                     PackageManifest.package(await store.get(read.root)).name,
                 );
                 const owned: Digest[] = [];
-                for (const digest of Lock.builds(read)) {
+                for (const digest of BuildImage.builds(read)) {
                     const manifest = await store.get(digest);
                     if (
                         PackageManifest.isPackage(manifest) &&
                         PackageName.split(manifest.package.name).handle === handle
                     ) {
-                        owned.push(await store.putLock(Lock.at(read, digest)));
+                        owned.push(await store.putImage(BuildImage.at(read, digest)));
                     }
                 }
 
@@ -460,7 +460,7 @@ export class Registry {
         );
     }
 
-    /** Publish a pushed lock as its package's release, creating the package the first time. */
+    /** Publish a pushed image as its package's release, creating the package the first time. */
     async #publish(
         forge: ForgeEndpoint,
         root: PackageRelease,
@@ -474,7 +474,7 @@ export class Registry {
             packageId: root.package.id,
             accountId: account,
             name: PackageName.split(root.package.name).local,
-            lock: root.lock,
+            image: root.image,
             ...(options.commit === undefined ? {} : { commit: options.commit }),
             ...(options.visibility === undefined ? {} : { visibility: options.visibility }),
             tag: tagName,
@@ -485,11 +485,11 @@ export class Registry {
 
     /** Read the visibility a root's package file asks through npm's `publishConfig.access`. */
     static async #visibility(
-        store: LockStore,
+        store: PublishStore,
         root: PackageRelease,
     ): Promise<PackageVisibility | undefined> {
-        // read the package file of the lock's root
-        const reader = await store.contents((await store.lock(root.lock)).root);
+        // read the package file of the image's root
+        const reader = await store.contents((await store.image(root.image)).root);
         const authored = PackageAccess.parse(
             JSON.parse(new TextDecoder().decode(await reader.load(PACKAGE_FILE))),
         );
@@ -507,8 +507,8 @@ export class Registry {
         root: PackageRelease,
         name: string,
     ): Promise<void> {
-        // leave a tag already at the root's lock
-        if ((await Registry.#tagged(client, forge, root, name)) === root.lock) {
+        // leave a tag already at the root's image
+        if ((await Registry.#tagged(client, forge, root, name)) === root.image) {
             return;
         }
 
@@ -522,7 +522,7 @@ export class Registry {
         });
     }
 
-    /** Read the lock a package's tag points at in its forge, none before its first publish. */
+    /** Read the image a package's tag points at in its forge, none before its first publish. */
     static async #tagged(
         client: ClientOf<typeof registryPackage>,
         forge: ForgeEndpoint,
@@ -536,7 +536,7 @@ export class Registry {
                 release: tagName,
             });
 
-            return named.lock;
+            return named.image;
         } catch (error) {
             // publish a package the caller cannot see yet, whose publish then decides
             const { code } = Failure.of(error);
@@ -554,19 +554,19 @@ export class Registry {
         return new PackageClient(uploads, forge.fetch);
     }
 
-    /** Pull a published lock into a store for some runtimes, refusing another package's root. */
+    /** Pull a published image into a store for some runtimes, refusing another package's root. */
     async pull(
-        store: Pick<BuildStore, "get" | "lock" | "pull">,
+        store: Pick<BuildStore, "get" | "image" | "pull">,
         packageId: PackageId,
-        lock: Digest,
+        image: Digest,
         runtimes: readonly Runtime[] | "all",
-    ): Promise<Lock> {
+    ): Promise<BuildImage> {
         return this.#scope.span(
             "destack.registry.pull",
             { "destack.package.id": packageId },
             async () => {
-                // pull the lock, reaching its package's forge only for what the store lacks
-                const root = { kind: "lock", digest: lock } as const;
+                // pull the image, reaching its package's forge only for what the store lacks
+                const root = { kind: "image", digest: image } as const;
                 const open = () => this.store(packageId, root);
                 const source = {
                     async *read(objects: readonly Pick<BuildObject, "kind" | "digest">[]) {
@@ -576,14 +576,14 @@ export class Registry {
                     },
                 };
                 await store.pull(source, root, runtimes);
-                const pulled = await store.lock(lock);
+                const pulled = await store.image(image);
 
                 // require its root to be a build of the package
                 const built = PackageManifest.package(await store.get(pulled.root));
                 if (built.id !== packageId) {
                     throw RegistryError.of(
                         "MANIFEST_INVALID",
-                        `lock '${lock}' is invalid: its root is a build of '${built.name}' instead of the requested package`,
+                        `image '${image}' is invalid: its root is a build of '${built.name}' instead of the requested package`,
                     );
                 }
 
@@ -611,7 +611,7 @@ export class Registry {
         };
     }
 
-    /** Open a published lock's or build's objects at its package's forge, as a build store. */
+    /** Open a published image's or build's objects at its package's forge, as a build store. */
     async store(
         packageId: PackageId,
         root: Pick<BuildObject, "kind" | "digest">,
@@ -678,7 +678,7 @@ export class Registry {
         return reader;
     }
 
-    /** Open a build the forge serves by its digest, among the builds a package's locks list. */
+    /** Open a build the forge serves by its digest, among the builds a package's images list. */
     #open(packageId: PackageId, manifest: Digest): Promise<BuildReader> {
         return this.#scope.span(
             "destack.registry.read",
@@ -703,24 +703,24 @@ export class Registry {
             "destack.registry.open",
             { "destack.package.id": packageId },
             async () => {
-                // read the release's lock from its forge, then open its root build
+                // read the release's image from its forge, then open its root build
                 const digest = await this.find(packageId, named);
-                const source = await this.store(packageId, { kind: "lock", digest });
+                const source = await this.store(packageId, { kind: "image", digest });
                 let bytes: Uint8Array<ArrayBuffer> | undefined;
-                for await (const entry of source.read([{ kind: "lock", digest }])) {
+                for await (const entry of source.read([{ kind: "image", digest }])) {
                     bytes = await TarballEntry.bytes(entry);
                 }
-                const read = present(bytes, `lock '${digest}'`);
+                const read = present(bytes, `image '${digest}'`);
                 if ((await Digest.of(read, this.#environment.crypto)) !== digest) {
                     throw RegistryError.of(
                         "MANIFEST_INVALID",
-                        `lock '${digest}' is invalid: its bytes do not match its digest`,
+                        `image '${digest}' is invalid: its bytes do not match its digest`,
                     );
                 }
                 const text = new TextDecoder("utf-8", { fatal: true }).decode(read);
-                const lock = Lock.parse(JSON.parse(text));
+                const image = BuildImage.parse(JSON.parse(text));
 
-                return await this.read(packageId, lock.root);
+                return await this.read(packageId, image.root);
             },
         );
     }

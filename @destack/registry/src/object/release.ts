@@ -25,8 +25,8 @@ export const release = defineObject(
         fields: {
             /** The immutable calendar version. */
             version: field.string(),
-            /** The published lock's digest: the package's build and every build it runs with. */
-            lock: field.blob(),
+            /** The published image's digest: the package's build and every build it runs with. */
+            image: field.blob(),
             /** The role its root build declares: an app, a library or a builtin. */
             role: field.enum(PACKAGE_ROLES),
             /** What an npm client lists of the release: install fields and tarball hash. */
@@ -51,12 +51,12 @@ export const release = defineObject(
                     ],
                 },
             },
-            lock: {
+            image: {
                 kind: "check",
-                condition: { lock: { length: 64, characters: "0-9a-f" } },
+                condition: { image: { length: 64, characters: "0-9a-f" } },
             },
             version: { kind: "unique", on: ["parentId", "version"] },
-            build: { kind: "index", on: ["lock"] },
+            build: { kind: "index", on: ["image"] },
         },
         access: {
             permissions: { read: through("parent", "read"), publish: through("parent", "publish") },
@@ -65,7 +65,7 @@ export const release = defineObject(
     },
     (method) => ({
         get: method.get("read"),
-        /** Insert a checked lock's release under a tag, which only the package's publish calls. */
+        /** Insert a checked image's release under a tag, which only the package's publish calls. */
         create: method.create("publish", {
             visibility: "package",
             isPredicted: false,

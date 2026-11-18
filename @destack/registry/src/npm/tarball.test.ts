@@ -1,7 +1,7 @@
 import { TestBuildStore } from "@destack/build/test";
 import { Pipe } from "@destack/environment";
 import { Tarball, TarballEntry } from "@destack/package/archive";
-import { Lock } from "@destack/package/manifest";
+import { BuildImage } from "@destack/package/manifest";
 import { MemoryBuild } from "@destack/package/test";
 import { PackageVersion } from "@destack/package";
 import { expect, test } from "@destack/test";
@@ -27,8 +27,8 @@ function bytes(text: string): Uint8Array<ArrayBuffer> {
     return new TextEncoder().encode(text);
 }
 
-test("pack a lock's root build below package/ in path order, with what a listing says of it", async () => {
-    // store a package that depends on a workspace package and an npm one, locked with the first
+test("pack an image's root build below package/ in path order, with what a listing says of it", async () => {
+    // store a package that depends on a workspace package and an npm one, in an image with the first
     await using simulation = testSimulation();
     const environment = simulation.environment("test");
     const { crypto, compression } = environment;
@@ -57,20 +57,20 @@ test("pack a lock's root build below package/ in path order, with what a listing
             crypto,
         ),
     );
-    const lock = await store.putLock(
-        Lock.of(root, { [root]: { "@destack/object": linked }, [linked]: {} }),
+    const image = await store.putImage(
+        BuildImage.of(root, { [root]: { "@destack/object": linked }, [linked]: {} }),
     );
 
     // pack it twice, and read the archive back
-    const packed = await NpmTarball.pack(store, lock, environment);
-    const again = await NpmTarball.pack(store, lock, environment);
+    const packed = await NpmTarball.pack(store, image, environment);
+    const again = await NpmTarball.pack(store, image, environment);
     const read: [string, string][] = [];
     const archive = Pipe.through(new Blob([packed.bytes]).stream(), compression.decompress("gzip"));
     for await (const entry of Tarball.read(archive)) {
         read.push([entry.path, new TextDecoder().decode(await TarballEntry.bytes(entry))]);
     }
 
-    // release the package file at the linked version, the default tag where the lock links none
+    // release the package file at the linked version, the default tag where the image links none
     const released = {
         ...authored,
         dependencies: { "@destack/object": "2026.11.2", zod: "4.1.0" },

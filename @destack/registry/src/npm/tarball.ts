@@ -2,7 +2,7 @@ import type { BuildStore } from "@destack/build/store";
 import { type Environment, Pipe } from "@destack/environment";
 import { PackageJson } from "@destack/package";
 import { Tarball, TarballEntry } from "@destack/package/archive";
-import { type BuildReader, Lock } from "@destack/package/manifest";
+import { type BuildReader, BuildImage } from "@destack/package/manifest";
 import { type Digest, present, schema, Text } from "@destack/schema";
 import { NpmRelease } from "./packument.ts";
 
@@ -14,15 +14,15 @@ const PACKAGE_FILE = "package.json";
 
 /** A release as npm clients install it: its sources below package/, at released versions. */
 export const NpmTarball = {
-    /** Archive a lock's root build at the versions the lock links, with what a listing says. */
+    /** Archive an image's root build at the versions the image links, with what a listing says. */
     async pack(
-        store: Pick<BuildStore, "lock" | "get" | "contents">,
-        lock: Digest,
+        store: Pick<BuildStore, "image" | "get" | "contents">,
+        image: Digest,
         environment: Pick<Environment, "crypto" | "compression">,
     ): Promise<{ readonly bytes: Uint8Array<ArrayBuffer>; readonly listed: NpmRelease }> {
         // read the version each of the root's requirements links
-        const locked = await store.lock(lock);
-        const links = Object.entries(Lock.links(locked, locked.root));
+        const opened = await store.image(image);
+        const links = Object.entries(BuildImage.links(opened, opened.root));
         const linked = await Promise.all(
             links.map(async ([name, build]) => {
                 const { version } = (await store.get(build)).package;
@@ -32,7 +32,7 @@ export const NpmTarball = {
         );
 
         return NpmTarball.of(
-            await store.contents(locked.root),
+            await store.contents(opened.root),
             Object.fromEntries(linked),
             environment,
         );

@@ -10,28 +10,28 @@ The registry protocol has object types:
 
 - `repository`: an account's Git repository.
 - `package`: a globally named package an account publishes.
-- `release`: one published version of a package, by its lock.
+- `release`: one published version of a package, by its image.
 - `tag`: a name such as `latest`, pointing at a version.
 
 Clients publish and read:
 
 - `Registry`: a client of every publisher's registry.
 
-Publish a stored lock's packages under a tag:
+Publish a stored image's packages under a tag:
 
 ```ts
 import type { BuildStore } from "@destack/build/store";
 import type { Registry } from "@destack/registry/client";
 import type { Digest, Identifier } from "@destack/schema";
 
-/** Release an account's packages in a lock under the next tag. */
+/** Release an account's packages in an image under the next tag. */
 export async function publishNext(
     registry: Registry,
     store: BuildStore,
-    lock: Digest,
+    image: Digest,
     account: Identifier<"account">,
 ) {
-    return await registry.publish(store, lock, account, "next");
+    return await registry.publish(store, image, account, "next");
 }
 ```
 
@@ -41,16 +41,16 @@ export async function publishNext(
 
 `Registry.of(directory, home, sign, environment, installation)` finds each package's registry through the universe's directory.
 
-| Verb                                         | What it does                                                           |
-| -------------------------------------------- | ---------------------------------------------------------------------- |
-| `find(packageId, release)`                   | reads a release's lock digest, by version or tag                       |
-| `readLock(packageId, lock)`                  | reads and checks a published lock                                      |
-| `open(packageId, release)`                   | opens a release's root build                                           |
-| `read(packageId, manifest)`                  | opens a published build, checking every file it reads                  |
-| `push(store, lock)`                          | pushes a lock and its builds to its root package's registry            |
-| `release(store, lock, account, tag, commit)` | releases a lock's root under a tag                                     |
-| `publish(store, lock, account, tag, commit)` | releases each of the account's packages in a lock, required ones first |
-| `lease(account, repository)`                 | leases read access to a repository                                     |
+| Verb                                          | What it does                                                             |
+| --------------------------------------------- | ------------------------------------------------------------------------ |
+| `find(packageId, release)`                    | reads a release's image digest, by version or tag                        |
+| `pull(store, packageId, image, runtimes)`     | pulls a published image into a store, refusing another package's root    |
+| `open(packageId, release)`                    | opens a release's root build                                             |
+| `read(packageId, manifest)`                   | opens a published build, checking every file it reads                    |
+| `push(store, image)`                          | pushes an image and its builds to its root package's registry            |
+| `release(store, image, account, tag, commit)` | releases an image's root under a tag                                     |
+| `publish(store, image, account, tag, commit)` | releases each of the account's packages in an image, required ones first |
+| `lease(account, repository)`                  | leases read access to a repository                                       |
 
 A release's version is a calendar version, or a dev version `<release>-dev.<time>.<key>` for a prerelease.
 
@@ -58,7 +58,7 @@ A release's version is a calendar version, or a dev version `<release>-dev.<time
 
 ### Read a release's build
 
-`open` resolves a version or tag to its lock, then opens the lock's root build.
+`open` resolves a version or tag to its image, then opens the image's root build.
 
 ```ts
 import type { PackageId } from "@destack/package";
@@ -91,10 +91,10 @@ export const protocols = [registryPackage];
 
 Packages, versions and dist-tags follow the npm registry.
 
-| npm registry          | `@destack/registry`   | Difference                                                  |
-| --------------------- | --------------------- | ----------------------------------------------------------- |
-| a tarball per version | a release by its lock | Builds and locks are pushed as an OCI client pushes images. |
-| one registry          | each publisher's      | Any package can implement it, in the publisher's residency. |
-| dist-tags             | `tag`                 | The same.                                                   |
-| `npm deprecate`       | `release.deprecate`   | Deprecated releases still resolve, with a message.          |
-| `npm install`         | the `npm` mount       | Read-only: a listing and each release's source tarball.     |
+| npm registry          | `@destack/registry`    | Difference                                                   |
+| --------------------- | ---------------------- | ------------------------------------------------------------ |
+| a tarball per version | a release by its image | Builds and images are pushed as an OCI client pushes images. |
+| one registry          | each publisher's       | Any package can implement it, in the publisher's residency.  |
+| dist-tags             | `tag`                  | The same.                                                    |
+| `npm deprecate`       | `release.deprecate`    | Deprecated releases still resolve, with a message.           |
+| `npm install`         | the `npm` mount        | Read-only: a listing and each release's source tarball.      |

@@ -45,10 +45,10 @@ export const TagName = Object.assign(tagName, {
     },
 });
 
-/** A pushed lock checked for its release, before the release's transaction. */
+/** A pushed image checked for its release, before the release's transaction. */
 export const Candidate = schema.object({
-    /** The digest of the lock. */
-    lock: Digest,
+    /** The digest of the image. */
+    image: Digest,
     /** The commit its root compiled, absent for a prerelease of uncommitted changes. */
     commit: schema.string().exactOptional(),
     /** The version its root build declares. */
@@ -62,7 +62,7 @@ export const Candidate = schema.object({
     /** The digest of the stored tarball npm clients download. */
     tarball: Digest,
 });
-/** A pushed lock checked for its release, before the release's transaction. */
+/** A pushed image checked for its release, before the release's transaction. */
 export type Candidate = schema.Infer<typeof Candidate>;
 
 /** A package of an account, installed as `@<account handle>/<name>` and keyed by its package id. */
@@ -128,7 +128,7 @@ export const packageObject = defineObject(
             fields: ["accountId", "name", "visibility", "role"],
             onConflict: "id",
         }),
-        /** Publish a pushed lock as a release under a tag, creating the package, as npm does. */
+        /** Publish a pushed image as a release under a tag, creating the package, as npm does. */
         publish: method.mutation({
             title: t`Publish`,
             permission: "publish",
@@ -143,8 +143,8 @@ export const packageObject = defineObject(
                 name: schema.string(),
                 /** Who can read it, unlisted on its first publish when absent. */
                 visibility: schema.enum(VISIBILITIES).exactOptional(),
-                /** The digest of the pushed lock. */
-                lock: Digest,
+                /** The digest of the pushed image. */
+                image: Digest,
                 /** The commit its root compiled, absent for a prerelease of uncommitted changes. */
                 commit: schema.string().exactOptional(),
                 /** The distribution tag pointing at the release, latest when absent. */
