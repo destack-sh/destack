@@ -8,12 +8,20 @@ const EVENT_STREAM = "text/event-stream";
 /** The status of a refused WebSocket upgrade, Upgrade Required (RFC 9110 15.5.22). */
 const UPGRADE_REQUIRED = 426;
 
+/** The status of a send Bun dropped, as the socket closed or its buffer is past its limit. */
+const SEND_DROPPED = 0;
+
+/** The status of a send Bun buffered behind earlier ones, until the socket drains. */
+const SEND_BUFFERED = -1;
+
 /** What Bun stores beside a socket: its attachment, and its wrapper once made. */
 interface BunSocketData<Attachment> {
     /** The value the handler accepted the upgrade with. */
     readonly attachment: Attachment;
     /** The socket as its handler sees it, made at its first event. */
     wrapped: ServerSocket<Attachment> | undefined;
+    /** The settlers of the next drain, while sends wait for the socket's buffer. */
+    drain: PromiseWithResolvers<void> | undefined;
 }
 
 /** A Bun WebSocket with its data. */
@@ -37,7 +45,7 @@ function serveHttp<Attachment>(options: ServeOptions<Attachment>): Listener {
             }
 
             // upgrade with the attachment, refusing a request Bun cannot upgrade
-            const data = { attachment: answer.attachment, wrapped: undefined };
+            const data = { attachment: answer.attachment, wrapped: undefined, drain: undefined };
             const headers = answer.headers === undefined ? {} : { headers: answer.headers };
             const isUpgraded = served.upgrade(request, { data, ...headers });
 
@@ -50,8 +58,17 @@ function serveHttp<Attachment>(options: ServeOptions<Attachment>): Listener {
             open: (socket: BunSocket<Attachment>) => websocket?.open?.(wrapSocket(socket)),
             message: (socket: BunSocket<Attachment>, message: string | Uint8Array) =>
                 websocket?.message(wrapSocket(socket), message),
-            close: (socket: BunSocket<Attachment>, code: number, reason: string) =>
-                websocket?.close?.(wrapSocket(socket), code, reason),
+            drain: (socket: BunSocket<Attachment>) => {
+                // settle the sends waiting for the buffer
+                socket.data.drain?.resolve();
+                socket.data.drain = undefined;
+            },
+            close: (socket: BunSocket<Attachment>, code: number, reason: string) => {
+                // fail the sends waiting for a drain, then tell the handler
+                socket.data.drain?.reject(new TypeError("the socket closed before it drained"));
+                socket.data.drain = undefined;
+                websocket?.close?.(wrapSocket(socket), code, reason);
+            },
         },
     };
 
@@ -72,7 +89,18 @@ function serveHttp<Attachment>(options: ServeOptions<Attachment>): Listener {
 function wrapSocket<Attachment>(socket: BunSocket<Attachment>): ServerSocket<Attachment> {
     socket.data.wrapped ??= {
         attachment: socket.data.attachment,
-        send: (message) => void socket.send(message),
+        send: async (message) => {
+            // send, refusing a dropped message, and wait for a drain while Bun buffers it
+            const status = socket.send(message);
+            if (status === SEND_DROPPED) {
+                throw new TypeError(
+                    "the socket dropped a message: it closed or its buffer is full",
+                );
+            } else if (status === SEND_BUFFERED) {
+                socket.data.drain ??= Promise.withResolvers();
+                await socket.data.drain.promise;
+            }
+        },
         close: (code, reason) => socket.close(code, reason),
     };
 

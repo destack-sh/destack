@@ -1,10 +1,14 @@
 import { checkServerIdentity } from "node:tls";
-import { Network } from "./network.ts";
+import { type ClientSocket, Network, SystemSocket } from "./network.ts";
 import { copyRequest } from "./request.ts";
+import { WebSocketUpgrade } from "./websocket.ts";
 import { connectSocket, resolveHostname } from "./socket/bun.ts";
 
 /** Bun's network: the web's, with client certificates, Unix sockets and TCP connections. */
-export const BunNetwork: Network = {
+export const BunNetwork: Network & {
+    /** Open a WebSocket at a URL as a forwarded upgrade, with its headers. */
+    readonly forward: (upgrade: Request, url: string) => ClientSocket;
+} = {
     origin: undefined,
     fetch: async (request, options) => {
         // present the certificate, send through the socket, and keep the encoding the options give
@@ -40,5 +44,26 @@ export const BunNetwork: Network = {
     },
     connect: connectSocket,
     websocket: Network.system.websocket,
+    forward: (upgrade, url) => {
+        // offer the upgrade's subprotocols, and send its other headers as Bun's client allows
+        const forwarded = WebSocketUpgrade.of(upgrade);
+        if (forwarded === undefined) {
+            throw new TypeError("a forwarded socket opens for a WebSocket upgrade alone");
+        }
+
+        // construct with Bun's options form, which the web's WebSocket type leaves out
+        const opened: unknown = Reflect.construct(WebSocket, [
+            url,
+            {
+                protocols: forwarded.protocols,
+                headers: Object.fromEntries(forwarded.forwarded()),
+            },
+        ]);
+        if (!(opened instanceof WebSocket)) {
+            throw new TypeError("Bun's WebSocket constructor returned no WebSocket");
+        }
+
+        return new SystemSocket(opened);
+    },
     resolve: resolveHostname,
 };

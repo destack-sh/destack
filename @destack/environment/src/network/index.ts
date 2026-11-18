@@ -4,3 +4,4 @@ export * from "./network.ts";
 export * from "./request.ts";
 export * from "./socket/socket.ts";
 export * from "./transport.ts";
+export * from "./websocket.ts";

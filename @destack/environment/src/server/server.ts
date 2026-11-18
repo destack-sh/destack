@@ -4,8 +4,8 @@ import type { SocketListener, SocketListenOptions } from "../network/socket/sock
 export interface ServerSocket<Attachment> {
     /** The value the listener stored beside the socket as it accepted it. */
     readonly attachment: Attachment;
-    /** Send a message to the client. */
-    readonly send: (message: string | Uint8Array<ArrayBuffer>) => void;
+    /** Send a message to the client, settling once the socket's buffer took it. */
+    readonly send: (message: string | Uint8Array<ArrayBuffer>) => Promise<void>;
     /** Close the socket. */
     readonly close: (code?: number, reason?: string) => void;
 }

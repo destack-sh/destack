@@ -27,7 +27,7 @@ import { copyRequest } from "./request.ts";
 import type { SimulatedClock } from "../clock/simulated.ts";
 import type { Scheduler } from "../scheduler/scheduler.ts";
 import type { SimulationEvent } from "../simulation/simulation.ts";
-import { ABNORMAL_CLOSURE, NORMAL_CLOSURE, SimulatedWebSocket } from "./websocket.ts";
+import { WebSocketClosure, MemoryWebSocket } from "./websocket.ts";
 
 /** The prefix of a Unix socket's key, which every node sharing the host's files reaches. */
 const UNIX_KEY = "unix:";
@@ -42,9 +42,6 @@ const DEFAULT_PORTS: Readonly<Record<string, string>> = {
     "ws:": "80",
     "wss:": "443",
 };
-
-/** The close code of a server going away (RFC 6455). */
-const GOING_AWAY = 1001;
 
 /** The suffix of a bridged host name, which browsers resolve to the loopback address (RFC 6761). */
 const LOOPBACK_SUFFIX = ".localhost";
@@ -126,11 +123,17 @@ interface Connection {
     /** The listener's key: its host name and port, or its Unix socket's path. */
     readonly address: string;
     /** The client's socket. */
-    readonly socket: SimulatedWebSocket;
+    readonly socket: MemoryWebSocket;
     /** The server's end. */
     readonly end: SocketEnd;
+    /** The socket's URL, which a pause matches its messages by. */
+    readonly url: string;
     /** When the last delivery in each direction arrives, which keeps each direction in order. */
     readonly arrivals: Record<Direction, number>;
+    /** The last delivery in each direction to leave its pauses, which the next waits for. */
+    readonly released: Record<Direction, Promise<void>>;
+    /** The deliveries in each direction a pause holds, which every later one waits behind. */
+    readonly held: Record<Direction, number>;
     /** Whether the connection still carries messages. */
     isOpen: boolean;
 }
@@ -234,8 +237,9 @@ class SimulatedListener<Attachment> implements Listener {
             open: (peer) => {
                 socket = {
                     attachment,
-                    send: peer.send,
-                    close: (code = NORMAL_CLOSURE, reason = "") => peer.close(code, reason),
+                    send: async (message) => peer.send(message),
+                    close: (code = WebSocketClosure.normal, reason = "") =>
+                        peer.close(code, reason),
                 };
                 handler.open?.(socket);
             },
@@ -386,7 +390,7 @@ export class SimulatedNetwork {
     /** Bridge the host into the world as a node, `<host>.localhost` reaching `https://<host>`. */
     bridge(node: string, options: { readonly port?: number } = {}): Listener {
         // listen on the loopback address, counting each answer as the world's work
-        return BunServer.http<SimulatedWebSocket>({
+        return BunServer.http<MemoryWebSocket>({
             hostname: "127.0.0.1",
             port: options.port ?? 0,
             fetch: (request) => this.#scheduler.task(() => this.#bridged(node, request)),
@@ -397,10 +401,11 @@ export class SimulatedNetwork {
                     const world = socket.attachment;
                     world.binaryType = "arraybuffer";
                     world.addEventListener("message", (event: MessageEvent<unknown>) => {
+                        // close the world's socket once the host's drops a message
                         const { data } = event;
-                        socket.send(
-                            data instanceof ArrayBuffer ? new Uint8Array(data) : String(data),
-                        );
+                        const message =
+                            data instanceof ArrayBuffer ? new Uint8Array(data) : String(data);
+                        void socket.send(message).catch(() => world.close());
                     });
                     world.addEventListener("close", (event) =>
                         socket.close(event.code, event.reason),
@@ -417,7 +422,7 @@ export class SimulatedNetwork {
     async #bridged(
         node: string,
         request: Request,
-    ): Promise<Response | ServerUpgrade<SimulatedWebSocket>> {
+    ): Promise<Response | ServerUpgrade<MemoryWebSocket>> {
         // refuse a host that names no world origin
         const url = new URL(request.url);
         if (!url.hostname.endsWith(LOOPBACK_SUFFIX)) {
@@ -556,7 +561,7 @@ export class SimulatedNetwork {
         this.#record({ kind: "heal", at: this.#clock.now(), nodes });
     }
 
-    /** Pause the bodies crossing from one node to another for matching requests, until resumed. */
+    /** Pause the request bodies and socket messages that match on a link, until resumed. */
     pause(from: string, to: string, matches: (target: string) => boolean): NetworkPause {
         const paused: PausedLink = {
             from,
@@ -643,7 +648,7 @@ export class SimulatedNetwork {
                 }
                 for (const connection of this.#connections) {
                     if (isClosingActive && connection.address === address) {
-                        this.#close(connection, "toClient", GOING_AWAY, "");
+                        this.#close(connection, "toClient", WebSocketClosure.goingAway, "");
                     }
                 }
             },
@@ -1026,7 +1031,14 @@ export class SimulatedNetwork {
         });
     }
 
-    /** Wait while a pause on a link matches a request's body, as a stalled link does. */
+    /** Report whether a pause on a link matches a body or socket message now. */
+    #isPaused(from: string, to: string, target: string): boolean {
+        return [...this.#pauses].some(
+            (paused) => paused.from === from && paused.to === to && paused.matches(target),
+        );
+    }
+
+    /** Wait while a pause on a link matches a body or socket message, as a stalled link does. */
     async #waitPaused(from: string, to: string, target: string): Promise<void> {
         for (const paused of this.#pauses) {
             if (paused.from === from && paused.to === to && paused.matches(target)) {
@@ -1041,14 +1053,19 @@ export class SimulatedNetwork {
         from: string,
         url: string,
         protocols: string | readonly string[] | undefined,
-    ): SimulatedWebSocket {
+    ): MemoryWebSocket {
         // make the client's socket, whose sends and close cross the network once it opens
         let connection: Connection | undefined;
-        const socket = new SimulatedWebSocket(
+        const socket = new MemoryWebSocket(
             url,
             (message) => {
                 if (connection !== undefined) {
-                    this.#deliver(connection, "toServer", () => connection?.end.message(message));
+                    this.#deliver(
+                        connection,
+                        "toServer",
+                        () => connection?.end.message(message),
+                        message,
+                    );
                 }
             },
             (code, reason) => {
@@ -1082,8 +1099,8 @@ export class SimulatedNetwork {
             }
 
             // fail the socket on a plain answer, or once it closed while connecting
-            if (answer.kind === "response" || socket.readyState !== SimulatedWebSocket.CONNECTING) {
-                socket.closed(ABNORMAL_CLOSURE, "");
+            if (answer.kind === "response" || socket.readyState !== MemoryWebSocket.CONNECTING) {
+                socket.closed(WebSocketClosure.abnormal, "");
 
                 return;
             }
@@ -1095,25 +1112,38 @@ export class SimulatedNetwork {
                 address: SimulatedNetwork.#address(target),
                 socket,
                 end: answer.end,
+                url,
                 arrivals: { toServer: 0, toClient: 0 },
+                released: { toServer: Promise.resolve(), toClient: Promise.resolve() },
+                held: { toServer: 0, toClient: 0 },
                 isOpen: true,
             };
             this.#connections.add(connection);
             const opened = connection;
             answer.end.open({
                 send: (message) =>
-                    this.#deliver(opened, "toClient", () => opened.socket.received(message)),
+                    this.#deliver(
+                        opened,
+                        "toClient",
+                        () => opened.socket.received(message),
+                        message,
+                    ),
                 close: (code, reason) => this.#close(opened, "toClient", code, reason),
             });
             socket.opened(answer.protocol);
         };
-        void this.#transit(opening().catch(() => socket.closed(ABNORMAL_CLOSURE, "")));
+        void this.#transit(opening().catch(() => socket.closed(WebSocketClosure.abnormal, "")));
 
         return socket;
     }
 
-    /** Deliver a message one way, in order, after its latency, or break its connection. */
-    #deliver(connection: Connection, direction: Direction, arrive: () => void): void {
+    /** Deliver a message one way, in order, after its pauses and latency, or break the link. */
+    #deliver(
+        connection: Connection,
+        direction: Direction,
+        arrive: () => void,
+        message?: string | Uint8Array,
+    ): void {
         // skip a closed connection, and break one across a partition or losing the message
         const isCut = this.#isCut(connection.client, connection.server);
         if (!connection.isOpen) {
@@ -1124,15 +1154,48 @@ export class SimulatedNetwork {
             return;
         }
 
-        // arrive after the latency, never before an earlier message of the same direction
-        const at = Math.max(this.#clock.now() + this.#latency(), connection.arrivals[direction]);
-        connection.arrivals[direction] = at;
-        const arrival = this.#clock.sleep(at - this.#clock.now()).then(() => {
-            if (connection.isOpen) {
-                arrive();
-            }
+        // describe the message as the pauses on its link match it
+        const [from, to] =
+            direction === "toServer"
+                ? [connection.client, connection.server]
+                : [connection.server, connection.client];
+        const described =
+            message === undefined
+                ? connection.url
+                : `${connection.url} ${typeof message === "string" ? message : `<${message.byteLength} bytes>`}`;
+        // schedule a message no pause holds at once, keeping messages sent together in one turn
+        const isHeld = connection.held[direction] > 0 || this.#isPaused(from, to, described);
+        if (!isHeld) {
+            void this.#transit(this.#arrive(connection, direction, arrive));
+
+            return;
+        }
+
+        // queue a held message behind its pause and the messages held before it
+        connection.held[direction] += 1;
+        const released = connection.released[direction].then(() =>
+            this.#waitPaused(from, to, described),
+        );
+        connection.released[direction] = released;
+        const arrival = released.then(() => {
+            connection.held[direction] -= 1;
+
+            return this.#arrive(connection, direction, arrive);
         });
         void this.#transit(arrival);
+    }
+
+    /** Hand a message over after the latency, never before an earlier one of the same direction. */
+    async #arrive(connection: Connection, direction: Direction, arrive: () => void): Promise<void> {
+        // wait for the arrival time, past the latency and the earlier message's arrival
+        const at = Math.max(this.#clock.now() + this.#latency(), connection.arrivals[direction]);
+        connection.arrivals[direction] = at;
+        await this.#clock.sleep(at - this.#clock.now());
+
+        // hand it over on a link still open
+        if (connection.isOpen) {
+            arrive();
+        }
     }
 
     /** Close a connection from one end, the other end learning of it after the latency. */
@@ -1158,8 +1221,8 @@ export class SimulatedNetwork {
         // record it, and close both ends abnormally
         const { client, server } = connection;
         this.#record({ kind: "break", at: this.#clock.now(), client, server });
-        connection.end.close(ABNORMAL_CLOSURE, "");
-        connection.socket.closed(ABNORMAL_CLOSURE, "");
+        connection.end.close(WebSocketClosure.abnormal, "");
+        connection.socket.closed(WebSocketClosure.abnormal, "");
     }
 
     /** Find a request's listener after the latency, refusing an unserved, cut off or lost one. */

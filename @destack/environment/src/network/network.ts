@@ -73,7 +73,7 @@ export interface Network {
 }
 
 /** The platform's WebSocket as a client socket. */
-class SystemSocket implements ClientSocket {
+export class SystemSocket implements ClientSocket {
     /** The platform's socket. */
     readonly #socket: WebSocket;
 

@@ -643,7 +643,7 @@ function serveEcho(simulation: Simulation, node: string) {
             open: (socket: ServerSocket<{ readonly name: string }>) =>
                 events.push(`open ${socket.attachment.name}`),
             message: (socket, message) =>
-                socket.send(`${socket.attachment.name}: ${String(message)}`),
+                void socket.send(`${socket.attachment.name}: ${String(message)}`),
             close: (socket, code) => events.push(`close ${socket.attachment.name} ${code}`),
         },
     });

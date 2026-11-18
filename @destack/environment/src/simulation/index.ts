@@ -5,7 +5,6 @@ export * from "../network/simulated.ts";
 export * from "../file/simulated.ts";
 export * from "../process/simulated.ts";
 export * from "./simulation.ts";
-export * from "../network/websocket.ts";
 export * from "../telemetry/simulated.ts";
 export * from "../worker/simulated.ts";
 export * from "./options.ts";

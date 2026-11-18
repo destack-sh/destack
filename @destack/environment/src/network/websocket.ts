@@ -1,13 +1,145 @@
 import type { ClientSocket } from "./network.ts";
 
-/** The close code of a connection lost without a close frame (RFC 6455). */
-export const ABNORMAL_CLOSURE = 1006;
+/** The prefix of the subprotocol with a bearer token in base64url, as Kubernetes offers its own. */
+const BEARER_PROTOCOL_PREFIX = "destack.bearer.";
 
-/** The close code of a normal close (RFC 6455). */
-export const NORMAL_CLOSURE = 1000;
+/** The close codes a peer reports but never sends (RFC 6455 7.4.1). */
+const UNSENT_CODES: ReadonlySet<number> = new Set([1005, 1006, 1015]);
 
-/** The end of a simulated connection that a client holds, as a browser's WebSocket. */
-export class SimulatedWebSocket extends EventTarget implements ClientSocket {
+/** The headers a WebSocket client writes itself for each upgrade (RFC 6455 4.1). */
+const CLIENT_HEADERS = [
+    "upgrade",
+    "connection",
+    "sec-websocket-key",
+    "sec-websocket-version",
+    "sec-websocket-extensions",
+    "sec-websocket-protocol",
+];
+
+/** The close codes of a WebSocket (RFC 6455 7.4.1). */
+export const WebSocketClosure = {
+    /** A normal close. */
+    normal: 1000,
+    /** An end that goes away, such as a server stopping or a page leaving. */
+    goingAway: 1001,
+    /** A connection lost without a close frame, which a peer reports but never sends. */
+    abnormal: 1006,
+    /** A message or opening that breaks the endpoint's policy, such as a refused upgrade. */
+    policy: 1008,
+    /** A server restarting, which its client reconnects after. */
+    restart: 1012,
+
+    /** Read a close code a peer may send, a reported-only one as going away. */
+    sendable(code: number): number {
+        return UNSENT_CODES.has(code) ? WebSocketClosure.goingAway : code;
+    },
+};
+
+/** A received WebSocket message as text, or as the bytes of its ArrayBuffer. */
+export const WebSocketMessage = {
+    /** Read a message event's data, which a client socket receives as text or an ArrayBuffer. */
+    of(data: unknown): string | Uint8Array<ArrayBuffer> {
+        // take text as it is
+        if (typeof data === "string") {
+            return data;
+        }
+        // take the bytes of a binary message
+        else if (data instanceof ArrayBuffer) {
+            return new Uint8Array(data);
+        }
+
+        throw new TypeError("a client socket receives text or ArrayBuffers");
+    },
+};
+
+/** The bearer tokens clients offer as subprotocols, as browsers set no header on an opening. */
+export const BearerProtocol = {
+    /** Write a bearer token as the subprotocol a client offers in its place. */
+    write(token: string): string {
+        const encoded = new TextEncoder()
+            .encode(token)
+            .toBase64({ alphabet: "base64url", omitPadding: true });
+
+        return `${BEARER_PROTOCOL_PREFIX}${encoded}`;
+    },
+
+    /** Read the one bearer token the headers' subprotocols offer, absent for none or several. */
+    read(headers: Headers): string | undefined {
+        // require one bearer subprotocol
+        const bearers = offered(headers).filter((protocol) =>
+            protocol.startsWith(BEARER_PROTOCOL_PREFIX),
+        );
+        const [bearer] = bearers;
+        if (bearers.length !== 1 || bearer === undefined) {
+            return undefined;
+        }
+
+        // decode its token, absent for invalid base64url
+        try {
+            const encoded = bearer.slice(BEARER_PROTOCOL_PREFIX.length);
+            const bytes = Uint8Array.fromBase64(encoded, { alphabet: "base64url" });
+
+            return new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+        } catch {
+            return undefined;
+        }
+    },
+};
+
+/** A request's WebSocket upgrade (RFC 6455 4.1): the request and the subprotocols it offers. */
+export class WebSocketUpgrade {
+    /** The upgrade's request. */
+    readonly request: Request;
+    /** The subprotocols the client offers, in its order. */
+    readonly protocols: readonly string[];
+
+    /** Take an upgrade's request and its offered subprotocols. */
+    private constructor(request: Request, protocols: readonly string[]) {
+        this.request = request;
+        this.protocols = protocols;
+    }
+
+    /** Read a request's WebSocket upgrade, absent for a plain request. */
+    static of(request: Request): WebSocketUpgrade | undefined {
+        // take a request asking to switch to a WebSocket
+        if (request.headers.get("upgrade")?.toLowerCase() !== "websocket") {
+            return undefined;
+        }
+
+        return new WebSocketUpgrade(request, offered(request.headers));
+    }
+
+    /** Describe the upgrade of a socket at a URL offering subprotocols, beside other headers. */
+    static to(
+        url: string,
+        protocols: readonly string[],
+        headers: Headers = new Headers(),
+    ): WebSocketUpgrade {
+        // ask to switch at the URL's HTTP form, offering the subprotocols
+        const upgraded = new Headers(headers);
+        upgraded.set("upgrade", "websocket");
+        upgraded.set("connection", "Upgrade");
+        if (protocols.length > 0) {
+            upgraded.set("sec-websocket-protocol", protocols.join(", "));
+        }
+        const request = new Request(url.replace(/^ws/u, "http"), { headers: upgraded });
+
+        return new WebSocketUpgrade(request, protocols);
+    }
+
+    /** The upgrade's end-to-end headers, without those a client writes itself for each upgrade. */
+    forwarded(): Headers {
+        const headers = new Headers(this.request.headers);
+        for (const name of CLIENT_HEADERS) {
+            headers.delete(name);
+        }
+
+        return headers;
+    }
+}
+
+/** The client end of an in-memory connection, as a browser's WebSocket holds it. */
+export class MemoryWebSocket extends EventTarget implements ClientSocket {
     /** The state before the connection opens. */
     static readonly CONNECTING = 0;
     /** The state while the connection is open. */
@@ -36,7 +168,7 @@ export class SimulatedWebSocket extends EventTarget implements ClientSocket {
     /** The subprotocol the server chose. */
     protocol = "";
     /** The connection's state. */
-    readyState: WebSocket["readyState"] = SimulatedWebSocket.CONNECTING;
+    readyState: WebSocket["readyState"] = MemoryWebSocket.CONNECTING;
     /** Take the open. */
     onopen: ((event: Event) => unknown) | null = null;
     /** Take a message. */
@@ -103,9 +235,9 @@ export class SimulatedWebSocket extends EventTarget implements ClientSocket {
     /** Send a message, refusing one before the connection opens. */
     send(message: string | ArrayBufferLike | Blob | ArrayBufferView): void {
         // refuse a socket that is still connecting, and drop sends after the close
-        if (this.readyState === SimulatedWebSocket.CONNECTING) {
+        if (this.readyState === MemoryWebSocket.CONNECTING) {
             throw new DOMException("the socket is still connecting", "InvalidStateError");
-        } else if (this.readyState !== SimulatedWebSocket.OPEN) {
+        } else if (this.readyState !== MemoryWebSocket.OPEN) {
             return;
         }
 
@@ -124,12 +256,12 @@ export class SimulatedWebSocket extends EventTarget implements ClientSocket {
     }
 
     /** Close the connection. */
-    close(code = NORMAL_CLOSURE, reason = ""): void {
+    close(code = WebSocketClosure.normal, reason = ""): void {
         if (
-            this.readyState === SimulatedWebSocket.OPEN ||
-            this.readyState === SimulatedWebSocket.CONNECTING
+            this.readyState === MemoryWebSocket.OPEN ||
+            this.readyState === MemoryWebSocket.CONNECTING
         ) {
-            this.readyState = SimulatedWebSocket.CLOSING;
+            this.readyState = MemoryWebSocket.CLOSING;
             this.#close(code, reason);
         }
     }
@@ -137,14 +269,14 @@ export class SimulatedWebSocket extends EventTarget implements ClientSocket {
     /** Open the socket with the server's chosen subprotocol. */
     opened(protocol: string): void {
         this.protocol = protocol;
-        this.readyState = SimulatedWebSocket.OPEN;
+        this.readyState = MemoryWebSocket.OPEN;
         this.#dispatch(new Event("open"), this.onopen);
     }
 
     /** Take a message from the server's end. */
     received(message: string | Uint8Array<ArrayBuffer>): void {
         // drop messages after the close
-        if (this.readyState !== SimulatedWebSocket.OPEN) {
+        if (this.readyState !== MemoryWebSocket.OPEN) {
             return;
         }
 
@@ -161,19 +293,19 @@ export class SimulatedWebSocket extends EventTarget implements ClientSocket {
     /** End the socket, failing first for an abnormal close. */
     closed(code: number, reason: string): void {
         // end once
-        if (this.readyState === SimulatedWebSocket.CLOSED) {
+        if (this.readyState === MemoryWebSocket.CLOSED) {
             return;
         }
-        this.readyState = SimulatedWebSocket.CLOSED;
+        this.readyState = MemoryWebSocket.CLOSED;
 
         // report an abnormal close as a failure, then the close
-        if (code === ABNORMAL_CLOSURE) {
+        if (code === WebSocketClosure.abnormal) {
             this.#dispatch(new Event("error"), this.onerror);
         }
         const event = new CloseEvent("close", {
             code,
             reason,
-            wasClean: code !== ABNORMAL_CLOSURE,
+            wasClean: code !== WebSocketClosure.abnormal,
         });
         this.#dispatch(event, this.onclose);
     }
@@ -186,4 +318,12 @@ export class SimulatedWebSocket extends EventTarget implements ClientSocket {
         handler?.(event);
         this.dispatchEvent(event);
     }
+}
+
+/** Read the subprotocols headers offer, in their order. */
+function offered(headers: Headers): string[] {
+    return (headers.get("sec-websocket-protocol") ?? "")
+        .split(",")
+        .map((protocol) => protocol.trim())
+        .filter((protocol) => protocol.length > 0);
 }
