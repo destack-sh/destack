@@ -21,7 +21,7 @@
             "runtimes": ["browser", "bun", "workerd"]
         },
         "./inspect": {
-            "runtimes": ["bun"]
+            "runtimes": ["bun", "workerd"]
         },
         "./error": {
             "runtimes": ["browser", "bun", "workerd"]

@@ -9,7 +9,7 @@
             "runtimes": ["bun", "workerd"]
         },
         "./inspect": {
-            "runtimes": ["bun"]
+            "runtimes": ["bun", "workerd"]
         },
         "./provider/stripe": {
             "runtimes": ["bun", "workerd"]
