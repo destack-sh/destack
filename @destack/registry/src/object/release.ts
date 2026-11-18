@@ -2,7 +2,7 @@ import { through } from "@destack/access";
 import { space } from "@destack/account/object";
 import type { Select } from "@destack/db";
 import { defineObject, field } from "@destack/object";
-import { PackageId } from "@destack/package";
+import { PACKAGE_ROLES, PackageId } from "@destack/package";
 import { schema } from "@destack/schema";
 import { NpmRelease } from "../npm/packument.ts";
 import { Candidate, packageObject, TagName } from "./package.ts";
@@ -27,6 +27,8 @@ export const release = defineObject(
             version: field.string(),
             /** The published lock's digest: the package's build and every build it runs with. */
             lock: field.blob(),
+            /** The role its root build declares: an app, a library or a builtin. */
+            role: field.enum(PACKAGE_ROLES),
             /** What an npm client lists of the release: install fields and tarball hash. */
             npm: field.json(NpmRelease),
             /** The stored tarball npm clients download: the release's sources. */

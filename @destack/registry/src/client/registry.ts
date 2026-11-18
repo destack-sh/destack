@@ -14,7 +14,14 @@ import type { Fetch } from "@destack/object";
 import { type ClientOf, createClient } from "@destack/object/client";
 import { Failure } from "@destack/error";
 import { RegistryError } from "../error/index.ts";
-import { packageObject, reference, release, repository, tag } from "../object/index.ts";
+import {
+    packageObject,
+    reference,
+    release,
+    repository,
+    tag,
+    type PackageVisibility,
+} from "../object/index.ts";
 import registryPackage from "../package.ts";
 import type { Environment } from "@destack/environment";
 import type { Lease } from "@destack/resource";
@@ -48,6 +55,36 @@ type ForgeOwner =
     | { readonly account: Identifier<"account"> }
     | { readonly handle: string }
     | { readonly home: Identifier<"space"> };
+
+/** The package file every build carries, whose `publishConfig` asks its access. */
+const PACKAGE_FILE = "package.json";
+
+/** The visibility each of npm's access levels publishes a package at. */
+const NPM_ACCESS = { public: "public", restricted: "private" } as const satisfies Record<
+    string,
+    PackageVisibility
+>;
+
+/** The part of a package file asking its access, as npm reads it at publish. */
+const PackageAccess = schema.looseObject({
+    /** The settings npm publishes with. */
+    publishConfig: schema
+        .looseObject({
+            /** Whether the package is public or restricted to its owners. */
+            access: schema.enum(["public", "restricted"]).exactOptional(),
+        })
+        .exactOptional(),
+});
+
+/** How a release publishes its packages: its commit, and who reads a package it creates. */
+export interface PublishOptions {
+    /** The commit the roots compiled, absent for a prerelease of uncommitted changes. */
+    readonly commit?: string;
+    /** Who can read a package the release creates, else as its package file asks, else unlisted. */
+    readonly visibility?: PackageVisibility;
+    /** The further distribution tags to point at each released version, as npm's dist-tag add. */
+    readonly tags?: readonly string[];
+}
 
 /** The forges of published releases and repositories, called as one caller. */
 export class Registry {
@@ -296,7 +333,7 @@ export class Registry {
         locks: readonly Digest[],
         account: Identifier<"account">,
         tagName: string,
-        commit?: string,
+        options: PublishOptions = {},
     ): Promise<readonly PackageRelease[]> {
         return this.#scope.span(
             "destack.registry.release",
@@ -339,20 +376,41 @@ export class Registry {
                         .filter((root, index) => tagged[index] !== root.lock)
                         .map((root) => root.lock),
                 );
-                if (pending.size === 0) {
-                    return layers.flat();
-                }
 
                 // push the pending locks' objects once below the account's handle
-                const { handle } = PackageName.split(nth([...roots.values()], 0).package.name);
-                await Registry.#uploads(forge, handle).push(store, [...pending]);
+                if (pending.size > 0) {
+                    const { handle } = PackageName.split(nth([...roots.values()], 0).package.name);
+                    await Registry.#uploads(forge, handle).push(store, [...pending]);
 
-                // publish the pending roots a layer at a time, then answer every root in order
-                for (const layer of layers) {
+                    // publish them a layer at a time, each as its package file asks
+                    for (const layer of layers) {
+                        await Promise.all(
+                            layer
+                                .filter((root) => pending.has(root.lock))
+                                .map(async (root) => {
+                                    // take the visibility asked, else the package file's
+                                    const visibility =
+                                        options.visibility ??
+                                        (await Registry.#visibility(store, root));
+
+                                    return this.#publish(
+                                        forge,
+                                        root,
+                                        account,
+                                        tagName,
+                                        visibility === undefined
+                                            ? options
+                                            : { ...options, visibility },
+                                    );
+                                }),
+                        );
+                    }
+                }
+
+                // point each further tag at every root's version, as npm's dist-tag add does
+                for (const name of options.tags ?? []) {
                     await Promise.all(
-                        layer
-                            .filter((root) => pending.has(root.lock))
-                            .map((root) => this.#publish(forge, root, account, tagName, commit)),
+                        [...roots.values()].map((root) => this.#point(client, forge, root, name)),
                     );
                 }
 
@@ -367,7 +425,7 @@ export class Registry {
         lock: Digest,
         account: Identifier<"account">,
         tagName: string,
-        commit?: string,
+        options: PublishOptions = {},
     ): Promise<readonly PackageRelease[]> {
         return this.#scope.span(
             "destack.registry.publish",
@@ -389,7 +447,7 @@ export class Registry {
                     }
                 }
 
-                return await this.release(store, owned, account, tagName, commit);
+                return await this.release(store, owned, account, tagName, options);
             },
         );
     }
@@ -400,7 +458,7 @@ export class Registry {
         root: PackageRelease,
         account: Identifier<"account">,
         tagName: string,
-        commit: string | undefined,
+        options: PublishOptions,
     ): Promise<PackageRelease> {
         await createClient(registryPackage, forge, this.#environment).package.publish({
             spaceId: forge.space,
@@ -409,11 +467,51 @@ export class Registry {
             accountId: account,
             name: PackageName.split(root.package.name).local,
             lock: root.lock,
-            ...(commit === undefined ? {} : { commit }),
+            ...(options.commit === undefined ? {} : { commit: options.commit }),
+            ...(options.visibility === undefined ? {} : { visibility: options.visibility }),
             tag: tagName,
         });
 
         return root;
+    }
+
+    /** Read the visibility a root's package file asks through npm's `publishConfig.access`. */
+    static async #visibility(
+        store: LockStore,
+        root: PackageRelease,
+    ): Promise<PackageVisibility | undefined> {
+        // read the package file of the lock's root
+        const reader = await store.contents((await store.lock(root.lock)).root);
+        const authored = PackageAccess.parse(
+            JSON.parse(new TextDecoder().decode(await reader.load(PACKAGE_FILE))),
+        );
+
+        // publish public access listed, restricted access private
+        return authored.publishConfig?.access === undefined
+            ? undefined
+            : NPM_ACCESS[authored.publishConfig.access];
+    }
+
+    /** Point a package's tag at a root's version unless it points there already. */
+    async #point(
+        client: ClientOf<typeof registryPackage>,
+        forge: ForgeEndpoint,
+        root: PackageRelease,
+        name: string,
+    ): Promise<void> {
+        // leave a tag already at the root's lock
+        if ((await Registry.#tagged(client, forge, root, name)) === root.lock) {
+            return;
+        }
+
+        // point the tag at the root's version
+        await client.package.point({
+            spaceId: forge.space,
+            id: root.package.id,
+            requestId: RequestId.create(this.#environment),
+            name,
+            version: root.package.version,
+        });
     }
 
     /** Read the lock a package's tag points at in its forge, none before its first publish. */

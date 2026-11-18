@@ -4,7 +4,7 @@ import type { Select } from "@destack/db";
 import { defineObject, field } from "@destack/object";
 import { Digest, schema, Version } from "@destack/schema";
 import { ObjectReference } from "@destack/sync";
-import { graph, PackageId, PackageName } from "@destack/package";
+import { graph, PACKAGE_ROLES, PackageId, PackageName, PackageRole } from "@destack/package";
 import { Vocabulary } from "@destack/resource";
 import { RegistryError } from "../error/index.ts";
 import { NpmRelease } from "../npm/packument.ts";
@@ -19,6 +19,9 @@ const TAG_LENGTH = 256;
 
 /** Who can read a package: anyone, anyone with its name, or its account alone. */
 const VISIBILITIES = ["public", "unlisted", "private"] as const;
+
+/** Who can read a package and whether it is listed to them. */
+export type PackageVisibility = (typeof VISIBILITIES)[number];
 
 /** The tag installers follow when they request no version. */
 export const LATEST_TAG = "latest";
@@ -50,6 +53,8 @@ export const Candidate = schema.object({
     commit: schema.string().exactOptional(),
     /** The version its root build declares. */
     version: schema.string(),
+    /** The role its root build declares: an app, a library or a builtin. */
+    role: PackageRole,
     /** Its root build's declarations, with their terms. */
     declarations: schema.array(graph.Declaration).readonly(),
     /** What an npm client lists of the release: install fields and tarball hash. */
@@ -80,6 +85,8 @@ export const packageObject = defineObject(
             ),
             /** Who can read the package, and whether it is listed to them. */
             visibility: field.enum(VISIBILITIES).default("unlisted"),
+            /** The role its last published release declares: an app, a library or a builtin. */
+            role: field.enum(PACKAGE_ROLES),
             /** The terms of the package's releases. */
             vocabulary: field.json(Vocabulary).default({}),
         },
@@ -118,7 +125,7 @@ export const packageObject = defineObject(
     },
     (method) => ({
         create: method.create("publish", {
-            fields: ["accountId", "name", "visibility"],
+            fields: ["accountId", "name", "visibility", "role"],
             onConflict: "id",
         }),
         /** Publish a pushed lock as a release under a tag, creating the package, as npm does. */
@@ -181,7 +188,10 @@ export const packageObject = defineObject(
                 version: schema.string(),
             }),
         }),
-        advance: method.update("publish", { visibility: "package", fields: ["vocabulary"] }),
+        advance: method.update("publish", {
+            visibility: "package",
+            fields: ["vocabulary", "role"],
+        }),
         update: method.update("publish", { fields: ["visibility"] }),
     }),
 );
