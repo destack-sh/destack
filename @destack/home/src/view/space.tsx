@@ -23,17 +23,20 @@ import {
     useLocale,
     useOrigin,
     useQuery,
+    useScope,
     useView,
 } from "@destack/view";
 import { INSTALLATION_PARAMETER, SPACE_PARAMETER, VIEW_PARAMETER } from "@destack/view/declare";
 import type { ViewEntry } from "@destack/view/palette";
 import { space } from "@destack/account/object";
-import { PackageMount } from "@destack/object";
+import type { PackageId } from "@destack/package";
+import { installation, PackageMount } from "@destack/object";
 import { createClient } from "@destack/object/client";
 import objectPackage from "@destack/object/package";
 import { RequestId } from "@destack/sync";
 import { HOME_PATH } from "@destack/view/declare";
 import { SpaceCatalog } from "../palette/catalog.ts";
+import { AppDirectoryDialog } from "./directory.tsx";
 import {
     allowAlways,
     readWaitingChanges,
@@ -157,29 +160,34 @@ function SpaceItem(properties: {
     const always = (
         waiting: WaitingChange & { readonly grant: NonNullable<WaitingChange["grant"]> },
     ) => void settled(allowAlways(waiting, person, origin, environment));
+    const [installed, setInstalled] = createSignal<readonly PackageId[]>([]);
+    const readViews = (id: Identifier<"space">) =>
+        SpaceCatalog.read({ id, address: properties.address }, origin, environment).then(
+            (catalog) => {
+                setFailure(undefined);
+                setInstalled(catalog.installations.map((each) => each.packageId));
+                setViews(
+                    catalog.installations.flatMap((each) =>
+                        each.main === undefined
+                            ? []
+                            : [{ installation: each.name, name: each.main }],
+                    ),
+                );
+            },
+            (error: unknown) => {
+                globalThis.reportError(error);
+                setFailure(Failure.of(error).message);
+            },
+        );
+
+    // follow the space's installations, reading its views and waiting plans again at each change
+    const scoped = useScope(() => properties.id, { installation });
+    const installations = useQuery(() => scoped().query.installation.findMany({}));
     createEffect(
-        () => properties.id,
-        (id) => void readApproval(id),
-    );
-    createEffect(
-        () => properties.id,
-        (id) => {
-            SpaceCatalog.read({ id, address: properties.address }, origin, environment).then(
-                (catalog) => {
-                    setFailure(undefined);
-                    setViews(
-                        catalog.installations.flatMap((installed) =>
-                            installed.main === undefined
-                                ? []
-                                : [{ installation: installed.name, name: installed.main }],
-                        ),
-                    );
-                },
-                (error: unknown) => {
-                    globalThis.reportError(error);
-                    setFailure(Failure.of(error).message);
-                },
-            );
+        () => [properties.id, installations()] as const,
+        ([id]) => {
+            void readViews(id);
+            void readApproval(id);
         },
     );
 
@@ -216,6 +224,9 @@ function SpaceItem(properties: {
                         </ItemDescription>
                     )}
                 </Show>
+
+                {/* Apps to add from the residency's forge */}
+                <AppDirectoryDialog space={properties.id} installed={installed()} />
 
                 {/* Plans waiting for approval, each with its steps */}
                 <For each={waitingPlans()}>

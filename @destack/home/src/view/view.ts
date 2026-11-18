@@ -1,4 +1,5 @@
 import { space } from "@destack/account/object";
+import { installation } from "@destack/object";
 import { setting } from "@destack/setting/object";
 import { defineView } from "@destack/view/declare";
 import { t } from "@destack/locale";
@@ -8,7 +9,7 @@ export const home = defineView({
     name: "home",
     title: t`Home`,
     categories: ["main", "home"],
-    objects: [space],
+    objects: [space, installation],
     component: () => import("./home.tsx"),
 });
 
