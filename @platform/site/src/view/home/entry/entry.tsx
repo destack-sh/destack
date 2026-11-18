@@ -241,7 +241,7 @@ const styles = style.create({
         alignItems: "baseline",
         columnGap: { default: "2rem", [media.maxLg]: "0.75rem" },
         gridTemplateAreas: {
-            default: `"word title" "word sentence"`,
+            default: `"headword title" "pronunciation sentence"`,
             [media.maxLg]: `"word" "title" "sentence"`,
         },
         gridTemplateColumns: {
@@ -317,9 +317,10 @@ const styles = style.create({
     word: {
         alignItems: "baseline",
         columnGap: "0.75rem",
-        display: { default: "grid", [media.maxLg]: "flex" },
+        // lay the headword and its pronunciation on the title's and the sentence's rows, sharing their baselines
+        display: { default: "contents", [media.maxLg]: "flex" },
         flexWrap: "wrap",
-        gridArea: "word",
+        gridArea: { default: "auto", [media.maxLg]: "word" },
         justifyItems: { default: "end", [media.maxLg]: "start" },
         margin: 0,
         rowGap: "0.5rem",
@@ -328,6 +329,8 @@ const styles = style.create({
     meta: {
         color: color.mutedForeground,
         fontSize: { default: typeScale.lead, [media.maxLg]: typeScale.body },
+        gridArea: { default: "pronunciation", [media.maxLg]: "auto" },
+        justifySelf: { default: "end", [media.maxLg]: "auto" },
         lineHeight: 1.45,
     },
     partOfSpeech: {
@@ -339,6 +342,8 @@ const styles = style.create({
     },
     headword: {
         color: color.primary,
+        gridArea: { default: "headword", [media.maxLg]: "auto" },
+        justifySelf: { default: "end", [media.maxLg]: "auto" },
         fontSize: { default: typeScale.display, [media.maxLg]: typeScale.headword },
         fontWeight: { default: 500, [media.maxLg]: 600 },
         letterSpacing: tracking.display,
