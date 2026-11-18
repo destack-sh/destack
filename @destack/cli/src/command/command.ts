@@ -38,6 +38,9 @@ const OPTION_WIDTH = 24;
 /** The spaces between the widest option and its description, in characters. */
 const OPTION_GAP = 2;
 
+/** The most width a help line pads its options to: half the help width. */
+const OPTION_MAX_WIDTH = HELP_WIDTH / 2;
+
 /** An option every command line takes: its flag, its short flag and its line in help. */
 interface GlobalOption {
     /** The long flag, such as --json. */
@@ -463,12 +466,19 @@ export class CommandTree {
             ]),
             ...shown,
         ];
-        const width = Math.max(
-            OPTION_WIDTH,
-            ...options.map(([label]) => label.length + OPTION_GAP),
+        const width = Math.min(
+            OPTION_MAX_WIDTH,
+            Math.max(OPTION_WIDTH, ...options.map(([label]) => label.length + OPTION_GAP)),
         );
         for (const [label, description] of options) {
-            lines.push(`  ${label.padEnd(width)}${description}`);
+            // put a label wider than the column on its own line, its description below at the column
+            if (label.length + OPTION_GAP > width) {
+                lines.push(`  ${label}`, `  ${" ".repeat(width)}${description}`);
+            }
+            // put a label beside its description
+            else {
+                lines.push(`  ${label.padEnd(width)}${description}`);
+            }
         }
 
         return lines.join("\n");

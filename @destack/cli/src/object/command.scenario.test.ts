@@ -62,6 +62,21 @@ test("create, get, change and call a card by its singular noun, plain and qualif
     });
 });
 
+test("create and get a card through its plural noun", async () => {
+    // create a card and get it through the plural
+    const terminal = await open(WORK_BOARD);
+    const created = await line(terminal, ["cards", "new", "--title", "Plans", "--json"]);
+    const { id } = Printed.parse(JSON.parse(created.output));
+    const got = await line(terminal, ["cards", id, "--json"]);
+
+    // create it as the singular does, and print the stored card
+    const stored = await terminal.object(card, "work", id);
+    expect({ created, got }).toEqual({
+        created: { code: 0, output: `${JSON.stringify(stored)}\n`, error: "" },
+        got: { code: 0, output: `${JSON.stringify(stored)}\n`, error: "" },
+    });
+});
+
 test("read a method's input from standard input and from a file", async () => {
     // write the input file
     const terminal = await open(WORK_BOARD);
@@ -330,22 +345,28 @@ test("list a union input's flags in a method's help, one per path", async () => 
 
 Usage: destack bucket ${BUCKET} open
 
-  -h, --help                                        Show help
-      --json                                        Print JSON
-      --mode <read|write>                           The mode: read, write
-      --key <string>                                The key
-      --range <string>                              The range
-      --if-match <string>                           The if match
-      --customer-key <string>                       The customer key
-      --size <integer>                              The size
-      --http-metadata-content-type <string>         The http metadata content type
-      --http-metadata-content-language <string>     The http metadata content language
-      --http-metadata-content-disposition <string>  The http metadata content disposition
-      --http-metadata-content-encoding <string>     The http metadata content encoding
-      --http-metadata-cache-control <string>        The http metadata cache control
-      --http-metadata-cache-expiry <integer>        The http metadata cache expiry
-      --if-none-match <*>                           The if none match: *
-      --input <json>                                The method's input as a JSON object, - for stdin, @path for a file
+  -h, --help                              Show help
+      --json                              Print JSON
+      --mode <read|write>                 The mode: read, write
+      --key <string>                      The key
+      --range <string>                    The range
+      --if-match <string>                 The if match
+      --customer-key <string>             The customer key
+      --size <integer>                    The size
+      --http-metadata-content-type <string>
+                                          The http metadata content type
+      --http-metadata-content-language <string>
+                                          The http metadata content language
+      --http-metadata-content-disposition <string>
+                                          The http metadata content disposition
+      --http-metadata-content-encoding <string>
+                                          The http metadata content encoding
+      --http-metadata-cache-control <string>
+                                          The http metadata cache control
+      --http-metadata-cache-expiry <integer>
+                                          The http metadata cache expiry
+      --if-none-match <*>                 The if none match: *
+      --input <json>                      The method's input as a JSON object, - for stdin, @path for a file
 `,
         error: "",
     });

@@ -64,9 +64,11 @@ export function nounCommand(
     if (noun === undefined) {
         return undefined;
     }
-    // list a noun's objects by its plural
+    // list a noun's objects by its plural, taking the singular's subcommands too, as kubectl's plurals do
     else if (noun.lists(word)) {
-        return listCommand(context, noun);
+        const list = listCommand(context, noun);
+
+        return { ...objectCommand(context, noun), description: list.description, default: list };
     }
     // get, create and call a noun's objects by its singular
     else {
