@@ -9,6 +9,8 @@ import type { LogPosition } from "./position.ts";
 import { Snapshot } from "./snapshot.ts";
 import { Key } from "../query/key.ts";
 import { testSimulation } from "@destack/test/world";
+import { SimulatedTelemetry } from "@destack/environment/simulation";
+import { schema } from "@destack/schema";
 
 /** The writes before each snapshot. */
 const WRITES = 120;
@@ -61,6 +63,34 @@ const part = defineTable(
     },
     { log: {} },
 );
+
+/** Count the prepared query cache's hits and misses a telemetry recorded so far. */
+async function preparedTakes(
+    telemetry: SimulatedTelemetry,
+): Promise<{ hit: number; miss: number }> {
+    const takes = { hit: 0, miss: 0 };
+    for (const { metrics } of (await telemetry.metrics()).flatMap((each) => each.scopeMetrics)) {
+        for (const metric of metrics.filter(
+            (each) => each.descriptor.name === "destack.cache.requests",
+        )) {
+            for (const point of metric.dataPoints) {
+                // add the prepared query cache's points by their result
+                const { attributes, value } = point;
+                if (
+                    attributes["destack.cache.name"] === "prepared_query" &&
+                    typeof value === "number"
+                ) {
+                    const result = schema
+                        .enum(["hit", "miss"])
+                        .parse(attributes["destack.cache.result"]);
+                    takes[result] += value;
+                }
+            }
+        }
+    }
+
+    return takes;
+}
 
 /** Draw a seeded pseudo-random number. */
 function random(seed: { value: number }): number {
@@ -417,3 +447,155 @@ test("fill a page of visible rows from candidates in batches, deciding every can
         batches: [4, 8, 16],
     });
 });
+
+test("read a table defined anew through its own prepared query, selecting its own columns", async () => {
+    // open a database with an item, and define the table again without its label
+    const world = testSimulation().environment("test");
+    const storage = await TestDatabase.create([item], { environment: world, isMigrated: true });
+    onTestFinished(() => storage.close());
+    const { database } = storage;
+    await database.transaction((transaction) =>
+        transaction
+            .insert(item)
+            .values({ id: "a1", scope: "a", rank: 1, label: "first" })
+            .execute(),
+    );
+    const narrow = defineTable(
+        "snapshot_item",
+        {
+            /** The item's key. */
+            id: text("id").primaryKey(),
+            /** The folder the item lives in. */
+            scope: text("scope").notNull(),
+            /** The rank. */
+            rank: integer("rank").notNull(),
+        },
+        { log: {} },
+    );
+
+    // read one shape through each definition, by condition and by key
+    const view = Snapshot.live(database);
+    const read = {
+        full: await view.read(item).findMany({ where: { scope: "a" } }),
+        narrow: await view.read(narrow).findMany({ where: { scope: "a" } }),
+        narrowKey: await view.read(narrow).findFirst({ where: { id: "a1" } }),
+    };
+
+    // expect each definition's own columns
+    expect(read).toEqual({
+        full: [{ id: "a1", scope: "a", rank: 1, label: "first" }],
+        narrow: [{ id: "a1", scope: "a", rank: 1 }],
+        narrowKey: { id: "a1", scope: "a", rank: 1 },
+    });
+});
+
+test("bind each literal of a nested condition to its own slot, on the prepared query's first read and on a reuse", async () => {
+    // open a database with items in two folders
+    const world = testSimulation().environment("test");
+    const storage = await TestDatabase.create([item], { environment: world, isMigrated: true });
+    onTestFinished(() => storage.close());
+    const { database } = storage;
+    await database.transaction((transaction) =>
+        transaction
+            .insert(item)
+            .values([
+                { id: "a1", scope: "a", rank: 1, label: "first" },
+                { id: "a2", scope: "a", rank: 2, label: "second" },
+                { id: "b1", scope: "b", rank: 3, label: "other" },
+            ])
+            .execute(),
+    );
+
+    // read one shape mixing compare, oneOf, length, not, and all/any nesting, with two sets of literals
+    const items = Snapshot.live(database).read(item);
+    const nested = (scope: string, keys: readonly string[], length: number, rank: number) =>
+        items.findMany({
+            where: {
+                OR: [
+                    { AND: [{ scope }, { id: { in: [...keys] } }] },
+                    {
+                        AND: [
+                            { label: { length: { gt: length } } },
+                            { NOT: { rank: { lte: rank } } },
+                        ],
+                    },
+                ],
+            },
+            orderBy: { id: "asc" },
+        });
+    const first = ids(await nested("a", ["a1"], 5, 2));
+    const reused = ids(await nested("b", ["b1", "a2"], 4, 0));
+
+    // expect each read's own rows, which a literal in another slot would change
+    expect({ first, reused }).toEqual({ first: ["a1"], reused: ["a1", "a2", "b1"] });
+});
+
+test("read each shape of condition and key reads through one prepared query, binding each read's values", async () => {
+    // open a database on a recorded telemetry with items in two folders
+    const world = testSimulation().environment("test");
+    const telemetry = new SimulatedTelemetry(world);
+    const storage = await TestDatabase.create([item], {
+        environment: { ...world, telemetry },
+        isMigrated: true,
+    });
+    onTestFinished(() => storage.close());
+    const { database } = storage;
+    await database.transaction((transaction) =>
+        transaction
+            .insert(item)
+            .values([
+                { id: "a1", scope: "a", rank: 1, label: "first" },
+                { id: "a2", scope: "a", rank: 2, label: null },
+                { id: "b1", scope: "b", rank: 1, label: "other" },
+            ])
+            .execute(),
+    );
+
+    // read folders, keys, like patterns and id lists, compared literals sharing a shape
+    const before = await preparedTakes(telemetry);
+    const items = Snapshot.live(database).read(item);
+    const read = {
+        folder: await items.findMany({ where: { scope: "a" } }),
+        other: await items.findMany({ where: { scope: "b" } }),
+        later: await items.findMany({ where: { scope: "a", rank: { gt: 1 } } }),
+        first: await items.findFirst({ where: { id: "a1" } }),
+        otherKey: await items.findFirst({ where: { id: "b1" } }),
+        missing: await items.findFirst({ where: { id: "zz" } }),
+        firstLabel: await items.findMany({ where: { label: { like: "fir%" } } }),
+        otherLabel: await items.findMany({ where: { label: { like: "oth%" } } }),
+        pair: await items.findMany({ where: { id: { in: ["a1", "b1"] } } }),
+        otherPair: await items.findMany({ where: { id: { in: ["a2", "zz"] } } }),
+        single: await items.findMany({ where: { id: { in: ["a2"] } } }),
+    };
+    const after = await preparedTakes(telemetry);
+    const prepared = { hit: after.hit - before.hit, miss: after.miss - before.miss };
+
+    // expect each read's rows, a shape per like pattern and per list length, others shared
+    expect({ read, prepared }).toEqual({
+        read: {
+            folder: [
+                { id: "a1", scope: "a", rank: 1, label: "first" },
+                { id: "a2", scope: "a", rank: 2, label: null },
+            ],
+            other: [{ id: "b1", scope: "b", rank: 1, label: "other" }],
+            later: [{ id: "a2", scope: "a", rank: 2, label: null }],
+            first: { id: "a1", scope: "a", rank: 1, label: "first" },
+            otherKey: { id: "b1", scope: "b", rank: 1, label: "other" },
+            missing: undefined,
+            firstLabel: [{ id: "a1", scope: "a", rank: 1, label: "first" }],
+            otherLabel: [{ id: "b1", scope: "b", rank: 1, label: "other" }],
+            pair: [
+                { id: "a1", scope: "a", rank: 1, label: "first" },
+                { id: "b1", scope: "b", rank: 1, label: "other" },
+            ],
+            otherPair: [{ id: "a2", scope: "a", rank: 2, label: null }],
+            single: [{ id: "a2", scope: "a", rank: 2, label: null }],
+        },
+        prepared: { hit: 4, miss: 7 },
+    });
+});
+
+/** Read the identifiers of some rows, in order. */
+function ids(rows: readonly { readonly id: string }[]): string[] {
+    return rows.map((row) => row.id);
+}

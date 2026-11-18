@@ -1,7 +1,8 @@
-import { and, inArray, sql, type SQL } from "../sql/index.ts";
+import { and, inArray, render, sql, type SQL, type SQLWrapper } from "../sql/index.ts";
+import { PreparedQuery } from "../query/prepared.ts";
 import { Projection } from "../query/selection.ts";
 import type { DatabaseConnection } from "../database/connection.ts";
-import { Condition, Scalar } from "../query/condition.ts";
+import { type Comparable, Condition, Scalar } from "../query/condition.ts";
 import { Predicate, type Match } from "../query/predicate.ts";
 import { Key } from "../query/key.ts";
 import { Change } from "./log.ts";
@@ -14,7 +15,7 @@ import type { Row } from "../table/row.ts";
 import type { ReadSet } from "./commit.ts";
 import type { QueryOptions } from "../query/option.ts";
 import { RelationalQueryBuilder } from "./query.ts";
-import type { Column, ColumnValue } from "../table/column.ts";
+import { Column, type ColumnValue } from "../table/column.ts";
 import { elementValue, jsonElements, jsonOf, Statement } from "../query/statement.ts";
 import { DatabaseError } from "../error/error.ts";
 import type { Dialect } from "../dialect/dialect.ts";
@@ -196,7 +197,7 @@ export class Snapshot {
 
         // read the current rows and the changed rows' images
         const predicate = Condition.resolve(where, Namespace.fields(table));
-        const { rows, sequence } = await this.#read(table, render(predicate, table));
+        const { rows, sequence } = await this.#readMatching(table, predicate);
         const images = await this.#since(table, sequence);
 
         // collect unchanged rows and matching images
@@ -355,7 +356,7 @@ export class Snapshot {
         }
 
         // read the row and its earlier image
-        const { rows, sequence } = await this.#read(table, Key.match(table, key));
+        const { rows, sequence } = await this.#readKey(table, key);
         const images = await this.#since(table, sequence);
         const name = Key.name(table, key);
         const row = images.has(name) ? images.get(name) : rows[0];
@@ -490,7 +491,7 @@ export class Snapshot {
         // select the matching visible rows after the read's row
         const namespace = query.namespace ?? { extras: {} };
         const selection = and(
-            render(predicate, table, namespace),
+            renderPredicate(predicate, table, namespace),
             query.visible?.candidates,
             query.after === undefined
                 ? undefined
@@ -634,6 +635,115 @@ export class Snapshot {
         return this.#take(await (limit === undefined ? ordered : ordered.limit(limit)));
     }
 
+    /** Read the visible rows matching a predicate with the log's head, prepared once per shape. */
+    async #readMatching(
+        table: Table,
+        predicate: Predicate,
+    ): Promise<{ readonly rows: Row[]; readonly sequence: number | undefined }> {
+        // key the read's shape, collecting its compared literals in render order
+        const literals: Comparable[] = [];
+        const shape = `${this.#reach()} where ${Predicate.key(predicate, literals)}`;
+        const prepared = this.database.state.preparedQueries.take(table, shape, () => {
+            // stand a placeholder in for each literal, noting the column encoding it
+            const slots: (Column | undefined)[] = [];
+            const slot = (field: SQLWrapper, literal: Comparable) => {
+                // refuse a literal the key walk collected at another position
+                const index = slots.length;
+                if (literals[index] !== literal) {
+                    throw DatabaseError.of(
+                        "QUERY_BROKEN",
+                        `prepared query of '${table[TABLE].name}' at '${shape}' is broken: slot '${String(index)}' renders another literal than its key collects`,
+                    );
+                }
+
+                // note the column encoding it
+                slots.push(Column.is(field) && !Column.isPlain(field) ? field : undefined);
+
+                return sql.placeholder(`s${String(index)}`);
+            };
+            const where = Predicate.render(predicate, Predicate.bind(table, {}, undefined, slot));
+
+            // refuse a render whose slots differ in number from the key's literals
+            if (slots.length !== literals.length) {
+                throw DatabaseError.of(
+                    "QUERY_BROKEN",
+                    `prepared query of '${table[TABLE].name}' at '${shape}' is broken: it renders '${String(slots.length)}' slots for '${String(literals.length)}' literals`,
+                );
+            }
+
+            return this.#prepare(table, where, slots);
+        });
+
+        return this.#run(prepared, literals);
+    }
+
+    /** Read the visible row of a key with the log's head, prepared once per shape. */
+    async #readKey(
+        table: Table,
+        key: Key,
+    ): Promise<{ readonly rows: Row[]; readonly sequence: number | undefined }> {
+        // key the read's shape by the key's missing parts, collecting its present values in JSON form
+        const values = Key.tuple(table, key);
+        const missing = values.map((value) => (value === null ? "null" : "?")).join(" ");
+        const literals = values.filter((value) => value !== null);
+        const prepared = this.database.state.preparedQueries.take(
+            table,
+            `${this.#reach()} key ${missing}`,
+            () => {
+                // match the key, a placeholder standing in for each present value, noting its column
+                const slots: Column[] = [];
+                const where = Key.match(table, key, (_value, column) => {
+                    slots.push(column);
+
+                    return sql.placeholder(`s${String(slots.length - 1)}`);
+                });
+
+                return this.#prepare(table, where, slots);
+            },
+        );
+
+        return this.#run(prepared, literals);
+    }
+
+    /** Prepare a read of the table's logged columns, beside the head at a position. */
+    #prepare(table: Table, where: SQL, slots: readonly (Column | undefined)[]): PreparedQuery {
+        // select the logged columns, beside the head at a position, and render the statement once
+        const fields = this.#fields(table, { extras: {} });
+        const query = this.database.select(fields).from(table).where(where);
+        const { dialect, state } = this.database;
+
+        return new PreparedQuery(
+            render(query, dialect, state.namespace, state.cipher),
+            new Projection(fields),
+            slots,
+        );
+    }
+
+    /** Run a prepared query with its literals, decoding its rows and the head's sequence. */
+    async #run(
+        prepared: PreparedQuery,
+        literals: readonly ColumnValue[],
+    ): Promise<{ readonly rows: Row[]; readonly sequence: number | undefined }> {
+        const { dialect, state } = this.database;
+        const rows = await this.database.driver.values(
+            prepared.bind(literals, dialect, state.cipher),
+        );
+
+        return this.#take(
+            prepared.projection.decode<{ readonly head?: Head; readonly row: Row }>(
+                rows,
+                dialect,
+                new Set(),
+                state.cipher,
+            ),
+        );
+    }
+
+    /** Name what a read selects beside the rows: the head at a position, nothing when live. */
+    #reach(): string {
+        return this.position === undefined ? "live" : "head";
+    }
+
     /** Read the first rows of each partition's window in one ranked statement, with the head. */
     async #ranked(
         table: Table,
@@ -759,7 +869,7 @@ export class Snapshot {
 }
 
 /** Render a predicate over a table. */
-function render(predicate: Predicate, table: Table, namespace?: Namespace): SQL {
+function renderPredicate(predicate: Predicate, table: Table, namespace?: Namespace): SQL {
     return Predicate.render(predicate, Predicate.bind(table, {}, namespace));
 }
 
