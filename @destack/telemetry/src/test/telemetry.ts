@@ -37,10 +37,9 @@ export class TestTelemetry implements Disposable {
     /** The records a test took already, which later reads skip. */
     #taken = 0;
 
-    /** Read back the records a world's telemetry keeps, from now on. */
-    constructor(recorded: Pick<SimulatedTelemetry, "logs">) {
+    /** Read back the records a world's telemetry keeps, from its first one. */
+    private constructor(recorded: Pick<SimulatedTelemetry, "logs">) {
         this.#recorded = recorded;
-        this.#taken = recorded.logs.length;
     }
 
     /** Read a world's one reader, which reads its records from the first one. */
@@ -49,7 +48,6 @@ export class TestTelemetry implements Disposable {
         let reader = READERS.get(recorded);
         if (reader === undefined) {
             reader = new TestTelemetry(recorded);
-            reader.#taken = 0;
             READERS.set(recorded, reader);
         }
 

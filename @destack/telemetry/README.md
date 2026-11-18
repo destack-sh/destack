@@ -193,7 +193,7 @@ import { testSimulation } from "@destack/test/world";
 
 test("capture a failed export", async () => {
     await using simulation = testSimulation();
-    using telemetry = new TestTelemetry(simulation.telemetry);
+    using telemetry = TestTelemetry.of(simulation.telemetry);
     const { captureException } = TelemetryScope.of(
         import.meta.destack.package,
         simulation.environment("host").telemetry,
