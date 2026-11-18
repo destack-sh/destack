@@ -182,7 +182,7 @@ export class TestObjectStore implements TestScope, AsyncDisposable {
 
     /** Serve installed package servers as a host applies them, closing the dropped ones. */
     apply(servers: readonly PackageImplementation[]): void {
-        this.serve(this.store.apply(servers, this.store.sandboxes));
+        this.serve(this.store.apply(servers, this.store.isolates));
     }
 
     /** Serve another set of a store's handlers, draining the replaced servers. */

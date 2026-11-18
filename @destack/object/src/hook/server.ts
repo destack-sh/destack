@@ -19,7 +19,7 @@ import {
 } from "./record.ts";
 import { ObjectError } from "../error/index.ts";
 
-/** An installation's object hooks, run in its sandbox for its space's store. */
+/** An installation's object hooks, run in its isolate for its space's store. */
 export class HookServer implements HookHandler {
     /** The types whose hooks the server runs. */
     readonly types: readonly ObjectType[];
@@ -101,7 +101,7 @@ export class HookServer implements HookHandler {
         });
     }
 
-    /** Rebuild a recorded call in the sandbox, its calls and reads sent to the store. */
+    /** Rebuild a recorded call in the isolate, its calls and reads sent to the store. */
     #call(record: CallRecord, mutation: string): MethodContext {
         // find the type and its method
         const object = ObjectType.find(this.types, record);

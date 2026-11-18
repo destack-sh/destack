@@ -90,7 +90,7 @@ export type CallRecord = schema.Infer<typeof callRecord>;
 
 /** A call as a sandbox runs its hook: its type, method, scope, input, target and caller. */
 export const CallRecord = Object.assign(callRecord, {
-    /** Record a call for its sandbox. */
+    /** Record a call for its isolate. */
     of(context: MethodContext): CallRecord {
         // read the call's fields, and the start of a served mutation
         const { object, target, prepared, id, requestId, idempotencyKey, expansion } = context;

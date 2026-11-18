@@ -20,7 +20,7 @@ import type { ExternalStorage } from "./external.ts";
 import { Provisioned } from "../trait/provisioned.ts";
 import { ResourceController, type ResourceControllerOptions } from "./provisioned.ts";
 import { TrackedHistory } from "./tracked.ts";
-import type { HookSandbox } from "../hook/sandbox.ts";
+import type { Isolate } from "../hook/isolate.ts";
 import type {
     PackageImplementation,
     ObjectPackage,
@@ -62,12 +62,12 @@ type CatalogStores = Pick<
     readonly external: readonly ExternalStorage[];
 };
 
-/** What a catalog compiles from: a store's servers and sandboxes over its database. */
+/** What a catalog compiles from: a store's servers and isolates over its database. */
 export interface CatalogOptions {
     /** The package servers. */
     readonly servers: readonly PackageImplementation[];
-    /** The sandboxes of the installations whose packages run here without a workload. */
-    readonly sandboxes?: readonly HookSandbox[];
+    /** The isolates of the installations whose packages run here without a workload. */
+    readonly isolates?: readonly Isolate[];
     /** The installation the store serves as, absent for a store running as its principal. */
     readonly server?: ServerContext;
     /** The principal of the store's work. */
@@ -96,8 +96,8 @@ export interface CatalogOptions {
 export class Catalog {
     /** The package servers it compiled from. */
     readonly servers: readonly PackageImplementation[];
-    /** The sandboxes it compiled from. */
-    readonly sandboxes: readonly HookSandbox[];
+    /** The isolates it compiled from. */
+    readonly isolates: readonly Isolate[];
     /** The served packages, each with its code, its types and the installation serving it. */
     readonly served: readonly {
         /** The package. */
@@ -108,8 +108,8 @@ export class Catalog {
         readonly objects: readonly ObjectType[];
         /** The installation serving the package, absent for its scope's own package. */
         readonly server: ServerContext | undefined;
-        /** The server or sandbox the package was read from, which a later compile reuses it for. */
-        readonly source: PackageImplementation | HookSandbox;
+        /** The server or isolate the package was read from, which a later compile reuses it for. */
+        readonly source: PackageImplementation | Isolate;
     }[];
     /** The types the packages declare, without the chunk types serving their text. */
     readonly declared: readonly ObjectType[];
@@ -167,7 +167,7 @@ export class Catalog {
     ) {
         // keep each compiled field
         this.servers = fields.servers;
-        this.sandboxes = fields.sandboxes;
+        this.isolates = fields.isolates;
         this.served = fields.served;
         this.declared = fields.declared;
         this.objects = fields.objects;
@@ -204,7 +204,7 @@ export class Catalog {
         return this.declared.length > 0;
     }
 
-    /** Compile a store's servers and sandboxes into its types, routes, tables and access. */
+    /** Compile a store's servers and isolates into its types, routes, tables and access. */
     static compile(given: CatalogOptions, previous?: Catalog): Catalog {
         return Catalog.#compile(given, previous, []);
     }
@@ -216,8 +216,8 @@ export class Catalog {
         refused: readonly CatalogExclusion[],
     ): Catalog {
         // read each server's package, reusing a previous catalog's read of the same server
-        const { servers, sandboxes = [], machine, server, database } = given;
-        const reused = (source: PackageImplementation | HookSandbox) =>
+        const { servers, isolates = [], machine, server, database } = given;
+        const reused = (source: PackageImplementation | Isolate) =>
             previous?.served.filter((entry) => entry.source === source) ?? [];
         const implementations = servers.map(
             (each) =>
@@ -231,7 +231,7 @@ export class Catalog {
             throw new TypeError("provisioned resources need a machine");
         }
 
-        // serve the sandboxed installations' packages, declared against what the servers make known
+        // serve the isolated installations' packages, declared against what the servers make known
         const givenPolicies = given.policies ?? [];
         const implemented = implementations.flatMap((each) => each.objects);
         const implementedFollows = implementations
@@ -245,17 +245,17 @@ export class Catalog {
         const waiting: CatalogExclusion[] = [];
         const served: Served[] = [
             ...implementations,
-            ...sandboxes.flatMap((sandbox) => {
-                // reuse a previous read, else leave a sandbox referring to types this store does not serve yet waiting
-                const earlier = reused(sandbox);
+            ...isolates.flatMap((isolate) => {
+                // reuse a previous read, else leave an isolate referring to types this store does not serve yet waiting
+                const earlier = reused(isolate);
                 if (earlier.length > 0) {
                     return earlier;
                 }
                 try {
-                    return Catalog.#sandboxPackages(sandbox, known);
+                    return Catalog.#isolatePackages(isolate, known);
                 } catch (error) {
                     waiting.push({
-                        installation: sandbox.server.installation,
+                        installation: isolate.server.installation,
                         error: new Error("its types refer to ones this start does not serve yet", {
                             cause: error,
                         }),
@@ -374,7 +374,7 @@ export class Catalog {
 
         return new Catalog({
             servers,
-            sandboxes,
+            isolates,
             served,
             declared,
             objects,
@@ -621,7 +621,7 @@ export class Catalog {
             {
                 ...given,
                 servers: given.servers.filter((each) => !sources.has(each)),
-                sandboxes: (given.sandboxes ?? []).filter((each) => !sources.has(each)),
+                isolates: (given.isolates ?? []).filter((each) => !sources.has(each)),
             },
             previous,
             [...refused, ...left],
@@ -709,10 +709,10 @@ export class Catalog {
             : `the scope's own '${entry.package.name}'`;
     }
 
-    /** Serve an installation's package, running the code of its types in its sandbox. */
-    static #sandboxPackages(sandbox: HookSandbox, known: Iterable<KnownDeclaration>): Served[] {
+    /** Serve an installation's package, running the code of its types in its isolate. */
+    static #isolatePackages(isolate: Isolate, known: Iterable<KnownDeclaration>): Served[] {
         // declare the installation's types and index them beside the known ones by reference
-        const { declarations, server } = sandbox;
+        const { declarations, server } = isolate;
         const platform = [...known];
         const types = ObjectTypePool.of(platform).declare(
             ObjectDescription.installed(declarations),
@@ -727,7 +727,7 @@ export class Catalog {
             (entry) => graph.Moniker.packageId(entry.symbol) === owner.id,
         );
 
-        // route each described type, implementing the package's types in the sandbox
+        // route each described type, implementing the package's types in the isolate
         const route = (routes: PackageDescription["objects"]): Record<string, ObjectType> =>
             Object.fromEntries(
                 Object.entries(routes).map(([name, routed]) => {
@@ -739,9 +739,9 @@ export class Catalog {
                         );
                     }
 
-                    // implement the package's types in the sandbox and route other types as declared
+                    // implement the package's types in the isolate and route other types as declared
                     if (routed.type.packageId === owner.id) {
-                        return [name, sandbox.implement(type, routed.hooks)];
+                        return [name, isolate.implement(type, routed.hooks)];
                     } else if (Object.keys(routed.hooks).length > 0) {
                         throw new TypeError(
                             `installation '${server.installation}' cannot hook ${type.name} of '${type.package.id}': the type's package implements it`,
@@ -773,7 +773,7 @@ export class Catalog {
                         definition: {},
                         objects: Object.values(objects),
                         server,
-                        source: sandbox,
+                        source: isolate,
                     },
                 ];
             });

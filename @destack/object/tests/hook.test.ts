@@ -9,7 +9,7 @@ import {
     type FileBucket,
     HandlerAnswer,
     HandlerRequest,
-    HookSandbox,
+    Isolate,
     HookServer,
     ObjectDescription,
     ObjectType,
@@ -37,7 +37,7 @@ import { MemoryBuild } from "@destack/package/test";
 import { testEvents } from "../src/test/index.ts";
 import { implementPackage, ObjectStore } from "../src/server/index.ts";
 
-/** A declaration of a build, as a sandbox receives it. */
+/** A declaration of a build, as a isolate receives it. */
 type Declaration = Pick<graph.Declaration, "symbol" | "kind" | "kindPackageId" | "description">;
 import { openSpace, space, spacePrincipal } from "../src/test/space.ts";
 import { spaceId } from "./fixture/device.ts";
@@ -123,7 +123,7 @@ const OTHER_PACKAGE = schema
     .identifier("package")
     .parse("package-01996ab0-0000-7000-8000-0000000000e1");
 
-/** One message of a sandbox's exchange with its store, its session told apart by its order. */
+/** One message of a isolate's exchange with its store, its session told apart by its order. */
 type Message = readonly JsonValue[];
 
 /** Send a value through JSON, as a request between processes sends it. */
@@ -131,7 +131,7 @@ function travel(value: unknown): unknown {
     return JSON.parse(JSON.stringify(value));
 }
 
-/** Serve cards whose hooks run in a sandbox of the package's installation. */
+/** Serve cards whose hooks run in a isolate of the package's installation. */
 async function serveCards(
     world: Environment,
     cards: Package & PackageIdentity,
@@ -169,16 +169,16 @@ async function serveCards(
         return `session ${sessions.indexOf(token) + 1}`;
     };
 
-    // run the hooks in a sandbox called through the store's sandbox hooks
+    // run the hooks in a isolate called through the store's isolate hooks
     const context = await testServerContext(owner, spaceId, world);
-    const hooks: { sandbox?: HookSandbox } = {};
+    const hooks: { isolate?: Isolate } = {};
     const server = new HookServer({
         packages: [cards],
         server: context,
         session: async (request) => {
             const { mutation, request: asked } = SessionRequest.parse(travel(request));
             exchange.push([session(mutation), asked.kind, schema.json().parse(asked)]);
-            const answer = await present(hooks.sandbox, "the sandbox").answer({
+            const answer = await present(hooks.isolate, "the isolate").answer({
                 mutation,
                 request: asked,
             });
@@ -187,7 +187,7 @@ async function serveCards(
             return answer;
         },
     });
-    const sandbox = new HookSandbox({
+    const isolate = new Isolate({
         server: context,
         declarations: [...declarationsOf(cards), dependency],
         send: async (request) => {
@@ -204,9 +204,9 @@ async function serveCards(
             return answer;
         },
     });
-    hooks.sandbox = sandbox;
+    hooks.isolate = isolate;
 
-    // serve the cards as the build describes them, their routed hooks run in the sandbox
+    // serve the cards as the build describes them, their routed hooks run in the isolate
     const store = await TestObjectStore.receive(space.reference(Scope.universe.id, spaceId), {
         servers: [],
         chain: async () => undefined,
@@ -217,7 +217,7 @@ async function serveCards(
         events: await testEvents(storage.database, world),
         origin: { package: card.package },
         policies: [space],
-        sandboxes: [sandbox],
+        isolates: [isolate],
     });
 
     return { store, exchange };
@@ -265,7 +265,7 @@ const sticker = defineObject(
     { package: bundled },
 );
 
-/** The bundled dependency's package declaration, at its symbol, which no sandbox serves. */
+/** The bundled dependency's package declaration, at its symbol, which no isolate serves. */
 const dependency: Declaration = {
     symbol: graph.Moniker.of({ packageId: bundled.id, module: "src/index.ts", name: "default" }),
     ...PACKAGE_KIND.identity,
@@ -331,11 +331,11 @@ async function run(store: ObjectStore, call: Call, user = users.alice) {
         .parse(result);
 }
 
-test("run a card's hooks in its sandbox, their reads, nested calls and wrapped behaviour responded with in the mutation's session", async () => {
+test("run a card's hooks in its isolate, their reads, nested calls and wrapped behaviour responded with in the mutation's session", async () => {
     // run in a world of its own
     const world = testSimulation().environment("test");
 
-    // create a card whose sandboxed create hook capitalizes its name, then remark on it
+    // create a card whose isolated create hook capitalizes its name, then remark on it
     const { store, exchange } = await serveCards(
         world,
         definePackage({
@@ -432,7 +432,7 @@ test("run a card's hooks in its sandbox, their reads, nested calls and wrapped b
     });
 });
 
-test("run a sandboxed hook again in a fresh session once a concurrent commit changed what it read", async () => {
+test("run a isolated hook again in a fresh session once a concurrent commit changed what it read", async () => {
     // run in a world of its own, moving its time while the work waits
     const simulation = testSimulation();
     const world = simulation.environment("test");
@@ -616,7 +616,7 @@ test("decide permissions, take positions, read the start position and act as the
     // run in a world of its own
     const world = testSimulation().environment("test");
 
-    // remark by deciding the caller's permissions and drawing from the mutation as the sandbox sees it
+    // remark by deciding the caller's permissions and drawing from the mutation as the isolate sees it
     const seen: JsonValue[] = [];
     const { store, exchange } = await serveCards(
         world,
@@ -674,7 +674,7 @@ test("decide permissions, take positions, read the start position and act as the
     });
 });
 
-test("serve the installation's package from its sandbox, never a bundled dependency's", async () => {
+test("serve the installation's package from its isolate, never a bundled dependency's", async () => {
     // run in a world of its own
     const world = testSimulation().environment("test");
 
@@ -761,7 +761,7 @@ test("refuse serving the cards of two installations of one package from one stor
     // run in a world of its own
     const world = testSimulation().environment("test");
 
-    // install the cards twice in the space, each in a separate sandbox
+    // install the cards twice in the space, each in a separate isolate
     const storage = await TestDatabase.create(
         defineDatabase({
             name: "main",
@@ -779,8 +779,8 @@ test("refuse serving the cards of two installations of one package from one stor
         objects: [card],
     });
     const installed = await testServerContext(card.package, spaceId, world);
-    const sandbox = (id: Identifier<"installation">) =>
-        new HookSandbox({
+    const isolate = (id: Identifier<"installation">) =>
+        new Isolate({
             server: { ...installed, installation: id },
             declarations: declarationsOf(cards),
             send: () => Promise.reject(new TypeError("the cards have no hooks")),
@@ -806,7 +806,7 @@ test("refuse serving the cards of two installations of one package from one stor
             events,
             origin: { package: card.package },
             policies: [space],
-            sandboxes: [sandbox(first), sandbox(second)],
+            isolates: [isolate(first), isolate(second)],
         });
 
     // refuse the second installation alone, serving the first
@@ -842,7 +842,7 @@ test("serve the cards of the platform and of an installed package from one store
         objects: [card],
     });
     const installed = { ...card.package, id: OTHER_PACKAGE, name: "@app/cards" };
-    const sandbox = new HookSandbox({
+    const isolate = new Isolate({
         server: await testServerContext(installed, spaceId, world),
         declarations: declarationsOf(cards).map((entry) => moved(entry, installed)),
         send: () => Promise.reject(new TypeError("the cards have no hooks")),
@@ -859,7 +859,7 @@ test("serve the cards of the platform and of an installed package from one store
         events: await testEvents(storage.database, world),
         origin: { package: card.package },
         policies: [space],
-        sandboxes: [sandbox],
+        isolates: [isolate],
     });
 
     // serve both types, each package routing its type under the card route
@@ -899,7 +899,7 @@ test("describe the platform's and an installed package's types from one store, d
         objects: [card],
     });
     const installed = { ...card.package, id: OTHER_PACKAGE, name: "@app/cards" };
-    const sandbox = new HookSandbox({
+    const isolate = new Isolate({
         server: await testServerContext(installed, spaceId, world),
         declarations: declarationsOf(cards).map((entry) => moved(entry, installed)),
         send: () => Promise.reject(new TypeError("the cards have no hooks")),
@@ -914,7 +914,7 @@ test("describe the platform's and an installed package's types from one store, d
         events: await testEvents(storage.database, world),
         origin: { package: card.package },
         policies: [space],
-        sandboxes: [sandbox],
+        isolates: [isolate],
     });
 
     // declare every type the store describes, the photo's image stored in the platform's bucket
@@ -963,7 +963,7 @@ test("list the phases a package attaches as hooks, leaving a trait's methods to 
     });
 });
 
-test("throw a hook's failure out of its sandbox as the failure it was, caused at the stack it was thrown at", async () => {
+test("throw a hook's failure out of its isolate as the failure it was, caused at the stack it was thrown at", async () => {
     // fail a hook, and read its answer as JSON on the other side
     const thrown = new TypeError("the card has no title");
     const answer = HandlerAnswer.parse(
@@ -994,7 +994,7 @@ test("throw a hook's failure out of its sandbox as the failure it was, caused at
     ]);
 });
 
-test("describe a sandboxed installation that serves no objects, such as one shipping views alone, by its declarations", async () => {
+test("describe a isolated installation that serves no objects, such as one shipping views alone, by its declarations", async () => {
     // run in a world of its own, over the platform's tables alone
     const world = testSimulation().environment("test");
     const storage = await TestDatabase.create(
@@ -1006,7 +1006,7 @@ test("describe a sandboxed installation that serves no objects, such as one ship
     );
     onTestFinished(() => storage.close());
 
-    // install a package whose build declares one view and no objects, its hooks in a sandbox
+    // install a package whose build declares one view and no objects, its hooks in a isolate
     const pages = PackageVersion.parse({
         id: OTHER_PACKAGE,
         name: "@acme/pages",
@@ -1022,7 +1022,7 @@ test("describe a sandboxed installation that serves no objects, such as one ship
         ...(await testServerContext(pages, spaceId, world)),
         build: await MemoryBuild.of(pages, [view], world.crypto),
     };
-    const sandbox = new HookSandbox({
+    const isolate = new Isolate({
         server: installed,
         declarations: [],
         send: () => Promise.reject(new TypeError("the pages have no hooks")),
@@ -1036,7 +1036,7 @@ test("describe a sandboxed installation that serves no objects, such as one ship
         database: storage.database,
         origin: { package: PackageVersion.of(objectPackage) },
         policies: [space],
-        sandboxes: [sandbox],
+        isolates: [isolate],
     });
 
     // describe it with no types and the view it declares

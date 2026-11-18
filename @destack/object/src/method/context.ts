@@ -306,7 +306,7 @@ export class MethodContext<
     }
 
     /** Run a call a package's sandboxed hook sent in this call's transaction. */
-    runSandboxed(
+    runIsolated(
         caller: AccessContext,
         entry: sync.Call,
         mutates: boolean,
@@ -983,7 +983,7 @@ export class MethodContext<
 
     /** Report whether what serves the call's type has a capability of its package. */
     enabled(capability: string): boolean {
-        // read the capabilities of the installation serving the type, in its store or its sandbox
+        // read the capabilities of the installation serving the type, in its store or its isolate
         const location = this.#location;
         const capabilities =
             location.kind === "store" && !location.isPredicted

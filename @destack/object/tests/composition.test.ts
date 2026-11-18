@@ -12,7 +12,7 @@ import { describePackage } from "../src/inspect/index.ts";
 import {
     defineObject,
     field,
-    HookSandbox,
+    Isolate,
     OBJECT_KIND,
     ObjectDescription,
     ObjectType,
@@ -34,7 +34,7 @@ import {
 import { openSpace, space, spacePrincipal } from "../src/test/space.ts";
 import { spaceId } from "./fixture/device.ts";
 
-/** A build declaration, as a sandbox receives it. */
+/** A build declaration, as a isolate receives it. */
 type Declaration = Pick<graph.Declaration, "symbol" | "kind" | "kindPackageId" | "description">;
 
 /** The notebooks package. */
@@ -84,14 +84,14 @@ function create(type: ObjectType, title: string) {
     return type.call("create", { ...type.in(spaceId), title });
 }
 
-/** Open the sandbox of an installation in a world, whose types have no hooks. */
+/** Open the isolate of an installation in a world, whose types have no hooks. */
 async function unhooked(
     owner: PackageVersion,
     id: Identifier<"installation">,
     declarations: readonly Declaration[],
     environment: Environment,
-): Promise<HookSandbox> {
-    return new HookSandbox({
+): Promise<Isolate> {
+    return new Isolate({
         server: { ...(await testServerContext(owner, spaceId, environment)), installation: id },
         declarations,
         send: () => Promise.reject(new TypeError("the installation has no hooks")),
@@ -117,7 +117,7 @@ function declarationsOf(owner: PackageVersion, type: ObjectType, route: string):
 }
 
 test("serve two installed packages from one store, writing both in one mutation or neither", async () => {
-    // serve the notebooks' and the tasks' sandboxed types from one store over the space's database
+    // serve the notebooks' and the tasks' isolated types from one store over the space's database
     const world = testSimulation().environment("test");
     const storage = await TestDatabase.create(
         defineDatabase({
@@ -132,7 +132,7 @@ test("serve two installed packages from one store, writing both in one mutation 
     );
     onTestFinished(() => storage.close());
     await openSpace(storage.database, world, spaceId);
-    const sandboxes = [
+    const isolates = [
         await unhooked(
             notebooks,
             schema
@@ -161,7 +161,7 @@ test("serve two installed packages from one store, writing both in one mutation 
         events: await testEvents(storage.database, world),
         origin: { package: notebooks },
         policies: [space],
-        sandboxes,
+        isolates,
     });
 
     // migrate both packages' tables as the space's main database resource does

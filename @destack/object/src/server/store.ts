@@ -148,7 +148,7 @@ import { TrackedHistory } from "./tracked.ts";
 import { Settlement } from "./settlement.ts";
 import { TelemetryScope } from "@destack/telemetry";
 import type { Execution, StoreExecution } from "../method/execution.ts";
-import type { HookSandbox } from "../hook/sandbox.ts";
+import type { Isolate } from "../hook/isolate.ts";
 import type { MountFetch, PackageImplementation } from "./implementation.ts";
 import type { Clock, Environment } from "@destack/environment";
 
@@ -363,8 +363,8 @@ export type ObjectStoreOptions = Omit<
     CallLog & {
         /** The package servers, the first one running the store's controllers. */
         readonly servers: readonly PackageImplementation[];
-        /** The sandboxes of the installations whose packages run here without a workload. */
-        readonly sandboxes?: readonly HookSandbox[];
+        /** The isolates of the installations whose packages run here without a workload. */
+        readonly isolates?: readonly Isolate[];
         /** Open a package's release a scope runs, or a given version, absent for none. */
         readonly release?: ObjectStore["release"];
         /** The machine running the servers' provisioned resources, which providers require. */
@@ -543,8 +543,8 @@ export class ObjectStore {
     readonly #readers = new Map<string, Reader>();
     /** Each row follow's keys by source row as last listed, with what each key read. */
     readonly #rowKeys = new Map<Follow, Map<string, RowKey>>();
-    /** The options each catalog compiles with, apart from the servers and sandboxes. */
-    readonly #compiling: Omit<CatalogOptions, "servers" | "sandboxes">;
+    /** The options each catalog compiles with, apart from the servers and isolates. */
+    readonly #compiling: Omit<CatalogOptions, "servers" | "isolates">;
     /** The packages, types, routes, tables and access rules the store serves. */
     #catalog: Catalog;
     /** The handler of each served package, by its catalog entry. */
@@ -627,7 +627,7 @@ export class ObjectStore {
         this.#catalog = Catalog.compile({
             ...this.#compiling,
             servers: given.servers,
-            sandboxes: given.sandboxes ?? [],
+            isolates: given.isolates ?? [],
         });
         this.feed = new sync.Feed(given.database, this.#catalog.tables, {});
         this.#declare();
@@ -664,13 +664,13 @@ export class ObjectStore {
         this.#implement();
     }
 
-    /** Serve other servers and sandboxes, keeping the handlers of the packages read before. */
+    /** Serve other servers and isolates, keeping the handlers of the packages read before. */
     apply(
         servers: readonly PackageImplementation[],
-        sandboxes: readonly HookSandbox[],
+        isolates: readonly Isolate[],
     ): readonly (PackageHandler & { readonly objects: ObjectStore })[] {
         // compile the new catalog, reusing the current one's reads of unchanged servers
-        const catalog = Catalog.compile({ ...this.#compiling, servers, sandboxes }, this.#catalog);
+        const catalog = Catalog.compile({ ...this.#compiling, servers, isolates }, this.#catalog);
 
         // refuse methods in a store started without the journal recording them
         if (catalog.isServing && this.#journal === undefined) {
@@ -691,9 +691,9 @@ export class ObjectStore {
         return this.#catalog.servers;
     }
 
-    /** The sandboxes the store serves the installations of. */
-    get sandboxes(): readonly HookSandbox[] {
-        return this.#catalog.sandboxes;
+    /** The isolates the store serves the installations of. */
+    get isolates(): readonly Isolate[] {
+        return this.#catalog.isolates;
     }
 
     /** The installations the store refuses, with why. */
@@ -949,11 +949,11 @@ export class ObjectStore {
             }),
         );
 
-        // describe each sandboxed installation serving no package here, such as one shipping views alone, without types
+        // describe each isolated installation serving no package here, such as one shipping views alone, without types
         const described = new Set(served.map((each) => each.installation?.id));
         const unserved = await Promise.all(
-            this.#catalog.sandboxes
-                .filter((sandbox) => !described.has(sandbox.server.installation))
+            this.#catalog.isolates
+                .filter((isolate) => !described.has(isolate.server.installation))
                 .map(async ({ server }) => ({
                     packageId: PackageManifest.package(server.build.manifest).id,
                     scope: server.scope,
@@ -1196,7 +1196,7 @@ export class ObjectStore {
 
     /** The space the store serves, absent for a machine's or the universe's store. */
     get space(): string | undefined {
-        // a space's store serves the space, a sandboxed installation's store its installation's space
+        // a space's store serves the space, an isolated installation's store its installation's space
         const { principal: self } = this;
         if (principal.space.is(self)) {
             return self.id;

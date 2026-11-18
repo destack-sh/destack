@@ -26,7 +26,7 @@ import {
 
 import type {} from "@destack/package/import-meta";
 
-/** A mutation's call whose hook runs in the sandbox, with the behaviour a handle phase wraps. */
+/** A mutation's call whose hook runs in the isolate, with the behaviour a handle phase wraps. */
 interface Session {
     /** The call. */
     readonly context: MethodContext;
@@ -36,37 +36,37 @@ interface Session {
     lost?: FamilyFailure<DatabaseReason>;
 }
 
-/** The phases a sandbox runs: all but confirm and cancel, which run where the settlement is. */
-const SANDBOXED: readonly Phase[] = PHASES.filter(
+/** The phases an isolate runs: all but confirm and cancel, which run where the settlement is. */
+const ISOLATED_PHASES: readonly Phase[] = PHASES.filter(
     (phase) => phase !== "confirm" && phase !== "cancel",
 );
 
-/** An installation's object hooks, run in its sandbox and answered in their sessions. */
-export class HookSandbox {
-    /** The server context of the installation the sandbox runs as. */
+/** An installation's object hooks, run in its isolate and answered in their sessions. */
+export class Isolate {
+    /** The server context of the installation the isolate runs as. */
     readonly server: ServerContext;
     /** The declarations of the installation's followed build, its object types among them. */
     readonly declarations: readonly Pick<
         graph.Declaration,
         "symbol" | "kind" | "kindPackageId" | "description"
     >[];
-    /** Send a request to run a hook to the sandbox. */
+    /** Send a request to run a hook to the isolate. */
     readonly #send: (request: HandlerRequest) => Promise<HandlerAnswer>;
     /** The types the installation serves, whose rows its hooks read, by their tables' SQL names. */
     readonly #types = new Map<string, ObjectType>();
     /** The calls of the hooks running now, by their sessions' tokens. */
     readonly #sessions = new Map<string, Session>();
 
-    /** Run an installation's hooks in its sandbox. */
+    /** Run an installation's hooks in its isolate. */
     constructor(options: {
-        /** The server context of the installation the sandbox runs as. */
+        /** The server context of the installation the isolate runs as. */
         readonly server: ServerContext;
         /** The declarations of the installation's followed build. */
         readonly declarations: readonly Pick<
             graph.Declaration,
             "symbol" | "kind" | "kindPackageId" | "description"
         >[];
-        /** Send a request to run a hook to the sandbox. */
+        /** Send a request to run a hook to the isolate. */
         readonly send: (request: HandlerRequest) => Promise<HandlerAnswer>;
     }) {
         this.server = options.server;
@@ -81,7 +81,7 @@ export class HookSandbox {
         return principal.installation.reference(scope, installation);
     }
 
-    /** Serve a type as the installation, its methods' listed phases run in the sandbox. */
+    /** Serve a type as the installation, its methods' listed phases run in the isolate. */
     implement(type: ObjectType, hooks: Readonly<Record<string, readonly string[]>>): ObjectType {
         // let the hooks read the rows of every type the installation serves, and pass a type without hooks
         this.#types.set(type.table[TABLE].sqlName, type);
@@ -90,7 +90,7 @@ export class HookSandbox {
             return type;
         }
 
-        // run each listed phase in the sandbox
+        // run each listed phase in the isolate
         const methods = Object.fromEntries(
             entries.map(([name, phases]) => [name, this.#handler(type, name, phases)]),
         );
@@ -128,7 +128,7 @@ export class HookSandbox {
                 asked.as === "caller"
                     ? context.caller
                     : AccessContext.of(Caller.of(this.subject), context.now);
-            const result = await context.runSandboxed(
+            const result = await context.runIsolated(
                 caller,
                 asked.call,
                 asked.mutates,
@@ -157,10 +157,7 @@ export class HookSandbox {
         }
         // read events of a type the installation serves
         else if (asked.kind === "events") {
-            return HookSandbox.#events(
-                context.events(this.#type(asked.table).eventKind()),
-                asked.read,
-            );
+            return Isolate.#events(context.events(this.#type(asked.table).eventKind()), asked.read);
         }
         // list the subjects with a permission on an object
         else if (asked.kind === "lookup") {
@@ -246,17 +243,17 @@ export class HookSandbox {
         return type;
     }
 
-    /** Build a method's handler running its listed phases in the sandbox. */
+    /** Build a method's handler running its listed phases in the isolate. */
     #handler(type: ObjectType, name: string, phases: readonly string[]): MethodHooks {
-        // refuse a phase the sandbox does not run
-        const unknown = phases.find((phase) => !SANDBOXED.some((each) => each === phase));
+        // refuse a phase the isolate does not run
+        const unknown = phases.find((phase) => !ISOLATED_PHASES.some((each) => each === phase));
         if (unknown !== undefined) {
             throw new TypeError(
-                `'${type.name}.${name}' has phase '${unknown}', which a sandbox cannot run`,
+                `'${type.name}.${name}' has phase '${unknown}', which an isolate cannot run`,
             );
         }
 
-        // send each listed phase to the sandbox
+        // send each listed phase to the isolate
         const listed = new Set(phases);
         const run = (
             context: MethodContext,
@@ -299,7 +296,7 @@ export class HookSandbox {
         };
     }
 
-    /** Run one hook of a call in the sandbox, its requests answered in a session while it runs. */
+    /** Run one hook of a call in the isolate, its requests answered in a session while it runs. */
     async #run(session: Session, hook: HandlerRequest["hook"]): Promise<JsonValue> {
         // open the session while the hook runs
         const mutation = Uuid.v4(this.server.environment.random);

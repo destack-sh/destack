@@ -1,3 +1,3 @@
 export * from "./record.ts";
-export * from "./sandbox.ts";
+export * from "./isolate.ts";
 export * from "./server.ts";
