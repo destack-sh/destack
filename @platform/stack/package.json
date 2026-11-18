@@ -26,7 +26,6 @@
         "@destack/stack": "workspace:*",
         "@destack/template-blank": "workspace:*",
         "@destack/template-stack": "workspace:*",
-        "@destack/template-tasks": "workspace:*",
         "@destack/vault": "workspace:*",
         "@platform/pricing": "workspace:*",
         "@platform/site": "workspace:*"

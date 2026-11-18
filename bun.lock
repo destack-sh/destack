@@ -318,7 +318,6 @@
         "@destack/error": "workspace:*",
         "@destack/finance": "workspace:*",
         "@destack/forge": "workspace:*",
-        "@destack/home": "workspace:*",
         "@destack/locale": "workspace:*",
         "@destack/machine": "workspace:*",
         "@destack/message": "workspace:*",
@@ -612,7 +611,6 @@
         "@destack/notification": "workspace:*",
         "@destack/observability": "workspace:*",
         "@destack/social": "workspace:*",
-        "@destack/template-stack": "workspace:*",
         "@destack/test": "workspace:*",
         "@destack/theme": "workspace:*",
         "@destack/vault": "workspace:*",
@@ -1067,7 +1065,6 @@
       "devDependencies": {
         "@destack/check": "workspace:*",
         "@destack/control": "workspace:*",
-        "@destack/template-stack": "workspace:*",
         "@destack/test": "workspace:*",
         "@types/bun": "1.4.4",
         "miniflare": "4.20260730.0",
@@ -1181,23 +1178,6 @@
       "devDependencies": {
         "@destack/check": "workspace:*",
         "@types/bun": "1.4.4",
-      },
-    },
-    "@destack/template-tasks": {
-      "name": "@destack/template-tasks",
-      "dependencies": {
-        "@destack/access": "workspace:*",
-        "@destack/account": "workspace:*",
-        "@destack/locale": "workspace:*",
-        "@destack/object": "workspace:*",
-        "@destack/package": "workspace:*",
-        "@destack/schema": "workspace:*",
-        "@destack/ui": "workspace:*",
-        "@destack/view": "workspace:*",
-      },
-      "devDependencies": {
-        "@destack/build": "workspace:*",
-        "@destack/check": "workspace:*",
       },
     },
     "@destack/test": {
@@ -1541,7 +1521,6 @@
         "@destack/stack": "workspace:*",
         "@destack/template-blank": "workspace:*",
         "@destack/template-stack": "workspace:*",
-        "@destack/template-tasks": "workspace:*",
         "@destack/vault": "workspace:*",
         "@platform/pricing": "workspace:*",
         "@platform/site": "workspace:*",
@@ -1810,8 +1789,6 @@
     "@destack/template-blank": ["@destack/template-blank@workspace:@destack/template-blank"],
 
     "@destack/template-stack": ["@destack/template-stack@workspace:@destack/template-stack"],
-
-    "@destack/template-tasks": ["@destack/template-tasks@workspace:@destack/template-tasks"],
 
     "@destack/test": ["@destack/test@workspace:@destack/test"],
 

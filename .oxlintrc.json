@@ -455,11 +455,6 @@
                     "description": "Start a space's stack from a template: a files bucket, a credentials vault, the baseline installations and an alert on fatal issues."
                 },
                 {
-                    "directory": "@destack/template-tasks",
-                    "name": "@destack/template-tasks",
-                    "description": "Track a team's tasks in projects and cycles, on a board."
-                },
-                {
                     "directory": "@destack/test",
                     "name": "@destack/test",
                     "description": "Write and run Destack tests: unit tests on Vitest, simulated worlds, and scenarios played through drivers."
@@ -656,7 +651,6 @@
                 "@destack/telemetry": "builtin",
                 "@destack/template-blank": "app",
                 "@destack/template-stack": "library",
-                "@destack/template-tasks": "app",
                 "@destack/test": "library",
                 "@destack/theme": "library",
                 "@destack/tunnel": "library",
