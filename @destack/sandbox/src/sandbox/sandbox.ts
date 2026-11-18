@@ -79,13 +79,22 @@ export class Sandbox implements AsyncDisposable {
         return scope.span("destack.sandbox.start", {}, async () => {
             const sandbox = await Sandbox.#start(options, environment);
             void sandbox.exited.then(
-                (exit) =>
-                    scope.log.info("destack.sandbox.exited", {
+                (exit) => {
+                    // log a clean exit as detail, and any other as a warning
+                    const attributes = {
                         ...(exit.code === null ? {} : { "process.exit.code": exit.code }),
                         ...(exit.signal === null
                             ? {}
                             : { "destack.sandbox.signal": String(exit.signal) }),
-                    }),
+                    };
+                    if (exit.code === 0) {
+                        scope.log.debug("destack.sandbox.exited", attributes);
+                    }
+                    // warn of an exit by a failure or a signal
+                    else {
+                        scope.log.warn("destack.sandbox.exited", attributes);
+                    }
+                },
                 // log an exit whose cleanup failed, its owner reading the failure from exited
                 (error: unknown) =>
                     scope.log.warn("destack.sandbox.exited", {
