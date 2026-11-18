@@ -6,6 +6,9 @@ import { modulePlugin } from "@destack/package/vite";
 import { ModuleTransformer } from "@destack/package/transform";
 import { createServer } from "vite";
 
+/** The module of the environment context, loaded alone to skip compiling the package's index. */
+const CONTEXT_MODULE = "src/page/context.ts";
+
 /** Render each component a module of the tested package exports on a server. */
 export async function renderOnServer(module: string): Promise<Record<string, string>> {
     // compile the module and Solid's server runtime for the server from the tested package, as builds do
@@ -32,7 +35,7 @@ export async function renderOnServer(module: string): Promise<Record<string, str
         // load the module, the runtime rendering its components and the environment context they read
         const loaded = await server.ssrLoadModule(resolve(root, module));
         const runtime = await server.ssrLoadModule("@solidjs/web");
-        const view = await server.ssrLoadModule("@destack/view");
+        const view = await server.ssrLoadModule(resolve(root, CONTEXT_MODULE));
         const context: unknown = Reflect.get(view, "EnvironmentContext");
         const render: unknown = Reflect.get(runtime, "renderToString");
         const create: unknown = Reflect.get(runtime, "createComponent");
