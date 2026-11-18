@@ -314,17 +314,25 @@ export const InstallationOrigin = {
         return domain === undefined ? label : `${label}.${domain}`;
     },
 
+    /** Read the domain below which a machine's installation origins answer. */
+    domain(machine: string): string {
+        return HostAddress.isLoopbackName(new URL(machine).hostname)
+            ? LOOPBACK_DOMAIN
+            : DOMAINS.space;
+    },
+
     /** Write the URL an installation origin answers at wherever its space's machine answers. */
     url(origin: InstallationOrigin, machine: string): string {
         // keep a loopback machine's port below the loopback domain
+        const domain = InstallationOrigin.domain(machine);
         const url = new URL(machine);
-        if (HostAddress.isLoopbackName(url.hostname)) {
-            url.hostname = InstallationOrigin.format(origin, LOOPBACK_DOMAIN);
+        if (domain === LOOPBACK_DOMAIN) {
+            url.hostname = InstallationOrigin.format(origin, domain);
 
             return url.origin;
         }
 
-        return `https://${InstallationOrigin.format(origin, DOMAINS.space)}`;
+        return `https://${InstallationOrigin.format(origin, domain)}`;
     },
 
     /** Read the installation origin of a request under a domain. */
