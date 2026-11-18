@@ -163,6 +163,7 @@ export const client = defineObject(
                 "version",
             ],
             isPredicted: false,
+            onConflict: "id",
         }),
         /** Trust a program to act for the account by its issuer's tokens, such as a CI workflow. */
         trust: method.create("trust", {

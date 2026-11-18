@@ -1,5 +1,6 @@
 import type { Environment } from "@destack/environment";
 import { eq } from "@destack/db";
+import { Identifier } from "@destack/schema";
 import { ObjectReference, RequestId } from "@destack/sync";
 import { expect, refusal, test } from "@destack/test";
 import { session } from "../src/object/session.ts";
@@ -315,6 +316,49 @@ test("register clients with proven keys and revoke them with the sessions linked
             "the token endpoint refused the request: invalid_grant: authentication required: the person's session ended",
         ],
     });
+});
+
+test("return the first registration of a browser registered twice", async () => {
+    // register a browser by the id it generated, twice, as a page opening again does
+    await using fixture = await TestAccountStore.open();
+    const owner = await fixture.signIn("person@example.com");
+    const id = Identifier.create("client", fixture.environment);
+    const register = () =>
+        owner.client(accountPackage).client.create({
+            id,
+            scope: owner.id,
+            requestId: RequestId.create(fixture.store.environment),
+            name: "Firefox",
+            kind: "browser",
+        });
+    const first = await register();
+
+    // return the first registration again
+    expect(await register()).toEqual(first);
+});
+
+test("refuse a stranger a registered client id", async () => {
+    // register a browser as one person
+    await using fixture = await TestAccountStore.open();
+    const owner = await fixture.signIn("person@example.com");
+    const stranger = await fixture.signIn(STRANGER_EMAIL);
+    const id = Identifier.create("client", fixture.environment);
+    const register = (person: typeof owner) =>
+        person.client(accountPackage).client.create({
+            id,
+            scope: person.id,
+            requestId: RequestId.create(fixture.store.environment),
+            name: "Firefox",
+            kind: "browser",
+        });
+    await register(owner);
+
+    // refuse the stranger the same id without showing the client
+    expect(await refusal(register(stranger))).toEqual([
+        "NOT_FOUND",
+        "NOT_FOUND",
+        "client not found",
+    ]);
 });
 
 test("refresh a person's access token once it expires, and keep calling as the person", async () => {
