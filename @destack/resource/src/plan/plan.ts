@@ -81,6 +81,8 @@ export interface ReleaseEntry {
     readonly description: DeclarationDescription["description"];
     /** The symbol's package at the release declaring it. */
     readonly symbol: { readonly package: PackageVersion };
+    /** The capabilities the installation enables at the release. */
+    readonly capabilities: readonly string[];
 }
 
 /** A schema change between two releases of a declaration. */
