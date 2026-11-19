@@ -1,4 +1,4 @@
-import { Icon } from "@destack/icon";
+import { Icon } from "@destack/ui/icon";
 import type { BrowserEnvironment } from "@destack/environment/browser";
 import caretRight from "@destack/icon/phosphor/caret-right";
 import check from "@destack/icon/phosphor/check";

@@ -1,5 +1,5 @@
 import { media } from "@destack/style/media.stylex";
-import { Icon } from "@destack/icon";
+import { Icon } from "@destack/ui/icon";
 import caretDown from "@destack/icon/phosphor/caret-down";
 import { text } from "@destack/theme/text";
 import { Popover, PopoverContent, PopoverTrigger } from "@destack/ui/popover";

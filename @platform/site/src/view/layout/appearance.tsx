@@ -1,5 +1,5 @@
 import * as style from "@destack/style";
-import { Icon } from "@destack/icon";
+import { Icon } from "@destack/ui/icon";
 import moon from "@destack/icon/phosphor/moon";
 import sun from "@destack/icon/phosphor/sun";
 import { Button } from "@destack/ui/button";

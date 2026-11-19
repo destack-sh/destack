@@ -1,5 +1,5 @@
 import { media } from "@destack/style/media.stylex";
-import { Icon } from "@destack/icon";
+import { Icon } from "@destack/ui/icon";
 import arrowRight from "@destack/icon/phosphor/arrow-right";
 import { text } from "@destack/theme/text";
 import { color, stroke, weight } from "@destack/theme/tokens.stylex";

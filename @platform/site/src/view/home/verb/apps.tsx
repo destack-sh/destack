@@ -1,4 +1,4 @@
-import { Icon } from "@destack/icon";
+import { Icon } from "@destack/ui/icon";
 import at from "@destack/icon/phosphor/at";
 import checkCircle from "@destack/icon/phosphor/check-circle";
 import circle from "@destack/icon/phosphor/circle";

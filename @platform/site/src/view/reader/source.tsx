@@ -1,4 +1,4 @@
-import { Icon } from "@destack/icon";
+import { Icon } from "@destack/ui/icon";
 import caretDown from "@destack/icon/phosphor/caret-down";
 import { ButtonGroup } from "@destack/ui/button-group";
 import { CopyButton } from "../layout/copy";
