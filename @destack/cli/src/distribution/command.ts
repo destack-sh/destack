@@ -63,7 +63,7 @@ export function selfCommand(context: Context): Group {
                 description: "Stage the latest signed Destack release and restart into it",
                 json: true,
                 options: {
-                    universe: {
+                    stage: {
                         type: "boolean",
                         description: "Download and verify without restarting",
                     },
