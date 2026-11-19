@@ -1,7 +1,10 @@
-import mark from "@destack/theme/mark.svg?url";
+import { MARK } from "@destack/theme/mark";
 import * as style from "@destack/style";
 import { swatch } from "@destack/theme/tokens.stylex";
 import type { JSX } from "@destack/view";
+
+/** The mark as a data URL an image loads. */
+const MARK_URL = `data:image/svg+xml,${encodeURIComponent(MARK)}`;
 
 /** The page's layout: the brand's orange, the mark centred on it. */
 const styles = style.create({
@@ -21,7 +24,7 @@ const styles = style.create({
 export default function Blank(): JSX.Element {
     return (
         <main {...style.attrs(styles.page)}>
-            <img src={mark} alt="Destack" {...style.attrs(styles.mark)} />
+            <img src={MARK_URL} alt="Destack" {...style.attrs(styles.mark)} />
         </main>
     );
 }
