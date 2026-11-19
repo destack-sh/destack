@@ -6,6 +6,10 @@ import { Package } from "@destack/object";
 import { PackageVersion } from "@destack/package";
 import { ResourceHandle } from "@destack/resource";
 import { defineWorkload } from "@destack/object/workload";
+import { placement } from "@destack/account/object";
+import type { Controller } from "@destack/db";
+import { waitAborted } from "@destack/environment";
+import { type Identifier, present } from "@destack/schema";
 import { type Publisher, Scope } from "@destack/sync";
 import machinePackage from "../package.ts";
 import type { MachineKey } from "@destack/account/client";
@@ -22,6 +26,8 @@ interface DirectoryConfiguration {
     readonly machine: MachineKey;
     /** Stream the account package's replicas as the machine. */
     readonly publisher: Publisher;
+    /** Start a space's object, which starts only once a request reaches it. */
+    readonly start: (space: Identifier<"space">) => Promise<void>;
 }
 
 /** The prefix of a cloud machine's directory blobs in the residency's bucket. */
@@ -58,6 +64,23 @@ export const directoryWorkload = defineWorkload({
             machine: machineId,
         });
 
-        return { packages: store.packages, store };
+        // start each space placed or moving here, following it until the space reports it serves
+        const starting: Controller<typeof placement.table> = {
+            name: "destack.space.start",
+            table: placement.table,
+            pending: { OR: [{ machineId, status: "starting" }, { targetId: machineId }] },
+            // start every placed space at once, each followed until it serves, as a kubelet starts pods
+            concurrency: Infinity,
+            follow: async (rows, following) => {
+                // start the space, then wait while its placement stays pending
+                const [row] = rows;
+                await configuration.start(present(row, "a pending placement").spaceId);
+                following.synced();
+                await waitAborted(following.signal);
+            },
+        };
+        const control = () => [{ controllers: [starting], projections: [], cursors: [] }];
+
+        return { packages: store.packages, store, control };
     },
 });

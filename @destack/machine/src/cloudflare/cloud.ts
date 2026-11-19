@@ -81,8 +81,8 @@ export interface MachineBindings extends PartitionBindings, CloudflareStorageBin
     readonly DESTACK_JURISDICTION: Jurisdiction;
     /** The domain of the installation origins the machine answers, such as destack.space. */
     readonly DESTACK_SPACE_DOMAIN: string;
-    /** The machine's own host, whose paths address its spaces directly. */
-    readonly DESTACK_HOST: string;
+    /** The machine's own origin, whose paths address its spaces directly. */
+    readonly DESTACK_ORIGIN: string;
     /** The installation residency homes serve the registry protocol at. */
     readonly DESTACK_REGISTRY: string;
     /** The binding of each cloud machine, by the hosts of it and its relay, as JSON. */
@@ -284,10 +284,11 @@ export class CloudMachine {
         return CallKey.of(this.keyring, this.environment.crypto);
     }
 
-    /** Store the machine's replicas in its object's storage, answering reads of them. */
+    /** Store the machine's replicas in its object's storage, starting each space placed here. */
     async startDirectory(
         storage: DurableObjectStorage,
         alarm: Alarm,
+        start: (space: Identifier<"space">) => Promise<void>,
     ): Promise<DurableObjectWorkloadInstance> {
         // store the replicas in the object's own storage, in the isolate's environment
         const host = new DurableObjectDatabaseHost(storage, this.environment);
@@ -332,6 +333,7 @@ export class CloudMachine {
                 ),
                 machine: this.identity,
                 publisher,
+                start,
             }),
             callKey: () => this.callKey(),
             alarm,

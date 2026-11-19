@@ -887,13 +887,13 @@ export class Machine {
     async serve(request: Request, authentication?: Authentication): Promise<Response> {
         return (
             this.#refusal() ??
-            (await this.#npm(request)) ??
+            (await this.npm(request)) ??
             this.#serve(await this.#route(request), authentication)
         );
     }
 
     /** Send an npm client to the forge of the handle it asks for, answering no other request. */
-    async #npm(request: Request): Promise<Response | undefined> {
+    async npm(request: Request): Promise<Response | undefined> {
         // take a request below the npm path
         const url = new URL(request.url);
         const [, path, handle] = NPM_PATH.exec(url.pathname) ?? [];
@@ -925,7 +925,7 @@ export class Machine {
         }
 
         // send an npm client on, whose encoded package names no route's path takes
-        const sent = await this.#npm(request);
+        const sent = await this.npm(request);
         if (sent !== undefined) {
             return sent;
         }

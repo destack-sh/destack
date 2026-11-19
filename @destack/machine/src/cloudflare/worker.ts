@@ -52,6 +52,9 @@ export { GraphIndexObject } from "./graph.ts";
 /** The key of the space an object serves, which it resumes after an eviction. */
 const SPACE_KEY = "space";
 
+/** The path the machine's directory starts a placed space at, as a space starts on a request. */
+const START_PATH = "/.destack/space/start";
+
 /** The party of the object's alarm that runs the machine's directory controllers. */
 const DIRECTORY_PARTY = "directory";
 
@@ -127,16 +130,16 @@ export class PartitionObject {
                       (await this.#machine()).startDirectory(
                           state.storage,
                           this.#alarms.alarm(DIRECTORY_PARTY),
+                          (space) => this.#startSpace(space),
                       ),
                   )
                 : undefined;
 
-        // resume the space served before
-        this.#served = state.blockConcurrencyWhile(async () => {
-            const stored = await state.storage.get(SPACE_KEY);
-
-            return stored === undefined ? undefined : this.#start(schema.string().parse(stored));
-        });
+        // read the space served before under the input gate, then resume it as a request starts it
+        const stored = state.blockConcurrencyWhile(() => state.storage.get(SPACE_KEY));
+        this.#served = stored.then((value) =>
+            value === undefined ? undefined : this.#start(schema.string().parse(value)),
+        );
     }
 
     /** Serve a request. */
@@ -166,6 +169,9 @@ export class PartitionObject {
         try {
             // hand a workload's call to its own facet, and serve a partition's facet in an object serving no space
             const served = await starting;
+            if (url.pathname === START_PATH) {
+                return new Response(null, { status: 204 });
+            }
             const routed = this.#facets.route(request);
             if (routed !== undefined) {
                 return await routed;
@@ -190,9 +196,9 @@ export class PartitionObject {
             else if (url.pathname.startsWith(`${CONTENT_PATH}/`)) {
                 return await served.host.content(request);
             }
-            // serve the space
+            // send an npm client on, else serve the space
             else {
-                return await served.space.fetch(request);
+                return (await machine.npm(request)) ?? (await served.space.fetch(request));
             }
         } catch (error) {
             return refusal(error, WorkerdEnvironment.system.telemetry);
@@ -220,12 +226,13 @@ export class PartitionObject {
 
     /** Wake one party of the object's alarm: the directory, the space or a facet. */
     async #wake(party: string): Promise<void> {
-        // run the directory's controllers
+        // run the directory's controllers for a whole alarm window, then ring again at once
         const { clock } = WorkerdEnvironment.system;
         if (party === DIRECTORY_PARTY) {
-            await (
-                await present(this.#directory, "the machine's directory")
-            ).alarm(clock.now() + ALARM_MILLISECONDS);
+            const directory = await present(this.#directory, "the machine's directory");
+            const deadline = clock.now() + ALARM_MILLISECONDS;
+            await Promise.all([directory.alarm(deadline), clock.sleep(ALARM_MILLISECONDS)]);
+            await this.#alarms.alarm(DIRECTORY_PARTY).setAlarm(clock.now());
         }
         // run the space's controllers while the machine's account enables it
         else if (party === SPACE_PARTY) {
@@ -279,6 +286,28 @@ export class PartitionObject {
         }
 
         return new Response(null, { status: 204 });
+    }
+
+    /** Start a placed space in its object, refusing a start the object fails. */
+    async #startSpace(space: Identifier<"space">): Promise<void> {
+        // ask the space's object at the start path, as the machine's own host
+        const bindings = this.#bindings;
+        const namespace = Jurisdiction.narrow(bindings.PARTITION, bindings.DESTACK_JURISDICTION);
+        const object = namespace.get(namespace.idFromName(PartitionName.of({ space })));
+        const request = new Request(`${bindings.DESTACK_ORIGIN}${START_PATH}`, {
+            method: "POST",
+            headers: { [SPACE_HEADER]: space },
+        });
+        const response = await object.fetch(request);
+
+        // refuse a failed start with what the object answered
+        if (!response.ok) {
+            throw MachineError.of(
+                "SPACE_UNAVAILABLE",
+                `'${space}' is unavailable: its start answered ${response.status}: '${await response.text()}'`,
+                { data: {} },
+            );
+        }
     }
 
     /** Start the space on the cloud machine over the object's storage. */
@@ -382,7 +411,7 @@ export class PartitionObject {
             linked: DistributionManifest.builtins(shipped, "workerd"),
             shipped: DistributionManifest.releases(shipped, "workerd"),
             registry: bindings.DESTACK_REGISTRY,
-            endpoint: `https://${bindings.DESTACK_HOST}`,
+            endpoint: bindings.DESTACK_ORIGIN,
             destack: { oldest: OLDEST_DESTACK, newest: machinePackage.version },
             authenticate: async (request, audience, partition) => {
                 // verify the universe's or a space's token for the package
@@ -445,7 +474,7 @@ export class MachineWorker {
         }
 
         // find the spaces served here alone, by a request to the machine's own host or a name
-        const isOwn = new URL(request.url).host === bindings.DESTACK_HOST;
+        const isOwn = new URL(request.url).host === new URL(bindings.DESTACK_ORIGIN).host;
         const served = async () => {
             const { replica, id } = await this.#machine(bindings);
 
