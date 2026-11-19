@@ -127,7 +127,7 @@ const start: WorkloadStart = {
     secret: "forwarding",
     egress: "http://host.test/.destack/egress",
     url: "https://notes--home.test",
-    sampling: 1,
+    telemetry: { sampling: 1, delay: 5000 },
 };
 
 /** The world the runners' telemetry starts in, its failures and identifiers its own. */

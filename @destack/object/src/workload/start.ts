@@ -18,6 +18,16 @@ export const CLIENT_HEAD_HEADER = "Destack-Client-Head";
 /** The path at which a runner takes its space store's requests to run its objects' hooks. */
 export const HOOK_PATH = "/.destack/hook";
 
+/** How a workload samples and batches its telemetry, as its machine resolves it. */
+export const WorkloadTelemetry = schema.object({
+    /** The share of traces sampled beside every failed or slow one, from 0 to 1. */
+    sampling: schema.number().min(0).max(1),
+    /** How long spans and records batch before an export, in milliseconds. */
+    delay: schema.number().int().positive(),
+});
+/** How a workload samples and batches its telemetry. */
+export type WorkloadTelemetry = schema.Infer<typeof WorkloadTelemetry>;
+
 /** The first line a host writes to a runner's input, starting one workload of an installation. */
 export const WorkloadStart = schema.object({
     /** The instance, the holder name of its leases. */
@@ -42,8 +52,8 @@ export const WorkloadStart = schema.object({
     egress: schema.url(),
     /** The URL callers call the installation at, its packages mounted below. */
     url: schema.url(),
-    /** The share of traces sampled beside every failed or slow one, from 0 to 1. */
-    sampling: schema.number().min(0).max(1),
+    /** How the workload samples and batches its telemetry. */
+    telemetry: WorkloadTelemetry,
     /** The installation's root as 32 hexadecimal bytes, derived from its space's identity. */
     root: schema.sensitive(schema.string().regex(/^[0-9a-f]{64}$/u)),
 });

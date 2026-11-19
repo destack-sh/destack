@@ -219,8 +219,9 @@ export class WorkloadRunner implements AsyncDisposable {
         );
 
         return exporter.options(runner.workload.package, {
-            ratio: start.sampling,
+            ratio: start.telemetry.sampling,
             local: runner.log,
+            delay: start.telemetry.delay,
         });
     }
 
