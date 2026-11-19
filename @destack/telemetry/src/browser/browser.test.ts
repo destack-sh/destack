@@ -1,9 +1,9 @@
 import { testSimulation } from "@destack/test/world";
 import { TelemetryScope } from "../scope/index.ts";
 import { expect, test } from "@destack/test";
-import { PackageId } from "@destack/package";
+import { OriginPath, PackageId } from "@destack/package";
 import { schema } from "@destack/schema";
-import { OTLP_ORIGIN_PATH, OtlpExporter } from "../otlp/index.ts";
+import { OtlpExporter } from "../otlp/index.ts";
 import { startTelemetry } from "./browser.ts";
 
 /** The origin of the page, whose server receives its exports. */
@@ -145,7 +145,7 @@ test("export a page's uncaught errors and unhandled rejections to its origin at 
     await using simulation = testSimulation();
     const page = new PageWindow();
     const exporter = OtlpExporter.http(
-        { endpoint: `${ORIGIN}${OTLP_ORIGIN_PATH}`, isKeepalive: true, fetch: send },
+        { endpoint: `${ORIGIN}${OriginPath.telemetry}`, isKeepalive: true, fetch: send },
         (error) => {
             throw error;
         },

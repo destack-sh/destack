@@ -1,3 +1,4 @@
+import { OriginPath } from "@destack/package";
 import { type Digest, type Identifier, schema } from "@destack/schema";
 import { type ExportResult, ExportResultCode } from "@opentelemetry/core";
 import {
@@ -28,6 +29,9 @@ import type { LineExporter } from "@destack/environment";
 /** How long one export may take by default before it fails: OTLP's OTEL_EXPORTER_OTLP_TIMEOUT. */
 const EXPORT_TIMEOUT_MILLISECONDS = 10_000;
 
+/** The base URL OpenTelemetry's exporters post each signal below, as its specification sets. */
+const ENDPOINT_VARIABLE = "OTEL_EXPORTER_OTLP_ENDPOINT";
+
 /** How often metrics export: once a minute, the resolution observability stores points at. */
 const METRIC_INTERVAL_MILLISECONDS = 60_000;
 
@@ -41,17 +45,14 @@ const ExportResponse = schema.looseObject({
 /** The attribute an exception record keeps its symbolicated frames in, as JSON. */
 export const FRAMES_ATTRIBUTE = "destack.exception.frames";
 
-/** The path below which an origin receives OTLP/HTTP exports. */
-export const OTLP_ORIGIN_PATH = "/.destack/telemetry";
-
 /** The OTLP signals, named as their HTTP paths name them. */
 export type OtlpSignal = "traces" | "logs" | "metrics";
 
 /** The OTLP signals by their HTTP paths below the origin path. */
 const SIGNAL_PATHS: ReadonlyMap<string, OtlpSignal> = new Map([
-    [`${OTLP_ORIGIN_PATH}/v1/traces`, "traces"],
-    [`${OTLP_ORIGIN_PATH}/v1/logs`, "logs"],
-    [`${OTLP_ORIGIN_PATH}/v1/metrics`, "metrics"],
+    [`${OriginPath.telemetry}/v1/traces`, "traces"],
+    [`${OriginPath.telemetry}/v1/logs`, "logs"],
+    [`${OriginPath.telemetry}/v1/metrics`, "metrics"],
 ]);
 
 /** Read the OTLP signals of origin paths. */
@@ -173,6 +174,40 @@ export class OtlpExporter {
             report,
             symbolicator === undefined ? {} : { symbolicator },
         );
+    }
+
+    /** Add an export of spans and log records to the endpoint a process's variables set. */
+    static endpoint(
+        options: TelemetryOptions,
+        variables: Readonly<Record<string, string | undefined>>,
+        fetch: (request: Request) => Promise<Response>,
+    ): TelemetryOptions {
+        // leave the options without an endpoint
+        const endpoint = variables[ENDPOINT_VARIABLE];
+        if (endpoint === undefined) {
+            return options;
+        }
+
+        // export every span and record beside the options' own processors
+        const exporter = OtlpExporter.http({ endpoint, fetch }, options.report);
+
+        return {
+            ...options,
+            signals: (meters) => {
+                // add a batch processor per signal to the options' own setup
+                const { traces, logs } = options.signals(meters);
+                const spans = new BatchSpanProcessor({ exporter: exporter.traces });
+                const records = new BatchLogRecordProcessor({ exporter: exporter.logs });
+
+                return {
+                    traces: {
+                        ...traces,
+                        spanProcessors: [...(traces.spanProcessors ?? []), spans],
+                    },
+                    logs: { ...logs, processors: [...(logs.processors ?? []), records] },
+                };
+            },
+        };
     }
 
     /** Post one OTLP/JSON export request of a signal to a target, rejecting a refused delivery. */
