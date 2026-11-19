@@ -623,7 +623,7 @@ test("follow a nested card from the machine in a tab through its device, and aga
             objects: types,
             caller,
             device: browser,
-            endpoint: objects.as(alice).endpoint(cardsPackage),
+            remote: (scope: string) => objects.as(alice).connect(cardsPackage, { scope }),
             environment,
         });
         const tab = await BrowserTab.open({
