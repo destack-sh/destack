@@ -26,6 +26,11 @@ const NOTES_INSTANCE = schema
     .identifier("instance")
     .parse("instance-01996ab0-0000-7000-8000-000000000006");
 
+/** A second notes workload instance, logging the same lines at the same times. */
+const OTHER_INSTANCE = schema
+    .identifier("instance")
+    .parse("instance-01996ab0-0000-7000-8000-000000000007");
+
 /** The digest of the notes build's manifest. */
 const NOTES_MANIFEST = Digest.parse(
     "8bdf50d6d97eea3aeea1819f64e41b24dfc909ad0d1e5e6edfd7c7ed48b24bd1",
@@ -59,6 +64,17 @@ function metricsExport(time: number) {
         { name: "note.saves", sum: { aggregationTemporality: 1, dataPoints } },
         { name: "note.render.cumulative", sum: { aggregationTemporality: 2, dataPoints } },
     ]);
+}
+
+/** Decode a logs export in a scope, answering its records' identities. */
+async function identities(scope: string, exported: unknown) {
+    const decoded = await OtlpResource.decode(
+        new OtlpExport("logs", exported),
+        scope,
+        testHost().crypto,
+    );
+
+    return decoded.flatMap((each) => each.events.log.map((record) => record.id));
 }
 
 /** Decode an export in the space, answering its refusal. */
@@ -109,7 +125,7 @@ test("decode spans and records under the forwarder's emitter, keeping personal a
 
     // stamp each with the forwarder's installation, instance and build, keep dana's email apart and drop the unclaimed token
     const stamp = { installationId: NOTES_INSTALLATION, build: NOTES_MANIFEST };
-    const instrumentation = { name: "@example/notes", version: "2026.9.0" };
+    const instrumentation = { name: NOTES.name, version: NOTES.version };
     expect({
         emitter: traced?.emitter,
         spans: traced?.events.span.map(({ id: _id, ...span }) => span),
@@ -173,41 +189,33 @@ test("decode spans and records under the forwarder's emitter, keeping personal a
     });
 });
 
-test("identify the same records alike in one scope and apart across scopes, and refuse a cumulative metric", async () => {
-    // read one export twice in the space and once in another scope
-    const exported = emitter.logs([{ time: START, name: "note.saved", severity: 9 }]);
-    const identities = async (scope: string) =>
-        (
-            await OtlpResource.decode(new OtlpExport("logs", exported), scope, testHost().crypto)
-        ).flatMap((each) => each.events.log.map((record) => record.id));
-    const [first, again, elsewhere] = [
-        await identities(ids.space),
-        await identities(ids.space),
-        await identities("space-01996ab0-0000-7000-8000-0000000000ff"),
+test("identify a log record alike on a retry and apart in another scope or instance", async () => {
+    // read one export twice in the space, once in another scope, and the same line from another instance
+    const line = { time: START, name: "note.saved", severity: 9 };
+    const exported = emitter.logs([line]);
+    const otherEmitter = emitter.with({ [EMITTER_ATTRIBUTES.instance]: OTHER_INSTANCE });
+    const [first, retried, otherScope, otherInstance] = [
+        await identities(ids.space, exported),
+        await identities(ids.space, exported),
+        await identities("space-01996ab0-0000-7000-8000-0000000000ff", exported),
+        await identities(ids.space, otherEmitter.logs([line])),
     ];
 
-    // keep a retried export's identities, give another scope's its own, and refuse summing a cumulative counter
-    expect({
-        first,
-        again,
-        elsewhere,
-        cumulative: await refusal(
-            OtlpResource.decode(
-                new OtlpExport("metrics", metricsExport(START)),
-                ids.space,
-                testHost().crypto,
-            ),
-        ),
-    }).toEqual({
-        first: ["log-bebe9b51-5fbc-85bb-9e53-d8a63e94a32a"],
-        again: ["log-bebe9b51-5fbc-85bb-9e53-d8a63e94a32a"],
-        elsewhere: ["log-dec32677-842b-8d83-941d-52adfba1e94b"],
-        cumulative: [
-            "BAD_REQUEST",
-            "TEMPORALITY_INVALID",
-            "metric 'note.render.cumulative' is invalid: it is cumulative and must export deltas",
-        ],
+    // keep a retried export's identity, and give another scope and another instance their own
+    expect({ first, retried, otherScope, otherInstance }).toEqual({
+        first: ["log-648f9048-5c54-86bd-afd5-bd0fc31f047f"],
+        retried: ["log-648f9048-5c54-86bd-afd5-bd0fc31f047f"],
+        otherScope: ["log-aea79e82-21f6-8a67-84e0-e1b0ba2fa996"],
+        otherInstance: ["log-f43b89a8-fc9d-88d0-ab71-fc229838e460"],
     });
+});
+
+test("refuse a cumulative metric", async () => {
+    expect(await decode("metrics", metricsExport(START))).toEqual([
+        "BAD_REQUEST",
+        "TEMPORALITY_INVALID",
+        "metric 'note.render.cumulative' is invalid: it is cumulative and must export deltas",
+    ]);
 });
 
 test("refuse log records and metric points missing what their kind requires, and an explicit-bucket histogram", async () => {

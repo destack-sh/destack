@@ -443,8 +443,16 @@ class OtlpDecoder {
         const trace = presentText(record.traceId);
         const split = this.#split(attributesOf(record.attributes));
 
-        // collect the contents that identify it
-        const contents = [at, name, trace, record.spanId, text, record.attributes];
+        // collect the contents that identify it, apart for each instance logging it
+        const contents = [
+            at,
+            name,
+            trace,
+            record.spanId,
+            text,
+            record.attributes,
+            this.emitter.instance,
+        ];
 
         return { name, at, contents, text, trace, split };
     }
