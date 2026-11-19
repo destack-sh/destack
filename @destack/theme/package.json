@@ -15,7 +15,7 @@
         "./theme.css": "./src/theme/theme.css",
         "./tokens.json": "./src/token/tokens.json",
         "./tokens.stylex": "./src/token/tokens.stylex.ts",
-        "./mark.svg": "./src/brand/mark.svg"
+        "./mark": "./src/brand/mark.ts"
     },
     "scripts": {
         "generate": "bun run src/token/generate.ts"

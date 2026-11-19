@@ -1,4 +1,5 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+/** Destack's mark as SVG markup, as the brand draws it. */
+export const MARK = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
   <defs>
     <clipPath id="front"><path d="M-8 16H40V40H-8Z" transform="rotate(-22 16 16)"/></clipPath>
     <clipPath id="globe"><circle cx="16" cy="16" r="11"/></clipPath>
@@ -16,4 +17,4 @@
     </g>
     <g clip-path="url(#front)"><ellipse cx="16" cy="16" rx="15.2" ry="4.2" transform="rotate(-22 16 16)" fill="none" stroke="#f1eadb" stroke-width="2.6"/></g>
   </g>
-</svg>
+</svg>`;
