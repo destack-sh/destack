@@ -1,17 +1,16 @@
 import { Caller } from "@destack/access";
 import { TestDatabase } from "@destack/db/test";
-import { ObjectClient, ProcedureRemote } from "@destack/object/client";
+import { ObjectClient, ObjectConnection } from "@destack/object/client";
 import type { ObjectStore } from "@destack/object/server";
 import { ResourceContext } from "@destack/resource/context";
-import type { ClientOptions } from "@destack/object/client";
-import { Health, Server } from "@destack/object/server";
+import { ObjectConnectionHost, Health, Server } from "@destack/object/server";
 import { onTestFinished } from "@destack/test";
 import type { ViewContext } from "@destack/view/declare";
 import { activity, notification } from "../../src/object/index.ts";
 import notificationPackage from "../../src/package.ts";
 import { document } from "../../src/test/notes.ts";
 import { TestNotification } from "../../src/test/notification.ts";
-import type { Environment } from "@destack/environment";
+import { type Environment, WebSocketUpgrade } from "@destack/environment";
 import type { Subject } from "@destack/sync";
 import {
     BrowserSimulation,
@@ -69,8 +68,8 @@ export async function openHome(): Promise<Home> {
     await scenario.simulation.idle();
     const home = await scenario.home("bob");
 
-    // serve the home over HTTP to bob, then follow it from his device
-    const endpoint = serveHome(
+    // serve the home to bob, then follow it from his device over one connection
+    const connection = serveHome(
         await home.space.store(),
         home.space.id,
         scenario.subject("bob"),
@@ -88,12 +87,7 @@ export async function openHome(): Promise<Home> {
         objects,
         scope: home.space.id,
         caller: scenario.subject("bob"),
-        remote: ProcedureRemote.at({
-            scope: home.space.id,
-            endpoint,
-            reconnect: () => endpoint,
-            environment: scenario.environment,
-        }),
+        remote: connection,
     });
     const following = new AbortController();
     const loops = [client.follow(following.signal), client.push(following.signal)];
@@ -128,10 +122,12 @@ function serveHome(
     homeId: string,
     person: Subject,
     environment: Environment,
-): ClientOptions {
+): ObjectConnection {
+    const sockets = new ObjectConnectionHost(environment.telemetry);
     const server = Server.start({
         ...objects.package(notificationPackage),
         environment,
+        hibernation: sockets.hibernation,
         scopes: [homeId],
         resources: new ResourceContext(),
         health: new Health("notification"),
@@ -154,6 +150,13 @@ function serveHome(
         },
     });
     onTestFinished(() => server.close());
+    sockets.serve(notificationPackage.id, server);
 
-    return { url: "https://home.test", fetch: (request: Request) => server.fetch(request) };
+    return ObjectConnection.open({
+        scope: homeId,
+        url: ObjectConnection.url("https://home.test"),
+        websocket: (url, protocols) =>
+            sockets.open((upgrade) => server.fetch(upgrade), WebSocketUpgrade.to(url, protocols)),
+        environment,
+    });
 }

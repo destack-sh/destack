@@ -36,6 +36,9 @@ function drawInHome(
                 origin: (path) => {
                     throw new TypeError(`the inbox cannot call '${path}'`);
                 },
+                connect: (path) => {
+                    throw new TypeError(`the inbox cannot connect to '${path}'`);
+                },
             },
             localization,
             environment: home.environment,
