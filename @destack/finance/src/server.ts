@@ -1,5 +1,8 @@
 import forgePackage from "@destack/forge/package";
-import { Registry } from "@destack/registry/client";
+import { RemoteBuildStore } from "@destack/build/store";
+import type { PackageId } from "@destack/package";
+import registryPackage from "@destack/registry/package";
+import { createClient } from "@destack/object/client";
 import { implementPackage } from "@destack/object/server";
 import { provider, tag } from "./declare/setting.ts";
 import financePackage from "./package.ts";
@@ -21,15 +24,23 @@ export default implementPackage(financePackage, (context) => {
 
     // read the packages' published builds from the forge in the home
     const forge = context.at(forgePackage.name);
-    const registry = new Registry(
-        async () => ({ url: forge.url, space: home, fetch: forge.fetch }),
-        context.environment,
-    );
-    const metering = new Metering(
-        tag.read(context.settings),
-        (packageId, release) => registry.open(packageId, release),
-        context.environment.telemetry,
-    );
+    const registry = createClient(registryPackage, forge, context.environment);
+    const builds = `${forge.url}${registryPackage.mounts.builds.path}`;
+    const open = async (packageId: PackageId, named: string) => {
+        const found = await registry.release.resolve({
+            spaceId: home,
+            parentId: packageId,
+            release: named,
+        });
+
+        return await RemoteBuildStore.open(
+            builds,
+            forge.fetch,
+            found.image,
+            context.environment.crypto,
+        );
+    };
+    const metering = new Metering(tag.read(context.settings), open, context.environment.telemetry);
 
     return implementFinance(home, metering, charging, context);
 });

@@ -8,13 +8,7 @@ import { reconciliation } from "@destack/db/test";
 import type { Crypto, Clock, Environment } from "@destack/environment";
 import type { Simulation } from "@destack/environment/simulation";
 import { type EventStore, EventTime } from "@destack/event";
-import {
-    FORGE,
-    FORGE_HOME_OPTIONS,
-    FORGE_HOME_STACK,
-    FORGE_HOME_TYPES,
-    publishBuild,
-} from "@destack/forge/test";
+import { publishBuild } from "@destack/forge/test";
 import { notification } from "@destack/notification/object";
 import messagePackage from "@destack/message/package";
 import notificationPackage from "@destack/notification/package";
@@ -38,14 +32,22 @@ import { MemoryBuild } from "@destack/package/test";
 import { Identifier, present, schema } from "@destack/schema";
 import type { StackDocument } from "@destack/stack/declare";
 import { install } from "@destack/stack/declare";
-import { TestPackage, TestSpace } from "@destack/machine/test";
+import {
+    CONNECTION,
+    FORGE,
+    FORGE_HOME_OPTIONS,
+    FORGE_HOME_STACK,
+    FORGE_HOME_TYPES,
+    TestPackage,
+    TestSpace,
+    VAULT,
+} from "@destack/machine/test";
 import connectionPackage, { CONNECTION_INSTALLATION } from "@destack/connection/package";
 import { connectionVault } from "@destack/connection/stack";
-import { CONNECTION } from "@destack/connection/test";
 import { stripe } from "../declare/connection.ts";
 import { secret } from "@destack/vault/object";
 import vaultPackage from "@destack/vault/package";
-import { TestVault, VAULT } from "@destack/vault/test";
+import { TestVault } from "@destack/vault/test";
 import { RequestId, Scope, Subject } from "@destack/sync";
 import { TestTelemetry } from "@destack/telemetry/test";
 import { testHost } from "@destack/test/host";
@@ -348,7 +350,7 @@ export class TestFinance {
             residencyId: RESIDENCY,
         });
         for (const [id, handle] of [
-            [ids.buyer, "acme"],
+            [ids.buyer, "acme-buyer"],
             [ids.payer, "acme-billing"],
         ] as const) {
             await accounts.account.create({

@@ -31,7 +31,7 @@
             "DOM",
             "DOM.Iterable"
         ],
-        "types": ["bun"]
+        "types": ["bun", "@destack/build/browser"]
     },
     "include": ["**/*"],
     "exclude": ["node_modules", "dist", "target", "coverage", "out"]
