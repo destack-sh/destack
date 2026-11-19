@@ -60,8 +60,40 @@ const HOSTS = new Map([
     ["history", "environment.navigation"],
 ]);
 
-/** The host globals' members that compute without effects: Bun's parser. */
-const PURE_MEMBERS = new Set(["Bun.Transpiler"]);
+/** The host globals' members that compute without effects: Bun's parser and its pure utilities. */
+const PURE_MEMBERS = new Set([
+    // parse and transpile
+    "Bun.Transpiler",
+
+    // measure, strip, escape and inspect text and values
+    "Bun.stringWidth",
+    "Bun.stripANSI",
+    "Bun.escapeHTML",
+    "Bun.inspect",
+    "Bun.peek",
+    "Bun.deepEquals",
+    "Bun.deepMatch",
+
+    // hash, compare versions, convert colors and file URLs
+    "Bun.hash",
+    "Bun.CryptoHasher",
+    "Bun.semver",
+    "Bun.color",
+    "Bun.fileURLToPath",
+    "Bun.pathToFileURL",
+
+    // compress and decompress in memory
+    "Bun.gzipSync",
+    "Bun.gunzipSync",
+    "Bun.deflateSync",
+    "Bun.inflateSync",
+    "Bun.zstdCompressSync",
+    "Bun.zstdDecompressSync",
+
+    // read the runtime's version
+    "Bun.version",
+    "Bun.revision",
+]);
 
 /** The names of the global object, through which every host global is also reached. */
 const GLOBAL_OBJECTS = new Set(["globalThis", "window", "self"]);
