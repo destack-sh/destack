@@ -27,14 +27,30 @@
         "@destack/package": "workspace:*",
         "@destack/resource": "workspace:*",
         "@destack/schema": "workspace:*",
-        "@destack/stack": "workspace:*",
         "@destack/sync": "workspace:*",
         "@destack/vault": "workspace:*",
         "@destack/workflow": "workspace:*"
     },
     "devDependencies": {
         "@destack/machine": "workspace:*",
+        "@destack/stack": "workspace:*",
         "@destack/test": "workspace:*",
         "@types/bun": "1.4.4"
+    },
+    "peerDependencies": {
+        "@destack/machine": "workspace:*",
+        "@destack/stack": "workspace:*",
+        "@destack/test": "workspace:*"
+    },
+    "peerDependenciesMeta": {
+        "@destack/machine": {
+            "optional": true
+        },
+        "@destack/stack": {
+            "optional": true
+        },
+        "@destack/test": {
+            "optional": true
+        }
     }
 }
