@@ -38,7 +38,7 @@ const JOURNEYS = [
         commands: ["install", "uninstall", "open", "apply", "plan", "approve", "reject"],
     },
     { title: "share", commands: ["share", "invited", "accept"] },
-    { title: "build", commands: ["new", "dev", "build", "publish", "tag"] },
+    { title: "build", commands: ["new", "dev", "check", "fix", "test", "build", "publish", "tag"] },
     { title: "settings", commands: ["setting", "settings"] },
 ] as const;
 

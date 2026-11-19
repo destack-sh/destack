@@ -420,6 +420,14 @@ async function* watch(
     signal: AbortSignal,
     context: Context,
 ): AsyncGenerator<readonly JsonObject[]> {
+    // refuse events, which a store lists by page and no replica follows
+    if (noun.type.storage === "events") {
+        throw CliError.of(
+            "USAGE_INVALID",
+            `flag '--watch' is invalid: '${noun.plural}' are events, which must be listed by page`,
+        );
+    }
+
     // replicate the type's rows in memory as the person signed in
     const { environment } = await context.native();
     const objects = ObjectClient.keyed([noun.type]);

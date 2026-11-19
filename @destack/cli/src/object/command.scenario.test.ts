@@ -261,7 +261,7 @@ test("print help for a command line without words as destack help does, and a no
             "  spaces    switch",
             "  apps      install  uninstall  open  apply  plan  approve  reject",
             "  share     share  invited  accept",
-            "  build     new  dev  build  publish  tag",
+            "  build     new  dev  check  fix  test  build  publish  tag",
             "  settings  setting  settings",
             "  objects   computers  machine:visits  sign-ins  windows  distributions",
             "            checkouts  previews  users  account:sessions  user-logins  passkeys",
