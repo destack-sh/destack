@@ -25,6 +25,9 @@ const machineError = defineErrorFamily({
         SPACE_NOT_FOUND: {},
         VIEW_NOT_FOUND: {},
 
+        // conflict
+        INSTALLATION_CONFLICT: {},
+
         // invalid
         ENDPOINT_INVALID: {},
         METRIC_INVALID: {},

@@ -68,6 +68,7 @@ export function openGateway(
             id: ids.space,
             database,
             call: options.call ?? refuse("serve calls"),
+            installation: refuse("find installations"),
             observe: options.observe ?? refuse("receive telemetry"),
             borrow,
             mounts: options.mounts ?? (() => []),

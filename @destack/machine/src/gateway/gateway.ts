@@ -178,6 +178,7 @@ export type GatewaySpace = Pick<
     | "database"
     | "universe"
     | "call"
+    | "installation"
     | "observe"
     | "borrow"
     | "mounts"
@@ -301,13 +302,26 @@ export class Gateway {
                 return routed;
             }
 
-            // serve a package of the space below its mount
+            // serve a package of the space below its mount, else address the installation serving it
             const mounted = routed === undefined ? PackageMount.of(request) : undefined;
-            if (mounted !== undefined) {
+            const packageId =
+                mounted === undefined ? undefined : PackageId.parse(mounted.packageId);
+            const isOwn = this.#packages().some((handle) => handle.id === packageId);
+            if (mounted !== undefined && isOwn) {
                 return await this.#space.call(
-                    PackageId.parse(mounted.packageId),
+                    present(packageId, "the mounted package"),
                     mounted.request,
                     voucher,
+                );
+            } else if (packageId !== undefined) {
+                const served = await this.#space.installation(packageId);
+                const url = new URL(request.url);
+                const at = `${InstallationMount.url(request.url, this.#space.id, served.installationId)}${url.pathname}${url.search}`;
+                const forwarded = copyRequest(request, {}, at);
+
+                return (
+                    (await this.#installations(forwarded, voucher)) ??
+                    new Response(null, { status: 404 })
                 );
             }
 

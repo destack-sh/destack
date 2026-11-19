@@ -195,6 +195,19 @@ export class Launcher {
         return { url, fetch: this.session.fetch(packageId, { partition }) };
     }
 
+    /** Connect to the package of a space, at the one installation serving it there. */
+    async package(
+        space: Identifier<"space"> | SpaceAddress,
+        packageId: PackageId,
+    ): Promise<ClientOptions> {
+        // send the universe's token for the package bound to the space, as for a named installation
+        const located = await this.machine.locate(space);
+        const partition = located.placement.space;
+        const url = `${SpaceMount.url(located.url, partition)}${PackageMount.path(packageId)}`;
+
+        return { url, fetch: this.session.fetch(packageId, { partition }) };
+    }
+
     /** Find an installation's package below the machine serving its space, and the space. */
     async #mount(
         space: Identifier<"space"> | SpaceAddress,

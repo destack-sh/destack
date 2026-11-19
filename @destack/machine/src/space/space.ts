@@ -150,7 +150,7 @@ import type {
 import { RolloutTarget } from "../installation/target.ts";
 import registryPackage from "@destack/registry/package";
 import { S3Credentials, type S3Server } from "@destack/bucket/s3";
-import connectionPackage, { CONNECTION_INSTALLATION } from "@destack/connection/client";
+import connectionPackage from "@destack/connection/client";
 import type { ConnectionLease } from "@destack/connection/object";
 import { BuildStore, type ImportClosure } from "@destack/build/store";
 import type { Volume } from "./storage.ts";
@@ -2766,6 +2766,47 @@ export class Space {
         });
     }
 
+    /** Find the one installation serving a package here: of the package, or implementing it. */
+    async installation(packageId: PackageId): Promise<InstallationRollout> {
+        // read the protocols the packages here implement: the store's own, and the workloads'
+        const implemented = new Map<string, readonly string[]>([
+            ...this.instance.packages.map(
+                (handle) => [handle.id, handle.protocols.map((protocol) => protocol.id)] as const,
+            ),
+            ...this.#current().installed.map(
+                (entry) =>
+                    [
+                        entry.rollout.installation.packageId,
+                        PackageDescription.find(entry.declarations)?.protocols ?? [],
+                    ] as const,
+            ),
+        ]);
+
+        // list the served installations of the package or of a package implementing it
+        const installed = (await Rollout.listServed(this.database, this.id)).filter(
+            (served) =>
+                served.installation.packageId === packageId ||
+                (implemented.get(served.installation.packageId) ?? []).includes(packageId),
+        );
+        const [only] = installed;
+
+        // refuse none, and several, which callers reach by their names
+        if (only === undefined) {
+            throw MachineError.of(
+                "INSTALLATION_NOT_FOUND",
+                `installation serving package '${packageId}' in this space not found`,
+            );
+        } else if (installed.length > 1) {
+            const names = installed.map((served) => served.installation.name).join("', '");
+            throw MachineError.of(
+                "INSTALLATION_CONFLICT",
+                `cannot route package '${packageId}': installations '${names}' each serve it`,
+            );
+        }
+
+        return only;
+    }
+
     /** List the mounts an installation the space serves declares. */
     mounts(installationId: Identifier<"installation">): readonly Mount[] {
         return this.#current().mounts.filter((each) => each.installationId === installationId);
@@ -2923,7 +2964,6 @@ export class Space {
         const primary = this.machine.directory.client(
             connectionPackage,
             home,
-            CONNECTION_INSTALLATION,
             this.session(identity).fetch(connectionPackage.id),
             environment,
         );
@@ -2942,13 +2982,7 @@ export class Space {
             });
             const home = await locateHome(this.machine, payer);
             const fetch = this.machine.fetch(stackPackage.id);
-            const stack = directory.client(
-                stackPackage,
-                home,
-                STACK_INSTALLATION,
-                fetch,
-                environment,
-            );
+            const stack = directory.client(stackPackage, home, fetch, environment);
             await stack.usage.append({ ...use, accountId: payer });
         }
     }
