@@ -6,9 +6,9 @@ import alien from "@destack/icon/phosphor/alien";
 import type { IconName } from "@destack/icon";
 import { LazyIcon } from "@destack/icon/lazy";
 
-/** Wrap an icon body in the SVG element an icon renders. */
+/** Wrap an icon body in the SVG element an icon renders, with its style's class. */
 function svg(attributes: string, body: string): string {
-    return `<svg viewBox="0 0 256 256" fill="currentColor" ${attributes} data-slot="icon">${body}</svg>`;
+    return `<svg viewBox="0 0 256 256" fill="currentColor" ${attributes} data-slot="icon" class="x2lah0s">${body}</svg>`;
 }
 
 test("draw an icon chosen at run time empty at its final size until its module arrives", async () => {

@@ -24,6 +24,11 @@ export interface IconProperties {
     readonly xstyle?: style.Styles;
 }
 
+/** The styles of an icon: a fixed-size graphic that a flex container never shrinks. */
+const styles = style.create({
+    icon: { flexShrink: 0 },
+});
+
 /** Draw a Phosphor icon inline in the current text color. */
 export function Icon(properties: IconProperties): JSX.Element {
     // draw the body of the passed bodies, which the build passes for a literal name
@@ -46,7 +51,7 @@ export function Icon(properties: IconProperties): JSX.Element {
             aria-hidden={properties.label === undefined ? "true" : undefined}
             data-slot="icon"
             innerHTML={body()}
-            {...style.attrs(properties.xstyle)}
+            {...style.attrs(styles.icon, properties.xstyle)}
         />
     );
 }
