@@ -88,7 +88,11 @@ export const task = defineObject(
             title: field.string(schema.string().min(1).max(512)),
             archived: field.boolean().default(false),
             token: field.string().sensitive().optional(),
-            estimate: field.integer().optional().guard({ read: "plan", write: "plan" }),
+            estimate: field
+                .integer()
+                .labeled(t`Estimate`)
+                .optional()
+                .guard({ read: "plan", write: "plan" }),
             origin: field.object().optional(),
             current: field
                 .reference((): ObjectOf<{ identity: "task-version" }> => taskVersion, {

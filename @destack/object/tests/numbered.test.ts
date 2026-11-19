@@ -10,6 +10,7 @@ import { ObjectClient, type ObjectConnection } from "../src/client/index.ts";
 import { onTestFinished } from "@destack/test";
 import { present, schema } from "@destack/schema";
 import {
+    ObjectAppearance,
     defineObject,
     definePackage,
     field,
@@ -482,3 +483,25 @@ async function openDevice(
         },
     };
 }
+
+test("read the identifier people use: live within a team's key or across the scope, frozen as issued, else the id", () => {
+    expect({
+        issue: ObjectAppearance.identifier(
+            issue,
+            { id: "issue-1", number: 214, teamId: "team-1" },
+            "TRK",
+        ),
+        order: ObjectAppearance.identifier(order, { id: "order-1", number: 1001 }, undefined),
+        invoice: ObjectAppearance.identifier(
+            invoice,
+            { id: "invoice-1", number: 7, identifier: "INV-TRK-7" },
+            undefined,
+        ),
+        draft: ObjectAppearance.identifier(invoice, { id: "invoice-2", number: null }, undefined),
+    }).toEqual({ issue: "TRK-214", order: "#1001", invoice: "INV-TRK-7", draft: "invoice-2" });
+
+    // refuse a live identifier without the key it counts within
+    expect(() =>
+        ObjectAppearance.identifier(issue, { id: "issue-1", number: 214 }, undefined),
+    ).toThrow(new TypeError("the identifier of issue 'issue-1' needs the key it counts within"));
+});

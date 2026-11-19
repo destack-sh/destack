@@ -1,5 +1,5 @@
-import { Condition } from "@destack/db";
-import { Message } from "@destack/locale";
+import { Condition, type Moment } from "@destack/db";
+import { Message, t } from "@destack/locale";
 import {
     defineKind,
     DeclarationName,
@@ -9,17 +9,47 @@ import {
     PackageId,
 } from "@destack/package";
 import { type JsonObject, JsonValue, schema } from "@destack/schema";
-import type { CallableName, MethodInput } from "../method/index.ts";
+import type { CallableName, MethodInput, MethodKind } from "../method/index.ts";
 import type { MethodName } from "../method/procedure.ts";
 import type { ObjectType, PermissionOf } from "../object/object.ts";
 import type { ConditionOf } from "../query/index.ts";
 import { Shortcut, type ShortcutText } from "./shortcut.ts";
+
+/** The titles of the built-in actions people run on objects from a list. */
+const ACTION_TITLES: Readonly<Partial<Record<MethodKind, Message>>> = {
+    update: t`Edit`,
+    delete: t`Delete`,
+    archive: t`Archive`,
+    unarchive: t`Unarchive`,
+    restore: t`Restore`,
+    purge: t`Delete for good`,
+};
+
+/** A property of a method's input as JSON Schema: its type and its choices. */
+const PROPERTY = schema.looseObject({
+    type: schema.unknown().exactOptional(),
+    enum: schema.array(schema.string()).exactOptional(),
+});
 
 /** The method kinds that remove their target, for good unless its type has a trash. */
 const DELETING_KINDS: ReadonlySet<string> = new Set(["delete", "deleteMany"]);
 
 /** The input fields a command never asks for: the request, and the revision a change expects. */
 const FILLED_FIELDS: ReadonlySet<string> = new Set(["requestId", "revision"]);
+
+/** One input a person gives a command, as in Raycast: its name, kind and choices. */
+export type CommandArgument =
+    | {
+          readonly name: string;
+          readonly kind: "text" | "number" | "boolean";
+          readonly isRequired: boolean;
+      }
+    | {
+          readonly name: string;
+          readonly kind: "choice";
+          readonly choices: readonly string[];
+          readonly isRequired: boolean;
+      };
 
 /** The input of the method a command calls, as a client gives it. */
 type CalledInput<Object extends ObjectType, Method extends CallableName<Object>> = MethodInput<
@@ -137,6 +167,78 @@ export class Command<
         return Command.isDestructive(this.object, this.method);
     }
 
+    /** Report whether the command applies to a row at a moment, by its condition. */
+    applies(row: JsonObject, moment: Moment): boolean {
+        return (
+            this.when === undefined ||
+            Condition.matches(Condition.json(this.when), this.object.table, row, moment)
+        );
+    }
+
+    /** List the commands for some rows: the declared ones applying, then the other actions. */
+    static available(
+        object: ObjectType,
+        rows: readonly JsonObject[],
+        declared: readonly Command[],
+        moment: Moment,
+    ): Command[] {
+        // take the declared commands on the type's objects applying to every row
+        const own = declared.filter(
+            (command) =>
+                command.object === object &&
+                command.target === "object" &&
+                rows.every((row) => command.applies(row, moment)),
+        );
+
+        // derive a command per titled action clients run on an object, left out by the declared ones
+        const covered = new Set(
+            declared
+                .filter((command) => command.object === object)
+                .map((command) => command.method),
+        );
+        const derived = Object.keys(object.methods).flatMap((name) => {
+            // title the action, and offer it when clients run it on an object
+            const title = Command.#titleOf(object, name, rows);
+            const { target, visibility = "client" } = object.method(name);
+            const isOffered = target !== "scope" && visibility === "client";
+
+            return covered.has(name) || !isOffered || title === undefined
+                ? []
+                : [new Command(object.package, { name, title, object, method: name })];
+        });
+
+        return [...own, ...derived];
+    }
+
+    /** Title an action people run on objects, absent for one they do not run from a list. */
+    static #titleOf(
+        object: ObjectType,
+        name: string,
+        rows: readonly JsonObject[],
+    ): Message | undefined {
+        // title a transition by the state it enters, offered when every row may leave its state
+        const method = object.method(name);
+        const machine = Object.entries(object.fields).find(
+            ([, field]) => field.machine?.transitions[name] !== undefined,
+        );
+        const transition = machine?.[1].machine?.transitions[name];
+        if (method.kind === "transition") {
+            const state = machine?.[0];
+            const isLeft =
+                state !== undefined &&
+                rows.every((row) => {
+                    const value = row[state];
+
+                    return typeof value === "string" && transition?.from.includes(value) === true;
+                });
+
+            return transition !== undefined && isLeft ? t`Move to ${transition.to}` : undefined;
+        }
+
+        // title a custom action by its declaration, and the built-in ones by their kind
+        return method.kind === "custom" ? method.title : ACTION_TITLES[method.kind];
+    }
+
     /** Report whether a type's method removes its target for good, which people confirm first. */
     static isDestructive(object: ObjectType, method: string): boolean {
         const { kind } = object.method(method);
@@ -170,6 +272,32 @@ export class Command<
         const required = (input.required ?? []).filter((name) => !left.has(name));
 
         return { ...input, properties: Object.fromEntries(properties), required };
+    }
+
+    /** List the inputs a person gives the command, scalar ones alone: structure goes as JSON. */
+    get arguments(): CommandArgument[] {
+        // read each property's type and choices, and whether it is required
+        const parameters = InputSchema.parse(this.parameters);
+        const required = new Set(parameters.required ?? []);
+
+        return Object.entries(parameters.properties ?? {}).flatMap(
+            ([name, value]): CommandArgument[] => {
+                // read a choice, a number, a boolean or text, leaving out structure
+                const property = PROPERTY.parse(value);
+                const isRequired = required.has(name);
+                if (property.enum !== undefined) {
+                    return [{ name, kind: "choice", choices: property.enum, isRequired }];
+                } else if (property.type === "number" || property.type === "integer") {
+                    return [{ name, kind: "number", isRequired }];
+                } else if (property.type === "boolean") {
+                    return [{ name, kind: "boolean", isRequired }];
+                } else if (property.type === "string") {
+                    return [{ name, kind: "text", isRequired }];
+                }
+
+                return [];
+            },
+        );
     }
 
     /** Query the targets the command applies to: every one, or those among some objects. */

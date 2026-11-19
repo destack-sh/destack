@@ -1,12 +1,13 @@
 import { callableTrait } from "./trait.ts";
 import { IconName } from "@destack/icon";
 import { DeclarationReference } from "@destack/package/declare";
-import { ACCENT_PRESETS, type AccentPreset } from "@destack/color";
+import { ACCENT_PRESETS, type AccentPreset, SwatchName } from "@destack/color";
 import { type JsonValue, present, schema } from "@destack/schema";
 import { field, type Field } from "../field/field.ts";
 import type { ObjectDefinition } from "../object/object.ts";
 import type { Erasure } from "./trait.ts";
 import { type FileBucket, ObjectFile } from "../field/file.ts";
+import { Condition, type OpenCondition } from "@destack/db";
 import { ObjectView } from "../presentation/view.ts";
 
 /** The options a type's presentation takes. */
@@ -77,12 +78,14 @@ export interface PresentableOptions {
     readonly subtitle?: string;
     /** Each object's icon: chosen images in a bucket, one fixed icon set name, or none. */
     readonly icon?: boolean | string | FileBucket;
-    /** Whether each object takes one of the theme's accents, true when absent. */
-    readonly color?: boolean;
+    /** Each object's accent: stored, none, or by conditions, the first met winning. */
+    readonly color?:
+        | boolean
+        | readonly { readonly where: OpenCondition; readonly swatch: SwatchName }[];
     /** The bucket storing each object's cover image, none when absent. */
     readonly cover?: FileBucket;
     /** The views its fields and traits cannot derive, such as a waterfall of spans. */
-    readonly views?: readonly ObjectView[];
+    readonly views?: readonly (Omit<ObjectView, "where"> & { readonly where?: OpenCondition })[];
     /** The fields a card shows beside the chip. */
     readonly card?: readonly string[];
     /** The page's sections and the related objects it lists. */
@@ -108,7 +111,7 @@ export type PresentationFieldsOf<Presenting> = Presenting extends PresentableDef
                 /** The object's icon. */
                 readonly icon: ReturnType<typeof Presentable.iconField>;
             }) &
-          (Presenting extends { readonly color: false }
+          (Presenting extends { readonly color: false | readonly unknown[] }
               ? {}
               : {
                     /** The object's accent. */
@@ -138,8 +141,17 @@ const PresentationSchema = schema.object({
             schema.object({ fixed: IconName }),
         ])
         .exactOptional(),
-    /** The field storing each object's accent. */
-    color: schema.object({ field: schema.string().min(1) }).exactOptional(),
+    /** Each object's accent: its field, or conditions, the first met winning. */
+    color: schema
+        .union([
+            schema.object({ field: schema.string().min(1) }),
+            schema.object({
+                conditions: schema.array(
+                    schema.object({ where: Condition.schema, swatch: SwatchName }),
+                ),
+            }),
+        ])
+        .exactOptional(),
     /** The field storing each object's cover, and its bucket. */
     cover: schema
         .object({ field: schema.string().min(1), bucket: DeclarationReference })
@@ -207,7 +219,9 @@ export const Presentable = {
                               ? Presentable.chosenIconField()
                               : Presentable.iconField(),
                   }),
-            ...(options.color === false ? {} : { color: Presentable.colorField() }),
+            ...(options.color === false || typeof options.color === "object"
+                ? {}
+                : { color: Presentable.colorField() }),
             ...(options.cover === undefined ? {} : { cover: Presentable.coverField() }),
         };
         const declared = definition.fields ?? {};
@@ -256,11 +270,30 @@ export const Presentable = {
                             ...(icon === true ? {} : { bucket: DeclarationReference.of(icon) }),
                         },
                     }),
-            ...(options.color === false ? {} : { color: { field: "color" } }),
+            ...(options.color === false
+                ? {}
+                : typeof options.color === "object"
+                  ? {
+                        color: {
+                            conditions: options.color.map((each) => ({
+                                where: Condition.json(each.where),
+                                swatch: each.swatch,
+                            })),
+                        },
+                    }
+                  : { color: { field: "color" } }),
             ...(options.cover === undefined
                 ? {}
                 : { cover: { field: "cover", bucket: DeclarationReference.of(options.cover) } }),
-            ...(options.views === undefined ? {} : { views: options.views }),
+            ...(options.views === undefined
+                ? {}
+                : {
+                      views: options.views.map((view) =>
+                          view.where === undefined
+                              ? view
+                              : { ...view, where: Condition.json(view.where) },
+                      ),
+                  }),
             ...(options.card === undefined ? {} : { card: options.card }),
             ...(options.page === undefined ? {} : { page: options.page }),
         });

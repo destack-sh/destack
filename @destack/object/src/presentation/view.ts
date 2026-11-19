@@ -1,4 +1,4 @@
-import { Condition, OrderBy } from "@destack/db";
+import { Condition, type Moment, OrderBy } from "@destack/db";
 import { Message, t } from "@destack/locale";
 import { schema } from "@destack/schema";
 import { Layout } from "../layout/layout.ts";
@@ -70,19 +70,21 @@ export const ObjectView = Object.assign(objectView, {
         return t`Table`;
     },
 
-    /** Extend a list query to read what a view shows. */
+    /** Extend a list query to read what a view shows, its times bound to a moment. */
     query<Query extends { readonly where?: object; readonly orderBy?: object }>(
         view: ObjectView,
         query: Query,
+        moment: Moment,
         window?: TimeWindow,
     ): Query {
-        // meet the view's condition and order before the layout's
+        // meet the view's condition, its times bound, and its order before the layout's
+        const bound = view.where === undefined ? undefined : Condition.at(view.where, moment);
         const where =
-            view.where === undefined
+            bound === undefined
                 ? query.where
                 : query.where === undefined
-                  ? view.where
-                  : { AND: [query.where, view.where] };
+                  ? bound
+                  : { AND: [query.where, bound] };
         const ordered = {
             ...query,
             ...(where === undefined ? {} : { where }),
@@ -94,8 +96,3 @@ export const ObjectView = Object.assign(objectView, {
         return Layout.query(view.layout, ordered, window);
     },
 });
-
-/** Write a field's name in lowercase words joined by hyphens, as a view key holds it. */
-export function kebab(name: string): string {
-    return name.replaceAll(/[A-Z]/gu, (upper) => `-${upper.toLowerCase()}`);
-}

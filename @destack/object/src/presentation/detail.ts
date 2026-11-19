@@ -1,8 +1,11 @@
-import { type JsonObject, type JsonValue, schema } from "@destack/schema";
+import type { Moment } from "@destack/db";
+import type { Message } from "@destack/locale";
+import { type JsonObject, schema } from "@destack/schema";
 import type { ObjectReference } from "@destack/sync";
 import { Field } from "../field/field.ts";
 import type { ObjectType } from "../object/object.ts";
 import { ObjectAppearance } from "./appearance.ts";
+import { ObjectValue } from "./value.ts";
 import { ObjectView } from "./view.ts";
 
 /** The title of a detail's one section when its type declares none. */
@@ -11,14 +14,14 @@ const DEFAULT_SECTION = "Details";
 /** The most fields a detail's key section shows when its type names none. */
 const KEY_FIELDS = 3;
 
-/** One field of an object, with the type a reference points to. */
+/** One field of an object and its value. */
 export interface ObjectField {
     /** The field's name. */
     readonly field: string;
-    /** The field's value. */
-    readonly value: JsonValue;
-    /** The type a reference field points to, by name, absent for other fields. */
-    readonly target: string | undefined;
+    /** The field's label as declared, absent to show its name. */
+    readonly label: Message | undefined;
+    /** The field's value, by what it means. */
+    readonly value: ObjectValue;
 }
 
 /** One titled group of an object's fields. */
@@ -54,11 +57,11 @@ export interface ObjectDetail {
 /** One object in detail, read from its row through its type's presentation. */
 export const ObjectDetail = {
     /** Read an object's key fields as one section. */
-    key(type: ObjectType, row: JsonObject): ObjectDetail {
-        const names = type.presentation?.card ?? ObjectDetail.shown(type).slice(0, KEY_FIELDS);
+    key(type: ObjectType, row: JsonObject, moment: Moment): ObjectDetail {
+        const names = ObjectDetail.keys(type);
 
         return {
-            ...identify(type, row),
+            ...identify(type, row, moment),
             sections: [
                 {
                     title: DEFAULT_SECTION,
@@ -70,7 +73,12 @@ export const ObjectDetail = {
     },
 
     /** Read an object's fields in its type's sections, and its referrers among some types. */
-    full(type: ObjectType, row: JsonObject, types: readonly ObjectType[]): ObjectDetail {
+    full(
+        type: ObjectType,
+        row: JsonObject,
+        types: readonly ObjectType[],
+        moment: Moment,
+    ): ObjectDetail {
         // take the declared sections, else one with every shown field
         const declared = type.presentation?.page;
         const sections = declared?.sections ?? [
@@ -101,13 +109,18 @@ export const ObjectDetail = {
             }));
 
         return {
-            ...identify(type, row),
+            ...identify(type, row, moment),
             sections: sections.map((section) => ({
                 title: section.title,
                 fields: section.fields.map((name) => ObjectDetail.field(type, row, name)),
             })),
             related,
         };
+    },
+
+    /** List a type's key fields: its declared card's, else its first shown ones. */
+    keys(type: ObjectType): readonly string[] {
+        return type.presentation?.card ?? ObjectDetail.shown(type).slice(0, KEY_FIELDS);
     },
 
     /** List the fields a type shows beside its title. */
@@ -156,20 +169,23 @@ export const ObjectDetail = {
             .map(([name]) => name);
     },
 
-    /** Read one field of an object, with the type a reference points to. */
+    /** Read one field of an object. */
     field(type: ObjectType, row: JsonObject, name: string): ObjectField {
         return {
             field: name,
-            value: row[name] ?? null,
-            target: type.fields[name]?.target?.().name,
+            label: type.fields[name]?.label,
+            value: ObjectValue.of(type, name, row[name]),
         };
     },
 };
 
 /** Read what an object is and how it looks. */
-function identify(type: ObjectType, row: JsonObject) {
+function identify(type: ObjectType, row: JsonObject, moment: Moment) {
     const scope = schema.string().parse(row["scope"]);
     const id = schema.string().parse(row["id"]);
 
-    return { reference: type.reference(scope, id), appearance: ObjectAppearance.of(type, row) };
+    return {
+        reference: type.reference(scope, id),
+        appearance: ObjectAppearance.of(type, row, moment),
+    };
 }

@@ -127,6 +127,27 @@ export interface StateMachine {
     >;
 }
 
+/** Where a state lies in its machine: initial, active, or final where no transition leaves. */
+export type StateStage = "initial" | "active" | "final";
+
+/** A state machine a field follows. */
+export const StateMachine = {
+    /** Read where a state lies in a machine. */
+    stage(machine: StateMachine, state: string): StateStage {
+        // start at the initial state, end where no transition leaves, and pass the rest
+        const isLeft = Object.values(machine.transitions).some((transition) =>
+            transition.from.includes(state),
+        );
+        if (state === machine.initial) {
+            return "initial";
+        } else if (isLeft) {
+            return "active";
+        }
+
+        return "final";
+    },
+};
+
 /** The builder call of a field: the builder's name and its arguments as written. */
 export type FieldSource =
     | { readonly builder: "string"; readonly arguments: readonly [schema.Schema<string>] }
@@ -174,6 +195,7 @@ export const FIELD_MODIFIERS = [
     "default",
     "sensitive",
     "personal",
+    "labeled",
     "open",
     "caller",
     "guard",
@@ -381,6 +403,8 @@ interface FieldOptions<Configuration extends FieldConfiguration> {
     readonly initial?: { readonly value: Configuration["value"] };
     /** Whether the value is personal data. */
     readonly isPersonal?: boolean;
+    /** The field's name as people read it. */
+    readonly label?: Message;
     /** Whether a subject field accepts the subjects and sets other types contribute. */
     readonly isOpen?: boolean;
     /** How a sensitive value is encrypted at rest, randomly unless a lookup finds it by value. */
@@ -413,6 +437,8 @@ export class Field<Configuration extends FieldConfiguration = FieldConfiguration
     readonly initial: { readonly value: Configuration["value"] } | undefined;
     /** Whether the value is personal data, exported and erased with its subject. */
     readonly isPersonal: boolean;
+    /** The field's name as people read it, absent to read it from its property. */
+    readonly label: Message | undefined;
     /** Whether a subject field accepts contributed subjects and sets. */
     readonly isOpen: boolean;
     /** How a sensitive value is encrypted at rest, randomly unless a lookup finds it by value. */
@@ -433,6 +459,7 @@ export class Field<Configuration extends FieldConfiguration = FieldConfiguration
         this.relation = definition.relation;
         this.initial = definition.initial;
         this.isPersonal = definition.isPersonal ?? false;
+        this.label = definition.label;
         this.isOpen = definition.isOpen ?? false;
         this.encryption = definition.encryption ?? "randomized";
         this.access = definition.access;
@@ -545,6 +572,11 @@ export class Field<Configuration extends FieldConfiguration = FieldConfiguration
         return new Field<Configuration>({ ...this.#options, ...this.#flags, isPersonal: true });
     }
 
+    /** Label the field as people read it, such as Due at. */
+    labeled(label: Message): Field<Configuration> {
+        return new Field<Configuration>({ ...this.#options, ...this.#flags, label });
+    }
+
     /** Accept the subjects and subject sets other types contribute. */
     open(): Field<Override<Configuration, { readonly open: true }>> {
         if (this.type !== "subject") {
@@ -644,6 +676,7 @@ export class Field<Configuration extends FieldConfiguration = FieldConfiguration
             ...(this.isPersonal && !plain.isPersonal
                 ? [{ builder: "personal", arguments: [] }]
                 : []),
+            ...(this.label === undefined ? [] : [{ builder: "labeled", arguments: [this.label] }]),
             ...(this.isOpen && !plain.isOpen ? [{ builder: "open", arguments: [] }] : []),
             ...(this.isCallerFilled && !plain.isCallerFilled
                 ? [{ builder: "caller", arguments: [] }]
@@ -814,6 +847,7 @@ export class Field<Configuration extends FieldConfiguration = FieldConfiguration
             ...(this.relation === undefined ? {} : { relation: this.relation }),
             ...(this.initial === undefined ? {} : { initial: this.initial }),
             isPersonal: this.isPersonal,
+            ...(this.label === undefined ? {} : { label: this.label }),
             isOpen: this.isOpen,
             encryption: this.encryption,
             ...(this.access === undefined ? {} : { access: this.access }),

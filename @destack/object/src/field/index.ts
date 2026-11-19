@@ -8,7 +8,8 @@ export {
     type AggregateFunction,
     type FieldType,
     type IdentifierOf,
-    type StateMachine,
+    StateMachine,
+    type StateStage,
 } from "./field.ts";
 export { FractionalIndex } from "./fractional-index.ts";
 export { type FileBucket, ObjectFile } from "./file.ts";

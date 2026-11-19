@@ -409,3 +409,57 @@ function readCommand(command: Command) {
         isDestructive: command.isDestructive,
     };
 }
+
+test("offer the declared commands meeting their condition, then each titled action and valid transition", () => {
+    // define tickets moving from todo through started to done, with an edit, a delete and a ping
+    const ticket = defineObject(
+        {
+            name: "ticket",
+            plural: "tickets",
+            title: t`${plural(argument("count"), { one: "Ticket", other: "Tickets" })}`,
+            scope: device,
+            fields: {
+                title: field.string(schema.string()),
+                state: field.state({
+                    initial: "todo",
+                    transitions: {
+                        start: { from: ["todo"], to: "started", permission: "update" },
+                        finish: { from: ["started"], to: "done", permission: "update" },
+                    },
+                }),
+            },
+            access: { permissions: { read: none(), update: none() } },
+        },
+        (method) => ({
+            edit: method.update("update", { fields: ["title"] }),
+            delete: method.delete("update"),
+            ping: method.mutation({ title: t`Ping`, permission: "read" }),
+            sync: method.mutation({ title: t`Sync`, permission: "read", visibility: "package" }),
+        }),
+    );
+
+    // escalate a ticket still to do through its ping
+    const escalate = new Command(notes, {
+        name: "escalate",
+        title: t`Escalate`,
+        object: ticket,
+        method: "ping",
+        when: { state: "todo" },
+    });
+    const todo = { id: "ticket-1", title: "Write", state: "todo" };
+    const started = { id: "ticket-2", title: "Ship", state: "started" };
+    const names = (rows: readonly (typeof todo)[]) =>
+        Command.available(ticket, rows, [escalate], { now: 0, timeZone: "UTC" }).map(
+            (each) => each.name,
+        );
+
+    expect({
+        todo: names([todo]),
+        started: names([started]),
+        both: names([todo, started]),
+    }).toEqual({
+        todo: ["escalate", "edit", "delete", "start"],
+        started: ["edit", "delete", "finish"],
+        both: ["edit", "delete"],
+    });
+});

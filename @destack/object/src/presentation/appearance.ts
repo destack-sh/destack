@@ -1,6 +1,8 @@
 import { SwatchName } from "@destack/color";
-import type { JsonObject } from "@destack/schema";
+import { Condition, type Moment } from "@destack/db";
+import { type JsonObject, schema } from "@destack/schema";
 import type { ObjectType } from "../object/object.ts";
+import { Numbered } from "../trait/numbered.ts";
 import { Icon, Presentation } from "../trait/presentable.ts";
 
 /** How an object looks wherever it shows: its title, icon and accent. */
@@ -9,19 +11,29 @@ export interface ObjectAppearance {
     readonly title: string;
     /** The object's icon, none when its type shows none. */
     readonly icon: Icon | undefined;
-    /** The object's accent, none when its type colors none. */
+    /** The object's accent, stored or by the first condition it meets, none without one. */
     readonly color: SwatchName | undefined;
 }
 
 /** How an object looks, read from its row through its type's presentation. */
 export const ObjectAppearance = {
-    /** Read an object's appearance from its row. */
-    of(type: ObjectType, row: JsonObject): ObjectAppearance {
-        // read the icon from its field or the type's fixed one, and the accent from its field
+    /** Read an object's appearance from its row at a moment, which conditional accents read. */
+    of(type: ObjectType, row: JsonObject, moment: Moment): ObjectAppearance {
+        // read the icon from its field or the type's fixed one
         const { presentation } = type;
         const icon = presentation?.icon;
         const stored = icon === undefined || "fixed" in icon ? undefined : row[icon.field];
-        const color = presentation?.color === undefined ? undefined : row[presentation.color.field];
+
+        // read the accent from its field, else from the first condition the row meets
+        const accent = presentation?.color;
+        const color =
+            accent === undefined
+                ? undefined
+                : "field" in accent
+                  ? row[accent.field]
+                  : accent.conditions.find((each) =>
+                        Condition.matches(each.where, type.table, row, moment),
+                    )?.swatch;
 
         return {
             title: Presentation.title(presentation, row),
@@ -35,5 +47,28 @@ export const ObjectAppearance = {
                         : Icon.parse(stored),
             color: color === null || color === undefined ? undefined : SwatchName.parse(color),
         };
+    },
+
+    /** Read the identifier people use for an object: its number's, such as TRK-214, else its id. */
+    identifier(type: ObjectType, row: JsonObject, key: string | undefined): string {
+        // read the id for a type without numbering, or an object waiting for its number
+        const numbering = type.numbering;
+        const id = schema.string().parse(row["id"]);
+        const number = row["number"];
+        if (numbering === undefined || typeof number !== "number") {
+            return id;
+        }
+        // read a frozen identifier as issued
+        else if (numbering.identifier === "frozen") {
+            return schema.string().parse(row["identifier"]);
+        }
+        // refuse a live identifier without the key of the object it counts within
+        else if (key === undefined && Numbered.withinType(type) !== undefined) {
+            throw new TypeError(
+                `the identifier of ${type.name} '${id}' needs the key it counts within`,
+            );
+        }
+
+        return Numbered.format(numbering, key, number);
     },
 };

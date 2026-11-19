@@ -12,6 +12,19 @@ export interface CalendarDay {
     readonly rows: readonly JsonObject[];
 }
 
+/** One day of a calendar. */
+export const CalendarDay = {
+    /** Read the instant a day's date starts in UTC, which date formats read in UTC. */
+    instant(day: CalendarDay): number {
+        return Date.parse(`${day.date}T00:00:00Z`);
+    },
+
+    /** Read a day's ISO weekday, from 1 for Monday to 7 for Sunday. */
+    weekday(day: CalendarDay): number {
+        return new Date(CalendarDay.instant(day)).getUTCDay() || 7;
+    },
+};
+
 /** Objects on the days of a time field. */
 const calendarLayout = schema.object({
     /** The kind. */
