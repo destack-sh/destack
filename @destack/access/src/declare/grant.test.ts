@@ -58,3 +58,20 @@ test("accept a package's request of each delegator's scopes, refusing a scope th
         home.error?.issues.map((issue) => [issue.code, issue.path.join(".")]),
     ]).toEqual([true, [["unrecognized_keys", "space"]]]);
 });
+
+test("merge declarations into one asking for each permission once, per delegator and scope", () => {
+    // ask for the settings in two declarations and the profile in one
+    const settings = { packageId: NOTES, type: "setting", name: "read" };
+    const profile = { packageId: NOTES, type: "user", name: "read" };
+    const notesWrite = { packageId: NOTES, type: "note", name: "write" };
+
+    expect(
+        GrantDeclaration.merge([
+            GrantDeclaration.parse({ user: { home: [settings] }, space: { space: [notesWrite] } }),
+            GrantDeclaration.parse({ user: { home: [settings], universe: [profile] } }),
+        ]),
+    ).toEqual({
+        space: { space: [notesWrite] },
+        user: { universe: [profile], home: [settings] },
+    });
+});

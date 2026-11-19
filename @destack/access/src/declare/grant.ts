@@ -72,7 +72,7 @@ export interface GrantContext {
 const SpaceSet = permissionSetSchema.pick({ space: true, account: true, universe: true });
 
 /** What a package or its capability may be granted by each delegator, at install or on use. */
-export const GrantDeclaration = schema
+const grantDeclaration = schema
     .object({
         /** What the installation's space grants it at install. */
         space: SpaceSet.exactOptional(),
@@ -82,5 +82,36 @@ export const GrantDeclaration = schema
         optional: permissionSetSchema.exactOptional(),
     })
     .strict();
+/** What a package may be granted by each delegator, and how declarations of it combine. */
+export const GrantDeclaration = Object.assign(grantDeclaration, {
+    /** Combine declarations into one asking for each permission once, per delegator and scope. */
+    merge(declarations: readonly GrantDeclaration[]): GrantDeclaration {
+        // take the delegators and scopes any declaration names
+        const delegators = ["space", "user", "optional"] as const;
+        const scopes = ["space", "account", "universe", "home"] as const;
+        const merged: Record<string, Record<string, Permission[]>> = {};
+        for (const delegator of delegators) {
+            for (const scope of scopes) {
+                // list each permission of the scope once, in the order first asked
+                const asked = declarations.flatMap((each) => {
+                    const set: Partial<Record<string, readonly Permission[]>> =
+                        each[delegator] ?? {};
+
+                    return set[scope] ?? [];
+                });
+                const unique = [
+                    ...new Map(
+                        asked.map((permission) => [JSON.stringify(permission), permission]),
+                    ).values(),
+                ];
+                if (unique.length > 0) {
+                    merged[delegator] = { ...merged[delegator], [scope]: unique };
+                }
+            }
+        }
+
+        return grantDeclaration.parse(merged);
+    },
+});
 /** What a package may be granted, by delegator. */
 export type GrantDeclaration = schema.Infer<typeof GrantDeclaration>;
