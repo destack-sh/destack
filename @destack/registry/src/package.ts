@@ -13,6 +13,7 @@ export default definePackage({
     mounts: [
         defineMount({ name: "builds", path: "/builds" }),
         defineMount({ name: "npm", path: "/npm" }),
+        defineMount({ name: "git", path: "/git" }),
     ],
     errors: RegistryError,
 });

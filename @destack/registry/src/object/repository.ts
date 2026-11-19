@@ -6,6 +6,7 @@ import { Lease, LeaseMode } from "@destack/resource";
 import { schema, present } from "@destack/schema";
 import { GitListing } from "@destack/git";
 import type {} from "@destack/package/import-meta";
+import { RepositoryName } from "@destack/package";
 import { RegistryError } from "../error/index.ts";
 import { recoverable } from "@destack/object";
 import { argument, plural, t } from "@destack/locale";
@@ -150,9 +151,6 @@ export const GitRemoteCredential = schema.object({
 });
 /** The user and password a Git remote takes over Basic authentication. */
 export type GitRemoteCredential = schema.Infer<typeof GitRemoteCredential>;
-
-/** An account-local repository name, at most 63 characters. */
-const RepositoryName = schema.string().regex(/^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/u);
 
 /** A Git repository of an account, read and pulled by the account's spaces. */
 export const repository = defineObject(

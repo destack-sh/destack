@@ -72,6 +72,7 @@ A release's version is a calendar version, or a dev version `<release>-dev.<time
 | -------- | ------------------------------------------------------------------------------------------------ |
 | `builds` | images, builds and their files, pushed and read as `RemoteBuildStore` does, as OCI clients push     |
 | `npm`    | a read-only npm registry: each package's listing and each release's source tarball               |
+| `git`    | Git's smart HTTP protocol, at `/@<handle>/<name>.git`                                            |
 
 ## Examples
 
