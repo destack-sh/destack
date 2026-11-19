@@ -29,6 +29,7 @@
         "./prerender": "./src/build/prerender/program.ts",
         "./test": "./src/test/index.ts",
         "./palette": "./src/palette/index.ts",
+        "./frame": "./src/frame/index.ts",
         "./primitives/active-element": "./src/primitives/active-element.ts",
         "./primitives/audio": "./src/primitives/audio.ts",
         "./primitives/bounds": "./src/primitives/bounds.ts",

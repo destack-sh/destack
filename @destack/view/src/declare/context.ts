@@ -34,6 +34,9 @@ export const INSTALLATION_PARAMETER = "installation";
 /** The query parameter of the open path with the address of the space of the view asked for. */
 export const SPACE_PARAMETER = "space";
 
+/** The query parameter of the open path with the location within the view asked for. */
+export const PATH_PARAMETER = "path";
+
 /** The query parameter of a view's address with the object it opens for, as JSON. */
 export const TARGET_PARAMETER = "target";
 

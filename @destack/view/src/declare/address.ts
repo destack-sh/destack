@@ -2,7 +2,13 @@ import { DeclarationName } from "@destack/package";
 import { schema } from "@destack/schema";
 import { SpaceAddress, OPEN_PATH } from "@destack/account/address";
 import { ObjectReference } from "@destack/sync";
-import { OBJECT_PARAMETER, VIEW_PARAMETER } from "./context.ts";
+import {
+    INSTALLATION_PARAMETER,
+    OBJECT_PARAMETER,
+    PATH_PARAMETER,
+    SPACE_PARAMETER,
+    VIEW_PARAMETER,
+} from "./context.ts";
 
 /** A location within a view, with its query, excluding another origin. */
 export const ViewPath = schema.string().regex(/^\/(?:[^/\\\r\n][^\\\r\n]*)?$/u);
@@ -27,6 +33,28 @@ export const ViewAddress = Object.assign(viewAddress, {
         const path = address.path === "/" ? "" : address.path;
 
         return new URL(`${origin}/${address.view}${path}`).href;
+    },
+
+    /** Write the same-origin path where the host sends a page load on to the view's origin. */
+    openPath(address: ViewAddress): string {
+        const query = new URLSearchParams({
+            [SPACE_PARAMETER]: address.space,
+            [INSTALLATION_PARAMETER]: address.installation,
+            [VIEW_PARAMETER]: address.view,
+            [PATH_PARAMETER]: address.path,
+        });
+
+        return `${OPEN_PATH}?${query.toString()}`;
+    },
+
+    /** Read the view and location an open path's query addresses. */
+    safeParseOpenPath(url: URL): ReturnType<typeof viewAddress.safeParse> {
+        return viewAddress.safeParse({
+            space: url.searchParams.get(SPACE_PARAMETER),
+            installation: url.searchParams.get(INSTALLATION_PARAMETER),
+            view: url.searchParams.get(VIEW_PARAMETER),
+            path: url.searchParams.get(PATH_PARAMETER),
+        });
     },
 });
 /** A view of an installation in a space. */
