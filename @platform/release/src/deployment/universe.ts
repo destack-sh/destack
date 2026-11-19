@@ -3,7 +3,7 @@ import { RemoteBuildStore } from "@destack/build/store";
 import { packageObject } from "@destack/registry/object";
 import { RegistryError } from "@destack/registry/error";
 import type { Environment } from "@destack/environment";
-import forgePackage, { FORGE_INSTALLATION } from "@destack/forge/package";
+import forgePackage from "@destack/forge/package";
 import registryPackage from "@destack/registry/package";
 import { type PackageId, PackageRelease } from "@destack/package";
 import type { BuildReader } from "@destack/package/manifest";
@@ -52,21 +52,14 @@ export const PlatformUniverse = {
                     const fetch = connect(registryPackage.id);
 
                     // resolve the release there, then open its root build
-                    const registry = directory.client(
-                        registryPackage,
-                        home,
-                        FORGE_INSTALLATION,
-                        fetch,
-                        environment,
-                    );
+                    const registry = directory.client(registryPackage, home, fetch, environment);
                     const found = await registry.release.resolve({
                         spaceId: home,
                         parentId: packageId,
                         release: named,
                     });
-                    const mount = await directory.mount(
+                    const mount = await directory.package(
                         home,
-                        FORGE_INSTALLATION,
                         registryPackage.id,
                         environment.clock.now(),
                     );

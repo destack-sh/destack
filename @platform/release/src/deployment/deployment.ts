@@ -19,7 +19,7 @@ import { MemoryKeychain } from "@destack/identity";
 import { createClient } from "@destack/object/client";
 import { provider, tag } from "@destack/finance/declare";
 import { github } from "@destack/forge/stack";
-import forgePackage, { FORGE_INSTALLATION } from "@destack/forge/package";
+import forgePackage from "@destack/forge/package";
 import type { MailSender } from "@destack/mail/sender";
 import { Issuer } from "@destack/account/client";
 import { Account, account } from "@destack/account/object";
@@ -58,7 +58,7 @@ import { DISTRIBUTION_MODULE, PackageId } from "@destack/package";
 import { PackageManifest } from "@destack/package/manifest";
 import { LATEST_TAG } from "@destack/registry/object";
 import { SERVER_BUNDLE_MODULE } from "@destack/machine/cloudflare";
-import { InstallationMount, PackageMount } from "@destack/object";
+import { PackageMount, SpaceMount } from "@destack/object";
 import {
     type ClientSocket,
     type Environment,
@@ -677,14 +677,7 @@ export class Deployment {
 
         // wait until its forge serves
         const version = Deployment.#version(build, forgePackage.id);
-        await this.#waitServed(
-            residency,
-            machine,
-            home,
-            FORGE_INSTALLATION,
-            forgePackage.id,
-            version,
-        );
+        await this.#waitServed(residency, machine, home, forgePackage.id, version);
     }
 
     /** Open the residency homes' forges, located as their machines, called as the operator. */
@@ -720,22 +713,11 @@ export class Deployment {
             ).residency;
             const machine = await this.#actAs(residency, custody);
             const version = Deployment.#version(build, forgePackage.id);
-            await this.#waitServed(
-                residency,
-                machine,
-                home,
-                FORGE_INSTALLATION,
-                forgePackage.id,
-                version,
-            );
+            await this.#waitServed(residency, machine, home, forgePackage.id, version);
 
             // call the forge below its installation in the home, as the operator bound to the home
             const fetch = this.#waiting(operator.fetch(registryPackage.id, { partition: home }));
-            const origin = InstallationMount.url(
-                this.machineOrigin(residency),
-                home,
-                FORGE_INSTALLATION,
-            );
+            const origin = SpaceMount.url(this.machineOrigin(residency), home);
             const url = `${origin}${PackageMount.path(registryPackage.id)}`;
 
             return { accountId, home, url, fetch };
@@ -800,12 +782,11 @@ export class Deployment {
         residency: PlatformResidency,
         machine: MachineActor,
         space: Identifier<"space">,
-        installation: string,
         packageId: PackageId,
         version: string,
     ): Promise<void> {
-        // ask the installation's package for its readiness below its mount on the machine, speaking the release
-        const mount = InstallationMount.url(this.machineOrigin(residency), space, installation);
+        // ask the package for its readiness below the space on the machine, speaking the release
+        const mount = SpaceMount.url(this.machineOrigin(residency), space);
         const request = new Request(`${mount}${PackageMount.path(packageId)}/readyz`, {
             redirect: "manual",
             headers: { [VERSION_HEADER]: version },
@@ -816,7 +797,7 @@ export class Deployment {
         if (response.status >= 400) {
             const body = await response.text();
             throw new Error(
-                `'${installation}' in '${space}' on '${residency.code}' answered ${response.status}: '${body}'`,
+                `package '${packageId}' in '${space}' on '${residency.code}' answered ${response.status}: '${body}'`,
             );
         }
     }
@@ -945,11 +926,7 @@ export class Deployment {
         if (residency === undefined) {
             throw new Error(`no residency '${PLATFORM.residencyId}' serves the platform`);
         }
-        const origin = InstallationMount.url(
-            this.machineOrigin(residency),
-            home,
-            FORGE_INSTALLATION,
-        );
+        const origin = SpaceMount.url(this.machineOrigin(residency), home);
         const url = `${origin}${PackageMount.path(registryPackage.id)}`;
         const fetch = session.fetch(registryPackage.id, { partition: home });
 

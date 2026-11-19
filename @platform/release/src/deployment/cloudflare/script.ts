@@ -1,5 +1,4 @@
 import type { ProviderClients } from "@destack/account/better-auth";
-import { FORGE_INSTALLATION } from "@destack/forge/package";
 import { WORKERD_COMPATIBILITY_DATE } from "@destack/package/runtime";
 import { builtinModules } from "node:module";
 import { dirname, resolve } from "node:path";
@@ -284,7 +283,6 @@ export class WorkerScript {
                 DESTACK_SPACE_DOMAIN: InstallationOrigin.domain(
                     this.deployment.machineOrigin(residency),
                 ),
-                DESTACK_REGISTRY: FORGE_INSTALLATION,
                 DESTACK_PEERS: JSON.stringify(
                     Object.fromEntries(
                         peers.flatMap(({ binding, hosts }) => hosts.map((host) => [host, binding])),

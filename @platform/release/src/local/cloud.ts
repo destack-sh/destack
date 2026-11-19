@@ -1,4 +1,3 @@
-import { FORGE_INSTALLATION } from "@destack/forge/package";
 import { join } from "node:path";
 import { DESKTOP_OBJECTS } from "@destack/desktop/object";
 import { type Keychain, MemoryKeychain } from "@destack/identity";
@@ -237,7 +236,6 @@ export class BunCloud implements AsyncDisposable {
         const machine = stack.use(
             await Computer.start({
                 isolation: "sandbox",
-                registry: FORGE_INSTALLATION,
                 directory: await environment.files.realPath(directory),
                 universe: deployment.universe.origin,
                 port: Number(origin.port),
