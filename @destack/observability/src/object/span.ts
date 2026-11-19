@@ -59,18 +59,27 @@ export const span = defineObject(
             delivery: "at-most-once",
             subject: "person",
         },
-        // present spans by name, as a tree of their parents and a timeline of their start and duration
+        // present spans by name, as a waterfall of their start and duration and as a tree of their parents
         presentable: {
             title: "name",
             icon: false,
             color: false,
-            layouts: [
-                { kind: "tree", key: "span", parent: "parent" },
+            views: [
                 {
-                    kind: "timeline",
-                    start: "time",
-                    end: { duration: "duration" },
-                    unit: "microsecond",
+                    name: "waterfall",
+                    title: t`Waterfall`,
+                    layout: {
+                        kind: "timeline",
+                        start: "time",
+                        end: { duration: "duration" },
+                        unit: "microsecond",
+                        failed: { field: "status", value: "error" },
+                    },
+                },
+                {
+                    name: "tree",
+                    title: t`Tree`,
+                    layout: { kind: "tree", id: "span", parent: "parent" },
                 },
             ],
         },
