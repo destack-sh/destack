@@ -167,7 +167,7 @@ export class TestObservability implements AsyncDisposable {
 
         // emit as the notes installation's workload, its build's frames attributed
         const notes = schema.identifier("installation").parse(world.notes);
-        const manifest = await space.machine.release(NOTES.id, NOTES.version);
+        const manifest = await space.machine.resolve(NOTES.id, NOTES.version);
         const emitter = new TestEmitter(
             {
                 "service.name": NOTES.name,
