@@ -21,6 +21,7 @@ People see it under their display settings:
 Components use tokens:
 
 - `@destack/theme/tokens.stylex`: the roles, surfaces, swatches, spacing, sizes, radii, shadows and motion as StyleX constants.
+- `@destack/theme/mark.svg`: Destack's mark, which pages import as a URL with `?url`.
 - `text` and `transition`: text styles and enter and exit transitions.
 
 Declare a theme, then compute a view's custom properties in dark mode at more contrast:
