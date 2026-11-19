@@ -69,6 +69,15 @@ vitest.describe("notes", () => {
 });
 `;
 
+/** A module registering tests through conditional runners: bound, inline and from a factory. */
+const CONDITIONAL = `import { test, testOn } from "@destack/test";
+const onMac = test.skipIf(process.platform !== "darwin");
+const onPostgresql = testOn("postgresql");
+onMac("signs", () => {});
+test.runIf(true)("opens", () => {});
+onPostgresql("locks", () => {});
+`;
+
 /** A module defining an example outside a module-level constant. */
 const STRAY = `import { defineExample } from "@destack/package/declare";
 export default defineExample({ name: "stray" });
@@ -85,6 +94,7 @@ const FILES: Readonly<Record<string, string>> = {
     "src/tokens.json": JSON.stringify({ color: "violet" }),
     "src/stray.ts": STRAY,
     "tests/suite.test.ts": SUITE,
+    "tests/conditional.test.ts": CONDITIONAL,
     "node_modules/legacy/package.json": JSON.stringify({ name: "legacy", types: "index.d.ts" }),
     "node_modules/legacy/index.d.ts": `declare namespace legacy {\n    function start(): void;\n}\nexport = legacy;\n`,
 };
@@ -221,6 +231,19 @@ test("read tests through a namespace import, an extended runner and a tagged tab
         ["suite", "notes", [], []],
         ["test", "opens", ["notes"], []],
         ["test", "reads %s", ["notes"], ["each"]],
+    ]);
+});
+
+test("read tests through conditional runners, recording each condition, and never a runner's making", async () => {
+    await using simulation = testSimulation();
+    const environment = simulation.environment("test");
+    const { directory, outliner } = await outlined(environment.files, environment);
+    const tests = await outliner.tests(join(directory, "tests/conditional.test.ts"));
+
+    expect(tests.map((each) => [each.kind, each.name, each.modifiers])).toEqual([
+        ["test", "signs", ["skipIf"]],
+        ["test", "opens", ["runIf"]],
+        ["test", "locks", ["skipIf"]],
     ]);
 });
 

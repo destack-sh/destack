@@ -41,6 +41,14 @@ const DEFERRING_KINDS = new Set([
 /** The test function members that return or reconfigure a test function instead of registering. */
 const FIXTURE_MODIFIERS = new Set(["extend", "override", "scoped"]);
 
+/** The test function members returning a test function with an option its tests record. */
+const OPTION_MODIFIERS = new Set(["skipIf", "runIf", "each", "for"]);
+
+/** The test package functions returning a test function, by their exported names. */
+const TEST_FACTORIES: Readonly<Record<string, Runner>> = {
+    testOn: { kind: "test", modifiers: ["skipIf"] },
+};
+
 /** A statically identified test or suite declaration. */
 export const TestDeclaration = schema.object({
     /** Whether the call declares a case or a suite. */
@@ -61,10 +69,20 @@ export const TestDeclaration = schema.object({
 /** A statically identified test or suite declaration. */
 export type TestDeclaration = schema.Infer<typeof TestDeclaration>;
 
+/** A test or suite function with the options its declarations record. */
+interface Runner {
+    /** Whether the function declares cases or suites. */
+    readonly kind: "test" | "suite";
+    /** The options each declaration through the function records, such as skipIf. */
+    readonly modifiers: readonly string[];
+}
+
 /** The test and suite functions a module binds: by local name, and the namespaces holding them. */
 interface Runners {
-    /** The kind of each function by its local name. */
-    readonly functions: Map<string, "test" | "suite">;
+    /** Each test or suite function by its local name. */
+    readonly functions: Map<string, Runner>;
+    /** Each imported function returning a test function by its local name. */
+    readonly factories: Map<string, Runner>;
     /** The local names of namespace imports of a test package. */
     readonly namespaces: Set<string>;
 }
@@ -72,18 +90,24 @@ interface Runners {
 /** Collect a module's test and suite declarations from its syntax, without evaluating them. */
 export function collectTests(program: ESTree.Program, file: string): TestDeclaration[] {
     // bind the test and suite functions and namespaces the module imports, by local name
-    const runners: Runners = { functions: new Map(), namespaces: new Set() };
+    const runners: Runners = { functions: new Map(), factories: new Map(), namespaces: new Set() };
     for (const statement of program.body) {
         if (statement.type === "ImportDeclaration" && TEST_PACKAGES.has(statement.source.value)) {
             for (const specifier of statement.specifiers) {
-                const imported =
+                const name =
                     specifier.type === "ImportSpecifier" && specifier.imported.type === "Identifier"
-                        ? TEST_FUNCTIONS[specifier.imported.name]
+                        ? specifier.imported.name
                         : undefined;
+                const kind = name === undefined ? undefined : TEST_FUNCTIONS[name];
+                const factory = name === undefined ? undefined : TEST_FACTORIES[name];
+
+                // bind a namespace, a test or suite function, or a factory of test functions
                 if (specifier.type === "ImportNamespaceSpecifier") {
                     runners.namespaces.add(specifier.local.name);
-                } else if (imported !== undefined) {
-                    runners.functions.set(specifier.local.name, imported);
+                } else if (kind !== undefined) {
+                    runners.functions.set(specifier.local.name, { kind, modifiers: [] });
+                } else if (factory !== undefined) {
+                    runners.factories.set(specifier.local.name, factory);
                 }
             }
         }
@@ -92,17 +116,17 @@ export function collectTests(program: ESTree.Program, file: string): TestDeclara
         return [];
     }
 
-    // bind the test functions the module's constants extend from bound ones, such as `test.extend`
+    // bind the test functions the module's constants make from bound ones, such as `test.skipIf`
     for (const statement of program.body) {
         const declaration =
             statement.type === "ExportNamedDeclaration" ? statement.declaration : statement;
         for (const { id, init } of declaration?.type === "VariableDeclaration"
             ? declaration.declarations
             : []) {
-            const called = init === null ? undefined : calledRunner(init, runners);
-            const isExtended = called?.modifiers.some((each) => FIXTURE_MODIFIERS.has(each));
-            if (id.type === "Identifier" && called !== undefined && isExtended === true) {
-                runners.functions.set(id.name, called.kind);
+            const isMade = init?.type === "CallExpression" && isRunnerCall(init, runners);
+            const called = isMade ? calledRunner(init, runners) : undefined;
+            if (id.type === "Identifier" && called !== undefined) {
+                runners.functions.set(id.name, called);
             }
         }
     }
@@ -136,10 +160,7 @@ export function collectTests(program: ESTree.Program, file: string): TestDeclara
 }
 
 /** Follow a call's modifiers and parameterized calls to its bound runner, absent for any other. */
-function calledRunner(
-    node: ESTree.Node,
-    runners: Runners,
-): { readonly kind: "test" | "suite"; readonly modifiers: string[] } | undefined {
+function calledRunner(node: ESTree.Node, runners: Runners): Runner | undefined {
     // unwrap member accesses, calls and tagged templates down to the called name
     const modifiers: string[] = [];
     let expression: ESTree.Node = node;
@@ -161,14 +182,34 @@ function calledRunner(
         }
     }
 
-    // take a bound function, or a test function of a bound namespace
+    // take a bound function or factory, or a test function of a bound namespace
     const name = expression.type === "Identifier" ? expression.name : undefined;
-    const bound = name === undefined ? undefined : runners.functions.get(name);
+    const bound =
+        name === undefined
+            ? undefined
+            : (runners.functions.get(name) ?? runners.factories.get(name));
     const isNamespace = name !== undefined && runners.namespaces.has(name);
     const member = isNamespace ? modifiers.shift() : undefined;
-    const kind = bound ?? (member === undefined ? undefined : TEST_FUNCTIONS[member]);
+    const kind = bound?.kind ?? (member === undefined ? undefined : TEST_FUNCTIONS[member]);
 
-    return kind === undefined ? undefined : { kind, modifiers };
+    // record the bound options and the call's own, leaving the fixture's
+    const recorded = [...(bound?.modifiers ?? []), ...modifiers].filter(
+        (each) => !FIXTURE_MODIFIERS.has(each),
+    );
+
+    return kind === undefined ? undefined : { kind, modifiers: recorded };
+}
+
+/** Whether a call returns a test function, through a factory member or an imported factory. */
+function isRunnerCall(node: ESTree.CallExpression, runners: Runners): boolean {
+    const { callee } = node;
+    if (callee.type === "MemberExpression" && !callee.computed) {
+        const member = callee.property.name;
+
+        return FIXTURE_MODIFIERS.has(member) || OPTION_MODIFIERS.has(member);
+    }
+
+    return callee.type === "Identifier" && runners.factories.has(callee.name);
 }
 
 /** Describe a call registering a test or suite in module or suite scope, absent for any other. */
@@ -179,9 +220,9 @@ function describeCall(
     suites: Map<ESTree.Node, string[]>,
     file: string,
 ): TestDeclaration | undefined {
-    // take a call of a bound runner, leaving the calls that extend a runner
-    const called = calledRunner(node.callee, runners);
-    if (called === undefined || called.modifiers.some((each) => FIXTURE_MODIFIERS.has(each))) {
+    // take a call of a bound runner, leaving the calls that make a runner
+    const called = isRunnerCall(node, runners) ? undefined : calledRunner(node.callee, runners);
+    if (called === undefined) {
         return undefined;
     }
     const { kind, modifiers } = called;
@@ -227,7 +268,15 @@ function describeCall(
         suites.set(callback, [...titles, name]);
     }
 
-    return { kind, name, suites: titles, file, start: node.start, end: node.end, modifiers };
+    return {
+        kind,
+        name,
+        suites: titles,
+        file,
+        start: node.start,
+        end: node.end,
+        modifiers: [...modifiers],
+    };
 }
 
 /** Read a string literal's or a substitution-free template's text, absent for any other node. */
