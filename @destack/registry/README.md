@@ -33,13 +33,13 @@ export async function resolveImage(
     packageId: PackageId,
     release: string,
 ) {
-    // find the publisher's residency home, and call the forge installed there
+    // find the publisher's residency home, and call its registry
     const account = await directory.owner(packageObject, packageId);
     if (account === undefined) {
         throw new Error(`publisher of '${packageId}' not found`);
     }
     const spaceId = await home(account);
-    const registry = directory.client(registryPackage, spaceId, "forge", fetch, environment);
+    const registry = directory.client(registryPackage, spaceId, fetch, environment);
 
     return (await registry.release.resolve({ spaceId, parentId: packageId, release })).image;
 }
