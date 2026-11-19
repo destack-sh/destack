@@ -1,5 +1,6 @@
 import type { Clock } from "@destack/environment";
-import { Icon, type IconBodies } from "@destack/icon";
+import { Icon } from "@destack/ui/icon";
+import type { IconBodies } from "@destack/icon";
 import checkCircle from "@destack/icon/phosphor/check-circle";
 import info from "@destack/icon/phosphor/info";
 import warning from "@destack/icon/phosphor/warning";

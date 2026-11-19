@@ -1,5 +1,5 @@
 import type { IconName } from "@destack/icon";
-import { LazyIcon } from "@destack/icon/lazy";
+import { LazyIcon } from "@destack/ui/icon";
 import { type Localization, t } from "@destack/locale";
 import * as style from "@destack/style";
 import { color, size, space } from "@destack/theme/tokens.stylex";

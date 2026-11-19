@@ -1,5 +1,5 @@
 import { defineExample } from "@destack/package/declare";
-import { Icon } from "@destack/icon";
+import { Icon } from "@destack/ui/icon";
 import { Alert, AlertDescription, AlertTitle } from "./alert.tsx";
 
 /** A failed sync with what to do about it. */

@@ -1,4 +1,4 @@
-import { Icon } from "@destack/icon";
+import { Icon } from "@destack/ui/icon";
 import caretLeft from "@destack/icon/phosphor/caret-left";
 import caretRight from "@destack/icon/phosphor/caret-right";
 import * as style from "@destack/style";

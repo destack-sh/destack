@@ -1,4 +1,4 @@
-import { Icon } from "@destack/icon";
+import { Icon } from "@destack/ui/icon";
 import { type Direction, type Localization, type Message, t } from "@destack/locale";
 import * as style from "@destack/style";
 import { color, motion, radius, space, stroke } from "@destack/theme/tokens.stylex";

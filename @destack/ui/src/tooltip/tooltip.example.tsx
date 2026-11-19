@@ -1,5 +1,5 @@
 import { defineExample } from "@destack/package/declare";
-import { Icon } from "@destack/icon";
+import { Icon } from "@destack/ui/icon";
 import { Tooltip, TooltipContent, TooltipTrigger } from "./tooltip.tsx";
 
 /** What an icon-only archive button does. */

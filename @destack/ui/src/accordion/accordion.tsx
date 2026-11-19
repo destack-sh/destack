@@ -1,4 +1,4 @@
-import { Icon } from "@destack/icon";
+import { Icon } from "@destack/ui/icon";
 import * as style from "@destack/style";
 import { media } from "@destack/style/media.stylex";
 import { color, motion, radius, space, stroke, weight } from "@destack/theme/tokens.stylex";

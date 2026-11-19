@@ -1,5 +1,5 @@
 import { defineExample } from "@destack/package/declare";
-import { Icon } from "@destack/icon";
+import { Icon } from "@destack/ui/icon";
 import { Button } from "./button.tsx";
 
 /** A note's toolbar: a primary save, a quiet cancel and an icon-only delete. */

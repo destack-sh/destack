@@ -1,4 +1,5 @@
-import { Icon, type IconBodies } from "@destack/icon";
+import { Icon } from "@destack/ui/icon";
+import type { IconBodies } from "@destack/icon";
 import caretDoubleLeft from "@destack/icon/phosphor/caret-double-left";
 import caretDoubleRight from "@destack/icon/phosphor/caret-double-right";
 import caretDown from "@destack/icon/phosphor/caret-down";

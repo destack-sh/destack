@@ -99,12 +99,15 @@
         "./switcher": "./src/switcher/index.ts",
         "./switcher.css": "./src/switcher/switcher.css",
         "./cover": "./src/cover/index.ts",
-        "./content": "./src/content/index.ts"
+        "./content": "./src/content/index.ts",
+        "./icon": "./src/icon/index.ts",
+        "./build": "./src/build/index.ts"
     },
     "scripts": {
         "generate": "bun run src/chart/generate.ts"
     },
     "dependencies": {
+        "@destack/color": "workspace:*",
         "@destack/environment": "workspace:*",
         "@destack/icon": "workspace:*",
         "@destack/locale": "workspace:*",
@@ -122,6 +125,21 @@
         "property-information": "7.2.0"
     },
     "devDependencies": {
-        "@destack/test": "workspace:*"
+        "@destack/test": "workspace:*",
+        "@jridgewell/trace-mapping": "0.3.31",
+        "rolldown": "1.2.19",
+        "vite": "8.3.8"
+    },
+    "peerDependencies": {
+        "rolldown": "1.2.19",
+        "vite": "8.3.8"
+    },
+    "peerDependenciesMeta": {
+        "rolldown": {
+            "optional": true
+        },
+        "vite": {
+            "optional": true
+        }
     }
 }

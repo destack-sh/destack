@@ -1,6 +1,6 @@
 import { defineExample } from "@destack/package/declare";
 import * as style from "@destack/style";
-import { Icon } from "@destack/icon";
+import { Icon } from "@destack/ui/icon";
 import { Button } from "../button/index.ts";
 import {
     Item,

@@ -1,4 +1,4 @@
-import { Icon } from "@destack/icon";
+import { Icon } from "@destack/ui/icon";
 import arrowDown from "@destack/icon/phosphor/arrow-down";
 import arrowLeft from "@destack/icon/phosphor/arrow-left";
 import arrowRight from "@destack/icon/phosphor/arrow-right";

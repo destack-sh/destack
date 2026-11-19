@@ -1,4 +1,4 @@
-import { Icon } from "@destack/icon";
+import { Icon } from "@destack/ui/icon";
 import * as style from "@destack/style";
 import { inputMarker } from "./marker.stylex.ts";
 import { text } from "@destack/theme/text";

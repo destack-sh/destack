@@ -1,4 +1,4 @@
-import { Icon } from "@destack/icon";
+import { Icon } from "@destack/ui/icon";
 import { type Localization, plural, t } from "@destack/locale";
 import { PlainDate } from "@destack/schema";
 import * as style from "@destack/style";

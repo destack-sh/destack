@@ -1,5 +1,5 @@
 import type { Clock } from "@destack/environment";
-import { Icon } from "@destack/icon";
+import { Icon } from "@destack/ui/icon";
 import * as style from "@destack/style";
 import { media } from "@destack/style/media.stylex";
 import {

@@ -1,6 +1,6 @@
 import * as style from "@destack/style";
 import type { IconName } from "@destack/icon";
-import { LazyIcon } from "@destack/icon/lazy";
+import { LazyIcon } from "@destack/ui/icon";
 import { color, radius, size } from "@destack/theme/tokens.stylex";
 import { type JSX, omit } from "@destack/view";
 

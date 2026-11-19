@@ -1,4 +1,4 @@
-import { Icon } from "@destack/icon";
+import { Icon } from "@destack/ui/icon";
 import githubLogo from "@destack/icon/phosphor/github-logo";
 import googleLogo from "@destack/icon/phosphor/google-logo";
 import windowsLogo from "@destack/icon/phosphor/windows-logo";

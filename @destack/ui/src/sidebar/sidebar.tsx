@@ -1,6 +1,6 @@
 import type { Environment } from "@destack/environment";
 import { TelemetryScope } from "@destack/telemetry";
-import { Icon } from "@destack/icon";
+import { Icon } from "@destack/ui/icon";
 import { t } from "@destack/locale";
 import * as style from "@destack/style";
 import { media } from "@destack/style/media.stylex";
