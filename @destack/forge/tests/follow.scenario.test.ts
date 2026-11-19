@@ -2,7 +2,7 @@ import registryPackage from "@destack/registry/package";
 import { fileURLToPath } from "node:url";
 import forgePackage from "../src/package.ts";
 import { History } from "@destack/git/test";
-import { FORGE_HOME_OPTIONS } from "../src/test/index.ts";
+import { FORGE_WORLD_OPTIONS } from "../src/test/index.ts";
 import { FOLLOW_TEMPLATE } from "../src/test/index.ts";
 import { PackageId } from "@destack/package";
 import { type DatabaseConnection, Snapshot } from "@destack/db";
@@ -40,7 +40,7 @@ async function listBuilds(database: DatabaseConnection) {
 /** Serve a space whose installations follow repository references. */
 async function serveCommits() {
     // serve the forge in the residency's home, and installations following references in the fixture's space
-    const { spaces } = await TestSpace.copy(FOLLOW_TEMPLATE, FORGE_HOME_OPTIONS);
+    const { spaces } = await TestSpace.copy(FOLLOW_TEMPLATE, FORGE_WORLD_OPTIONS);
     const fixture = present(spaces.get(ids.space), "the fixture's space");
     const residency = present(
         [...spaces.values()].find((each) => each.id !== ids.space),

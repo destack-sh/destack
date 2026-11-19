@@ -1,4 +1,5 @@
-import { present, schema, Version } from "@destack/schema";
+import { schema, Version } from "@destack/schema";
+import { PackageName } from "@destack/package";
 import type { MethodContextOf, ResultOf } from "@destack/object";
 import type { ObjectReference } from "@destack/sync";
 import { packageObject, release, tag } from "@destack/registry/object";
@@ -62,36 +63,49 @@ const PackageMethod = {
         return { version: Version.parse(version) };
     },
 
-    /** Create the package once, then insert the checked image's release as the package. */
+    /** Create each checked package once and insert its release, required ones first. */
     async publish(
         context: MethodContextOf<typeof packageObject, "publish">,
     ): Promise<ResultOf<typeof packageObject, "publish">> {
-        // create the package the first time
-        const { packageId: id, accountId, name, visibility } = context.input;
-        const { role } = context.prepared;
-        await context.mutate(context.caller, [
-            packageObject.call("create", {
-                id,
-                accountId,
-                name,
-                role,
-                ...(visibility === undefined ? {} : { visibility }),
-            }),
-        ]);
+        // publish each package in the order its checks ran, required ones first
+        const { accountId, tags = [] } = context.input;
+        const pointed = context.input.tag;
+        for (const published of context.prepared) {
+            // create the package the first time, readable as asked, else as its package file asks
+            const { id, name, version } = published.package;
+            const visibility = context.input.visibility ?? published.visibility;
+            await context.mutate(context.caller, [
+                packageObject.call("create", {
+                    id,
+                    accountId,
+                    name: PackageName.split(name).local,
+                    role: published.release.role,
+                    ...(visibility === undefined ? {} : { visibility }),
+                }),
+            ]);
 
-        // insert the release, which advances the package's role and vocabulary
-        await context.mutate(context.self, [
-            release.call("create", {
-                parentId: id,
-                ...context.prepared,
-                ...(context.input.tag === undefined ? {} : { tag: context.input.tag }),
-            }),
-        ]);
+            // insert the release, which advances the package's role and vocabulary
+            await context.mutate(context.self, [
+                release.call("create", {
+                    parentId: id,
+                    ...published.release,
+                    ...(pointed === undefined ? {} : { tag: pointed }),
+                }),
+            ]);
 
-        return present(
-            await context.read(packageObject).findFirst({ where: { id } }),
-            `the published package ${id}`,
-        );
+            // point each further tag at it
+            await context.mutate(
+                context.caller,
+                tags.map((each) => packageObject.call("point", { id, name: each, version })),
+            );
+        }
+
+        return {
+            releases: context.prepared.map((published) => ({
+                package: published.package,
+                image: published.release.image,
+            })),
+        };
     },
 
     /** Point a package's distribution tag at a version, creating the tag the first time. */

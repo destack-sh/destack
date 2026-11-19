@@ -1,7 +1,7 @@
 import objectPackage from "@destack/object/package";
 import type { TestPerson } from "@destack/account/test";
 import { expect, refusal, test } from "@destack/test";
-import { BuildObject, BuildStore, PackageClient } from "@destack/build/store";
+import { BuildObject, BuildStore, RemoteBuildStore } from "@destack/build/store";
 import { TestBuildStore } from "@destack/build/test";
 import { BuildImage, PackageManifest } from "@destack/package/manifest";
 import { Digest } from "@destack/schema";
@@ -47,7 +47,7 @@ test("serve a release's build by digest to its readers alone, also once yanked",
     const { environment } = forge.home;
     await using copied = await TestBuildStore.create(environment);
     const root = { kind: "manifest", digest: published.manifest } as const;
-    const source = new PackageClient(
+    const source = new RemoteBuildStore(
         `${forge.origin}${forgePackage.mounts.builds.path}/${BuildObject.path(root)}/`,
         forge.endpoint(forge.owner).fetch,
     );
@@ -103,7 +103,7 @@ test("stage a machine's push without releasing it", async () => {
     const { url } = forge.endpoint();
     const { fetch } = forge.home.as(forge.home.machine.id).endpoint(forgePackage);
     const builds = (packageId: string) =>
-        new PackageClient(`${url}${forgePackage.mounts.builds.path}/${packageId}/`, fetch);
+        new RemoteBuildStore(`${url}${forgePackage.mounts.builds.path}/${packageId}/`, fetch);
     const handle = PackageName.split(build.manifest.package.name).handle;
     await using pushed = await TestBuildStore.create(forge.environment);
     const image = await pushed.putImage(BuildImage.of(await pushed.putIndexed(build.reader)));
@@ -311,7 +311,7 @@ test("serve and retain a release's npm units and Bun output", async () => {
     await using copied = await TestBuildStore.create(environment);
     const builds = `${forge.origin}${forgePackage.mounts.builds.path}`;
     const root = { kind: "image", digest: published.image } as const;
-    const source = new PackageClient(
+    const source = new RemoteBuildStore(
         `${builds}/${BuildObject.path(root)}/`,
         forge.endpoint(forge.owner).fetch,
     );

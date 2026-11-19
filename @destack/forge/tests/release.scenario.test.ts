@@ -8,7 +8,8 @@ import { PackageVersion, PackageId } from "@destack/package";
 import { BuildImage, PackageManifest } from "@destack/package/manifest";
 import { TestBuildStore } from "@destack/build/test";
 import { MemoryBuild } from "@destack/package/test";
-import { Registry } from "@destack/registry/client";
+import { RemoteBuildStore } from "@destack/build/store";
+import registryPackage from "@destack/registry/package";
 import { LATEST_TAG, packageObject } from "@destack/registry/object";
 import { fixtureBuild, prereleaseBuild } from "./fixture/build.ts";
 import { PRERELEASE_VERSION } from "./fixture/package.ts";
@@ -34,7 +35,6 @@ test("publish pushed images as releases", async () => {
     const uncommitted = {
         requestId: RequestId.create(forge.environment),
         parentId: answer.packageId,
-        name: "answer",
         image: await forge.push((await fixtureBuild("answer", "2026.9.1")).reader),
         tag: "next",
     };
@@ -69,10 +69,6 @@ test("publish pushed images as releases", async () => {
 
     // refuse a tag a range reads
     const missing = Digest.parse("f".repeat(64));
-    const answerBuild = (await fixtureBuild("answer")).reader;
-    const greeting = await forge.publish((await fixtureBuild("greeting")).reader, "private", [
-        answerBuild,
-    ]);
     const attempt = (input: typeof uncommitted, user = forge.owner) =>
         refusal(
             forge.release(
@@ -87,7 +83,6 @@ test("publish pushed images as releases", async () => {
         await attempt({ ...created, tag: "x" }),
         await attempt({ ...created, image: missing }),
         await attempt(uncommitted),
-        await attempt({ ...created, image: greeting.image }),
         await attempt(created, forge.stranger()),
     ]).toEqual([
         [
@@ -101,7 +96,6 @@ test("publish pushed images as releases", async () => {
             "BUILD_INVALID",
             `image '${created.image}' is invalid: a release of uncommitted changes must be a prerelease`,
         ],
-        ["BAD_REQUEST", "BUILD_INVALID", "build is invalid: it belongs to another package"],
         ["FORBIDDEN", "PERMISSION_DENIED", "permission 'publish' is forbidden: it is not granted"],
     ]);
 
@@ -120,15 +114,23 @@ test("find a published release by version, tag, digest and id, and refuse its na
     const forge = await TestForge.open();
     const answer = await forge.publish((await fixtureBuild("answer")).reader);
     const owner = forge.client(forge.owner);
-    const releases = new Registry(async () => forge.registry(), forge.environment);
 
     // name the same image by version and by tag
     const { packageId } = answer;
     const spaceId = forge.space;
-    const reader = await releases.open(packageId, LATEST_TAG);
+    const resolve = async (release: string) =>
+        (await owner.release.resolve({ spaceId, parentId: packageId, release })).image;
+    const { url, fetch } = forge.registry();
+    const builds = `${url}${registryPackage.mounts.builds.path}`;
+    const reader = await RemoteBuildStore.open(
+        builds,
+        fetch,
+        await resolve(LATEST_TAG),
+        forge.environment.crypto,
+    );
     expect([
-        (await owner.release.resolve({ spaceId, parentId: packageId, release: "2026.9.0" })).image,
-        await releases.find(packageId, LATEST_TAG),
+        await resolve("2026.9.0"),
+        await resolve(LATEST_TAG),
         await reader.distributed(),
         await refusal(owner.release.resolve({ spaceId, parentId: packageId, release: "next" })),
     ]).toEqual([
@@ -175,7 +177,6 @@ test("release one image of a version under each tag, refusing another image of i
     // store two prerelease builds of answer at one version with other files
     const forge = await TestForge.open();
     const owner = forge.client(forge.owner);
-    const releases = new Registry(async () => forge.registry(), forge.environment);
     const { crypto } = forge.environment;
     const { id, name } = PackageManifest.package((await fixtureBuild("answer")).reader.manifest);
     const version = PackageVersion.parse({ id, name, version: PRERELEASE_VERSION });
@@ -191,9 +192,11 @@ test("release one image of a version under each tag, refusing another image of i
     const other = await pushImage("other");
 
     // release under next, then the same image under latest, and refuse the other image under next
-    await releases.release(store, [released], ACCOUNT_ID, "next");
-    await releases.release(store, [released], ACCOUNT_ID, LATEST_TAG);
-    const refused = await refusal(releases.release(store, [other], ACCOUNT_ID, "next"));
+    await forge.publishImage(store, released, "next");
+    await forge.publishImage(store, released, LATEST_TAG);
+    const refused = await refusal(forge.publishImage(store, other, "next"));
+    const resolve = async (release: string) =>
+        (await owner.release.resolve({ spaceId: forge.space, parentId: id, release })).image;
 
     // keep one release of the released image, which both tags point at
     expect([
@@ -206,9 +209,9 @@ test("release one image of a version under each tag, refusing another image of i
         (await owner.tag.list({ spaceId: forge.space })).items
             .map((entry) => `${entry.name} ${entry.version}`)
             .toSorted(),
-        await releases.find(id, PRERELEASE_VERSION),
-        await releases.find(id, "next"),
-        await releases.find(id, LATEST_TAG),
+        await resolve(PRERELEASE_VERSION),
+        await resolve("next"),
+        await resolve(LATEST_TAG),
     ]).toEqual([
         [
             "CONFLICT",
@@ -227,7 +230,6 @@ test("keep a version's first release when another image of its build publishes",
     // image one build of answer with two builds of a library it depends on
     const forge = await TestForge.open();
     const owner = forge.client(forge.owner);
-    const releases = new Registry(async () => forge.registry(), forge.environment);
     const { crypto } = forge.environment;
     const { id, name } = PackageManifest.package((await fixtureBuild("answer")).reader.manifest);
     const version = PackageVersion.parse({ id, name, version: PRERELEASE_VERSION });
@@ -250,17 +252,21 @@ test("keep a version's first release when another image of its build publishes",
     const second = await pushImage("second");
 
     // release both images at the version
-    await releases.release(store, [first], ACCOUNT_ID, LATEST_TAG);
-    await releases.release(store, [second], ACCOUNT_ID, LATEST_TAG);
+    await forge.publishImage(store, first, LATEST_TAG, { commit: TEST_COMMIT });
+    await forge.publishImage(store, second, LATEST_TAG, { commit: TEST_COMMIT });
 
-    // keep the one release of the first image
+    // keep the one release of the first image, beside the library it released
     expect([
-        (await owner.release.list({ spaceId: forge.space })).items.map((entry) => [
-            entry.parentId,
-            entry.version,
-            entry.image,
-        ]),
-        await releases.find(id, PRERELEASE_VERSION),
+        (await owner.release.list({ spaceId: forge.space, where: { parentId: id } })).items.map(
+            (entry) => [entry.parentId, entry.version, entry.image],
+        ),
+        (
+            await owner.release.resolve({
+                spaceId: forge.space,
+                parentId: id,
+                release: PRERELEASE_VERSION,
+            })
+        ).image,
     ]).toEqual([[[id, PRERELEASE_VERSION, first]], first]);
 });
 
@@ -268,7 +274,6 @@ test("publish an image's builds in dependency order", async () => {
     // image greeting with the answer build it requires in one store
     const forge = await TestForge.open();
     const owner = forge.client(forge.owner);
-    const releases = new Registry(async () => forge.registry(), forge.environment);
     const answer = (await fixtureBuild("answer")).reader;
     const greeting = (await fixtureBuild("greeting")).reader;
     await using store = await TestBuildStore.create(forge.environment);
@@ -281,9 +286,9 @@ test("publish an image's builds in dependency order", async () => {
         ),
     );
 
-    // publish greeting twice
-    await releases.publish(store, image, ACCOUNT_ID, LATEST_TAG, { commit: TEST_COMMIT });
-    await releases.publish(store, image, ACCOUNT_ID, LATEST_TAG, { commit: TEST_COMMIT });
+    // publish greeting twice, with answer
+    await forge.publishImage(store, image, LATEST_TAG, { commit: TEST_COMMIT });
+    await forge.publishImage(store, image, LATEST_TAG, { commit: TEST_COMMIT });
 
     // record answer's release before greeting's, once each
     const answerId = PackageManifest.package(answer.manifest).id;
@@ -303,7 +308,6 @@ test("publish each package at its publishConfig access", async () => {
     // image greeting, without an access, with answer, whose package file asks public access
     const forge = await TestForge.open();
     const owner = forge.client(forge.owner);
-    const releases = new Registry(async () => forge.registry(), forge.environment);
     const answer = (await fixtureBuild("answer")).reader;
     const greeting = (await fixtureBuild("greeting")).reader;
     await using store = await TestBuildStore.create(forge.environment);
@@ -317,7 +321,7 @@ test("publish each package at its publishConfig access", async () => {
     );
 
     // publish both, asking no visibility
-    await releases.publish(store, image, ACCOUNT_ID, LATEST_TAG, { commit: TEST_COMMIT });
+    await forge.publishImage(store, image, LATEST_TAG, { commit: TEST_COMMIT });
 
     // list answer as its package file asks, and greeting unlisted, the default
     const listed = await owner.package.list({ spaceId: forge.space, orderBy: { name: "asc" } });
@@ -331,7 +335,6 @@ test("point latest at each released version", async () => {
     // image greeting with answer
     const forge = await TestForge.open();
     const owner = forge.client(forge.owner);
-    const releases = new Registry(async () => forge.registry(), forge.environment);
     const answer = (await fixtureBuild("answer")).reader;
     const greeting = (await fixtureBuild("greeting")).reader;
     await using store = await TestBuildStore.create(forge.environment);
@@ -346,8 +349,8 @@ test("point latest at each released version", async () => {
 
     // publish both under a stage tag twice, pointing latest too
     const options = { commit: TEST_COMMIT, tags: [LATEST_TAG] };
-    await releases.publish(store, image, ACCOUNT_ID, "local", options);
-    await releases.publish(store, image, ACCOUNT_ID, "local", options);
+    await forge.publishImage(store, image, "local", options);
+    await forge.publishImage(store, image, "local", options);
 
     // resolve the stage tag and latest of each to its released version
     const resolve = async (id: PackageId, release: string) =>
@@ -368,7 +371,7 @@ test("point latest at each released version", async () => {
     );
 });
 
-test("refuse an image pinning an unreleased version of a hosted package", async () => {
+test("release an image's unreleased package of the account before the package requiring it", async () => {
     // host answer's package without releasing it
     const forge = await TestForge.open();
     const answer = (await fixtureBuild("answer")).reader;
@@ -383,11 +386,78 @@ test("refuse an image pinning an unreleased version of a hosted package", async 
         role: answer.manifest.role,
     });
 
-    // refuse greeting's release while answer has no release
-    expect(await refusal(forge.publish(greeting, "private", [answer]))).toEqual([
+    // release answer first, then greeting requiring it
+    await forge.publish(greeting, "private", [answer]);
+    const listed = await owner.release.list({ spaceId: forge.space });
+    expect(
+        listed.items.map((entry) => [
+            entry.parentId === PackageManifest.package(answer.manifest).id ? "answer" : "greeting",
+            entry.version,
+        ]),
+    ).toEqual([
+        ["answer", "2026.9.0"],
+        ["greeting", "2026.9.0"],
+    ]);
+});
+
+test("refuse an image pinning a yanked version of a hosted package", async () => {
+    // publish answer, then yank its release
+    const forge = await TestForge.open();
+    const answer = await forge.publish((await fixtureBuild("answer")).reader);
+    const owner = forge.client(forge.owner);
+    await owner.release.yank({
+        spaceId: forge.space,
+        id: answer.release.id,
+        requestId: RequestId.create(forge.environment),
+        isYanked: true,
+    });
+
+    // refuse greeting's release pinning the yanked version
+    const greeting = (await fixtureBuild("greeting")).reader;
+    expect(await refusal(forge.publish(greeting, "private", [answer.reader]))).toEqual([
         "PRECONDITION_FAILED",
         "DEPENDENCY_BLOCKED",
-        "cannot release with dependency '@example/answer@2026.9.0': it is not published",
+        "cannot release with dependency '@example/answer@2026.9.0': it is yanked",
+    ]);
+});
+
+test("refuse an image pinning an unreleased version of another account's hosted package", async () => {
+    // host a tenant's library without releasing it
+    const forge = await TestForge.open();
+    const { crypto } = forge.environment;
+    const tenant = await forge.tenant();
+    const library = PackageVersion.parse({
+        id: "package-01996ab0-0000-7000-8000-0000000000f2",
+        name: "@tenant-1/library",
+        version: "2026.9.0",
+    });
+    await forge.client(tenant.owner).package.create({
+        spaceId: forge.space,
+        accountId: tenant.accountId,
+        id: library.id,
+        requestId: RequestId.create(forge.environment),
+        name: "library",
+        role: "library",
+    });
+
+    // refuse an app of the publishing account pinning the library
+    const app = PackageVersion.parse({
+        id: "package-01996ab0-0000-7000-8000-0000000000f3",
+        name: "@example/app",
+        version: "2026.9.0",
+    });
+    await using store = await TestBuildStore.create(forge.environment);
+    const root = await store.putIndexed(await MemoryBuild.of(app, [], crypto));
+    const built = await store.putIndexed(await MemoryBuild.of(library, [], crypto));
+    const image = await store.putImage(
+        BuildImage.of(root, { [root]: { [library.name]: built }, [built]: {} }),
+    );
+    expect(
+        await refusal(forge.publishImage(store, image, LATEST_TAG, { commit: TEST_COMMIT })),
+    ).toEqual([
+        "PRECONDITION_FAILED",
+        "DEPENDENCY_BLOCKED",
+        "cannot release with dependency '@tenant-1/library@2026.9.0': it is not published",
     ]);
 });
 
@@ -599,7 +669,6 @@ test("deprecate and yank releases", async () => {
             forge.release({
                 requestId: RequestId.create(forge.environment),
                 parentId: answer.packageId,
-                name: "answer",
                 image: next.image,
                 commit: TEST_COMMIT,
             }),
@@ -757,7 +826,6 @@ test("publish builtins under the platform's account alone", async () => {
                 {
                     requestId: RequestId.create(forge.environment),
                     parentId: packageId,
-                    name: "kernel",
                     accountId,
                     image,
                     commit: TEST_COMMIT,

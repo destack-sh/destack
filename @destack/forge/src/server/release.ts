@@ -1,9 +1,9 @@
 import { type BuildStore } from "@destack/build/store";
-import { PackageManifest } from "@destack/package/manifest";
+import { BuildImage, PackageManifest } from "@destack/package/manifest";
 import { type DependencyRelease, type PackageId, PackageName } from "@destack/package";
 import { type MethodContextOf, type NextOf, type ResultOf } from "@destack/object";
 import { Vocabulary } from "@destack/resource";
-import { type Identifier, present, Version, schema } from "@destack/schema";
+import { type Digest, type Identifier, present, Version, schema } from "@destack/schema";
 import { RequestId } from "@destack/sync";
 import { Snapshot } from "@destack/db";
 import type { ObjectStore } from "@destack/object/server";
@@ -16,10 +16,34 @@ import {
     LATEST_TAG,
     type Candidate,
     packageObject,
+    type PackageVisibility,
     release,
     tag,
     TagName,
 } from "@destack/registry/object";
+
+/** The package file every build carries, whose `publishConfig` asks its access. */
+const PACKAGE_FILE = "package.json";
+
+/** The visibility each of npm's access levels publishes a package at. */
+const NPM_ACCESS = { public: "public", restricted: "private" } as const satisfies Record<
+    string,
+    PackageVisibility
+>;
+
+/** The part of a package file asking its access, as npm reads it at publish. */
+const PackageAccess = schema.looseObject({
+    /** The settings npm publishes with. */
+    publishConfig: schema
+        .looseObject({
+            /** Whether the package is public or restricted to its owners. */
+            access: schema.enum(["public", "restricted"]).exactOptional(),
+        })
+        .exactOptional(),
+});
+
+/** A package a publish releases, checked before its transaction. */
+type Publication = MethodContextOf<typeof packageObject, "publish">["prepared"][number];
 
 /** What releases check builds against: the store of pushed builds. */
 export interface ReleaseOptions {
@@ -29,15 +53,19 @@ export interface ReleaseOptions {
 
 /** The release methods' handlers: preparing, publishing, resolving, deprecating and yanking. */
 export const ReleaseMethod = {
-    /** Check and copy up a pushed image before the publish's transaction. */
+    /** Check and copy up each of the account's packages in a pushed image, required ones first. */
     async prepare(
-        context: MethodContextOf<typeof packageObject, "publish", Candidate | undefined>,
+        context: MethodContextOf<
+            typeof packageObject,
+            "publish",
+            readonly Publication[] | undefined
+        >,
         options: ReleaseOptions,
-    ): Promise<Candidate> {
-        // refuse a tag a range reads
-        const store = options.store;
+    ): Promise<readonly Publication[]> {
+        // refuse a tag a range reads, and lease the pushed image through the publish
+        const { store } = options;
         TagName.require(context.input.tag ?? LATEST_TAG);
-        const { packageId: parentId, accountId, name: local, image, commit } = context.input;
+        const { image } = context.input;
         const request = present(context.requestId, "the release's request");
         const until = new Date(RequestId.expiry(request, context.now));
         await store.lease(image, until);
@@ -46,6 +74,61 @@ export const ReleaseMethod = {
         if (!(await store.contains(image))) {
             throw ForgeError.of("BUILD_NOT_FOUND", `image '${image}' not found`);
         }
+        const read = await store.image(image);
+
+        // take the packages of the root's handle within the image, required ones first
+        const root = PackageManifest.package(await store.get(read.root));
+        const { handle } = PackageName.split(root.name);
+        const owned: { readonly digest: Digest; readonly manifest: PackageManifest }[] = [];
+        for (const digest of BuildImage.layers(read).flat()) {
+            const manifest = await store.get(digest);
+            if (
+                PackageManifest.isPackage(manifest) &&
+                PackageName.split(manifest.package.name).handle === handle
+            ) {
+                owned.push({ digest, manifest });
+            }
+        }
+
+        // check each in its own image, skipping a required one already released, as pnpm's recursive publish does
+        const publishing = new Set<string>();
+        const candidates: Publication[] = [];
+        for (const { digest, manifest } of owned) {
+            // leave a required package's version released before alone, tags included
+            const required = PackageManifest.package(manifest);
+            const [taken] = await context.read(release).findMany({
+                where: { parentId: required.id, version: required.version },
+                limit: 1,
+            });
+            if (digest !== read.root && taken !== undefined) {
+                continue;
+            }
+
+            // check the root and each unreleased required one, counting it as released for those after it
+            const at =
+                digest === read.root ? image : await store.putImage(BuildImage.at(read, digest));
+            await store.lease(at, until);
+            const candidate = await ReleaseMethod.check(context, store, at, publishing);
+            publishing.add(`${candidate.package.id}@${candidate.package.version}`);
+            candidates.push(candidate);
+        }
+
+        return candidates;
+    },
+
+    /** Check and copy up one package's image before the publish's transaction. */
+    async check(
+        context: MethodContextOf<
+            typeof packageObject,
+            "publish",
+            readonly Publication[] | undefined
+        >,
+        store: BuildStore,
+        image: Digest,
+        publishing: ReadonlySet<string>,
+    ): Promise<Publication> {
+        // read the image's root build
+        const { accountId, commit } = context.input;
         const read = await store.image(image);
         const contents = await store.contents(read.root);
 
@@ -65,19 +148,17 @@ export const ReleaseMethod = {
             );
         }
 
-        // require the build to be the package's, under the package's global name
-        const { id, name, version } = PackageManifest.package(contents.manifest);
-        if (id !== parentId) {
-            throw ForgeError.of("BUILD_INVALID", "build is invalid: it belongs to another package");
-        }
+        // require the package's name to be the publishing account's, and not another package's
+        const released = PackageManifest.package(contents.manifest);
+        const { id, name, version } = released;
         const home = schema.identifier("space").parse(context.scope);
         const named = await Forge.find(name, context, home);
-        if (named.accountId !== accountId || PackageName.split(name).local !== local) {
+        if (named.accountId !== accountId) {
             throw ForgeError.of(
                 "BUILD_INVALID",
-                `image '${image}' is invalid: its root is a build of '${name}', not of the published package`,
+                `image '${image}' is invalid: its root is a build of '${name}', not of the publishing account`,
             );
-        } else if (named.package !== undefined && named.package.id !== parentId) {
+        } else if (named.package !== undefined && named.package.id !== id) {
             throw ForgeError.of("NPM_NAME_EXISTS", "npm name already exists");
         }
 
@@ -86,14 +167,14 @@ export const ReleaseMethod = {
             await Forge.requireBuiltin(name, context, home);
         }
 
-        // refuse a locked package hosted here
+        // refuse a locked package hosted here, the versions this publish releases counting as released
         const entries = await store.entriesOf(read);
-        await ReleaseMethod.requirePublished(context, id, entries);
+        await ReleaseMethod.requirePublished(context, id, entries, publishing);
 
         // answer the release of this version again when another image of the same build published it
         const [taken] = await context
             .read(release)
-            .findMany({ where: { parentId, version }, limit: 1 });
+            .findMany({ where: { parentId: id, version }, limit: 1 });
         const isRepeated =
             taken !== undefined &&
             taken.image !== image &&
@@ -114,14 +195,24 @@ export const ReleaseMethod = {
             })(),
         );
 
+        // read the visibility the package file asks through npm's access
+        const authored = PackageAccess.parse(
+            JSON.parse(new TextDecoder().decode(await contents.load(PACKAGE_FILE))),
+        );
+        const access = authored.publishConfig?.access;
+
         return {
-            image: isRepeated ? taken.image : image,
-            ...(commit === undefined ? {} : { commit }),
-            version,
-            role: contents.manifest.role,
-            declarations: await contents.declarations(),
-            npm: listed,
-            tarball,
+            package: { id, name, version },
+            ...(access === undefined ? {} : { visibility: NPM_ACCESS[access] }),
+            release: {
+                image: isRepeated ? taken.image : image,
+                ...(commit === undefined ? {} : { commit }),
+                version,
+                role: contents.manifest.role,
+                declarations: await contents.declarations(),
+                npm: listed,
+                tarball,
+            },
         };
     },
 
@@ -188,11 +279,16 @@ export const ReleaseMethod = {
         return taken;
     },
 
-    /** Refuse a locked package this forge hosts whose locked version is not released. */
+    /** Refuse a hosted locked package whose locked version is unreleased or yanked, like Cargo. */
     async requirePublished(
-        context: MethodContextOf<typeof packageObject, "publish", Candidate | undefined>,
+        context: MethodContextOf<
+            typeof packageObject,
+            "publish",
+            readonly Publication[] | undefined
+        >,
         root: PackageId,
         entries: Readonly<Record<string, DependencyRelease>>,
+        publishing: ReadonlySet<string>,
     ): Promise<void> {
         // read the hosted dependencies and their releases in two reads
         const dependencies = Object.values(entries).flatMap((entry) =>
@@ -201,21 +297,34 @@ export const ReleaseMethod = {
         const hosted = await context
             .read(packageObject)
             .findMany({ where: { id: { in: dependencies.map((each) => each.id) } } });
-        const released = await context.read(release).findMany({
-            where: { parentId: { in: hosted.map((each) => each.id) }, yankedAt: { isNull: true } },
-        });
-        const versions = new Set(released.map((each) => `${each.parentId}@${each.version}`));
-
-        // refuse a hosted dependency whose locked version is not released
-        const ids = new Set(hosted.map((each) => each.id));
-        const unreleased = dependencies.find(
-            (each) => ids.has(each.id) && !versions.has(`${each.id}@${each.version}`),
+        const released = await context
+            .read(release)
+            .findMany({ where: { parentId: { in: hosted.map((each) => each.id) } } });
+        const releases = new Map(
+            released.map((each) => [`${each.parentId}@${each.version}`, each]),
         );
-        if (unreleased !== undefined) {
-            throw ForgeError.of(
-                "DEPENDENCY_BLOCKED",
-                `cannot release with dependency '${unreleased.name}@${unreleased.version}': it is not published`,
-            );
+
+        // refuse a hosted dependency whose locked version is yanked or not released, by this publish or before
+        const ids = new Set(hosted.map((each) => each.id));
+        for (const dependency of dependencies.filter((each) => ids.has(each.id))) {
+            const key = `${dependency.id}@${dependency.version}`;
+            const found = releases.get(key);
+            const locked = `${dependency.name}@${dependency.version}`;
+
+            // refuse a version yanked, which new dependents skip
+            if (found !== undefined && found.yankedAt !== null) {
+                throw ForgeError.of(
+                    "DEPENDENCY_BLOCKED",
+                    `cannot release with dependency '${locked}': it is yanked`,
+                );
+            }
+            // refuse a version neither released nor in this publish
+            else if (found === undefined && !publishing.has(key)) {
+                throw ForgeError.of(
+                    "DEPENDENCY_BLOCKED",
+                    `cannot release with dependency '${locked}': it is not published`,
+                );
+            }
         }
     },
 

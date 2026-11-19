@@ -7,45 +7,42 @@ import { integration, Issuer } from "@destack/connection/object";
 import { defineConnection } from "@destack/connection/declare";
 import connectionPackage, { CONNECTION_INSTALLATION } from "@destack/connection/package";
 import { connectionVault } from "@destack/connection/stack";
-import { connectionShape } from "@destack/connection/server";
 import { CONNECTION } from "@destack/connection/test";
 import accountPackage from "@destack/account/package";
 import type { TestPerson } from "@destack/account/test";
-import { PackageClient, BuildStore } from "@destack/build/store";
+import { RemoteBuildStore, BuildStore } from "@destack/build/store";
 import { TestBuildStore } from "@destack/build/test";
 import { Forge } from "../server/forge.ts";
 import { Snapshot, type Select } from "@destack/db";
 import type { Environment } from "@destack/environment";
 import type { Simulation } from "@destack/environment/simulation";
-import { ClaimLookup, claimTable } from "@destack/object";
+import { ClaimLookup, claimTable, type MethodInput } from "@destack/object";
 import { createClient } from "@destack/object/client";
 import registryPackage from "@destack/registry/package";
 import objectPackage from "@destack/object/package";
-import { testBuild } from "@destack/object/test";
-import { PackageVersion, PackageName, type PackageId } from "@destack/package";
+import { PackageVersion, PackageName, type PackageId, type PackageRelease } from "@destack/package";
 import { type BuildReader, BuildImage, PackageManifest } from "@destack/package/manifest";
 import { type Digest, Identifier, present, schema } from "@destack/schema";
 import { join } from "node:path";
-import settingPackage from "@destack/setting/package";
-import { describeSetting } from "@destack/setting/inspect";
 import { installationRevision } from "@destack/stack/object";
-import { TestPackage, TestSpace, ids } from "@destack/machine/test";
+import {
+    FORGE_HOME_OPTIONS,
+    FORGE_HOME_STACK,
+    FORGE_HOME_TYPES,
+    TestPackage,
+    TestSpace,
+    ids,
+} from "@destack/machine/test";
 import { RequestId, type Subject } from "@destack/sync";
-import { defineVault } from "@destack/vault/declare";
 import { secret } from "@destack/vault/object";
 import vaultPackage from "@destack/vault/package";
-import { TestVault } from "@destack/vault/test";
 import { onTestFinished } from "@destack/test";
-import { testHost } from "@destack/test/host";
-import { LocalGitStorage, localGitProvider } from "@destack/git/local";
+import { LocalGitStorage } from "@destack/git/local";
 import { issuer } from "../object/index.ts";
 import { TEST_COMMIT } from "./release.ts";
 import { LATEST_TAG, packageObject, type Release } from "@destack/registry/object";
 import forgePackage, { FORGE_INSTALLATION } from "../package.ts";
-import forgeServer from "../server.ts";
-import { claimFollow, standingFollow } from "../server/index.ts";
-import { credentialVault, github, repositoryStorage } from "../stack/index.ts";
-import { gitStorage } from "@destack/stack/object";
+import { github, repositoryStorage } from "../stack/index.ts";
 import { GITHUB_API } from "../github/index.ts";
 import { APP_ID, GITHUB_HOST, GitHubStandIn, githubPrivateKey, WEBHOOK_SECRET } from "./github.ts";
 
@@ -102,28 +99,6 @@ const TEMPLATE_TENANTS = 2;
 /** The tunnel the machines the fixture enrolls publish through the residency's relay. */
 const MACHINE_ORIGIN = "https://machine.relay.test/";
 
-/** The vault the residency's stack declares for the platform's secrets. */
-const PLATFORM_VAULT = defineVault({ name: "platform" });
-
-/** The forge as the machine ships it, beside the vault, with Git storage below its files. */
-export const FORGE: TestPackage = {
-    handle: forgePackage,
-    build: await testBuild(forgePackage, testHost().crypto, {
-        declared: [
-            {
-                kind: "setting",
-                kindPackageId: settingPackage.id,
-                name: github.name,
-                description: describeSetting(github),
-            },
-            ...TestVault.declarations([], Object.values(forgePackage.secrets)),
-        ],
-    }),
-    server: forgeServer,
-    connectors: [],
-    providers: [],
-};
-
 /** The connections and their vault of an account's home stack, as the platform declares them. */
 const HOME_STACK = {
     vaults: { credentials: connectionVault.provision() },
@@ -140,45 +115,12 @@ const HOME_STACK = {
 /** Where the fixture GitHub App's setup returns to after an installation. */
 const SETUP_URL = "https://forge.test/github/setup";
 
-/** The packages whose types the home's stack declares. */
-export const FORGE_HOME_TYPES = [vaultPackage, forgePackage, gitStorage] as const;
-
-/** The home's stack, as the residency's declares it: the forge with its resources and issuer. */
-export const FORGE_HOME_STACK = {
-    vaults: { platform: PLATFORM_VAULT.provision(), credentials: credentialVault.provision() },
-    gitStorages: { repositories: repositoryStorage.provision() },
-    issuers: { github: {} },
-    secrets: {
-        "github-webhook": { parent: "platform", name: "github-webhook" },
-        "github-private-key": { parent: "platform", name: "github-private-key" },
-    },
-    installations: {
-        vault: install(vaultPackage, {}, { isolation: "host", name: "vault" }),
-        forge: install(
-            forgePackage,
-            {
-                repositories: "repositories",
-                credentials: "credentials",
-                "github-webhook": "github-webhook",
-                "github-private-key": "github-private-key",
-            },
-            { name: FORGE_INSTALLATION },
-        ),
-    },
-};
-
-/** The residency's home template with vault, connection and forge. */
-export const FORGE_HOME_OPTIONS = {
+/** The residency's home template with vault, connection and forge, beside another residency. */
+export const FORGE_WORLD_OPTIONS = {
+    ...FORGE_HOME_OPTIONS,
     residencies: RESIDENCIES,
-    ...TestPackage.options([VAULT, CONNECTION, FORGE]),
-    tables: gitStorage.tables,
-    // replicate the connections the forge follows as its installation, beside its names and callers
-    follows: [{ shape: connectionShape, keys: [] }, claimFollow, standingFollow],
-    policies: Object.values(forgePackage.objects).map((object) => object.policy),
-    resources: (directory: string, environment: Environment<"files" | "process" | "host">) => ({
-        providers: [localGitProvider(directory, gitStorage, environment)],
-        connectors: [LocalGitStorage.connector(directory, environment)],
-    }),
+    // test the forge's own releases alone, without the machine kit's fixture package
+    isPublishingFixtures: false,
 };
 
 /** What the fixture's world shares: the forge installation in the residency's home. */
@@ -193,7 +135,7 @@ const ForgeWorld = schema.object({
 type ForgeWorld = schema.Infer<typeof ForgeWorld>;
 
 /** The template of the residency's home serving the forge and its GitHub App. */
-export const FORGE_TEMPLATE = TestSpace.template(FORGE_HOME_OPTIONS, {
+export const FORGE_TEMPLATE = TestSpace.template(FORGE_WORLD_OPTIONS, {
     name: "forge",
     value: ForgeWorld,
     spaces: [{ residency: RESIDENCY }],
@@ -201,7 +143,7 @@ export const FORGE_TEMPLATE = TestSpace.template(FORGE_HOME_OPTIONS, {
 });
 
 /** The forge's residency home beside a space of the fixture's account, which follows its forge. */
-export const FOLLOW_TEMPLATE = TestSpace.template(FORGE_HOME_OPTIONS, {
+export const FOLLOW_TEMPLATE = TestSpace.template(FORGE_WORLD_OPTIONS, {
     name: "forge-follow",
     value: ForgeWorld,
     spaces: [
@@ -299,7 +241,7 @@ export class TestForge {
     /** Serve a copy of the template's home with the forge installed, in a fork of its world. */
     static async open(): Promise<TestForge> {
         // copy the served home, with GitHub answering in its world
-        const { space: home, world } = await TestSpace.copy(FORGE_TEMPLATE, FORGE_HOME_OPTIONS);
+        const { space: home, world } = await TestSpace.copy(FORGE_TEMPLATE, FORGE_WORLD_OPTIONS);
         const standIn = TestForge.#github(home);
         const owner = home.universe.person(OWNER_EMAIL);
         const { installation, tenants } = world;
@@ -447,14 +389,11 @@ export class TestForge {
         // push its image
         const publisher = this.client(this.owner);
         const { id: packageId, version } = PackageManifest.package(reader.manifest);
-        const { local: name } = PackageName.split(reader.manifest.package.name);
         const image = await this.push(reader, this.owner, builds);
         await publisher.package.publish({
             spaceId: this.space,
             requestId: RequestId.create(this.environment),
-            packageId,
             accountId: ACCOUNT_ID,
-            name,
             visibility,
             image,
             commit: TEST_COMMIT,
@@ -473,7 +412,6 @@ export class TestForge {
     async release(
         input: {
             readonly parentId: PackageId;
-            readonly name: string;
             readonly accountId?: Identifier<"account">;
             readonly image: Digest;
             readonly requestId?: string;
@@ -487,9 +425,7 @@ export class TestForge {
         await client.package.publish({
             spaceId: this.space,
             requestId: input.requestId ?? RequestId.create(this.environment),
-            packageId: input.parentId,
             accountId: input.accountId ?? ACCOUNT_ID,
-            name: input.name,
             image: input.image,
             ...(input.commit === undefined ? {} : { commit: input.commit }),
             ...(input.tag === undefined ? {} : { tag: input.tag }),
@@ -500,6 +436,27 @@ export class TestForge {
             parentId: input.parentId,
             release: input.tag ?? LATEST_TAG,
         });
+    }
+
+    /** Push a stored image as the owner, then publish the account's packages in it under a tag. */
+    async publishImage(
+        store: BuildStore,
+        image: Digest,
+        tag: string,
+        options: Pick<MethodInput<typeof packageObject, "publish">, "commit" | "tags"> = {},
+    ): Promise<readonly PackageRelease[]> {
+        // push the image's objects below the account's handle, then publish once
+        await this.builds(ACCOUNT_HANDLE).push(store, [image]);
+        const published = await this.client(this.owner).package.publish({
+            spaceId: this.space,
+            requestId: RequestId.create(this.environment),
+            accountId: ACCOUNT_ID,
+            image,
+            tag,
+            ...options,
+        });
+
+        return published.releases;
     }
 
     /** Push a build in an image with the builds it runs with, answering the image's digest. */
@@ -527,10 +484,10 @@ export class TestForge {
     }
 
     /** Connect to the forge's uploads below an account's handle as a person, the owner first. */
-    builds(handle: string, person: TestPerson = this.owner): PackageClient {
+    builds(handle: string, person: TestPerson = this.owner): RemoteBuildStore {
         const { url, fetch } = this.endpoint(person);
 
-        return new PackageClient(`${url}${forgePackage.mounts.builds.path}/${handle}/`, fetch);
+        return new RemoteBuildStore(`${url}${forgePackage.mounts.builds.path}/${handle}/`, fetch);
     }
 
     /** Open the store of builds and npm archives in the forge home's blobs. */

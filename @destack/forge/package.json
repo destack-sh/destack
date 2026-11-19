@@ -21,7 +21,6 @@
         "@destack/db": "workspace:*",
         "@destack/environment": "workspace:*",
         "@destack/error": "workspace:*",
-        "@destack/event": "workspace:*",
         "@destack/git": "workspace:*",
         "@destack/locale": "workspace:*",
         "@destack/object": "workspace:*",
@@ -38,7 +37,6 @@
     },
     "devDependencies": {
         "@destack/check": "workspace:*",
-        "@destack/identity": "workspace:*",
         "@destack/machine": "workspace:*",
         "@destack/test": "workspace:*",
         "@types/bun": "1.4.4"
