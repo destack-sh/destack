@@ -95,6 +95,7 @@ Its code is an HTTP status name, and an error without a reason gets the `http` d
 | `Failure.status(failure)`      | reads the HTTP status of its code                                       |
 | `Failure.isDeclared(error)`    | reports whether a thrown value has a failure other than an internal one |
 | `Failure.isTransient(failure)` | reports whether a later attempt may succeed                             |
+| `Failure.isRefusal(error)`     | reports whether a thrown value is declared and no retry succeeds        |
 
 `isTransient` answers yes for `CONFLICT`, `MOVED` and `UNAVAILABLE`, and for `EXHAUSTED` only with a `retryAfter` in its data, as in AIP-194.
 

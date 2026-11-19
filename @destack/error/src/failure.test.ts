@@ -163,6 +163,19 @@ test("declare domain, call, connection and status errors, and leave programming 
     ).toEqual([true, true, true, true, true, false, false, false, false]);
 });
 
+test("refuse for good with a declared failure no retry fixes, and leave lost, transient and undeclared failures to a retry", () => {
+    const forbidden = Object.assign(new Error("no"), { status: 403 });
+    const unavailable = Object.assign(new Error("starting"), { status: 503 });
+    const reset = Object.assign(new Error("reset"), { code: "ECONNRESET" });
+    const lost = new Error("network connection lost");
+
+    expect(
+        [new NoteError("missing"), forbidden, unavailable, reset, lost, "text"].map((error) =>
+            Failure.isRefusal(error),
+        ),
+    ).toEqual([true, true, false, false, false, false]);
+});
+
 test("describe a failure without a package's reason as HTTP's, its code its reason", () => {
     expect(Failure.http("NOT_FOUND", "no note")).toEqual({
         code: "NOT_FOUND",

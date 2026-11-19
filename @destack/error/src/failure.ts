@@ -84,6 +84,15 @@ export const Failure = Object.assign(failureSchema, {
         return failure !== undefined && failure.code !== "INTERNAL_SERVER_ERROR";
     },
 
+    /** Report whether a thrown value refuses for good: declared, and no later attempt succeeds. */
+    isRefusal(error: unknown): error is Error {
+        return (
+            error instanceof Error &&
+            Failure.isDeclared(error) &&
+            !Failure.isTransient(Failure.of(error))
+        );
+    },
+
     /** Report whether a later attempt may succeed, by the reason's condition, else by the code. */
     isTransient(failure: Pick<Failure, "code" | "reason" | "data">): boolean {
         const condition = ErrorCondition.find(failure.reason);
