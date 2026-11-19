@@ -192,6 +192,11 @@ export class WorkloadInstance implements AsyncDisposable {
         this.#controller.abort();
     }
 
+    /** Stop the current start's controllers at once, its servers serving until they drain. */
+    stopControllers(): Promise<void> {
+        return this.#current.stopControllers();
+    }
+
     /** Run every server's due controllers at the host's wake-up, which set their next wake-ups. */
     async alarm(deadline: number): Promise<void> {
         // run them without a clock, else as the clock fires, since its wake-ups live in memory

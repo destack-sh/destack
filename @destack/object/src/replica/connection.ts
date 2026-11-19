@@ -1,4 +1,5 @@
 import type * as sync from "@destack/sync";
+import { Failure } from "@destack/error";
 import { Subject, SyncError } from "@destack/sync";
 import { Bearer } from "@destack/access/token";
 import { type Identifier, type JsonObject, type JsonValue, present, schema } from "@destack/schema";
@@ -428,7 +429,16 @@ class StoreSocket {
 
     /** Read the socket open now, opening one once the last closed. */
     #opening(): Promise<Opened> {
-        this.#opened ??= this.#open();
+        // take the socket opening already, else open one, forgetting an open that fails before its socket
+        if (this.#opened === undefined) {
+            const opening = this.#open();
+            this.#opened = opening;
+            opening.catch(() => {
+                if (this.#opened === opening) {
+                    this.#opened = undefined;
+                }
+            });
+        }
 
         return this.#opened;
     }
@@ -438,7 +448,17 @@ class StoreSocket {
         // open where the store is now, offering its protocol and the caller's bearer token
         const { environment } = this.#options;
         const located = await this.#locate();
-        const token = await this.#token(located);
+        const token = await this.#token(located).catch((error: unknown) => {
+            // read an exchange that failed without a refusal, such as over a lost network, as a lost connection
+            if (!Failure.isRefusal(error)) {
+                throw SyncError.of(
+                    "CONNECTION_UNAVAILABLE",
+                    `connection is unavailable: the credential for '${located}' did not arrive: ${Failure.of(error).message}`,
+                    { cause: error },
+                );
+            }
+            throw error;
+        });
         const protocols = [
             CONNECTION_PROTOCOL,
             ...(token === undefined ? [] : [BearerProtocol.write(token)]),

@@ -135,6 +135,48 @@ test("fail a dropped socket's follows as unavailable, and open a new socket at t
     });
 });
 
+test("open a socket anew at the next call after an open that failed before its socket", async () => {
+    // connect alice through a credential exchange that loses its connection once, as a restarting issuer does
+    const served = await serveNotes();
+    const authorize = served.authorize(users.alice);
+    const websocket = served.websocket(users.alice);
+    const opened: ClientSocket[] = [];
+    let isLost = true;
+    const connection = ObjectConnection.open({
+        scope: spaceId,
+        url: TEST_CONNECTION_URL,
+        authorize: async (request) => {
+            if (isLost) {
+                isLost = false;
+                throw new TypeError("network connection lost");
+            }
+
+            return await authorize(request);
+        },
+        websocket: (url, protocols) => {
+            const socket = websocket(url, protocols);
+            opened.push(socket);
+
+            return socket;
+        },
+        environment: served.environment,
+    });
+
+    // fail the first call as a lost connection before any socket, then answer the next over the one socket it opens
+    const lost = await refusal(connection.store.watermark({ scope: spaceId, homes: [] }));
+    await connection.store.watermark({ scope: spaceId, homes: [] });
+    connection.close();
+
+    expect({ lost, sockets: opened.length }).toEqual({
+        lost: [
+            "SERVICE_UNAVAILABLE",
+            "CONNECTION_UNAVAILABLE",
+            `connection is unavailable: the credential for '${TEST_CONNECTION_URL}' did not arrive: network connection lost`,
+        ],
+        sockets: 1,
+    });
+});
+
 test("keep a socket open past its credential's lapse, its calls answering as before", async () => {
     const { served, connection, opened } = await connect();
     const stopping = new AbortController();
