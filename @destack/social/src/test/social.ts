@@ -5,7 +5,7 @@ import { type Simulation, type SimulatedClock } from "@destack/environment/simul
 import { notification } from "@destack/notification/object";
 import { TestNotification } from "@destack/notification/test";
 import { ObjectType } from "@destack/object";
-import { ObjectClient, ProcedureRemote } from "@destack/object/client";
+import { ObjectClient } from "@destack/object/client";
 import { type TestCaller, testBuild } from "@destack/object/test";
 import { PackageVersion } from "@destack/package";
 import { MemoryBuild } from "@destack/package/test";
@@ -57,7 +57,7 @@ export const PACKAGES: readonly TestPackage[] = [
 /** The agent package, whose installation comments and reacts beside the people. */
 const AGENT = PackageVersion.parse({
     id: "package-019f5530-8000-7000-8000-0000000000e3",
-    name: "@example/agent",
+    name: "@acme/agent",
     version: "2026.10.0",
 });
 
@@ -262,16 +262,7 @@ export class TestSocial implements AsyncDisposable {
             objects: { presence },
             scope: ids.space,
             caller: caller.subject,
-            remote: ProcedureRemote.at({
-                scope: ids.space,
-                endpoint: caller.endpoint(socialPackage),
-                reconnect: (machine) => {
-                    throw new TypeError(
-                        `no scope moves in this test, yet one moved to '${machine}'`,
-                    );
-                },
-                environment,
-            }),
+            remote: caller.connect(socialPackage, { scope: ids.space }),
         });
 
         // keep the follower until the fixture closes, reading its rows under the simulation
