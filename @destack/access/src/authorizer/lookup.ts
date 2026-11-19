@@ -386,19 +386,25 @@ export class Lookup {
         )`;
     }
 
-    /** Reach the rows below one of the hop's identifiers in a relation's ancestor index. */
+    /** Reach the rows below one of the hop's identifiers, walking the relation's column down. */
     #descending(relation: string, mapping: TableMapping, row: Table, values: SQL): SQL {
-        // match an ancestor of the row in the relation's index among the hop's identifiers
-        const tree = TableMapping.tree(mapping, relation);
-        this.#record(tree.ancestors);
-        const ancestor = alias(tree.ancestors, "access_candidate_ancestor");
+        // walk down from the hop's identifiers through the relation's column, a cycle ending the walk
+        const { column } = TableMapping.field(mapping, relation);
+        this.#record(mapping.table);
+        const step = alias(mapping.table, "access_candidate_step");
+        const below = sql.identifier("access_candidate_below");
+        const reached = sql`SELECT ${TableMapping.scopeColumn(step, mapping)} AS scope, ${TableMapping.column(step, mapping.id)} AS id FROM ${from(step)}`;
 
+        // match the row among the rows the walk reached
         return sql`EXISTS (
-            SELECT 1 FROM ${from(ancestor)}
-            WHERE ${ancestor.scope} = ${TableMapping.scopeColumn(row, mapping)}
-                AND ${ancestor.descendant} = ${TableMapping.column(row, mapping.id)}
-                AND ${ancestor.depth} > 0
-                AND ${listed(ancestor.ancestor, values)}
+            WITH RECURSIVE ${below}(scope, id) AS (
+                ${reached} WHERE ${listed(TableMapping.column(step, column), values)}
+                UNION ${reached} INNER JOIN ${below} ON ${TableMapping.column(step, column)} = ${below}.id
+                    AND ${TableMapping.scopeColumn(step, mapping)} = ${below}.scope
+            )
+            SELECT 1 FROM ${below}
+            WHERE ${below}.scope = ${TableMapping.scopeColumn(row, mapping)}
+                AND ${below}.id = ${TableMapping.column(row, mapping.id)}
         )`;
     }
 
@@ -426,7 +432,7 @@ export class Lookup {
         if (bound.length > 0) {
             const values = sql`${JSON.stringify(bound)}`;
             arrows.push(listed(id, values));
-            for (const relation of Object.keys(mapping.trees ?? {})) {
+            for (const relation of TableMapping.selfRelations(mapping)) {
                 arrows.push(this.#descending(relation, mapping, row, values));
             }
         }

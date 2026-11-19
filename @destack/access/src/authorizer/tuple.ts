@@ -258,10 +258,10 @@ export class Reader {
         )) {
             const ids = within.map((row) => TableMapping.text(row, mapping.id));
             const ancestors = new Set<string>();
-            for (const [relation, tree] of Object.entries(mapping.trees ?? {})) {
+            for (const relation of TableMapping.selfRelations(mapping)) {
                 const byDescendant = new Map<string, string[]>(ids.map((id) => [id, []]));
                 for (const chunk of Reader.#chunks(ids)) {
-                    for (const entry of await tree.ancestry(this.#snapshot, scope, chunk)) {
+                    for (const entry of await this.#walkUp(mapping, relation, scope, chunk)) {
                         found(byDescendant, entry.descendant).push(entry.ancestor);
                         ancestors.add(entry.ancestor);
                     }
@@ -977,10 +977,9 @@ export class Reader {
             Relationship.isBinding(relationship),
         );
         const parent = mapping.parent;
-        const tree = parent === undefined ? undefined : mapping.trees?.[parent];
 
         // read the bindings on tree ancestors
-        if (parent !== undefined && tree !== undefined) {
+        if (parent !== undefined && TableMapping.selfRelations(mapping).includes(parent)) {
             const ancestors = await this.#ancestors(mapping, parent, row);
             const scope = TableMapping.scope(mapping, row);
             const above = await Promise.all(
@@ -1136,10 +1135,52 @@ export class Reader {
         ]);
     }
 
+    /** Walk some rows' self relation up within a scope, each ancestor once, the nearest first. */
+    async #walkUp(
+        mapping: TableMapping,
+        relation: string,
+        scope: string,
+        ids: readonly string[],
+    ): Promise<{ readonly descendant: string; readonly ancestor: string }[]> {
+        // key the rows by their scope and identity, the identity alone for a global type
+        const { column } = TableMapping.field(mapping, relation);
+        const keys = mapping.scope === undefined ? [mapping.id] : [mapping.scope, mapping.id];
+        const tuple = (id: string) => (mapping.scope === undefined ? [id] : [scope, id]);
+
+        // step every walk to the parent its row names, ending at a root or a cycle
+        const entries: { descendant: string; ancestor: string }[] = [];
+        const seen = new Map(ids.map((id) => [id, new Set([id])]));
+        let frontier = ids.map((id) => ({ descendant: id, at: id }));
+        while (frontier.length > 0) {
+            // read the frontier's rows and take the parents not seen on their walk
+            const rows = await this.#snapshot.select(
+                mapping.table,
+                keys,
+                frontier.map(({ at }) => tuple(at)),
+            );
+            const parents = new Map(
+                rows.map((row) => [TableMapping.text(row, mapping.id), row[column]]),
+            );
+            frontier = frontier.flatMap(({ descendant, at }) => {
+                // step to an unseen parent, else end the walk
+                const above = parents.get(at);
+                const visited = found(seen, descendant);
+                if (typeof above !== "string" || visited.has(above)) {
+                    return [];
+                }
+                visited.add(above);
+
+                return [{ descendant, at: above }];
+            });
+            entries.push(...frontier.map(({ descendant, at }) => ({ descendant, ancestor: at })));
+        }
+
+        return entries;
+    }
+
     /** Read the identifiers of a row's proper ancestors through a tree. */
     async #ancestors(mapping: TableMapping, relation: string, row: Row): Promise<string[]> {
         // reuse the ancestry read before
-        const tree = TableMapping.tree(mapping, relation);
         const key = Reader.#ancestryKey(
             relation,
             TableMapping.scope(mapping, row),
@@ -1153,7 +1194,7 @@ export class Reader {
         // read the node's proper ancestors
         const read = (async () =>
             (
-                await tree.ancestry(this.#snapshot, TableMapping.scope(mapping, row), [
+                await this.#walkUp(mapping, relation, TableMapping.scope(mapping, row), [
                     TableMapping.text(row, mapping.id),
                 ])
             ).map((entry) => entry.ancestor))();

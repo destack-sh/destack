@@ -1,14 +1,4 @@
-import {
-    defineDatabase,
-    defineTable,
-    index,
-    integer,
-    TABLE,
-    text,
-    sql,
-    type Tree,
-    textEnum,
-} from "@destack/db";
+import { defineDatabase, defineTable, index, integer, text, sql, textEnum } from "@destack/db";
 import {
     none,
     Policy,
@@ -266,9 +256,6 @@ export const spaceTable = defineTable("example_space", {
     account: text("account").notNull(),
 });
 
-/** The ancestor index over the items' parent column. */
-export const nodeTree = requireTree(item[TABLE].tree);
-
 /** Policies a scope sets for itself or requires of the scopes inside it. */
 export const policy = new Policy(module4.package, { name: "policy", permissions: {} });
 
@@ -305,7 +292,6 @@ export const mappings: TableMapping[] = [
             owner: { column: "owner", scope: "universe" },
             ...(type === node ? { parent: { column: "parent" } } : {}),
         },
-        trees: type === node ? { parent: nodeTree } : {},
     })),
 ];
 
@@ -391,12 +377,3 @@ export const rows = [
         protected: 0,
     },
 ];
-
-/** Require the tree a table declares. */
-function requireTree(declared: Tree | undefined): Tree {
-    if (declared === undefined) {
-        throw new TypeError("the item table has no tree");
-    }
-
-    return declared;
-}

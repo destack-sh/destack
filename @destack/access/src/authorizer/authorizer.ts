@@ -2118,11 +2118,11 @@ export class Authorizer {
             } else if (
                 expression.kind === "through" &&
                 expression.transitive &&
-                mapping.trees?.[expression.relation] === undefined
+                !TableMapping.selfRelations(mapping).includes(expression.relation)
             ) {
                 throw AccessError.of(
                     "DECLARATION_BROKEN",
-                    `missing tree mapping: '${expression.relation}'`,
+                    `transitive relation '${expression.relation}' is invalid: it must relate the type to itself`,
                 );
             } else if (
                 (expression.kind === "granters" || expression.kind === "readers") &&

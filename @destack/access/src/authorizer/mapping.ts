@@ -9,7 +9,6 @@ import {
     type SQLWrapper,
     type Snapshot,
     type Table,
-    type Tree,
     type Row,
 } from "@destack/db";
 import type { PackageId } from "@destack/package";
@@ -61,8 +60,6 @@ export interface TableMapping {
     >;
     /** The columns that refer to another object of any type, for `grants` expressions. */
     readonly references?: Readonly<Record<string, ReferenceColumns>>;
-    /** Engine-maintained ancestor indexes for explicitly transitive relations. */
-    readonly trees?: Readonly<Record<string, Tree>>;
     /** The relation to the owner parent, whose role bindings cover this object. */
     readonly parent?: string;
 }
@@ -117,12 +114,11 @@ export const TableMapping = {
 
     /** Check mapped columns against their declared attribute and relation types. */
     validate(authorizer: Authorizer, mapping: TableMapping): void {
-        // check the columns and the relations, trees and parent against the policy
+        // check the columns and the relations and parent against the policy
         TableMapping.validateKeys(mapping);
         TableMapping.validateAttributes(mapping);
         TableMapping.validateReferenceColumns(mapping);
         TableMapping.validateRelations(authorizer, mapping);
-        TableMapping.validateTrees(authorizer, mapping);
         TableMapping.validateParent(authorizer, mapping);
     },
 
@@ -232,31 +228,6 @@ export const TableMapping = {
         }
     },
 
-    /** Require each ancestor index to maintain this table's declared self relation. */
-    validateTrees(authorizer: Authorizer, mapping: TableMapping): void {
-        const definition = mapping.policy.definition;
-        for (const [name, tree] of Object.entries(mapping.trees ?? {})) {
-            const field = mapping.relations[name];
-            const [subject] = authorizer.relation(mapping.policy, name).subjects;
-            if (
-                !field ||
-                subject === undefined ||
-                field.scope !== undefined ||
-                subject.packageId !== definition.packageId ||
-                subject.type !== definition.name ||
-                tree.definition.table !== mapping.table ||
-                tree.definition.parent !== field.column ||
-                tree.definition.id !== mapping.id ||
-                tree.definition.scope !== mapping.scope
-            ) {
-                throw AccessError.of(
-                    "DECLARATION_BROKEN",
-                    `tree mapping '${name}' does not match the declaration`,
-                );
-            }
-        }
-    },
-
     /** Require the owner parent to be a field relation of one subject type. */
     validateParent(authorizer: Authorizer, mapping: TableMapping): void {
         // refuse a parent stored as relationships
@@ -289,7 +260,6 @@ export const TableMapping = {
             ...(mapping.references === undefined
                 ? {}
                 : { references: Object.freeze({ ...mapping.references }) }),
-            ...(mapping.trees === undefined ? {} : { trees: Object.freeze({ ...mapping.trees }) }),
         });
     },
 
@@ -363,16 +333,24 @@ export const TableMapping = {
         return mapped;
     },
 
-    /** Read the ancestor index of a mapping's self relation, refusing a relation without one. */
-    tree(mapping: TableMapping, relation: string): Tree {
-        // require the declared index
-        const trees = mapping.trees ?? {};
-        const tree = Object.hasOwn(trees, relation) ? trees[relation] : undefined;
-        if (tree === undefined) {
-            throw AccessError.of("DECLARATION_BROKEN", `'${relation}' has no ancestor index`);
-        }
+    /** List the field relations to the mapping's own type, which access walks up and down. */
+    selfRelations(mapping: TableMapping): string[] {
+        const definition = mapping.policy.definition;
 
-        return tree;
+        return Object.entries(mapping.relations).flatMap(([name, field]) => {
+            // take a field relation whose one subject type is the mapping's own
+            const subjects = Object.hasOwn(definition.relations, name)
+                ? definition.relations[name]?.subjects
+                : undefined;
+            const [subject] = subjects ?? [];
+            const isSelf =
+                field.scope === undefined &&
+                subjects?.length === 1 &&
+                subject?.packageId === definition.packageId &&
+                subject.type === definition.name;
+
+            return isSelf ? [name] : [];
+        });
     },
 
     /** Read the field storing a mapping's relation, refusing a relation without one. */
