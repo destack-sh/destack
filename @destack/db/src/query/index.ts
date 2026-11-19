@@ -19,3 +19,4 @@ export * from "./relation.ts";
 export * from "./option.ts";
 export * from "./model.ts";
 export { ModelQueryBuilder, type Queries } from "./find.ts";
+export * from "./now.ts";

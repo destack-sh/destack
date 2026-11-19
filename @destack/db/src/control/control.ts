@@ -4,7 +4,8 @@ import { Lock, lock } from "../limit/index.ts";
 import type { Tracker } from "../tracker/index.ts";
 import { Change, LogColumn, type LogCursor } from "../log/index.ts";
 import { LOG, LOG_CHECKPOINT } from "../log/schema.ts";
-import { and, eq, gt, gte, lte, min, or, Placeholder, type SQL, sql } from "../sql/index.ts";
+import { and, eq, gt, gte, lte, min, or, type SQL, sql } from "../sql/index.ts";
+import { now, Now } from "../query/now.ts";
 import {
     Condition,
     type Match,
@@ -22,7 +23,7 @@ import {
     type Select,
     type Table,
 } from "../table/index.ts";
-import { canonicalize, Duration, found, nth, present, schema, Uuid } from "@destack/schema";
+import { canonicalize, found, nth, present, schema, Uuid } from "@destack/schema";
 import { type Link, TelemetryScope } from "@destack/telemetry";
 import type {} from "@destack/package/import-meta";
 import { PackageName } from "@destack/package";
@@ -85,57 +86,6 @@ const POSITION_INTERVAL_MILLISECONDS = 5000;
 
 /** The key of a cursor's one checkpoint. */
 const ONE_CHECKPOINT = "";
-
-/** Microseconds per millisecond. */
-const MICROSECONDS_PER_MILLISECOND = 1000;
-
-/** The prefix of the placeholders that read the loop's time, followed by their scale and offset. */
-const NOW = "now";
-
-/** The time a pending condition compares a field to, at an offset in milliseconds. */
-export class Now extends Placeholder {
-    /** The offset from the loop's time, in milliseconds. */
-    readonly offset: number;
-    /** The compared field's units per millisecond: 1 for milliseconds, 1,000 for microseconds. */
-    readonly scale: number;
-
-    /** Read the loop's time at an offset, in a field's units. */
-    constructor(offset = 0, scale = 1) {
-        super(`${NOW}${String(scale)}_${String(offset)}`);
-        this.offset = offset;
-        this.scale = scale;
-    }
-
-    /** Read the loop's time a duration earlier. */
-    minus(duration: Duration): Now {
-        return new Now(this.offset - Duration.milliseconds(duration), this.scale);
-    }
-
-    /** Read the loop's time a duration later. */
-    plus(duration: Duration): Now {
-        return new Now(this.offset + Duration.milliseconds(duration), this.scale);
-    }
-
-    /** Read the loop's time in microseconds, for fields such as event times. */
-    microseconds(): Now {
-        return new Now(this.offset, MICROSECONDS_PER_MILLISECOND);
-    }
-
-    /** Bind the time at a loop's time in the field's units. */
-    at(time: number): number {
-        return (time + this.offset) * this.scale;
-    }
-
-    /** Read the loop's time at which a field's value comes due, inclusive or after it. */
-    due(value: number, isInclusive: boolean): number {
-        return isInclusive
-            ? Math.ceil(value / this.scale) - this.offset
-            : Math.floor(value / this.scale) - this.offset + 1;
-    }
-}
-
-/** The loop's time, which pending conditions compare time fields to. */
-export const now = new Now();
 
 /** The fields that group a controller's rows into one key, in JSON form. */
 export type KeyFields = Readonly<Record<string, Scalar>>;
@@ -828,7 +778,12 @@ export class ControlLoop {
             );
         }
 
-        return Object.fromEntries([...compiled.times].map(([name, time]) => [name, time.at(at)]));
+        return Object.fromEntries(
+            [...compiled.times].map(([name, time]) => [
+                name,
+                time.at({ now: at, timeZone: "UTC" }),
+            ]),
+        );
     }
 
     /** Report whether a row matches a compiled condition with the loop's time bound. */
@@ -1490,7 +1445,7 @@ export class ControlLoop {
         this.#wakes.delete(controller);
         for (const term of compiled.terms) {
             const column = table[TABLE].column(term.field);
-            const bound = term.now.at(at);
+            const bound = term.now.at({ now: at, timeZone: "UTC" });
             const rest = Predicate.render(
                 Condition.resolve(controller.pending, Namespace.fields(table)),
                 Predicate.bind(table, this.#bound(compiled, undefined)),

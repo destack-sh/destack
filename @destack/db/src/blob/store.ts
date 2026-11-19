@@ -12,7 +12,8 @@ import { index } from "../table/constraint.ts";
 import { boolean, integer, text } from "../table/column.ts";
 import type { BlobEntry, BlobPlacement, BlobStorage, ContentStore } from "@destack/resource";
 import { canonicalize, Digest, type JsonValue, nth, present, schema } from "@destack/schema";
-import { type Controller, Now } from "../control/control.ts";
+import type { Controller } from "../control/control.ts";
+import { Now } from "../query/now.ts";
 
 /** How long a store leases what it writes for a row to reference, by default: half an hour. */
 const LEASE_MILLISECONDS = 30 * 60_000;

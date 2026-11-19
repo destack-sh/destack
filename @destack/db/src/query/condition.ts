@@ -1,10 +1,11 @@
-import { schema } from "@destack/schema";
+import { type JsonValue, schema } from "@destack/schema";
 import type { JsonOf } from "../table/column.ts";
 import { DatabaseError } from "../error/error.ts";
 import { SearchText } from "../search/text.ts";
 import { Predicate } from "./predicate.ts";
 import { Namespace } from "./namespace.ts";
 import { Placeholder, type SQL } from "../sql/index.ts";
+import { type Moment, Now } from "./now.ts";
 import type { Table } from "../table/table.ts";
 
 /** The most terms one condition has. */
@@ -186,7 +187,77 @@ export const Condition = {
     render,
     is,
     conjuncts,
+    at,
+    json,
+    matches,
 };
+
+/** Decide a condition on a table row in memory, its times bound to a moment, absence as null. */
+function matches(
+    condition: OpenCondition,
+    table: Table,
+    row: Readonly<Record<string, JsonValue | undefined>>,
+    moment: Moment,
+): boolean {
+    const columns = Object.fromEntries(
+        Object.entries(row).map(([name, value]) => [name, value ?? null]),
+    );
+    const predicate = resolve(at(condition, moment), Namespace.fields(table));
+
+    return Predicate.matches(Predicate.compile(predicate, table), columns);
+}
+
+/** Write a condition in JSON form, each placeholder as `{ placeholder }`. */
+function json(condition: OpenCondition): JsonCondition {
+    return conditionSchema.parse(encoded(condition));
+}
+
+/** Write a condition's entry in JSON form. */
+function encoded(entry: unknown): unknown {
+    // write a placeholder by its name, and each entry of a list or a condition
+    if (entry instanceof Placeholder) {
+        return { placeholder: schema.string().parse(entry.placeholder) };
+    } else if (Array.isArray(entry)) {
+        return entry.map((each: unknown) => encoded(each));
+    } else if (isRecord(entry)) {
+        return Object.fromEntries(Object.entries(entry).map(([key, each]) => [key, encoded(each)]));
+    }
+
+    return entry;
+}
+
+/** Bind a condition's times to a moment, each `Now` as its literal, other placeholders left. */
+function at(condition: OpenCondition, moment: Moment): JsonCondition {
+    return conditionSchema.parse(bound(condition, moment));
+}
+
+/** Bind the times in a condition's entry to a moment. */
+function bound(entry: unknown, moment: Moment): unknown {
+    // read a placeholder in memory or in its JSON form as a time, binding it when it is one
+    const name: string | undefined =
+        entry instanceof Placeholder
+            ? schema.string().parse(entry.placeholder)
+            : isRecord(entry) && Object.keys(entry).length === 1 && isText(entry["placeholder"])
+              ? entry["placeholder"]
+              : undefined;
+    const time = entry instanceof Now ? entry : name === undefined ? undefined : Now.parse(name);
+    if (time !== undefined) {
+        return time.at(moment);
+    } else if (name !== undefined) {
+        return { placeholder: name };
+    }
+
+    // bind each entry of a list or a condition
+    if (Array.isArray(entry)) {
+        return entry.map((each: unknown) => bound(each, moment));
+    } else if (isRecord(entry)) {
+        return Object.fromEntries(
+            Object.entries(entry).map(([key, each]) => [key, bound(each, moment)]),
+        );
+    }
+
+    return entry;
+}
 
 /** Report whether a condition's entry is itself a condition, as in combinations and negations. */
 function is(entry: unknown): entry is JsonCondition {
