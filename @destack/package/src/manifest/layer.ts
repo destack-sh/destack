@@ -182,7 +182,7 @@ const ASSETS_ORIGIN = "https://assets.invalid";
 /** Where a layer's files lie: a directory on disk, or the static assets a Worker version ships. */
 type LayerSource =
     | {
-          /** A directory on disk, which runtimes run builds in place from. */
+          /** A directory on disk. */
           readonly kind: "directory";
           /** The directory. */
           readonly directory: string;
@@ -363,16 +363,6 @@ export class BuildLayer {
         }
 
         return opened;
-    }
-
-    /** Find a layered build's directory or an image's run directory, absent off disk. */
-    directory(digest: Digest): string | undefined {
-        const source = this.#source;
-        const isLayered = this.hasBuild(digest) || Object.hasOwn(this.#index.images, digest);
-
-        return source?.kind === "directory" && isLayered
-            ? source.environment.files.join(source.directory, digest)
-            : undefined;
     }
 
     /** Find where a layered file lies on disk, absent outside the layer or off disk. */
