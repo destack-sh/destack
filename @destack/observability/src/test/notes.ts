@@ -11,7 +11,7 @@ import { argument, plural, t } from "@destack/locale";
 /** The notes application, whose builds the test space installs and whose failures it groups. */
 export const NOTES = PackageVersion.parse({
     id: "package-01996ab0-0000-7000-8000-0000000000b4",
-    name: "@example/notes",
+    name: "@acme/notebook",
     version: "2026.9.0",
 });
 
@@ -53,8 +53,14 @@ function encode(value: string): Uint8Array<ArrayBuffer> {
 export const TestNotes = {
     /** Write the notes build: a workload whose source map points into `Note.rename`. */
     async build(): Promise<BuildReader> {
-        // keep the source, the workload and its source map, generated 1:0 mapping to note.ts 3:8
+        // keep the package file, the source, the workload and its source map, generated 1:0 mapping to note.ts 3:8
         const files = new Map<string, Uint8Array<ArrayBuffer>>([
+            [
+                "package.json",
+                encode(
+                    JSON.stringify({ name: NOTES.name, version: NOTES.version, type: "module" }),
+                ),
+            ],
             [NOTE_MODULE, encode(NOTE_SOURCE)],
             ["output/bun/workload.js", encode("export {};\n")],
             [
