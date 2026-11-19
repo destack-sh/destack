@@ -51,7 +51,17 @@ export class BunProcess implements Process {
 
     /** The standard input, read from its first access on. */
     get stdin(): Input {
-        this.#stdin ??= { readable: Bun.stdin.stream(), isTerminal: process.stdin.isTTY };
+        this.#stdin ??= {
+            readable: Bun.stdin.stream(),
+            isTerminal: process.stdin.isTTY,
+            setRawMode: (isRaw) => {
+                // switch a terminal's mode, refusing a pipe, which has none
+                if (!process.stdin.isTTY) {
+                    throw new TypeError("standard input is invalid: it is no terminal");
+                }
+                process.stdin.setRawMode(isRaw);
+            },
+        };
 
         return this.#stdin;
     }
@@ -406,6 +416,12 @@ export class BunProcess implements Process {
                 writeSync(descriptor, typeof chunk === "string" ? Buffer.from(chunk) : chunk);
             },
             isTerminal: stream.isTTY,
+            get columns() {
+                return stream.isTTY ? stream.columns : undefined;
+            },
+            get rows() {
+                return stream.isTTY ? stream.rows : undefined;
+            },
         };
     }
 

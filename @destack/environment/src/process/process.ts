@@ -25,6 +25,8 @@ export interface Input {
     readonly readable: ReadableStream<Uint8Array>;
     /** Whether a terminal is attached. */
     readonly isTerminal: boolean;
+    /** Read a terminal's keys one at a time without echo, or its lines again, refusing a pipe. */
+    readonly setRawMode: (isRaw: boolean) => void;
 }
 
 /** A standard stream a process writes. */
@@ -35,6 +37,10 @@ export interface Output {
     readonly writeSync: (chunk: string | Uint8Array) => void;
     /** Whether a terminal is attached. */
     readonly isTerminal: boolean;
+    /** The terminal's width in characters as it stands now, absent without a terminal. */
+    readonly columns: number | undefined;
+    /** The terminal's height in lines as it stands now, absent without a terminal. */
+    readonly rows: number | undefined;
 }
 
 /** The runtime running a process, as Bun describes itself. */

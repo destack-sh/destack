@@ -16,6 +16,12 @@ import {
     Subprocess,
 } from "./process.ts";
 
+/** The width a simulated terminal reports: 80 columns, the VT100's. */
+const SIMULATED_COLUMNS = 80;
+
+/** The height a simulated terminal reports: 24 lines, the VT100's. */
+const SIMULATED_ROWS = 24;
+
 /** The process a simulation gives a node: its arguments, variables and working directory. */
 export interface ProcessOptions {
     /** The arguments after the executable and the script. */
@@ -113,7 +119,16 @@ export class SimulatedProcess implements Process {
                           controller.close();
                       },
                   });
-        this.stdin = { readable, isTerminal };
+        this.stdin = {
+            readable,
+            isTerminal,
+            setRawMode: () => {
+                // refuse a pipe, as a real process does
+                if (!isTerminal) {
+                    throw new TypeError("standard input is invalid: it is no terminal");
+                }
+            },
+        };
         this.stdout = SimulatedProcess.#output(isTerminal);
         this.stderr = SimulatedProcess.#output(isTerminal);
     }
@@ -298,6 +313,8 @@ export class SimulatedProcess implements Process {
             write: async (chunk) => writeSync(chunk),
             writeSync,
             isTerminal,
+            columns: isTerminal ? SIMULATED_COLUMNS : undefined,
+            rows: isTerminal ? SIMULATED_ROWS : undefined,
             chunks,
         };
     }
