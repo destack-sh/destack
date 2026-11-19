@@ -17,7 +17,7 @@ import {
     or,
     type SQLWrapper,
 } from "@destack/db";
-import { DependencyName, type DependencyRelease, graph } from "@destack/package";
+import { DependencyName, type DependencyRelease, graph, type PackageId } from "@destack/package";
 import { PackageFile } from "@destack/package/file";
 import {
     BuildLayer,
@@ -235,16 +235,8 @@ export interface BuildStoreOptions<StoreEnvironment, Storage extends BlobStorage
     readonly leaseMilliseconds?: number;
     /** The stores read through, in order, for builds, images and files this store lacks. */
     readonly sources?: readonly BuildStore[];
-    /** Pull a build's file this store and its sources lack, such as from its package's forge. */
-    readonly pullFile?: (
-        build: { readonly digest: Digest; readonly manifest: PackageManifest },
-        file: PackageFile,
-    ) => Promise<void>;
-    /** Pull the files a build's forge attached to it, which installs leave behind. */
-    readonly pullAttachments?: (build: {
-        readonly digest: Digest;
-        readonly manifest: PackageManifest;
-    }) => Promise<void>;
+    /** Pull a package's build whole with its attachments when a file or its graph is missing. */
+    readonly pull?: (packageId: PackageId, build: Digest) => Promise<void>;
 }
 
 /** Locate some files: absent unless the store has each, else the layer holding any it lacks. */
@@ -286,10 +278,8 @@ export class BuildStore<
     readonly leaseMilliseconds: number;
     /** The stores read through, in order, for builds, images and files this store lacks. */
     readonly sources: readonly BuildStore[];
-    /** Pull a build's file this store and its sources lack, absent where every file is stored. */
-    readonly #pullFile: BuildStoreOptions<StoreEnvironment, Storage>["pullFile"];
-    /** Pulls the files a build's forge attached to it. */
-    readonly #pullAttachments: BuildStoreOptions<StoreEnvironment, Storage>["pullAttachments"];
+    /** Pull a package's build whole when a part is missing, absent where every build is whole. */
+    readonly #pullRemote: BuildStoreOptions<StoreEnvironment, Storage>["pull"];
     /** The spans and durations of the store's verbs. */
     readonly scope: TelemetryScope;
 
@@ -301,8 +291,7 @@ export class BuildStore<
         this.layer = options.layer ?? BuildLayer.empty();
         this.leaseMilliseconds = options.leaseMilliseconds ?? options.blobs.leaseMilliseconds;
         this.sources = options.sources ?? [];
-        this.#pullFile = options.pullFile;
-        this.#pullAttachments = options.pullAttachments;
+        this.#pullRemote = options.pull;
         this.scope = TelemetryScope.of(import.meta.destack.package, options.environment.telemetry);
     }
 
@@ -929,12 +918,13 @@ export class BuildStore<
         return (await this.#attachedGraph(subject)).length > 0;
     }
 
-    /** List a build's graph files, pulling its forge's attachments when it has none here. */
+    /** List a build's graph files, pulling the build with its attachments when it has none here. */
     async #graphFiles(subject: Digest): Promise<PackageFile[]> {
-        // take the attached graph, else pull what the build's forge attached
+        // take the attached graph, else pull the package's build whole, which brings its attachments
         let attached = await this.#attachedGraph(subject);
-        if (attached.length === 0 && this.#pullAttachments !== undefined) {
-            await this.#pullAttachments({ digest: subject, manifest: await this.get(subject) });
+        const owner = (await this.get(subject)).package;
+        if (attached.length === 0 && this.#pullRemote !== undefined && "id" in owner) {
+            await this.#pullRemote(owner.id, subject);
             attached = await this.#attachedGraph(subject);
         }
 
@@ -1101,8 +1091,10 @@ export class BuildStore<
                 // pull a file no store has, then stream it from where it lies
                 signal?.throwIfAborted();
                 const file = await reader.file(path);
-                if (this.#pullFile !== undefined && !(await this.#isReadable(file.digest))) {
-                    await this.#pullFile({ digest: head.digest, manifest }, file);
+                const owner = manifest.package;
+                const isMissing = !(await this.#isReadable(file.digest));
+                if (this.#pullRemote !== undefined && "id" in owner && isMissing) {
+                    await this.#pullRemote(owner.id, head.digest);
                 }
                 const stream = this.#stream(file);
 

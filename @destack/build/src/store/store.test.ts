@@ -487,7 +487,7 @@ test("pull a build's graph from its forge on the first read, once, and refuse a 
     const store = new BuildStore({
         blobs: local.store.blobs,
         environment,
-        pullAttachments: async ({ digest }) => {
+        pull: async (_packageId, digest) => {
             pulls.push(digest);
             const files = await forge.store.attachments(digest);
             if (files.length === 0) {
