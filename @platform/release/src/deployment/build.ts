@@ -22,18 +22,14 @@ import {
     DistributionPlatform,
     PackageName,
 } from "@destack/package";
-import { type BuildReader, PackageManifest } from "@destack/package/manifest";
-import {
-    type Digest,
-    found,
-    type Identifier,
-    type JsonValue,
-    present,
-    schema,
-} from "@destack/schema";
+import { type BuildReader, LAYER_INDEX, PackageManifest } from "@destack/package/manifest";
+import { Digest, found, type Identifier, type JsonValue, present, schema } from "@destack/schema";
 import type { PublishOptions, Registry } from "@destack/registry/client";
 import { Toolchain } from "@destack/check/toolchain";
 import { releaseVersion } from "../distribution/distribution.ts";
+
+/** The prefix of a layer written beside the asset layers before it moves under its digest. */
+const ASSETS_STAGING = ".staging";
 
 /** The package declaring the homes' stacks, by its directory below the checkout's root. */
 const STACK = "@platform/stack";
@@ -269,14 +265,31 @@ export class PlatformBuild implements AsyncDisposable {
         return bundled;
     }
 
-    /** Write the releases with what cloud Workers run as their assets, a layer by digest. */
-    async writeAssets(directory: string): Promise<void> {
-        await this.store.writeLayer(
-            [...this.locks.values()],
-            CLOUD_RUNTIMES,
-            directory,
-            "addressed",
-        );
+    /** Write the releases cloud Workers run as assets once per layer, answering its directory. */
+    async writeAssets(directory: string): Promise<string> {
+        // write the layer beside the earlier ones, which a running Worker may watch
+        const { files, crypto, process } = this.store.environment;
+        const staging = join(directory, `${ASSETS_STAGING}.${process.id}`);
+        await this.store.writeLayer([...this.locks.values()], CLOUD_RUNTIMES, staging, "addressed");
+
+        // keep it under its index's digest, so a written layer never changes under a watcher
+        const index = await files.readTextFile(join(staging, LAYER_INDEX));
+        const layer = join(directory, await Digest.of(index, crypto));
+        if (await files.exists(layer)) {
+            await files.remove(staging, { recursive: true });
+        } else {
+            await files.rename(staging, layer);
+        }
+
+        // remove the other layers, which no Worker started from here reads
+        for (const entry of await files.readDirectory(directory)) {
+            const path = join(directory, entry.name);
+            if (path !== layer) {
+                await files.remove(path, { recursive: true, force: true });
+            }
+        }
+
+        return layer;
     }
 
     /** Write the manifest of the releases computers of a platform run to a directory. */

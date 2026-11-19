@@ -1,5 +1,5 @@
 import { join } from "node:path";
-import type { Environment, HostCapability } from "@destack/environment";
+import { type Environment, type HostCapability, waitAborted } from "@destack/environment";
 import { Deployment } from "../deployment/deployment.ts";
 import { CHECKOUT } from "../distribution/distribution.ts";
 import { developDistribution } from "../distribution/develop.ts";
@@ -23,6 +23,10 @@ export async function serveLocal(
         const custody = await local.custody();
         const storage = join(local.directory, "workers");
         const print = (title: string, line: string) => local.print(title, line);
+
+        // stop at the first interrupt or termination, also while the Workers start
+        using listening = new DisposableStack();
+        const stopping = interruption(environment, listening);
         await deployment.serve(
             local.server,
             local.database,
@@ -36,8 +40,9 @@ export async function serveLocal(
 
                 // serve until an interrupt or a termination
                 local.printReady();
-                await interrupted(environment);
+                await waitAborted(stopping);
             },
+            stopping,
         );
 
         return;
@@ -55,26 +60,31 @@ export async function serveLocal(
     local.printReady();
 
     // serve until an interrupt or a termination
-    const signal = await interrupted(environment);
+    using listening = new DisposableStack();
+    const stopping = interruption(environment, listening);
+    await waitAborted(stopping);
 
     // stop everything
-    local.scope.log.info("platform.universe.signaled", { "platform.signal": signal });
+    local.scope.log.info("platform.universe.signaled", {
+        "platform.signal": String(stopping.reason),
+    });
     await machine[Symbol.asyncDispose]();
     await universe[Symbol.asyncDispose]();
     local.scope.log.info("platform.universe.stopped");
 }
 
-/** Wait for an interrupt or a termination, answering the signal that came. */
-async function interrupted(environment: Environment<"process">): Promise<string> {
-    // resolve at the first of the two signals, then stop listening
-    const stopping = Promise.withResolvers<string>();
-    const interrupt = environment.process.on("SIGINT", () => stopping.resolve("SIGINT"));
-    const termination = environment.process.on("SIGTERM", () => stopping.resolve("SIGTERM"));
-    const signal = await stopping.promise;
-    interrupt[Symbol.dispose]();
-    termination[Symbol.dispose]();
+/** Abort at the first interrupt or termination, listening until the stack is disposed. */
+function interruption(
+    environment: Environment<"process">,
+    listening: DisposableStack,
+): AbortSignal {
+    // abort with the signal's name as the reason
+    const stopping = new AbortController();
+    for (const name of ["SIGINT", "SIGTERM"] as const) {
+        listening.use(environment.process.on(name, () => stopping.abort(name)));
+    }
 
-    return signal;
+    return stopping.signal;
 }
 
 /** Run the desktop app on a local state's device: `local desktop [<flags of LocalUniverse>]`. */

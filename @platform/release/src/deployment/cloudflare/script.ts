@@ -209,11 +209,11 @@ export class WorkerScript {
             : this.deployment.machineOrigin(target.residency);
     }
 
-    /** Write the universe's configuration over its outputs. */
-    universe(outputs: UniverseOutputs): WranglerConfiguration {
+    /** Write the universe's configuration over its outputs, shipping a releases layer. */
+    universe(outputs: UniverseOutputs, releases: string): WranglerConfiguration {
         return {
             ...this.#shared(),
-            assets: this.#releases(),
+            assets: WorkerScript.#releases(releases),
             durable_objects: { bindings: [{ name: "INSTANCE", class_name: UNIVERSE_CLASS }] },
             migrations: [{ tag: "v1", new_sqlite_classes: [UNIVERSE_CLASS] }],
             hyperdrive: [{ binding: "DATABASE", id: outputs.hyperdrive }],
@@ -228,7 +228,11 @@ export class WorkerScript {
     }
 
     /** Write a cloud machine's configuration over its residency's outputs and shipped releases. */
-    machine(outputs: ResidencyOutputs, residency: PlatformResidency): WranglerConfiguration {
+    machine(
+        outputs: ResidencyOutputs,
+        residency: PlatformResidency,
+        releases: string,
+    ): WranglerConfiguration {
         // keep the objects, the files and the builds in the residency's jurisdiction
         const kept = this.deployment.jurisdiction(residency);
         const jurisdiction = kept === "none" ? {} : { jurisdiction: kept };
@@ -247,7 +251,7 @@ export class WorkerScript {
 
         return {
             ...this.#shared(),
-            assets: this.#releases(),
+            assets: WorkerScript.#releases(releases),
             durable_objects: {
                 bindings: [
                     { name: "PARTITION", class_name: MACHINE_CLASSES.partition },
@@ -276,7 +280,7 @@ export class WorkerScript {
                 DESTACK_BUCKET: outputs.bucket,
                 DESTACK_MAIL: JSON.stringify(this.deployment.mail),
                 DESTACK_MACHINE_ID: residency.machine.id,
-                DESTACK_HOST: outputs.host,
+                DESTACK_ORIGIN: this.deployment.machineOrigin(residency),
                 DESTACK_SPACE_DOMAIN: InstallationOrigin.domain(
                     this.deployment.machineOrigin(residency),
                 ),
@@ -580,10 +584,10 @@ export class WorkerScript {
         }
     }
 
-    /** Ship the releases as static assets, which the Worker reads through their binding. */
-    #releases(): WranglerConfiguration {
+    /** Ship a releases layer as static assets, which the Worker reads through their binding. */
+    static #releases(directory: string): WranglerConfiguration {
         return {
-            directory: this.deployment.releases,
+            directory,
             binding: RELEASES_BINDING,
             run_worker_first: true,
         };

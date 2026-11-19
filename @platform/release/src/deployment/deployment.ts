@@ -60,10 +60,18 @@ import { PackageManifest } from "@destack/package/manifest";
 import { LATEST_TAG } from "@destack/registry/object";
 import { SERVER_BUNDLE_MODULE } from "@destack/machine/cloudflare";
 import { InstallationMount, PackageMount } from "@destack/object";
-import type { Environment, HostCapability, LogFormat } from "@destack/environment";
+import {
+    type Environment,
+    type HostCapability,
+    type LogFormat,
+    untilAborted,
+} from "@destack/environment";
 
 /** How long a started machine's directory replica may take to sync: a minute. */
 const DIRECTORY_SYNC_MILLISECONDS = 60_000;
+
+/** The directory below a stage's Worker storage where its Workers find each other. */
+const WORKER_REGISTRY = "registry";
 
 /** How long a deployed residency home may take to serve: seconds from cached builds. */
 const HOME_SERVE_MILLISECONDS = 30_000;
@@ -238,8 +246,8 @@ export class Deployment {
         return deployment;
     }
 
-    /** The directory of the releases the Workers ship as their static assets, a build layer. */
-    get releases(): string {
+    /** The directory of the asset layers, one directory per layer under its digest. */
+    get assets(): string {
         return resolve(CHECKOUT, "target", this.universe.name, "cloud");
     }
 
@@ -374,7 +382,7 @@ export class Deployment {
         };
     }
 
-    /** Serve the local universe and cloud machines under workerd until a hold ends. */
+    /** Serve the local universe and cloud machines under workerd until a hold ends or a stop. */
     async serve(
         server: string,
         database: string,
@@ -382,6 +390,7 @@ export class Deployment {
         storage: string,
         print: (name: string, line: string) => void,
         hold: (build: PlatformBuild) => Promise<void>,
+        signal: AbortSignal,
     ): Promise<void> {
         // address the state's database, which keeps the universe between runs
         const { environment } = this;
@@ -423,13 +432,15 @@ export class Deployment {
         await using serving = new AsyncDisposableStack();
         serving.defer(() => listener.stop(true));
 
-        // configure the scripts over placeholder outputs
-        const scripts = this.#scripts(this.#placeholderUniverse(listener.url), (residency) =>
-            this.#placeholderResidency(residency),
-        ).filter(([script]) => script.target.kind !== "tail");
-
         // write the releases the Workers ship as their static assets
-        await build.writeAssets(this.releases);
+        const releases = await build.writeAssets(this.assets);
+
+        // configure the scripts over placeholder outputs
+        const scripts = this.#scripts(
+            this.#placeholderUniverse(listener.url),
+            (residency) => this.#placeholderResidency(residency),
+            releases,
+        ).filter(([script]) => script.target.kind !== "tail");
         const modules = await Deployment.#modules(build, declaration);
 
         // serve the universe's port as Cloudflare's routes do: its own paths at the universe's Worker, others at the platform residency's machine
@@ -477,6 +488,24 @@ export class Deployment {
             print,
         };
 
+        // start the Workers, ending the start at the signal, which stops the started Workers on the way out
+        await untilAborted(this.#start(scripts, workers, custody, build, mail), signal);
+        if (signal.aborted) {
+            return;
+        }
+
+        // serve the build until the hold ends
+        await hold(build);
+    }
+
+    /** Start the Workers, wait for the residency homes and publish the releases. */
+    async #start(
+        scripts: readonly (readonly [WorkerScript, WranglerConfiguration])[],
+        workers: LocalWorkers,
+        custody: Custody,
+        build: PlatformBuild,
+        mail: PrintedMail,
+    ): Promise<void> {
         // start the universe first, which the machines bind, then the machines at once
         const [universeScript, ...machineScripts] = scripts;
         const [universeWorker, universeConfiguration] = present(
@@ -504,9 +533,6 @@ export class Deployment {
 
         // publish the platform's releases as the local operator
         await this.publishLocal(build, custody, mail);
-
-        // serve the build until the hold ends
-        await hold(build);
     }
 
     /** Start a script's local workerd and wait until it answers, recording its start. */
@@ -569,6 +595,8 @@ export class Deployment {
                                 CLOUDFLARE_HYPERDRIVE_LOCAL_CONNECTION_STRING_DATABASE:
                                     hyperdrive.href,
                                 WRANGLER_SEND_METRICS: "false",
+                                // register the stage's Workers with each other alone, apart from any other stage on this computer
+                                WRANGLER_REGISTRY_PATH: join(storage, WORKER_REGISTRY),
                             },
                             print: (name, line) => {
                                 // leave out wrangler's own information lines, its access log among them, as spans record each request
@@ -826,13 +854,13 @@ export class Deployment {
         );
 
         // write the releases the Workers ship as their static assets
-        await build.writeAssets(this.releases);
+        const releases = await build.writeAssets(this.assets);
         this.scope.log.info("platform.release.shipped", {
             "platform.release.count": build.readers.length,
         });
 
         // deploy every script in order, the universe first and each machine before its tail
-        const scripts = this.#scripts(outputs, outputsOf);
+        const scripts = this.#scripts(outputs, outputsOf, releases);
         const modules = await Deployment.#modules(build, declaration);
         const providers = this.providers((id) =>
             Root.required(Deployment.providerSecret(id), environment),
@@ -1056,17 +1084,18 @@ export class Deployment {
     #scripts(
         universe: UniverseOutputs,
         residency: (residency: PlatformResidency) => ResidencyOutputs,
+        releases: string,
     ): (readonly [WorkerScript, WranglerConfiguration])[] {
         // configure the universe binding its declaration
         const script = new WorkerScript(this, { kind: "universe" });
-        const scripts = [[script, script.universe(universe)] as const];
+        const scripts = [[script, script.universe(universe, releases)] as const];
 
         // configure each residency's cloud machine before the tail binding its objects
         for (const served of RESIDENCIES) {
             const tail = new WorkerScript(this, { kind: "tail", residency: served });
             const machine = new WorkerScript(this, { kind: "machine", residency: served });
             scripts.push(
-                [machine, machine.machine(residency(served), served)],
+                [machine, machine.machine(residency(served), served, releases)],
                 [tail, tail.tail(served)],
             );
         }
