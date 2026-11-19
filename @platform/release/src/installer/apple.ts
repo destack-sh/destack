@@ -8,7 +8,7 @@ import type { Environment, HostCapability } from "@destack/environment";
 import { DISTRIBUTION_MANIFEST, DistributionManifest } from "@destack/package";
 import { DISTRIBUTION_DIRECTORY } from "@destack/update";
 
-/** The distribution's manifest in the application's resources, which lists each slice's locks. */
+/** The distribution's manifest in the application's resources, which lists each slice's images. */
 const MANIFEST = join(DISTRIBUTION_DIRECTORY, DISTRIBUTION_MANIFEST);
 
 /** One architecture's signed application unpacked from its archive. */
@@ -154,7 +154,7 @@ async function mergeResources(
                 await files.mkdir(dirname(target), { recursive: true });
                 await files.copyFile(from, target);
             }
-            // merge the slices' manifests into each release's locks on both platforms
+            // merge the slices' manifests into each release's images on both platforms
             else if (entry.name === MANIFEST) {
                 const [copied, kept] = [
                     await files.readTextFile(from),

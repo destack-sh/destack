@@ -4,7 +4,7 @@ import { Toolchain } from "@destack/check/toolchain";
 import type { Environment, HostCapability } from "@destack/environment";
 import { StaticExport } from "@destack/machine";
 import { DistributionManifest } from "@destack/package";
-import type { Lock } from "@destack/package/manifest";
+import type { BuildImage } from "@destack/package/manifest";
 import { WORKERD_COMPATIBILITY_DATE } from "@destack/package/runtime";
 import { type Digest, found } from "@destack/schema";
 import { PlatformBuild } from "../deployment/build.ts";
@@ -34,23 +34,23 @@ export async function deploySite(
         throw new Error(`site deploy takes nothing more: '${arguments_.join(" ")}'`);
     }
 
-    // build the platform's releases, and the site's lock in the same store
+    // build the platform's releases, and the site's image in the same store
     await using platform = await PlatformBuild.build(CHECKOUT, environment);
     const { store } = platform;
-    const lock = await siteLock(platform);
+    const image = await siteImage(platform);
 
-    // read the builtins a cloud machine links, at their locks, by package name as a machine links them
+    // read the builtins a cloud machine links, at their images, by package name as a machine links them
     const builtins = DistributionManifest.builtins(platform.distribution(PLATFORM), PLATFORM);
-    const linked = new Map<string, Lock>();
+    const linked = new Map<string, BuildImage>();
     for (const release of builtins.values()) {
-        linked.set(release.package.name, await store.lock(release.lock));
+        linked.set(release.package.name, await store.image(release.image));
     }
 
     // export the site's view into a fresh directory, as a machine's origin serves it
     const directory = resolve(ROOT, ".wrangler", "site");
     const assets = join(directory, "public");
     await environment.files.remove(directory, { recursive: true, force: true });
-    await new StaticExport(assets, store, environment).write(lock, VIEW, linked);
+    await new StaticExport(assets, store, environment).write(image, VIEW, linked);
 
     // deploy the files as the site's Worker, which serves its pages as the site's host configuration has them
     const configuration = {
@@ -77,15 +77,15 @@ export async function deploySite(
     );
 }
 
-/** Build the site's package in the platform's store, answering its lock. */
-async function siteLock(platform: PlatformBuild): Promise<Digest> {
-    // build and lock the site's units with the platform's compilers
+/** Build the site's package in the platform's store, answering its image. */
+async function siteImage(platform: PlatformBuild): Promise<Digest> {
+    // build and make an image of the site's units with the platform's compilers
     await using compilers = await CompilerPool.open(platform.store, async () =>
         Toolchain.workspace(),
     );
     const workspace = await Workspace.open(CHECKOUT, compilers, { version: platform.version });
     const site = await workspace.package(join(CHECKOUT, SITE));
-    const units = await site.lockUnits({});
+    const units = await site.imageUnits({});
 
-    return found(units, SITE).lock;
+    return found(units, SITE).image;
 }

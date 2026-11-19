@@ -14,6 +14,8 @@ import { PrintTransport } from "@destack/mail/print";
 import { Universe } from "@destack/update/release";
 import { Toolchain } from "@destack/check/toolchain";
 import { BunUniverse } from "./universe.ts";
+import type { HostListening } from "@destack/object/workload";
+import { present } from "@destack/schema";
 import { Custody, PlatformBuild } from "../deployment/index.ts";
 import { DISTRIBUTION_LAYER, DistributionManifest, DistributionPlatform } from "@destack/package";
 import { BunDistribution } from "@destack/package/bun";
@@ -71,7 +73,7 @@ export class BunCloud implements AsyncDisposable {
             await PlatformBuild.build(local.root, local.environment, { isPrerelease: true }),
         );
 
-        // list the releases the universe ships, with their locks on the host
+        // list the releases the universe ships, with their images on the host
         const target = DistributionPlatform.of(local.environment.host);
         const shipped = DistributionManifest.releases(build.distribution(target), target);
 
@@ -86,17 +88,10 @@ export class BunCloud implements AsyncDisposable {
         );
         // serve the origin's other paths from the platform residency's machine once it started, as the edge does
         const clouds = new Map<string, Computer>();
-        const edge = async (request: Request) => {
-            // answer with the platform residency's machine once it started, at the universe's domain its routes match
-            const platform = clouds.get(PLATFORM.residencyId);
-
-            return platform === undefined
-                ? new Response("the platform residency's machine is still starting", {
-                      status: 503,
-                      headers: { "retry-after": "1" },
-                  })
-                : await platform.fetch(deployment.edge(request));
-        };
+        const edge = BunCloud.#listen(
+            () => clouds.get(PLATFORM.residencyId),
+            (request) => deployment.edge(request),
+        );
         const universe = stack.use(
             await BunUniverse.start({
                 edge,
@@ -116,7 +111,7 @@ export class BunCloud implements AsyncDisposable {
                 report: (error) => Computer.capture(environment.telemetry, "universe", error),
                 shipped: {
                     releases: shipped,
-                    open: (lock) => build.store.root(lock),
+                    open: (image) => build.store.root(image),
                 },
             }),
         );
@@ -223,13 +218,14 @@ export class BunCloud implements AsyncDisposable {
         let started: Computer | undefined;
         const { environment } = local;
         const origin = new URL(deployment.machineOrigin(residency));
+        const listening = BunCloud.#listen(
+            () => started,
+            (request) => request,
+        );
         const listener = environment.server.http({
             hostname: origin.hostname,
             port: Number(origin.port),
-            fetch: (request) =>
-                started === undefined
-                    ? new Response(null, { status: 503 })
-                    : started.fetch(request),
+            ...listening,
         });
         stack.defer(async () => listener.stop(true));
 
@@ -268,5 +264,44 @@ export class BunCloud implements AsyncDisposable {
         started = machine;
 
         return { machine, stack: stack.move() };
+    }
+
+    /** Serve a computer's requests and sockets at its host, unavailable until it started. */
+    static #listen(
+        computer: () => Computer | undefined,
+        edge: (request: Request) => Request,
+    ): HostListening {
+        // listen through the started computer's host, which keeps the sockets its spaces accept
+        const listening = () => {
+            const started = computer();
+
+            return started === undefined
+                ? undefined
+                : present(started.machine.hibernation, "the machine's sockets").listen((request) =>
+                      started.fetch(request),
+                  );
+        };
+        const sockets = () => present(listening(), "the started machine's listening").websocket;
+
+        return {
+            fetch: async (request) => {
+                // answer as unavailable while the computer starts, as callers retry
+                const started = listening();
+                if (started === undefined) {
+                    return new Response("the machine is still starting", {
+                        status: 503,
+                        headers: { "retry-after": "1" },
+                    });
+                }
+
+                return started.fetch(edge(request));
+            },
+            // hand the sockets the computer's host accepted, or refused, their events
+            websocket: {
+                open: (socket) => sockets().open?.(socket),
+                message: (socket, message) => sockets().message(socket, message),
+                close: (socket, code, reason) => sockets().close?.(socket, code, reason),
+            },
+        };
     }
 }

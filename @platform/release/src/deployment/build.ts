@@ -24,7 +24,12 @@ import {
 } from "@destack/package";
 import { type BuildReader, LAYER_INDEX, PackageManifest } from "@destack/package/manifest";
 import { Digest, found, type Identifier, type JsonValue, present, schema } from "@destack/schema";
-import type { PublishOptions, Registry } from "@destack/registry/client";
+import { RemoteBuildStore } from "@destack/build/store";
+import { createClient } from "@destack/object/client";
+import type { Fetch, MethodInput } from "@destack/object";
+import type { packageObject } from "@destack/registry/object";
+import registryPackage from "@destack/registry/package";
+import { RequestId } from "@destack/sync";
 import { Toolchain } from "@destack/check/toolchain";
 import { releaseVersion } from "../distribution/distribution.ts";
 
@@ -61,35 +66,45 @@ export const RELEASES_DIRECTORY = "target/releases";
 export interface ReleaseForge {
     /** The publishing account. */
     readonly accountId: Identifier<"account">;
-    /** The registry calling the account's forge. */
-    readonly registry: Registry;
+    /** The account's residency home, where its forge runs. */
+    readonly home: Identifier<"space">;
+    /** The URL of the registry package below the forge's installation. */
+    readonly url: string;
+    /** Fetch from the forge as the publisher. */
+    readonly fetch: Fetch;
 }
+
+/** How a release publishes its packages: its commit, visibility and further distribution tags. */
+export type ReleaseOptions = Pick<
+    MethodInput<typeof packageObject, "publish">,
+    "commit" | "visibility" | "tags"
+>;
 
 /** Open the forge of a handle's account, as a machine publishing in its residency's home. */
 export type ForgeOpen = (handle: string) => Promise<ReleaseForge>;
 
 /** The first-party releases a universe's homes run and its forge publishes. */
 export class PlatformBuild implements AsyncDisposable {
-    /** The store keeping every build and lock, locked to this process until disposed. */
+    /** The store keeping every build and image, locked to this process until disposed. */
     readonly store: LocalBuildStore;
     /** The releases of the stacks' closure and the published packages, by package name. */
     readonly releases: ReadonlyMap<string, BuildReader>;
-    /** The lock of each release: its build and every build it runs with, by package name. */
-    readonly locks: ReadonlyMap<string, Digest>;
+    /** The image of each release: its build and every build it runs with, by package name. */
+    readonly images: ReadonlyMap<string, Digest>;
     /** The version every release has. */
     readonly version: string;
 
-    /** Keep built releases and their locks. */
+    /** Keep built releases and their images. */
     private constructor(
         store: LocalBuildStore,
         releases: ReadonlyMap<string, BuildReader>,
-        locks: ReadonlyMap<string, Digest>,
+        images: ReadonlyMap<string, Digest>,
         version: string,
     ) {
-        // keep the store, the releases, their locks and their version
+        // keep the store, the releases, their images and their version
         this.store = store;
         this.releases = releases;
-        this.locks = locks;
+        this.images = images;
         this.version = version;
     }
 
@@ -127,35 +142,54 @@ export class PlatformBuild implements AsyncDisposable {
             await workspace.package(join(root, DESKTOP)),
         ];
 
-        // build and lock each unit, a unit both packages share once, the lock attaching its graph
+        // build and make an image of each unit, a unit both packages share once, the image attaching its graph
         const releases = new Map<string, BuildReader>();
-        const locks = new Map<string, Digest>();
+        const images = new Map<string, Digest>();
         for (const unitPackage of packages) {
-            for (const [name, { build, lock }] of await unitPackage.lockUnits(options)) {
+            for (const [name, { build, image }] of await unitPackage.imageUnits(options)) {
                 releases.set(name, await store.contents(build.manifest));
-                locks.set(name, lock);
+                images.set(name, image);
             }
         }
 
         // hand the store to the build, which closes it
         opened.move();
 
-        return new PlatformBuild(store, releases, locks, version);
+        return new PlatformBuild(store, releases, images, version);
     }
 
-    /** Release each lock under a tag into its account's forge, a dependency layer at a time. */
-    async release(tag: string, open: ForgeOpen, options: PublishOptions = {}): Promise<void> {
+    /** Release each image under a tag into its account's forge, after the handles it requires. */
+    async release(tag: string, open: ForgeOpen, options: ReleaseOptions = {}): Promise<void> {
         // release in a span, which records the releases once they succeed
         const { telemetry } = this.store.environment;
         await TelemetryScope.of(import.meta.destack.package, telemetry).span(
             "platform.release.publish",
             { "platform.release.tag": tag },
             async () => {
-                // release each handle's locks at once into its account's forge, after the handles they require
+                // release each handle's images into its account's forge, after the handles they require
                 for (const { handle, names } of PlatformBuild.#runs(this.releases)) {
-                    const { accountId, registry } = await open(handle);
-                    const locks = names.map((name) => found(this.locks, name));
-                    await registry.release(this.store, locks, accountId, tag, options);
+                    // push the handle's images once below its handle
+                    const { accountId, home, url, fetch } = await open(handle);
+                    const images = names.map((name) => found(this.images, name));
+                    const builds = `${url}${registryPackage.mounts.builds.path}/${handle}/`;
+                    await new RemoteBuildStore(builds, fetch).push(this.store, images);
+
+                    // publish the account's packages in each image, the forge releasing those an image requires first
+                    const registry = createClient(
+                        registryPackage,
+                        { url, fetch },
+                        this.store.environment,
+                    );
+                    for (const image of images) {
+                        await registry.package.publish({
+                            spaceId: home,
+                            requestId: RequestId.create(this.store.environment),
+                            accountId,
+                            image,
+                            tag,
+                            ...options,
+                        });
+                    }
                 }
             },
             { level: "info" },
@@ -222,12 +256,12 @@ export class PlatformBuild implements AsyncDisposable {
         return [...this.releases.values()];
     }
 
-    /** List every release the build keeps with its role and its lock on a platform. */
+    /** List every release the build keeps with its role and its image on a platform. */
     distribution(platform: DistributionPlatform): DistributionManifest {
         const releases = [...this.releases].map(([name, reader]) => ({
             package: PackageManifest.package(reader.manifest),
             role: reader.manifest.role,
-            locks: { [platform]: found(this.locks, name) },
+            images: { [platform]: found(this.images, name) },
         }));
 
         return { releases };
@@ -270,7 +304,7 @@ export class PlatformBuild implements AsyncDisposable {
         // write the layer beside the earlier ones, which a running Worker may watch
         const { files, crypto, process } = this.store.environment;
         const staging = join(directory, `${ASSETS_STAGING}.${process.id}`);
-        await this.store.writeLayer([...this.locks.values()], CLOUD_RUNTIMES, staging, "addressed");
+        await this.store.writeLayer([...this.images.values()], CLOUD_RUNTIMES, staging, "addressed");
 
         // keep it under its index's digest, so a written layer never changes under a watcher
         const index = await files.readTextFile(join(staging, LAYER_INDEX));
@@ -305,7 +339,7 @@ export class PlatformBuild implements AsyncDisposable {
     /** Write the releases with what computers run as a layer, as local cloud machines read it. */
     async writeLayer(directory: string): Promise<void> {
         await this.store.writeLayer(
-            [...this.locks.values()],
+            [...this.images.values()],
             COMPUTER_RUNTIMES,
             join(directory, DISTRIBUTION_LAYER),
             "linked",

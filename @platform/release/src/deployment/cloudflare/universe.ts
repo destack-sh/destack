@@ -103,9 +103,9 @@ async function startUniverse(bindings: UniverseBindings, alarm: Alarm) {
     const universe = await Control.start({
         ...PlatformUniverse.options(environment, {
             releases: DistributionManifest.releases(await WorkerdDistribution.read(), "workerd"),
-            open: (lock) => {
-                // open the root build of the shipped lock
-                const { root } = present(releases.lock(lock), `the shipped release ${lock}`);
+            open: (image) => {
+                // open the root build of the shipped image
+                const { root } = present(releases.image(image), `the shipped release ${image}`);
 
                 return present(releases.build(root), `the shipped release's root build ${root}`);
             },
@@ -128,6 +128,7 @@ async function startUniverse(bindings: UniverseBindings, alarm: Alarm) {
     return {
         fetch: (request: Request) => universe.fetch(request),
         alarm: (deadline: number) => universe.idle(deadline),
+        sockets: universe.connections.host,
     };
 }
 

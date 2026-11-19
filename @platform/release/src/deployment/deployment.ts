@@ -25,7 +25,6 @@ import { Issuer } from "@destack/account/client";
 import { Account, account } from "@destack/account/object";
 import { Claim } from "@destack/object";
 import registryPackage from "@destack/registry/package";
-import { Registry } from "@destack/registry/client";
 import { ActionsToken } from "../github/oidc.ts";
 import { Operator } from "../local/operator.ts";
 import { PrintedMail } from "../local/mail.ts";
@@ -61,11 +60,20 @@ import { LATEST_TAG } from "@destack/registry/object";
 import { SERVER_BUNDLE_MODULE } from "@destack/machine/cloudflare";
 import { InstallationMount, PackageMount } from "@destack/object";
 import {
+    type ClientSocket,
     type Environment,
     type HostCapability,
     type LogFormat,
+    type ServerSocket,
     untilAborted,
+    WebSocketClosure,
+    WebSocketMessage,
+    WebSocketUpgrade,
 } from "@destack/environment";
+import { BunNetwork } from "@destack/environment/bun";
+
+/** The status the front answers an upgrade with when the Worker's socket does not open. */
+const BAD_GATEWAY = 502;
 
 /** How long a started machine's directory replica may take to sync: a minute. */
 const DIRECTORY_SYNC_MILLISECONDS = 60_000;
@@ -448,10 +456,10 @@ export class Deployment {
             RESIDENCIES.find((residency) => residency.code === PLATFORM.residencyId),
             "the platform residency",
         );
-        const front = environment.server.http({
+        const front = environment.server.http<UpstreamSocket>({
             hostname: LOOPBACK,
             port: this.layout.universe,
-            fetch: (request) => {
+            fetch: async (request) => {
                 // send the universe's paths to its Worker, others at its domain to the platform machine, passing bodies and redirects through
                 const isUniverse = UniverseOrigin.path(new URL(request.url).pathname) !== undefined;
                 const edged = isUniverse ? request : this.edge(request);
@@ -462,6 +470,23 @@ export class Deployment {
                 const headers = new Headers(edged.headers);
                 headers.set("host", routed.host);
 
+                // forward a WebSocket upgrade on a socket of its own to the same target
+                if (WebSocketUpgrade.of(edged) !== undefined) {
+                    const upstream = await UpstreamSocket.open(
+                        new Request(edged.url, { headers }),
+                        `${target.replace(/^http/u, "ws")}${routed.pathname}${routed.search}`,
+                    );
+
+                    return upstream === undefined
+                        ? new Response(null, { status: BAD_GATEWAY })
+                        : {
+                              attachment: upstream,
+                              ...(upstream.protocol === ""
+                                  ? {}
+                                  : { headers: { "sec-websocket-protocol": upstream.protocol } }),
+                          };
+                }
+
                 return environment.network.fetch(
                     new Request(new Request(`${target}${routed.pathname}${routed.search}`, edged), {
                         headers,
@@ -469,6 +494,12 @@ export class Deployment {
                     }),
                     { decompress: false },
                 );
+            },
+            // relay each forwarded socket's messages and close to its worker's end
+            websocket: {
+                open: (socket) => socket.attachment.attach(socket),
+                message: (socket, message) => socket.attachment.send(message),
+                close: (socket, code, reason) => socket.attachment.close(code, reason),
             },
         });
         serving.defer(() => front.stop(true));
@@ -707,10 +738,7 @@ export class Deployment {
             );
             const url = `${origin}${PackageMount.path(registryPackage.id)}`;
 
-            return {
-                accountId,
-                registry: new Registry(async () => ({ url, space: home, fetch }), environment),
-            };
+            return { accountId, home, url, fetch };
         };
     }
 
@@ -924,13 +952,12 @@ export class Deployment {
         );
         const url = `${origin}${PackageMount.path(registryPackage.id)}`;
         const fetch = session.fetch(registryPackage.id, { partition: home });
-        const registry = new Registry(async () => ({ url, space: home, fetch }), environment);
 
         // release each build under the universe's tag in the account of its handle, pointing latest, which installs follow
         await using build = await this.#build();
         await build.release(
             this.universe.tag,
-            async (handle) => ({ accountId: await owner(handle), registry }),
+            async (handle) => ({ accountId: await owner(handle), home, url, fetch }),
             { tags: [LATEST_TAG] },
         );
     }
@@ -1101,6 +1128,89 @@ export class Deployment {
         }
 
         return scripts;
+    }
+}
+
+/** A client's WebSocket the local front forwards to a Worker: the Worker's end, opened first. */
+class UpstreamSocket {
+    /** The Worker's end. */
+    readonly #upstream: ClientSocket;
+    /** The Worker's messages that arrived before the client's end opened. */
+    readonly #queued: (string | Uint8Array<ArrayBuffer>)[] = [];
+    /** The client's end, once it opened. */
+    #client: ServerSocket<UpstreamSocket> | undefined;
+    /** The Worker's close before the client's end opened. */
+    #closed: { readonly code: number; readonly reason: string } | undefined;
+
+    /** Relay a Worker's socket to a client's end once it opens. */
+    private constructor(upstream: ClientSocket) {
+        this.#upstream = upstream;
+        upstream.addEventListener("message", (event) => {
+            // hand the client the message, keeping it until the client's end opened
+            const message = WebSocketMessage.of(event.data);
+            if (this.#client === undefined) {
+                this.#queued.push(message);
+            } else {
+                this.#relay(this.#client, message);
+            }
+        });
+        upstream.addEventListener("close", (event) => {
+            // close the client's end, or close it as it opens
+            if (this.#client === undefined) {
+                this.#closed = { code: event.code, reason: event.reason };
+            } else {
+                this.#client.close(WebSocketClosure.sendable(event.code), event.reason);
+            }
+        });
+    }
+
+    /** The subprotocol the Worker chose. */
+    get protocol(): string {
+        return this.#upstream.protocol;
+    }
+
+    /** Open a Worker's socket for a forwarded upgrade, absent when it closes before it opens. */
+    static async open(upgrade: Request, url: string): Promise<UpstreamSocket | undefined> {
+        // open it with the upgrade's headers, and answer once it opens
+        const upstream = BunNetwork.forward(upgrade, url);
+        const isOpen = await new Promise<boolean>((settle) => {
+            upstream.addEventListener("open", () => settle(true), { once: true });
+            upstream.addEventListener("close", () => settle(false), { once: true });
+        });
+
+        return isOpen ? new UpstreamSocket(upstream) : undefined;
+    }
+
+    /** Take the client's end as it opens, handing it the Worker's earlier messages and close. */
+    attach(client: ServerSocket<UpstreamSocket>): void {
+        // send what arrived meanwhile, then close as the Worker did
+        this.#client = client;
+        for (const message of this.#queued.splice(0)) {
+            this.#relay(client, message);
+        }
+        if (this.#closed !== undefined) {
+            client.close(WebSocketClosure.sendable(this.#closed.code), this.#closed.reason);
+        }
+    }
+
+    /** Send the Worker's message to the client, closing the Worker's end on a drop. */
+    #relay(client: ServerSocket<UpstreamSocket>, message: string | Uint8Array<ArrayBuffer>): void {
+        void client.send(message).catch(() => {
+            this.#upstream.close(
+                WebSocketClosure.goingAway,
+                "the client's socket dropped a message",
+            );
+        });
+    }
+
+    /** Send the client's message to the Worker. */
+    send(message: string | Uint8Array): void {
+        this.#upstream.send(typeof message === "string" ? message : new Uint8Array(message));
+    }
+
+    /** Close the Worker's end as the client closed. */
+    close(code: number, reason: string): void {
+        this.#upstream.close(WebSocketClosure.sendable(code), reason);
     }
 }
 

@@ -1,4 +1,4 @@
-import type { Environment } from "@destack/environment";
+import type { Environment, ServerSocket } from "@destack/environment";
 import { join } from "node:path";
 import { LocalBlobStorage, LocalBucket } from "@destack/bucket/bun";
 import { connectPostgres } from "@destack/db/postgres";
@@ -6,6 +6,12 @@ import { LocalKeyring } from "@destack/identity";
 import type { MailTransport } from "@destack/mail/transport";
 import type { ProviderClients } from "@destack/account/better-auth";
 import { CallKey } from "@destack/object";
+import { ObjectConnectionHost } from "@destack/object/server";
+import {
+    type HostListening,
+    type HostSocketAttachment,
+    SocketRefusal,
+} from "@destack/object/workload";
 import { UNIVERSE_SCHEMA, Control, type UniverseDefinition } from "@destack/control";
 import { UniverseOrigin } from "@destack/account/address";
 import { PlatformUniverse, type ShippedReleases } from "../deployment/universe.ts";
@@ -32,8 +38,8 @@ export interface BunUniverseOptions {
     readonly report: (error: unknown) => void;
     /** The releases the dev build shipped, which the universe opens before any forge's. */
     readonly shipped: ShippedReleases;
-    /** Answer what the origin serves besides the universe, as production's edge does. */
-    readonly edge: (request: Request) => Promise<Response>;
+    /** Answer the origin's other paths and keep their sockets, as production's edge does. */
+    readonly edge: HostListening;
 }
 
 /** A universe served by a Bun process at its origin, its controllers looping in process. */
@@ -88,16 +94,28 @@ export class BunUniverse implements AsyncDisposable {
         });
         stack.use(universe);
 
-        // listen at the origin
+        // listen at the origin, keeping the sockets the universe's servers and the edge accept
         const origin = new URL(options.origin);
+        const listening = universe.connections.listen((request) => universe.fetch(request));
+        const sockets = (socket: ServerSocket<HostSocketAttachment | SocketRefusal>) =>
+            socket.attachment instanceof SocketRefusal ||
+            ObjectConnectionHost.isKept(socket.attachment)
+                ? listening.websocket
+                : options.edge.websocket;
         const listener = options.environment.server.http({
             hostname: origin.hostname,
             port: Number(origin.port),
             // hand the universe its issuer and package mounts, and the edge every other path
             fetch: (request) =>
                 UniverseOrigin.path(new URL(request.url).pathname) === undefined
-                    ? options.edge(request)
-                    : universe.fetch(request),
+                    ? options.edge.fetch(request)
+                    : listening.fetch(request),
+            // hand each kept socket's events to the host that accepted it, the universe's or the edge's, and a refused one to the universe's
+            websocket: {
+                open: (socket) => sockets(socket).open?.(socket),
+                message: (socket, message) => sockets(socket).message(socket, message),
+                close: (socket, code, reason) => sockets(socket).close?.(socket, code, reason),
+            },
         });
         stack.defer(async () => listener.stop(true));
 
