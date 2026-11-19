@@ -7,9 +7,6 @@ import { PackageError } from "../error/index.ts";
 /** The roles a client opens a view in: the main view, a start view, or a command palette. */
 const VIEW_CATEGORIES = ["main", "home", "command"] as const;
 
-/** The path below a static view's pages its assets answer at, from the browser output's assets. */
-export const VIEW_ASSET_PATH = "/.destack/asset/";
-
 /** Who a view serves: a signed-in person, or anyone, signed in or not. */
 const VIEW_AUDIENCES = ["person", "anyone"] as const;
 
