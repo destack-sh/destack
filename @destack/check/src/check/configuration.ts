@@ -1,6 +1,6 @@
 import type { FileSystem } from "@destack/environment";
 import { isDeepStrictEqual } from "node:util";
-import { dirname, relative, resolve, sep } from "node:path";
+import { dirname, join, relative, resolve, sep } from "node:path";
 import { Definition, type PackageDefinition, type PackageRole } from "@destack/package";
 import { DOM_LIBRARIES, TYPESCRIPT_LIBRARIES, TYPESCRIPT_OPTIONS } from "@destack/package/build";
 import * as lint from "../lint/plugin.ts";
@@ -11,7 +11,7 @@ import { expectationOverrides, readExpectations, workspaceMembers } from "./expe
 import { type Manifest, readManifest } from "./manifest.ts";
 import { formatSource } from "./format.ts";
 import { OUTPUT_DIRECTORIES, readSourceLayout } from "./sources.ts";
-import type { Toolchain } from "../toolchain/index.ts";
+import { Toolchain } from "../toolchain/index.ts";
 import { present } from "@destack/schema";
 
 /** Where the compiler keeps what it checked, so a later run re-checks only what changed since. */
@@ -438,6 +438,24 @@ async function readSources(directory: string, files: FileSystem) {
     return { hasViews, packages: packages.toSorted() };
 }
 
+/** The heading after which a workspace's AGENTS.md is its own, which configure carries over. */
+const CUSTOM_HEADING = "## Custom";
+
+/** Write a workspace's AGENTS.md: the standard's rules, then the workspace's own custom section. */
+export function agentsFile(standard: string, existing: string | undefined): string {
+    // take the workspace's custom section, an empty one when it has none
+    const lines = existing?.split("\n") ?? [];
+    const start = lines.indexOf(CUSTOM_HEADING);
+    const custom = start < 0 ? `${CUSTOM_HEADING}\n` : lines.slice(start).join("\n");
+
+    return `${standard.trimEnd()}\n\n${custom}`;
+}
+
+/** Read the standard's AGENTS.md, which this package ships beside its tools. */
+function readStandard(files: FileSystem): Promise<string> {
+    return files.readTextFile(join(Toolchain.packageDirectory(), "AGENTS.md"));
+}
+
 /** Write editor and direct-tool configuration from the canonical settings with a toolchain. */
 export async function configurePackage(
     directory: string,
@@ -466,6 +484,13 @@ export async function configurePackage(
             ),
             writeJson(resolve(directory, ".oxfmtrc.json"), formatConfiguration, toolchain, files),
         ]);
+    }
+
+    // write a workspace's AGENTS.md from the standard's, carrying its custom section over
+    if ((await readManifest(directory, files))?.workspaces !== undefined) {
+        const path = resolve(directory, "AGENTS.md");
+        const existing = (await files.exists(path)) ? await files.readTextFile(path) : undefined;
+        await files.writeTextFile(path, agentsFile(await readStandard(files), existing));
     }
 }
 
@@ -521,6 +546,19 @@ export async function checkConfiguration(
                     `'${name}' is invalid: it differs from the shared configuration; run configure`,
                 );
             }
+        }
+    }
+
+    // refuse a workspace's AGENTS.md whose standard part differs from the toolchain's
+    const agents = resolve(directory, "AGENTS.md");
+    const isWorkspace = (await readManifest(directory, files))?.workspaces !== undefined;
+    if (isWorkspace && (await files.exists(agents))) {
+        const existing = await files.readTextFile(agents);
+        if (existing !== agentsFile(await readStandard(files), existing)) {
+            throw CheckError.of(
+                "CONFIGURATION_INVALID",
+                "'AGENTS.md' is invalid: it differs from the toolchain's standard; run configure",
+            );
         }
     }
 }

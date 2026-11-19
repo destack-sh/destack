@@ -5,9 +5,6 @@ import { testHost } from "@destack/test/host";
 import { schema } from "@destack/schema";
 import { Toolchain } from "./toolchain.ts";
 
-/** This package's directory, which installed the tools in the workspace. */
-const PACKAGE = fileURLToPath(new URL("../..", import.meta.url));
-
 /** The name field of a package.json. */
 const PackageName = schema.object({ name: schema.string() }).strip();
 
@@ -19,8 +16,8 @@ test("resolve each package of a chain from the one before in a workspace", async
     const { files, host } = testHost();
     const toolchain = Toolchain.workspace();
     const native = `@oxlint-tsgolint/${host.os}-${host.architecture}`;
-    const linter = toolchain.locate(["oxlint-tsgolint"], PACKAGE);
-    const checker = toolchain.locate(["oxlint-tsgolint", native], PACKAGE);
+    const linter = toolchain.locate(["oxlint-tsgolint"], Toolchain.packageDirectory());
+    const checker = toolchain.locate(["oxlint-tsgolint", native], Toolchain.packageDirectory());
     const name = async (directory: string) =>
         PackageName.parse(JSON.parse(await files.readTextFile(join(directory, "package.json"))))
             .name;
@@ -54,7 +51,7 @@ test("resolve the last package of a chain among a toolchain directory's flat pac
             directory: toolchain.directory,
             checker: toolchain.locate(
                 ["oxlint-tsgolint", "@oxlint-tsgolint/darwin-arm64"],
-                PACKAGE,
+                Toolchain.packageDirectory(),
             ),
             lint: toolchain.lint(),
         }).toEqual({

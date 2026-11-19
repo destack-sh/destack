@@ -23,6 +23,11 @@ export class Toolchain {
         return new Toolchain(directory);
     }
 
+    /** Read the directory of this package, whose dependencies are the checking tools. */
+    static packageDirectory(): string {
+        return fileURLToPath(new URL("../..", import.meta.url));
+    }
+
     /** Read the suffix of a platform's native addon packages. */
     static platform(host: Host): string {
         const { os, architecture } = host;
@@ -30,7 +35,7 @@ export class Toolchain {
         return `${os}-${architecture}${os === "linux" ? "-gnu" : ""}`;
     }
 
-    /** Find an installed package's directory among the toolchain's packages. */
+    /** Find an installed package among the toolchain's, else from a package's own directory. */
     locate(chain: readonly string[], from: string): string {
         // find the last package among the toolchain's, else each package from the one before
         const names = this.directory === undefined ? chain : chain.slice(-1);

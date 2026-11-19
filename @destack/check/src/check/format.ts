@@ -1,9 +1,9 @@
 import type { FileSystem } from "@destack/environment";
 import { createRequire } from "node:module";
 import { join, resolve } from "node:path";
-import { fileURLToPath, pathToFileURL } from "node:url";
+import { pathToFileURL } from "node:url";
 import type * as oxfmt from "oxfmt";
-import type { Toolchain } from "../toolchain/index.ts";
+import { Toolchain } from "../toolchain/index.ts";
 import { checkConfiguration, formatConfiguration } from "./configuration.ts";
 import type { CheckOptions } from "./index.ts";
 import { runTool, type ToolResult } from "./tool.ts";
@@ -28,7 +28,7 @@ export async function formatSource(
     toolchain: Toolchain,
 ): Promise<string> {
     // load the formatter's module from the toolchain, refusing one without its format function
-    const directory = toolchain.locate(["oxfmt"], packageDirectory());
+    const directory = toolchain.locate(["oxfmt"], Toolchain.packageDirectory());
     const entry = createRequire(join(directory, "package.json")).resolve("oxfmt");
     const loaded: unknown = await import(pathToFileURL(entry).href);
     if (!isFormatter(loaded)) {
@@ -52,7 +52,7 @@ export async function formatPackage(options: CheckOptions, write = true): Promis
 
     // find the formatter among the tools
     const executable = join(
-        options.toolchain.locate(["oxfmt"], packageDirectory()),
+        options.toolchain.locate(["oxfmt"], Toolchain.packageDirectory()),
         "bin",
         "oxfmt",
     );
@@ -108,9 +108,4 @@ function isFormatter(module: unknown): module is Pick<typeof oxfmt, "format"> {
         "format" in module &&
         typeof module.format === "function"
     );
-}
-
-/** Read this package's directory, whose dependencies include the tools in a workspace. */
-function packageDirectory(): string {
-    return fileURLToPath(new URL("../..", import.meta.url));
 }

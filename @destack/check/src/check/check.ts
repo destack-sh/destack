@@ -1,5 +1,4 @@
 import { basename, dirname, join, relative, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
 import type { Environment, FileSystem } from "@destack/environment";
 import { writeIgnore } from "./format.ts";
 import { selectFiles } from "./selection.ts";
@@ -11,7 +10,7 @@ import {
     settingsRoot,
 } from "./configuration.ts";
 import { runTool } from "./tool.ts";
-import type { Toolchain } from "../toolchain/index.ts";
+import { Toolchain } from "../toolchain/index.ts";
 import { CheckResult, type Diagnostic } from "../diagnostic/diagnostic.ts";
 import { checkMarkdown, fixMarkdown } from "../markdown/index.ts";
 import { CheckError } from "../error/index.ts";
@@ -191,11 +190,15 @@ async function lintSources(options: CheckOptions, fix: boolean): Promise<CheckRe
     // find the linter and the type checker of this platform among the tools
     const { toolchain } = options;
     const { files, host } = options.environment;
-    const executable = join(toolchain.locate(["oxlint"], packageDirectory()), "bin", "oxlint");
+    const executable = join(
+        toolchain.locate(["oxlint"], Toolchain.packageDirectory()),
+        "bin",
+        "oxlint",
+    );
     const checker = `@oxlint-tsgolint/${host.os}-${host.architecture}`;
     const binary = host.os === "win32" ? "tsgolint.exe" : "tsgolint";
     const typeChecker = join(
-        toolchain.locate(["oxlint-tsgolint", checker], packageDirectory()),
+        toolchain.locate(["oxlint-tsgolint", checker], Toolchain.packageDirectory()),
         binary,
     );
 
@@ -265,9 +268,4 @@ async function lintSources(options: CheckOptions, fix: boolean): Promise<CheckRe
     } finally {
         await files.remove(temporary, { recursive: true });
     }
-}
-
-/** Read this package's directory, whose dependencies include the tools in a workspace. */
-function packageDirectory(): string {
-    return fileURLToPath(new URL("../..", import.meta.url));
 }

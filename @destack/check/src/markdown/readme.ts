@@ -2,7 +2,7 @@ import { join } from "node:path";
 import type { Environment } from "@destack/environment";
 import { type ToolResult, runTool } from "../check/tool.ts";
 import { CheckError } from "../error/index.ts";
-import type { Toolchain } from "../toolchain/index.ts";
+import { Toolchain } from "../toolchain/index.ts";
 
 /** The directory a package's README listings are compiled in, with their own tsconfig. */
 export const README_DIRECTORY = "node_modules/.cache/destack/readme";
@@ -65,7 +65,7 @@ export const Readme = {
             files: names,
         };
         await files.writeTextFile(join(folder, "tsconfig.json"), JSON.stringify(configuration));
-        const typescript = toolchain.locate(["@destack/check", "typescript"], directory);
+        const typescript = toolchain.locate(["typescript"], Toolchain.packageDirectory());
 
         return await runTool(
             join(typescript, "bin/tsc"),

@@ -11,13 +11,10 @@
         "./lint": "./src/lint/index.ts",
         "./diagnostic": "./src/diagnostic/index.ts",
         "./error": "./src/error/index.ts",
+        "./project": "./src/project/index.ts",
         "./toolchain": "./src/toolchain/index.ts",
         "./workspace": "./src/workspace/index.ts",
         "./bun": "./src/bun/index.ts"
-    },
-    "scripts": {
-        "typecheck": "tsc --project tsconfig.json && destack-check readme",
-        "test": "vitest run"
     },
     "dependencies": {
         "@destack/environment": "workspace:*",

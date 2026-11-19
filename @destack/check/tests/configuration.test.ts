@@ -3,8 +3,10 @@ import type { FileSystem } from "@destack/environment";
 import { Simulation } from "@destack/environment/simulation";
 import { expect, refusal, test } from "@destack/test";
 import { join } from "node:path";
+import { testHost } from "@destack/test/host";
 import { TYPESCRIPT_OPTIONS } from "@destack/package/build";
 import {
+    agentsFile,
     checkConfiguration,
     configurePackage,
     settingsRoot,
@@ -296,4 +298,56 @@ test("accept the findings a package expects and refuse an expectation nothing ma
 
     // leave expectations over unchecked files alone
     expect(applyExpectations([], expectations, directory, ["tests"])).toEqual([]);
+});
+
+/** A standard's AGENTS.md, shortened to one rule. */
+const STANDARD = "# Agents\n\n- **PS01** Agents MUST follow these rules proactively.\n";
+
+test("carry a workspace's custom section over exactly when writing its AGENTS.md", () => {
+    // regenerate a file whose standard part is current and whose custom section has rules
+    const existing = `${STANDARD}\n## Custom\n\n- **X01** Name the forks after rivers.\n\nSee the wiki.\n`;
+
+    // expect the same file back, byte for byte
+    expect(agentsFile(STANDARD, existing)).toEqual(existing);
+});
+
+test("append an empty custom section to an AGENTS.md without one, or to none", () => {
+    // regenerate a file without a custom section, and write a first one
+    const written = [agentsFile(STANDARD, STANDARD), agentsFile(STANDARD, undefined)];
+
+    // expect the standard with an empty custom section in both
+    const expected = `${STANDARD}\n## Custom\n`;
+    expect(written).toEqual([expected, expected]);
+});
+
+test("replace an outdated standard part of an AGENTS.md, keeping its custom section", () => {
+    // regenerate a file written from an earlier standard
+    const existing = "# Agents\n\n- **PS01** Old rule.\n\n## Custom\n\nOwn rule.\n";
+
+    // expect the current standard above the same custom section
+    expect(agentsFile(STANDARD, existing)).toEqual(`${STANDARD}\n## Custom\n\nOwn rule.\n`);
+});
+
+test("write a workspace's AGENTS.md from the toolchain's standard, and refuse one edited above its custom section", async () => {
+    // configure a workspace root, then edit its standard part
+    const { files } = testHost();
+    const workspace = await files.makeTemporaryDirectory("agents-");
+    await files.writeTextFile(join(workspace, "package.json"), JSON.stringify({ workspaces: [] }));
+    await configurePackage(workspace, Toolchain.workspace(), files);
+    const written = await files.readTextFile(join(workspace, "AGENTS.md"));
+    await checkConfiguration(workspace, files);
+    await files.writeTextFile(join(workspace, "AGENTS.md"), `Edited.\n${written}`);
+    const refused = await refusal(checkConfiguration(workspace, files));
+    await files.remove(workspace, { recursive: true });
+
+    // expect the standard with an empty custom section, and the edit refused
+    const standard = await files.readTextFile(join(Toolchain.packageDirectory(), "AGENTS.md"));
+    expect({ written, refused }).toEqual({
+        written: `${standard.trimEnd()}\n\n## Custom\n`,
+        refused: [
+            "BAD_REQUEST",
+            "CONFIGURATION_INVALID",
+            "'AGENTS.md' is invalid: it differs from the toolchain's standard; run configure",
+        ],
+    });
 });

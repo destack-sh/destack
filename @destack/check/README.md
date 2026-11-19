@@ -4,12 +4,14 @@ Lint, format and check Destack packages and their READMEs with one command.
 
 ## Overview
 
-`@destack/check` is Oxlint and Oxfmt under one fixed configuration: Destack's lint rules, Markdown rules, and README typechecks.
+`@destack/check` is Destack's toolchain: one fixed configuration of Oxlint, Oxfmt and TypeScript, Destack's lint rules, and the rule book, pinned per project as a development dependency.
 
-Packages run one command:
+Projects run its commands through `destack check`, `destack fix` and `destack test`:
 
-- `destack-check`: checks, fixes, formats and configures the package it runs in.
-- `checkPackage` and `fixPackage`: the same checks as functions.
+- `Project`: a package the toolchain checks, fixes, configures and tests, its own `check`, `fix` scripts run after.
+- `destack-check`: the same commands from the package it runs in, for the workspace's recipes.
+- `checkPackage` and `fixPackage`: the lint checks as functions.
+- `AGENTS.md`: the rule book `configure` writes into each workspace root, above the workspace's own `## Custom` section.
 
 Hosts extend and run the tools:
 
@@ -33,6 +35,17 @@ const result = await checkPackage({
 ```
 
 ## Reference
+
+### Project
+
+`Project.open(directory, environment)` opens a package with the toolchain that the CLI resolved from it.
+
+| Method          | What it does                                                                              |
+| --------------- | ----------------------------------------------------------------------------------------- |
+| `check(since?)` | formats, typechecks sources and tests, typechecks README listings and lints, as one list  |
+| `fix()`         | writes the generated settings, formats and applies the lints' fixes                       |
+| `test(options)` | runs the package's `TestPlan`, Bun targets then Node targets, by tier, database and files |
+| `configure()`   | writes `tsconfig.json`, `.oxlintrc.json`, `.oxfmtrc.json` and a workspace's `AGENTS.md`   |
 
 ### destack-check
 
@@ -71,7 +84,7 @@ Every rule is an error, beside Oxlint's own rules.
 | `no-manifest-import`      | no package manifests read from source                                  |
 | `no-overload-cast`        | an implementation returning what its overloads return                  |
 | `no-partial-assertions`   | tests asserting complete values                                        |
-| `no-test-timeout`        | tests taking timeouts from their tier alone                             |
+| `no-test-timeout`         | tests taking timeouts from their tier alone                            |
 | `no-system-environment`   | system effects only in entrypoints and the environment package         |
 | `padding-before-return`   | a blank line before a final return                                     |
 | `package-layout`          | only imports the package layout allows                                 |
