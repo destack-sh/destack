@@ -132,7 +132,7 @@ export class Grouper {
         return Identifier.hash("issue", ISSUE_NAMESPACE, name, this.#objects.environment.crypto);
     }
 
-    /** Read the revisions the occurrences ran, keyed by installation and build lock. */
+    /** Read the revisions the occurrences ran, keyed by installation and build image. */
     async #revisions(
         scope: Identifier<"space">,
         occurrences: readonly Occurrence[],
@@ -140,7 +140,7 @@ export class Grouper {
         // read the revisions of the occurrences' installations and builds from the replicas in one query
         const built = occurrences.filter((each) => each.build !== null);
         const installations = [...new Set(built.map((each) => each.installation))];
-        const locks = [...new Set(built.flatMap((each) => each.build ?? []))];
+        const images = [...new Set(built.flatMap((each) => each.build ?? []))];
         if (installations.length === 0) {
             return new Map();
         }
@@ -149,7 +149,7 @@ export class Grouper {
                 id: installationRevision.table.id,
                 createdAt: installationRevision.table.createdAt,
                 installationId: installationRevision.table.installationId,
-                lock: build.table.lock,
+                image: build.table.image,
             })
             .from(installationRevision.table)
             .innerJoin(
@@ -161,7 +161,7 @@ export class Grouper {
                 and(
                     eq(installation.table.scope, scope),
                     inArray(installation.table.id, installations),
-                    inArray(build.table.lock, locks),
+                    inArray(build.table.image, images),
                 ),
             )
             .orderBy(asc(installationRevision.table.createdAt), asc(installationRevision.table.id));
@@ -169,7 +169,7 @@ export class Grouper {
         // key each build by its latest revision, as a rollback to a build makes it again
         return new Map(
             rows.map((row) => [
-                `${row.installationId} ${row.lock}`,
+                `${row.installationId} ${row.image}`,
                 { id: row.id, createdAt: row.createdAt },
             ]),
         );
