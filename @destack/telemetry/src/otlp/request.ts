@@ -2,6 +2,7 @@ import type { Attributes, HrTime } from "@opentelemetry/api";
 import { hrTimeDuration } from "@opentelemetry/core";
 import { JsonTraceSerializer } from "@opentelemetry/otlp-transformer";
 import { resourceFromAttributes } from "@opentelemetry/resources";
+import type { ReadableLogRecord } from "@opentelemetry/sdk-logs";
 import type { ReadableSpan } from "@opentelemetry/sdk-trace";
 import { schema } from "@destack/schema";
 import { StackFrame } from "@destack/package/stack";
@@ -338,6 +339,51 @@ export class OtlpExport {
                         droppedAttributesCount: 0,
                         droppedEventsCount: 0,
                         droppedLinksCount: 0,
+                    };
+                }),
+            );
+        });
+    }
+
+    /** Read a logs export's records as emitted records, with their times and spans. */
+    records(): ReadableLogRecord[] {
+        // read each scope's records below its resource
+        const request = this.#read(OtlpLogsRequest);
+
+        return request.resourceLogs.flatMap(({ resource, scopeLogs }) => {
+            const described = resourceFromAttributes(attributesOf(resource.attributes));
+
+            return scopeLogs.flatMap(({ scope, logRecords }) =>
+                logRecords.map((record): ReadableLogRecord => {
+                    // read the record's times, the observed one standing in for a missing one
+                    const observed = hrTimeOf(record.observedTimeUnixNano ?? 0);
+                    const at =
+                        record.timeUnixNano === undefined
+                            ? observed
+                            : hrTimeOf(record.timeUnixNano);
+
+                    // read the span the record was emitted in, where it names one
+                    const context =
+                        record.traceId === undefined ||
+                        record.traceId === "" ||
+                        record.spanId === undefined ||
+                        record.spanId === ""
+                            ? undefined
+                            : { traceId: record.traceId, spanId: record.spanId, traceFlags: 1 };
+
+                    return {
+                        hrTime: at,
+                        hrTimeObserved: observed,
+                        ...(context === undefined ? {} : { spanContext: context }),
+                        ...(record.severityNumber === undefined
+                            ? {}
+                            : { severityNumber: record.severityNumber }),
+                        ...(record.eventName === undefined ? {} : { eventName: record.eventName }),
+                        ...(record.body === undefined ? {} : { body: valueOf(record.body) }),
+                        resource: described,
+                        instrumentationScope: { name: scope.name, version: scope.version },
+                        attributes: attributesOf(record.attributes),
+                        droppedAttributesCount: 0,
                     };
                 }),
             );

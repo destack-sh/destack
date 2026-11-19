@@ -58,3 +58,76 @@ test("read an empty export as one of no resources, refusing a malformed one", as
         "the 'traces' export is invalid: 'resourceSpans: Invalid input: expected array, received string'",
     ]);
 });
+
+test("read a logs export's records with their times, severity, body, attributes and span", () => {
+    // read one record emitted in a span, and one with only its observed time
+    const records = new OtlpExport("logs", {
+        resourceLogs: [
+            {
+                resource: { attributes: [{ key: "service.name", value: { stringValue: "site" } }] },
+                scopeLogs: [
+                    {
+                        scope: { name: "page", version: "1" },
+                        logRecords: [
+                            {
+                                timeUnixNano: "1700000000000000001",
+                                observedTimeUnixNano: "1700000000000000002",
+                                severityNumber: 17,
+                                eventName: "exception",
+                                body: { stringValue: "pricing link failed" },
+                                attributes: [
+                                    { key: "exception.type", value: { stringValue: "TypeError" } },
+                                ],
+                                traceId: "0af7651916cd43dd8448eb211c80319c",
+                                spanId: "b7ad6b7169203331",
+                            },
+                            { observedTimeUnixNano: 5, attributes: [] },
+                        ],
+                    },
+                ],
+            },
+        ],
+    }).records();
+
+    // read each record's fields under their shared scope, the observed time for a missing one
+    expect(
+        records.map((record) => ({
+            hrTime: record.hrTime,
+            hrTimeObserved: record.hrTimeObserved,
+            spanContext: record.spanContext,
+            severityNumber: record.severityNumber,
+            eventName: record.eventName,
+            body: record.body,
+            resource: record.resource.attributes,
+            instrumentationScope: record.instrumentationScope,
+            attributes: record.attributes,
+        })),
+    ).toEqual([
+        {
+            hrTime: [1_700_000_000, 1],
+            hrTimeObserved: [1_700_000_000, 2],
+            spanContext: {
+                traceId: "0af7651916cd43dd8448eb211c80319c",
+                spanId: "b7ad6b7169203331",
+                traceFlags: 1,
+            },
+            severityNumber: 17,
+            eventName: "exception",
+            body: "pricing link failed",
+            resource: { "service.name": "site" },
+            instrumentationScope: { name: "page", version: "1" },
+            attributes: { "exception.type": "TypeError" },
+        },
+        {
+            hrTime: [0, 5],
+            hrTimeObserved: [0, 5],
+            spanContext: undefined,
+            severityNumber: undefined,
+            eventName: undefined,
+            body: undefined,
+            resource: { "service.name": "site" },
+            instrumentationScope: { name: "page", version: "1" },
+            attributes: {},
+        },
+    ]);
+});
