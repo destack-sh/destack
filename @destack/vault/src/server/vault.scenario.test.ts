@@ -8,8 +8,8 @@ import { expect, refusal, single, test } from "@destack/test";
 import { defineSecret, defineVault } from "../declare/index.ts";
 import { secret, secretVersion, vault } from "../object/index.ts";
 import vaultPackage from "../package.ts";
-import { TestPackage } from "@destack/machine/test";
-import { APPLICATION, CONSUMER, CREDENTIAL, CREDENTIALS, TestVault, VAULT } from "../test/index.ts";
+import { TestPackage, VAULT } from "@destack/machine/test";
+import { APPLICATION, CONSUMER, CREDENTIAL, CREDENTIALS, TestVault } from "../test/index.ts";
 
 /** A vault the space's stack declares beside the application's, deleted at once on removal. */
 const shared = defineVault({ name: "shared" });
@@ -17,7 +17,7 @@ const shared = defineVault({ name: "shared" });
 /** A package whose installation binds nothing. */
 const STRANGER = PackageVersion.parse({
     id: "package-01996ab0-0000-7000-8000-0000000000c3",
-    name: "@example/stranger",
+    name: "@acme/stranger",
     version: "2026.10.0",
 });
 

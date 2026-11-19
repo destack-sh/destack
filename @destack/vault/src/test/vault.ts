@@ -1,7 +1,6 @@
 import { Numbered } from "@destack/object";
 import { SECRET_KIND } from "@destack/stack/declare";
-import { TestPackage } from "@destack/machine/test";
-import { testHost } from "@destack/test/host";
+import { TestPackage, VAULT } from "@destack/machine/test";
 import type { Crypto, Environment } from "@destack/environment";
 import { AccessContext, Caller, type PermissionReference, principal } from "@destack/access";
 import * as account from "@destack/account/object";
@@ -9,7 +8,6 @@ import type { TestPerson } from "@destack/account/test";
 import { Snapshot } from "@destack/db";
 import { SimulatedClock } from "@destack/environment/simulation";
 import type { TestCaller } from "@destack/object/test";
-import { testBuild } from "@destack/object/test";
 import { type BuildReader, PackageVersion } from "@destack/package";
 import { MemoryBuild } from "@destack/package/test";
 import type { Identifier } from "@destack/schema";
@@ -21,19 +19,18 @@ import { defineVault, type SecretDeclaration } from "../declare/index.ts";
 import { describeSecret, describeVault } from "../inspect/index.ts";
 import { secret, secretVersion, vault } from "../object/index.ts";
 import vaultPackage from "../package.ts";
-import vaultServer from "../server.ts";
 
 /** The application the test vault's space installs, declaring its vaults. */
 export const APPLICATION = PackageVersion.parse({
     id: "package-01996ab0-0000-7000-8000-0000000000c1",
-    name: "@example/application",
+    name: "@acme/application",
     version: "2026.10.0",
 });
 
 /** A second application, whose installation binds a vault or a secret beside the first's. */
 export const CONSUMER = PackageVersion.parse({
     id: "package-01996ab0-0000-7000-8000-0000000000c2",
-    name: "@example/consumer",
+    name: "@acme/consumer",
     version: "2026.10.0",
 });
 
@@ -268,12 +265,3 @@ export class TestVault {
         });
     }
 }
-
-/** The vault as the machine ships it, which stacks install to keep their secrets and vaults. */
-export const VAULT: TestPackage = {
-    handle: vaultPackage,
-    build: await testBuild(vaultPackage, testHost().crypto),
-    server: vaultServer,
-    connectors: [],
-    providers: [],
-};
