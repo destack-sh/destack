@@ -456,14 +456,12 @@ function resumeWatches(
     objects: readonly ObjectBindingKind[],
 ): ObjectWatch[] {
     return [
-        // the rollout once its installation changes or reports, as it reads its conditions
-        { table: installation.table, isObserving: true, on: { installationId: "id" } },
-        // the stack's rollout once a deleted installation it manages changes or goes
-        {
+        // the rollout and its manager's once its installation changes or reports
+        ...["id", "managerInstallationId"].map((column): ObjectWatch => ({
             table: installation.table,
-            where: { deletedAt: { isNotNull: true } },
-            on: { installationId: "managerInstallationId" },
-        },
+            isObserving: true,
+            on: { installationId: column },
+        })),
         // the rollout once it targets or applied another revision, or follows another stack
         {
             table: rollout.table,
