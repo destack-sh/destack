@@ -65,7 +65,6 @@ What people see and touch.
 |---|---|---|
 | [`@destack/style`](@destack/style) | Style components with StyleX, compiled into one stylesheet per build. | StyleX, Tailwind |
 | [`@destack/theme`](@destack/theme) | Theme views with an accent, a base and roles solved for contrast, in light and dark. | Radix Themes, shadcn/ui |
-| [`@destack/icon`](@destack/icon) | Draw Phosphor icons by name, each one loaded only where it is used. | Phosphor |
 | [`@destack/ui`](@destack/ui) | Build views from accessible Solid components styled with StyleX and themed by the person's theme. | shadcn/ui, Radix, Base UI |
 | [`@destack/view`](@destack/view) | Build a package's views with Solid, reading and changing its space's objects live. | Solid |
 | [`@destack/shader`](@destack/shader) | Draw fragment shader effects in views, colored by the theme. | Paper Shaders |
@@ -100,6 +99,7 @@ What every package uses: schemas, errors, effects, messages, telemetry and ident
 | [`@destack/schema`](@destack/schema) | Define Destack's portable values: validation schemas, identifiers, versions, time values, digests and canonical JSON. | Zod, JSON Schema |
 | [`@destack/error`](@destack/error) | Declare the errors a package's callers receive, each with a stable reason, an HTTP code and typed data. | gRPC status codes |
 | [`@destack/environment`](@destack/environment) | Take every effect through one environment: time, randomness and the network, real or simulated. | FoundationDB simulation, TigerBeetle VOPR |
+| [`@destack/icon`](@destack/icon) | Name Phosphor icons and store their SVG bodies, each one loaded only where it is used. | Phosphor, Lucide |
 | [`@destack/color`](@destack/color) | Name the preset color palettes and the seed each one grows from. | Radix Colors |
 | [`@destack/locale`](@destack/locale) | Localise messages and format numbers, money and dates for a person's language and region. | Lingui, MessageFormat 2 |
 | [`@destack/telemetry`](@destack/telemetry) | Instrument Destack packages with traces, metrics, logs, exceptions and analytics. | OpenTelemetry, Sentry |
