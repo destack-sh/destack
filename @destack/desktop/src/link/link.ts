@@ -1,5 +1,6 @@
+import { OriginPath } from "@destack/package";
 import type { Universe } from "@destack/update/release";
-import { InstallationOrigin, SpaceAddress, SpaceOrigin, OPEN_PATH } from "@destack/account/address";
+import { InstallationOrigin, SpaceAddress, SpaceOrigin } from "@destack/account/address";
 import {
     OBJECT_PARAMETER,
     ObjectAddress,
@@ -42,7 +43,7 @@ export class Link {
             return Link.view(url);
         }
         // read an object at the open path of the host's space, never of a branch
-        else if (url.pathname === OPEN_PATH && space.branch === undefined) {
+        else if (url.pathname === OriginPath.open && space.branch === undefined) {
             return Link.object(url, SpaceAddress.of(space));
         }
         // refuse any other path of a space
