@@ -1,3 +1,4 @@
+import { OtlpExporter } from "@destack/telemetry/otlp";
 import type { Scheduler, Telemetry } from "@destack/environment";
 import { startSilentTelemetry } from "@destack/telemetry/test";
 import type { Authentication } from "@destack/access";
@@ -169,7 +170,7 @@ export class LocalRuntime implements Runtime {
         const start = await InstanceSpec.start(spec, {
             egress: this.#egress(spec.scope),
             url: InstallationMount.url(RUNNER_ORIGIN, spec.scope, spec.installationId),
-            sampling: 1,
+            telemetry: { sampling: 1, delay: OtlpExporter.DEFAULT_DELAY },
             identity: await this.#identity(spec.scope),
             random: this.#runner(spec).environment.random,
         });

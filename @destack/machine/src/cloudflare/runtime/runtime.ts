@@ -1,3 +1,4 @@
+import type { WorkloadTelemetry } from "@destack/object/workload";
 import type { Random, Telemetry } from "@destack/environment";
 import { Authentication } from "@destack/access";
 import { Digest, type Identifier, JsonValue } from "@destack/schema";
@@ -68,11 +69,11 @@ export class WorkerdRuntime implements Runtime {
     readonly #space: string;
     /** The space's egress, below which the instances call addresses. */
     readonly #egress: string;
-    /** Resolve the share of traces an installation samples. */
-    readonly #sampling: (
+    /** Resolve how an installation samples and batches its telemetry. */
+    readonly #workloadTelemetry: (
         scope: Identifier<"space">,
         installation: Identifier<"installation">,
-    ) => Promise<number>;
+    ) => Promise<WorkloadTelemetry>;
     /** Resolve the public URL an installation's instances serve at. */
     readonly #url: (
         scope: Identifier<"space">,
@@ -101,11 +102,11 @@ export class WorkerdRuntime implements Runtime {
         readonly space: string;
         /** The space's egress, below which the instances call addresses. */
         readonly egress: string;
-        /** Resolve the share of traces an installation samples, as its space's settings set it. */
-        readonly sampling: (
+        /** Resolve how an installation samples and batches its telemetry. */
+        readonly workloadTelemetry: (
             scope: Identifier<"space">,
             installation: Identifier<"installation">,
-        ) => Promise<number>;
+        ) => Promise<WorkloadTelemetry>;
         /** Resolve the public URL an installation's instances serve at. */
         readonly url: (
             scope: Identifier<"space">,
@@ -120,13 +121,13 @@ export class WorkerdRuntime implements Runtime {
         /** Read the space's builds, which map a build's imports and open its dependencies. */
         readonly served: () => Pick<Space, "imports" | "builds">;
     }) {
-        // set the objects and facets, the space, its egress, the sampling and the spaces' identities
+        // set the objects and facets, the space, its egress, the workload telemetry and the spaces' identities
         this.#instances = options.instances;
         this.#facet = options.facet;
         this.#loader = options.loader;
         this.#space = options.space;
         this.#egress = options.egress;
-        this.#sampling = options.sampling;
+        this.#workloadTelemetry = options.workloadTelemetry;
         this.#url = options.url;
         this.#identity = options.identity;
         this.#random = options.random;
@@ -355,7 +356,7 @@ export class WorkerdRuntime implements Runtime {
         const start = await InstanceSpec.start(spec, {
             egress: this.#egress,
             url: await this.#url(spec.scope, spec.installationId),
-            sampling: await this.#sampling(spec.scope, spec.installationId),
+            telemetry: await this.#workloadTelemetry(spec.scope, spec.installationId),
             identity: await this.#identity(spec.scope),
             random: this.#random,
         });

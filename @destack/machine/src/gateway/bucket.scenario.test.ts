@@ -112,7 +112,7 @@ test("connect a workload to its bound bucket over S3 at its machine's egress, an
     const start = await InstanceSpec.start(spec, {
         egress,
         url: `http://127.0.0.1:${host.url.port}/installation`,
-        sampling: 1,
+        telemetry: { sampling: 1, delay: 5000 },
         identity: await testKeys(world),
         random: world.random,
     });

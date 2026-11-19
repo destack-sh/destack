@@ -94,7 +94,7 @@ async function startEcho(
         secret: placed.secret,
         egress: "https://space/.destack/egress",
         url: "https://space/installation",
-        sampling: 0,
+        telemetry: { sampling: 0, delay: 5000 },
         root: "00".repeat(32),
     };
     const build = await MemoryBuild.write(

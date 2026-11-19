@@ -1,3 +1,4 @@
+import { OtlpExporter } from "@destack/telemetry/otlp";
 import { TokenVerifier } from "@destack/access/token";
 import { CLOUD_RUNTIMES } from "./cloud.ts";
 import { DistributionManifest } from "@destack/package";
@@ -392,11 +393,14 @@ export class PartitionObject {
             loader: bindings.LOADER,
             space,
             egress: EGRESS,
-            sampling: (scope, installation) =>
-                SettingValue.resolve(Snapshot.live(database), traceSampling, {
+            // sample each installation as its settings set, batching at OpenTelemetry's default
+            workloadTelemetry: async (scope, installation) => ({
+                sampling: await SettingValue.resolve(Snapshot.live(database), traceSampling, {
                     scope,
                     installation,
                 }),
+                delay: OtlpExporter.DEFAULT_DELAY,
+            }),
             url: async (scope, installation) => {
                 const { url } = await directory.locate(scope, cloud.environment.clock.now());
 

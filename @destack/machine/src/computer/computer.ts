@@ -737,12 +737,15 @@ export class Computer implements AsyncDisposable {
             egress,
             // serve an installation below this machine's origin, where its space runs
             url: async (scope, installation) => InstallationMount.url(origin, scope, installation),
-            sampling: async (scope, installation) =>
-                SettingValue.resolve(
+            // sample each installation as its settings set, batching as the machine's own variables set
+            workloadTelemetry: async (scope, installation) => ({
+                sampling: await SettingValue.resolve(
                     Snapshot.live((await machine().space(scope)).database),
                     traceSampling,
                     { scope, installation },
                 ),
+                delay: OtlpExporter.delay(options.environment.process.variables),
+            }),
             output: (running, line) => {
                 // forward the line as a log record of the instance to its space's receivers
                 const now = BigInt(options.environment.clock.now());

@@ -16,7 +16,11 @@ import {
     CONNECTION_PATH,
 } from "@destack/object";
 import type { Deriver } from "@destack/identity";
-import { InstallationRoot, type WorkloadStart } from "@destack/object/workload";
+import {
+    InstallationRoot,
+    type WorkloadStart,
+    type WorkloadTelemetry,
+} from "@destack/object/workload";
 import type {} from "@destack/package/import-meta";
 import { StackError } from "@destack/stack/error";
 import type { DeploymentRuntime } from "@destack/stack/object";
@@ -200,8 +204,8 @@ export const InstanceSpec = {
             readonly egress: string;
             /** The URL callers call the installation at, with its packages mounted below. */
             readonly url: string;
-            /** The share of traces the installation samples. */
-            readonly sampling: number;
+            /** How the instance samples and batches its telemetry. */
+            readonly telemetry: WorkloadTelemetry;
             /** The identity of the instance's space, which the installation's root derives from. */
             readonly identity: Pick<Deriver, "derive">;
             /** The randomness the instance's secret draws from. */
@@ -221,7 +225,7 @@ export const InstanceSpec = {
             secret,
             egress: options.egress,
             url: options.url,
-            sampling: options.sampling,
+            telemetry: options.telemetry,
             root: (await InstallationRoot.derive(options.identity, spec.installationId)).toHex(),
         };
     },

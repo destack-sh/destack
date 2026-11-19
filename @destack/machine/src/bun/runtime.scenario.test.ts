@@ -90,7 +90,7 @@ test("run an instance as a Bun process bound at the egress, serving forwarded ca
         directory,
         packages,
         egress: () => "http://127.0.0.1:7470/.destack/egress",
-        sampling: async () => 1,
+        workloadTelemetry: async () => ({ sampling: 1, delay: 5000 }),
         url: async () => "http://127.0.0.1:7470/installation",
         output: () => {},
     });
@@ -382,7 +382,7 @@ test("call an app's export in a sandbox, importing a builtin the runtime supplie
         directory,
         packages,
         egress: () => "http://127.0.0.1:7470/.destack/egress",
-        sampling: async () => 1,
+        workloadTelemetry: async () => ({ sampling: 1, delay: 5000 }),
         url: async () => "http://127.0.0.1:7470/installation",
         output: () => {},
     });
@@ -438,7 +438,7 @@ test("deny a sandboxed workload's calls to hosts its capabilities omit", async (
         directory,
         packages,
         egress: () => "http://127.0.0.1:7470/.destack/egress",
-        sampling: async () => 1,
+        workloadTelemetry: async () => ({ sampling: 1, delay: 5000 }),
         url: async () => "http://127.0.0.1:7470/installation",
         output: () => {},
     });
@@ -576,7 +576,7 @@ test("import and call a shared package's export as the machine's own instance, a
         directory,
         packages,
         egress: () => "http://127.0.0.1:7470/.destack/egress",
-        sampling: async () => 1,
+        workloadTelemetry: async () => ({ sampling: 1, delay: 5000 }),
         url: async () => "http://127.0.0.1:7470/installation",
         output: () => {},
     });
@@ -683,7 +683,7 @@ test("refuse a sandboxed call of a release running a native addon, and load it f
         directory,
         packages,
         egress: () => "http://127.0.0.1:7470/.destack/egress",
-        sampling: async () => 1,
+        workloadTelemetry: async () => ({ sampling: 1, delay: 5000 }),
         url: async () => "http://127.0.0.1:7470/installation",
         output: () => {},
     });

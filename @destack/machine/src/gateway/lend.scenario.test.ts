@@ -152,7 +152,7 @@ test("apply a bound connection's key to a workload's calls below its resource wi
     const start = await InstanceSpec.start(spec, {
         egress: `http://127.0.0.1:${host.url.port}${Egress.path}`,
         url: `http://127.0.0.1:${host.url.port}/installation`,
-        sampling: 1,
+        telemetry: { sampling: 1, delay: 5000 },
         identity: await testKeys(space.machine.environment),
         random: space.machine.environment.random,
     });

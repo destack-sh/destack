@@ -10,7 +10,12 @@ import { BuildImage, PackageManifest } from "@destack/package/manifest";
 import { Sandbox, type SandboxOptions } from "@destack/sandbox";
 import { type Digest, type Identifier, JsonValue, present } from "@destack/schema";
 import type { Deriver } from "@destack/identity";
-import { WORKLOAD_EXPORT, WorkloadReady, type WorkloadStart } from "@destack/object/workload";
+import {
+    WORKLOAD_EXPORT,
+    WorkloadReady,
+    type WorkloadStart,
+    type WorkloadTelemetry,
+} from "@destack/object/workload";
 import type { BunWorkload } from "@destack/stack/bun";
 import {
     type InstanceExit,
@@ -83,11 +88,11 @@ export class BunRuntime implements Runtime {
     readonly #program: Program;
     /** The machine's egress of a space's instances, below which they call addresses. */
     readonly #egress: (scope: Identifier<"space">) => string;
-    /** Resolve the share of traces an installation samples. */
-    readonly #sampling: (
+    /** Resolve how an installation samples and batches its telemetry. */
+    readonly #workloadTelemetry: (
         scope: Identifier<"space">,
         installation: Identifier<"installation">,
-    ) => Promise<number>;
+    ) => Promise<WorkloadTelemetry>;
     /** Resolve the public URL an installation's instances serve at. */
     readonly #url: (
         scope: Identifier<"space">,
@@ -123,11 +128,11 @@ export class BunRuntime implements Runtime {
         readonly program: Program;
         /** The machine's egress of a space's instances, below which they call addresses. */
         readonly egress: (scope: Identifier<"space">) => string;
-        /** Resolve the share of traces an installation samples, as its space's settings set it. */
-        readonly sampling: (
+        /** Resolve how an installation samples and batches its telemetry. */
+        readonly workloadTelemetry: (
             scope: Identifier<"space">,
             installation: Identifier<"installation">,
-        ) => Promise<number>;
+        ) => Promise<WorkloadTelemetry>;
         /** Resolve the public URL an installation's instances serve at. */
         readonly url: (
             scope: Identifier<"space">,
@@ -148,7 +153,7 @@ export class BunRuntime implements Runtime {
         this.#builtins = options.builtins;
         this.#program = options.program;
         this.#egress = options.egress;
-        this.#sampling = options.sampling;
+        this.#workloadTelemetry = options.workloadTelemetry;
         this.#url = options.url;
         this.#output = options.output;
         this.#identity = options.identity;
@@ -704,7 +709,7 @@ export class BunRuntime implements Runtime {
         return InstanceSpec.start(spec, {
             egress: this.#egress(spec.scope),
             url: await this.#url(spec.scope, spec.installationId),
-            sampling: await this.#sampling(spec.scope, spec.installationId),
+            telemetry: await this.#workloadTelemetry(spec.scope, spec.installationId),
             identity: await this.#identity(spec.scope),
             random: this.#environment.random,
         });

@@ -162,7 +162,7 @@ test("bind a workload's own provisioned resources by name, refusing another pack
     const options = {
         egress: EGRESS,
         url: "https://notes--home.test",
-        sampling: 1,
+        telemetry: { sampling: 1, delay: 5000 },
         identity: await testKeys(world),
         random: world.random,
     };
