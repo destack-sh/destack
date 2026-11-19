@@ -1,4 +1,4 @@
-import { DOMAINS, UNIVERSE_PAGES } from "@destack/account/address";
+import { DOMAINS } from "@destack/account/address";
 import type { ResidencyCode } from "@destack/account/object";
 import { install } from "@destack/stack/declare";
 import connectionPackage, { CONNECTION_INSTALLATION } from "@destack/connection/package";
@@ -14,7 +14,7 @@ import observabilityPackage from "@destack/observability/package";
 import relayPackage from "@destack/relay/package";
 import socialPackage from "@destack/social/package";
 import { defineStack, type StackInput } from "@destack/stack";
-import homePackage from "@destack/home/package";
+import blankPackage from "@destack/blank/package";
 import sitePackage from "@platform/site/package";
 import { HOME_APPLICATION } from "@destack/account/object";
 import { defineVault } from "@destack/vault/declare";
@@ -93,7 +93,11 @@ function residencyStack(edge: {
                 { isolation: "host", name: "notification" },
             ),
             relay: install(relayPackage, {}, { name: "relay", selection: { kind: "host" } }),
-            home: install(homePackage, {}, { name: HOME_APPLICATION, selection: { kind: "host" } }),
+            home: install(
+                blankPackage,
+                {},
+                { name: HOME_APPLICATION, selection: { kind: "host" } },
+            ),
             ...edge.installations,
             social: install(socialPackage, {}, { isolation: "host", name: "social" }),
             observability: install(
@@ -106,24 +110,13 @@ function residencyStack(edge: {
     });
 }
 
-/** Route one of the universe's pages to Home's view of the same name. */
-function pageRoute(page: keyof typeof UNIVERSE_PAGES): NonNullable<StackInput["routes"]>[string] {
-    return {
-        hostname: DOMAINS.universe,
-        path: UNIVERSE_PAGES[page],
-        match: "prefix",
-        installation: "home",
-        rules: [{ entry: { kind: "view", view: UNIVERSE_PAGES[page].slice(1) } }],
-    };
-}
-
 /** Route a relay's own host, and on the platform residency's home the edge and the site. */
 function edgeOf(code: ResidencyCode) {
     const own = { [`relay-${code}`]: relayRoute(`relay-${code}.${DOMAINS.machine}`) };
     const edge = {
         spaces: relayRoute(`*.${DOMAINS.space}`),
         machines: relayRoute(`*.${DOMAINS.machine}`),
-        // serve the universe's root and its pages from Home
+        // serve the universe's root from the home application's start
         start: {
             hostname: DOMAINS.universe,
             path: "/",
@@ -131,11 +124,6 @@ function edgeOf(code: ResidencyCode) {
             installation: "home",
             rules: [{ entry: { kind: "view", view: "start" } }],
         },
-        "sign-in": pageRoute("signIn"),
-        "sign-up": pageRoute("signUp"),
-        consent: pageRoute("consent"),
-        verification: pageRoute("verification"),
-        apps: pageRoute("apps"),
         // serve the site's static pages at its own domain
         site: {
             hostname: DOMAINS.site,

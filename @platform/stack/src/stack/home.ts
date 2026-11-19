@@ -1,7 +1,7 @@
 import connectionPackage, { CONNECTION_INSTALLATION } from "@destack/connection/package";
 import { connectionVault } from "@destack/connection/stack";
 import { HOME_APPLICATION } from "@destack/account/object";
-import homePackage from "@destack/home/package";
+import blankPackage from "@destack/blank/package";
 import messagePackage from "@destack/message/package";
 import notificationPackage from "@destack/notification/package";
 import observabilityPackage from "@destack/observability/package";
@@ -10,7 +10,7 @@ import { defineStack } from "@destack/stack";
 import { install } from "@destack/stack/declare";
 import vaultPackage from "@destack/vault/package";
 
-/** The stack of every account's home: Home, its inbox, connections, comments and observability. */
+/** Every account's home stack: its start page, inbox, connections, comments and observability. */
 export const HOME_STACK = defineStack({
     types: [vaultPackage],
     vaults: { credentials: connectionVault.provision() },
@@ -21,7 +21,7 @@ export const HOME_STACK = defineStack({
             { credentials: "credentials" },
             { isolation: "host", name: CONNECTION_INSTALLATION },
         ),
-        home: install(homePackage, {}, { name: HOME_APPLICATION, selection: { kind: "host" } }),
+        home: install(blankPackage, {}, { name: HOME_APPLICATION, selection: { kind: "host" } }),
         message: install(
             messagePackage,
             {},
