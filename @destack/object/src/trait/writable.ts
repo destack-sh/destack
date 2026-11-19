@@ -84,11 +84,20 @@ export const writable: TraitBehavior<Writes> = {
     },
     columns: () => ({}),
     constraints: () => [],
-    methods: (options, declared) => ({
-        ...(Object.hasOwn(declared, "create") ? {} : { create: method.create(WRITE) }),
-        ...(Object.hasOwn(declared, "update") ? {} : { update: method.update(WRITE) }),
-        ...(!options.isDeleting || Object.hasOwn(declared, "delete")
-            ? {}
-            : { delete: method.delete(WRITE) }),
-    }),
+    methods: (options, declared) => {
+        // add each default the type declares no method of its kind or name for
+        const kinds = new Set(
+            Object.values(declared).flatMap((each) => (each === false ? [] : [each.kind])),
+        );
+        const isDeclared = (kind: "create" | "update" | "delete") =>
+            kinds.has(kind) || Object.hasOwn(declared, kind);
+
+        return {
+            ...(isDeclared("create") ? {} : { create: method.create(WRITE) }),
+            ...(isDeclared("update") ? {} : { update: method.update(WRITE) }),
+            ...(!options.isDeleting || isDeclared("delete")
+                ? {}
+                : { delete: method.delete(WRITE) }),
+        };
+    },
 };
