@@ -1,15 +1,17 @@
+import type { SwatchName } from "@destack/color";
 import { ViewDescription } from "@destack/package/manifest";
 import { Filter } from "@destack/db";
 import {
     type Command,
     InstallationMount,
     type ObjectType,
+    PACKAGE_KIND,
     PackageMount,
     Presentation,
 } from "@destack/object";
 import { type ObjectConnection, ObjectStoreDescription } from "@destack/object/client";
 import { DeclarationName, type PackageId } from "@destack/package";
-import type { Localization } from "@destack/locale";
+import type { Localization, Message } from "@destack/locale";
 import { type Identifier, type JsonObject, type JsonValue, schema, Text } from "@destack/schema";
 import { ObjectReference } from "@destack/sync";
 import stackPackage from "@destack/stack/package";
@@ -45,6 +47,18 @@ interface CatalogInstallation {
     readonly main: DeclarationName | undefined;
     /** The object types it lists, as the space's store describes them. */
     readonly objects: readonly ObjectType[];
+    /** The package's title, icon and swatch, absent for a package that declares none. */
+    readonly presentation: PackagePresentation | undefined;
+}
+
+/** How a package presents itself in a stack: its title, its icon and its swatch. */
+interface PackagePresentation {
+    /** The package's name as people read it. */
+    readonly title: Message;
+    /** The Phosphor icon its app's tile draws. */
+    readonly icon: string;
+    /** The swatch it is drawn in. */
+    readonly color: SwatchName;
 }
 
 /** An object a command's picker offers. */
@@ -110,6 +124,14 @@ export class SpaceCatalog {
                               views: declared.map((view) => DeclarationName.parse(view.name)),
                               main: main === undefined ? undefined : DeclarationName.parse(main),
                               objects: description.types(implementation),
+                              presentation: description
+                                  .declarations(implementation, PACKAGE_KIND)
+                                  .map(({ description: presented }) => ({
+                                      title: presented.title,
+                                      icon: presented.icon,
+                                      color: presented.color,
+                                  }))
+                                  .at(0),
                           },
                       ];
             })
@@ -174,6 +196,13 @@ export class SpaceCatalog {
         }
 
         return command;
+    }
+
+    /** Read the title people read for an installation: its package's title, else its name. */
+    static title(installation: CatalogInstallation, locale: Localization): string {
+        return installation.presentation === undefined
+            ? installation.name
+            : locale.render(installation.presentation.title);
     }
 
     /** List the objects a command applies to whose title contains a text. */

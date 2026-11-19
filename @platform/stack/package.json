@@ -21,6 +21,7 @@
         "@destack/schema": "workspace:*",
         "@destack/social": "workspace:*",
         "@destack/stack": "workspace:*",
+        "@destack/tasks": "workspace:*",
         "@destack/template-blank": "workspace:*",
         "@destack/template-stack": "workspace:*",
         "@destack/vault": "workspace:*",

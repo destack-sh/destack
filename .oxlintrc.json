@@ -280,6 +280,11 @@
                     "description": "Use Destack from the terminal: sign in, install packages and work with a space's objects."
                 },
                 {
+                    "directory": "@destack/color",
+                    "name": "@destack/color",
+                    "description": "Name the preset color palettes and the seed each one grows from."
+                },
+                {
                     "directory": "@destack/connection",
                     "name": "@destack/connection",
                     "description": "Connect external accounts once, and call their APIs with credentials kept in a vault."
@@ -337,7 +342,7 @@
                 {
                     "directory": "@destack/icon",
                     "name": "@destack/icon",
-                    "description": "Draw Phosphor icons by name, each one loaded only where it is used."
+                    "description": "Name Phosphor icons and store their SVG bodies, each one loaded only where it is used."
                 },
                 {
                     "directory": "@destack/identity",
@@ -440,6 +445,11 @@
                     "description": "Synchronize database rows to subscribers and local replicas, as each commit lands."
                 },
                 {
+                    "directory": "@destack/tasks",
+                    "name": "@destack/tasks",
+                    "description": "Track a team's tasks in projects and cycles, as a list and a board."
+                },
+                {
                     "directory": "@destack/telemetry",
                     "name": "@destack/telemetry",
                     "description": "Instrument Destack packages with traces, metrics, logs, exceptions and analytics."
@@ -447,7 +457,7 @@
                 {
                     "directory": "@destack/template-blank",
                     "name": "@destack/template-blank",
-                    "description": "Start a new Destack package from an empty package with one setting."
+                    "description": "Start a new Destack package from an empty package with one setting and one page."
                 },
                 {
                     "directory": "@destack/template-stack",
@@ -617,6 +627,7 @@
                 "@destack/build": "library",
                 "@destack/check": "library",
                 "@destack/cli": "library",
+                "@destack/color": "builtin",
                 "@destack/connection": "builtin",
                 "@destack/control": "builtin",
                 "@destack/db": "builtin",
@@ -649,6 +660,7 @@
                 "@destack/stack": "builtin",
                 "@destack/style": "library",
                 "@destack/sync": "builtin",
+                "@destack/tasks": "app",
                 "@destack/telemetry": "builtin",
                 "@destack/template-blank": "app",
                 "@destack/template-stack": "library",

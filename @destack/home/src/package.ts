@@ -1,5 +1,5 @@
 import { t } from "@destack/locale";
-import { client, space, user } from "@destack/account/object";
+import { client, space } from "@destack/account/object";
 import { definePackage, installation } from "@destack/object";
 import { declaration, installationRevision, rollout } from "@destack/stack/object";
 import { setting } from "@destack/setting/object";
@@ -21,8 +21,6 @@ export default definePackage({
                     client.permission("rotate"),
                     client.permission("verify"),
                 ],
-                // read the person's profile, whose language every page presents in
-                universe: [user.permission("read")],
                 // list the account's spaces
                 account: [space.permission("list")],
                 // list and read the space's installations and rollouts, with the commands and views they declare

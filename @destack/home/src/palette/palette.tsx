@@ -16,10 +16,9 @@ import {
 import {
     COMMAND_PARAMETER,
     FOCUS_PARAMETER,
-    INSTALLATION_PARAMETER,
     OBJECT_PARAMETER,
     SPACE_PARAMETER,
-    VIEW_PARAMETER,
+    ViewAddress,
 } from "@destack/view/declare";
 import {
     keybindings,
@@ -118,18 +117,18 @@ export default function Commands() {
 
 /** Open a view, or an object in the view presenting it, through the page's open path. */
 function openEntry(listing: PaletteListing, entry: ViewEntry | ObjectEntry, origin: string): void {
-    // name the view of an installation, or the object
+    // address the view of an installation, or the object
     const space = listing.catalog(entry).space.address;
-    const query = new URLSearchParams(
+    const path =
         entry.kind === "view"
-            ? {
-                  [SPACE_PARAMETER]: space,
-                  [INSTALLATION_PARAMETER]: entry.installation,
-                  [VIEW_PARAMETER]: entry.name,
-              }
-            : { [SPACE_PARAMETER]: space, [OBJECT_PARAMETER]: JSON.stringify(entry.object) },
-    );
+            ? ViewAddress.openPath({
+                  space,
+                  installation: entry.installation,
+                  view: entry.name,
+                  path: "/",
+              })
+            : `${OriginPath.open}?${new URLSearchParams({ [SPACE_PARAMETER]: space, [OBJECT_PARAMETER]: JSON.stringify(entry.object) })}`;
 
     // open it in the window the palette opens in, or over
-    (window.top ?? window).location.href = new URL(`${OriginPath.open}?${query}`, origin).href;
+    (window.top ?? window).location.href = new URL(path, origin).href;
 }

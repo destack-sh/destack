@@ -1,4 +1,4 @@
-import { OriginPath } from "@destack/package";
+import type { SwatchName } from "@destack/color";
 import { InstallationOrigin, SpaceAddress } from "@destack/account/address";
 import { Failure } from "@destack/error";
 import { argument, t } from "@destack/locale";
@@ -28,7 +28,6 @@ import {
     useScope,
     useView,
 } from "@destack/view";
-import { INSTALLATION_PARAMETER, SPACE_PARAMETER, VIEW_PARAMETER } from "@destack/view/declare";
 import type { ViewEntry } from "@destack/view/palette";
 import { space } from "@destack/account/object";
 import type { PackageId } from "@destack/package";
@@ -36,7 +35,7 @@ import { installation, PackageMount } from "@destack/object";
 import { createClient } from "@destack/object/client";
 import objectPackage from "@destack/object/package";
 import { RequestId } from "@destack/sync";
-import { ScopePath } from "@destack/view/declare";
+import { ScopePath, ViewAddress } from "@destack/view/declare";
 import { SpaceCatalog } from "../palette/catalog.ts";
 import { AppDirectoryDialog } from "./directory.tsx";
 import {
@@ -46,6 +45,13 @@ import {
     type WaitingChange,
     type WaitingPlan,
 } from "./approval.ts";
+import { AppGrid, AppLink } from "./app.tsx";
+
+/** An app's main view as the overview links it: its installation, view, title and swatch. */
+type AppView = Pick<ViewEntry, "installation" | "name"> & {
+    readonly title: string;
+    readonly color: SwatchName | undefined;
+};
 
 /** List the account's spaces by name, each with the views its apps mount. */
 export function Spaces() {
@@ -116,7 +122,7 @@ function SpaceItem(properties: {
     const origin = useOrigin();
     const connect = useConnect();
     const environment = useEnvironment();
-    const [views, setViews] = createSignal<readonly Pick<ViewEntry, "installation" | "name">[]>([]);
+    const [views, setViews] = createSignal<readonly AppView[]>([]);
     const [failure, setFailure] = createSignal<string | undefined>(undefined);
 
     // read the plans the space's installations wait on, again after each approval
@@ -173,7 +179,14 @@ function SpaceItem(properties: {
                     catalog.installations.flatMap((each) =>
                         each.main === undefined
                             ? []
-                            : [{ installation: each.name, name: each.main }],
+                            : [
+                                  {
+                                      installation: each.name,
+                                      name: each.main,
+                                      title: SpaceCatalog.title(each, locale),
+                                      color: each.presentation?.color,
+                                  },
+                              ],
                     ),
                 );
             },
@@ -209,11 +222,23 @@ function SpaceItem(properties: {
                 <Show
                     when={failure()}
                     fallback={
-                        <For each={views()}>
-                            {(view) => (
-                                <a href={openPath(properties.address, view)}>{view.installation}</a>
-                            )}
-                        </For>
+                        <AppGrid>
+                            <For each={views()}>
+                                {(view) => (
+                                    <AppLink
+                                        href={ViewAddress.openPath({
+                                            space: properties.address,
+                                            installation: view.installation,
+                                            view: view.name,
+                                            path: "/",
+                                        })}
+                                        title={view.title}
+                                        color={view.color}
+                                        name={view.installation}
+                                    />
+                                )}
+                            </For>
+                        </AppGrid>
                     }
                 >
                     {(message) => (
@@ -306,15 +331,4 @@ function SpaceItem(properties: {
             </ItemContent>
         </Item>
     );
-}
-
-/** Address a view of an installation in a space through the page's open path. */
-function openPath(address: string, view: Pick<ViewEntry, "installation" | "name">): string {
-    const query = new URLSearchParams({
-        [SPACE_PARAMETER]: address,
-        [INSTALLATION_PARAMETER]: view.installation,
-        [VIEW_PARAMETER]: view.name,
-    });
-
-    return `${OriginPath.open}?${query}`;
 }

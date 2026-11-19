@@ -1,0 +1,34 @@
+{
+    "name": "@destack/tasks",
+    "license": "Apache-2.0",
+    "type": "module",
+    "description": "Track a team's tasks in projects and cycles, as a list and a board.",
+    "publishConfig": {
+        "access": "public"
+    },
+    "exports": {
+        "./package": "./src/package.ts",
+        "./object": "./src/object/index.ts",
+        "./view": "./src/view/index.ts"
+    },
+    "scripts": {
+        "postinstall": "destack-check configure"
+    },
+    "devDependencies": {
+        "@destack/check": "workspace:*",
+        "@destack/build": "workspace:*"
+    },
+    "dependencies": {
+        "@destack/access": "workspace:*",
+        "@destack/account": "workspace:*",
+        "@destack/locale": "workspace:*",
+        "@destack/object": "workspace:*",
+        "@destack/package": "workspace:*",
+        "@destack/schema": "workspace:*",
+        "@destack/setting": "workspace:*",
+        "@destack/style": "workspace:*",
+        "@destack/theme": "workspace:*",
+        "@destack/ui": "workspace:*",
+        "@destack/view": "workspace:*"
+    }
+}

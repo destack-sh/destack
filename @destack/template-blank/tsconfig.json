@@ -31,7 +31,9 @@
             "DOM",
             "DOM.Iterable"
         ],
-        "types": ["bun"]
+        "types": ["bun", "@destack/view/client"],
+        "jsx": "preserve",
+        "jsxImportSource": "@destack/view"
     },
     "include": ["**/*"],
     "exclude": ["node_modules", "dist", "target", "coverage", "out"]

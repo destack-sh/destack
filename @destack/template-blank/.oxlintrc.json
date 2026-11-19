@@ -115,18 +115,21 @@
                 {
                     "directory": ".",
                     "name": "@destack/template-blank",
-                    "description": "Start a new Destack package from an empty package with one setting."
+                    "description": "Start a new Destack package from an empty package with one setting and one page."
                 }
             ],
             "entrypoints": [],
             "roles": {
                 "@destack/template-blank": "app",
+                "@destack/account": "builtin",
                 "@destack/locale": "builtin",
                 "@destack/object": "builtin",
                 "@destack/package": "builtin",
                 "@destack/schema": "builtin",
                 "@destack/setting": "builtin",
                 "@destack/template-stack": "library",
+                "@destack/ui": "library",
+                "@destack/view": "library",
                 "@destack/check": "library"
             }
         }
