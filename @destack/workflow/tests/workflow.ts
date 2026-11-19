@@ -12,7 +12,7 @@ import {
     Package,
     type ObjectType,
 } from "@destack/object";
-import { ProcedureRemote } from "@destack/object/client";
+import type { ObjectConnection } from "@destack/object/client";
 import objectPackage from "@destack/object/package";
 import { implementPackage } from "@destack/object/server";
 import { TestObjectStore, testServerContext, testSimulation } from "@destack/object/test";
@@ -115,7 +115,7 @@ export interface TestWorkflow {
     /** Send a request to the notes package below its path, as its mounts answer it. */
     readonly fetch: (request: Request) => Promise<Response>;
     /** Call the space's objects as a subject, such as a workflow's runs. */
-    readonly objects: (subject: Subject) => ProcedureRemote;
+    readonly objects: (subject: Subject) => ObjectConnection;
     /** Let a delegate act for a person, as the person grants at the universe. */
     readonly grant: (
         delegator: Subject,
@@ -216,11 +216,7 @@ export async function openServed<Input, Output>(
             },
         })),
     );
-    const publisher = new ProcedureRemote({
-        scope: scope.id,
-        store: universal.as(scope).client(objectPackage).store,
-        environment: universal.environment,
-    });
+    const publisher = universal.as(scope).connect(objectPackage, { scope: scope.id });
 
     // serve the space's packages beside its access objects in the space alice owns, running their controllers
     const implementations = [implementation, ...invoked.map((each) => each.served)];
@@ -366,11 +362,7 @@ export async function openServed<Input, Output>(
 
     // call the served types by name as a subject
     const objectsOf = (subject: Subject) =>
-        ProcedureRemote.at({
-            scope: served.scope,
-            endpoint: served.as(subject).endpoint(handle),
-            environment: served.environment,
-        });
+        served.as(subject).connect(handle, { scope: served.scope });
 
     return {
         served,
