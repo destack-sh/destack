@@ -28,6 +28,7 @@ export const ObjectError = defineErrorFamily({
         PACKAGE_NOT_FOUND: {},
         PUBLICATION_NOT_FOUND: {},
         REFERENCE_NOT_FOUND: {},
+        ROUTE_NOT_FOUND: {},
         SCOPE_NOT_FOUND: {},
         SCOPE_OUTSIDE_REQUEST_NOT_FOUND: {},
         SOCKET_HANDLER_NOT_FOUND: {},

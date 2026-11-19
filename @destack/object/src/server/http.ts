@@ -329,11 +329,17 @@ export class Server implements AsyncDisposable {
             return routed;
         }
 
-        // serve a procedure, answering the watermarks it observed
+        // serve a procedure, answering the watermarks it observed, refusing a route none serves
         const result = await this.#handler.handle(request, { context });
-        const response = result.matched ? result.response : new Response(null, { status: 404 });
+        if (!result.matched) {
+            const { pathname } = new URL(request.url);
+            throw ObjectError.of(
+                "ROUTE_NOT_FOUND",
+                `route '${request.method}' '${pathname}' not found`,
+            );
+        }
 
-        return attachBookmark(response, context.observed);
+        return attachBookmark(result.response, context.observed);
     }
 
     /** Refuse new work, drain requests and dispose resources, once. */

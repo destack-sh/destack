@@ -1,8 +1,5 @@
 import { copyRequest } from "@destack/environment";
 
-/** The path at which an installation's origin serves its package. */
-export const PACKAGE_PATH = "/.destack/package";
-
 /** The path a host mounts each package under. */
 const MOUNTED = /^\/(package-[^/]+)(\/.*)?$/u;
 

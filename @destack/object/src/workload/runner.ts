@@ -1,3 +1,4 @@
+import { OriginPath } from "@destack/package";
 import { CallFrame } from "../replica/frame.ts";
 import { Caller } from "@destack/access";
 import { ObjectError } from "../error/error.ts";
@@ -10,7 +11,7 @@ import type { Connector, ResourceDeclaration } from "@destack/resource";
 import { ResourceContext } from "@destack/resource/context";
 import { TelemetryScope } from "@destack/telemetry";
 import type { Telemetry, TelemetryOptions } from "@destack/telemetry/sdk";
-import { OTLP_ORIGIN_PATH, OtlpExporter } from "@destack/telemetry/otlp";
+import { OtlpExporter } from "@destack/telemetry/otlp";
 import type {} from "@destack/package/import-meta";
 import { BuildLayer, type BuildReader } from "@destack/package/manifest";
 import type { Package } from "../declare/package.ts";
@@ -208,7 +209,7 @@ export class WorkloadRunner implements AsyncDisposable {
         report: (error: unknown) => void,
     ): TelemetryOptions {
         // post to the host's OTLP path with the runner's secret, resolving frames through the build
-        const endpoint = Egress.beside(start.egress, OTLP_ORIGIN_PATH);
+        const endpoint = Egress.beside(start.egress, OriginPath.telemetry);
         const headers = () => ({ authorization: `Bearer ${start.secret}` });
         const fetch = (request: Request) => runner.environment.network.fetch(request);
         const exporter = OtlpExporter.http(

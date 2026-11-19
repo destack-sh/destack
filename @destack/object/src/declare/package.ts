@@ -309,7 +309,12 @@ function handleOf<const Options extends PackageOptions, Identity extends object>
             typeof secrets,
             Keyed<Exclude<Listed<Options["resources"]>, ResourceOf<Listed<Options["resources"]>>>>
         >(secrets, (each) => each),
-        permissions: GrantDeclaration.parse(options.access?.permissions ?? {}),
+        permissions: GrantDeclaration.merge([
+            GrantDeclaration.parse(options.access?.permissions ?? {}),
+            ...(options.views ?? []).flatMap((view) =>
+                "permissions" in view ? [GrantDeclaration.parse(view.permissions)] : [],
+            ),
+        ]),
         capabilities: Object.fromEntries(
             Object.values(byName(options.capabilities ?? [])).map(({ name, ...each }) => [
                 name,
