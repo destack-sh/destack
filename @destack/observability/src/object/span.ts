@@ -29,8 +29,6 @@ export type SpanAnnotation = schema.Infer<typeof SpanAnnotation>;
 
 /** What a span keeps beside its keys. */
 export const SpanData = schema.object({
-    /** The span, as 16 hexadecimal digits. */
-    span: schema.string(),
     /** The span's kind, such as server or client. */
     kind: schema.number().int().exactOptional(),
     /** The annotations it recorded, such as exceptions. */
@@ -61,7 +59,24 @@ export const span = defineObject(
             delivery: "at-most-once",
             subject: "person",
         },
+        // present spans by name, as a tree of their parents and a timeline of their start and duration
+        presentable: {
+            title: "name",
+            icon: false,
+            color: false,
+            layouts: [
+                { kind: "tree", key: "span", parent: "parent" },
+                {
+                    kind: "timeline",
+                    start: "time",
+                    end: { duration: "duration" },
+                    unit: "microsecond",
+                },
+            ],
+        },
         fields: {
+            /** The span, as 16 hexadecimal digits. */
+            span: field.string(),
             /** The span, its personal attributes masked unless the reader may unmask them. */
             data: field.json(SpanData).guard({ read: "unmask" }),
             /** The installation that emitted it, absent for the machine's own spans. */
@@ -105,6 +120,7 @@ export const span = defineObject(
                 "build",
                 "name",
                 "trace",
+                "span",
                 "parent",
                 "status",
                 "duration",

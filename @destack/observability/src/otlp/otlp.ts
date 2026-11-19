@@ -265,6 +265,7 @@ class OtlpDecoder {
                     ...this.#stamp(),
                     name: span.name,
                     trace: span.traceId,
+                    span: span.spanId,
                     parent: presentText(span.parentSpanId) ?? null,
                     status: SPAN_STATUSES[span.status.code],
                     duration: end - start,
@@ -273,7 +274,6 @@ class OtlpDecoder {
                     person: split.person,
                     attributes: split.attributes,
                     data: {
-                        span: span.spanId,
                         ...(span.kind === undefined ? {} : { kind: span.kind }),
                         annotations: span.events.map((event) => ({
                             name: event.name,
@@ -473,13 +473,13 @@ class OtlpDecoder {
             name: read.name,
             severity: record.severityNumber ?? 0,
             trace: read.trace ?? null,
+            span: span ?? null,
             issue: null,
             session: read.split.session,
             person: read.split.person,
             attributes: read.split.attributes,
             data: {
                 ...(read.text === undefined ? {} : { body: read.text }),
-                ...(span === undefined ? {} : { span }),
                 ...this.#instance(),
                 instrumentation: scope,
                 ...(record.observedTimeUnixNano === undefined

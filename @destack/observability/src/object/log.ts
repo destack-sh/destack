@@ -11,8 +11,6 @@ import { argument, plural, t } from "@destack/locale";
 export const LogData = schema.object({
     /** The body, as text or JSON. */
     body: schema.string().exactOptional(),
-    /** The span it was emitted in, as 16 hexadecimal digits. */
-    span: schema.string().exactOptional(),
     /** The workload instance that emitted it. */
     instance: schema.string().exactOptional(),
     /** The library that recorded it. */
@@ -52,6 +50,8 @@ export const log = defineObject(
             severity: field.integer(),
             /** The trace it was emitted in, as 32 hexadecimal digits. */
             trace: field.string().optional(),
+            /** The span it was emitted in, as 16 hexadecimal digits. */
+            span: field.string().optional(),
             /** The issue its exception is grouped into. */
             issue: field.string().optional(),
             /** The session it was recorded in. */
@@ -80,6 +80,7 @@ export const log = defineObject(
                 "name",
                 "severity",
                 "trace",
+                "span",
                 "issue",
                 "session",
                 "person",
