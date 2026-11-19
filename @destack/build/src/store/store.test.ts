@@ -770,6 +770,34 @@ test("open a served image's root build", async () => {
     expect([reader.manifest, await reader.files()]).toEqual([build.manifest, await build.files()]);
 });
 
+test("list and read a served build's attachments below the path its reads take", async () => {
+    // serve a stored build with a file attached to it
+    await using simulation = testSimulation();
+    const environment = simulation.environment("test");
+    await using opened = await openStore(await temporary(environment.files), environment);
+    const { store } = opened;
+    const manifest = await store.put(await written(SOURCES, environment.crypto));
+    const bytes = new TextEncoder().encode("[]");
+    const file = await PackageFile.describe(
+        "code.json",
+        "application/json",
+        bytes,
+        environment.crypto,
+    );
+    await store.write(BuildObject.files([{ digest: file.digest, bytes }]));
+    await store.attach(manifest, [file]);
+
+    // list and read them through a remote store rooted at the build, as a pull of the build does
+    const serving = (request: Request) => store.fetch(request, MOUNT, PUSHING);
+    const root = BuildObject.path({ kind: "manifest", digest: manifest });
+    const remote = new RemoteBuildStore(`${MOUNT.href}${root}/`, serving);
+    const entries = await Array.fromAsync(remote.read([{ kind: "file", digest: file.digest }]));
+    expect([await remote.attachments(), entries.map((entry) => entry.path)]).toEqual([
+        [file],
+        [BuildObject.path({ kind: "file", digest: file.digest })],
+    ]);
+});
+
 test("refuse an image whose bytes do not match its digest", async () => {
     // serve a stored image, answering a read of another image with its bytes, as a mixed up server does
     await using simulation = testSimulation();

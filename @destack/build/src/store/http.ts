@@ -5,6 +5,9 @@ import { MANIFEST_PATH } from "@destack/package/manifest";
 import { CallError } from "@destack/object";
 import { BuildObject, BuildStore } from "./store.ts";
 
+/** The path a build lies below, as `BuildObject.path` addresses a manifest. */
+const MANIFEST_PREFIX = "manifest/";
+
 /** How a store endpoint authorizes pulls, and pushes where it takes them, as OCI actions. */
 export interface PackageAccess {
     /** Authorize pulling a build, refusing a request the host does not grant it. */
@@ -112,8 +115,10 @@ async function read(
     } else if (request.method !== "GET" && request.method !== "HEAD") {
         return new Response(null, { status: 405, headers: { allow: "GET, HEAD, POST" } });
     }
-    const separator = path.indexOf("/");
-    const parsed = Digest.safeParse(path.slice(0, separator));
+    // read a build's path below its digest, or below its manifest's path as a read addresses it
+    const addressed = path.startsWith(MANIFEST_PREFIX) ? path.slice(MANIFEST_PREFIX.length) : path;
+    const separator = addressed.indexOf("/");
+    const parsed = Digest.safeParse(addressed.slice(0, separator));
     if (separator < 0 || !parsed.success) {
         return new Response(null, { status: 404 });
     }
@@ -123,7 +128,7 @@ async function read(
     await access.pull(request, digest);
 
     // list the build's attachments or describe one, as OCI's referrers API lists a subject's artifacts
-    const selected = path.slice(separator + 1);
+    const selected = addressed.slice(separator + 1);
     if (selected === "attachments/") {
         const listed = await store.attachments(digest);
 
@@ -238,13 +243,13 @@ async function objects(
     root: Pick<BuildObject, "kind" | "digest">,
     request: Request,
 ): Promise<Response> {
-    // read the asked objects, requiring each among the root's
+    // read the asked objects, requiring each among the root's or a root build's attachments
     const asked = schema
         .array(schema.object({ kind: schema.enum(["file", "manifest", "image"]), digest: Digest }))
         .parse(await request.json());
-    const owned = new Set(
-        (await BuildObject.of(store, [root], "all")).map((object) => object.digest),
-    );
+    const listed = await BuildObject.of(store, [root], "all");
+    const attached = root.kind === "manifest" ? await store.attachments(root.digest) : [];
+    const owned = new Set([...listed, ...attached].map((object) => object.digest));
     const outside = asked.find((object) => !owned.has(object.digest));
     if (outside !== undefined) {
         return new Response(null, { status: 404 });
