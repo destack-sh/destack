@@ -60,11 +60,12 @@ import { Bookmark, createClient, type ClientOf } from "@destack/object/client";
 import {
     CLIENT_PATH,
     HOME_PATH,
+    INSTALLATION_PARAMETER,
     LINK_PARAMETER,
     PLATFORM_PATH,
     TARGET_PARAMETER,
     TOKEN_PARAMETER,
-    type ViewAddress,
+    ViewAddress,
     ViewContext,
     ViewPath,
     ViewState,
@@ -202,6 +203,10 @@ export class ViewOrigin {
             else if (OtlpSignal.at(url.pathname) !== undefined) {
                 return await this.#pageTelemetry(request, url, page);
             }
+            // open another installation's view at its own origin
+            else if (url.pathname === OPEN_PATH && url.searchParams.has(INSTALLATION_PARAMETER)) {
+                return await this.#open(url);
+            }
 
             // serve a file of the installation's build, else the document of the view its path names
             return await this.#view(request, url, page);
@@ -215,6 +220,36 @@ export class ViewOrigin {
 
             return ViewState.isPageLoad(given) ? await ViewState.document(refused) : refused;
         }
+    }
+
+    /** Send a page load to an installation's view at its own origin, which signs the person in. */
+    async #open(url: URL): Promise<Response> {
+        // read the view the address names, refusing an incomplete one
+        const address = ViewAddress.safeParseOpenPath(url);
+        if (!address.success) {
+            throw MachineError.of(
+                "REQUEST_INVALID",
+                "request is invalid: it must name a space, an installation and a view",
+            );
+        }
+
+        // find the machine serving the space, then the installation's origin on it
+        const { machine } = this.#space;
+        const view = address.data;
+        const located = await machine.directory.resolve(
+            accountObject.space,
+            view.space,
+            machine.clock.now(),
+        );
+        const origin = InstallationOrigin.url(
+            { ...SpaceAddress.origin(view.space), name: view.installation },
+            located.url,
+        );
+
+        return new Response(null, {
+            status: 303,
+            headers: { location: ViewAddress.url(view, origin), "cache-control": "no-store" },
+        });
     }
 
     /** Read a launch's token from its address, or from a form a remote sign-in posts. */
@@ -583,7 +618,7 @@ export class ViewOrigin {
         return { rollout: found, lock, reader, visitor, linkSecrets, mount: mount ?? ROOT };
     }
 
-    /** Read the person of a session cookie, anonymous without one, refusing an invalid one. */
+    /** Read the person of a session cookie, anonymous on a page load without a valid one. */
     async #visitor(request: Request, url: URL, found: InstallationRollout): Promise<PageVisitor> {
         // serve an anonymous visitor without a cookie, as Kubernetes serves a request without credentials
         const cookie = new OriginCookie(SESSION_COOKIE, url).read(request);
@@ -591,9 +626,16 @@ export class ViewOrigin {
             return ANONYMOUS_VISITOR;
         }
 
-        // refuse a session the space did not sign for this installation
+        // read the session the space signed for this installation
         const session = await this.#read(PageSession, cookie);
-        if (session === undefined || session.installation !== found.installationId) {
+        const isForeign = session === undefined || session.installation !== found.installationId;
+
+        // load a page with an expired or foreign session as a visitor, who signs in again
+        if (isForeign && ViewState.isPageLoad(request)) {
+            return ANONYMOUS_VISITOR;
+        }
+        // refuse any other request with it
+        else if (session === undefined || session.installation !== found.installationId) {
             throw MachineError.of(
                 "SESSION_UNAUTHENTICATED",
                 "authentication required: the page's session is invalid or expired",

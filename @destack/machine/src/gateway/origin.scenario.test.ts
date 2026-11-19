@@ -35,7 +35,7 @@ import { setting } from "@destack/setting/object";
 import * as stackObject from "@destack/stack/object";
 import stackPackage from "@destack/stack/package";
 import { expect, refusal, test } from "@destack/test";
-import { type Address, HOME_PATH, PLATFORM_PATH } from "@destack/view/declare";
+import { type Address, HOME_PATH, PLATFORM_PATH, ViewAddress } from "@destack/view/declare";
 import viewPackage from "@destack/view/destack.json" with { type: "json" };
 import { LINK_COOKIE, SESSION_COOKIE } from "./origin.ts";
 import { OWNER_EMAIL, PUBLISHER, TestComputer } from "../computer/test/index.ts";
@@ -850,6 +850,45 @@ test("sign a signed-out page load in at the issuer", async () => {
         completed: [303, "destack-sign-in=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0"],
         traded: 303,
         page: [200, "home"],
+    });
+});
+
+test("sign a page load with a foreign session in again, and open a view at its own origin", async () => {
+    // install notes in the owner's home
+    const opened = await openHome();
+    const { computer } = opened;
+    const listener = computer.computer;
+    await install(opened, await notesBuild(computer.environment.crypto), "notes");
+    const port = new URL(await computer.device.origin()).port;
+    const origin = `http://notes--${opened.address}.localhost:${port}`;
+
+    // load a page with a session cookie the space did not sign, as an earlier universe's
+    const loaded = await listener.fetch(
+        new Request(`${origin}/`, {
+            headers: {
+                cookie: `${SESSION_COOKIE}=forged`,
+                "sec-fetch-mode": "navigate",
+                "sec-fetch-dest": "document",
+            },
+        }),
+    );
+
+    // open notes' view through the open path of an installation's origin, at its own origin
+    const path = ViewAddress.openPath({
+        space: opened.address,
+        installation: "notes",
+        view: "home",
+        path: "/",
+    });
+    const redirected = await listener.fetch(new Request(`${origin}${path}`));
+
+    expect({
+        loaded: [loaded.status, new URL(header(loaded, "location")).pathname],
+        redirected: [redirected.status, header(redirected, "location")],
+    }).toEqual({
+        loaded: [302, "/oauth/oauth2/authorize"],
+        // at the origin of the machine's public endpoint, where the directory locates the space
+        redirected: [303, `https://notes--${opened.address}.destack.space/home`],
     });
 });
 
