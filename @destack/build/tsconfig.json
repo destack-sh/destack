@@ -42,7 +42,6 @@
         "out",
         "tests/fixture/library/source",
         "tests/fixture/template/blank/expected",
-        "tests/fixture/template/stack/expected",
         "tests/fixture/unit-application/source",
         "tests/fixture/unit-library/source"
     ]
