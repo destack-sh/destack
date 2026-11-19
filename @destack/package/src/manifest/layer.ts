@@ -19,7 +19,7 @@ const LAYER_ADDRESSINGS = ["path", "digest"] as const;
 export type LayerAddressing = (typeof LAYER_ADDRESSINGS)[number];
 
 /** The layer index format a store writes. */
-export const LAYER_FORMAT = 6;
+export const LAYER_FORMAT = 7;
 
 /** The bytes of a file table's header: the row count, a little-endian u32. */
 const FILES_HEADER = 4;
