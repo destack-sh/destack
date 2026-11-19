@@ -41,7 +41,7 @@ const spec: InstanceSpec = {
             role: "app",
             package: {
                 id: PACKAGE,
-                name: "@example/indexer",
+                name: "@acme/indexer",
                 version: "2026.10.0",
             },
         },

@@ -95,13 +95,13 @@ test("run an instance as a Bun process bound at the egress, serving forwarded ca
     // spec a build with the runner in its server output
     const files = new Map([
         ["bun/workload.js", new TextEncoder().encode(ECHO_RUNNER)],
-        authored("@example/notes"),
+        authored("@acme/notes"),
     ]);
     const build = await MemoryBuild.write(
         files,
         {
             role: "app",
-            package: { id: PACKAGE, name: "@example/notes", version: "2026.9.0" },
+            package: { id: PACKAGE, name: "@acme/notes", version: "2026.9.0" },
             outputs: {
                 bun: {
                     runtime: "bun",
@@ -351,11 +351,11 @@ test("keep an instance's data in the runtime's own directory when it runs its bu
     const build = await MemoryBuild.write(
         new Map([
             ["bun/workload.js", new TextEncoder().encode(ECHO_RUNNER)],
-            authored("@example/notes"),
+            authored("@acme/notes"),
         ]),
         {
             role: "app",
-            package: { id: PACKAGE, name: "@example/notes", version: "2026.9.0" },
+            package: { id: PACKAGE, name: "@acme/notes", version: "2026.9.0" },
             outputs: {
                 bun: {
                     runtime: "bun",
@@ -485,11 +485,11 @@ test("deny a sandboxed workload's calls to hosts its capabilities omit", async (
     const build = await MemoryBuild.write(
         new Map([
             ["bun/workload.js", new TextEncoder().encode(FETCH_RUNNER)],
-            authored("@example/fetch"),
+            authored("@acme/fetch"),
         ]),
         {
             role: "app",
-            package: { id: PACKAGE, name: "@example/fetch", version: "2026.10.0" },
+            package: { id: PACKAGE, name: "@acme/fetch", version: "2026.10.0" },
             outputs: {
                 bun: {
                     runtime: "bun",
@@ -598,7 +598,7 @@ test("import and call a shared package's export as the machine's own instance, a
     const own = { marker: "own", describe: () => "own" };
     const runtime = new BunRuntime({
         isolation: "sandbox",
-        program: Program.of({ "@example/shared/server": async () => own }, world.process.loader),
+        program: Program.of({ "@acme/shared/server": async () => own }, world.process.loader),
         environment: world,
         identity: async () => testKeys(world),
         directory,
@@ -641,7 +641,7 @@ test("import and call a shared package's export as the machine's own instance, a
 
         return await packages.putImage(BuildImage.of(root));
     };
-    const [shared, other] = [await stored("@example/shared", 1), await stored("@example/other", 2)];
+    const [shared, other] = [await stored("@acme/shared", 1), await stored("@acme/other", 2)];
 
     // answer the shared one with the machine's instance, and load the other from its placed build
     const imported = [
@@ -665,7 +665,7 @@ test("refuse a sandboxed call of a release running a native addon, and load it f
     onTestFinished(() => world.files.remove(directory, { recursive: true }));
     const packages = await testStore(world);
     onTestFinished(() => packages[Symbol.asyncDispose]());
-    const name = "@example/native";
+    const name = "@acme/native";
     const files = new Map([
         [
             "bun/server.js",
@@ -726,7 +726,7 @@ test("refuse a sandboxed call of a release running a native addon, and load it f
         [
             "BAD_REQUEST",
             "RELEASE_INVALID",
-            "release '@example/native@2026.9.0' is invalid: it runs the native addon 'bun/addon.node', which only host packages may",
+            "release '@acme/native@2026.9.0' is invalid: it runs the native addon 'bun/addon.node', which only host packages may",
         ],
         "native",
     ]);

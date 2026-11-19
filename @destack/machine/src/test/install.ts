@@ -4,7 +4,7 @@ import { TestDatabase } from "@destack/db/test";
 import { testSimulation } from "@destack/object/test";
 import { Digest, Identifier, present, schema } from "@destack/schema";
 import { ObjectReference, Scope, type Subject } from "@destack/sync";
-import { TestRegistry } from "./build.ts";
+import { release } from "@destack/registry/object";
 import type { PackageId } from "@destack/package";
 import {
     build,
@@ -171,20 +171,20 @@ export async function readStack(database: DatabaseConnection): Promise<Installat
 export async function insertRelease(
     database: DatabaseConnection,
     scope: Identifier<"space">,
-    release: { readonly package: PackageId; readonly version: string; readonly image: Digest },
+    released: { readonly package: PackageId; readonly version: string; readonly image: Digest },
     outputs: readonly string[],
     environment: Environment,
 ): Promise<{ readonly id: Identifier<"build">; readonly image: Digest }> {
     // record the build succeeded at the release's image
     const now = environment.clock.now();
     const id = Identifier.create("build", environment);
-    const { image } = release;
+    const { image } = released;
     await database.transaction(
         async (transaction) =>
             await transaction.insert(build.table).values({
                 id,
                 scope,
-                source: { kind: "release", ...release },
+                source: { kind: "release", ...released },
                 outputs: [...outputs],
                 state: "succeeded",
                 image,
@@ -223,6 +223,12 @@ export async function insertBuildScope(
     );
 }
 
+/** A release row of the notes package, which tests of a database alone follow and never resolve. */
+export const NOTES_RELEASE = release.reference(
+    Scope.universe.id,
+    "release-01996ab0-0000-7000-8000-0000000000e3",
+);
+
 /** The notes installation's one running instance. */
 export const NOTES_INSTANCE = schema
     .identifier("instance")
@@ -231,12 +237,13 @@ export const NOTES_INSTANCE = schema
 /** Install the notes release in the space and run one instance of it, answering the instance. */
 export async function runNotes(
     database: DatabaseConnection,
-    release: { readonly id: Identifier<"build"> },
+    released: { readonly id: Identifier<"build"> },
+    follows: ObjectReference,
     installer: Subject,
     environment: Environment,
 ): Promise<Identifier<"instance">> {
     // install the release, deploy it and run its instance
-    const revisionId = await installNotes(database, release, installer, environment);
+    const revisionId = await installNotes(database, released, follows, installer, environment);
     await deployNotes(database, revisionId, environment);
 
     return NOTES_INSTANCE;
@@ -245,14 +252,14 @@ export async function runNotes(
 /** Install the notes package in the space, following its release's revision. */
 async function installNotes(
     database: DatabaseConnection,
-    release: { readonly id: Identifier<"build"> },
+    released: { readonly id: Identifier<"build"> },
+    follows: ObjectReference,
     installer: Subject,
     environment: Environment,
 ): Promise<Identifier<"installation-revision">> {
     // record the notes installation in the space, at the world's time
     const now = environment.clock.now();
     const notes = { id: ids.notes, scope: ids.space, packageId: ids.package, name: "notes" };
-    const follows = TestRegistry.row("release", "2026.9.0");
     await insertRollout(database, { ...notes, follows, installer }, now);
 
     // follow the installation's release
@@ -265,7 +272,7 @@ async function installNotes(
                 createdAt: now,
                 updatedAt: now,
                 installationId: ids.notes,
-                buildId: release.id,
+                buildId: released.id,
                 dependencies: [],
                 states: {},
                 generation: 1,

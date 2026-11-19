@@ -5,8 +5,7 @@ import { ConnectionKind } from "@destack/connection/declare";
 import { EGRESS_PROVIDER } from "@destack/resource";
 import { CONNECTION_PATH, PackageMount } from "@destack/object";
 import { EgressCaller, type InstanceSpec, type WorkloadResource } from "../runtime/runtime.ts";
-import { PackageVersion, PackageId } from "@destack/package";
-import { MemoryBuild } from "@destack/package/test";
+import { PackageId } from "@destack/package";
 import { Digest, schema } from "@destack/schema";
 import { openGateway } from "./test/gateway.ts";
 import objectPackage from "@destack/object/package";
@@ -70,11 +69,7 @@ test("resolve each kind of address a workload calls", async () => {
     // install the notes package in the space as its owner
     const fixture = await TestSpace.open();
     await fixture.serve();
-    const notesBuild = await MemoryBuild.of(
-        PackageVersion.parse({ id: ids.package, name: "@test/notes", version: "2026.9.0" }),
-        [],
-        fixture.environment.crypto,
-    );
+    const notesBuild = await fixtureBuild(ids.package, "2026.9.0", fixture.environment.crypto);
     const notes = await fixture.install(notesBuild);
 
     // create the acme space on another machine of the account, which publishes its endpoint

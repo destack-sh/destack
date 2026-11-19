@@ -1,4 +1,3 @@
-import { TestRegistry } from "../test/build.ts";
 import { testIdentity } from "@destack/object/test";
 import { eq } from "@destack/db";
 import { testBuild } from "@destack/object/test";
@@ -27,7 +26,7 @@ async function installCaller(connect: readonly string[]) {
     // ship a server declaring network access to the hosts, keeping the context its installation serves with
     const released = PackageVersion.parse({
         id: "package-01996ab0-0000-7000-8000-0000000000e2",
-        name: "@example/caller",
+        name: "@acme/caller",
         version: "2026.9.0",
     });
     const call: Capability = {
@@ -152,6 +151,7 @@ test("serve an installation only once it is bound and main applied its tables", 
     const fixture = await TestSpace.open();
     const { database: connection } = fixture;
     const space = await fixture.space;
+    const follows = await fixture.followed(ids.package, "2026.9.0");
     await fixture.stop();
     const now = fixture.machine.clock.now();
     const record = { scope: ids.space, createdAt: now, updatedAt: now };
@@ -164,7 +164,7 @@ test("serve an installation only once it is bound and main applied its tables", 
             scope: ids.space,
             packageId: ids.package,
             name: "notes",
-            follows: TestRegistry.row("release", "2026.9.0"),
+            follows,
             installer: fixture.owner.subject,
         },
         record.createdAt,
@@ -205,7 +205,7 @@ test("serve an installation only once it is bound and main applied its tables", 
                 .where(eq(rollout.table.installationId, ids.notes)),
     );
     const notes = await MemoryBuild.of(
-        PackageVersion.parse({ id: ids.package, name: "@example/notes", version: "2026.9.0" }),
+        PackageVersion.parse({ id: ids.package, name: "@acme/notes", version: "2026.9.0" }),
         [
             {
                 kind: "object",

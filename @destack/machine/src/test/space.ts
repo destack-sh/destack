@@ -1,4 +1,3 @@
-import { Registry } from "@destack/registry/client";
 import { SpaceStorage } from "../space/storage.ts";
 import * as accountObject from "@destack/account/object";
 import { FORGE_INSTALLATION } from "@destack/forge/package";
@@ -33,7 +32,7 @@ import { onTestFinished, single, expect } from "@destack/test";
 import { Failure } from "@destack/error";
 import { type Authentication, principal } from "@destack/access";
 import { Account, Residency, type ResidencyCode } from "@destack/account/object";
-import { OPERATOR_EMAIL, STACKS } from "@destack/account/test";
+import { OPERATOR_EMAIL, RESIDENCY_STACK, STACKS } from "@destack/account/test";
 import accountPackage from "@destack/account/package";
 import {
     AWAITING_APPROVAL,
@@ -85,7 +84,19 @@ import {
 import type { TestPerson } from "@destack/account/test";
 import type { ClientOf } from "@destack/object/client";
 import stackPackage, { PUSH_PATH } from "@destack/stack/package";
-import { fixtureOutputs, imageBuild, imageOf, TestRegistry } from "./build.ts";
+import {
+    fixtureBuild,
+    FIXTURE_VERSIONS,
+    fixtureOutputs,
+    imageBuild,
+    imageOf,
+    TAGS,
+} from "./build.ts";
+import { FORGE_HOME_OPTIONS, FORGE_HOME_STACK, FORGE_HOME_TYPES } from "./home.ts";
+import { callRegistry } from "../machine/registry.ts";
+import { LATEST_TAG } from "@destack/registry/object";
+import registryPackage from "@destack/registry/package";
+import type { Fetch } from "@destack/object";
 import { TestSpaceStorage } from "./storage.ts";
 import { TestGateway } from "./gateway.ts";
 import { TestRuntime } from "./runtime.ts";
@@ -95,7 +106,7 @@ import { BunGraphStorage } from "../computer/graph.ts";
 import { PackageManifest } from "@destack/package/manifest";
 import { MemoryBuild } from "@destack/package/test";
 import type { StackRelease } from "@destack/account/object";
-import { PackageClient, BuildStore } from "@destack/build/store";
+import { RemoteBuildStore, BuildStore } from "@destack/build/store";
 import { fixtureGraph, TestBuildStore } from "@destack/build/test";
 import { RolloutTarget } from "../installation/target.ts";
 import { testWorldOptions } from "@destack/test/world";
@@ -125,13 +136,14 @@ export interface StackReleases {
     readonly object: BuildReader;
     /** The digest of the object package's release's image. */
     readonly objectImage: Digest;
+    /** The empty stack every residency's home runs, which machines ship. */
+    readonly residency: BuildReader;
+    /** The digest of the residency stack's release's image. */
+    readonly residencyImage: Digest;
 }
 
 /** The residency a test universe declares, whose home a residency fixture hosts. */
 const RESIDENCY: ResidencyCode = "eu";
-
-/** The directory below a template's files keeping the registry's builds, beside each space's. */
-const REGISTRY_DIRECTORY = "registry";
 
 /** The options a template's world leaves unset: those making another space or universe. */
 const WORLD_OPTIONS = [
@@ -165,8 +177,6 @@ function spaceWorldOf<World extends JsonValue>(world: schema.Schema<World>) {
                 owner: schema.string(),
                 /** The stack the space declares, as the write last applied it. */
                 stack: schema.jsonObject(),
-                /** The releases the registry published, published again on restore. */
-                releases: schema.array(Digest),
                 /** The linked release of each server's package the write installed, by package. */
                 linked: schema.array(schema.object({ packageId: PackageId, image: Digest })),
             }),
@@ -244,6 +254,9 @@ const JWT_FORM = /^[\w-]+\.[\w-]+\.[\w-]*$/u;
 /** The version of the account fixture's stand-in stacks, which the fixture's space builds again. */
 const STACK_VERSION = "2026.9.0";
 
+/** The export of the shipped platform stack that every account's home runs. */
+const HOME_EXPORT = "home";
+
 /** The seed of the simulated worlds templates write and restores run in. */
 const WORLD_SEED = 1;
 
@@ -277,6 +290,9 @@ export const ids = {
 /** The fixture's account, which its spaces belong to. */
 const FIXTURE_ACCOUNT = { id: ids.account, handle: "acme" } as const;
 
+/** The commit every fixture release names, as no checkout built it. */
+const FIXTURE_COMMIT = "0".repeat(40);
+
 /** The fixture's space, which a world hosts alone unless it lists others. */
 const FIXTURE_SPACE: WorldSpace = { id: ids.space, account: ids.account, name: "space" };
 
@@ -292,10 +308,14 @@ export class TestSpace implements AsyncDisposable, TestScope {
     readonly owner: TestPerson;
     /** The machine hosting the space, by its identifier in the world's machines. */
     readonly #machineId: Identifier<"machine">;
+    /** The test machine the space's machine runs as. */
+    readonly #test: TestMachine;
     /** The world the universe, the machine and the space run in, which tests move through. */
     readonly simulation: Simulation;
-    /** The registry the space's releases come from. */
-    readonly registry: TestRegistry;
+    /** Open each residency's home the world serves with its forge, once, by residency. */
+    readonly homes: Map<ResidencyCode, () => Promise<TestSpace>>;
+    /** The system builds the world's machines ship, which its universe opens before the forge's. */
+    readonly distributed: BuildReader[];
     /** The world's machines answering at their origins, this space's machine among them. */
     readonly gateway: TestGateway;
     /** The world's running machines, by machine. */
@@ -339,8 +359,10 @@ export class TestSpace implements AsyncDisposable, TestScope {
         readonly universe: TestControl;
         readonly owner: TestPerson;
         readonly machine: Identifier<"machine">;
+        readonly test: TestMachine;
         readonly simulation: Simulation;
-        readonly registry: TestRegistry;
+        readonly homes: Map<ResidencyCode, () => Promise<TestSpace>>;
+        readonly distributed: BuildReader[];
         readonly gateway: TestGateway;
         readonly machines: Map<Identifier<"machine">, Machine>;
         readonly starts: Map<
@@ -364,8 +386,10 @@ export class TestSpace implements AsyncDisposable, TestScope {
         this.universe = fields.universe;
         this.owner = fields.owner;
         this.#machineId = fields.machine;
+        this.#test = fields.test;
         this.simulation = fields.simulation;
-        this.registry = fields.registry;
+        this.homes = fields.homes;
+        this.distributed = fields.distributed;
         this.gateway = fields.gateway;
         this.machines = fields.machines;
         this.starts = fields.starts;
@@ -490,8 +514,21 @@ export class TestSpace implements AsyncDisposable, TestScope {
             ...(lifetime.create === undefined ? {} : { create: lifetime.create }),
         });
 
-        // wait until the machine serves the home, born as at its first start
-        return await fixture.serve();
+        // wait until the machine serves the home, born as at its first start, then open its forge
+        await fixture.serve();
+        await TestSpace.#home(
+            world,
+            options,
+            {
+                machine,
+                defer,
+                ...(lifetime.files === undefined ? {} : { directory: lifetime.files }),
+                ...(lifetime.create === undefined ? {} : { create: lifetime.create }),
+            },
+            fixture,
+        );
+
+        return fixture;
     }
 
     /** Define a template of the space's world at a start, and of the world written on it. */
@@ -541,7 +578,6 @@ export class TestSpace implements AsyncDisposable, TestScope {
         const defer: Defer = (cleanup) => lifetime.defer(cleanup);
         const shared = await TestSpace.#universe(options, defer, simulation, {
             storage: databases.universe,
-            files: directory,
         });
         const { universe } = shared;
         const owner = await universe.signIn(OWNER_EMAIL);
@@ -619,7 +655,6 @@ export class TestSpace implements AsyncDisposable, TestScope {
             id: this.id,
             account: this.account,
             stack: this.#stack,
-            releases: [...this.registry.images],
             linked,
         };
     }
@@ -674,12 +709,19 @@ export class TestSpace implements AsyncDisposable, TestScope {
 
         // host it on the machine before its creation places it there
         const machine = options.machine ?? (await universe.machine());
-        const fixture = await TestSpace.#host(world, owner, { id, account }, options, {
+        const hosting = {
             machine,
             defer,
             ...(lifetime.files === undefined ? {} : { directory: lifetime.files }),
             ...(lifetime.create === undefined ? {} : { create: lifetime.create }),
-        });
+        };
+        const fixture = await TestSpace.#host(world, owner, { id, account }, options, hosting);
+
+        // publish the releases the space's birth resolves at the residency's forge
+        const home = await TestSpace.#home(world, options, hosting);
+        for (const release of options.releases ?? []) {
+            await TestSpace.#publish(home, release, [], LATEST_TAG);
+        }
 
         // create the space in the account as the owner, born with the given stack or the universe's, leaving the account's home its creation made
         if (id !== Account.home(account)) {
@@ -728,7 +770,7 @@ export class TestSpace implements AsyncDisposable, TestScope {
             options,
             (cleanup) => closing.defer(cleanup),
             simulation,
-            { storage: databases.universe, world: value.universe, files: directory },
+            { storage: databases.universe, world: value.universe },
         );
         const { universe } = world;
         const machine = await universe.machine(undefined, {
@@ -775,23 +817,12 @@ export class TestSpace implements AsyncDisposable, TestScope {
                 databases: held,
                 linked,
             });
-            await fixture.#restoreState(state);
+            fixture.#stack = state.stack;
             spaces.set(state.id, await fixture.serve());
         }
         const first = present(spaces.values().next().value, "the first space");
 
         return { space: first, spaces, world: value.world };
-    }
-
-    /** Publish a write's releases again, and store the stack and servers it installed. */
-    async #restoreState(state: SpaceWorld<null>["spaces"][number]): Promise<void> {
-        // record the releases the write published again, from the registry's builds it kept
-        for (const image of state.releases) {
-            await this.registry.push(await this.builds(), image);
-        }
-
-        // store the stack the write applied
-        this.#stack = state.stack;
     }
 
     /** Create the fixture's account as its owner, answering the owner's account client. */
@@ -800,7 +831,15 @@ export class TestSpace implements AsyncDisposable, TestScope {
         owner: TestPerson,
         created: { readonly id: Identifier<"account">; readonly handle: string } = FIXTURE_ACCOUNT,
     ): Promise<ClientOf<typeof accountPackage>> {
+        // create the account once, as the residency's forge creates the fixture's first
         const accounts = owner.client(accountPackage);
+        const [existing] = await universe.storage.database
+            .select({ id: accountObject.account.table.id })
+            .from(accountObject.account.table)
+            .where(eq(accountObject.account.table.id, created.id));
+        if (existing !== undefined) {
+            return accounts;
+        }
         await accounts.account.create({
             id: created.id,
             scope: owner.subject.id,
@@ -874,7 +913,7 @@ export class TestSpace implements AsyncDisposable, TestScope {
         const empty = await MemoryBuild.of(
             PackageVersion.parse({
                 id: STACKS.space.packageId,
-                name: "@example/space",
+                name: "@acme/space",
                 version: STACK_VERSION,
             }),
             [
@@ -918,6 +957,22 @@ export class TestSpace implements AsyncDisposable, TestScope {
             }),
         });
 
+        // build the empty platform stack every residency's and account's home runs, which machines ship
+        const residency = await MemoryBuild.of(
+            PackageVersion.parse({
+                id: RESIDENCY_STACK.packageId,
+                name: "@platform/stack",
+                version: STACK_VERSION,
+            }),
+            [RESIDENCY_STACK.export, HOME_EXPORT].map((name) => ({
+                kind: "stack",
+                kindPackageId: stackPackage.id,
+                name,
+                description: { installations: {} },
+            })),
+            crypto,
+        );
+
         // follow the space stack at its release, each build identified by its image alone
         const source = {
             ...STACKS.space,
@@ -932,6 +987,8 @@ export class TestSpace implements AsyncDisposable, TestScope {
             image: await imageOf(stack, crypto),
             object: objectRelease,
             objectImage: await imageOf(objectRelease, crypto),
+            residency,
+            residencyImage: await imageOf(residency, crypto),
         };
     }
 
@@ -945,8 +1002,6 @@ export class TestSpace implements AsyncDisposable, TestScope {
             readonly storage?: TestDatabase;
             /** The universe's world a template wrote, none by default. */
             readonly world?: ControlWorld;
-            /** The files directory keeping the registry's builds, a temporary store by default. */
-            readonly files?: string;
         } = {},
     ): Promise<TestSpaceWorld> {
         // join the given world
@@ -954,23 +1009,44 @@ export class TestSpace implements AsyncDisposable, TestScope {
             return options.world;
         }
 
-        // open the universe opening releases from the world's registry
-        const { storage, world, files } = stored;
+        // open the universe, its spaces born with the stack the residency's forge publishes, its residencies' homes with the shipped one
+        const { storage, world } = stored;
         const environment = simulation.environment(UNIVERSE_NODE);
         const { source } = await TestSpace.releases(environment.crypto);
-        const packages =
-            files === undefined
-                ? await TestBuildStore.create(environment)
-                : await TestBuildStore.open(join(files, REGISTRY_DIRECTORY), environment);
-        defer(() => packages[Symbol.asyncDispose]());
-        const registry = new TestRegistry(packages, ids.package);
+        const homes = new Map<ResidencyCode, () => Promise<TestSpace>>();
+        const distributed: BuildReader[] = [];
         const universe = await TestControl.open({
-            stacks: { home: source, space: source },
-            home: source,
-            releases: registry,
+            stacks: {
+                home: { ...RESIDENCY_STACK, export: HOME_EXPORT },
+                space:
+                    (options.isPublishingFixtures ?? true)
+                        ? source
+                        : { ...RESIDENCY_STACK, export: HOME_EXPORT },
+            },
+            home: RESIDENCY_STACK,
+            // open releases at the residency's forge, as a universe opens them at the forges
+            releases: {
+                open: async (packageId, named) => {
+                    // open a release the world's machines ship first, as a universe opens its distribution's
+                    const shipped = distributed.find(
+                        (build) =>
+                            PackageManifest.package(build.manifest).id === packageId &&
+                            PackageManifest.package(build.manifest).version === named,
+                    );
+                    if (shipped !== undefined) {
+                        return shipped;
+                    }
+
+                    // open the forge once a space of the world hosts, as the first release asked opens it
+                    const home = await present(homes.get(RESIDENCY), "the residency's home")();
+
+                    return await TestSpace.#openRelease(home, packageId, named);
+                },
+                distribution: [],
+            },
             ...(storage === undefined ? {} : { storage }),
             ...(world === undefined ? {} : { world }),
-            policies: options.policies ?? [],
+            policies: TestSpace.#withForge(options).policies ?? [],
             ...(options.residencies === undefined ? {} : { residencies: options.residencies }),
             ...(options.publishers === undefined ? {} : { publishers: options.publishers }),
             simulation,
@@ -984,7 +1060,8 @@ export class TestSpace implements AsyncDisposable, TestScope {
         return {
             simulation,
             universe,
-            registry,
+            homes,
+            distributed,
             gateway,
             machines: new Map(),
             starts: new Map(),
@@ -1036,8 +1113,9 @@ export class TestSpace implements AsyncDisposable, TestScope {
     ): Promise<Machine> {
         // open the machine's files: its directory, buckets, builds and the spaces' own databases
         const { defer } = lifetime;
-        const { simulation, registry, universe } = world;
+        const { simulation, universe } = world;
         const environment = simulation.environment(UNIVERSE_NODE);
+        const withForge = TestSpace.#withForge(options);
         const { files } = environment;
         const directory =
             lifetime.directory ?? (await files.makeTemporaryDirectory("destack-stack-files-"));
@@ -1072,10 +1150,10 @@ export class TestSpace implements AsyncDisposable, TestScope {
         // open the volumes over the main database, with the machine's resources' providers
         const storage = simulation.environment(test.id);
         const { dialect } = universe.storage.database;
-        const local = options.resources?.(join(directory, RESOURCES), environment);
+        const local = withForge.resources?.(join(directory, RESOURCES), environment);
         const volumes = new TestSpaceStorage({
             main: TestSpace.#base(options),
-            replicated: SpaceStorage.replicas({ follows: options.follows ?? [] }),
+            replicated: SpaceStorage.replicas({ follows: withForge.follows ?? [] }),
             databases: lifetime.databases ?? new Map(),
             create:
                 lifetime.create ??
@@ -1090,12 +1168,12 @@ export class TestSpace implements AsyncDisposable, TestScope {
 
                     return database;
                 }),
-            objects: TestSpaceStorage.objects(options.packages ?? []),
+            objects: TestSpaceStorage.objects(withForge.packages ?? []),
             environment: storage,
             files: { directory, buckets },
             // store each space's databases as SQLite files
             providers: [
-                ...(options.providers ?? []),
+                ...(withForge.providers ?? []),
                 ...(local?.providers ?? []),
                 databaseProvider(
                     new BunSqliteDatabaseHost(pathToFileURL(`${databases}/`), environment),
@@ -1103,21 +1181,20 @@ export class TestSpace implements AsyncDisposable, TestScope {
                 ),
                 TestSpaceDatabaseHost.over(main, environment, (space) => volumes.database(space)),
             ],
-            connectors: [...(options.connectors ?? []), ...(local?.connectors ?? [])],
+            connectors: [...(withForge.connectors ?? []), ...(local?.connectors ?? [])],
         });
 
         // build the machine as the residency's cloud machine
         const stack = await TestSpace.releases(environment.crypto);
 
-        // link the stack package, the restored servers' releases and the builds the test ships, before any start
+        // store the system releases the machine ships and links: the residency's stack, the stack and object packages, and the servers' builds
+        for (const build of [stack.residency, stack.stack, stack.object]) {
+            await imageBuild(builds, build, []);
+        }
         const shipped: PackageRelease[] = [];
-        for (const build of options.linked ?? []) {
-            await registry.release(build);
-            const released = PackageManifest.package(build.manifest);
-            shipped.push({
-                package: released,
-                image: await registry.find(released.id, released.version),
-            });
+        for (const build of withForge.linked ?? []) {
+            const { image } = await imageBuild(builds, build, []);
+            shipped.push({ package: PackageManifest.package(build.manifest), image });
         }
         const linked = new Map<PackageId, PackageRelease>(
             [
@@ -1188,7 +1265,6 @@ export class TestSpace implements AsyncDisposable, TestScope {
                 volumes,
                 builds,
                 targets: ["bun", "browser"],
-                releases: registry,
                 isBuilding: changed.isBuilding ?? true,
                 isEnforcingEntitlements: changed.isEnforcingEntitlements ?? false,
                 isServingHostnames: options.isServingHostnames ?? true,
@@ -1206,7 +1282,13 @@ export class TestSpace implements AsyncDisposable, TestScope {
                         (server) => machine.linked.get(server.package.id)?.image === image,
                     ),
                 linked: world.machines.get(test.id)?.linked ?? linked,
-                shipped: [],
+                shipped: [
+                    {
+                        package: PackageManifest.package(stack.residency.manifest),
+                        image: stack.residencyImage,
+                    },
+                    ...shipped,
+                ],
                 endpoint:
                     options.origin ?? (await test.directory.answering(test.id, test.clock.now())),
                 registry: FORGE_INSTALLATION,
@@ -1216,8 +1298,9 @@ export class TestSpace implements AsyncDisposable, TestScope {
                 authorizeSpace: async () => {},
             });
 
-            // run it as the world's machine
+            // run it as the world's machine, answering at its origin before it follows, as its spaces' starts call it
             world.machines.set(test.id, machine);
+            await world.gateway.serve(machine);
 
             // follow the directory as the machine until it caught up
             world.stops.set(test.id, await TestSpace.#follow(machine, defer));
@@ -1329,10 +1412,16 @@ export class TestSpace implements AsyncDisposable, TestScope {
     ): Promise<TestSpace> {
         // run the space's servers on the world's machine
         const { machine: test, defer } = lifetime;
-        const { simulation, universe, registry, gateway } = world;
-        for (const server of options.servers ?? []) {
+        const { simulation, universe, gateway } = world;
+        const withForge = TestSpace.#withForge(options);
+        for (const server of withForge.servers ?? []) {
             if (!world.servers.includes(server)) {
                 world.servers.push(server);
+            }
+        }
+        for (const build of withForge.linked ?? []) {
+            if (!world.distributed.includes(build)) {
+                world.distributed.push(build);
             }
         }
         const machine = await TestSpace.#machine(world, test, options, {
@@ -1342,26 +1431,14 @@ export class TestSpace implements AsyncDisposable, TestScope {
             ...(lifetime.create === undefined ? {} : { create: lifetime.create }),
             linked: lifetime.linked ?? [],
         });
-        gateway.serve(machine);
-        registry.serve(
-            Registry.of(
-                machine.directory,
-                async (account) => (await machine.accounts()).residency.locate({ account }),
-                (audience, partition) => machine.fetch(audience, { partition }),
-                machine.environment,
-                machine.registry,
-            ),
-        );
+        await gateway.serve(machine);
 
-        // release and link the builds the space ships on a machine that started without them
-        for (const build of options.linked ?? []) {
+        // store and link the builds the space ships on a machine that started without them
+        for (const build of withForge.linked ?? []) {
             const released = PackageManifest.package(build.manifest);
             if (machine.linked.get(released.id) === undefined) {
-                await registry.release(build);
-                machine.link({
-                    package: released,
-                    image: await registry.find(released.id, released.version),
-                });
+                const { image } = await imageBuild(machine.builds, build, []);
+                machine.link({ package: released, image });
             }
         }
 
@@ -1371,8 +1448,10 @@ export class TestSpace implements AsyncDisposable, TestScope {
             universe,
             owner,
             machine: machine.id,
+            test,
             simulation,
-            registry,
+            homes: world.homes,
+            distributed: world.distributed,
             gateway,
             machines: world.machines,
             starts: world.starts,
@@ -1384,26 +1463,278 @@ export class TestSpace implements AsyncDisposable, TestScope {
         });
         defer(() => fixture[Symbol.asyncDispose]());
 
-        // publish the space's releases, and ship the machine's builds of its servers' packages
-        for (const release of [
-            fixture.releases.space,
-            fixture.releases.stack,
-            fixture.releases.object,
-            ...(options.releases ?? []),
-        ]) {
-            await registry.release(release);
+        // let the world open its residency's forge through the first space it hosts
+        if (!world.homes.has(RESIDENCY)) {
+            const hosting = { machine: fixture.#test, defer: fixture.#defer };
+            world.homes.set(RESIDENCY, TestSpace.#homeOpener(world, options, hosting, fixture));
         }
 
         return fixture;
     }
 
+    /** Publish a build with the builds it runs with to the residency's forge as its owner. */
+    async publish(
+        build: BuildReader,
+        builds: readonly BuildReader[] = [],
+        tag: string = LATEST_TAG,
+    ): Promise<Digest> {
+        return await TestSpace.#publish(await this.#openedHome(), build, builds, tag);
+    }
+
+    /** Report whether the residency's forge stores an object below the fixtures' handle. */
+    async isPushed(digest: Digest): Promise<boolean> {
+        // ask the uploads below the account's handle
+        const home = await this.#openedHome();
+        const builds = `${await TestSpace.#forgeUrl(home)}${registryPackage.mounts.builds.path}`;
+        const uploads = new RemoteBuildStore(
+            `${builds}/${FIXTURE_ACCOUNT.handle}/`,
+            TestSpace.#fetchAs(home),
+        );
+        const [isStored] = await uploads.has([digest]);
+
+        return isStored === true;
+    }
+
+    /** Open the world's residency home with its forge, which the fixtures publish to. */
+    #openedHome(): Promise<TestSpace> {
+        return TestSpace.#home(this, {}, { machine: this.#test, defer: this.#defer }, this);
+    }
+
+    /** Serve a world's residency home with its forge once, with the fixtures' releases. */
+    static #home(
+        world: TestSpaceWorld,
+        options: TestSpaceOptions,
+        hosting: TestHosting,
+        caller?: TestSpace,
+    ): Promise<TestSpace> {
+        // open it once per world, through the opener set first
+        let open = world.homes.get(RESIDENCY);
+        if (open === undefined) {
+            open = TestSpace.#homeOpener(world, options, hosting, caller);
+            world.homes.set(RESIDENCY, open);
+        }
+
+        return open();
+    }
+
+    /** Make an opener of a world's residency home that opens it once. */
+    static #homeOpener(
+        world: TestSpaceWorld,
+        options: TestSpaceOptions,
+        hosting: TestHosting,
+        caller?: TestSpace,
+    ): () => Promise<TestSpace> {
+        let opening: Promise<TestSpace> | undefined;
+
+        return () => (opening ??= TestSpace.#openHome(world, options, hosting, caller));
+    }
+
+    /** Serve the residency's home with its forge, its fixtures' account and releases, each once. */
+    static async #openHome(
+        world: TestSpaceWorld,
+        options: TestSpaceOptions,
+        hosting: TestHosting,
+        caller?: TestSpace,
+    ): Promise<TestSpace> {
+        // host the residency's home as the operator, applying its forge's stack once
+        const { universe } = world;
+        const snapshot = Snapshot.live(universe.storage.database);
+        const home = await Residency.space(snapshot, RESIDENCY);
+        const row = await snapshot
+            .read(accountObject.space.table)
+            .findFirst({ where: { id: home } });
+        const address = { id: home, account: present(row, `the home of ${RESIDENCY}`).scope };
+        const operator = await universe.operator();
+        const residency =
+            caller?.id === home
+                ? caller
+                : await TestSpace.#host(
+                      world,
+                      operator,
+                      address,
+                      { ...options, world, owner: operator },
+                      hosting,
+                  );
+        await residency.serve();
+        const installed = await Snapshot.live(residency.database)
+            .read(installation.table)
+            .findFirst({ where: { name: FORGE_INSTALLATION } });
+        const isApplied = installed !== undefined;
+        if (!isApplied) {
+            await residency.apply([...FORGE_HOME_TYPES], FORGE_HOME_STACK);
+        }
+
+        // publish nothing in a world holding no fixtures
+        if (!(options.isPublishingFixtures ?? true)) {
+            return residency;
+        }
+
+        // create the fixtures' account as its owner, who publishes them
+        const owner = await universe.signIn(OWNER_EMAIL);
+        await TestSpace.account(universe, owner);
+
+        // publish the space stack and the fixture package's versions, each once
+        const { crypto } = universe.environment;
+        const { space } = await TestSpace.releases(crypto);
+        await TestSpace.#publish(residency, space, [], LATEST_TAG);
+        for (const version of FIXTURE_VERSIONS) {
+            const build = await fixtureBuild(ids.package, version, crypto);
+            await TestSpace.#publish(residency, build, [], LATEST_TAG);
+        }
+
+        // point the fixture package's tags
+        const registry = callRegistry(residency.machine, home, TestSpace.#fetchAs(residency));
+        for (const [name, version] of Object.entries(TAGS)) {
+            await registry.package.point({
+                spaceId: home,
+                id: ids.package,
+                requestId: RequestId.create(universe.environment),
+                name,
+                version,
+            });
+        }
+
+        return residency;
+    }
+
+    /** Publish a build in an image hoisted with its builds under a tag, once per image. */
+    static async #publish(
+        home: TestSpace,
+        build: BuildReader,
+        builds: readonly BuildReader[],
+        tag: string,
+    ): Promise<Digest> {
+        // store the builds in an image hoisted by package name
+        const { machine } = home;
+        await using store = await TestBuildStore.create(machine.environment);
+        const digests: Record<string, Digest> = {};
+        for (const each of builds) {
+            digests[each.manifest.package.name] = await store.putIndexed(each);
+        }
+        const root = await store.putIndexed(build);
+        const hoisted = await BuildImage.hoisted(root, digests, (digest) => store.get(digest));
+        const image = await store.putImage(hoisted);
+
+        // leave a release the forge published already from this image
+        const fetch = TestSpace.#fetchAs(home);
+        const registry = callRegistry(machine, home.id, fetch);
+        const released = PackageManifest.package(build.manifest);
+        const { items } = await registry.release.list({
+            spaceId: home.id,
+            where: { parentId: released.id, version: released.version },
+            limit: 1,
+        });
+        if (items.some((each) => each.image === image)) {
+            return image;
+        }
+
+        // push it below the account's handle, then publish the account's packages in it
+        await machine.push(store, image, FIXTURE_ACCOUNT.id, fetch);
+        await registry.package.publish({
+            spaceId: home.id,
+            requestId: RequestId.create(machine.environment),
+            accountId: FIXTURE_ACCOUNT.id,
+            image,
+            commit: FIXTURE_COMMIT,
+            tag,
+        });
+
+        return image;
+    }
+
+    /** Open the root build of a package's release at the residency's forge, by version or tag. */
+    static async #openRelease(
+        home: TestSpace,
+        packageId: PackageId,
+        named: string,
+    ): Promise<BuildReader> {
+        // resolve the release, then open its image's root build where the forge serves builds
+        const { machine } = home;
+        const fetch = TestSpace.#fetchAs(home);
+        const found = await callRegistry(machine, home.id, fetch).release.resolve({
+            spaceId: home.id,
+            parentId: packageId,
+            release: named,
+        });
+        const builds = `${await TestSpace.#forgeUrl(home)}${registryPackage.mounts.builds.path}`;
+
+        return await RemoteBuildStore.open(builds, fetch, found.image, machine.environment.crypto);
+    }
+
+    /** Locate the forge in the residency's home: the URL its package's mounts lie below. */
+    static #forgeUrl(home: TestSpace): Promise<string> {
+        const { machine, id } = home;
+
+        return machine.directory.mount(
+            id,
+            machine.registry,
+            registryPackage.id,
+            machine.clock.now(),
+        );
+    }
+
+    /** Send requests to the residency's forge as the fixtures' owner, with a token each. */
+    static #fetchAs(home: TestSpace): Fetch {
+        return async (request) => {
+            // exchange the fixtures' owner's token for the home, and send it as the bearer
+            const owner = home.universe.person(OWNER_EMAIL);
+            const { accessToken } = await owner.exchange(registryPackage.id, {
+                partition: home.id,
+            });
+            const headers = new Headers(request.headers);
+            headers.set("authorization", `Bearer ${accessToken}`);
+
+            return await home.machine.environment.network.fetch(new Request(request, { headers }));
+        };
+    }
+
+    /** Take a world's options with the residency's forge every world serves beside them. */
+    static #withForge(options: TestSpaceOptions): TestSpaceOptions {
+        // add the forge's packages, servers, builds, resources and follows once
+        const forge = FORGE_HOME_OPTIONS;
+        const own = options.resources;
+        const resources: TestSpaceOptions["resources"] =
+            own === undefined || own === forge.resources
+                ? forge.resources
+                : (directory, environment) => {
+                      const added = forge.resources(directory, environment);
+                      const given = own(directory, environment);
+
+                      return {
+                          providers: [...added.providers, ...given.providers],
+                          connectors: [...added.connectors, ...given.connectors],
+                      };
+                  };
+
+        return {
+            ...options,
+            packages: union(forge.packages, options.packages),
+            servers: union(forge.servers, options.servers),
+            linked: union(forge.linked, options.linked),
+            connectors: union(forge.connectors, options.connectors),
+            providers: union(forge.providers, options.providers),
+            tables: union(forge.tables, options.tables),
+            follows: union(forge.follows, options.follows),
+            policies: union(forge.policies, options.policies),
+            resources,
+        };
+    }
+
+    /** Read the forge's row of a package's release, which installations follow. */
+    async followed(packageId: PackageId, version: string): Promise<ObjectReference> {
+        await this.#openedHome();
+
+        return await RolloutTarget.resolveFollowed(this.machine, packageId, {
+            kind: "release",
+            version,
+        });
+    }
+
     /** Link a build as its package's release on the machine, as a newer distribution does. */
     async link(build: BuildReader): Promise<void> {
-        // publish the build, then link its image on the machine
-        await this.registry.release(build);
-        const released = PackageManifest.package(build.manifest);
-        const image = await this.registry.find(released.id, released.version);
-        this.machine.link({ package: released, image });
+        // store the build in the machine's builds, then link its image there
+        const { image } = await imageBuild(this.machine.builds, build, []);
+        this.machine.link({ package: PackageManifest.package(build.manifest), image });
     }
 
     /** Wait until the machine serves the space live, refusing the failures its servers report. */
@@ -1576,7 +1907,7 @@ export class TestSpace implements AsyncDisposable, TestScope {
         });
         const { fetch } = runner.endpoint(stackPackage);
         const uploaded: Digest[] = [];
-        const pushing = new PackageClient(
+        const pushing = new RemoteBuildStore(
             `${SPACE_URL}${PUSH_PATH}/${target.spaceId}/${target.id}/`,
             async (request) => {
                 // record the objects the space lacks, which the push writes next
@@ -1617,7 +1948,7 @@ export class TestSpace implements AsyncDisposable, TestScope {
         // read the store's types and the options a submission describes with
         const space = await this.space;
         const store = await space.store();
-        const options = { space, registry: this.registry, blobs: space.blobs, known: KNOWN_TYPES };
+        const options = { space, blobs: space.blobs, known: KNOWN_TYPES };
 
         // make an image of the build alone in the space's store
         const { image } = await this.#image(reader, []);
@@ -1687,6 +2018,7 @@ export class TestSpace implements AsyncDisposable, TestScope {
     async recordStack(
         exported: string,
         definition: JsonObject,
+        stacked: BuildReader = this.releases.space,
     ): Promise<{ readonly kind: "build"; readonly build: Identifier<"build"> }> {
         // pull each installed release's image
         const { installations } = StackDefinition.collections(definition);
@@ -1706,7 +2038,7 @@ export class TestSpace implements AsyncDisposable, TestScope {
         for (const { packageId, version } of released) {
             const image = await (
                 await this.space
-            ).pull(packageId, await this.registry.find(packageId, version));
+            ).pull(packageId, await this.machine.resolve(packageId, version));
             const root = await builds.contents(image.root);
             requires[root.manifest.package.name] = version;
             for (const build of BuildImage.builds(image)) {
@@ -1716,7 +2048,7 @@ export class TestSpace implements AsyncDisposable, TestScope {
 
         // declare the definition at the space stack's export
         const reader = await MemoryBuild.of(
-            PackageManifest.package(this.releases.space.manifest),
+            PackageManifest.package(stacked.manifest),
             [{ ...STACK_KIND.identity, name: exported, description: definition }],
             this.machine.environment.crypto,
             { requires },
@@ -1730,8 +2062,8 @@ export class TestSpace implements AsyncDisposable, TestScope {
         packageId: PackageId,
         version: string,
     ): Promise<{ readonly id: Identifier<"build">; readonly image: Digest }> {
-        // replicate the registry's release into the build store, and record it as the space's build
-        const image = await this.registry.find(packageId, version);
+        // replicate the forge's release into the build store, and record it as the space's build
+        const image = await this.machine.resolve(packageId, version);
         const reader = await (await this.space).root(packageId, image);
         const release = { package: packageId, version, image };
 
@@ -1918,13 +2250,22 @@ export class TestSpace implements AsyncDisposable, TestScope {
         // replace the collections given, once the space has its stack
         this.#stack = { ...this.#stack, ...StackDocument.of(types, collections) };
         await this.simulation.idle();
-        const recorded = await this.recordStack(STACKS.space.export, this.#stack);
-
-        // follow the build declaring the definition, which the space evaluates and applies
-        await this.simulation.idle();
         const installed = this.as(this.owner.subject).client(objectPackage);
         const listed = await installed.installation.list({ scope: this.id });
         const stack = single(listed.items.filter((entry) => entry.export !== null));
+
+        // record a build of the space's own stack package declaring the definition at its export
+        const { space, residency } = this.releases;
+        const isResidency = stack.packageId === PackageManifest.package(residency.manifest).id;
+        const exported = present(stack.export, "the stack's export");
+        const recorded = await this.recordStack(
+            exported,
+            this.#stack,
+            isResidency ? residency : space,
+        );
+
+        // follow the build declaring the definition, which the space evaluates and applies
+        await this.simulation.idle();
         await installed.installation.update({
             scope: this.id,
             id: stack.id,
@@ -1976,18 +2317,20 @@ export class TestSpace implements AsyncDisposable, TestScope {
             readonly isolation?: schema.Input<typeof InstallationDefinition>["isolation"];
         } = {},
     ): Promise<Identifier<"installation">> {
-        // publish the build as its package's release
-        await this.registry.release(build);
+        // follow the host's release in process or of a system package the machine links, else publish the build at the residency's forge
         const released = PackageManifest.package(build.manifest);
+        const isHost = options.isolation === "host" || this.machine.linked.has(released.id);
+        if (!isHost) {
+            await this.publish(build);
+        }
 
         // declare it after the earlier installations
         const name = released.name.slice(released.name.lastIndexOf("/") + 1);
         const declared = {
             packageId: released.id,
-            selection:
-                options.isolation === "host"
-                    ? { kind: "host" as const }
-                    : { kind: "release" as const, version: released.version },
+            selection: isHost
+                ? { kind: "host" as const }
+                : { kind: "release" as const, version: released.version },
             status: "enabled" as const,
             name,
             bindings: options.bindings ?? {},
@@ -2037,12 +2380,25 @@ export class TestSpace implements AsyncDisposable, TestScope {
     }
 }
 
-/** The world spaces share: simulation, universe, registry, gateway and machines. */
+/** Where a fixture hosts a space: its test machine, cleanups, files and databases. */
+interface TestHosting {
+    /** The test machine hosting the space. */
+    readonly machine: TestMachine;
+    /** Run a cleanup once the test or the template's write ends. */
+    readonly defer: Defer;
+    /** The directory the machine's files stay in, a temporary one by default. */
+    readonly directory?: string;
+    /** Create a space's database in the template a write runs in, a new one by default. */
+    readonly create?: (space: Identifier<"space">) => Promise<TestDatabase>;
+}
+
+/** The world spaces share: simulation, universe, forges, gateway and machines. */
 export type TestSpaceWorld = Pick<
     TestSpace,
     | "simulation"
     | "universe"
-    | "registry"
+    | "homes"
+    | "distributed"
     | "gateway"
     | "machines"
     | "starts"
@@ -2116,6 +2472,8 @@ export interface TestSpaceOptions {
     readonly stack?: StackRelease;
     /** The builds the registry publishes before the space's birth, such as its stack's. */
     readonly releases?: readonly BuildReader[];
+    /** Whether the residency's forge holds the fixtures' account and releases, true by default. */
+    readonly isPublishingFixtures?: boolean;
 }
 
 /** Plan and apply a test space's main database on the space's own volume, as the space provider. */
@@ -2235,4 +2593,9 @@ export async function settle(database: DatabaseConnection, control: ControllerSe
     await loop.idle();
     stopping.abort();
     await running;
+}
+
+/** Join two lists, the added items first, each item once. */
+function union<Item>(added: readonly Item[] | undefined, own: readonly Item[] | undefined): Item[] {
+    return [...new Set([...(added ?? []), ...(own ?? [])])];
 }

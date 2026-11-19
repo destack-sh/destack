@@ -1,4 +1,3 @@
-import { TestRegistry } from "../src/test/build.ts";
 import { MAIN_DATABASE } from "@destack/stack/declare";
 import { eq, isNotNull } from "@destack/db";
 import { installation } from "@destack/object";
@@ -21,7 +20,7 @@ import { t } from "@destack/locale";
 /** The stack package the spaces install. */
 const stacked = PackageVersion.parse({
     id: ids.stackPackage,
-    name: "@test/stack",
+    name: "@acme/stack",
     version: "2026.9.0",
 });
 
@@ -204,7 +203,7 @@ test("retain a person's own apply of a placed space's stack, and submit the spac
             id,
             requestId: RequestId.create(fixture.machine.environment),
             revision: current.revision,
-            ...ObjectReference.columns("follows", TestRegistry.row("release", next.version)),
+            ...ObjectReference.columns("follows", await fixture.followed(next.id, next.version)),
             export: "home",
             parameters: {},
         });

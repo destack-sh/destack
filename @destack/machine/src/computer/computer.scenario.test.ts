@@ -3,6 +3,7 @@ import { CLIENT_KEYS, SESSIONS } from "@destack/account/native";
 import { account, endpoint } from "@destack/account/object";
 import { Snapshot } from "@destack/db";
 import { present } from "@destack/schema";
+import registryPackage from "@destack/registry/package";
 import { RequestId } from "@destack/sync";
 import { expect, test } from "@destack/test";
 import machinePackage from "../package.ts";
@@ -142,7 +143,19 @@ test("send an npm client to the forge of the handle it asks for, and answer 404 
 
         return [answered.status, answered.headers.get("location")];
     };
-    const forge = await computer.machine.releases.npm(handle);
+    const { machine } = computer;
+    const home = await (
+        await machine.accounts()
+    ).residency.locate({
+        account: world.owner.account,
+    });
+    const mount = await machine.directory.mount(
+        home,
+        machine.registry,
+        registryPackage.id,
+        machine.clock.now(),
+    );
+    const forge = `${mount}${registryPackage.mounts.npm.path}`;
     expect([
         await ask(`@${handle}%2fnotes?write=true`),
         await ask(`@${handle}/notes/-/notes-2026.10.0.tgz`),

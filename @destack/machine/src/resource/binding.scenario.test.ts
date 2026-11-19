@@ -1,4 +1,3 @@
-import { TestRegistry } from "../test/build.ts";
 import { ObjectReference, Scope } from "@destack/sync";
 import { expect, test } from "@destack/test";
 import { type BindingSelection, installation } from "@destack/object";
@@ -52,7 +51,7 @@ test("capture each binding at its target's generation or pin, and relate its res
             scope: ids.space,
             packageId: ids.package,
             name: "notes",
-            follows: TestRegistry.row("release", "2026.9.1"),
+            follows: await fixture.followed(ids.package, "2026.9.1"),
             installer: fixture.owner.subject,
         },
         record.createdAt,

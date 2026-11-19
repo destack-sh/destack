@@ -1,4 +1,3 @@
-import { TestRegistry } from "../../test/build.ts";
 import { Random } from "@destack/environment";
 import { WorkerdEnvironment } from "@destack/environment/workerd";
 import { principal } from "@destack/access";
@@ -16,7 +15,8 @@ import { MemoryContentStore } from "@destack/resource";
 import { schema } from "@destack/schema";
 import { installation, refusal } from "@destack/object";
 import { database } from "@destack/stack/object";
-import { ObjectReference } from "@destack/sync";
+import { ObjectReference, Scope } from "@destack/sync";
+import { release } from "@destack/registry/object";
 import { SpaceStorage } from "../../space/storage.ts";
 import { DurableObjectSpaceDatabaseHost } from "../database.ts";
 
@@ -49,6 +49,12 @@ const SOURCE = "database-01996ab0-0000-7000-8000-00000000e005";
 
 /** The database the second installation's object restores the first's copy into. */
 const TARGET = "database-01996ab0-0000-7000-8000-00000000e006";
+
+/** The release row the scenario's installations follow, which the scenario never resolves. */
+const MODULE_RELEASE = release.reference(
+    Scope.universe.id,
+    "release-01996ab0-0000-7000-8000-00000000e007",
+);
 
 /** The bytes an installation's object writes: well above a space object's empty storage. */
 const WRITTEN_BYTES = 256 * 1024;
@@ -266,10 +272,7 @@ class Space {
                     scope: installed.scope,
                     packageId: installed.packageId,
                     name: `app-${name}`,
-                    ...ObjectReference.columns(
-                        "follows",
-                        TestRegistry.row("release", MODULE.package.version),
-                    ),
+                    ...ObjectReference.columns("follows", MODULE_RELEASE),
                     capabilities: [],
                     createdAt: 0,
                     updatedAt: 0,

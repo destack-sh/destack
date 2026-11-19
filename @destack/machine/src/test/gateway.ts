@@ -13,20 +13,27 @@ const HTTP_PORT = 80;
 export class TestGateway {
     /** The world whose network the machines answer on. */
     readonly #simulation: Simulation;
-    /** The listener of each machine answering, by machine. */
-    readonly #listening = new Map<string, Listener>();
+    /** The listener of each machine answering and the machine it serves, by machine. */
+    readonly #listening = new Map<
+        string,
+        { readonly machine: Machine; readonly listener: Listener }
+    >();
 
     /** Answer for the machines of a world. */
     constructor(simulation: Simulation) {
         this.#simulation = simulation;
     }
 
-    /** Answer a machine's origin on the world's network, once per machine. */
-    serve(machine: Machine): void {
-        // listen at the machine's origin on its node, handing each request to the machine and keeping its sockets
-        if (this.#listening.has(machine.id)) {
+    /** Answer a machine's origin on the world's network, a restarted machine in its place. */
+    async serve(machine: Machine): Promise<void> {
+        // leave a machine answering already, and stop answering for the one it restarts
+        const listening = this.#listening.get(machine.id);
+        if (listening?.machine === machine) {
             return;
         }
+        await listening?.listener.stop(true);
+
+        // listen at the machine's origin on its node, handing each request to the machine and keeping its sockets
         const origin = new URL(machine.origin);
         const host = present(machine.hibernation, "the machine's sockets");
         const listener = this.#simulation.network.server(machine.id).http({
@@ -34,12 +41,12 @@ export class TestGateway {
             port: Number(origin.port || (origin.protocol === "https:" ? HTTPS_PORT : HTTP_PORT)),
             ...host.listen((request) => machine.serve(request)),
         });
-        this.#listening.set(machine.id, listener);
+        this.#listening.set(machine.id, { machine, listener });
     }
 
     /** Stop answering for every machine. */
     async [Symbol.asyncDispose](): Promise<void> {
-        await Promise.all([...this.#listening.values()].map((listener) => listener.stop(true)));
+        await Promise.all([...this.#listening.values()].map(({ listener }) => listener.stop(true)));
         this.#listening.clear();
     }
 }

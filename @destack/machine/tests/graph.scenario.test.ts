@@ -312,7 +312,7 @@ async function writeNotebook(): Promise<{ reader: BuildReader; modules: graph.Mo
             role: "app",
             package: {
                 id: PackageId.parse(NOTEBOOK_ID),
-                name: "@example/notebook",
+                name: "@acme/notebook",
                 version: "2026.10.0",
             },
         },

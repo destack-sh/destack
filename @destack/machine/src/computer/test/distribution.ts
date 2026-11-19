@@ -1,10 +1,13 @@
 import { fixtureGraph } from "@destack/build/test";
+import { locateHome } from "../../machine/registry.ts";
 import type { Environment } from "@destack/environment";
 import { fileURLToPath } from "node:url";
 import type { StackRelease } from "@destack/account/object";
 import type { PlatformDefinition, ReleaseRegistry } from "@destack/account/server";
 import { type LocalBuildStore, Workspace } from "@destack/build";
-import { BuildStore } from "@destack/build/store";
+import { BuildStore, RemoteBuildStore } from "@destack/build/store";
+import { createClient } from "@destack/object/client";
+import { RequestId } from "@destack/sync";
 import { BuildLayer } from "@destack/package/manifest";
 import { testStore } from "@destack/build/test";
 import { FORGE_INSTALLATION } from "@destack/forge/package";
@@ -17,7 +20,6 @@ import {
     PackageRelease,
 } from "@destack/package";
 import { BuildReader, BuildImage, PackageManifest } from "@destack/package/manifest";
-import { Registry } from "@destack/registry/client";
 import { LATEST_TAG } from "@destack/registry/object";
 import registryPackage from "@destack/registry/package";
 import { Digest, found, present, schema } from "@destack/schema";
@@ -289,7 +291,7 @@ export class TestDistribution implements ReleaseRegistry, AsyncDisposable {
 
         // find the account and the home of its residency
         const accountId = present(await directory.account(parsed.handle), `@${parsed.handle}`);
-        const located = await (await machine.accounts()).residency.locate({ account: accountId });
+        const located = await locateHome(machine, accountId);
         const home = schema.identifier("space").parse(located);
 
         // wait until the home serves its forge
@@ -301,10 +303,16 @@ export class TestDistribution implements ReleaseRegistry, AsyncDisposable {
         const endpoint = await directory.locate(home, environment.clock.now());
         const origin = InstallationMount.url(endpoint.url, home, FORGE_INSTALLATION);
         const url = `${origin}${PackageMount.path(registryPackage.id)}`;
-        const registry = new Registry(async () => ({ url, space: home, fetch }), environment);
 
-        // push its image and publish it at the test commit
-        await registry.release(this.#store, [image], accountId, LATEST_TAG, {
+        // push its image, then publish it at the test commit
+        const builds = `${url}${registryPackage.mounts.builds.path}/${parsed.handle}/`;
+        await new RemoteBuildStore(builds, fetch).push(this.#store, [image]);
+        await createClient(registryPackage, { url, fetch }, environment).package.publish({
+            spaceId: home,
+            requestId: RequestId.create(environment),
+            accountId,
+            image,
+            tag: LATEST_TAG,
             commit: TEST_COMMIT,
         });
 

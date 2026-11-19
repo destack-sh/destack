@@ -856,11 +856,7 @@ export class TestComputer implements AsyncDisposable {
     /** Resolve what an installation of a release follows, the host's for a shipped version. */
     async #follows(packageId: PackageId, version: string) {
         const { machine } = this.computer;
-        const { follows } = await RolloutTarget.resolveDeclared(
-            packageId,
-            { version },
-            { registry: machine.releases, shipped: machine.shipped },
-        );
+        const { follows } = await RolloutTarget.resolveDeclared(packageId, { version }, machine);
 
         return ObjectReference.columns("follows", follows);
     }

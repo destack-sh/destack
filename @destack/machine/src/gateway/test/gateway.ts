@@ -1,4 +1,3 @@
-import { TestRegistry } from "../../test/build.ts";
 import { Identity } from "@destack/account/object";
 import { TokenVerifier } from "@destack/access/token";
 import { Directory } from "@destack/account/address";
@@ -95,7 +94,6 @@ export function openGateway(
             },
             root: refuse("pull builds"),
             imports: refuse("map builds' imports"),
-            residencyHome: async () => ids.residencyHome,
             builds: {
                 contents: refuse("read builds"),
                 attachment: refuse("read graphs"),
@@ -105,6 +103,8 @@ export function openGateway(
             },
             machine: {
                 directory,
+                accounts: () => space.machine.accounts(),
+                homes: new Map([[ids.account, Promise.resolve(ids.residencyHome)]]),
                 traffic: options.traffic ?? new Traffic(),
                 id: space.machine.id,
                 clock: space.machine.clock,
@@ -162,7 +162,7 @@ export async function deployNotes(
         database,
         {
             ...notes,
-            follows: TestRegistry.row("release", "2026.9.0"),
+            follows: await space.followed(ids.package, "2026.9.0"),
             installer: space.owner.subject,
         },
         now,

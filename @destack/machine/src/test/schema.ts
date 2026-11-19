@@ -9,7 +9,7 @@ import { argument, plural, t } from "@destack/locale";
 /** The notes package the space serves in process in addition to the stack. */
 const NOTES = PackageVersion.parse({
     id: "package-01996ab0-0000-7000-8000-000000000004",
-    name: "@example/notes",
+    name: "@acme/notes",
     version: "2026.9.0",
 });
 

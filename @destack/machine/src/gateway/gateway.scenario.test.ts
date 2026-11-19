@@ -101,7 +101,7 @@ const tasks: InstanceSpec = {
             role: "app",
             package: {
                 id: PackageId.parse("package-01996ab0-0000-7000-8000-0000000000a7"),
-                name: "@example/tasks",
+                name: "@acme/tasks",
                 version: "2026.9.0",
             },
         },

@@ -1,3 +1,4 @@
+import { RolloutTarget } from "../installation/target.ts";
 import { testIdentity } from "@destack/object/test";
 import type { ResourceDeclaration } from "@destack/resource";
 import { log, LogData } from "@destack/observability/object";
@@ -311,7 +312,7 @@ async function install(served: Echoing, release: BuildReader, name: string, peer
         packageId: released.id,
         ...ObjectReference.columns(
             "follows",
-            await computer.computer.machine.releases.followed(released.id, {
+            await RolloutTarget.resolveFollowed(computer.computer.machine, released.id, {
                 kind: "release",
                 version: released.version,
             }),

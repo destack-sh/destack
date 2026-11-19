@@ -9,5 +9,6 @@ export * from "./local.ts";
 export * from "./bucket.ts";
 export * from "./install.ts";
 export * from "./package.ts";
+export * from "./home.ts";
 export * from "./driver.ts";
 export * from "../scenario/interaction.ts";

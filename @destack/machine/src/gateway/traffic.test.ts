@@ -70,7 +70,7 @@ test("count the process CPU time of an instance's delta metrics export on the co
 
 /** Write an OTLP/JSON metrics export of one scope's metrics. */
 function metrics(items: readonly object[]): object {
-    const scoped = { scope: { name: "@example/notes" }, metrics: items };
+    const scoped = { scope: { name: "@acme/notes" }, metrics: items };
 
     return { resourceMetrics: [{ scopeMetrics: [scoped] }] };
 }

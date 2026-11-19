@@ -1,4 +1,3 @@
-import { TestRegistry } from "../src/test/build.ts";
 import { UNIVERSE_NODE } from "@destack/control/test";
 import { RetryPolicy } from "@destack/environment";
 import { MAIN_DATABASE } from "@destack/stack/declare";
@@ -373,6 +372,8 @@ test("move every table with a space's rows and the tables main applied, leaving 
             "destack__account__residency",
             "destack__account__space",
             "destack__account__user",
+            "destack__connection__connection",
+            "destack__connection__integration",
             "destack__object__claim",
             "destack__object__follow_key",
             "destack__object__journal",
@@ -443,6 +444,7 @@ test("stop a moving space's instances once its fence starts", async () => {
     const running = await runNotes(
         space.database,
         release,
+        await space.followed(ids.package, "2026.9.0"),
         space.owner.subject,
         space.machine.environment,
     );
@@ -551,7 +553,7 @@ test("move a space afresh after a cancelled takeover", async () => {
             scope: ids.space,
             packageId: ids.package,
             name: "notes",
-            follows: TestRegistry.row("release", "2026.9.0"),
+            follows: await source.followed(ids.package, "2026.9.0"),
             installer: source.owner.subject,
         },
         now,

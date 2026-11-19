@@ -1,16 +1,17 @@
 import { fixtureGraph } from "@destack/build/test";
 import { ObjectReference } from "@destack/sync";
 import { checkout } from "../src/computer/checkout/object/index.ts";
-import { TestRegistry } from "../src/test/build.ts";
 import { BuildImage } from "@destack/package/manifest";
 import { installation } from "@destack/object";
 import objectPackage from "@destack/object/package";
 import { Plan } from "@destack/resource";
 import { expect, refusal, test } from "@destack/test";
-import { schema, present, Digest, type Identifier, type JsonObject } from "@destack/schema";
+import { schema, present, Digest, Identifier, type JsonObject } from "@destack/schema";
+import { tag } from "@destack/registry/object";
 import { RequestId } from "@destack/sync";
 import { CallError } from "@destack/object";
 import { and, eq, Snapshot } from "@destack/db";
+import { Residency } from "@destack/account/object";
 import { build, installationRevision, Rollout, rollout } from "@destack/stack/object";
 import { PackageVersion, PackageId } from "@destack/package";
 import { MemoryBuild } from "@destack/package/test";
@@ -48,9 +49,9 @@ const followed = {
     directory: source.directory,
 };
 
-/** Follow a release of a package by its version. */
-function release(version: string) {
-    return { follows: TestRegistry.row("release", version) };
+/** Follow a release of the fixture package by its version, at the forge of a space's world. */
+async function release(fixture: TestSpace, version: string) {
+    return { follows: await fixture.followed(ids.package, version) };
 }
 
 /** Write what an installation follows as its columns. */
@@ -167,7 +168,7 @@ test("apply a submitted stack build and open its installations' views", async ()
     ).toEqual({
         installationId: notes.installationId,
         revisionId: revised.targetRevisionId,
-        image: await fixture.registry.find(ids.package, "2026.9.0"),
+        image: await fixture.machine.resolve(ids.package, "2026.9.0"),
         view: "home",
         description: {
             entrypoint: "view.js",
@@ -180,7 +181,7 @@ test("apply a submitted stack build and open its installations' views", async ()
             render: { mode: "client" },
         },
         path: "/",
-        package: "@test/package",
+        package: "@acme/notes",
         permissions: [],
         home: fixture.owner.home,
     });
@@ -290,7 +291,7 @@ test("install an application from a checkout by submitting its build, following 
             render: { mode: "client" },
         },
         path: "/",
-        package: "@test/package",
+        package: "@acme/notes",
         permissions: [],
         home: fixture.owner.home,
     });
@@ -368,10 +369,11 @@ test("wait for an approval of an application's upgrade planned from the release 
         scope: ids.space,
         requestId: RequestId.create(fixture.machine.environment),
         packageId: ids.package,
-        ...following(release("2026.9.0")),
+        ...following(await release(fixture, "2026.9.0")),
         name: "notes",
     });
-    const submit = (version: string) => refollow(fixture, notes.id, release(version));
+    const submit = async (version: string) =>
+        refollow(fixture, notes.id, await release(fixture, version));
     const read = () => readInstalled(fixture.database, notes.id);
 
     // apply the first release and wait on the upgrade to the last
@@ -453,10 +455,11 @@ test("refuse a build of another package, and deploy a release that is not later 
         scope: ids.space,
         requestId: RequestId.create(fixture.machine.environment),
         packageId: ids.package,
-        ...following(release("2026.9.0")),
+        ...following(await release(fixture, "2026.9.0")),
         name: "notes",
     });
-    const follow = (version: string) => refollow(fixture, notes.id, release(version));
+    const follow = async (version: string) =>
+        refollow(fixture, notes.id, await release(fixture, version));
     const read = () => readInstalled(fixture.database, notes.id);
 
     // refuse the fork's build at once
@@ -488,7 +491,7 @@ test("refuse a build of another package, and deploy a release that is not later 
         [
             "BAD_REQUEST",
             "PACKAGE_INVALID",
-            "build is invalid: it is of '@test/package', which 'notes' does not install",
+            "build is invalid: it is of '@acme/notes', which 'notes' does not install",
         ],
         ["Deployed", null],
         ["Deployed", null],
@@ -504,7 +507,12 @@ test("wait for a release no one has published under the selected tag, reporting 
         scope: ids.space,
         requestId: RequestId.create(fixture.machine.environment),
         packageId: ids.package,
-        ...following({ follows: TestRegistry.row("tag", "beta") }),
+        ...following({
+            follows: tag.reference(
+                await Residency.space(Snapshot.live(fixture.universe.storage.database), "eu"),
+                Identifier.create("tag", fixture.machine.environment),
+            ),
+        }),
         name: "notes",
     });
 
@@ -539,7 +547,7 @@ test("open the build each package's installation in a space follows, and none fo
                 scope: ids.space,
                 packageId,
                 name: `notes-${suffix}`,
-                follows: TestRegistry.row("release", version),
+                follows: await fixture.followed(packageId, version),
                 installer: fixture.owner.subject,
             },
             now,
@@ -570,7 +578,7 @@ test("open the build each package's installation in a space follows, and none fo
         );
     };
     const { crypto } = fixture.machine.environment;
-    await fixture.registry.release(await fixtureBuild(ids.stackPackage, "2026.10.0", crypto));
+    await fixture.publish(await fixtureBuild(ids.stackPackage, "2026.10.0", crypto, "@acme/stack"));
     await follow(ids.package, "2026.9.0", "e1");
     await follow(ids.stackPackage, "2026.10.0", "e2");
 
@@ -579,8 +587,6 @@ test("open the build each package's installation in a space follows, and none fo
     const version = (packageId: PackageId) =>
         RolloutTarget.reader(Snapshot.live(database), ids.space, packageId, undefined, {
             space,
-            registry: fixture.registry,
-            forge: null,
             linked: new Map(),
             shipped: new Map(),
         }).then(
@@ -710,7 +716,7 @@ test("refuse deploying a build needing a setting the space leaves unset", async 
     const installer = fixture.as(fixture.owner.subject).client(objectPackage);
     const regional = PackageVersion.parse({
         id: ids.package,
-        name: "@test/package",
+        name: "@acme/notes",
         version: "2026.9.0",
     });
     const declaring = await MemoryBuild.of(

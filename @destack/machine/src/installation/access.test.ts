@@ -1,4 +1,3 @@
-import { TestRegistry } from "../test/build.ts";
 import { testIdentity } from "@destack/object/test";
 import { schema } from "@destack/schema";
 import {
@@ -15,7 +14,7 @@ import { grant, role, type PackageDescription } from "@destack/object";
 import { nth } from "@destack/schema";
 import { Scope } from "@destack/sync";
 import { expect, test } from "@destack/test";
-import { ids, insertRollout, openSpaceDatabase } from "../test/index.ts";
+import { ids, insertRollout, NOTES_RELEASE, openSpaceDatabase } from "../test/index.ts";
 import { Rollout, rollout } from "@destack/stack/object";
 import { InstallationAccess } from "./access.ts";
 
@@ -59,7 +58,7 @@ async function installNotes(): ReturnType<typeof openSpaceDatabase> {
             scope: ids.space,
             packageId: ids.package,
             name: "notes",
-            follows: TestRegistry.row("release", "2026.9.0"),
+            follows: NOTES_RELEASE,
             installer: INSTALLER,
         },
         opened.now,

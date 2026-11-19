@@ -1,7 +1,6 @@
 import { Plan } from "@destack/resource";
 import type { Installation } from "@destack/object";
 import { ObjectReference } from "@destack/sync";
-import { TestRegistry } from "../test/build.ts";
 import { testBuild, testIdentity } from "@destack/object/test";
 import { expect, refusal, test } from "@destack/test";
 import { eq, Snapshot } from "@destack/db";
@@ -48,14 +47,14 @@ const RETRY_MILLISECONDS = 30_000;
 /** The board package, linked into the machine, whose cards other linked packages refer to. */
 const BOARD = PackageVersion.parse({
     id: "package-01996ab0-0000-7000-8000-0000000000e3",
-    name: "@example/board",
+    name: "@acme/board",
     version: "2026.9.0",
 });
 
 /** The pins package, linked into the machine, whose pins refer to the board's cards. */
 const PINS = PackageVersion.parse({
     id: "package-01996ab0-0000-7000-8000-0000000000e4",
-    name: "@example/pins",
+    name: "@acme/pins",
     version: "2026.9.0",
 });
 
@@ -143,6 +142,10 @@ async function readRolled(fixture: TestSpace, id: Identifier<"installation">) {
 test("install an application into a space as its owner, and refuse a stranger whether its name is taken or free", async () => {
     const fixture = await TestSpace.open();
     await fixture.serve();
+    const follows = ObjectReference.columns(
+        "follows",
+        await fixture.followed(ids.package, "2026.9.0"),
+    );
     const create = (user: string | Subject, name = "notes") =>
         fixture
             .as(user)
@@ -151,7 +154,7 @@ test("install an application into a space as its owner, and refuse a stranger wh
                 scope: ids.space,
                 requestId: RequestId.create(fixture.machine.environment),
                 packageId: ids.package,
-                ...ObjectReference.columns("follows", TestRegistry.row("release", "2026.9.0")),
+                ...follows,
                 name,
             });
 
@@ -200,7 +203,7 @@ test("find and list only the enabled installations not being deleted, as a machi
                 scope: ids.space,
                 packageId: Identifier.create("package", fixture.environment),
                 name,
-                follows: TestRegistry.row("release", "2026.9.0"),
+                follows: undefined,
                 installer: fixture.owner.subject,
             },
             now,
@@ -276,10 +279,11 @@ test("roll an installation back by following an earlier revision's build, each t
     let installed: Installation | undefined;
     const install = async (version: string) => {
         // release the version and follow it
-        await fixture.registry.release(
-            await fixtureBuild(ids.package, version, fixture.environment.crypto),
+        await fixture.publish(await fixtureBuild(ids.package, version, fixture.environment.crypto));
+        const follows = ObjectReference.columns(
+            "follows",
+            await fixture.followed(ids.package, version),
         );
-        const follows = ObjectReference.columns("follows", TestRegistry.row("release", version));
         const requestId = RequestId.create(fixture.machine.environment);
         installed =
             installed === undefined
@@ -398,7 +402,7 @@ test("relate a residency home's installation at the universe once a partition he
     // declare a package whose installations ask for what a residency's installation has
     const released = PackageVersion.parse({
         id: "package-01996ab0-0000-7000-8000-0000000000e2",
-        name: "@example/registry",
+        name: "@acme/registry",
         version: "2026.9.0",
     });
     const registry = Package.of(released, {
@@ -430,6 +434,9 @@ test("relate a residency home's installation at the universe once a partition he
     // install it in the eu residency's home while its machine cannot call the universe
     const home = await TestSpace.residency();
     await home.serve();
+    await home.publish(reader);
+    await home.simulation.idle();
+    await home.machine.resolve(released.id, released.version);
     const { network } = home.simulation;
     network.partition(home.machine.id, UNIVERSE_NODE);
     const installed = await home.install(reader);
@@ -459,7 +466,7 @@ test("relate an in-process installation to its bound bucket until uninstalled", 
     // ship a server binding a bucket, and install it in the space
     const released = PackageVersion.parse({
         id: "package-01996ab0-0000-7000-8000-0000000000e1",
-        name: "@example/boxes",
+        name: "@acme/boxes",
         version: "2026.9.0",
     });
     const box = defineBucket({ name: "box", spec: {} }, { package: released });
@@ -554,7 +561,7 @@ test("deploy an installation waiting for a granted type once the space serves it
             scope: ids.space,
             requestId: RequestId.create(fixture.machine.environment),
             packageId: BOARD.id,
-            ...ObjectReference.columns("follows", TestRegistry.row("release", BOARD.version)),
+            ...ObjectReference.columns("follows", undefined),
             name: "board",
         });
     await fixture.simulation.idle();

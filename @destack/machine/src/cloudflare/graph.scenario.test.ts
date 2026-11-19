@@ -33,7 +33,7 @@ test("share one graph view per manifest and delete it a lease after its last vie
     const simulation = testSimulation();
     const world = simulation.environment("test");
     const reader = await MemoryBuild.of(
-        PackageVersion.parse({ id: ids.package, name: "@example/notes", version: "2026.9.0" }),
+        PackageVersion.parse({ id: ids.package, name: "@acme/notes", version: "2026.9.0" }),
         [{ kind: "notification", kindPackageId: ids.package, name: "mention", description: {} }],
         world.crypto,
     );

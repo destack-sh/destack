@@ -43,6 +43,7 @@ import {
     evaluateStack,
     fixtureOutputs,
     fixtureBuild,
+    imageOf,
     readStack,
     TestSpace,
     ids,
@@ -214,7 +215,7 @@ test("apply a stack submission, reapply it unchanged, and retire removed records
 test("apply a waiting stack again once its resources turn ready, without waking itself while it waits", async () => {
     // link a release of notes declaring gauges, which the space serves once its stack installs it on the host
     const release = await MemoryBuild.of(
-        PackageVersion.parse({ id: ids.package, name: "@example/notes", version: "2026.9.0" }),
+        PackageVersion.parse({ id: ids.package, name: "@acme/notes", version: "2026.9.0" }),
         [
             {
                 kind: "object",
@@ -412,12 +413,12 @@ test("run a stack's host installation at the release the machine links, as it fo
         )
         .where(eq(installation.table.name, "notes"));
     expect(revised).toEqual({
-        image: await fixture.registry.find(ids.package, "2026.10.0"),
+        image: await fixture.machine.resolve(ids.package, "2026.10.0"),
         source: {
             kind: "release",
             package: ids.package,
             version: "2026.10.0",
-            image: await fixture.registry.find(ids.package, "2026.10.0"),
+            image: await fixture.machine.resolve(ids.package, "2026.10.0"),
         },
     });
 });
@@ -451,10 +452,11 @@ test("run a host installation at a restarted machine's linked release, then revi
     });
 
     // restart the machine linking 2026.10.1, and open the installed set as a start does
-    await fixture.link(await fixtureBuild(ids.package, "2026.10.1", testHost().crypto));
+    const next = await fixtureBuild(ids.package, "2026.10.1", testHost().crypto);
+    await fixture.link(next);
     const [older, newer] = [
-        await fixture.registry.find(ids.package, "2026.10.0"),
-        await fixture.registry.find(ids.package, "2026.10.1"),
+        await imageOf(first, testHost().crypto),
+        await imageOf(next, testHost().crypto),
     ];
     const revised = async () =>
         (
@@ -767,7 +769,7 @@ test("install a package and declare records of its type in one approved plan, ap
 
     // release notes declaring meters, and require approval of every plan in the space
     const release = await MemoryBuild.of(
-        PackageVersion.parse({ id: ids.package, name: "@example/notes", version: "2026.9.0" }),
+        PackageVersion.parse({ id: ids.package, name: "@acme/notes", version: "2027.1.0" }),
         [
             {
                 kind: "object",
@@ -779,7 +781,7 @@ test("install a package and declare records of its type in one approved plan, ap
         fixture.environment.crypto,
         { outputs: fixtureOutputs({}) },
     );
-    await fixture.registry.release(release);
+    await fixture.publish(release);
     await database.transaction(
         async (transaction) =>
             await transaction
@@ -791,7 +793,7 @@ test("install a package and declare records of its type in one approved plan, ap
     // submit a stack installing notes and declaring a meter
     const notes = {
         packageId: ids.package,
-        selection: { kind: "release", version: "2026.9.0" },
+        selection: { kind: "release", version: "2027.1.0" },
         status: "enabled",
         name: "notes",
         bindings: {},
@@ -866,12 +868,12 @@ test("install a package and declare records of its type in one approved plan, ap
     });
     await fixture.simulation.idle();
     expect(migrating.plan.steps.map((step) => step.target)).toEqual([
-        "database/main/table/example__notes__meter",
-        "database/main/table/example__notes__meter/dependent/destack__access__relationship",
+        "database/main/table/acme__notes__meter",
+        "database/main/table/acme__notes__meter/dependent/destack__access__relationship",
     ]);
 
     // link notes and restart the machine
-    const image = await fixture.registry.find(ids.package, "2026.9.0");
+    const image = await fixture.machine.resolve(ids.package, "2027.1.0");
     fixture.machine.link({ package: PackageManifest.package(release.manifest), image });
     await fixture.restart({});
     await fixture.simulation.idle();

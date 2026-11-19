@@ -13,7 +13,7 @@ import { argument, plural, t } from "@destack/locale";
 /** The package of the cards and memos the spaces serve in addition to the stack. */
 const BOARD = PackageVersion.parse({
     id: "package-01996ab0-0000-7000-8000-000000000006",
-    name: "@example/board",
+    name: "@acme/board",
     version: "2026.10.0",
 });
 

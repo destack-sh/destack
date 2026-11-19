@@ -1,4 +1,3 @@
-import { TestRegistry } from "../src/test/build.ts";
 import { FOLLOWER_REVISION } from "@destack/sync/test";
 import objectPackage from "@destack/object/package";
 import accountPackage from "@destack/account/package";
@@ -71,7 +70,7 @@ async function serveInstallation() {
         scope: ids.space,
         requestId: RequestId.create(fixture.machine.environment),
         packageId: ids.package,
-        ...ObjectReference.columns("follows", TestRegistry.row("release", "2026.9.0")),
+        ...ObjectReference.columns("follows", await fixture.followed(ids.package, "2026.9.0")),
         name: "notes",
     });
     const otherSpace = Identifier.create("space", fixture.environment);
