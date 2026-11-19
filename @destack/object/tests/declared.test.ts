@@ -136,9 +136,7 @@ test("declare records as their create inputs in reference order, the name fillin
 
     // open the space over a database with the declared types' tables
     const types = [badge, seal, stamp, marker, tag];
-    const tables = [
-        ...new Set([...objectDatabase.tables, ...[...types, crate].flatMap((type) => type.tables)]),
-    ];
+    const tables = [...objectDatabase.tables, ...[...types, crate].flatMap((type) => type.tables)];
     const storage = await TestDatabase.create(defineDatabase({ name: "main", tables }), {
         environment: world,
         isMigrated: true,

@@ -163,7 +163,7 @@ test("replicate the profiles in the scopes of the people a space reads, each dec
     // run in a world of its own
     const world = testSimulation().environment("test");
 
-    const tables = [...new Set([...person.tables, ...profile.tables, ...call.tables])];
+    const tables = [...person.tables, ...profile.tables, ...call.tables];
     const home = await TestDatabase.create(tables, { environment: world, isMigrated: true });
     const declared = defineDatabase({
         name: "space",
