@@ -1,7 +1,7 @@
 import { testSimulation } from "@destack/test/world";
 import type { Environment } from "@destack/environment";
 import { PackageVersion } from "@destack/package";
-import { schema } from "@destack/schema";
+import { present, schema } from "@destack/schema";
 import { BuildWriter } from "@destack/package/manifest";
 import { afterEach, expect, test, vi } from "@destack/test";
 import { dirname, join } from "node:path";
@@ -93,9 +93,14 @@ async function bundle(
     });
 }
 
-/** Wait for the reloads queued in the current task. */
-async function flushPending(environment: Environment): Promise<void> {
-    await environment.clock.sleep(0);
+/** The milliseconds a sheet reload waits for further transforms, as the plugin sets it. */
+const SHEET_SETTLE = 150;
+
+/** Wait for the reloads queued so far, moving the world's time past their settling. */
+async function flushPending(simulation: {
+    readonly sleep: (milliseconds: number) => Promise<void>;
+}): Promise<void> {
+    await simulation.sleep(SHEET_SETTLE);
 }
 
 /** Start a development server compiling styles as a package that uses `@destack/style` does. */
@@ -154,23 +159,50 @@ test("serve the collected rules as a stylesheet module, reloading it when transf
     const server = await serve(environment);
     const client = server.environments.client;
     await client.transformRequest("/fixture/teal");
-    await flushPending(environment);
+    await flushPending(simulation);
     await client.transformRequest("virtual:stylex.css");
     const sheet = await client.pluginContainer.load("\0virtual:stylex.css");
     const reload = vi.spyOn(client, "reloadModule").mockResolvedValue();
     await client.transformRequest("/fixture/teal");
-    await flushPending(environment);
+    await flushPending(simulation);
     const unchanged = reload.mock.calls.length;
 
     // compile a style with a new rule
     await client.transformRequest("/fixture/plum");
-    await flushPending(environment);
+    await flushPending(simulation);
 
     expect({ sheet, unchanged, grown: reload.mock.calls.length }).toEqual({
         sheet: "@layer base;\n\n@layer priority1 {\n  .xy1w8w {\n    color: teal;\n  }\n}\n",
         unchanged: 0,
         grown: 1,
     });
+});
+
+test("reload the sheet once for a burst of new rules, never for a transform repeating served ones", async () => {
+    // compile one style and serve the sheet with its rule
+    await using simulation = testSimulation();
+    const environment = simulation.environment("test");
+    const server = await serve(environment);
+    const client = server.environments.client;
+    await client.transformRequest("/fixture/teal");
+    await flushPending(simulation);
+    await client.transformRequest("virtual:stylex.css");
+    const reload = vi.spyOn(client, "reloadModule").mockResolvedValue();
+
+    // compile the served style again, as a second environment or an edit keeping its rules does
+    const teal = present(await client.moduleGraph.getModuleByUrl("/fixture/teal"), "teal module");
+    client.moduleGraph.invalidateModule(teal);
+    await client.transformRequest("/fixture/teal");
+    await flushPending(simulation);
+    const repeated = reload.mock.calls.length;
+
+    // compile two styles with new rules in one burst
+    await Promise.all(
+        ["/fixture/plum", "/fixture/coral"].map((url) => client.transformRequest(url)),
+    );
+    await flushPending(simulation);
+
+    expect({ repeated, burst: reload.mock.calls.length }).toEqual({ repeated: 0, burst: 1 });
 });
 
 test("serve the sheet without the StyleX plugin's timer polling its rule version", async () => {

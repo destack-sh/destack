@@ -12,6 +12,9 @@ const SHEET_ID = "virtual:stylex.css";
 /** The stylesheet module's resolved identifier, prefixed as Vite marks virtual modules. */
 const RESOLVED_SHEET_ID = `\0${SHEET_ID}`;
 
+/** The milliseconds a sheet reload waits for further transforms, StyleX's polling interval. */
+const SHEET_SETTLE = 150;
+
 /** The file a build keeps its StyleX rules in, beside each output's modules. */
 const RULES_FILE = "stylex.json";
 
@@ -45,10 +48,7 @@ interface StylexPlugin extends Plugin {
     /** Write every rule collected so far as one stylesheet. */
     readonly __stylexCollectCss: () => string;
     /** Read the rule store the plugin keeps on `globalThis` for the whole process. */
-    readonly __stylexGetSharedStore: () => {
-        readonly version: number;
-        readonly rulesById: Map<string, unknown>;
-    };
+    readonly __stylexGetSharedStore: () => { readonly rulesById: Map<string, unknown> };
 }
 
 /** Compile StyleX styles in builds of packages that depend on `@destack/style`. */
@@ -106,10 +106,9 @@ function sheetPlugin(
     dependencies: readonly string[],
     environment: Environment<"files">,
 ): Plugin {
-    // the server, the rule versions and the queued reload
+    // the server, the class names of the sheet last served, and the queued reload
     let server: ViteDevServer | undefined;
-    let version = 0;
-    let reloaded = 0;
+    let served = new Set<string>();
     let isReloadQueued = false;
 
     return {
@@ -135,7 +134,14 @@ function sheetPlugin(
             if (withoutQuery(id) !== RESOLVED_SHEET_ID) {
                 return undefined;
             }
-            version = stylex.__stylexGetSharedStore().version;
+            served = new Set(
+                [...stylex.__stylexGetSharedStore().rulesById.values()].flatMap((rules) =>
+                    schema
+                        .array(Rule)
+                        .parse(rules)
+                        .map(([name]) => name),
+                ),
+            );
 
             return server === undefined ? "" : stylex.__stylexCollectCss();
         },
@@ -161,20 +167,25 @@ function sheetPlugin(
                 }
             },
         },
-        transform: () => {
-            // reload the sheet once per task after transforms in any environment add rules
+        transform: (_code, id) => {
+            // leave a transform that adds no rule the served sheet lacks, or one a queued reload covers
             const running = server;
-            if (running === undefined || isReloadQueued) {
+            const rules = stylex.__stylexGetSharedStore().rulesById.get(id);
+            if (running === undefined || isReloadQueued || rules === undefined) {
                 return undefined;
             }
-            const current = stylex.__stylexGetSharedStore().version;
-            if (current === version || current === reloaded) {
+            const names = schema
+                .array(Rule)
+                .parse(rules)
+                .map(([name]) => name);
+            if (names.every((name) => served.has(name))) {
                 return undefined;
             }
+
+            // send the browser the sheet with the new rules once the burst of transforms settles
             isReloadQueued = true;
-            reloaded = current;
-            void environment.clock.sleep(0).then(() => {
-                // send the browser the sheet with the new rules
+            void environment.clock.sleep(SHEET_SETTLE).then(() => {
+                // reload the sheet module the browser imported, if it has
                 isReloadQueued = false;
                 const client = running.environments.client;
                 const module = client.moduleGraph.getModuleById(RESOLVED_SHEET_ID);
