@@ -175,8 +175,12 @@ export class BrowserTab<
         environment: Environment<"storage" | "workers">,
     ): BrowserTabWorker {
         return async () => {
-            // ask to persist the storage, and start the device worker
-            await environment.storage.persist();
+            // ask to persist the storage beside the start, as a browser may wait for the person's answer
+            void environment.storage
+                .persist()
+                .catch((error: unknown) => globalThis.reportError(error));
+
+            // start the device worker
             const worker = environment.workers.start(
                 (Worker) => new Worker(module, { type: "module", name: `destack:${name}` }),
             );
