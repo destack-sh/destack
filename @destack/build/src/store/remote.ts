@@ -1,12 +1,14 @@
-import { Tarball, type TarballEntry } from "@destack/package/archive";
-import { Digest, found, nth, present, schema } from "@destack/schema";
+import { Tarball, TarballEntry } from "@destack/package/archive";
+import { Digest, type DigestCrypto, found, nth, present, schema } from "@destack/schema";
 import { CallError } from "@destack/object";
-import type { PackageFile } from "@destack/package/file";
+import type { Environment } from "@destack/environment";
+import { PackageFile } from "@destack/package/file";
+import { BuildImage, BuildReader } from "@destack/package/manifest";
 import { BuildError } from "../error/index.ts";
 import { BuildObject, type BuildStore, MAX_WRITE_BYTES } from "./store.ts";
 
-/** A build store over HTTP: has, read and write below a scope, as registry clients push images. */
-export class PackageClient {
+/** A build store another host serves over HTTP: has, read and write below a scope. */
+export class RemoteBuildStore {
     /** The URL the store is reached at below its scope, ending in a slash. */
     readonly url: string;
     /** Send a request to the server. */
@@ -16,6 +18,29 @@ export class PackageClient {
     constructor(url: string, fetch: (request: Request) => Promise<Response>) {
         this.url = url.endsWith("/") ? url : `${url}/`;
         this.#fetch = fetch;
+    }
+
+    /** Open the root build of an image a registry's builds serve below a URL, file by file. */
+    static async open(
+        builds: string,
+        fetch: (request: Request) => Promise<Response>,
+        image: Digest,
+        crypto: Environment["crypto"],
+    ): Promise<BuildReader> {
+        // read the image, then open its root build where the builds serve it
+        const base = builds.replace(/\/$/u, "");
+        const imageAt = new RemoteBuildStore(
+            `${base}/${BuildObject.path({ kind: "image", digest: image })}/`,
+            fetch,
+        );
+        const read = await imageAt.#image(image, crypto);
+        const location = { manifest: read.root, url: `${base}/${read.root}/` };
+
+        return await BuildReader.open(
+            location,
+            (input, request) => fetch(new Request(input.href, request)),
+            crypto,
+        );
     }
 
     /** Tell which of some blobs the store has, one flag per digest. */
@@ -51,6 +76,34 @@ export class PackageClient {
             }),
         );
         yield* Tarball.read(present(response.body, "the body of a read"));
+    }
+
+    /** Read an image the URL is below by its digest, refusing bytes that do not match it. */
+    async #image(digest: Digest, crypto: DigestCrypto): Promise<BuildImage> {
+        // read the image's one entry
+        let bytes: Uint8Array<ArrayBuffer> | undefined;
+        for await (const entry of this.read([{ kind: "image", digest }])) {
+            bytes = await TarballEntry.bytes(entry);
+        }
+        const read = present(bytes, `image '${digest}'`);
+
+        // require its digest
+        if ((await Digest.of(read, crypto)) !== digest) {
+            throw BuildError.of(
+                "MANIFEST_INVALID",
+                `image '${digest}' is invalid: its bytes do not match its digest`,
+            );
+        }
+        const text = new TextDecoder("utf-8", { fatal: true }).decode(read);
+
+        return BuildImage.parse(JSON.parse(text));
+    }
+
+    /** List the files the build the URL is below attached, as OCI's referrers API lists them. */
+    async attachments(): Promise<PackageFile[]> {
+        const response = await this.#send(new Request(`${this.url}attachments/`));
+
+        return schema.array(PackageFile).parse(await response.json());
     }
 
     /** Write objects, files first, as one tarball. */
@@ -145,21 +198,25 @@ export class PackageClient {
     async #send(request: Request): Promise<Response> {
         const response = await this.#fetch(request);
         if (!response.ok) {
-            // rethrow the server's call error as itself, as a consent the caller can answer
-            const answer = await response.text();
-            const called = CallError.fromJson(jsonOf(answer));
-            if (called !== undefined) {
-                throw called;
-            }
-
-            // refuse any other failure with the answer
-            throw BuildError.of(
-                "UPLOAD_UNREACHABLE",
-                `could not call '${new URL(request.url).pathname}': HTTP ${response.status} '${answer}'`,
-            );
+            throw await RemoteBuildStore.#failure(request, response);
         }
 
         return response;
+    }
+
+    /** Read a failed answer as the server's call error, else as an unreachable server. */
+    static async #failure(request: Request, response: Response): Promise<Error> {
+        // take the server's call error as itself, as a consent the caller can answer
+        const answer = await response.text();
+        const called = CallError.fromJson(jsonOf(answer));
+        if (called !== undefined) {
+            return called;
+        }
+
+        return BuildError.of(
+            "STORE_UNREACHABLE",
+            `could not call '${new URL(request.url).pathname}': HTTP ${response.status} '${answer}'`,
+        );
     }
 }
 

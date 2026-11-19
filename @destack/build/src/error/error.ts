@@ -46,7 +46,7 @@ export const BuildError = defineErrorFamily({
 
         // unreachable
         COMPILER_UNREACHABLE: {},
-        UPLOAD_UNREACHABLE: {},
+        STORE_UNREACHABLE: {},
 
         // cancelled
         BUILD_CANCELLED: {},

@@ -21,7 +21,7 @@ import { Digest, found, present } from "@destack/schema";
 import {
     BuildObject,
     type PackageAccess,
-    PackageClient,
+    RemoteBuildStore,
     BuildStore,
     ImportClosure,
 } from "./index.ts";
@@ -755,6 +755,52 @@ test("serve a stored build over HTTP after the host authorizes each read", async
     await present((await fetchPackage(path)).body, "the file body").cancel();
 });
 
+test("open a served image's root build", async () => {
+    // serve a stored image of the fixture build to every reader
+    await using simulation = testSimulation();
+    const environment = simulation.environment("test");
+    await using opened = await openStore(await temporary(environment.files), environment);
+    const { store } = opened;
+    const build = await written(SOURCES, environment.crypto);
+    const image = await store.putImage(imageOf(await store.put(build), {}));
+    const serving = (request: Request) => store.fetch(request, MOUNT, PUSHING);
+
+    // open the image's root build below the mount
+    const reader = await RemoteBuildStore.open(MOUNT.href, serving, image, environment.crypto);
+    expect([reader.manifest, await reader.files()]).toEqual([build.manifest, await build.files()]);
+});
+
+test("refuse an image whose bytes do not match its digest", async () => {
+    // serve a stored image, answering a read of another image with its bytes, as a mixed up server does
+    await using simulation = testSimulation();
+    const environment = simulation.environment("test");
+    await using opened = await openStore(await temporary(environment.files), environment);
+    const { store } = opened;
+    const image = await store.putImage(
+        imageOf(await store.put(await written(SOURCES, environment.crypto)), {}),
+    );
+    const other = Digest.parse("0".repeat(64));
+    const mixing = async (request: Request) => {
+        const body = (await request.text()).replaceAll(other, image);
+        const url = request.url.replace(other, image);
+
+        return await store.fetch(
+            new Request(url, { method: request.method, headers: request.headers, body }),
+            MOUNT,
+            PUSHING,
+        );
+    };
+
+    // refuse to open the image read under the other digest
+    expect(
+        await refusal(RemoteBuildStore.open(MOUNT.href, mixing, other, environment.crypto)),
+    ).toEqual([
+        "BAD_REQUEST",
+        "MANIFEST_INVALID",
+        `image '${other}' is invalid: its bytes do not match its digest`,
+    ]);
+});
+
 test("pull a served build into another store in one read per round, reading nothing once stored", async () => {
     // serve a stored build, recording each path read
     await using simulation = testSimulation();
@@ -770,7 +816,7 @@ test("pull a served build into another store in one read per round, reading noth
     const root = { kind: "manifest", digest } as const;
     const prefix = `/packages/${BuildObject.path(root)}/`;
     const paths: string[] = [];
-    const client = new PackageClient(`https://packages.test${prefix}`, async (request) => {
+    const client = new RemoteBuildStore(`https://packages.test${prefix}`, async (request) => {
         paths.push(new URL(request.url).pathname.slice(prefix.length));
 
         return source.fetch(request, MOUNT, { pull: async () => {} });
@@ -817,7 +863,7 @@ test("push a stored image to a store, writing only the objects it lacks", async 
 
     // push the build's image, then push it again, which asks what the store has and writes nothing
     const image = await source.putImage(BuildImage.of(digest));
-    const client = new PackageClient("https://packages.test/packages/", accepting);
+    const client = new RemoteBuildStore("https://packages.test/packages/", accepting);
     await client.push(source, [image]);
     const first = uploads.splice(0);
     await client.push(source, [image]);
@@ -1081,7 +1127,7 @@ test("pull one output of a served build: what its runtime loads and its maps, no
     const root = { kind: "manifest", digest } as const;
     const prefix = `/packages/${BuildObject.path(root)}/`;
     const requested: string[] = [];
-    const client = new PackageClient(`https://packages.test${prefix}`, async (request) => {
+    const client = new RemoteBuildStore(`https://packages.test${prefix}`, async (request) => {
         requested.push(new URL(request.url).pathname.slice(prefix.length));
 
         return served.store.fetch(request, MOUNT, { pull: async () => {} });

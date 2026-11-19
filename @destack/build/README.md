@@ -17,7 +17,7 @@ Stores keep builds and images:
 
 - `BuildStore` and `LocalBuildStore`: builds and images by digest, as an OCI registry keeps images.
 - `BuildImage`: a root build and the build of each package it runs with, from `@destack/package`.
-- `PackageClient`: pushes builds and images to a forge, and reads them for `pull`.
+- `RemoteBuildStore`: pushes builds and images to a forge, and reads them for `pull`.
 
 Build a package, store it, and make an image of it with what it runs with:
 
@@ -73,10 +73,12 @@ Each unit compiles only on a key miss, once per workspace, and the host's packag
 
 A `LocalBuildStore` also lays out an image's tree for a runtime with `runTree`, and writes distribution layers with `writeLayer`.
 
-### PackageClient
+### RemoteBuildStore
 
-`new PackageClient(url, fetch)` is a build store over HTTP, with the same `has`, `read` and `write`.
+`new RemoteBuildStore(url, fetch)` is a build store another host serves over HTTP, with the same `has`, `read` and `write`.
 `push(store, images)` lists the images' objects, asks which the server has, and writes the rest in bounded uploads.
+`RemoteBuildStore.open(builds, fetch, image, crypto)` opens the root build of an image another host serves, refusing an image whose bytes do not match its digest.
+`attachments()` lists the files a build's server attached, as OCI's referrers API lists them.
 
 ## Examples
 
@@ -103,7 +105,7 @@ export async function buildBoth(opened: WorkspacePackage) {
 `push` writes only the objects the forge lacks, and `pull` reads an image in one read per round.
 
 ```ts
-import { PackageClient } from "@destack/build/store";
+import { RemoteBuildStore } from "@destack/build/store";
 import type { LocalBuildStore } from "@destack/build";
 import type { Digest } from "@destack/schema";
 
@@ -115,10 +117,10 @@ export async function pushThenPull(
     url: string,
 ) {
     // push the image's objects the forge lacks
-    await new PackageClient(url, fetch).push(store, [digest]);
+    await new RemoteBuildStore(url, fetch).push(store, [digest]);
 
     // pull what Bun runs of it into the other store
-    const source = new PackageClient(`${url}image/${digest}/`, fetch);
+    const source = new RemoteBuildStore(`${url}image/${digest}/`, fetch);
     await other.pull(source, { kind: "image", digest }, ["bun"]);
 }
 ```
