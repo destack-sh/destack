@@ -478,6 +478,26 @@
                     ],
                     "additionalProperties": false
                 },
+                "test": {
+                    "type": "object",
+                    "properties": {
+                        "databases": {
+                            "minItems": 1,
+                            "type": "array",
+                            "items": {
+                                "type": "string",
+                                "enum": [
+                                    "sqlite",
+                                    "postgresql"
+                                ]
+                            }
+                        }
+                    },
+                    "required": [
+                        "databases"
+                    ],
+                    "additionalProperties": false
+                },
                 "workspace": {
                     "type": "object",
                     "properties": {

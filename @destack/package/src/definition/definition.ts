@@ -62,6 +62,17 @@ const WorkspaceSettings = schema.object({
     check: CheckSettings.exactOptional(),
 });
 
+/** The databases a package's tests run against: SQLite, PostgreSQL. */
+export const TestDatabase = schema.enum(["sqlite", "postgresql"]);
+/** A database a package's tests run against. */
+export type TestDatabase = schema.Infer<typeof TestDatabase>;
+
+/** How a package's tests run beyond the conventions: the databases, SQLite alone by default. */
+const TestSettings = schema.object({
+    /** The databases every test runs against, for a package storing in each. */
+    databases: schema.array(TestDatabase).min(1),
+});
+
 /** The roles a package takes: part of the runtime, bundled by its importers, or installed. */
 export const PACKAGE_ROLES = ["builtin", "library", "app"] as const;
 
@@ -102,6 +113,8 @@ const definition = schema.object({
     extensions: schema.array(PackageName).min(1).exactOptional(),
     /** How checking treats the package: the findings it accepts. */
     check: CheckSettings.exactOptional(),
+    /** How the package's tests run beyond the conventions. */
+    test: TestSettings.exactOptional(),
     /** The settings of the workspace this package's directory roots. */
     workspace: WorkspaceSettings.exactOptional(),
     /** Runtime overrides keyed by the names in package.json exports. */
