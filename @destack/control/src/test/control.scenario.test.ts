@@ -1,3 +1,5 @@
+import { Snapshot } from "@destack/db";
+import registryPackage from "@destack/registry/package";
 import { Account, group, Placement } from "@destack/account/object";
 import accountPackage from "@destack/account/package";
 import { DOMAINS, MachineAddress } from "@destack/account/address";
@@ -42,6 +44,33 @@ test("place a person's home on their residency's cloud machine, as the machine's
     const home = Account.home(ada.account);
     const [placed] = await Placement.find(machine.directory.snapshot, [home]);
     expect(placed).toEqual({ space: home, scope: ada.account, machine: machine.id, epoch: 1 });
+});
+
+test("redirect a repository link to the registry of its account's residency home, keeping Git's path, and refuse an unknown handle", async () => {
+    // sign ada up and place the residency's home on its cloud machine
+    await using universe = await TestControl.open();
+    const ada = await universe.signIn("ada@example.test");
+    const machine = await universe.machine();
+    await universe.simulation.idle();
+    const open = async (path: string) => {
+        const response = await universe.control.fetch(
+            new Request(`https://${DOMAINS.universe}${path}`),
+        );
+
+        return [response.status, response.headers.get("location")];
+    };
+
+    // redirect git's first request below the registry of the home the residency serves her from
+    const home = await Account.locate(Snapshot.live(universe.control.store.database), ada.account);
+    const url = await machine.directory.answering(machine.id, universe.clock.now());
+    const registry = new URL(`/spaces/${home}/${registryPackage.id}/git`, url).href;
+    expect([
+        await open(`/@${ada.handle}/site.git/info/refs?service=git-upload-pack`),
+        await open("/@nobody/site.git/info/refs?service=git-upload-pack"),
+    ]).toEqual([
+        [307, `${registry}/@${ada.handle}/site.git/info/refs?service=git-upload-pack`],
+        [404, null],
+    ]);
 });
 
 test("enroll a person's machine of their account, published at its name through its residency's relay, as the directory reads it", async () => {

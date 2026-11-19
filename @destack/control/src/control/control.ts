@@ -17,6 +17,7 @@ import { IdentityKeystore, IdentityRegistry } from "@destack/account/identity";
 import { Session } from "@destack/account/client";
 import { Bookmark } from "@destack/object/client";
 import { Account, claim, Residency } from "@destack/account/object";
+import registryPackage from "@destack/registry/package";
 import accountPackage from "@destack/account/package";
 import { TokenLifetime } from "@destack/account/oauth";
 import {
@@ -404,7 +405,7 @@ export class Control implements AsyncDisposable {
         if (UniverseOrigin.path(pathname) === "issuer") {
             return this.issuer.fetch(request);
         } else if (link !== undefined) {
-            return this.#open(link);
+            return this.#open(link, new URL(request.url).search);
         }
 
         // answer the package mounted at the path, nothing elsewhere
@@ -416,8 +417,8 @@ export class Control implements AsyncDisposable {
             : server.fetch(mounted.request);
     }
 
-    /** Open a link: redirect an app to its installation's origin, or show a profile. */
-    async #open(link: UniverseLink): Promise<Response> {
+    /** Open a link: redirect an app or a repository to its installation, or show a profile. */
+    async #open(link: UniverseLink, search: string): Promise<Response> {
         // redirect an app by rewriting its path into its installation's hostname
         if (link.kind === "app") {
             const hostname = InstallationOrigin.format(link.installation, DOMAINS.space);
@@ -428,16 +429,37 @@ export class Control implements AsyncDisposable {
             });
         }
 
-        // show the public profile of the account the handle names
-        const found = await Account.byHandle(Snapshot.live(this.store.database), link.handle);
+        // find the account the handle names, none for an unclaimed handle
+        const snapshot = Snapshot.live(this.store.database);
+        const found = await Account.byHandle(snapshot, link.handle);
         if (found === undefined) {
             return new Response(null, { status: 404 });
         }
+
+        // redirect a repository to its account's registry, keeping Git's path below it
+        if (link.kind === "repository") {
+            const registry = await this.#registry(found, snapshot);
+            const location = `${registry}/@${link.handle}/${link.name}.git${link.path}${search}`;
+
+            return new Response(null, { status: 307, headers: { location } });
+        }
+
+        // show the public profile of the account
         const name = escapeHtml(found.name);
         const handle = escapeHtml(found.handle);
         const page = `<!doctype html><title>${name}</title><h1>${name}</h1><p>@${handle}</p>`;
 
         return new Response(page, { headers: { "content-type": "text/html; charset=utf-8" } });
+    }
+
+    /** Locate the Git mount of the registry in an account's residency home. */
+    async #registry(owner: Account, snapshot: Snapshot): Promise<string> {
+        // find the registry the account's home serves, on its machine now
+        const home = await Account.locate(snapshot, owner.id);
+        const now = this.store.environment.clock.now();
+        const registry = await new Directory(snapshot).package(home, registryPackage.id, now);
+
+        return `${registry}${registryPackage.mounts.git.path}`;
     }
 
     /** Wait until the store's loop is idle, or until a deadline. */
