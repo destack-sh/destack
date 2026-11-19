@@ -8,13 +8,13 @@ import { OtlpExporter } from "@destack/telemetry/otlp";
 import type { ThemeDescription } from "@destack/theme";
 import { type Component, createComponent } from "solid-js";
 import { hydrate } from "@solidjs/web";
-import { OriginPath, type PackageVersion } from "@destack/package";
+import type { PackageVersion } from "@destack/package";
 import type { View } from "../declare/view.ts";
 import { recordVisits } from "../browser/visit.ts";
 import { ViewError } from "../error/error.ts";
 import { ViewRoot, type ViewRootProperties } from "../page/mount.ts";
 import { type IslandProperties, IslandSlot } from "./island.tsx";
-import { StaticPage } from "./page.ts";
+import { StaticPage, TELEMETRY_META } from "./page.ts";
 
 /** The telemetry a page starts, exporting to the origin serving it. */
 type PageTelemetry = Awaited<ReturnType<typeof startTelemetry>>;
@@ -134,21 +134,34 @@ function islandId(root: HTMLElement): string {
     return id;
 }
 
-/** Start a page's telemetry, exporting it and uncaught failures to the origin serving it. */
+/** Start a page's telemetry, exporting it to the endpoint the origin serving it names, if any. */
 function startPageTelemetry(
     view: { readonly package: PackageVersion },
     environment: Environment<"workers" | BrowserCapability>,
 ): Promise<PageTelemetry> {
-    const exporter = OtlpExporter.http(
-        {
-            endpoint: OriginPath.telemetry,
-            isKeepalive: true,
-            fetch: (request) => environment.network.fetch(request),
-        },
-        reportToDevtools,
-    );
+    // read the endpoint the serving origin names, and export nothing without one
+    const endpoint = document.querySelector<HTMLMetaElement>(
+        `meta[name="${TELEMETRY_META}"]`,
+    )?.content;
+    const options =
+        endpoint === undefined
+            ? {
+                  name: view.package.name,
+                  version: view.package.version,
+                  metrics: {},
+                  signals: () => ({ traces: {}, logs: {} }),
+                  report: reportToDevtools,
+              }
+            : OtlpExporter.http(
+                  {
+                      endpoint,
+                      isKeepalive: true,
+                      fetch: (request) => environment.network.fetch(request),
+                  },
+                  reportToDevtools,
+              ).options(view.package);
 
-    return startTelemetry(exporter.options(view.package), environment, window);
+    return startTelemetry(options, environment, window);
 }
 
 /** Record a page's visits, and release its renderings and telemetry once it goes. */

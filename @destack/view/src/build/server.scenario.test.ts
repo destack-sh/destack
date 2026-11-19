@@ -32,7 +32,7 @@ function headings(document: string): string[] {
     return [...document.matchAll(/<h1[^>]*>([^<]*)<\/h1>/gu)].map((match) => match[1] ?? "");
 }
 
-test("serve a static view's pages, endpoints and public files on request, as its prerender writes them", async () => {
+test("serve a static view's pages, endpoints, public files and reserved paths on request", async () => {
     // serve the site from its workspace on a free port
     const workspacePackage = await (await Workspace.open(source.source, compilers)).package();
     const environment = testHost();
@@ -53,21 +53,47 @@ test("serve a static view's pages, endpoints and public files on request, as its
         return { status: response.status, text: await response.text() };
     };
 
+    const post = async (path: string, body: string) => {
+        const request = new Request(`http://127.0.0.1:${port}${path}`, {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body,
+        });
+        const response = await environment.network.fetch(request);
+
+        return [response.status, await response.text()];
+    };
+
     // answer the pages with their headings and the browser entry, the sitemap, a public file and the missing page
-    const [home, about, sitemap, favicon, missing] = await Promise.all(
-        ["/", "/about/", "/sitemap.xml", "/favicon.svg", "/nowhere"].map(visit),
+    const [home, about, sitemap, favicon, missing, session] = await Promise.all(
+        ["/", "/about/", "/sitemap.xml", "/favicon.svg", "/nowhere", "/.destack/session"].map(
+            visit,
+        ),
     );
+
+    // take a logs export at its signal's path, and refuse an unknown signal and a malformed export
+    const exports = await Promise.all([
+        post("/.destack/telemetry/v1/logs", JSON.stringify({ resourceLogs: [] })),
+        post("/.destack/telemetry/v1/profiles", "{}"),
+        post("/.destack/telemetry/v1/traces", JSON.stringify({ resourceSpans: "none" })),
+    ]);
     expect({
         home: [home?.status, headings(home?.text ?? "")],
         about: [about?.status, headings(about?.text ?? "")],
         entry: home?.text.includes('src="/@id/__x00__virtual:@destack/view/view/site"'),
+        telemetry: home?.text.includes(
+            '<meta name="destack-telemetry" content="/.destack/telemetry">',
+        ),
         sitemap: [sitemap?.status, sitemap?.text],
         favicon: [favicon?.status, favicon?.text],
         missing: [missing?.status, headings(missing?.text ?? "")],
+        session: [session?.status, session?.text],
+        exports: exports.map(([status]) => status),
     }).toEqual({
         home: [200, ["Home"]],
         about: [200, ["About"]],
         entry: true,
+        telemetry: true,
         sitemap: [
             200,
             [
@@ -81,5 +107,7 @@ test("serve a static view's pages, endpoints and public files on request, as its
         ],
         favicon: [200, '<svg xmlns="http://www.w3.org/2000/svg"/>\n'],
         missing: [404, ["Missing"]],
+        session: [404, ""],
+        exports: [200, 404, 400],
     });
 });

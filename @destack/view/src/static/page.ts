@@ -10,6 +10,9 @@ import { ViewRoot } from "../page/mount.ts";
 import { ViewDocument } from "./document.tsx";
 import { IslandContext, IslandPage } from "./island.tsx";
 
+/** The meta tag naming where a page's serving origin takes telemetry, absent where none does. */
+export const TELEMETRY_META = "destack-telemetry";
+
 /** A static view's page: its component inside its page shell, prerendered and then hydrated. */
 export class StaticPage {
     /** The view the page shows. */
@@ -145,6 +148,9 @@ export class StaticPage {
             );
         }
         const links = [
+            ...(head.telemetry === undefined
+                ? []
+                : [`<meta name="${TELEMETRY_META}" content="${escape(head.telemetry)}">`]),
             ...head.stylesheets.map((href) => `<link rel="stylesheet" href="${escape(href)}">`),
             `<script type="module" src="${escape(head.script)}" async></script>`,
         ];
@@ -176,12 +182,14 @@ export interface RouteTable {
     readonly endpoints: readonly string[];
 }
 
-/** What a page's head links: its entry module and stylesheets, by URL. */
+/** What a page's head links: its entry module, stylesheets and telemetry endpoint, by URL. */
 export interface PageHead {
     /** The module the page loads. */
     readonly script: string;
     /** The stylesheets the page links, in order. */
     readonly stylesheets: readonly string[];
+    /** The path the origin serving the page takes its telemetry at, absent where it takes none. */
+    readonly telemetry?: string;
 }
 
 /** Escape a URL for an HTML attribute. */
