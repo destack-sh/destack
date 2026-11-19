@@ -20,7 +20,7 @@ Declared scenarios run through drivers:
 
 - `Driver` and `DriverType`: take a scenario's steps and read its observations, one driver per interaction.
 - `Runner`: plays scenarios as tests, and measures their operations in the bench tier.
-- `defineConfiguration`: Vitest's configuration with Destack's module transform and test targets.
+- `TestPlan`: the targets of a package's tests, derived from its files and `destack.json`, which `destack test` runs.
 
 Write a test whose effects run in a simulation:
 
@@ -78,16 +78,30 @@ A `DriverType` has an `interaction`, and `start(given)` starts a driver on a sce
 | `fingerprint()`        | reads a fingerprint of what the world did, equal across plays of a seed |
 | `clock`                | the clock of the driver's world, which times each operation             |
 
-### Configuration
+### Plan
 
-`defineConfiguration(config, environment)` creates a package's Vitest configuration with the module transform.
-Its `tier` sets the tests' timeouts and slow threshold (`TEST_TIERS`: `unit`, `scenario`, `bench`), and its `targets` run the tests once per combination, such as `{ database: ["sqlite", "postgres"] }`.
+`TestPlan.of(directory, files)` derives a package's `TestTarget`s from its file names, and `destack test` runs them with no configuration file.
 
-| Export                    | What it is                                                               |
-| ------------------------- | ------------------------------------------------------------------------ |
-| `defineProject(config)`   | creates one project of a configuration, in the tier its project declares |
-| `scenarioPlugin(drivers)` | plays the scenarios of matching modules                                  |
-| `SCENARIO_MODULES`        | `src/**/*.scenario.{ts,tsx}`, which a bench twin of the project measures |
+| File                    | Tier       | Runs in                                      |
+| ----------------------- | ---------- | -------------------------------------------- |
+| `*.test.ts`             | `unit`     | Bun                                          |
+| `*.test.tsx`            | `unit`     | a DOM, through `@destack/view/test`          |
+| `*.server.test.ts(x)`   | `unit`     | a server render                              |
+| `*.hydration.test.tsx`  | `unit`     | a hydration                                  |
+| `*.node.test.ts`        | `unit`     | Node, for tools that refuse Bun              |
+| `*.test-d.ts`           | `unit`     | the type checker                             |
+| `*.scenario.test.ts(x)` | `scenario` | Bun, or a DOM for `.tsx`                     |
+| `*.scenario.ts(x)`      | `scenario` | a scenario module, measured again in `bench` |
+
+Every target runs once per database in `destack.json`'s `test.databases`, SQLite alone by default.
+A package's global setup is `src/test/setup.ts`, its scenario drivers are the drivers `src/test/index.ts` exports, and a package declaring `@destack/build` as a development dependency transforms its tests as a build does.
+
+| Export                    | What it is                                                     |
+| ------------------------- | -------------------------------------------------------------- |
+| `TestPlan`                | a package's targets, and their Vitest configuration            |
+| `TestTarget`              | one runnable set of files in a tier, environment and database  |
+| `testOn(database)`        | `test` for one database alone, skipped under another           |
+| `scenarioPlugin(modules)` | plays scenario modules through the drivers some modules export |
 
 ## Examples
 
@@ -173,20 +187,11 @@ export const incrementOnce = defineScenario({
 
 ### Play scenarios
 
-`scenarioPlugin` plays the scenarios of `*.scenario.ts` modules through the named drivers.
+A `*.scenario.ts` module plays its exported scenarios through the drivers its package's `src/test/index.ts` exports.
 
-```ts
-import { BunEnvironment } from "@destack/environment/bun";
-import { defineConfiguration, SCENARIO_MODULES, scenarioPlugin } from "@destack/test/config";
-
-export default defineConfiguration(
-    {
-        tier: "unit",
-        plugins: [scenarioPlugin([{ module: "@destack/view/test", name: "ViewDriver" }])],
-        test: { include: ["src/**/*.test.ts", SCENARIO_MODULES] },
-    },
-    BunEnvironment.system,
-);
+```text
+src/note/note.scenario.ts    the scenarios, each a defineScenario export
+src/test/index.ts            the drivers, such as NotesDriver, beside the package's other test kit
 ```
 
 ## Conventions
@@ -208,14 +213,14 @@ A title states the scenario and its outcome as one imperative clause, in the cod
 
 A title's verb says what the caller observes.
 
-| Verb                   | Outcome                                                 |
-| ---------------------- | ------------------------------------------------------- |
-| `refuse`               | The caller gets an error.                               |
-| `conceal`              | The caller gets "not found" for something that exists.  |
-| `fail`                 | A job ends failed, and no caller gets an error.         |
-| `keep`                 | State survives what happened.                           |
-| `read`, `list`, `find` | The caller gets one, many, or those matching a filter.  |
-| a method's own verb    | The test calls that method.                             |
+| Verb                   | Outcome                                                |
+| ---------------------- | ------------------------------------------------------ |
+| `refuse`               | The caller gets an error.                              |
+| `conceal`              | The caller gets "not found" for something that exists. |
+| `fail`                 | A job ends failed, and no caller gets an error.        |
+| `keep`                 | State survives what happened.                          |
+| `read`, `list`, `find` | The caller gets one, many, or those matching a filter. |
+| a method's own verb    | The test calls that method.                            |
 
 ### Scope
 
@@ -227,7 +232,7 @@ A test sets up, acts once and asserts the whole outcome, with one commented bloc
 
 ### Tiers
 
-A test file runs in the tier of what it starts, and a package with both declares two projects.
+A test file runs in the tier of what it starts, as Google's test sizes classify tests by the resources they use.
 
 | Tier       | File                    | Starts                            | Slow after | Fails after |
 | ---------- | ----------------------- | --------------------------------- | ---------- | ----------- |
@@ -241,12 +246,12 @@ A test file runs in the tier of what it starts, and a package with both declares
 
 Tests, assertions and configuration are Vitest's, imported from here.
 
-| Vitest                    | `@destack/test`       | Difference                                                       |
-| ------------------------- | --------------------- | ---------------------------------------------------------------- |
-| `test`, `expect`, `vi`, … | the same              | The same.                                                        |
-| `defineConfig`            | `defineConfiguration` | Adds the module transform and runs a project per target.         |
-| `vi.useFakeTimers`        | `testSimulation`      | Simulates every effect of every node, from one seed.             |
-| `bench`                   | an operation step     | Checks its telemetry, and the bench tier reports time beside it. |
+| Vitest                    | `@destack/test`   | Difference                                                        |
+| ------------------------- | ----------------- | ----------------------------------------------------------------- |
+| `test`, `expect`, `vi`, … | the same          | The same.                                                         |
+| `defineConfig`            | `TestPlan`        | Derives the projects from file names, with no configuration file. |
+| `vi.useFakeTimers`        | `testSimulation`  | Simulates every effect of every node, from one seed.              |
+| `bench`                   | an operation step | Checks its telemetry, and the bench tier reports time beside it.  |
 
 ### Go benchmarks
 

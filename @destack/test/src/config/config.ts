@@ -1,11 +1,7 @@
 import { basename, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import * as vitest from "vitest/config";
-import type {
-    TestProjectInlineConfiguration,
-    UserWorkspaceConfig,
-    ViteUserConfig,
-} from "vitest/config";
+import type { TestProjectInlineConfiguration, ViteUserConfig } from "vitest/config";
 import type { Plugin, PluginOption } from "vite";
 import { modulePlugin } from "@destack/package/vite";
 import { ModuleTransformer } from "@destack/package/transform";
@@ -171,54 +167,22 @@ export function defineConfiguration(
     });
 }
 
-/** Define a project's tests, in its project's tier, whose sources receive module metadata. */
-export function defineProject(
-    configuration: Omit<UserWorkspaceConfig, "test"> & {
-        /** The test options, the tier's own left to the project. */
-        readonly test?: Omit<NonNullable<UserWorkspaceConfig["test"]>, TierOption>;
-    },
-    environment: Environment<"files" | "process">,
-): UserWorkspaceConfig {
-    return vitest.defineProject({
-        ...configuration,
-        test: {
-            ...TEST,
-            ...configuration.test,
-            server: withCaches(configuration.test?.server, environment),
-        },
-        plugins: [
-            modulePlugin(new ModuleTransformer(environment)),
-            cachePlugin(environment),
-            ...(configuration.plugins ?? []).map(withoutServer),
-        ],
-    });
-}
-
-/** The modules declaring a package's scenarios, which the runner plays as tests. */
-export const SCENARIO_MODULES = "src/**/*.scenario.{ts,tsx}";
-
-/** A driver type a package's scenarios play through, as its module and export. */
-export interface DriverReference {
-    /** The module exporting the driver type, such as `@destack/view/test`. */
-    readonly module: string;
-    /** The export, such as `ViewDriver`. */
-    readonly name: string;
-}
-
-/** Play each exported scenario of a module as tests of that module. */
-export function scenarioPlugin(drivers: readonly DriverReference[]): Plugin {
+/** Play each exported scenario of a module as tests, through the drivers of some modules. */
+export function scenarioPlugin(modules: readonly string[]): Plugin {
     return {
         name: "destack-scenarios",
         transform: {
             filter: { id: /\.scenario\.tsx?$/u },
             handler(code, id) {
-                // import the module itself, the runner and the driver types, then play its exports
+                // import the module itself, the runner and the drivers' modules, then play its exports
                 const self = JSON.stringify(`./${basename(id)}`);
-                const imported = drivers.map(
-                    (driver, index) =>
-                        `import { ${driver.name} as __DestackDriver${index} } from ${JSON.stringify(driver.module)};`,
+                const imported = modules.map(
+                    (module, index) =>
+                        `import * as __DestackDrivers${index} from ${JSON.stringify(module)};`,
                 );
-                const types = drivers.map((_, index) => `__DestackDriver${index}`).join(", ");
+                const types = modules
+                    .map((_, index) => `...__DestackRunner.driversOf(__DestackDrivers${index})`)
+                    .join(", ");
                 const played = [
                     `import { Runner as __DestackRunner } from "@destack/test";`,
                     `import * as __destackScenarios from ${self};`,
@@ -256,18 +220,16 @@ function configuredProjects(
     targets: TestMatrix | undefined,
     setup: Pick<NonNullable<TestProjectInlineConfiguration["test"]>, "globalSetup">,
 ): TestProjectInlineConfiguration[] | undefined {
-    // run each declared project per combination, one extending the root with the root's setup, and a bench twin of each playing scenarios
+    // run each declared project per combination, one extending the root with the root's setup
     if (declared !== undefined) {
-        return declared
-            .flatMap(benchTwin)
-            .flatMap((project) =>
-                targetProjects(
-                    project.extends === true
-                        ? { ...project, test: { ...setup, ...project.test } }
-                        : project,
-                    targets,
-                ),
-            );
+        return declared.flatMap((project) =>
+            targetProjects(
+                project.extends === true
+                    ? { ...project, test: { ...setup, ...project.test } }
+                    : project,
+                targets,
+            ),
+        );
     }
     // run the whole configuration per combination of its targets, in its tier
     else if (targets !== undefined && tier !== undefined) {
@@ -293,25 +255,6 @@ function selectedTiers(environment: Environment<"process">): ReadonlySet<TestTie
     }
 
     return new Set(tiers.filter((each): each is TestTier => each in TEST_TIERS));
-}
-
-/** List a project, and beside one playing scenario modules its bench twin measuring them. */
-function benchTwin(project: ProjectConfiguration): ProjectConfiguration[] {
-    // leave a project that plays no scenario modules alone
-    const { exclude: _exclude, ...test } = project.test ?? {};
-    if (!(test.include ?? []).includes(SCENARIO_MODULES)) {
-        return [project];
-    }
-
-    // measure the same scenarios in the bench tier, on the same setup and targets
-    return [
-        project,
-        {
-            ...project,
-            tier: "bench",
-            test: { ...test, name: "bench", include: [SCENARIO_MODULES] },
-        },
-    ];
 }
 
 /** List a project once per combination of its targets, or the configuration's, named after them. */

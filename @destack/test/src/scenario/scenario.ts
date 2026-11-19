@@ -200,6 +200,11 @@ export const Runner = {
         return entry === undefined ? undefined : `step ${index}: ${labelOf(entry)}`;
     },
 
+    /** Select the driver types among a module's exports. */
+    driversOf(exports: Readonly<Record<string, unknown>>): DriverType[] {
+        return Object.values(exports).filter((value) => isDriverType(value));
+    },
+
     /** Play each scenario a module exports, as tests. */
     playModule(exports: Readonly<Record<string, unknown>>, types: readonly DriverType[]): void {
         for (const exported of Object.values(exports).filter((each) => isScenario(each))) {
@@ -418,5 +423,17 @@ function isScenario(value: unknown): value is Scenario {
         "given" in value &&
         "when" in value &&
         "parameters" in value
+    );
+}
+
+/** Report whether a value is a driver type: an interaction, a configuration and a start. */
+function isDriverType(value: unknown): value is DriverType {
+    return (
+        (typeof value === "object" || typeof value === "function") &&
+        value !== null &&
+        "interaction" in value &&
+        "configuration" in value &&
+        "start" in value &&
+        typeof value.start === "function"
     );
 }

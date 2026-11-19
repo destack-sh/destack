@@ -1,4 +1,4 @@
-import { inject } from "vitest";
+import { inject, test } from "vitest";
 import type { TestProject } from "vitest/node";
 import type { TestTier } from "../config/config.ts";
 
@@ -32,4 +32,9 @@ export function testTarget(
     }
 
     return value;
+}
+
+/** Test against one database alone, skipping the tests while the project targets another. */
+export function testOn(database: string): ReturnType<typeof test.skipIf> {
+    return test.skipIf(testTarget("database") !== database);
 }

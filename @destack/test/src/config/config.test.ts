@@ -1,7 +1,7 @@
 import { testHost } from "../host/host.ts";
 import { TEST_START, testSimulation } from "../world/world.ts";
 import { expect, test } from "vitest";
-import { defineConfiguration, SCENARIO_MODULES, TIERS_VARIABLE } from "./config.ts";
+import { defineConfiguration, TIERS_VARIABLE } from "./config.ts";
 
 /** The modules every project leaves to Bun: those in the pinned cache directory. */
 const SERVER = { deps: { external: [/\/cache\//u] } };
@@ -20,14 +20,6 @@ const SCENARIO = {
     hookTimeout: 60_000,
     slowTestThreshold: 5000,
     expect: { poll: { interval: 5, timeout: 60_000 } },
-};
-
-/** The options a bench project takes from its tier. */
-const BENCH = {
-    testTimeout: 600_000,
-    hookTimeout: 600_000,
-    slowTestThreshold: 600_000,
-    expect: { poll: { interval: 5, timeout: 600_000 } },
 };
 
 /** Run a world whose person's cache directory is pinned, as the configuration reads it. */
@@ -211,69 +203,4 @@ test("run only the projects of the tiers a run lists, and nothing of a configura
         targeted: { projects: undefined, exclude: ["**"], passWithNoTests: true },
         outside: { projects: undefined, exclude: ["**"], passWithNoTests: true },
     });
-});
-
-test("measure each project's scenarios in a bench twin", async () => {
-    await using simulation = cachedSimulation();
-
-    // declare a scenario project with a setup, beside a unit project without scenarios
-    const configuration = defineConfiguration(
-        {
-            test: {
-                projects: [
-                    {
-                        extends: true,
-                        tier: "unit",
-                        test: { name: "unit", include: ["src/**/*.test.ts"] },
-                    },
-                    {
-                        extends: true,
-                        tier: "scenario",
-                        test: {
-                            name: "scenario",
-                            include: ["tests/*.scenario.test.ts", SCENARIO_MODULES],
-                            globalSetup: ["setup.ts"],
-                        },
-                    },
-                ],
-            },
-        },
-        simulation.environment("test"),
-    );
-
-    // expect the scenario project's twin in the bench tier, on its setup, playing its scenario modules alone
-    expect(configuration.test?.projects).toEqual([
-        {
-            extends: true,
-            test: {
-                name: "unit",
-                include: ["src/**/*.test.ts"],
-                ...UNIT,
-                provide: { tier: "unit" },
-                server: SERVER,
-            },
-        },
-        {
-            extends: true,
-            test: {
-                name: "scenario",
-                include: ["tests/*.scenario.test.ts", SCENARIO_MODULES],
-                globalSetup: ["setup.ts"],
-                ...SCENARIO,
-                provide: { tier: "scenario" },
-                server: SERVER,
-            },
-        },
-        {
-            extends: true,
-            test: {
-                name: "bench",
-                include: [SCENARIO_MODULES],
-                globalSetup: ["setup.ts"],
-                ...BENCH,
-                provide: { tier: "bench" },
-                server: SERVER,
-            },
-        },
-    ]);
 });

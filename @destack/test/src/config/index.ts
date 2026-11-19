@@ -1,12 +1,9 @@
 export {
     defineConfiguration,
-    defineProject,
     TEST_TIERS,
     TIERS_VARIABLE,
     type TestTier,
-    SCENARIO_MODULES,
     scenarioPlugin,
-    type DriverReference,
     type ProjectConfiguration,
     type TestConfiguration,
 } from "./config.ts";

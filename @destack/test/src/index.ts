@@ -16,7 +16,7 @@ export type { ProvidedContext, TestAnnotation, TestArtifact, TestContext } from 
 export type { TestProject } from "vitest/node";
 export { refusal, type Refusal } from "./refusal/index.ts";
 export { single } from "./single/index.ts";
-export { testTarget, type TestMatrix } from "./project/index.ts";
+export { testOn, testTarget, type TestMatrix } from "./project/index.ts";
 export {
     type Configuration,
     type Counters,
