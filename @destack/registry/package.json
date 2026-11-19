@@ -7,7 +7,6 @@
     "exports": {
         ".": "./src/index.ts",
         "./object": "./src/object/index.ts",
-        "./client": "./src/client/index.ts",
         "./npm": "./src/npm/index.ts",
         "./package": "./src/package.ts",
         "./error": "./src/error/index.ts"
@@ -26,7 +25,6 @@
         "@destack/resource": "workspace:*",
         "@destack/schema": "workspace:*",
         "@destack/sync": "workspace:*",
-        "@destack/telemetry": "workspace:*",
         "semver": "7.8.5"
     },
     "devDependencies": {

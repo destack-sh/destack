@@ -4,7 +4,14 @@ import type { Select } from "@destack/db";
 import { defineObject, field } from "@destack/object";
 import { Digest, schema, Version } from "@destack/schema";
 import { ObjectReference } from "@destack/sync";
-import { graph, PACKAGE_ROLES, PackageId, PackageName, PackageRole } from "@destack/package";
+import {
+    graph,
+    PACKAGE_ROLES,
+    PackageName,
+    PackageRelease,
+    PackageRole,
+    PackageVersion,
+} from "@destack/package";
 import { Vocabulary } from "@destack/resource";
 import { RegistryError } from "../error/index.ts";
 import { NpmRelease } from "../npm/packument.ts";
@@ -64,6 +71,16 @@ export const Candidate = schema.object({
 });
 /** A pushed image checked for its release, before the release's transaction. */
 export type Candidate = schema.Infer<typeof Candidate>;
+
+/** A package a publish releases, checked before its transaction: the package and its release. */
+const Publication = schema.object({
+    /** The package and the version its build declares. */
+    package: PackageVersion,
+    /** Who can read the package as its package file asks through npm's access, if it asks. */
+    visibility: schema.enum(VISIBILITIES).exactOptional(),
+    /** The package's image checked for its release. */
+    release: Candidate,
+});
 
 /** A package of an account, installed as `@<account handle>/<name>` and keyed by its package id. */
 export const packageObject = defineObject(
@@ -128,27 +145,29 @@ export const packageObject = defineObject(
             fields: ["accountId", "name", "visibility", "role"],
             onConflict: "id",
         }),
-        /** Publish a pushed image as a release under a tag, creating the package, as npm does. */
+        /** Publish an account's packages in a pushed image under a tag, required ones first. */
         publish: method.mutation({
             title: t`Publish`,
             permission: "publish",
             target: "scope",
-            prepared: Candidate,
+            prepared: schema.array(Publication).readonly(),
             input: schema.object({
-                /** The package. */
-                packageId: PackageId,
-                /** The account publishing it. */
+                /** The account publishing them. */
                 accountId: schema.identifier("account"),
-                /** Its name within the account. */
-                name: schema.string(),
-                /** Who can read it, unlisted on its first publish when absent. */
+                /** Who can read each, else as its package file asks, else unlisted at first. */
                 visibility: schema.enum(VISIBILITIES).exactOptional(),
                 /** The digest of the pushed image. */
                 image: Digest,
                 /** The commit its root compiled, absent for a prerelease of uncommitted changes. */
                 commit: schema.string().exactOptional(),
-                /** The distribution tag pointing at the release, latest when absent. */
+                /** The distribution tag pointing at each release, latest when absent. */
                 tag: TagName.exactOptional(),
+                /** The further distribution tags to point at each release, as npm dist-tag add. */
+                tags: schema.array(TagName).readonly().exactOptional(),
+            }),
+            output: schema.object({
+                /** The packages' releases, in the order they published. */
+                releases: schema.array(PackageRelease).readonly(),
             }),
         }),
         list: method.list("discover"),
