@@ -60,8 +60,7 @@ export interface TraitPolicy {
 }
 
 /** Where access finds the relations a trait adds. */
-export type TraitMapping = Pick<TableMapping, "relations"> &
-    Partial<Pick<TableMapping, "parent" | "trees">>;
+export type TraitMapping = Pick<TableMapping, "relations"> & Partial<Pick<TableMapping, "parent">>;
 
 /** A trait whose methods the holders of one object permission call. */
 export interface TraitPermission<Permission extends string = string> {

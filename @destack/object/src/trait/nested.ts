@@ -1,7 +1,7 @@
 import { ObjectReference } from "@destack/sync";
 import type * as sync from "@destack/sync";
 import { Duration, type Identifier, present, schema } from "@destack/schema";
-import { boolean, type ColumnBuilder, identifier, index, Table, TABLE, text } from "@destack/db";
+import { boolean, type ColumnBuilder, identifier, index, Table, text } from "@destack/db";
 import type { PackageId } from "@destack/package";
 import { t } from "@destack/locale";
 import { ObjectError } from "../error/error.ts";
@@ -128,6 +128,7 @@ const nestedTrait: TraitBehavior<NestedDefinition> = {
 
         return { parentId: options.optional === true ? column : column.notNull(), ...trashed };
     },
+    // index the parent, by type for attachments and within the scope for a tree's walk down
     constraints: (options, table, columns) =>
         options.in === "any"
             ? [
@@ -137,8 +138,15 @@ const nestedTrait: TraitBehavior<NestedDefinition> = {
                       present(columns["parentId"], "the parent column"),
                   ),
               ]
-            : [],
-    // index the ancestry of trees
+            : options.in === "self"
+              ? [
+                    index(`${table}_parent`).on(
+                        present(columns["scope"], "the scope column"),
+                        present(columns["parentId"], "the parent column"),
+                    ),
+                ]
+              : [],
+    // declare a tree over the parent column
     table: (options) =>
         options.in === "self" ? { tree: { id: "id", scope: "scope", parent: "parentId" } } : {},
     policy: (options, object) => {
@@ -155,7 +163,7 @@ const nestedTrait: TraitBehavior<NestedDefinition> = {
 
         return { relations: { parent: { grantedBy: null, subjects: [subject] } } };
     },
-    mapping: (options, object) => {
+    mapping: (options) => {
         // find a parent of any type by its package, type and identifier
         if (options.in === "any") {
             return {
@@ -172,14 +180,8 @@ const nestedTrait: TraitBehavior<NestedDefinition> = {
             };
         }
 
-        // find a parent of one type and a tree's ancestors
-        const tree = object.table()[TABLE].tree;
-
-        return {
-            relations: { parent: { column: "parentId" } },
-            parent: "parent",
-            ...(tree === undefined ? {} : { trees: { parent: tree } }),
-        };
+        // find a parent of one type, whose relation access walks as a tree when the type nests in itself
+        return { relations: { parent: { column: "parentId" } }, parent: "parent" };
     },
     methods: (options): Record<string, Method> =>
         options.move === undefined ? {} : { move: Nested.move(options.move, options) },

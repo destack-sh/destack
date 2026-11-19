@@ -38,7 +38,7 @@ import {
     type SQL,
     TABLE,
     type Table,
-    type Tree,
+    type TreeColumns,
     type Snapshot,
 } from "@destack/db";
 import {
@@ -1133,8 +1133,8 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
         };
     }
 
-    /** The ancestor index of a tree of this object type. */
-    get tree(): Tree | undefined {
+    /** The columns of a tree of this object type, absent unless it nests in itself. */
+    get tree(): TreeColumns | undefined {
         return this.table[TABLE].tree;
     }
 

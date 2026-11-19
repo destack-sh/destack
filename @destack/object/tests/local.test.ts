@@ -1,9 +1,16 @@
 import type { Clock } from "@destack/environment";
 import { MemoryBlobStorage } from "@destack/resource";
 import { testSimulation, testIdentity } from "../src/test/index.ts";
-import { defineObject, device, field, ObjectDescription } from "../src/index.ts";
+import { defineObject, device, field, nested, ObjectDescription } from "../src/index.ts";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
-import { AccessContext, accessTables, Caller, CONTAINED, principal } from "@destack/access";
+import {
+    AccessContext,
+    accessTables,
+    Caller,
+    CONTAINED,
+    principal,
+    through,
+} from "@destack/access";
 import { TestAccess } from "@destack/access/test";
 import { RequestId, Scope, type Subject } from "@destack/sync";
 import { TestDatabase } from "@destack/db/test";
@@ -15,10 +22,11 @@ import { testCallKey } from "@destack/object/test";
 import { testEvents, serversOf } from "../src/test/index.ts";
 import { type BrowserDevice, BrowserTab } from "../src/browser/index.ts";
 import { deviceDatabase, deviceWorker } from "./fixture/browser.ts";
+import { WasmClient, connectWasmSqlite } from "@destack/db/browser";
 import { ObjectClient, ProcedureRemote, type ObjectAccess } from "../src/client/index.ts";
 import { ObjectStore, implementPackage } from "../src/server/index.ts";
 import { serveNotes, spaceId } from "./fixture/device.ts";
-import { spacePrincipal, unmoved } from "../src/test/space.ts";
+import { space, spacePrincipal, unmoved } from "../src/test/space.ts";
 import { draft, memo, memosPackage, panel, sticky, user } from "./fixture/local.ts";
 import { note, notebook } from "../src/test/note.ts";
 import { tablesOf } from "../src/index.ts";
@@ -579,3 +587,83 @@ async function openOwnScope() {
         world,
     };
 }
+
+/** Cards of a space, read by whoever reads the space, nested under each other. */
+const card = defineObject({
+    name: "card",
+    plural: "cards",
+    title: t`${plural(argument("count"), { one: "Card", other: "Cards" })}`,
+    scope: space,
+    fields: { title: field.string() },
+    access: { permissions: { read: through("scope", "read"), write: through("scope", "read") } },
+    traits: [nested({ in: "self", optional: true, add: "write" })],
+});
+
+/** The package serving the cards. */
+const cardsPackage = definePackage({ ...testIdentity, objects: [card] });
+
+test("follow a nested card from the machine in a tab through its device, and again through the reopened device database", async () => {
+    // serve a private space alice reads, with one card written at the machine
+    const simulation = testSimulation();
+    const world = simulation.environment("test");
+    const alice = Identifier.create("user", world);
+    const caller = principal.user.reference("universe", alice);
+    const objects = await TestObjectStore.open({
+        packages: [cardsPackage],
+        scope: space.reference(Scope.universe.id, spaceId),
+        visibility: "private",
+        simulation,
+        node: "machine",
+    });
+    onTestFinished(() => objects[Symbol.asyncDispose]());
+    const access = new TestAccess(objects.database, world);
+    await access.replicateRelationship(
+        space.reference(Scope.universe.id, spaceId),
+        "reader",
+        caller,
+        0,
+    );
+    const machine = objects.as(alice).client(cardsPackage);
+    await machine.card.create({ spaceId, requestId: RequestId.create(world), title: "Milk" });
+
+    // open a tab through the device, then close it, as a page load and its unload do
+    const environment = new BrowserSimulation(simulation).environment("browser");
+    const types = { card };
+    const browser = principal.device.reference("universe", Identifier.create("device", world));
+    const memory = await WasmClient.memory(environment);
+    const open = async () => {
+        const worker = deviceWorker({
+            database: connectWasmSqlite(memory, ObjectClient.tables(types), {
+                name: "notes",
+                environment,
+            }),
+            objects: types,
+            caller,
+            device: browser,
+            endpoint: objects.as(alice).endpoint(cardsPackage),
+            environment,
+        });
+        const tab = await BrowserTab.open({
+            environment,
+            name: "notes",
+            objects: types,
+            scope: spaceId,
+            caller,
+            device: browser,
+            worker,
+        });
+        await tab.ready;
+        const cards = tab.client.query.card.findMany().subscribe();
+        await cards.ready;
+        const titles = (await cards.read()).map((row) => row.title);
+        await cards.close();
+        await tab.close();
+
+        return titles;
+    };
+    const first = await open();
+
+    // open it again over the same device database, as the next page load does
+    const second = await open();
+    expect({ first, second }).toEqual({ first: ["Milk"], second: ["Milk"] });
+});

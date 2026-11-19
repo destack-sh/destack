@@ -87,7 +87,7 @@ export const ObjectPolicy = {
 
         // map each declared relation to its field and add trait mappings
         const relations = ObjectPolicy.fieldRelations(type);
-        const placed: Partial<Pick<TableMapping, "parent" | "trees">> = {};
+        const placed: Partial<Pick<TableMapping, "parent">> = {};
         for (const { relations: traitRelations, ...rest } of ObjectPolicy.traitMappings(type)) {
             Object.assign(relations, traitRelations);
             Object.assign(placed, rest);

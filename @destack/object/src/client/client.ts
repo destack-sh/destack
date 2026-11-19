@@ -667,10 +667,10 @@ export class ObjectClient<
                 ...STORE_TABLES,
                 ...decisionTables,
                 ...ObjectType.served(Object.values(objects)).map((object) => object.table),
+                ...sync.replicaTables,
+                ...sync.predictionTables,
+                undoEntry,
             ]),
-            ...sync.replicaTables,
-            ...sync.predictionTables,
-            undoEntry,
         ];
     }
 
