@@ -8,7 +8,7 @@ import {
     type PermissionSet,
 } from "@destack/access";
 import { defineKind, DeclarationName, type graph, PackageId, Sandbox } from "@destack/package";
-import { SwatchName } from "@destack/theme";
+import { SwatchName } from "@destack/color";
 import type { BuildReader } from "@destack/package/manifest";
 import { ObjectTypeReference } from "@destack/sync";
 

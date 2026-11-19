@@ -1,4 +1,7 @@
 import type { Message } from "@destack/locale";
+import { Layout } from "../layout/layout.ts";
+import { ObjectDetail } from "../presentation/detail.ts";
+import { ObjectView } from "../presentation/view.ts";
 import { AuditTarget } from "../audit/execution.ts";
 import { ObjectError, refuseInput } from "../error/error.ts";
 import { Issues } from "../error/detail.ts";
@@ -1131,6 +1134,31 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
             tracked: definition.tracked,
             convert: definition.convert ?? {},
         };
+    }
+
+    /** The layouts a list of the objects offers, derived and declared. */
+    get layouts(): readonly Layout[] {
+        // derive from the fields the type shows, and add the declared views' layouts
+        const shown = new Set(ObjectDetail.shown(this));
+
+        return Layout.offered({
+            fields: Object.fromEntries(
+                Object.entries(this.fields).filter(([name]) => shown.has(name)),
+            ),
+            tree: this.tree,
+            hasCover: this.presentation?.cover !== undefined,
+            declared: (this.presentation?.views ?? []).map((view) => view.layout),
+        });
+    }
+
+    /** The views a list of the objects offers, declared then derived. */
+    get views(): readonly ObjectView[] {
+        return ObjectView.offered(this.layouts, this.presentation?.views ?? []);
+    }
+
+    /** The view a list shows by default: the first declared, else a table. */
+    get view(): ObjectView {
+        return this.presentation?.views?.[0] ?? ObjectView.of({ kind: "table" });
     }
 
     /** The columns of a tree of this object type, absent unless it nests in itself. */

@@ -1,11 +1,25 @@
 import { callableTrait } from "./trait.ts";
+import { IconName } from "@destack/icon";
 import { DeclarationReference } from "@destack/package/declare";
-import { ACCENT_PRESETS, type AccentPreset } from "@destack/theme/declare";
+import { ACCENT_PRESETS, type AccentPreset } from "@destack/color";
 import { type JsonValue, present, schema } from "@destack/schema";
 import { field, type Field } from "../field/field.ts";
 import type { ObjectDefinition } from "../object/object.ts";
 import type { Erasure } from "./trait.ts";
 import { type FileBucket, ObjectFile } from "../field/file.ts";
+import { ObjectView } from "../presentation/view.ts";
+
+/** The options a type's presentation takes. */
+const PRESENTABLE_OPTIONS: ReadonlySet<string> = new Set<keyof PresentableOptions>([
+    "title",
+    "subtitle",
+    "icon",
+    "color",
+    "cover",
+    "views",
+    "card",
+    "page",
+]);
 
 /** The fields an object is titled by when it sets none, the first one it has. */
 const TITLE_FIELDS = ["title", "name"] as const;
@@ -21,9 +35,6 @@ export const ACCENTS: readonly [AccentPreset, ...AccentPreset[]] = [
     present(FIRST_ACCENT, "the theme's first accent"),
     ...OTHER_ACCENTS,
 ];
-
-/** A name in an icon set, such as `book-open`. */
-const IconName = schema.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/u);
 
 /** An object's icon chosen from an emoji or an icon set. */
 const ChosenIcon = [
@@ -70,6 +81,20 @@ export interface PresentableOptions {
     readonly color?: boolean;
     /** The bucket storing each object's cover image, none when absent. */
     readonly cover?: FileBucket;
+    /** The views its fields and traits cannot derive, such as a waterfall of spans. */
+    readonly views?: readonly ObjectView[];
+    /** The fields a card shows beside the chip. */
+    readonly card?: readonly string[];
+    /** The page's sections and the related objects it lists. */
+    readonly page?: PresentationPage;
+}
+
+/** An object page's sections and the related objects it lists, as `type.field`. */
+export interface PresentationPage {
+    /** The titled sections of fields. */
+    readonly sections?: readonly { readonly title: string; readonly fields: readonly string[] }[];
+    /** The referencing fields whose objects the page lists, as `type.field`. */
+    readonly related?: readonly string[];
 }
 
 /** The presentation an object type declares: every piece at its default, or each piece set. */
@@ -118,6 +143,28 @@ const PresentationSchema = schema.object({
     /** The field storing each object's cover, and its bucket. */
     cover: schema
         .object({ field: schema.string().min(1), bucket: DeclarationReference })
+        .exactOptional(),
+    /** The views the type declares beside the derived ones. */
+    views: schema.array(ObjectView).exactOptional(),
+    /** The fields a card shows beside the chip. */
+    card: schema.array(schema.string().min(1)).exactOptional(),
+    /** The page's sections and the related objects it lists. */
+    page: schema
+        .object({
+            /** The titled sections of fields. */
+            sections: schema
+                .array(
+                    schema.object({
+                        /** The section's title. */
+                        title: schema.string().min(1),
+                        /** Its fields. */
+                        fields: schema.array(schema.string().min(1)),
+                    }),
+                )
+                .exactOptional(),
+            /** The referencing fields whose objects the page lists, as `type.field`. */
+            related: schema.array(schema.string().min(1)).exactOptional(),
+        })
         .exactOptional(),
 });
 /** The presentation of an object type. */
@@ -213,6 +260,9 @@ export const Presentable = {
             ...(options.cover === undefined
                 ? {}
                 : { cover: { field: "cover", bucket: DeclarationReference.of(options.cover) } }),
+            ...(options.views === undefined ? {} : { views: options.views }),
+            ...(options.card === undefined ? {} : { card: options.card }),
+            ...(options.page === undefined ? {} : { page: options.page }),
         });
     },
 
@@ -224,9 +274,16 @@ export const Presentable = {
             return undefined;
         }
 
-        // choose an icon and an accent unless told otherwise
+        // refuse an option presentation does not know, such as a misspelt one
         const options = presentable === true ? {} : presentable;
+        const unknown = Object.keys(options).find((key) => !PRESENTABLE_OPTIONS.has(key));
+        if (unknown !== undefined) {
+            throw new TypeError(
+                `presentable option '${unknown}' is invalid: presentation knows no such option`,
+            );
+        }
 
+        // choose an icon and an accent unless told otherwise
         return { icon: true, color: true, ...options };
     },
 

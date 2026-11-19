@@ -37,6 +37,8 @@ import * as approvalExports from "../approval/index.ts";
 import * as claimExports from "../claim/index.ts";
 import * as hookExports from "../hook/index.ts";
 import * as declareExports from "../declare/index.ts";
+import * as layoutExports from "../layout/index.ts";
+import * as presentationExports from "../presentation/index.ts";
 import * as procedureExports from "../procedure/index.ts";
 import * as healthExports from "../health/index.ts";
 import * as bodyExports from "../server/body.ts";
@@ -121,6 +123,8 @@ export class ExportIndex {
                 ...claimExports,
                 ...hookExports,
                 ...declareExports,
+                ...layoutExports,
+                ...presentationExports,
                 ...procedureExports,
                 ...healthExports,
                 ...bodyExports,

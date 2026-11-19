@@ -16,7 +16,7 @@ import {
 import type { Declaration, ResourceRequirement } from "@destack/package/declare";
 import { mapValues, Version } from "@destack/schema";
 import type { Message } from "@destack/locale";
-import { SwatchName } from "@destack/theme";
+import { SwatchName } from "@destack/color";
 import { MountPath, Capability, IconName } from "./description.ts";
 import type { Command } from "./command.ts";
 import type { ProcedureRouter } from "../procedure/index.ts";

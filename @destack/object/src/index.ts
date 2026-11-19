@@ -17,6 +17,8 @@ export * from "./approval/index.ts";
 export * from "./claim/index.ts";
 export * from "./hook/index.ts";
 export * from "./declare/index.ts";
+export * from "./layout/index.ts";
+export * from "./presentation/index.ts";
 export {
     type Client,
     eventIterator,
