@@ -1,4 +1,4 @@
-import { Key, type ColumnValue, type Row, type Table, Order } from "@destack/db";
+import { type ColumnValue, type Row, type Table, Order } from "@destack/db";
 import { found, zip } from "@destack/schema";
 import { Node } from "../query/node.ts";
 import type { JunctionPath, KeyPath, TreePath } from "@destack/db";
@@ -15,7 +15,7 @@ export abstract class Input {
     }
 
     /** Create the input of a node's path. */
-    static of(node: Node, hasTreeIndex: boolean): Input {
+    static of(node: Node): Input {
         const path = node.path;
         switch (path?.kind) {
             case undefined:
@@ -26,7 +26,7 @@ export abstract class Input {
                 return new JunctionJoin(node, path);
             case "descendants":
             case "ancestors":
-                return new TreeJoin(node, path, hasTreeIndex);
+                return new TreeJoin(node, path);
         }
     }
 
@@ -212,8 +212,6 @@ class JunctionJoin extends Input {
 
 /** A tree path: every visible row below or above a selected row. */
 export class TreeJoin extends Input {
-    /** Whether the database has the tree index. */
-    readonly #isIndexed: boolean;
     /** Whether the path goes down to descendants. */
     readonly #isDown: boolean;
     /** The column with a row's parent. */
@@ -222,14 +220,13 @@ export class TreeJoin extends Input {
     readonly #key: string;
 
     /** Create the input of a tree path. */
-    constructor(node: Node, path: TreePath, isIndexed: boolean) {
+    constructor(node: Node, path: TreePath) {
         // note the direction and columns
         super(node);
         const [key] = node.key;
         if (key === undefined || node.key.length !== 1) {
             throw new TypeError(`'${node.name}' must follow a tree by one key column`);
         }
-        this.#isIndexed = isIndexed;
         this.#isDown = path.kind === "descendants";
         this.#column = path.column;
         this.#key = key;
@@ -267,49 +264,25 @@ export class TreeJoin extends Input {
         run: Run,
         dirty: Map<string, Row | null>,
     ): Promise<void> {
-        // follow a replica's tree row
+        // decide again the rows along the path when a tree row moves or its visibility changes
         const node = this.node;
-        const end = this.#isDown ? "descendant" : "ancestor";
-        if (!this.#isIndexed && table === node.table) {
-            const isMoved =
-                isAccess ||
-                before === null ||
-                after === null ||
-                Order.missingFirst(before[this.#column], after[this.#column]) !== 0 ||
-                (await this.#passes(before, run)) !== (await this.#passes(after, run));
-            const images = isMoved
-                ? [before, after].filter((image): image is Row => image !== null)
-                : [];
-            const related = this.#isDown
-                ? await this.below(images, run)
-                : await this.above(images, run);
-            for (const row of related.flat()) {
-                dirty.set(node.keyName(row), row);
-            }
+        if (table !== node.table) {
+            return;
         }
-        // follow a tree index row
-        else if (this.#isIndexed && table === node.closure) {
-            const ends = [before, after]
-                .filter((image): image is Row => image !== null && image["depth"] !== 0)
-                .map((image) => Input.value(image, end));
-            await this.#mark(ends, run, dirty);
-        }
-        // follow a tree row whose visibility may change
-        else if (
-            this.#isIndexed &&
-            table === node.table &&
-            (isAccess || (await this.#passes(before, run)) !== (await this.#passes(after, run)))
-        ) {
-            const image = after ?? before;
-            if (image === null) {
-                return;
-            }
-            const other = end === "descendant" ? "ancestor" : "descendant";
-            const [paths = []] = await run.view.lookup(this.#closure(), [node.paths(image, other)]);
-            const ends = paths
-                .filter((path) => path["depth"] !== 0)
-                .map((path) => Input.value(path, end));
-            await this.#mark(ends, run, dirty);
+        const isMoved =
+            isAccess ||
+            before === null ||
+            after === null ||
+            Order.missingFirst(before[this.#column], after[this.#column]) !== 0 ||
+            (await this.#passes(before, run)) !== (await this.#passes(after, run));
+        const images = isMoved
+            ? [before, after].filter((image): image is Row => image !== null)
+            : [];
+        const related = this.#isDown
+            ? await this.below(images, run)
+            : await this.above(images, run);
+        for (const row of related.flat()) {
+            dirty.set(node.keyName(row), row);
         }
     }
 
@@ -348,104 +321,8 @@ export class TreeJoin extends Input {
         });
     }
 
-    /** Read the visible rows above each row, nearest first. */
+    /** Read the visible rows above each row, nearest first, a level at a time. */
     async above(rows: readonly Row[], run: Run): Promise<Row[][]> {
-        // walk up without an index
-        if (!this.#isIndexed) {
-            return this.#walkUp(rows, run);
-        }
-
-        // read the ancestors from the index
-        const node = this.node;
-        const paths = await run.view.lookup(
-            this.#closure(),
-            rows.map((row) => node.paths(row, "descendant")),
-        );
-        const nearest = paths.map((entries) => TreeJoin.#byDepth(entries));
-        const ancestors = await run.view.keyed(
-            node.table,
-            nearest.flat().map((path) => ({ [this.#key]: Input.value(path, "ancestor") })),
-        );
-        const passable = new Set(
-            await this.passable(
-                node.table,
-                ancestors.filter((row): row is Row => row !== null),
-                run,
-            ),
-        );
-
-        // take ancestors up to the first impassable row
-        return Input.unflatten(ancestors, nearest).map((entries) => {
-            const taken: Row[] = [];
-            for (const ancestor of entries) {
-                if (ancestor === null || !passable.has(ancestor)) {
-                    break;
-                }
-                taken.push(ancestor);
-            }
-
-            return taken;
-        });
-    }
-
-    /** Read the visible rows below each row, shallowest first. */
-    async below(rows: readonly Row[], run: Run): Promise<Row[][]> {
-        // walk down without an index
-        if (!this.#isIndexed) {
-            return this.#walkDown(rows, run);
-        }
-
-        // read the descendants from the index
-        const node = this.node;
-        const paths = await run.view.lookup(
-            this.#closure(),
-            rows.map((row) => node.paths(row, "ancestor")),
-        );
-        const shallowest = paths.map((entries) => TreeJoin.#byDepth(entries));
-        const descendants = await run.view.keyed(
-            node.table,
-            shallowest.flat().map((path) => ({ [this.#key]: Input.value(path, "descendant") })),
-        );
-        const passable = new Set(
-            await this.passable(
-                node.table,
-                descendants.filter((row): row is Row => row !== null),
-                run,
-            ),
-        );
-
-        // take each descendant whose parent the path arrived at
-        return zip(rows, Input.unflatten(descendants, shallowest)).map(([row, entries]) => {
-            // start from the parent row
-            const parents = new Set<ColumnValue | undefined>([row[this.#key]]);
-            const taken: Row[] = [];
-            for (const descendant of entries) {
-                if (
-                    descendant !== null &&
-                    passable.has(descendant) &&
-                    parents.has(descendant[this.#column])
-                ) {
-                    parents.add(descendant[this.#key]);
-                    taken.push(descendant);
-                }
-            }
-
-            return taken;
-        });
-    }
-
-    /** Read the tree index, which an indexed path reads. */
-    #closure(): Table {
-        const closure = this.node.closure;
-        if (closure === undefined) {
-            throw new TypeError(`'${this.node.name}' reads a tree index it does not have`);
-        }
-
-        return closure;
-    }
-
-    /** Walk each row's parent column up, a level at a time. */
-    async #walkUp(rows: readonly Row[], run: Run): Promise<Row[][]> {
         // walk every row up, guarding against cycles
         const key = this.#key;
         const walks: {
@@ -497,8 +374,8 @@ export class TreeJoin extends Input {
         }
     }
 
-    /** Walk each row's children down, a level at a time. */
-    async #walkDown(rows: readonly Row[], run: Run): Promise<Row[][]> {
+    /** Read the visible rows below each row, shallowest first, a level at a time. */
+    async below(rows: readonly Row[], run: Run): Promise<Row[][]> {
         // walk every row down, guarding against cycles
         const key = this.#key;
         const walks: {
@@ -543,35 +420,5 @@ export class TreeJoin extends Input {
     /** Decide whether the path may pass through a row. */
     async #passes(row: Row | null, run: Run): Promise<boolean> {
         return row !== null && (await this.passable(this.node.table, [row], run)).length > 0;
-    }
-
-    /** Decide again the rows at some tree path ends. */
-    async #mark(
-        ends: readonly ColumnValue[],
-        run: Run,
-        dirty: Map<string, Row | null>,
-    ): Promise<void> {
-        const keys = ends.map((end) => ({ [this.#key]: end }));
-        const rows = await run.view.keyed(this.node.table, keys);
-        for (const [key, row] of zip(keys, rows)) {
-            dirty.set(Key.name(this.node.table, key), row);
-        }
-    }
-
-    /** Take the strict tree index paths, nearest first. */
-    static #byDepth(paths: readonly Row[]): Row[] {
-        return paths
-            .filter((path) => TreeJoin.#depth(path) > 0)
-            .toSorted((left, right) => TreeJoin.#depth(left) - TreeJoin.#depth(right));
-    }
-
-    /** Read a tree index path's depth. */
-    static #depth(path: Row): number {
-        const depth = path["depth"];
-        if (typeof depth !== "number") {
-            throw new TypeError("a tree index path has no depth");
-        }
-
-        return depth;
     }
 }

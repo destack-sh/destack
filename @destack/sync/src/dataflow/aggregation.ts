@@ -26,9 +26,9 @@ export class Aggregation extends Pipeline {
     readonly #lost: Set<string>;
 
     /** Create the aggregation of a node. */
-    constructor(node: Node, context: Context, hasTreeIndex: boolean) {
+    constructor(node: Node, context: Context) {
         // create the pipeline with empty state
-        super(node, context, hasTreeIndex);
+        super(node, context);
         this.tallies = new Map<string, Tally>();
         this.contributions = new Map<string, readonly Contribution[]>();
         this.#changed = new Map<
@@ -594,8 +594,8 @@ export class Relation extends Aggregation {
     #sequence: number;
 
     /** Measure a relation of a node in a dataflow, before any count read. */
-    constructor(node: Node, context: Context, hasTreeIndex: boolean) {
-        super(node, context, hasTreeIndex);
+    constructor(node: Node, context: Context) {
+        super(node, context);
         this.#sequence = -1;
     }
 
@@ -716,8 +716,8 @@ export class Mirror extends Pipeline {
     readonly #shown: Map<string, Group>;
 
     /** Mirror a node's groups in a dataflow, showing none yet. */
-    constructor(node: Node, context: Context, hasTreeIndex: boolean) {
-        super(node, context, hasTreeIndex);
+    constructor(node: Node, context: Context) {
+        super(node, context);
         this.#shown = new Map<string, Group>();
     }
 

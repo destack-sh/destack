@@ -20,7 +20,6 @@ import {
     describeLog,
     DatabaseError,
     sql,
-    type Tree,
     type Path,
     Relations,
 } from "@destack/db";
@@ -68,8 +67,6 @@ export class Node {
     readonly isArranged: boolean;
     /** How the rows relate to the parent node's rows, absent for a root. */
     readonly path: Path | undefined;
-    /** The tree index of a descendants or ancestors path. */
-    readonly closure: Table | undefined;
     /** The parent node, absent for a root. */
     readonly parent: Node | undefined;
     /** The count of nodes above this one. */
@@ -157,7 +154,6 @@ export class Node {
         if (this.path !== undefined) {
             this.#requirePath(this.path, this.#parent());
         }
-        this.closure = this.#closure();
         this.aggregate = query.aggregate;
         this.hasRows = query.aggregate === undefined && (parent?.hasRows ?? true);
 
@@ -211,13 +207,6 @@ export class Node {
             this.#followed(condition),
             this.permission ?? null,
         ]);
-    }
-
-    /** Read the tree index a descendants or ancestors path follows. */
-    #closure(): Table | undefined {
-        return this.path?.kind === "descendants" || this.path?.kind === "ancestors"
-            ? this.#tree().ancestors
-            : undefined;
     }
 
     /** Resolve each relation the condition, lookups and rollups measure once. */
@@ -530,19 +519,6 @@ export class Node {
             : this.table[TABLE].encodeLogged(row, concealed);
     }
 
-    /** Name the closure rows with a tree row at one end. */
-    paths(row: Row, end: "ancestor" | "descendant"): Row {
-        // read the row's scope and identity
-        const tree = this.#tree().definition;
-        const scope = row[tree.scope];
-        const id = row[tree.id];
-        if (scope === undefined || id === undefined) {
-            throw new TypeError(`'${this.name}' row has no tree scope or identity`);
-        }
-
-        return { scope, [end]: id };
-    }
-
     /** Read the measures of no rows. */
     emptyValues(): Record<string, Scalar> {
         return Object.fromEntries(
@@ -789,19 +765,6 @@ export class Node {
         return this.path;
     }
 
-    /** Read the table's tree, which a descendants or ancestors path requires. */
-    #tree(): Tree {
-        const tree = this.table[TABLE].tree;
-        if (tree === undefined) {
-            throw DatabaseError.of(
-                "QUERY_INVALID",
-                `query '${this.name}' is invalid: it follows a tree, but its table has no tree`,
-            );
-        }
-
-        return tree;
-    }
-
     /** Read the single key column a tree path follows. */
     #treeKey(): string {
         const [key] = this.key;
@@ -871,8 +834,8 @@ export class Node {
                 `query '${this.name}' is invalid: a ${path.kind} path must follow one table keyed by one column`,
             );
         } else if (
-            this.table[TABLE].tree?.definition.parent !== path.column ||
-            this.table[TABLE].tree.definition.id !== this.key[0]
+            this.table[TABLE].tree?.parent !== path.column ||
+            this.table[TABLE].tree.id !== this.key[0]
         ) {
             throw DatabaseError.of(
                 "QUERY_INVALID",

@@ -493,22 +493,21 @@ export class Dataflow implements Arrangement {
 
     /** Build a node's pipeline: a relation's, an aggregate's or a selection's. */
     #pipeline(node: Node, upstream: Upstream | undefined): Pipeline | undefined {
-        const hasTreeIndex = upstream === undefined;
         const isMeasured = upstream !== undefined && upstream.isMeasured?.(node) !== false;
 
         // follow a relation here unless its upstream traces it
         if (node.kind === "relation") {
-            return isMeasured ? undefined : new Relation(node, this.#context, hasTreeIndex);
+            return isMeasured ? undefined : new Relation(node, this.#context);
         }
         // measure an aggregate here or mirror the upstream's measures
         else if (node.aggregate !== undefined) {
             return isMeasured
-                ? new Mirror(node, this.#context, hasTreeIndex)
-                : new Aggregation(node, this.#context, hasTreeIndex);
+                ? new Mirror(node, this.#context)
+                : new Aggregation(node, this.#context);
         }
         // select rows unless the node sits below an aggregate
         else {
-            return node.hasRows ? new Selection(node, this.#context, hasTreeIndex) : undefined;
+            return node.hasRows ? new Selection(node, this.#context) : undefined;
         }
     }
 
@@ -747,7 +746,6 @@ export class Dataflow implements Arrangement {
     static #watches(node: Node): Watch[] {
         return [
             { table: node.table, scopes: node.scopes },
-            ...(node.closure === undefined ? [] : [{ table: node.closure, scopes: node.scopes }]),
             ...(node.path?.kind === "junction"
                 ? [{ table: node.path.table, scopes: node.scopes }]
                 : []),

@@ -28,9 +28,9 @@ export class Selection extends Pipeline {
     readonly #rechains: Map<string, Row | null>;
 
     /** Create the selection of a node. */
-    constructor(node: Node, context: Context, hasTreeIndex: boolean) {
+    constructor(node: Node, context: Context) {
         // create the pipeline with empty state
-        super(node, context, hasTreeIndex);
+        super(node, context);
         this.#arranged = new Map<string, Set<string>>();
         this.#windowed = 0;
         this.#refills = new Set<string>();

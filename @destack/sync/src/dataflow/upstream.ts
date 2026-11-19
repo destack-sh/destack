@@ -151,7 +151,7 @@ export class Trace implements Arrangement {
     #input(node: Node): Input {
         let input = this.#inputs.get(node);
         if (input === undefined) {
-            input = Input.of(node, false);
+            input = Input.of(node);
             this.#inputs.set(node, input);
         }
 

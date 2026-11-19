@@ -148,7 +148,7 @@ export class Feed implements Cache {
         // store the logged tables and the limits
         this.database = database;
         this.upstream = options.upstream;
-        this.#tables = Feed.#loggedTables(tables, this.upstream);
+        this.#tables = Feed.#loggedTables(tables);
         this.#limit = options.subscribers ?? FEED_SUBSCRIBERS;
         this.capacity = options.capacity ?? CAPACITY;
         this.pageSize = options.pageSize ?? PAGE_SIZE;
@@ -777,16 +777,9 @@ export class Feed implements Cache {
         return low;
     }
 
-    /** List the logged tables of some tables, with their trees' ancestors when reading locally. */
-    static #loggedTables(tables: readonly Table[], upstream: Upstream | undefined): Table[] {
-        return tables
-            .flatMap((table) => [
-                table,
-                ...(table[TABLE].tree === undefined || upstream !== undefined
-                    ? []
-                    : [table[TABLE].tree.ancestors]),
-            ])
-            .filter((table) => describeLog(table) !== undefined);
+    /** List the logged tables of some tables. */
+    static #loggedTables(tables: readonly Table[]): Table[] {
+        return tables.filter((table) => describeLog(table) !== undefined);
     }
 
     /** Count a subscriber, starting to read with the first. */
@@ -821,9 +814,7 @@ export class Feed implements Cache {
     /** Feed more logged tables, reading every table's changes anew while reading. */
     declare(tables: readonly Table[]): void {
         // add the logged tables not fed yet
-        const added = Feed.#loggedTables(tables, this.upstream).filter(
-            (table) => !this.#tables.includes(table),
-        );
+        const added = Feed.#loggedTables(tables).filter((table) => !this.#tables.includes(table));
         if (added.length === 0) {
             return;
         }

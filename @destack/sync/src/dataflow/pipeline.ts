@@ -33,7 +33,7 @@ export abstract class Pipeline {
     readonly members: Map<string, Member>;
 
     /** Create the pipeline of a node. */
-    constructor(node: Node, context: Context, hasTreeIndex: boolean) {
+    constructor(node: Node, context: Context) {
         // start with empty state
         this.children = [];
         this.partitions = new Map<string, Partition>();
@@ -42,7 +42,7 @@ export abstract class Pipeline {
         // read and decide the node's rows
         this.node = node;
         this.context = context;
-        this.input = Input.of(node, hasTreeIndex);
+        this.input = Input.of(node);
         this.filter = new Filter(node, context.arrangement);
     }
 
