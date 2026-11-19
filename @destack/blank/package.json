@@ -1,0 +1,25 @@
+{
+    "name": "@destack/blank",
+    "license": "MIT",
+    "type": "module",
+    "description": "Show an empty page with Destack's mark: the app a space and a new package start from.",
+    "exports": {
+        "./package": "./src/package.ts",
+        "./view": "./src/view/index.ts"
+    },
+    "scripts": {
+        "postinstall": "destack-check configure"
+    },
+    "devDependencies": {
+        "@destack/check": "workspace:*",
+        "@types/bun": "1.4.4"
+    },
+    "dependencies": {
+        "@destack/locale": "workspace:*",
+        "@destack/object": "workspace:*",
+        "@destack/package": "workspace:*",
+        "@destack/style": "workspace:*",
+        "@destack/theme": "workspace:*",
+        "@destack/view": "workspace:*"
+    }
+}

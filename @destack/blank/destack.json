@@ -1,0 +1,15 @@
+{
+    "$schema": "https://destack.app/schemas/2026.9.0/destack.json",
+    "id": "package-01a1f593-b92b-7fcb-ad30-4cfa889d2bce",
+    "role": "app",
+    "language": "typescript",
+    "runtimes": ["browser", "bun", "workerd"],
+    "exports": {
+        "./view": {
+            "runtimes": ["browser"]
+        }
+    },
+    "template": {
+        "files": ["src", "package.json", "destack.json", "bunfig.toml"]
+    }
+}
