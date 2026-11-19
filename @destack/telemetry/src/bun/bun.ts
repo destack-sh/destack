@@ -2,18 +2,27 @@ import { AsyncLocalStorageContextManager } from "@opentelemetry/context-async-ho
 import { ValueType } from "@opentelemetry/api";
 import type { Environment } from "@destack/environment";
 import { PROCESS_CPU_TIME } from "../metric/index.ts";
+import { OtlpExporter } from "../otlp/exporter.ts";
 import { Telemetry, type TelemetryOptions } from "../sdk/index.ts";
 
 /** How long a fatal failure waits for its export before the process ends. */
 const FATAL_FLUSH_MILLISECONDS = 2000;
 
-/** Start telemetry in a Bun process with asynchronous context propagation. */
+/** Start telemetry in a Bun process, exporting to the endpoint its variables set. */
 export function startTelemetry(
     options: TelemetryOptions,
-    environment: Pick<Environment<"process">, "clock" | "random" | "process">,
+    environment: Pick<Environment<"process">, "clock" | "random" | "process" | "network">,
 ): Promise<Telemetry> {
-    return Telemetry.start(options, new AsyncLocalStorageContextManager(), environment, (started) =>
-        captureProcess(started, environment),
+    // export to the endpoint the process's variables set, beside the options' own exports
+    const exported = OtlpExporter.endpoint(options, environment.process.variables, (request) =>
+        environment.network.fetch(request),
+    );
+
+    return Telemetry.start(
+        exported,
+        new AsyncLocalStorageContextManager(),
+        environment,
+        (started) => captureProcess(started, environment),
     );
 }
 

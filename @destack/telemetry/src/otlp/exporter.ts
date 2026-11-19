@@ -32,6 +32,9 @@ const EXPORT_TIMEOUT_MILLISECONDS = 10_000;
 /** The base URL OpenTelemetry's exporters post each signal below, as its specification sets. */
 const ENDPOINT_VARIABLE = "OTEL_EXPORTER_OTLP_ENDPOINT";
 
+/** The variable setting how long spans batch before an export, as OpenTelemetry names it. */
+const DELAY_VARIABLE = "OTEL_BSP_SCHEDULE_DELAY";
+
 /** How often metrics export: once a minute, the resolution observability stores points at. */
 const METRIC_INTERVAL_MILLISECONDS = 60_000;
 
@@ -109,6 +112,9 @@ export interface OtlpExporterOptions {
 
 /** Exports every signal as OTLP/JSON through one delivery. */
 export class OtlpExporter {
+    /** How long spans and records batch before an export by default: OpenTelemetry's 5 s. */
+    static readonly DEFAULT_DELAY = 5000;
+
     /** Deliver one request. */
     readonly #send: OtlpSend;
     /** Report a failed delivery, which the SDK otherwise drops silently. */
@@ -188,16 +194,23 @@ export class OtlpExporter {
             return options;
         }
 
-        // export every span and record beside the options' own processors
+        // export every span and record beside the options' own processors, batched as the variables set
         const exporter = OtlpExporter.http({ endpoint, fetch }, options.report);
+        const scheduledDelayMillis = OtlpExporter.delay(variables);
 
         return {
             ...options,
             signals: (meters) => {
                 // add a batch processor per signal to the options' own setup
                 const { traces, logs } = options.signals(meters);
-                const spans = new BatchSpanProcessor({ exporter: exporter.traces });
-                const records = new BatchLogRecordProcessor({ exporter: exporter.logs });
+                const spans = new BatchSpanProcessor({
+                    exporter: exporter.traces,
+                    scheduledDelayMillis,
+                });
+                const records = new BatchLogRecordProcessor({
+                    exporter: exporter.logs,
+                    scheduledDelayMillis,
+                });
 
                 return {
                     traces: {
@@ -207,6 +220,42 @@ export class OtlpExporter {
                     logs: { ...logs, processors: [...(logs.processors ?? []), records] },
                 };
             },
+        };
+    }
+
+    /** Read how long spans and records batch before an export from variables, in milliseconds. */
+    static delay(variables: Readonly<Record<string, string | undefined>>): number {
+        const set = variables[DELAY_VARIABLE];
+
+        return set === undefined
+            ? OtlpExporter.DEFAULT_DELAY
+            : schema.number().int().positive().parse(Number(set));
+    }
+
+    /** Post spans as one OTLP/JSON request to the endpoint variables set, none without one. */
+    static spans(
+        variables: Readonly<Record<string, string | undefined>>,
+        fetch: (request: Request) => Promise<Response>,
+    ): ((spans: readonly ReadableSpan[]) => Promise<void>) | undefined {
+        // post nothing without an endpoint
+        const endpoint = variables[ENDPOINT_VARIABLE];
+        if (endpoint === undefined) {
+            return undefined;
+        }
+
+        return async (spans) => {
+            // serialize the spans, then post them as the traces signal
+            const body = JsonTraceSerializer.serializeRequest([...spans]);
+            if (body === undefined) {
+                throw new TypeError("trace export failed: the spans did not serialize");
+            }
+
+            await OtlpExporter.post(
+                { endpoint, fetch },
+                "traces",
+                body,
+                new AbortController().signal,
+            );
         };
     }
 
@@ -255,6 +304,8 @@ export class OtlpExporter {
             readonly ratio?: number;
             /** The process's own log, printing every record beside the export. */
             readonly local?: LineExporter;
+            /** How long spans and records batch before an export, in milliseconds, else 5 s. */
+            readonly delay?: number;
         } = {},
     ): TelemetryOptions {
         return {
@@ -262,10 +313,11 @@ export class OtlpExporter {
             version: owner.version,
             report: this.#report,
             signals: (meters) => {
-                // keep a ratio of traces and every failed or slow one
+                // sample a ratio of traces and every failed or slow one, batched by the delay
+                const scheduledDelayMillis = options.delay ?? OtlpExporter.DEFAULT_DELAY;
                 const tail = new TailSampler(
-                    new BatchSpanProcessor({ exporter: this.traces }),
-                    new BatchLogRecordProcessor({ exporter: this.logs }),
+                    new BatchSpanProcessor({ exporter: this.traces, scheduledDelayMillis }),
+                    new BatchLogRecordProcessor({ exporter: this.logs, scheduledDelayMillis }),
                     meters,
                 );
 
