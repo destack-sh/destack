@@ -6,3 +6,28 @@
 @view-transition {
     navigation: auto;
 }
+
+/* set a post's headings at the sizes their levels had above the title, now its page's one h1 */
+[data-publication="journal"] [data-slot="prose"] :where(h2) {
+    font-family: var(--destack-text-2xl-font-family);
+    font-size: var(--destack-text-2xl-font-size);
+    font-weight: var(--destack-text-2xl-font-weight);
+    line-height: var(--destack-text-2xl-line-height);
+    letter-spacing: var(--destack-text-2xl-letter-spacing);
+}
+
+[data-publication="journal"] [data-slot="prose"] :where(h3) {
+    font-family: var(--destack-text-xl-font-family);
+    font-size: var(--destack-text-xl-font-size);
+    font-weight: var(--destack-text-xl-font-weight);
+    line-height: var(--destack-text-xl-line-height);
+    letter-spacing: var(--destack-text-xl-letter-spacing);
+}
+
+[data-publication="journal"] [data-slot="prose"] :where(h4) {
+    font-family: var(--destack-text-lg-font-family);
+    font-size: var(--destack-text-lg-font-size);
+    font-weight: var(--destack-text-lg-font-weight);
+    line-height: var(--destack-text-lg-line-height);
+    letter-spacing: var(--destack-text-lg-letter-spacing);
+}

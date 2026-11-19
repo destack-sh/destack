@@ -26,6 +26,9 @@ const VIDEO_EXTENSIONS = new Set([".mp4", ".webm", ".ogv"]);
 
 /** An asset collected while rendering a content page, by its path below the package. */
 export type ContentAsset = { path: string; placeholder: string };
+/** The heading level a post's heading takes under its title, one deeper, the deepest staying. */
+const DEMOTED = { 1: 2, 2: 3, 3: 4, 4: 5, 5: 6, 6: 6 } as const;
+
 /** Link and asset resolution for one Markdown source, by paths below the package. */
 export type MarkdownContext = {
     assets: ContentAsset[];
@@ -163,6 +166,10 @@ function shapeMarkdown(
                 parent.children.splice(index, 1);
                 index -= 1;
                 continue;
+            }
+            // set a post's sections under its title, which its header shows as the page's one h1
+            if (context.kind === "blog" || context.kind === "legal") {
+                node.depth = DEMOTED[node.depth];
             }
             node.data = { ...node.data, hProperties: { id } };
         }

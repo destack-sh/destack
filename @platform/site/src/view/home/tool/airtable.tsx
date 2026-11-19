@@ -75,11 +75,6 @@ export function Airtable() {
     return <Base table="Press" signups={signups} />;
 }
 
-/** Draw the waitlist's signups as the launch base's grid. */
-export function AirtableSignups() {
-    return <AirtableSignupsOf signups={signups} />;
-}
-
 /** Draw some signups as the launch base's grid. */
 export function AirtableSignupsOf(properties: { signups: readonly Signup[] }) {
     return <Base table="Signups" signups={properties.signups} />;

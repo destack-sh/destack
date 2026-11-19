@@ -80,13 +80,16 @@ export const lineCount = spaceJobs.length + 1;
 /** The tools the wall offers: every tool of a job a space's app does. */
 const offered: readonly Tool[] = tools.filter((tool) => tool.category in apps);
 
-/** The tools picked before the reader picks any. */
+/** The tools picked before the reader picks any, one for each job. */
 export const firstPicks: readonly Tool[] = [
     "Notion",
     "Calendly",
     "Linear",
     "Airtable",
     "Slack",
+    "Gmail",
+    "FigJam",
+    "Zapier",
 ].map(toolOf);
 
 /** Return the subscriptions a set of tools bills under, each once. */
@@ -490,11 +493,6 @@ function listOf(picked: readonly Tool[]) {
 
 /** The wall styles. */
 const styles = style.create({
-    picture: {
-        borderRadius: "22%",
-        flexShrink: 0,
-        objectFit: "cover",
-    },
     window: {
         backgroundColor: color.card,
         borderColor: color.border,

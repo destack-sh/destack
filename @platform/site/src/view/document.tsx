@@ -6,10 +6,10 @@ import type { ParentProps } from "@destack/view";
 import { AppearanceScript, destackFonts, Font, Viewport } from "@destack/view/document";
 import { HydrationScript } from "@destack/view/static";
 import { skyScript } from "./effect/sky";
-import { destackTheme } from "@destack/theme/declare";
+import { paper } from "./theme";
 
 /** The theme root's custom properties, following the system appearance until one is picked. */
-const themeStyle = destackTheme.variables(DEFAULT_DISPLAY);
+const themeStyle = paper.variables(DEFAULT_DISPLAY);
 
 /** The site's frame: four columns on phones, twelve from tablets, ruled cells without gutters. */
 const siteFrame = style.createTheme(frame, {

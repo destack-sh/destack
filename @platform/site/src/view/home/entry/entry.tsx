@@ -32,7 +32,7 @@ type Sense = {
 export type Form = {
     /** The headword's syllables, set with the dictionary dot between them. */
     syllables: readonly string[];
-    /** The pronunciation in IPA. */
+    /** The pronunciation, respelled in plain English syllables, such as "dee-stack". */
     pronunciation: string;
     /** The part of speech, such as verb or noun. */
     partOfSpeech: string;

@@ -11,12 +11,13 @@ const NARROW = "@container (max-width: 479px)";
 /** The chrome of a drawn browser: its frame, tab strip, toolbar, address bar and viewport. */
 export const browserStyles = style.create({
     browser: {
-        backgroundColor: color.card,
+        // paint the page area in the page colour, as a browser shows the site's background
+        backgroundColor: color.background,
         borderColor: color.border,
         borderRadius: chrome.radius,
         borderStyle: "solid",
         borderWidth: stroke.border,
-        color: color.cardForeground,
+        color: color.foreground,
         display: "grid",
         fontSize: "0.8125rem",
         gridTemplateColumns: "minmax(0, 1fr)",

@@ -1,4 +1,4 @@
-import { Icon } from "@destack/icon";
+import { Icon } from "@destack/ui/icon";
 import gitCommit from "@destack/icon/phosphor/git-commit";
 import * as style from "@destack/style";
 import { color, font, motion } from "@destack/theme/tokens.stylex";
@@ -14,8 +14,7 @@ import { Favicon, Glyph } from "../figure/glyph";
 import { accentOf } from "../figure/item";
 import type { Stagger } from "../figure/stagger";
 import { sectionOf } from "../verb/apps";
-import { ArtifactFrame, artifactAddressOf } from "../command/artifact";
-import type { Assistant } from "../command/chat";
+import { ArtifactFrame, artifactAddressOf, type Publisher } from "../command/artifact";
 import type { Job } from "../verb/space";
 import type { Maker } from "./maker";
 import { sources } from "../verb/source";
@@ -223,7 +222,7 @@ export function XRay(properties: {
     const isHosted = () => properties.isOpenAt(serviceCount + 1);
 
     // read the assistant whose artifact the app is, or none when it runs elsewhere
-    const assistant = (): Assistant | undefined => {
+    const assistant = (): Publisher | undefined => {
         const place = properties.maker.place;
 
         return place.kind === "artifact" ? place.assistant : undefined;
@@ -236,7 +235,7 @@ export function XRay(properties: {
             return { host: CUSTOM_DOMAIN, path: pathOf(app()) };
         } else if (place.kind === "artifact") {
             return artifactAddressOf(place.assistant);
-        } else if (place.kind === "platform") {
+        } else if (place.kind === "sandbox") {
             return { host: place.host, path: "/" };
         }
 
@@ -640,7 +639,7 @@ function wiringAt(index: number): string {
 
 /** Draw the app where it was made: in its assistant's artifact page, or bare elsewhere. */
 function MadeFrame(properties: {
-    assistant: Assistant | undefined;
+    assistant: Publisher | undefined;
     title: string;
     children: JSX.Element;
 }) {
@@ -657,15 +656,11 @@ function MadeFrame(properties: {
     );
 }
 
-/** Draw the tab mark of where the app was made: your computer, or its maker's mark. */
+/** Draw the tab mark of where the app was made: its maker's mark. */
 function MakerMark(properties: { maker: Maker }) {
     return (
         <>
-            {properties.maker.place.kind === "localhost" ? (
-                <Favicon icon="computer" tint={palette.ink} />
-            ) : (
-                <VendorMark mark={properties.maker.mark} isTag={false} />
-            )}
+            <VendorMark mark={properties.maker.mark} isTag={false} />
         </>
     );
 }

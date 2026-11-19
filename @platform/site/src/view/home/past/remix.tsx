@@ -93,16 +93,16 @@ export const entities: Record<string, Entity> = {
         tint: "#5e6ad2",
     },
     github: { label: "GitHub", icon: "github", role: listedOf("GitHub"), tint: "#24292f" },
-    // homemade apps, each built with an app builder on rented services
+    // homemade apps, each built with an agent on rented services
     tracker: {
         label: "Launch tracker",
         icon: "tasks",
-        role: "Built with Lovable",
+        role: "Built with Claude",
         tint: "#b8862b",
     },
-    portal: { label: "Client portal", icon: "pages", role: "Built with v0", tint: "#3d6fb0" },
-    pipeline: { label: "Hiring board", icon: "user", role: "Built with Replit", tint: "#5b7f2e" },
-    budget: { label: "Family budget", icon: "table", role: "Built with Bolt", tint: "#a0485f" },
+    portal: { label: "Client portal", icon: "pages", role: "Built with ChatGPT", tint: "#3d6fb0" },
+    pipeline: { label: "Hiring board", icon: "user", role: "Built with Amp", tint: "#5b7f2e" },
+    budget: { label: "Family budget", icon: "table", role: "Built with Gemini", tint: "#a0485f" },
 
     // the homemade apps rebuilt on Destack
     ownTracker: {

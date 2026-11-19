@@ -23,7 +23,7 @@ import "../home/figure/figure.css";
 /** The noun the page defines, in Destack's sense. */
 const pricing: Form = {
     syllables: ["pric", "ing"],
-    pronunciation: "/ˈpraɪsɪŋ/",
+    pronunciation: "pry-sing",
     partOfSpeech: "noun",
     sense: {
         definition: "own the software, rent the hardware",
@@ -35,7 +35,7 @@ const pricing: Form = {
 /** The noun the rate card defines, in Destack's sense. */
 const rate: Form = {
     syllables: ["rate"],
-    pronunciation: "/reɪt/",
+    pronunciation: "rayt",
     partOfSpeech: "noun",
     sense: {
         definition: "a boring price for everything",
@@ -48,7 +48,7 @@ const rate: Form = {
 /** The noun the comparison defines, in Destack's sense. */
 const bill: Form = {
     syllables: ["bill"],
-    pronunciation: "/bɪl/",
+    pronunciation: "bil",
     partOfSpeech: "noun",
     sense: {
         definition: "the price of silos",

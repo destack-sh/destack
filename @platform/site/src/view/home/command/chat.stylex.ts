@@ -65,7 +65,7 @@ export const chatgpt = style.defineConsts({
 /** Gemini's colours, light and dark as it ships. */
 export const gemini = style.defineConsts({
     /** The window's background. */
-    canvas: "light-dark(#ffffff, #131314)",
+    canvas: "light-dark(#faf9f9, #131314)",
     /** The text. */
     ink: "light-dark(#1f1f1f, #e3e3e3)",
     /** Secondary text. */
@@ -75,9 +75,11 @@ export const gemini = style.defineConsts({
     /** A tool's opened request and response. */
     field: "light-dark(#f8fafd, #1e1f20)",
     /** Your message's bubble. */
-    bubble: "light-dark(#e9eef6, #333537)",
+    bubble: "light-dark(#f2f0f0, #333537)",
     /** The composer's field. */
-    composer: "light-dark(#f0f4f9, #1e1f20)",
+    composer: "light-dark(#ffffff, #1e1f20)",
+    /** The composer's lift, a soft shadow under the white field. */
+    lift: "0 1px 3px rgba(0, 0, 0, 0.08), 0 4px 16px rgba(0, 0, 0, 0.05)",
     /** Your account's avatar. */
     avatar: "#2f6f7e",
     /** The spark that turns while Gemini works. */
@@ -120,36 +122,24 @@ export const claude = style.defineConsts({
     lift: "0 1px 6px rgba(0, 0, 0, 0.04)",
 });
 
-/** A coding agent's terminal colours, light and dark as terminals ship. */
-export const terminal = style.defineConsts({
+/** Amp's colours: its khaki paper by day and its night green, as its app ships. */
+export const amp = style.defineConsts({
     /** The window's background. */
-    canvas: "light-dark(#fbfbfa, #1c1c1b)",
+    canvas: "light-dark(#ededdd, #0f1512)",
     /** The text. */
-    ink: "light-dark(#1f1f1e, #e8e6e1)",
-    /** Secondary text. */
-    muted: "light-dark(#76746e, #8f8d86)",
+    ink: "light-dark(#1d2118, #e3e3cf)",
+    /** Secondary text, and the agent's tool lines. */
+    muted: "light-dark(#6d6f5e, #8f9480)",
     /** Rules and frames. */
-    border: "light-dark(#e2e0da, #353533)",
-    /** A tool's opened request and response, and your prompt's band. */
-    field: "light-dark(#f2f1ed, #262624)",
-    /** The typeface every line sets in. */
-    face: 'ui-monospace, "SF Mono", Menlo, Consolas, monospace',
-});
-
-/** A platform's or editor's builder panel colours, light and dark. */
-export const builder = style.defineConsts({
-    /** The panel's background. */
-    canvas: "light-dark(#ffffff, #18181b)",
-    /** The text. */
-    ink: "light-dark(#18181b, #fafafa)",
-    /** Secondary text. */
-    muted: "light-dark(#71717a, #a1a1aa)",
-    /** Rules and frames. */
-    border: "light-dark(#e4e4e7, #2c2c30)",
-    /** A tool's opened request and response, and your message's bubble. */
-    field: "light-dark(#f4f4f5, #232326)",
-    /** The publish and send buttons. */
-    action: "light-dark(#18181b, #fafafa)",
-    /** The publish and send buttons' text. */
-    actionInk: "light-dark(#ffffff, #18181b)",
+    border: "light-dark(#dcdac8, #263029)",
+    /** A tool's opened output, and the composer. */
+    field: "light-dark(#f5f5ea, #17201b)",
+    /** Your message's bubble. */
+    bubble: "light-dark(#d1dddf, #1f2b23)",
+    /** The send button. */
+    send: "light-dark(#0b0d0b, #dfdfc1)",
+    /** The send button's arrow. */
+    sendInk: "light-dark(#ffffff, #0f1512)",
+    /** Your account's avatar. */
+    avatar: "#5a7a3a",
 });

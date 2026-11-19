@@ -4,14 +4,13 @@ import * as style from "@destack/style";
 import { lattice } from "../../layout/lattice.stylex";
 import { Constellation } from "../drawing/constellation";
 import { Entry, type Form } from "../entry/entry";
-import { InstallWays } from "../../install/install";
 import type { Tool } from "../tool/tool";
 import { Tally } from "./tally";
 
 /** The present participle, the act of destacking, which closes the page. */
 export const participle: Form = {
     syllables: ["de", "stack", "ing"],
-    pronunciation: "/diːˈstakɪŋ/",
+    pronunciation: "dee-stack-ing",
     partOfSpeech: "present participle",
     sense: {
         definition: "making your software work as one",
@@ -20,30 +19,24 @@ export const participle: Form = {
     },
 };
 
-/** Close the page on destacking: the tools you pick, the space they become, and how to install. */
+/** Close the page on destacking: the tools you pick and the space they become. */
 export function Participle(properties: {
     isOpen: boolean;
     picks: readonly Tool[];
     onPick: (tool: Tool) => void;
-    prompt: string;
 }) {
     return (
         <section {...style.attrs(lattice.frame, lattice.ruled, lattice.section, styles.section)}>
             <Entry form={participle} />
             <Constellation isOpen={properties.isOpen} />
             <Tally
-                number={6}
-                stacked="your apps, fragmented"
-                destacked="your apps, in one space"
+                number={5}
+                stacked="your apps, fragmented, theirs to keep"
+                destacked="your apps, unified, yours to keep"
                 isOpen={properties.isOpen}
                 picks={properties.picks}
                 onPick={properties.onPick}
             />
-
-            {/* end on the install, in one of three ways, the agent's prompt naming the picked tools */}
-            <div {...style.attrs(styles.install)}>
-                <InstallWays prompt={properties.prompt} />
-            </div>
         </section>
     );
 }
@@ -52,11 +45,8 @@ export function Participle(properties: {
 const styles = style.create({
     section: {
         gridTemplateRows: {
-            default: "auto auto minmax(0, 1fr) auto",
+            default: "auto auto minmax(0, 1fr)",
             [media.maxLg]: "auto",
         },
-    },
-    install: {
-        gridColumn: "1 / -1",
     },
 });

@@ -2,15 +2,24 @@ import * as style from "@destack/style";
 import type { JSX } from "@destack/view";
 
 import { Favicon } from "../figure/glyph";
-import type { Vendor } from "../verb/space";
 import { type Assistant, themes } from "./chat";
+
+/** The assistants that publish an app they made as an artifact at a public link. */
+export const publishers = [
+    "Claude",
+    "ChatGPT",
+    "Gemini",
+    "Grok",
+] as const satisfies readonly Assistant[];
+
+/** An assistant that publishes an app it made as an artifact. */
+export type Publisher = (typeof publishers)[number];
 import { chat } from "./chat.stylex";
-import type { Lead } from "./scene";
 
 /** How each assistant publishes an app it made: its mark, address, header actions and notice. */
-const publishers: Readonly<
+const publications: Readonly<
     Record<
-        Assistant,
+        Publisher,
         {
             icon: string;
             tint: string;
@@ -55,68 +64,26 @@ const publishers: Readonly<
     },
 };
 
-/** Return the published app an assistant made, as the site the browser opens on a row. */
-export function artifactOf(
-    assistant: Assistant,
-    row: number,
-    title: string,
-    rows: readonly Lead[],
-): Vendor {
-    const publisher = publishers[assistant];
-
-    return {
-        row,
-        icon: publisher.icon,
-        tint: publisher.tint,
-        tab: title,
-        site: publisher.site,
-        page: () => <ArtifactPage assistant={assistant} title={title} rows={rows} />,
-    };
-}
-
 /** Return the address an assistant publishes an app at, split into its host and path. */
-export function artifactAddressOf(assistant: Assistant): { host: string; path: string } {
-    const site = publishers[assistant].site;
+export function artifactAddressOf(assistant: Publisher): { host: string; path: string } {
+    const site = publications[assistant].site;
     const slash = site.indexOf("/");
 
     return { host: site.slice(0, slash), path: site.slice(slash) };
 }
 
 /** Return the mark an assistant's published apps carry in a browser tab. */
-export function artifactMarkOf(assistant: Assistant): { icon: string; tint: string } {
-    return { icon: publishers[assistant].icon, tint: publishers[assistant].tint };
-}
-
-/** Draw a board an assistant made at its public link, in that assistant's own page. */
-function ArtifactPage(properties: { assistant: Assistant; title: string; rows: readonly Lead[] }) {
-    return (
-        <ArtifactFrame assistant={properties.assistant} title={properties.title}>
-            <div {...style.attrs(styles.board)}>
-                <b {...style.attrs(styles.heading)}>{properties.title}</b>
-                <span {...style.attrs(styles.connect)}>
-                    Connect your own Airtable and Slack to load this board
-                </span>
-                <span {...style.attrs(styles.table)}>
-                    {properties.rows.map(([name, asked, state]) => (
-                        <span {...style.attrs(styles.row)}>
-                            <span {...style.attrs(styles.name)}>{name}</span>
-                            <span {...style.attrs(styles.asked)}>{asked}</span>
-                            <span {...style.attrs(styles.state)}>{state}</span>
-                        </span>
-                    ))}
-                </span>
-            </div>
-        </ArtifactFrame>
-    );
+export function artifactMarkOf(assistant: Publisher): { icon: string; tint: string } {
+    return { icon: publications[assistant].icon, tint: publications[assistant].tint };
 }
 
 /** Draw an app an assistant published, in its page: header, sandbox and notice. */
 export function ArtifactFrame(properties: {
-    assistant: Assistant;
+    assistant: Publisher;
     title: string;
     children: JSX.Element;
 }) {
-    const publisher = () => publishers[properties.assistant];
+    const publisher = () => publications[properties.assistant];
 
     return (
         <div
@@ -213,57 +180,6 @@ const styles = style.create({
         borderStyle: "solid",
         borderWidth: "1px",
         overflow: "hidden",
-    },
-    board: {
-        alignContent: "start",
-        display: "grid",
-        gap: "10px",
-        padding: "20px",
-    },
-    heading: {
-        fontFamily: chat.replyFont,
-        fontSize: "20px",
-        fontWeight: 600,
-    },
-    connect: {
-        color: chat.muted,
-        fontSize: "12px",
-    },
-    table: {
-        backgroundColor: chat.canvas,
-        borderColor: chat.border,
-        borderRadius: "8px",
-        borderStyle: "solid",
-        borderWidth: "1px",
-        display: "grid",
-        fontSize: "13px",
-    },
-    row: {
-        alignItems: "center",
-        borderBottomColor: chat.border,
-        borderBottomStyle: { default: "solid", ":last-child": "none" },
-        borderBottomWidth: "1px",
-        display: "grid",
-        gap: "10px",
-        gridTemplateColumns: "minmax(0, 7.5rem) minmax(0, 1fr) auto",
-        paddingBlock: "8px",
-        paddingInline: "12px",
-    },
-    name: {
-        fontWeight: 500,
-        overflow: "hidden",
-        textOverflow: "ellipsis",
-        whiteSpace: "nowrap",
-    },
-    asked: {
-        color: chat.muted,
-        overflow: "hidden",
-        textOverflow: "ellipsis",
-        whiteSpace: "nowrap",
-    },
-    state: {
-        fontSize: "12px",
-        whiteSpace: "nowrap",
     },
     notice: {
         color: chat.muted,

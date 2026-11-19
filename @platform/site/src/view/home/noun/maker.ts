@@ -1,57 +1,30 @@
-import { artifactMarkOf } from "../command/artifact";
-import { type Assistant, assistants, type Look } from "../command/chat";
+import { present } from "@destack/schema";
+import { artifactMarkOf, type Publisher, publishers } from "../command/artifact";
+import { type Assistant, assistantOptions } from "../command/chat";
 import type { Option, OptionSection } from "../figure/picker";
 
-/** Where an agent leaves its app: an assistant's artifact, your dev server, or a platform. */
-export type Place =
-    | { kind: "artifact"; assistant: Assistant }
-    | { kind: "localhost"; chat: "terminal" | "builder" }
-    | { kind: "platform"; host: string };
+/** Where an agent leaves its app: an assistant's artifact, or a sandbox at its preview address. */
+export type Place = { kind: "artifact"; assistant: Publisher } | { kind: "sandbox"; host: string };
 
-/** An agent an app is made with: its name and mark, and where it leaves the app. */
-export type Maker = Option & { place: Place };
+/** An agent an app is made with: its name, mark, agent and where it leaves the app. */
+export type Maker = Option & { agent: Assistant; place: Place };
 
-/** Every agent an app is made with: assistants, then coding agents, then platforms. */
+/** Every agent an app is made with: the assistants that publish artifacts, then Amp's sandbox. */
 export const makers: readonly Maker[] = [
-    ...assistants.map((assistant): Maker => ({
-        name: assistant,
-        mark: artifactMarkOf(assistant),
-        place: { kind: "artifact", assistant },
+    ...publishers.map((publisher): Maker => ({
+        name: publisher,
+        mark: artifactMarkOf(publisher),
+        agent: publisher,
+        place: { kind: "artifact", assistant: publisher },
     })),
     {
-        name: "Claude Code",
-        mark: { icon: "claude", tint: "#c96442" },
-        place: { kind: "localhost", chat: "terminal" },
-    },
-    {
-        name: "Codex",
-        mark: { icon: "openai", tint: "#000000" },
-        place: { kind: "localhost", chat: "terminal" },
-    },
-    {
-        name: "Cursor",
-        mark: { icon: "cursor", tint: "#000000" },
-        place: { kind: "localhost", chat: "builder" },
-    },
-    {
-        name: "Lovable",
-        mark: { icon: "lovable", tint: "#ff4f6d" },
-        place: { kind: "platform", host: "launch-tracker.lovable.app" },
-    },
-    {
-        name: "v0",
-        mark: { icon: "v0", tint: "#000000" },
-        place: { kind: "platform", host: "launch-tracker.vercel.app" },
-    },
-    {
-        name: "Bolt",
-        mark: { icon: "stackblitz", tint: "#1389fd" },
-        place: { kind: "platform", host: "launch-tracker.bolt.host" },
-    },
-    {
-        name: "Replit",
-        mark: { icon: "replit", tint: "#f26207" },
-        place: { kind: "platform", host: "launch-tracker.replit.app" },
+        name: "Amp",
+        mark: present(
+            assistantOptions.find((option) => option.name === "Amp"),
+            "Amp's mark",
+        ).mark,
+        agent: "Amp",
+        place: { kind: "sandbox", host: "launch-tracker.onamp.dev" },
     },
 ];
 
@@ -59,25 +32,12 @@ export const makers: readonly Maker[] = [
 export const makerSections: readonly OptionSection[] = (
     [
         ["Artifact", "artifact"],
-        ["Localhost", "localhost"],
-        ["Platform", "platform"],
+        ["Sandbox", "sandbox"],
     ] as const
 ).map(([label, kind]): OptionSection => [
     label,
     makers.filter((maker) => maker.place.kind === kind).map((maker) => maker.name),
 ]);
-
-/** Return the look of a maker's chat: its assistant's app, a terminal, or a builder's panel. */
-export function lookOf(maker: Maker): Look {
-    const place = maker.place;
-    if (place.kind === "artifact") {
-        return { kind: "assistant", assistant: place.assistant };
-    } else if (place.kind === "localhost") {
-        return { kind: place.chat, name: maker.name, mark: maker.mark };
-    }
-
-    return { kind: "builder", name: maker.name, mark: maker.mark };
-}
 
 /** Return the maker a picker option names, refusing any other name. */
 export function makerOf(name: string): Maker {

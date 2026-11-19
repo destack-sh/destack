@@ -19,14 +19,10 @@ import {
 } from "./navigation";
 import { typeScale, tracking } from "./type.stylex";
 
-/** The id of the hatching the headword's letters are filled with. */
-const HATCH_ID = "headword-hatch";
-
-/** The pitch of the headword's hatching in its own units, about 8px across the frame. */
-const HATCH_PITCH = 24;
-
-/** The width of each line of the headword's hatching in its own units, about 2.5px. */
-const HATCH_LINE = 7;
+/** The headword's letters as a mask, so their hatching has the bands' pitch at every width. */
+const LETTERS_MASK = `url("data:image/svg+xml,${encodeURIComponent(
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${headwordBox.width} ${headwordBox.height}"><path d="${headwordLetters}"/></svg>`,
+)}")`;
 
 /** The mark's box across, scaled so its planet covers the headword's dot. */
 const DOT_MARK = (headwordDot.radius / planet.radius) * 2 * planet.centre.x;
@@ -41,7 +37,7 @@ const DOT_PLANET = {
 /** The verb the footer closes on, in the sense of the whole universe. */
 const closing: Form = {
     syllables: ["de", "stack"],
-    pronunciation: "/diːˈstak/",
+    pronunciation: "dee-stack",
     partOfSpeech: "verb",
     sense: { definition: "to program the universe", highlight: [], sentence: tagline },
 };
@@ -83,30 +79,22 @@ export function Footer() {
 
                     {/* close on the headword itself, its ink touching every edge, the planet as its dot */}
                     <div {...style.attrs(styles.poster)}>
+                        {/* hatch the letters like a cut face, at the pitch of every band */}
+                        <span
+                            aria-hidden="true"
+                            style={{ "mask-image": LETTERS_MASK }}
+                            {...style.attrs(styles.hatch)}
+                        />
+
+                        {/* outline the letters in a hairline of one width at every size */}
                         <svg
                             aria-hidden="true"
                             viewBox={`0 0 ${headwordBox.width} ${headwordBox.height}`}
                             {...style.attrs(styles.letterbox)}
                         >
-                            {/* hatch the letters like a cut face, inside their outline */}
-                            <defs>
-                                <pattern
-                                    id={HATCH_ID}
-                                    width={HATCH_PITCH}
-                                    height={HATCH_PITCH}
-                                    patternTransform="rotate(-45)"
-                                    patternUnits="userSpaceOnUse"
-                                >
-                                    <rect
-                                        width={HATCH_LINE}
-                                        height={HATCH_PITCH}
-                                        {...style.attrs(styles.hatch)}
-                                    />
-                                </pattern>
-                            </defs>
                             <path
                                 d={headwordLetters}
-                                fill={`url(#${HATCH_ID})`}
+                                vector-effect="non-scaling-stroke"
                                 {...style.attrs(styles.letters)}
                             />
                         </svg>
@@ -161,6 +149,7 @@ const styles = style.create({
         color: color.foreground,
         containerType: "inline-size",
         fontFamily: font.text,
+        paddingBlockStart: `calc(${rule.staveHeight} + 1rem)`,
     },
     cell: {
         alignContent: "start",
@@ -221,6 +210,7 @@ const styles = style.create({
     },
     letterbox: {
         display: "block",
+        position: "relative",
         width: "100%",
     },
     planet: {
@@ -231,11 +221,16 @@ const styles = style.create({
         height: "auto",
         width: "100%",
     },
-    letters: {
-        stroke: color.foreground,
-        strokeWidth: 6,
-    },
     hatch: {
-        fill: color.foreground,
+        backgroundImage: rule.band,
+        inset: 0,
+        maskRepeat: "no-repeat",
+        maskSize: "100% 100%",
+        position: "absolute",
+    },
+    letters: {
+        fill: "none",
+        stroke: color.foreground,
+        strokeWidth: stroke.border,
     },
 });

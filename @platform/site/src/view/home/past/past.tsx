@@ -9,7 +9,7 @@ import { StackSwitch } from "../entry/switch";
 /** The past participle, the state of having destacked. */
 export const destacked: Form = {
     syllables: ["de", "stacked"],
-    pronunciation: "/diːˈstakt/",
+    pronunciation: "dee-stackt",
     partOfSpeech: "past participle",
     sense: {
         definition: "unified into one standardised stack",
@@ -30,8 +30,8 @@ export function PastParticiple(properties: {
                 <FigureLabel
                     number={3}
                     isOpen={properties.isOpen}
-                    stacked="every app on its own stack"
-                    destacked="every app in one stack"
+                    stacked="every app on its own stack, opaque and rented"
+                    destacked="every app in one stack, transparent and owned"
                 >
                     <StackSwitch isOpen={properties.isOpen} place="label" />
                 </FigureLabel>

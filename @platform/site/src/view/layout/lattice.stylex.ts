@@ -29,13 +29,10 @@ const EDGE = "6px";
 /** The ink of the hatching in the gap between two sections. */
 const HATCH_INK = `color-mix(in srgb, ${color.foreground} 14%, ${color.background})`;
 
-/** The hatching of the gap between two sections, like the cut face in a section drawing. */
-const HATCH = `repeating-linear-gradient(-45deg, ${HATCH_INK} 0 ${stroke.border}, transparent 0 6px)`;
+/** The hatching of the gap between two sections, in the band's lines and pitch at a lighter ink. */
+const HATCH = `repeating-linear-gradient(-45deg, ${HATCH_INK} 0 1.5px, transparent 0 5px)`;
 
-/** The spacing of the dot grid. */
-const DOT_GRID = "16px";
-
-/** The spacing of the margins' dot grid: every other dot of the page's, so the two stay aligned. */
+/** The spacing of the margins' dot grid. */
 const MARGIN_DOT_GRID = "32px";
 
 /** The ink of a ruler's ticks along a running head's top rule. */
@@ -71,7 +68,7 @@ const GRAIN_SIZE = "180px 180px";
 /** The ink of the dot grid, a little stronger than the rules so single dots still read. */
 const DOT_INK = `color-mix(in srgb, ${color.foreground} 22%, ${color.background})`;
 
-/** The dot grid of bands and figure margins: one dot at the corner of each tile. */
+/** The dot grid of the page margins: one dot at the corner of each tile. */
 const DOTS = `radial-gradient(circle at 1px 1px, ${DOT_INK} 0.9px, transparent 1.25px)`;
 
 /** A row of crossing marks' horizontal arms, one centred on each rail. */
@@ -186,10 +183,10 @@ export const lattice = style.create({
         minWidth: 0,
     },
 
-    /** A figure cell of a ruled band, dotted behind its figure and unrendered off screen. */
+    /** A figure cell of a ruled band, grained like the page and unrendered off screen. */
     figureCell: {
-        backgroundImage: `${DOTS}, ${GRAIN}`,
-        backgroundSize: `${DOT_GRID} ${DOT_GRID}, ${GRAIN_SIZE}`,
+        backgroundImage: GRAIN,
+        backgroundSize: GRAIN_SIZE,
         containIntrinsicSize: "auto 32rem",
         contentVisibility: { default: "auto", ":is([data-near] *)": "visible" },
         display: "grid",
@@ -199,7 +196,7 @@ export const lattice = style.create({
         padding: `1.5rem ${measure.inset}`,
     },
 
-    /** The space between two sections: a closing rule, a blank gap, then the next head on dots. */
+    /** The space between two sections: a closing rule, a hatched gap, then the next head. */
     interval: {
         backgroundImage: {
             default: [
@@ -292,17 +289,6 @@ export const lattice = style.create({
         position: "relative",
         // lay the rail marks over the sections the interval overlaps
         zIndex: 2,
-        "::before": {
-            backgroundImage: DOTS,
-            backgroundPosition: "center",
-            backgroundSize: `${DOT_GRID} ${DOT_GRID}`,
-            bottom: `calc(${EDGE} + ${stroke.border})`,
-            content: '""',
-            height: `calc(${BAND} - 2 * ${stroke.border})`,
-            insetInline: 0,
-            pointerEvents: "none",
-            position: "absolute",
-        },
         // run the rails through the gap as centre lines
         "::after": {
             borderBlockWidth: 0,
@@ -352,7 +338,7 @@ export const lattice = style.create({
 
     /** The end of a cut line: a short hatched block in the signal orange. */
     cutStroke: {
-        backgroundImage: `repeating-linear-gradient(-45deg, currentColor 0 1.5px, transparent 0 4px)`,
+        backgroundImage: `repeating-linear-gradient(-45deg, currentColor 0 1.5px, transparent 0 5px)`,
         borderColor: "currentColor",
         borderStyle: "solid",
         borderWidth: stroke.border,

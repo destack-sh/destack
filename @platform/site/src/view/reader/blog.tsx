@@ -55,9 +55,7 @@ function BlogNavigation(properties: { contents: readonly Heading[] }) {
     return (
         <div>
             <div {...style.attrs(lattice.ruleBottom, publicationStyles.context)}>
-                <a href="/blog/" {...style.attrs(publicationStyles.contextTitle)}>
-                    Blog
-                </a>
+                <span {...style.attrs(publicationStyles.contextTitle)}>Contents</span>
             </div>
             <div {...style.attrs(publicationStyles.collectionList)}>
                 <Outline headings={properties.contents} offset={HEADER_OFFSET} />

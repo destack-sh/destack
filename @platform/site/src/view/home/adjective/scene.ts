@@ -7,7 +7,7 @@ import type { Lane } from "./session";
 /** Your question on launch morning. */
 const ask: Item = {
     kind: "ask",
-    text: "people say they got the launch email twice, and the pricing link on the launch post is broken. what else went wrong with last night's prep?",
+    text: "uh people are saying they got the launch email twice..? and the pricing link on the launch post 404s. what else went wrong last night lol",
 };
 
 /** Your agent reading its session from last night. */
@@ -76,7 +76,7 @@ const items: readonly Item[] = [
     slips,
     {
         kind: "approval",
-        text: "wants to publish /pricing, move the #launch post to 09:00 your time, and reopen Record the demo.",
+        text: "wants to publish /pricing, move the #launch post to 09:00 your time, and reopen Record the demo",
         outcome: "Allowed · 3 changes",
         grant: "once",
     },
@@ -98,8 +98,9 @@ export const stackedScene = Scene.of([
         server: "gmail",
         running: "Searching sent mail",
         title: "Searched sent mail",
-        request: 'search({ query: "in:sent subject:(Destack opens Friday)" })',
-        response: "4 messages · 500 + 500 + 500 + 340 recipients",
+        request: 'search_threads({ query: "in:sent subject:\\"Destack opens Friday\\"" })',
+        response:
+            '{ "resultSizeEstimate": 4, "threads": [{ "snippet": "Destack opens Friday…", "messagesTotal": 1 }, …] }',
         isFailed: false,
         isExpanded: false,
     },
@@ -108,8 +109,9 @@ export const stackedScene = Scene.of([
         server: "airtable",
         running: "Reading Signups",
         title: "Read Signups",
-        request: 'list_records({ table: "Signups", filter: "{Status} = \'invited\'" })',
-        response: "400 records · invited Thu 16:10",
+        request:
+            'list_records({ baseId: "appL4unchW8tlQ2x", table: "Signups", filterByFormula: "{Status} = \'invited\'" })',
+        response: '{ "records": [ …400 ], "offset": null }',
         isFailed: false,
         isExpanded: false,
     },
@@ -122,8 +124,8 @@ export const stackedScene = Scene.of([
         server: "slack",
         running: "Reading #launch",
         title: "Read #launch",
-        request: 'conversations.history({ channel: "launch", oldest: "Thu 17:00" })',
-        response: "2 messages from Florian · no scheduled messages visible",
+        request: 'conversations_history({ channel: "C07LAUNCH2Q", oldest: "1763049600" })',
+        response: '{ "ok": true, "messages": [ …2 ], "has_more": false }',
         isFailed: false,
         isExpanded: false,
     },
@@ -132,8 +134,9 @@ export const stackedScene = Scene.of([
         server: "notion",
         running: "Searching Notion",
         title: "Searched Notion",
-        request: 'search({ query: "pricing" })',
-        response: "Pricing · Destack site · draft · edited Thu 16:40",
+        request: 'search({ query: "pricing", filter: { property: "object", value: "page" } })',
+        response:
+            '{ "results": [{ "object": "page", "url": "https://www.notion.so/Pricing-1f2a…", "public_url": null, "last_edited_time": "2025-10-23T14:40:00.000Z" }] }',
         isFailed: false,
         isExpanded: false,
     },
@@ -148,8 +151,15 @@ export const stackedConnectors: readonly Connector[] = [
     ["gmail", "#ea4335"],
     ["airtable", "#18bfff"],
     ["slack", "#4a154b"],
-    ["trello", "#0052cc"],
     ["notion", "#191919"],
+    ["trello", "#0052cc"],
+    ["confluence", "#1868db"],
+    ["linear", "#5e6ad2"],
+    ["googlecalendar", "#4285f4"],
+    ["calendly", "#006bff"],
+    ["googledrive", "#1fa463"],
+    ["zapier", "#ff4f00"],
+    ["figma", "#a259ff"],
 ];
 
 /** Return what the chat in your space shows at a beat, the live view current once fixed. */

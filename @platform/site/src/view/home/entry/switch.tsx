@@ -1,6 +1,6 @@
 import { color, font, motion } from "@destack/theme/tokens.stylex";
 import * as style from "@destack/style";
-import { Icon } from "@destack/icon";
+import { Icon } from "@destack/ui/icon";
 import arrowUp from "@destack/icon/phosphor/arrow-up";
 import list from "@destack/icon/phosphor/list";
 import { Button } from "@destack/ui/button";
@@ -247,8 +247,13 @@ const styles = style.create({
         insetInlineStart: 0,
         position: "absolute",
         transformOrigin: "left",
+        // lean toward the other side while a mouse points at the switch, as the hint does
+        scale: {
+            default: "1 1",
+            ":is(button:hover > *)": { default: null, [media.hover]: "1.14 1" },
+        },
         transitionDuration: motion.durationMedium,
-        transitionProperty: "translate",
+        transitionProperty: "translate, scale",
         transitionTimingFunction: motion.easingEmphasised,
         translate: "0 0",
         width: "50%",

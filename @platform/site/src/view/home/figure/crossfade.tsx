@@ -1,5 +1,9 @@
 import { motion } from "@destack/theme/tokens.stylex";
 import * as style from "@destack/style";
+import { media } from "@destack/style/media.stylex";
+
+/** A figure label whose stack switch a mouse points at, which previews the other text. */
+const PREVIEW = ":is([data-figure-label]:has([role=switch]:hover) *)";
 
 /** Show the stacked or the destacked text, swapping only the words after those both share. */
 export function Crossfade(properties: { isOpen: boolean; stacked: string; destacked: string }) {
@@ -49,18 +53,19 @@ const styles = style.create({
     },
     text: {
         gridArea: "1 / 1",
+        opacity: { default: 1, [PREVIEW]: { default: null, [media.hover]: 0 } },
         transitionDuration: motion.durationLong,
         transitionProperty: "opacity, translate, visibility",
         transitionTimingFunction: motion.easingEmphasised,
     },
     stackedHidden: {
-        opacity: 0,
-        translate: "0 -6px",
-        visibility: "hidden",
+        opacity: { default: 0, [PREVIEW]: { default: null, [media.hover]: 0.55 } },
+        translate: { default: "0 -6px", [PREVIEW]: { default: null, [media.hover]: "0 0" } },
+        visibility: { default: "hidden", [PREVIEW]: { default: null, [media.hover]: "visible" } },
     },
     destackedHidden: {
-        opacity: 0,
-        translate: "0 6px",
-        visibility: "hidden",
+        opacity: { default: 0, [PREVIEW]: { default: null, [media.hover]: 0.55 } },
+        translate: { default: "0 6px", [PREVIEW]: { default: null, [media.hover]: "0 0" } },
+        visibility: { default: "hidden", [PREVIEW]: { default: null, [media.hover]: "visible" } },
     },
 });

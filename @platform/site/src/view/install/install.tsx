@@ -1,11 +1,9 @@
-import { measure } from "../layout/measure.stylex";
 import { media } from "@destack/style/media.stylex";
 import { color, font, stroke } from "@destack/theme/tokens.stylex";
 import * as style from "@destack/style";
 import { type JSX, Show } from "@destack/view";
 
 import { installCommand } from "../content/site";
-import { lattice } from "../layout/lattice.stylex";
 import { press } from "../layout/press";
 import { type Download, type System, systems } from "./catalog";
 import { createDownloads } from "./download";
@@ -44,7 +42,7 @@ function DownloadField(properties: { system: System | undefined; download: Downl
                 <span
                     aria-disabled="true"
                     title={missing()}
-                    {...style.attrs(press.key, styles.field, styles.tiled, styles.unavailable)}
+                    {...style.attrs(press.key, styles.field, styles.unavailable)}
                 >
                     <Product />
                     <span {...style.attrs(styles.soon)}>
@@ -56,11 +54,15 @@ function DownloadField(properties: { system: System | undefined; download: Downl
             {(download) => (
                 <a
                     href={download().url}
-                    aria-label={`Download ${download().label}`}
-                    title={`Destack for ${download().label}`}
-                    {...style.attrs(press.key, styles.field, styles.tiled)}
+                    aria-label={`Download ${download().file} for ${download().label}`}
+                    title={`Destack ${download().version} for ${download().label}`}
+                    {...style.attrs(press.key, styles.field)}
                 >
-                    <Product />
+                    <span {...style.attrs(styles.text)}>
+                        <img alt="" src={brand.iconRounded} {...style.attrs(styles.icon)} />
+                        {download().file}
+                        <span {...style.attrs(styles.meta)}> · {megabytesOf(download().size)}</span>
+                    </span>
                     <Key>
                         <Glyph name="download" size={16} />
                     </Key>
@@ -68,6 +70,11 @@ function DownloadField(properties: { system: System | undefined; download: Downl
             )}
         </Show>
     );
+}
+
+/** Write a download's length in whole megabytes, as macOS counts them. */
+function megabytesOf(bytes: number): string {
+    return `${Math.round(bytes / 1_000_000)} MB`;
 }
 
 /** Draw the desktop app's icon and name. */
@@ -129,7 +136,7 @@ function TerminalField() {
 function waysOf(prompt: string, desktop: Desktop): readonly Way[] {
     return [
         {
-            name: () => "Ask your Agent",
+            name: () => "Ask your agent",
             field: () => <AgentField prompt={prompt} />,
         },
         {
@@ -145,31 +152,6 @@ function waysOf(prompt: string, desktop: Desktop): readonly Way[] {
             field: () => <TerminalField />,
         },
     ];
-}
-
-/** Show the three ways to install side by side as alternatives, any one of them enough. */
-export function InstallWays(properties: { prompt: string }) {
-    // detect this machine's system and its published build once for the download field
-    const desktop = createDownloads();
-
-    return (
-        <ul {...style.attrs(lattice.cell, styles.column)}>
-            {waysOf(properties.prompt, desktop).map((way, index) => (
-                <li {...style.attrs(styles.way)}>
-                    {/* lead every way after the first with an "or" */}
-                    <span {...style.attrs(styles.title)}>
-                        {index === 0 ? undefined : (
-                            <span aria-hidden="true" {...style.attrs(styles.or)}>
-                                or
-                            </span>
-                        )}
-                        {way.name()}
-                    </span>
-                    {way.field()}
-                </li>
-            ))}
-        </ul>
-    );
 }
 
 /** Show the three ways to install stacked, for the menu every page opens from its top bar. */
@@ -191,52 +173,11 @@ export function InstallList(properties: { prompt: string; xstyle?: style.Styles 
 
 /** The install styles. */
 const styles = style.create({
-    column: {
-        backgroundColor: color.primary,
-        backgroundImage: "none",
-        display: "grid",
-        gridColumn: "1 / -1",
-        gridTemplateColumns: {
-            default: "repeat(3, minmax(0, 1fr))",
-            [media.maxLg]: "minmax(0, 1fr)",
-        },
-        listStyle: "none",
-        margin: 0,
-        padding: 0,
-    },
-    way: {
-        borderColor: `color-mix(in srgb, ${color.foreground} 30%, transparent)`,
-        borderStyle: "solid",
-        borderWidth: 0,
-        borderInlineStartWidth: {
-            default: 0,
-            ":not(:first-child)": { default: stroke.border, [media.maxLg]: 0 },
-        },
-        borderTopWidth: {
-            default: 0,
-            ":not(:first-child)": { default: 0, [media.maxLg]: stroke.border },
-        },
-        display: "grid",
-        gap: "0.75rem",
-        minWidth: 0,
-        paddingBottom: "1.5rem",
-        paddingInline: { default: "2.25rem", [media.maxLg]: measure.inset },
-        paddingTop: "1.25rem",
-        position: "relative",
-    },
     title: {
         alignItems: "baseline",
         display: "flex",
         fontSize: typeScale.body,
         fontWeight: 600,
-    },
-    or: {
-        color: `color-mix(in srgb, ${color.foreground} 70%, transparent)`,
-        fontFamily: font.text,
-        fontSize: typeScale.small,
-        fontStyle: "italic",
-        fontWeight: 400,
-        marginInlineEnd: "0.375rem",
     },
     field: {
         alignItems: "center",
@@ -300,12 +241,15 @@ const styles = style.create({
         whiteSpace: "nowrap",
     },
     icon: {
+        display: "inline-block",
         flexShrink: 0,
-        height: "2.25rem",
-        width: "2.25rem",
+        height: "1.25rem",
+        marginInlineEnd: "0.5rem",
+        verticalAlign: "-0.3125rem",
+        width: "1.25rem",
     },
-    tiled: {
-        paddingInlineStart: "0.375rem",
+    meta: {
+        color: `color-mix(in srgb, ${color.foreground} 55%, transparent)`,
     },
     text: {
         flexGrow: 1,

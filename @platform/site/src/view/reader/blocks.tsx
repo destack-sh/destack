@@ -1,5 +1,5 @@
 import type { Element, ElementContent, Root } from "hast";
-import { Icon } from "@destack/icon";
+import { Icon } from "@destack/ui/icon";
 import arrowDown from "@destack/icon/phosphor/arrow-down";
 import play from "@destack/icon/phosphor/play";
 import * as style from "@destack/style";
@@ -370,9 +370,7 @@ const styles = style.create({
     abstractBody: {
         color: color.foreground,
         display: "grid",
-        fontSize: typeScale.lead,
         justifySelf: "stretch",
-        lineHeight: 1.55,
         rowGap: space[4],
     },
     skip: {

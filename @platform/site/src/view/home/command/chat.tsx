@@ -1,4 +1,4 @@
-import { font, motion } from "@destack/theme/tokens.stylex";
+import { color, font, motion } from "@destack/theme/tokens.stylex";
 import { media } from "@destack/style/media.stylex";
 import { present } from "@destack/schema";
 import * as style from "@destack/style";
@@ -8,8 +8,9 @@ import { createTimer } from "@destack/view/primitives/timer";
 import { browserStyles } from "../figure/browser";
 import { Favicon, Glyph } from "../figure/glyph";
 import { Mark, type Option, type OptionMark } from "../figure/picker";
-import { type Tool, tools } from "../tool/tool";
-import { assistant, builder, chat, chatgpt, claude, gemini, grok, terminal } from "./chat.stylex";
+import { tools } from "../tool/tool";
+import { vendors } from "../noun/service";
+import { amp, assistant, chat, chatgpt, claude, gemini, grok } from "./chat.stylex";
 import { brand } from "../../brand";
 import {
     BEAT,
@@ -31,7 +32,7 @@ export const SHELL = "shell";
 const SHOWN_CONNECTORS = 3;
 
 /** The assistants the chat takes the look of, in turn. */
-export const assistants = ["Claude", "ChatGPT", "Gemini", "Grok"] as const;
+export const assistants = ["Claude", "ChatGPT", "Gemini", "Grok", "Amp"] as const;
 
 /** Each assistant as the picker offers it, by its mark and colour. */
 export const assistantOptions: readonly Option[] = [
@@ -39,20 +40,11 @@ export const assistantOptions: readonly Option[] = [
     { name: "ChatGPT", mark: { icon: "openai", tint: "#000000" } },
     { name: "Gemini", mark: { icon: "gemini", tint: "#4285f4" } },
     { name: "Grok", mark: { icon: "grok", tint: "#000000" } },
+    { name: "Amp", mark: { icon: "amp", tint: "#13261c" } },
 ];
 
 /** One assistant the chat can look like. */
 export type Assistant = (typeof assistants)[number];
-
-/** A chat's look: an assistant's own app, or a coding agent's terminal or a builder's panel. */
-export type Look =
-    | { kind: "assistant"; assistant: Assistant }
-    | { kind: "terminal" | "builder"; name: string; mark: OptionMark };
-
-/** Return the name a look's agent goes by. */
-export function nameOf(look: Look): string {
-    return look.kind === "assistant" ? look.assistant : look.name;
-}
 
 /** Count a chat's beats while it runs, from zero again whenever its scene starts over. */
 export function createBeat(isRunning: () => boolean, restart: () => unknown) {
@@ -74,14 +66,19 @@ export function createBeat(isRunning: () => boolean, restart: () => unknown) {
 
 /** Return the assistant a chat looks like: the reader's choice, or the next one each run. */
 export function createAssistantTurn(
+    first: Assistant,
     beat: () => number,
     length: () => number,
     isReduced: () => boolean,
 ) {
     // take the assistant the reader chose, or else the next one's look each time the task runs again
     const [chosen, setChosen] = createSignal<Assistant | undefined>(undefined);
+    const start = assistants.indexOf(first);
     const turned = () =>
-        present(assistants[Math.floor(beat() / length()) % assistants.length], "turned assistant");
+        present(
+            assistants[(start + Math.floor(beat() / length())) % assistants.length],
+            "turned assistant",
+        );
     const look = () => chosen() ?? turned();
 
     // show how far the run has come until the reader chooses
@@ -100,19 +97,17 @@ export function createAssistantTurn(
 
 /** Draw an assistant's desktop app a turn at a time: through connectors, or with your space. */
 export function AgentChat(properties: {
+    title: string;
     isOpen: boolean;
     moment: Moment;
-    look: Look;
+    assistant: Assistant;
     connectors: readonly Connector[];
 }) {
     // tell each look's chrome apart, so the shown one fades in over the rest
-    const isShown = (candidate: Assistant) =>
-        properties.look.kind === "assistant" && properties.look.assistant === candidate;
-    const isSurface = (kind: "terminal" | "builder") => properties.look.kind === kind;
-    const surface = () => (properties.look.kind === "assistant" ? undefined : properties.look);
+    const isShown = (candidate: Assistant) => properties.assistant === candidate;
 
     // settle the conversation into the new look's type each time the look's name changes
-    const name = createMemo(() => nameOf(properties.look));
+    const name = createMemo(() => properties.assistant);
     const [settles, setSettles] = createSignal(0);
     createEffect(name, () => {
         setSettles((count) => count + 1);
@@ -133,8 +128,8 @@ export function AgentChat(properties: {
         <Cast>
             <div
                 data-component="AgentChat"
-                data-assistant={nameOf(properties.look)}
-                {...style.attrs(browserStyles.browser, styles.window, themeOf(properties.look))}
+                data-assistant={properties.assistant}
+                {...style.attrs(browserStyles.browser, styles.window, themes[properties.assistant])}
             >
                 {/* title bar, one per assistant */}
                 <div {...style.attrs(styles.stack)}>
@@ -143,7 +138,7 @@ export function AgentChat(properties: {
                             <span aria-hidden="true" {...style.attrs(browserStyles.lights)} />
                             <Glyph name="sidebar" size={15} />
                             <span {...style.attrs(styles.conversation)}>
-                                Launch day
+                                {properties.title}
                                 <Glyph name="caret" size={11} />
                             </span>
                             <span {...style.attrs(styles.barEnd)}>
@@ -169,30 +164,24 @@ export function AgentChat(properties: {
                         <span {...style.attrs(styles.bar)}>
                             <span aria-hidden="true" {...style.attrs(browserStyles.lights)} />
                             <Glyph name="sidebar" size={15} />
-                            <span {...style.attrs(styles.conversation)}>Launch day</span>
+                            <span {...style.attrs(styles.conversation)}>{properties.title}</span>
                             <span {...style.attrs(styles.barEnd)}>
                                 <Glyph name="share" size={14} />
                                 <Glyph name="more" size={15} />
                             </span>
                         </span>
                     </Layer>
-                    <Layer isShown={isSurface("terminal")}>
-                        <span {...style.attrs(styles.bar, styles.terminalBar)}>
-                            <span aria-hidden="true" {...style.attrs(browserStyles.lights)} />
-                            <span {...style.attrs(styles.conversation)}>~/launch-tracker</span>
-                            <span {...style.attrs(styles.barEnd)}>
-                                <SurfaceMark look={surface()} size={13} />
-                                {surface()?.name}
-                            </span>
-                        </span>
-                    </Layer>
-                    <Layer isShown={isSurface("builder")}>
+                    <Layer isShown={isShown("Amp")}>
                         <span {...style.attrs(styles.bar)}>
                             <span aria-hidden="true" {...style.attrs(browserStyles.lights)} />
-                            <SurfaceMark look={surface()} size={15} />
-                            <span {...style.attrs(styles.conversation)}>Launch tracker</span>
+                            <Glyph name="sidebar" size={15} />
+                            <span {...style.attrs(styles.conversation)}>
+                                {properties.title}
+                                <Glyph name="more" size={13} />
+                            </span>
                             <span {...style.attrs(styles.barEnd)}>
-                                <span {...style.attrs(styles.publish)}>Publish</span>
+                                <span {...style.attrs(styles.avatar, styles.ampAvatar)}>F</span>
+                                <span {...style.attrs(styles.share)}>Share</span>
                             </span>
                         </span>
                     </Layer>
@@ -219,7 +208,7 @@ export function AgentChat(properties: {
                         {(item) => (
                             <ItemView
                                 item={item}
-                                look={properties.look}
+                                assistant={properties.assistant}
                                 isRunning={item === properties.moment.running}
                                 isDeciding={item === properties.moment.deciding}
                                 isPressed={item === properties.moment.pressed}
@@ -246,7 +235,9 @@ export function AgentChat(properties: {
                         </Layer>
                         <Layer isShown={isShown("ChatGPT")}>
                             {properties.moment.isWorking ? (
-                                <span {...style.attrs(styles.pulse)} />
+                                <span {...style.attrs(styles.thinking, styles.shimmer)}>
+                                    Thinking
+                                </span>
                             ) : isReplied() ? (
                                 <span {...style.attrs(styles.actions)}>
                                     <Glyph name="copy" size={14} />
@@ -270,17 +261,17 @@ export function AgentChat(properties: {
                                 </span>
                             ) : undefined}
                         </Layer>
-                        <Layer isShown={isSurface("terminal") || isSurface("builder")}>
+                        <Layer isShown={isShown("Amp")}>
                             {properties.moment.isWorking ? (
                                 <span {...style.attrs(styles.spinning)}>
-                                    <SurfaceMark look={surface()} size={16} />
+                                    <Favicon icon="amp" tint={amp.ink} size={18} />
                                 </span>
                             ) : undefined}
                         </Layer>
                         <Layer isShown={isShown("Grok")}>
                             {properties.moment.isWorking ? (
-                                <span {...style.attrs(styles.spinning)}>
-                                    <Favicon icon="grok" tint={grok.ink} size={18} />
+                                <span {...style.attrs(styles.thinking, styles.shimmer)}>
+                                    Thinking
                                 </span>
                             ) : isReplied() ? (
                                 <span {...style.attrs(styles.actions)}>
@@ -365,29 +356,21 @@ export function AgentChat(properties: {
                             </span>
                         </span>
                     </Layer>
-                    <Layer isShown={isSurface("terminal")}>
-                        <span {...style.attrs(styles.composer, styles.terminalComposer)}>
-                            <span {...style.attrs(styles.prompt)}>
-                                <span aria-hidden="true">&gt;</span>
-                                <Typed
-                                    text={properties.moment.typing}
-                                    placeholder='Try "build a launch tracker"'
-                                />
-                            </span>
-                            <span {...style.attrs(styles.composerRow, styles.terminalHint)}>
-                                ? for shortcuts
-                            </span>
-                        </span>
-                    </Layer>
-                    <Layer isShown={isSurface("builder")}>
-                        <span {...style.attrs(styles.composer, styles.builderComposer)}>
-                            <Typed
-                                text={properties.moment.typing}
-                                placeholder={`Ask ${surface()?.name ?? ""}…`}
-                            />
+                    <Layer isShown={isShown("Amp")}>
+                        <span {...style.attrs(styles.composer, styles.ampComposer)}>
+                            <Typed text={properties.moment.typing} placeholder="Message Amp" />
                             <span {...style.attrs(styles.composerRow)}>
                                 <Glyph name="plus" size={16} />
-                                <span {...style.attrs(styles.end, styles.builderSend)}>
+                                <Connectors
+                                    isOpen={properties.isOpen}
+                                    connectors={properties.connectors}
+                                />
+                                <span {...style.attrs(styles.hint, styles.end)}>
+                                    smart
+                                    <Glyph name="caret" size={10} />
+                                </span>
+                                <Glyph name="microphone" size={15} />
+                                <span {...style.attrs(styles.ampSend)}>
                                     <SendMark send={send()} />
                                 </span>
                             </span>
@@ -499,6 +482,7 @@ function Typed(properties: { text: string | undefined; placeholder: string }) {
                             </span>
                         )}
                     </For>
+                    <span aria-hidden="true" {...style.attrs(styles.caret)} />
                 </span>
             )}
         </Show>
@@ -548,7 +532,7 @@ function Layer(properties: { isShown: boolean; children: JSX.Element }) {
 /** Draw one item of the conversation in its kind's shape. */
 function ItemView(properties: {
     item: Item;
-    look: Look;
+    assistant: Assistant;
     isRunning: boolean;
     isDeciding: boolean;
     isPressed: boolean;
@@ -559,32 +543,23 @@ function ItemView(properties: {
         <>
             {/* your message, a tool run, an app made, an approval, or the reply streamed in */}
             {properties.item.kind === "ask" ? (
-                <span
-                    {...style.attrs(
-                        styles.ask,
-                        properties.look.kind === "terminal" && styles.terminalAsk,
-                    )}
-                >
-                    {properties.look.kind === "terminal"
-                        ? `> ${properties.item.text}`
-                        : properties.item.text}
-                </span>
+                <span {...style.attrs(styles.ask)}>{properties.item.text}</span>
             ) : properties.item.kind === "call" ? (
                 <ToolCall
                     item={properties.item}
-                    look={properties.look}
+                    assistant={properties.assistant}
                     isRunning={properties.isRunning}
                 />
             ) : properties.item.kind === "app" ? (
                 <AppView
                     item={properties.item}
-                    look={properties.look}
+                    assistant={properties.assistant}
                     isBuilding={properties.isBuilding}
                 />
             ) : properties.item.kind === "approval" ? (
                 <ApprovalView
                     item={properties.item}
-                    look={properties.look}
+                    assistant={properties.assistant}
                     isDeciding={properties.isDeciding}
                     isPressed={properties.isPressed}
                 />
@@ -600,7 +575,7 @@ function ItemView(properties: {
 /** Draw an app the agent made: live in your space, or as an artifact, canvas or version. */
 function AppView(properties: {
     item: Extract<Item, { kind: "app" }>;
-    look: Look;
+    assistant: Assistant;
     isBuilding: boolean;
 }) {
     return (
@@ -610,7 +585,7 @@ function AppView(properties: {
             ) : (
                 <ArtifactCard
                     item={properties.item}
-                    kind={kindOf(properties.look)}
+                    kind={kindOf(properties.assistant)}
                     isBuilding={properties.isBuilding}
                 />
             )}
@@ -618,20 +593,26 @@ function AppView(properties: {
     );
 }
 
-/** Draw a request for your approval while you read it, then its outcome. */
+/** Draw a request for your approval while you read it, then the request with its outcome. */
 function ApprovalView(properties: {
     item: Extract<Item, { kind: "approval" }>;
-    look: Look;
+    assistant: Assistant;
     isDeciding: boolean;
     isPressed: boolean;
 }) {
     return (
         <span {...style.attrs(styles.approval, !properties.isDeciding && styles.approved)}>
-            <span>
-                {properties.isDeciding
-                    ? `${nameOf(properties.look)} ${properties.item.text}`
-                    : properties.item.outcome}
-            </span>
+            {/* the question while you decide, then the question above its outcome */}
+            {properties.isDeciding ? (
+                <span>{`${properties.assistant} ${properties.item.text}`}</span>
+            ) : (
+                <span {...style.attrs(styles.decided)}>
+                    <span {...style.attrs(styles.asked)}>
+                        {`${properties.assistant} ${properties.item.text}`}
+                    </span>
+                    <span>{properties.item.outcome}</span>
+                </span>
+            )}
             {properties.isDeciding ? (
                 <span {...style.attrs(styles.buttons)}>
                     <span {...style.attrs(styles.button)}>Deny</span>
@@ -642,7 +623,7 @@ function ApprovalView(properties: {
                             properties.isPressed && styles.buttonPressed,
                         )}
                     >
-                        {allowOf(properties.item.grant, properties.look)}
+                        {allowOf(properties.item.grant, properties.assistant)}
                     </span>
                 </span>
             ) : undefined}
@@ -653,26 +634,32 @@ function ApprovalView(properties: {
 /** Draw a tool the assistant ran: its summary line, and its request and response once opened. */
 function ToolCall(properties: {
     item: Extract<Item, { kind: "call" }>;
-    look: Look;
+    assistant: Assistant;
     isRunning: boolean;
 }) {
+    // open the call as its step says, and mark it failed once it has run
     const [isOpen, setIsOpen] = createSignal(properties.item.isExpanded);
     const item = () => properties.item;
+    const isFailed = () => !properties.isRunning && properties.item.isFailed;
+
+    // set each app's step: Gemini's chip, a quiet line in ChatGPT and Grok, Claude's titled row
+    const isChip = () => properties.assistant === "Gemini";
+    const isQuiet = () => properties.assistant === "ChatGPT" || properties.assistant === "Grok";
+    const isSideways = () => isQuiet() && !isOpen();
 
     return (
         <>
-            {/* a terminal's tool line and its result beneath, or a chat's tool summary */}
-            {properties.look.kind === "terminal" ? (
-                <span {...style.attrs(styles.tool, styles.terminalTool)}>
-                    <span {...style.attrs(properties.isRunning && styles.shimmer)}>
-                        <span aria-hidden="true" {...style.attrs(styles.bullet)}>
-                            ⏺
-                        </span>
-                        {properties.isRunning ? item().running : item().title}
-                    </span>
-                    {properties.isRunning ? undefined : (
-                        <span {...style.attrs(styles.result)}>⎿ {item().response}</span>
+            {/* Amp's one quiet line per step, or a chat's tool summary that opens */}
+            {properties.assistant === "Amp" ? (
+                <span
+                    {...style.attrs(
+                        styles.ampStep,
+                        properties.isRunning && styles.shimmer,
+                        isFailed() && styles.ampFailed,
                     )}
+                >
+                    <ServerMark server={item().server} />
+                    {properties.isRunning ? item().running : item().title}
                 </span>
             ) : (
                 <span {...style.attrs(styles.tool)}>
@@ -681,31 +668,27 @@ function ToolCall(properties: {
                         aria-expanded={isOpen() ? "true" : "false"}
                         title={serverNameOf(item().server)}
                         onClick={() => setIsOpen(!isOpen())}
-                        {...style.attrs(styles.toolHead)}
+                        {...style.attrs(styles.toolHead, isChip() && styles.chip)}
                     >
-                        {item().server === "destack" ? (
-                            <img alt="" src={brand.favicon} {...style.attrs(styles.server)} />
-                        ) : item().server === SHELL ? (
-                            <Glyph name="file" size={13} />
-                        ) : (
-                            <Favicon
-                                icon={item().server}
-                                tint={vendorOf(item().server).tint}
-                                size={13}
-                            />
-                        )}
+                        <ServerMark server={item().server} />
                         {properties.isRunning ? (
                             <span {...style.attrs(styles.toolTitle, styles.shimmer)}>
                                 {item().running}
                             </span>
                         ) : (
                             <>
-                                <span {...style.attrs(styles.toolTitle)}>{item().title}</span>
+                                <span {...style.attrs(styles.toolTitle, isQuiet() && styles.quiet)}>
+                                    {item().title}
+                                </span>
                                 {item().isFailed ? (
                                     <span {...style.attrs(styles.failed)}>failed</span>
                                 ) : undefined}
                                 <span
-                                    {...style.attrs(styles.chevron, isOpen() && styles.chevronOpen)}
+                                    {...style.attrs(
+                                        styles.chevron,
+                                        isOpen() && styles.chevronOpen,
+                                        isSideways() && styles.chevronSideways,
+                                    )}
                                 >
                                     <Glyph name="caret" size={10} />
                                 </span>
@@ -733,12 +716,32 @@ function ToolCall(properties: {
     );
 }
 
-/** Return the tool a vendor's connector serves, by the tool's mark. */
-function vendorOf(server: string): Tool {
-    return present(
-        tools.find((tool) => tool.icon === server),
-        `tool with the mark ${server}`,
+/** Draw a call's server: Destack's mark, a file for the shell, or the app's or service's mark. */
+function ServerMark(properties: { server: string }) {
+    return (
+        <>
+            {properties.server === "destack" ? (
+                <img alt="" src={brand.favicon} {...style.attrs(styles.server)} />
+            ) : properties.server === SHELL ? (
+                <Glyph name="file" size={13} />
+            ) : (
+                <Mark mark={serverOf(properties.server).mark} size={13} />
+            )}
+        </>
     );
+}
+
+/** Return the name and mark of a call's server: one of your apps, or a service an app rents. */
+function serverOf(server: string): { readonly name: string; readonly mark: OptionMark } {
+    // find an app by its mark, or else a service by its lowercase name
+    const tool = tools.find((each) => each.icon === server);
+
+    return tool === undefined
+        ? present(
+              vendors.find((each) => each.name.toLowerCase() === server),
+              `server with the mark ${server}`,
+          )
+        : { name: tool.name, mark: { icon: tool.icon, tint: tool.tint } };
 }
 
 /**
@@ -823,14 +826,14 @@ function serverNameOf(server: string): string {
         return "Shell";
     }
 
-    return vendorOf(server).name;
+    return serverOf(server).name;
 }
 
-/** Return what a look calls an app it makes in the chat: an artifact, a canvas, or a version. */
-function kindOf(shown: Look): string {
-    if (shown.kind !== "assistant") {
-        return "Version 1";
-    } else if (shown.assistant === "ChatGPT" || shown.assistant === "Gemini") {
+/** Return what an assistant calls an app it makes: an artifact, a canvas, or a portal. */
+function kindOf(shown: Assistant): string {
+    if (shown === "Amp") {
+        return "Portal";
+    } else if (shown === "ChatGPT" || shown === "Gemini") {
         return "Canvas";
     }
 
@@ -838,33 +841,14 @@ function kindOf(shown: Look): string {
 }
 
 /** Return an approval's allow label, by how long it holds and whose chrome shows it. */
-function allowOf(grant: Grant, shown: Look): string {
+function allowOf(grant: Grant, shown: Assistant): string {
     // hold for the rest of the chat
     if (grant === "chat") {
         return "Allow for this chat";
     }
 
     // hold for this call alone
-    return shown.kind === "assistant" && shown.assistant === "Claude" ? "Allow once" : "Approve";
-}
-
-/** Return a look's theme: its assistant's own, or the terminal's or the builder's. */
-function themeOf(look: Look) {
-    return look.kind === "assistant" ? themes[look.assistant] : themes[look.kind];
-}
-
-/** Draw a coding agent's or builder's mark, or nothing for an assistant's look. */
-function SurfaceMark(properties: {
-    look: Extract<Look, { kind: "terminal" | "builder" }> | undefined;
-    size: number;
-}) {
-    return (
-        <>
-            {properties.look === undefined ? undefined : (
-                <Mark mark={properties.look.mark} size={properties.size} />
-            )}
-        </>
-    );
+    return shown === "Claude" ? "Allow once" : "Approve";
 }
 
 /** The colour and shape properties that ease between assistants. */
@@ -882,10 +866,22 @@ const settleOdd = style.keyframes({
     to: { opacity: 1 },
 });
 
-/** A typed character or a streamed word appearing, in place. */
+/** A streamed word appearing, in place. */
 const appear = style.keyframes({
     from: { opacity: 0 },
     to: { opacity: 1 },
+});
+
+/** A typed character landing at once, taking no room until its moment so the caret follows it. */
+const land = style.keyframes({
+    from: { display: "none" },
+    to: { display: "inline" },
+});
+
+/** The composer's caret blinking at the end of what you typed. */
+const blink = style.keyframes({
+    "0%, 50%": { opacity: 1 },
+    "50.01%, 100%": { opacity: 0 },
 });
 
 /** The light sweeping across a running tool's title. */
@@ -898,12 +894,6 @@ const sweep = style.keyframes({
 const spin = style.keyframes({
     from: { transform: "rotate(0deg)" },
     to: { transform: "rotate(360deg)" },
-});
-
-/** A dot breathing while its assistant works. */
-const breathe = style.keyframes({
-    "0%, 100%": { transform: "scale(0.7)" },
-    "50%": { transform: "scale(1)" },
 });
 
 /** Each assistant's conversation, as it ships. */
@@ -948,28 +938,15 @@ export const themes = style.create({
         [chat.replySize]: "0.9375rem",
         [chat.replyLine]: "1.65",
     },
-    terminal: {
-        [chat.canvas]: terminal.canvas,
-        [chat.ink]: terminal.ink,
-        [chat.muted]: terminal.muted,
-        [chat.border]: terminal.border,
-        [chat.field]: terminal.field,
-        [chat.bubble]: terminal.field,
-        [chat.bubbleRadius]: "4px",
-        [chat.bubbleCorner]: "4px",
-        [chat.replyFont]: terminal.face,
-        [chat.replySize]: "0.8125rem",
-        [chat.replyLine]: "1.6",
-    },
-    builder: {
-        [chat.canvas]: builder.canvas,
-        [chat.ink]: builder.ink,
-        [chat.muted]: builder.muted,
-        [chat.border]: builder.border,
-        [chat.field]: builder.field,
-        [chat.bubble]: builder.field,
-        [chat.bubbleRadius]: "14px",
-        [chat.bubbleCorner]: "4px",
+    Amp: {
+        [chat.canvas]: amp.canvas,
+        [chat.ink]: amp.ink,
+        [chat.muted]: amp.muted,
+        [chat.border]: amp.border,
+        [chat.field]: amp.field,
+        [chat.bubble]: amp.bubble,
+        [chat.bubbleRadius]: "10px",
+        [chat.bubbleCorner]: "10px",
         [chat.replyFont]: SANS,
         [chat.replySize]: "0.875rem",
         [chat.replyLine]: "1.6",
@@ -1024,6 +1001,10 @@ const styles = style.create({
         display: "inline-flex",
         fontSize: "0.8125rem",
         gap: "0.25rem",
+        // set the title on one line in a narrow window, clipped as the apps clip it
+        minWidth: 0,
+        overflow: "hidden",
+        whiteSpace: "nowrap",
     },
     share: {
         borderColor: chat.border,
@@ -1137,9 +1118,21 @@ const styles = style.create({
         lineHeight: 1.5,
     },
     character: {
-        animationDuration: motion.durationShort,
+        animationDuration: "1ms",
         animationFillMode: "backwards",
-        animationName: appear,
+        animationName: land,
+        animationTimingFunction: "steps(1, end)",
+    },
+    caret: {
+        animationDuration: { default: "1s", [media.motionReduce]: "0ms" },
+        animationIterationCount: "infinite",
+        animationName: blink,
+        backgroundColor: "currentColor",
+        display: "inline-block",
+        height: "1.1em",
+        marginInlineStart: "1px",
+        verticalAlign: "text-bottom",
+        width: "1.5px",
     },
     word: {
         animationDuration: motion.durationMedium,
@@ -1163,15 +1156,6 @@ const styles = style.create({
         animationName: spin,
         animationTimingFunction: "linear",
         display: "inline-flex",
-    },
-    pulse: {
-        animationDuration: { default: "1.2s", [media.motionReduce]: "0ms" },
-        animationIterationCount: "infinite",
-        animationName: breathe,
-        backgroundColor: chat.ink,
-        borderRadius: "50%",
-        height: "12px",
-        width: "12px",
     },
     stop: {
         backgroundColor: "currentColor",
@@ -1225,6 +1209,25 @@ const styles = style.create({
     toolTitle: {
         color: chat.ink,
         fontWeight: 500,
+    },
+    quiet: {
+        color: chat.muted,
+        fontWeight: 400,
+    },
+    chip: {
+        backgroundColor: chat.field,
+        borderColor: chat.border,
+        borderRadius: "999px",
+        borderStyle: "solid",
+        borderWidth: "1px",
+        paddingBlock: "0.3125rem",
+        paddingInline: "0.625rem",
+    },
+    chevronSideways: {
+        transform: "rotate(-90deg)",
+    },
+    thinking: {
+        fontSize: "0.875rem",
     },
     chevron: {
         display: "inline-flex",
@@ -1436,6 +1439,13 @@ const styles = style.create({
         transitionTimingFunction: motion.easingStandard,
         transitionProperty: EASED,
     },
+    decided: {
+        display: "grid",
+        rowGap: "0.125rem",
+    },
+    asked: {
+        color: color.mutedForeground,
+    },
     approved: {
         color: assistant.passed,
     },
@@ -1510,6 +1520,7 @@ const styles = style.create({
     geminiComposer: {
         backgroundColor: gemini.composer,
         borderRadius: "28px",
+        boxShadow: gemini.lift,
         display: "grid",
         paddingBlock: "1rem",
         paddingInline: "1.25rem",
@@ -1609,77 +1620,37 @@ const styles = style.create({
         justifyContent: "center",
         width: "2rem",
     },
-    terminalAsk: {
-        alignSelf: "stretch",
-        fontFamily: terminal.face,
-        fontSize: "0.8125rem",
-        maxWidth: "none",
-    },
-    terminalTool: {
-        display: "grid",
-        fontFamily: terminal.face,
-        fontSize: "0.8125rem",
-        gap: "0.125rem",
-    },
-    bullet: {
-        color: assistant.passed,
-        marginInlineEnd: "0.5rem",
-    },
-    result: {
+    ampStep: {
+        alignItems: "center",
         color: chat.muted,
-        paddingInlineStart: "1.25rem",
-    },
-    terminalBar: {
-        fontFamily: terminal.face,
-        fontSize: "0.75rem",
-    },
-    publish: {
-        backgroundColor: builder.action,
-        borderRadius: "6px",
-        color: builder.actionInk,
-        fontSize: "0.75rem",
-        fontWeight: 500,
-        paddingBlock: "0.25rem",
-        paddingInline: "0.625rem",
-    },
-    terminalComposer: {
-        borderColor: chat.border,
-        borderRadius: "6px",
-        borderStyle: "solid",
-        borderWidth: "1px",
-        display: "grid",
-        fontFamily: terminal.face,
-        fontSize: "0.8125rem",
-        gap: "0.375rem",
-    },
-    prompt: {
-        alignItems: "baseline",
-        color: chat.ink,
+        columnGap: "0.5rem",
         display: "flex",
-        gap: "0.5rem",
+        fontSize: "0.8125rem",
         minWidth: 0,
     },
-    terminalHint: {
-        color: chat.muted,
-        fontSize: "0.6875rem",
+    ampFailed: {
+        color: assistant.failed,
     },
-    builderComposer: {
-        backgroundColor: chat.canvas,
+    ampComposer: {
+        backgroundColor: amp.field,
         borderColor: chat.border,
-        borderRadius: "14px",
+        borderRadius: "12px",
         borderStyle: "solid",
         borderWidth: "1px",
         display: "grid",
     },
-    builderSend: {
+    ampSend: {
         alignItems: "center",
-        backgroundColor: builder.action,
-        borderRadius: "8px",
-        color: builder.actionInk,
+        backgroundColor: amp.send,
+        borderRadius: "50%",
+        color: amp.sendInk,
         display: "inline-flex",
         height: "1.75rem",
         justifyContent: "center",
         width: "1.75rem",
+    },
+    ampAvatar: {
+        backgroundColor: amp.avatar,
     },
     geminiTools: {
         alignItems: "center",

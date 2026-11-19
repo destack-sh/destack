@@ -8,22 +8,25 @@ import { lattice } from "../../layout/lattice.stylex";
 import { BlackBox } from "../drawing/blackbox";
 import { layerCount } from "../past/stack";
 import { Entry, FigureLabel, type Form } from "../entry/entry";
-import { Label, LabelRow } from "../entry/label";
+import { LabelRow, pane, PaneLabel } from "../entry/label";
 import { Picker } from "../figure/picker";
 import { AgentChat, assistantOptions, createAssistantTurn, createBeat } from "../command/chat";
 import { StackSwitch } from "../entry/switch";
 import { type Console, Inspector } from "./inspect";
 import { destackedChatAt, destackedScene, laneAt, stackedConnectors, stackedScene } from "./scene";
 
+/** The panes the figure switches between below the desktop width, its app and your agent. */
+const PANES = ["Your apps", "Your agent"];
+
 /** The adjective every app answers to. */
 export const destackable: Form = {
     syllables: ["de", "stack", "a", "ble"],
-    pronunciation: "/diːˈstakəbl/",
+    pronunciation: "dee-stack-uh-bul",
     partOfSpeech: "adjective",
     sense: {
         definition: "open, transparent, and hackable",
         highlight: ["transparent", "hackable"],
-        sentence: "See everything your apps and agents do, and control all of it.",
+        sentence: "See everything your apps and agents do, and control all of it through one API.",
     },
 };
 
@@ -62,7 +65,12 @@ export function Adjective(properties: { isOpen: boolean }) {
     const moment = () => (properties.isOpen ? destackedChatAt(at()) : stackedScene.at(at()));
 
     // take the assistant the reader chose, or else the next one's look each time it runs again
-    const { look, progress, choose } = createAssistantTurn(beat, () => scene().length, isReduced);
+    const { look, progress, choose } = createAssistantTurn(
+        "ChatGPT",
+        beat,
+        () => scene().length,
+        isReduced,
+    );
 
     // show the log where the conversation has it
     const lane = () => laneAt(at() ?? destackedScene.length);
@@ -75,6 +83,9 @@ export function Adjective(properties: { isOpen: boolean }) {
         return last?.kind === "call" && isConsole(last.server) ? last.server : "slack";
     };
 
+    // show the app or your agent below the desktop width, where one pane shows at a time
+    const [shownPane, setShownPane] = createSignal(0);
+
     return (
         <section
             ref={setSection}
@@ -84,16 +95,25 @@ export function Adjective(properties: { isOpen: boolean }) {
             <FigureLabel
                 number={4}
                 isOpen={properties.isOpen}
-                stacked="five apps, five logs"
-                destacked="five apps, one log"
+                stacked="five apps, five logs, your agent half-blind"
+                destacked="five apps, one log, your agent all-seeing"
             >
                 <StackSwitch isOpen={properties.isOpen} place="label" />
             </FigureLabel>
             <BlackBox isOpen={properties.isOpen} layers={layerCount} />
-            <div {...style.attrs(lattice.cell, lattice.figureCell, styles.app)}>
-                <Label>
-                    {properties.isOpen ? "Your apps, in one log" : "Your apps, in five logs"}
-                </Label>
+            <div
+                {...style.attrs(
+                    lattice.cell,
+                    lattice.figureCell,
+                    styles.app,
+                    shownPane() !== 0 && pane.hidden,
+                )}
+            >
+                <LabelRow end={undefined}>
+                    <PaneLabel panes={PANES} shown={shownPane()} onShow={setShownPane}>
+                        {properties.isOpen ? "Your apps, in one log" : "Your apps, in five logs"}
+                    </PaneLabel>
+                </LabelRow>
                 <Inspector
                     isOpen={properties.isOpen}
                     console={opened()}
@@ -101,7 +121,14 @@ export function Adjective(properties: { isOpen: boolean }) {
                     onTouch={() => setIsTouched(true)}
                 />
             </div>
-            <div {...style.attrs(lattice.cell, lattice.figureCell, styles.console)}>
+            <div
+                {...style.attrs(
+                    lattice.cell,
+                    lattice.figureCell,
+                    styles.console,
+                    shownPane() !== 1 && pane.hidden,
+                )}
+            >
                 <LabelRow
                     end={
                         <Picker
@@ -114,16 +141,17 @@ export function Adjective(properties: { isOpen: boolean }) {
                         />
                     }
                 >
-                    <Label>
+                    <PaneLabel panes={PANES} shown={shownPane()} onShow={setShownPane}>
                         {properties.isOpen
                             ? "Your agent, in your space"
                             : "Your agent, with a connector per tool"}
-                    </Label>
+                    </PaneLabel>
                 </LabelRow>
                 <AgentChat
+                    title="Launch day"
                     isOpen={properties.isOpen}
                     moment={moment()}
-                    look={{ kind: "assistant", assistant: look() }}
+                    assistant={look()}
                     connectors={stackedConnectors}
                 />
             </div>
@@ -147,7 +175,8 @@ const styles = style.create({
     app: {
         gridColumn: { default: "1 / 8", [media.maxLg]: "1 / -1" },
         gridTemplateRows: "auto minmax(0, 1fr)",
-        minHeight: { default: 0, [media.maxLg]: "44rem" },
+        height: { default: null, [media.maxLg]: "36rem" },
+        minHeight: 0,
     },
     console: {
         gridColumn: { default: "8 / -1", [media.maxLg]: "1 / -1" },

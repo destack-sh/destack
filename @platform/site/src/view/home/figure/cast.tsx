@@ -3,14 +3,25 @@ import { color } from "@destack/theme/tokens.stylex";
 import type { JSX } from "@destack/view";
 
 import { chrome } from "./chrome.stylex";
+import { app } from "../../theme";
 
-/** Set a figure's window on the page with a dotted shadow, cast away from the top-left light. */
+/** Set a figure's window on the page with a dotted shadow, drawn in the app theme like Home. */
 export function Cast(properties: { children: JSX.Element; xstyle?: style.Styles }) {
-    return <div {...style.attrs(cast.window, properties.xstyle)}>{properties.children}</div>;
+    return (
+        <div {...style.attrs(cast.window, properties.xstyle)}>
+            {/* draw the window in the app's colours, its halo in the page's */}
+            <div style={app} {...style.attrs(cast.app)}>
+                {properties.children}
+            </div>
+        </div>
+    );
 }
 
 /** The cast shadow of a figure's window, and the clear halo of page around it. */
 export const cast = style.create({
+    app: {
+        display: "contents",
+    },
     window: {
         boxShadow: `0 0 0 4px ${color.background}`,
         display: "grid",

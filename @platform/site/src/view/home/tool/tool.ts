@@ -434,18 +434,6 @@ export const tools: readonly Tool[] = [
 
     // canvas
     {
-        name: "Miro",
-        label: "Miro",
-        category: "canvas",
-        icon: "miro",
-        tint: "#050038",
-        subscription: "Miro",
-        tab: "Destack launch plan, Online Whiteboard for Visual Collaboration",
-        site: "miro.com/app/board/uXjVDestack=",
-        relation: { kind: "replace" },
-        page: Miro,
-    },
-    {
         name: "FigJam",
         label: "FigJam",
         category: "canvas",
@@ -456,6 +444,18 @@ export const tools: readonly Tool[] = [
         site: "figma.com/board/Lp7Destack/Destack-launch-plan",
         relation: { kind: "replace" },
         page: FigJam,
+    },
+    {
+        name: "Miro",
+        label: "Miro",
+        category: "canvas",
+        icon: "miro",
+        tint: "#050038",
+        subscription: "Miro",
+        tab: "Destack launch plan, Online Whiteboard for Visual Collaboration",
+        site: "miro.com/app/board/uXjVDestack=",
+        relation: { kind: "replace" },
+        page: Miro,
     },
     {
         name: "tldraw",

@@ -1,5 +1,10 @@
 import { present } from "@destack/schema";
+import * as style from "@destack/style";
+import { color, font, weight } from "@destack/theme/tokens.stylex";
 import { createMemo } from "@destack/view";
+
+import { Digits } from "./digits";
+import { typeScale } from "../../layout/type.stylex";
 
 import { isEmptyOf, type Item, type Lighting, type Line, marksOf } from "./item";
 import { type Cell, type Column, Ledger, type LedgerRow } from "./ledger";
@@ -121,10 +126,10 @@ function cellsOf(line: Line, scale: Scale, isOwned: boolean): readonly Cell[] {
     // price the line's work at your space's rates, or at the vendor's list price
     const usage = usageAt(line.workload, scale);
     const rent = costOf(line.entry.stacked, scale);
-    const cost = isOwned ? usageCostOf(usage, rates) : rent;
+    const cost = costAt(line, scale, isOwned);
 
     // leave the cost blank where nothing does the job or another subscription bills it
-    const isBlank = isEmptyOf(line.entry.stacked.mark) || cost === undefined;
+    const isBlank = cost === undefined;
 
     // set the change against the rent above an owned cost, where there is a rent to compare
     const caption =
@@ -136,6 +141,40 @@ function cellsOf(line: Line, scale: Scale, isOwned: boolean): readonly Cell[] {
         meterOf(usage.memory, line.workload.isAtLeast),
         { value: isBlank ? "—" : decimalOf(cost), isQuiet: false, isFloor: false, caption },
     ];
+}
+
+/** Return what a line costs a month, rented or in your space, or none where nothing bills it. */
+function costAt(line: Pick<Line, "entry" | "workload">, scale: Scale, isOwned: boolean) {
+    // leave out a job nothing does, then price the work at your space's rates or the list price
+    if (isEmptyOf(line.entry.stacked.mark)) {
+        return undefined;
+    }
+
+    return isOwned
+        ? usageCostOf(usageAt(line.workload, scale), rates)
+        : costOf(line.entry.stacked, scale);
+}
+
+/** Return what a bill's lines cost a month together, each as rented or run in your space. */
+export function totalOf(
+    lines: readonly Pick<Line, "entry" | "workload">[],
+    scale: Scale,
+    isOpenAt: Stagger,
+): number {
+    return lines.reduce(
+        (sum, line, index) => sum + (costAt(line, scale, isOpenAt(index + 1)) ?? 0),
+        0,
+    );
+}
+
+/** Draw a bill's monthly total, its digits rolling as it changes. */
+export function BillTotal(properties: { amount: number }) {
+    return (
+        <span {...style.attrs(styles.total)}>
+            <Digits text={`$${decimalOf(properties.amount)}`} />
+            <span {...style.attrs(styles.unit)}>/mo</span>
+        </span>
+    );
 }
 
 /** Return a cost's change against the rent as a whole percent, a saving rounded toward none. */
@@ -184,3 +223,21 @@ function basisOf(item: Item): string {
 function costOf(item: Item, scale: Scale): number | undefined {
     return item.price.kind === "fee" ? item.price.monthlyAt(scale) : undefined;
 }
+
+/** The bill styles. */
+const styles = style.create({
+    total: {
+        alignItems: "baseline",
+        display: "inline-flex",
+        fontFamily: font.code,
+        fontSize: typeScale.small,
+        fontVariantNumeric: "tabular-nums",
+        fontWeight: weight.semibold,
+        gap: "0.125rem",
+        whiteSpace: "nowrap",
+    },
+    unit: {
+        color: color.mutedForeground,
+        fontWeight: weight.regular,
+    },
+});

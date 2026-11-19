@@ -4,7 +4,7 @@ import { renderMarkdown } from "../src/view/content/markdown/markdown.ts";
 import { BunEnvironment } from "@destack/environment/bun";
 
 /** A page with a fence, an alert, a quotation, a footnote, a table, a figure and an abstract. */
-const page = `## Setup
+const page = `# Setup
 
 \`\`\`ts title="install.ts"
 const port = 1;
@@ -47,7 +47,7 @@ function element(index: number) {
     return found;
 }
 
-// name the heading after its text
+// name the heading after its text, one level under the post's title
 assert.deepEqual(element(0), {
     type: "element",
     tagName: "h2",

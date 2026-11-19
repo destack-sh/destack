@@ -1,5 +1,3 @@
-import { present } from "@destack/schema";
-
 import { priceOf } from "../figure/price";
 import type { Entry, Item } from "../figure/item";
 import type { OptionMark } from "../figure/picker";
@@ -172,22 +170,9 @@ export function vendorsOf(category: ServiceCategory): readonly Service[] {
     return vendors.filter((vendor) => vendor.category === category);
 }
 
-/** Return a service by its name. */
-export function vendorOf(name: string): Service {
-    return present(
-        vendors.find((vendor) => vendor.name === name),
-        `service ${name}`,
-    );
-}
-
 /** Return the index of the row that rents for a category. */
 export function serviceIndexOf(category: ServiceCategory): number {
     return slots.findIndex((slot) => slot.category === category);
-}
-
-/** Return the category the row at an index rents for. */
-export function categoryOf(index: number): ServiceCategory {
-    return present(slots[index], "service row").category;
 }
 
 /** Return the service each row rents in the lineup. */

@@ -11,6 +11,8 @@ const CatalogDownload = schema.object({
     sha256: schema.string(),
     /** Exact archive length in bytes. */
     size: schema.number(),
+    /** The file name a browser saves the download as. */
+    name: schema.string(),
 });
 
 /** One public archive or installer in the download catalog. */
@@ -61,6 +63,10 @@ export interface Download {
     version: string;
     /** Immutable download address. */
     url: string;
+    /** The file name a browser saves the download as. */
+    file: string;
+    /** Exact download length in bytes. */
+    size: number;
 }
 
 /** Read and validate the public download catalog. */
@@ -135,8 +141,8 @@ export function systemOfAgent(agent: string): System | undefined {
 
 /** Read one catalog choice as a download, refusing an address outside the release targets. */
 function downloadOf(target: Target, download: CatalogDownload): Download {
-    // read the address and version of the release's catalog download
-    const { url, version } = download;
+    // read the address, version, length and file name of the release's catalog download
+    const { url, version, size, name } = download;
 
     // require a calendar version
     if (!/^\d{4}\.\d+\.\d+(?:-nightly\.\d+)?$/u.test(version)) {
@@ -154,7 +160,7 @@ function downloadOf(target: Target, download: CatalogDownload): Download {
         throw new Error("download address is invalid: it must be a URL");
     }
 
-    return { target, label: LABELS[target], version, url };
+    return { target, label: LABELS[target], version, url, file: name, size };
 }
 
 /** Report whether a catalog key is a published desktop distribution target. */

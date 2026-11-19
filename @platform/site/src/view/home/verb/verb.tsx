@@ -1,22 +1,20 @@
 import { media } from "@destack/style/media.stylex";
 import { present } from "@destack/schema";
 import * as style from "@destack/style";
-import { color } from "@destack/theme/tokens.stylex";
 import { createSignal, useEnvironment } from "@destack/view";
-import { createTimer, Timeout } from "@destack/view/primitives/timer";
+import { createTimer } from "@destack/view/primitives/timer";
 import { createReducedMotion } from "@destack/view/motion";
 import { createVisibilityObserver } from "@destack/view/primitives/intersection-observer";
 
 import { lattice } from "../../layout/lattice.stylex";
 import { Entry, FigureLabel, type Form } from "../entry/entry";
-import { Label, LabelRow, LabelTabs } from "../entry/label";
+import { LabelRow, pane, PaneLabel } from "../entry/label";
 import { AgentChat, assistantOptions, createAssistantTurn, createBeat } from "../command/chat";
 import { Picker } from "../figure/picker";
 import { destackedScene, stackedConnectors, stackedScene } from "./scene";
 import { Dial, teams } from "../figure/dial";
-import { Bill } from "../figure/bill";
+import { BillTotal, totalOf } from "../figure/bill";
 import { PlanetDrawing } from "../drawing/planet";
-import { accentOf, type Item, marksOf } from "../figure/item";
 import {
     everyRow,
     categoryAt,
@@ -32,14 +30,10 @@ import { BASE_USERS, jobWorkloads, type Workload, workloadOf } from "../figure/p
 import { StackSwitch } from "../entry/switch";
 import { sources } from "./source";
 import { type Lineup, lineupAt, type Tool, toolsOf } from "../tool/tool";
-import type { Option } from "../figure/picker";
 import { tagline } from "../../content/site";
 
-/** The milliseconds the pointer rests on a holding before the browser turns to its page. */
-const settleIn = 80;
-
-/** The milliseconds after the pointer leaves before the browser turns back. */
-const settleOut = 300;
+/** The panes the figure switches between below the desktop width, its app and your agent. */
+const PANES = ["Your apps", "Your agent"];
 
 /** The milliseconds each page of your corner holds before the browser turns to the next. */
 const pageTime = 5200;
@@ -53,10 +47,13 @@ const firstRemixAt = 1800;
 /** The row of Tasks, which your agent remixes once on its own. */
 const TASKS_ROW = rowOf("tasks");
 
+/** The row of the press list your agent makes, which the browser turns to once it is done. */
+const TABLES_ROW = rowOf("tables");
+
 /** The verb, which titles the page. */
 export const verb: Form = {
     syllables: ["de", "stack"],
-    pronunciation: "/diːˈstak/",
+    pronunciation: "dee-stack",
     partOfSpeech: "verb",
     sense: {
         definition: "to own your stack",
@@ -65,14 +62,6 @@ export const verb: Form = {
     },
 };
 
-/** Return the apps a row offers: its category's tools, or the personal apps on the data row. */
-function optionsOf(row: number): readonly Option[] {
-    const category = categoryAt(row);
-    const offered = category === undefined ? sources : toolsOf(category);
-
-    return offered.map((app) => ({ name: app.name, mark: { icon: app.icon, tint: app.tint } }));
-}
-
 /** Return the work a row's tool takes: its job's, or the personal app's on the data row. */
 function workloadAt(row: number, name: string): Workload {
     const category = categoryAt(row);
@@ -80,23 +69,10 @@ function workloadAt(row: number, name: string): Workload {
     return category === undefined ? workloadOf(name) : jobWorkloads[category];
 }
 
-/** Return the tint of an item's first mark, or the muted tone where it has none. */
-function tintOf(item: Item): string {
-    const [mark] = marksOf(item.mark);
-
-    return mark !== undefined && "tint" in mark ? mark.tint : color.mutedForeground;
-}
-
 /** Open the page with the verb, illustrated by your space in the cloud. */
-export function Verb(properties: {
-    isOpen: boolean;
-    picks: readonly Tool[];
-    onChoose: (tool: Tool) => void;
-}) {
-    // hold the page's clock, the holding pointed at, the one the browser settles on a moment later, and the one chosen
+export function Verb(properties: { isOpen: boolean; picks: readonly Tool[] }) {
+    // hold the page's clock and the page the reader chose
     const { clock } = useEnvironment();
-    const [lit, setLit] = createSignal<number | undefined>(undefined);
-    const [settled, setSettled] = createSignal<number | undefined>(undefined);
     const [chosen, setChosen] = createSignal<number | undefined>(undefined);
 
     // hold the figure still once the reader has touched any of it
@@ -104,21 +80,6 @@ export function Verb(properties: {
     const choose = (row: number | undefined) => {
         setIsTouched(true);
         setChosen(row);
-    };
-    const settling = new Timeout();
-    const lighting = {
-        get lit() {
-            return lit() ?? chosen();
-        },
-        onChoose: choose,
-        get chosen() {
-            return chosen();
-        },
-        onLight: (row: number | undefined) => {
-            // light the row at once, and turn the browser only once the pointer rests
-            setLit(row);
-            settling.set(() => setSettled(row), row === undefined ? settleOut : settleIn);
-        },
     };
 
     // read the bill for a team of the size the reader dials
@@ -132,10 +93,9 @@ export function Verb(properties: {
     // switch the browser and every holding at once
     const isOpenAt: Stagger = () => properties.isOpen;
 
-    // show the bill or your agent's chat beside the space, the chat running while it shows
-    const [tab, setTab] = createSignal(0);
+    // run your agent's chat beside the space while it shows
     const beat = createBeat(
-        () => tab() === 1 && !isReduced() && isShown(),
+        () => !isReduced() && isShown(),
         () => properties.isOpen,
     );
     const scene = () => (properties.isOpen ? destackedScene : stackedScene);
@@ -144,7 +104,7 @@ export function Verb(properties: {
         look,
         progress,
         choose: chooseAssistant,
-    } = createAssistantTurn(beat, () => scene().length, isReduced);
+    } = createAssistantTurn("Claude", beat, () => scene().length, isReduced);
 
     // hold who is looking, whether the reader chose them, and the page the window turns to on its own
     const [viewer, setViewer] = createSignal<Viewer>("Me");
@@ -171,14 +131,8 @@ export function Verb(properties: {
     const turnsOf = (row: number) =>
         turned() >= row ? Math.floor((turned() - row) / pages.length) + 1 : 0;
 
-    // show the personal app the reader chose, or else the one the data row has turned to
-    const [chosenSource, setChosenSource] = createSignal<string | undefined>(undefined);
-    const source = () =>
-        present(
-            sources.find((candidate) => candidate.name === chosenSource()) ??
-                sources[turnsOf(DATA_ROW) % sources.length],
-            "shown source",
-        );
+    // show the personal app the data row has turned to
+    const source = () => present(sources[turnsOf(DATA_ROW) % sources.length], "shown source");
 
     // show the tool the reader picked last for a row, or else the one the row has turned to
     const lineup = (): Lineup => (category) => {
@@ -190,26 +144,12 @@ export function Verb(properties: {
         return latest ?? lineupAt(turnsOf(rowOf(category)))(category);
     };
 
-    // show a chosen app's page: a tool every figure shares, or a personal app of this one
-    const pick = (row: number, name: string) => {
-        const category = categoryAt(row);
-        if (category === undefined) {
-            setChosenSource(name);
-        } else {
-            properties.onChoose(
-                present(
-                    toolsOf(category).find((tool) => tool.name === name),
-                    `${name} tool`,
-                ),
-            );
-        }
-        choose(row);
-    };
-
-    // show the page of the pointed or chosen holding, or else the page the window has turned to
+    // show the page the reader chose, the press list once your agent says it is done, or the turned page
+    const isDone = () => moment().items.some((item) => item.kind === "reply");
+    const shownRow = () => chosen() ?? (isDone() ? TABLES_ROW : undefined);
     const page = () =>
         present(
-            pages.find((candidate) => candidate.row === (settled() ?? chosen())) ??
+            pages.find((candidate) => candidate.row === shownRow()) ??
                 pages[turned() % pages.length],
             "shown page",
         );
@@ -253,6 +193,9 @@ export function Verb(properties: {
         "interval",
     );
 
+    // show the app or your agent below the desktop width, where one pane shows at a time
+    const [shownPane, setShownPane] = createSignal(0);
+
     return (
         <section
             ref={setSection}
@@ -262,16 +205,50 @@ export function Verb(properties: {
             <FigureLabel
                 number={1}
                 isOpen={properties.isOpen}
-                stacked="twelve apps, twelve silos"
-                destacked="twelve apps, one space"
+                stacked="twelve apps, twelve silos, rigid and closed"
+                destacked="twelve apps, one space, malleable and open"
             >
                 <StackSwitch isOpen={properties.isOpen} place="label" isHinted />
             </FigureLabel>
             <PlanetDrawing isOpen={properties.isOpen} isMoving={!isReduced() && isShown()} />
-            <div {...style.attrs(lattice.cell, lattice.figureCell, styles.stage)}>
-                <Label>
-                    {isOpenAt(0) ? "Your work, in your space" : "Your work, on their servers"}
-                </Label>
+            <div
+                {...style.attrs(
+                    lattice.cell,
+                    lattice.figureCell,
+                    styles.stage,
+                    shownPane() !== 0 && pane.hidden,
+                )}
+            >
+                <LabelRow
+                    end={
+                        <span {...style.attrs(styles.cost)}>
+                            <BillTotal
+                                amount={totalOf(
+                                    holdingsWith(source(), lineup()).map((entry, index) => ({
+                                        entry,
+                                        workload: workloadAt(index + 1, entry.stacked.name),
+                                    })),
+                                    { people: people(), users: BASE_USERS },
+                                    isOpenAt,
+                                )}
+                            />
+                            <Dial
+                                label="People"
+                                options={teams}
+                                value={people()}
+                                format={String}
+                                onChange={(next) => {
+                                    setIsTouched(true);
+                                    setPeople(next);
+                                }}
+                            />
+                        </span>
+                    }
+                >
+                    <PaneLabel panes={PANES} shown={shownPane()} onShow={setShownPane}>
+                        {isOpenAt(0) ? "Your work, in your space" : "Your work, on their servers"}
+                    </PaneLabel>
+                </LabelRow>
                 <SpaceBrowser
                     name="space"
                     rows={everyRow}
@@ -294,61 +271,39 @@ export function Verb(properties: {
                     }}
                 />
             </div>
-            <div {...style.attrs(lattice.cell, lattice.figureCell, styles.key)}>
+            <div
+                {...style.attrs(
+                    lattice.cell,
+                    lattice.figureCell,
+                    styles.key,
+                    shownPane() !== 1 && pane.hidden,
+                )}
+            >
                 <LabelRow
                     end={
-                        tab() === 0 ? (
-                            <Dial
-                                label="People"
-                                options={teams}
-                                value={people()}
-                                format={String}
-                                onChange={(next) => {
-                                    setIsTouched(true);
-                                    setPeople(next);
-                                }}
-                            />
-                        ) : (
-                            <Picker
-                                label="Agent"
-                                options={assistantOptions}
-                                sections={undefined}
-                                shown={look()}
-                                progress={progress()}
-                                onChoose={chooseAssistant}
-                            />
-                        )
+                        <Picker
+                            label="Agent"
+                            options={assistantOptions}
+                            sections={undefined}
+                            shown={look()}
+                            progress={progress()}
+                            onChoose={chooseAssistant}
+                        />
                     }
                 >
-                    <LabelTabs
-                        tabs={[isOpenAt(0) ? "Paid by usage" : "Paid per seat", "Your agent"]}
-                        shown={tab()}
-                        onShow={setTab}
-                    />
+                    <PaneLabel panes={PANES} shown={shownPane()} onShow={setShownPane}>
+                        {isOpenAt(0)
+                            ? "Your agent, in your space"
+                            : "Your agent, with a connector per tool"}
+                    </PaneLabel>
                 </LabelRow>
-                {tab() === 1 ? (
-                    <AgentChat
-                        isOpen={properties.isOpen}
-                        moment={moment()}
-                        look={{ kind: "assistant", assistant: look() }}
-                        connectors={stackedConnectors}
-                    />
-                ) : (
-                    <Bill
-                        isWindow
-                        scale={{ people: people(), users: BASE_USERS }}
-                        scales={teams.map((team) => ({ people: team, users: BASE_USERS }))}
-                        lines={holdingsWith(source(), lineup()).map((entry, index) => ({
-                            entry,
-                            workload: workloadAt(index + 1, entry.stacked.name),
-                            tint: accentOf(entry.stacked.name, tintOf(entry.stacked)),
-                        }))}
-                        lighting={lighting}
-                        isOpenAt={isOpenAt}
-                        optionsOf={optionsOf}
-                        onChoose={pick}
-                    />
-                )}
+                <AgentChat
+                    title="Press outreach"
+                    isOpen={properties.isOpen}
+                    moment={moment()}
+                    assistant={look()}
+                    connectors={stackedConnectors}
+                />
             </div>
         </section>
     );
@@ -364,9 +319,14 @@ const styles = style.create({
         gridColumn: { default: "1 / 8", [media.maxLg]: "1 / -1" },
         gridTemplateRows: { default: "auto minmax(0, 1fr)", [media.maxLg]: "auto 30rem" },
     },
+    cost: {
+        alignItems: "baseline",
+        display: "inline-flex",
+        gap: "0.75rem",
+    },
     key: {
         gridColumn: { default: "8 / -1", [media.maxLg]: "1 / -1" },
         position: "relative",
-        gridTemplateRows: "auto minmax(0, 1fr)",
+        gridTemplateRows: { default: "auto minmax(0, 1fr)", [media.maxLg]: "auto 30rem" },
     },
 });

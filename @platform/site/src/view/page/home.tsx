@@ -12,11 +12,11 @@ import { Metadata } from "@destack/view/document";
 import { Noun, noun } from "../home/noun/noun";
 import { BottomBar } from "../home/entry/switch";
 import { Adjective, destackable } from "../home/adjective/adjective";
-import { Command, destackability } from "../home/command/command";
 import { Participle, participle } from "../home/participle/participle";
 import { anchorOf, type Form } from "../home/entry/entry";
 import { ThumbIndex } from "../home/entry/thumb";
 import { firstPicks, promptOf } from "../home/participle/wall";
+import { setInstallPrompt } from "../install/prompt";
 import type { Tool } from "../home/tool/tool";
 import { destacked, PastParticiple } from "../home/past/past";
 import { Verb, verb } from "../home/verb/verb";
@@ -26,7 +26,7 @@ import "../home/figure/figure.css";
 import { requestIdle } from "@destack/view/primitives/scheduled";
 
 /** The sections' dictionary forms in page order. */
-const FORMS: readonly Form[] = [verb, noun, destacked, destackable, destackability, participle];
+const FORMS: readonly Form[] = [verb, noun, destacked, destackable, participle];
 
 /** The figures' entries in page order, each the anchor of the section it heads. */
 const FIGURES = FORMS.map(anchorOf);
@@ -117,14 +117,15 @@ export function Home() {
                 : [...current, tool],
         );
 
-    // choose a tool from the first figure: pick it, last, so that figure shows it
-    const choose = (tool: Tool) =>
-        setPicks((current) => [...current.filter((picked) => picked !== tool), tool]);
+    // offer the picked tools in the footer's install prompt
+    createEffect(picks, (current) => {
+        setInstallPrompt(promptOf(current));
+    });
 
     return (
         <>
             <Metadata alternates={{ canonical: "/" }} />
-            <Verb isOpen={isOpenAt(0)} picks={picks()} onChoose={choose} />
+            <Verb isOpen={isOpenAt(0)} picks={picks()} />
             <Interval section={2}>
                 <RunningHead number={2} form={noun} />
             </Interval>
@@ -138,18 +139,9 @@ export function Home() {
             </Interval>
             <Adjective isOpen={isOpenAt(3)} />
             <Interval section={5}>
-                <RunningHead number={5} form={destackability} />
+                <RunningHead number={5} form={participle} />
             </Interval>
-            <Command isOpen={isOpenAt(4)} />
-            <Interval section={6}>
-                <RunningHead number={6} form={participle} />
-            </Interval>
-            <Participle
-                isOpen={isOpenAt(5)}
-                picks={picks()}
-                onPick={pick}
-                prompt={promptOf(picks())}
-            />
+            <Participle isOpen={isOpenAt(4)} picks={picks()} onPick={pick} />
             <BottomBar isOpen={isOpen()} />
             <Interval />
             <ThumbIndex forms={FORMS} />
