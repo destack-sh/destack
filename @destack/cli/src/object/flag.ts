@@ -33,6 +33,11 @@ export const LIST_OPTIONS = {
         argument: "fields",
     },
     watch: { type: "boolean", description: "Follow the rows as they change" },
+    view: {
+        type: "string",
+        description: "The view to show, one the type offers by name, such as waterfall",
+        argument: "name",
+    },
 } as const;
 
 /** The option giving a method's whole input as JSON, under its field flags. */

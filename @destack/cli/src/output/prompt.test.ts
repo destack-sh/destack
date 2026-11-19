@@ -6,7 +6,14 @@ const SILENT = {
     write: async () => {},
     writeSync: () => {},
     isTerminal: false,
+    columns: undefined,
+    rows: undefined,
 };
+
+/** Refuse raw mode on a pipe, as a real process does. */
+function refuseRawMode(): never {
+    throw new TypeError("standard input is invalid: it is no terminal");
+}
 
 test("read an answer from piped input, then cancel the open input once disposed", async () => {
     // pipe one answer on an input that stays open, as a fifo or an idle terminal does
@@ -15,7 +22,10 @@ test("read an answer from piped input, then cancel the open input once disposed"
         start: (controller) => controller.enqueue(new TextEncoder().encode("238231\n")),
         cancel: (reason) => cancelled.resolve(reason),
     });
-    const prompt = new Prompt({ stdin: { readable, isTerminal: false }, stderr: SILENT });
+    const prompt = new Prompt({
+        stdin: { readable, isTerminal: false, setRawMode: refuseRawMode },
+        stderr: SILENT,
+    });
 
     // answer the code, then release the input as a command line's end does
     const answer = await prompt.ask("Code");
@@ -31,7 +41,10 @@ test("read an answer from piped input, then cancel the open input once disposed"
 test("cancel input a question still waits on once disposed, ending the question", async () => {
     // ask on an input that never sends a line
     const readable = new ReadableStream<Uint8Array>();
-    const prompt = new Prompt({ stdin: { readable, isTerminal: false }, stderr: SILENT });
+    const prompt = new Prompt({
+        stdin: { readable, isTerminal: false, setRawMode: refuseRawMode },
+        stderr: SILENT,
+    });
     const asking = refusal(() => prompt.ask("Code"));
 
     // release the input while the question waits

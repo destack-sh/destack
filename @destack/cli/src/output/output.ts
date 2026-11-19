@@ -24,6 +24,33 @@ const TONES = {
 /** A colour a terminal paints in. */
 export type Tone = keyof typeof TONES;
 
+/** A key a pager answers. */
+export type Key = "up" | "down" | "left" | "right" | "enter" | "select" | "quit";
+
+/** The keys a terminal sends in raw mode, by their bytes. */
+const KEYS: Readonly<Record<string, Key>> = Object.fromEntries([
+    // arrows and vi's h j k l
+    ["\x1b[A", "up"],
+    ["k", "up"],
+    ["\x1b[B", "down"],
+    ["j", "down"],
+    ["\x1b[D", "left"],
+    ["h", "left"],
+    ["\x1b[C", "right"],
+    ["l", "right"],
+
+    // enter, space to select, and q, escape or ctrl-c to quit
+    ["\r", "enter"],
+    [" ", "select"],
+    ["\n", "enter"],
+    ["q", "quit"],
+    ["\x1b", "quit"],
+    ["\x03", "quit"],
+] satisfies [string, Key][]);
+
+/** One key's bytes in a chunk: an escape sequence such as an arrow, else one character. */
+const KEY_SEQUENCE = /\x1b\[[A-D]|[\s\S]/gu;
+
 /** The width of the gutter an event and a hint put their one word in, in characters. */
 const GUTTER_WIDTH = 10;
 
@@ -63,13 +90,16 @@ export class Terminal implements AsyncDisposable {
     readonly prompt: Prompt;
     /** The time zone the terminal shows times in, such as Europe/Vienna. */
     readonly timeZone: string;
+    /** The locale the terminal writes dates in, such as de-AT. */
+    readonly locale: string;
 
     /** Write to a process's standard streams. */
-    constructor(running: TerminalProcess, timeZone: string) {
+    constructor(running: TerminalProcess, place: Pick<Environment, "timeZone" | "locale">) {
         // set the process, and colour output only on a terminal without NO_COLOR
         this.process = running;
         this.isTerminal = running.stdout.isTerminal;
-        this.timeZone = timeZone;
+        this.timeZone = place.timeZone;
+        this.locale = place.locale;
         const isColored = this.isTerminal && running.variables["NO_COLOR"] === undefined;
         this.style = isColored
             ? (format, text) => styleText(format, text, { validateStream: false })
@@ -78,6 +108,41 @@ export class Terminal implements AsyncDisposable {
             ? (tone, text) => `\x1b[38;2;${TONES[tone].join(";")}m${text}\x1b[39m`
             : (_, text) => text;
         this.prompt = new Prompt(running, (text) => this.question(text));
+    }
+
+    /** The terminal's width in characters as it stands now, absent without a terminal. */
+    get columns(): number | undefined {
+        return this.process.stdout.columns;
+    }
+
+    /** The terminal's height in lines as it stands now, absent without a terminal. */
+    get rows(): number | undefined {
+        return this.process.stdout.rows;
+    }
+
+    /** Read the terminal's keys as they are pressed, in raw mode until the reading ends. */
+    async *keys(): AsyncGenerator<Key> {
+        // switch the terminal to raw mode and read its bytes
+        const { stdin } = this.process;
+        stdin.setRawMode(true);
+        const reader = stdin.readable.getReader();
+        const decoder = new TextDecoder();
+
+        // yield each key a chunk holds, an escape sequence as one key, restoring the mode once done
+        try {
+            for (let read = await reader.read(); !read.done; read = await reader.read()) {
+                const text = decoder.decode(read.value, { stream: true });
+                for (const sequence of text.match(KEY_SEQUENCE) ?? []) {
+                    const key = KEYS[sequence];
+                    if (key !== undefined) {
+                        yield key;
+                    }
+                }
+            }
+        } finally {
+            reader.releaseLock();
+            stdin.setRawMode(false);
+        }
     }
 
     /** Write that something happened: one word in the gutter, what it is about, a dim detail. */

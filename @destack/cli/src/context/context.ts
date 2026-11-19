@@ -69,7 +69,7 @@ export class Context implements AsyncDisposable {
         this.#open = open;
         this.spaceOption = space;
         this.environment = environment;
-        this.terminal = new Terminal(environment.process, environment.timeZone);
+        this.terminal = new Terminal(environment.process, environment);
     }
 
     /** Close something once the command line ran, as its connections close. */

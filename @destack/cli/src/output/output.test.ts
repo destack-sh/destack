@@ -7,7 +7,7 @@ import { Terminal } from "./output.ts";
 function open(isTerminal: boolean, variables: Readonly<Record<string, string>> = {}): Terminal {
     const running = TerminalFixture.process(variables, testHost().scheduler, { isTerminal });
 
-    return new Terminal(running, "UTC");
+    return new Terminal(running, { timeZone: "UTC", locale: "en-US" });
 }
 
 /** Write an event of each state. */

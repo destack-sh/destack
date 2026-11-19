@@ -134,7 +134,7 @@ export class TerminalFixture {
             isTerminal,
         });
 
-        return new Terminal(running, "UTC");
+        return new Terminal(running, { timeZone: "UTC", locale: "en-US" });
     }
 
     /** Make a terminal's process with only some environment variables, writing into its chunks. */

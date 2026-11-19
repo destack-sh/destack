@@ -1,5 +1,5 @@
 import { type OrderBy, TABLE } from "@destack/db";
-import { Field, type ObjectType } from "@destack/object";
+import { ObjectDetail, type ObjectType, TableLayout } from "@destack/object";
 import type { JsonObject, JsonValue } from "@destack/schema";
 
 import type { Terminal } from "../output/index.ts";
@@ -9,19 +9,13 @@ import { WallTime } from "./time.ts";
 /** The margin a person's records, tables and headings start at, beside the gutter's words. */
 const MARGIN = "  ";
 
-/** The most columns a table shows without --fields, beside the identifier. */
-const DEFAULT_COLUMNS = 6;
-
 /** The widest cell a table shows, in characters, cut with an ellipsis beyond. */
 const CELL_WIDTH = 48;
-
-/** The field types a table leaves out without --fields: structured values and long text. */
-const HIDDEN_TYPES = new Set(["json", "text"]);
 
 /** Rows of a type as a terminal or a program reads them. */
 export const Render = {
     /** Pick the columns. */
-    columns(type: ObjectType, fields: string | undefined): string[] {
+    columns(type: ObjectType, layout: TableLayout, fields: string | undefined): string[] {
         // take the named columns, refusing a property the rows lack
         if (fields !== undefined) {
             const named = fields.split(",").filter((field) => field !== "");
@@ -36,33 +30,13 @@ export const Render = {
             return named;
         }
 
-        // take the title, the first other declared fields that fit a cell, and the identifier last
-        const referenceColumns = new Set(
-            Object.values(type.fields).flatMap((field) => {
-                const columns =
-                    field.reference === "object" && field.relation !== undefined
-                        ? Field.columnsOf(field.relation)
-                        : undefined;
-
-                return columns === undefined
-                    ? []
-                    : [columns.packageId, columns.type, columns.scope];
-            }),
-        );
-        const declared = Object.entries(type.fields)
-            .filter(
-                ([property, field]) =>
-                    !HIDDEN_TYPES.has(field.type) && !referenceColumns.has(property),
-            )
-            .map(([property]) => property)
-            .filter((property) => Object.hasOwn(type.table[TABLE].columns, property));
+        // take the title, the layout's fields beside it, and the identifier last
         const title = type.presentation?.title;
-        const ordered =
-            title === undefined || !declared.includes(title)
-                ? declared
-                : [title, ...declared.filter((property) => property !== title)];
+        const shown = TableLayout.columns(layout, ObjectDetail.shown(type));
 
-        return [...ordered.slice(0, DEFAULT_COLUMNS), "id"];
+        return [...(title === undefined ? [] : [title]), ...shown, "id"].filter((column) =>
+            Object.hasOwn(type.table[TABLE].columns, column),
+        );
     },
 
     /** Read --sort, fields separated by commas with a minus for descending, into an order. */
@@ -203,9 +177,9 @@ function cell(
 /** Head a column by its field, an object reference by its relation. */
 function heading(type: ObjectType, column: string): string {
     const field = type.fields[column];
-    const name = field?.reference === "object" ? field.relationAt(column) : column;
+    const name = field?.reference === undefined ? column : field.relationAt(column);
 
-    return name.toUpperCase();
+    return name.replaceAll(/[A-Z]/gu, (upper) => ` ${upper}`).toUpperCase();
 }
 
 /** Write one value as text: absent as a dash, structured values as JSON. */

@@ -230,7 +230,7 @@ export class CommandLine {
         } catch (error) {
             return await new CommandFailure(error).report(
                 flags.includes(GLOBAL_OPTIONS.json.flag),
-                new Terminal(environment.process, environment.timeZone),
+                new Terminal(environment.process, environment),
             );
         }
     }

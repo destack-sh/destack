@@ -1,22 +1,33 @@
 import { Condition, TABLE } from "@destack/db";
 import { connectBunSqlite } from "@destack/db/bun";
 import { ObjectClient, type ObjectConnection } from "@destack/object/client";
-import type { ObjectQuery } from "@destack/object";
+import {
+    CalendarLayout,
+    ObjectAppearance,
+    ObjectView,
+    ObjectViewState,
+    type ObjectQuery,
+    type TimelineLayout,
+    type TreeLayout,
+} from "@destack/object";
 import { principal } from "@destack/access";
 import { Scope } from "@destack/sync";
 import { type JsonObject, type JsonValue, present, schema } from "@destack/schema";
 import { type Verb, type Group, OptionValue, type Options } from "../command/command.ts";
 import { Interrupt } from "../command/error.ts";
 import type { Context } from "../context/context.ts";
-import type { Terminal } from "../output/index.ts";
+import type { Live, Terminal } from "../output/index.ts";
 
 import { FlagSet, INPUT_OPTION, LIST_OPTIONS } from "./flag.ts";
 import { Noun, Catalog } from "./catalog.ts";
 import { Localization, SOURCE_LOCALE } from "@destack/locale";
 import { Command } from "@destack/object";
 import { Render } from "./render.ts";
+import { LayoutRender } from "./layout.ts";
 import { CliError } from "../error/index.ts";
 
+/** The lines a terminal is taken to have when it reports none: 24, the VT100's. */
+const DEFAULT_ROWS = 24;
 /** The word that calls a noun's create method beside the method's own name. */
 const NEW = "new";
 
@@ -104,34 +115,189 @@ export function listCommand(context: Context, noun: Noun): Verb {
                 ...(orderBy === undefined ? {} : { orderBy }),
                 ...(limit === undefined ? {} : { limit }),
             };
+            // pick the view the flags ask for, extending the query to read what it shows
+            const view = chosenView(noun, OptionValue.string(options["view"], "view"));
+            const { layout } = view;
             const columns = Render.columns(
                 noun.type,
+                layout.kind === "table" ? layout : { kind: "table" },
                 OptionValue.string(options["fields"], "fields"),
             );
-            const render = (rows: readonly JsonObject[]) =>
+            const window =
+                layout.kind === "calendar"
+                    ? CalendarLayout.month(
+                          context.environment.clock.now(),
+                          context.environment.timeZone,
+                      )
+                    : undefined;
+            const laidOut = ObjectView.query(view, query, window);
+            const render = async (rows: readonly JsonObject[]) =>
                 json
                     ? JSON.stringify(rows)
-                    : Render.table(rows, columns, noun.type, context.terminal);
+                    : layout.kind === "table"
+                      ? Render.table(
+                            await titled(context, noun, rows),
+                            columns,
+                            noun.type,
+                            context.terminal,
+                        )
+                      : LayoutRender.render(rows, layout, noun.type, context.terminal, window);
 
             // print the rows after every change until interrupted
             const remote = await noun.client(context);
             if (options["watch"] === true) {
                 const live = context.terminal.live(json);
                 using interrupted = new Interrupt(context.environment.process);
-                for await (const rows of watch(noun, remote, query, interrupted.signal, context)) {
-                    await live.show(render(rows));
+                const followed = watch(noun, remote, laidOut, interrupted.signal, context);
+
+                // page a tree or a timeline under the keys on a terminal, else redraw each change
+                const { terminal } = context;
+                const isPaged =
+                    (layout.kind === "tree" || layout.kind === "timeline") &&
+                    terminal.isTerminal &&
+                    terminal.process.stdin.isTerminal &&
+                    !json;
+                if (isPaged) {
+                    await page(followed, layout, noun, live, terminal);
+                } else {
+                    for await (const rows of followed) {
+                        await live.show(await render(rows));
+                    }
                 }
                 interrupted.require();
             }
             // print the rows once, nothing for a program when there are none
             else {
-                const rendered = render(await remote.list(noun.type, query));
+                const rendered = await render(await remote.list(noun.type, laidOut));
                 if (rendered !== "") {
                     await context.terminal.print(rendered);
                 }
             }
         },
     };
+}
+
+/** Page followed rows as a tree or a timeline under a terminal's keys, until quit or their end. */
+async function page(
+    followed: AsyncGenerator<readonly JsonObject[]>,
+    layout: TreeLayout | TimelineLayout,
+    noun: Noun,
+    live: Live,
+    terminal: Terminal,
+): Promise<void> {
+    // read the rows and the keys at once, the pager's state kept across changes
+    const keys = terminal.keys();
+    let rows: readonly JsonObject[] = [];
+    let state = ObjectViewState.start();
+    let nextRows = followed.next();
+    let nextKey = keys.next();
+    try {
+        for (;;) {
+            // wait for the next rows or key
+            const event = await Promise.race([
+                nextRows.then((read) => ({ kind: "rows", read }) as const),
+                nextKey.then((read) => ({ kind: "key", read }) as const),
+            ]);
+            const height = terminal.rows ?? DEFAULT_ROWS;
+
+            // take new rows, end on quit or the end of either, else answer the key
+            if (event.kind === "rows") {
+                if (event.read.done === true) {
+                    return;
+                }
+                rows = event.read.value;
+                nextRows = followed.next();
+            } else if (event.read.done === true || event.read.value === "quit") {
+                return;
+            } else {
+                const drawn = LayoutRender.page(rows, layout, noun.type, terminal);
+                state = ObjectViewState.press(
+                    state,
+                    event.read.value,
+                    drawn.lines,
+                    LayoutRender.room(drawn, height),
+                );
+                nextKey = keys.next();
+            }
+
+            // draw the page under the pager
+            const drawn = LayoutRender.page(rows, layout, noun.type, terminal);
+            await live.show(LayoutRender.paged(drawn, state, height, terminal));
+        }
+    } finally {
+        await keys.return(undefined);
+        await followed.return(undefined);
+    }
+}
+
+/** Pick the view a list asks for by name, else the type's default. */
+function chosenView(noun: Noun, name: string | undefined): ObjectView {
+    // take the view by its name, else the default
+    const offered = noun.type.views;
+    const chosen = name === undefined ? noun.type.view : offered.find((view) => view.name === name);
+
+    // refuse a view the type does not offer, listing those it does
+    if (chosen === undefined) {
+        const names = offered.map((view) => view.name).join(", ");
+        throw CliError.of(
+            "USAGE_INVALID",
+            `view '${name}' is invalid: '${noun.plural}' offer '${names}'`,
+        );
+    }
+
+    return chosen;
+}
+
+/** Write each reference in rows as its object's title, for a person on a terminal. */
+async function titled(
+    context: Context,
+    noun: Noun,
+    rows: readonly JsonObject[],
+): Promise<readonly JsonObject[]> {
+    // leave a program's identifiers as they are
+    if (!context.terminal.isTerminal) {
+        return rows;
+    }
+
+    // read the titles of each reference field's objects through their type's noun
+    const catalog = await context.catalog();
+    const titles = new Map<string, Map<string, string>>();
+    for (const [column, field] of Object.entries(noun.type.fields)) {
+        const target = field.target?.();
+        const referenced = catalog.nouns.find(
+            (each) => target !== undefined && each.type.same(target),
+        );
+        const ids = [
+            ...new Set(
+                rows.flatMap((row) => (typeof row[column] === "string" ? [row[column]] : [])),
+            ),
+        ];
+        if (referenced !== undefined && ids.length > 0) {
+            const remote = await referenced.client(context);
+            const objects = await remote.list(referenced.type, { where: { id: { in: ids } } });
+            titles.set(
+                column,
+                new Map(
+                    objects.map((row) => [
+                        schema.string().parse(row["id"]),
+                        ObjectAppearance.of(referenced.type, row).title,
+                    ]),
+                ),
+            );
+        }
+    }
+
+    // replace each referenced identifier by its title
+    return rows.map((row) =>
+        Object.fromEntries(
+            Object.entries(row).map(([column, value]) => [
+                column,
+                (typeof value === "string" ? titles.get(column)?.get(value) : undefined) ??
+                    value ??
+                    null,
+            ]),
+        ),
+    );
 }
 
 /** Build the commands of one noun's objects: create, and per object its get and its methods. */
@@ -210,8 +376,14 @@ function getCommand(context: Context, noun: Noun, id: string): Verb {
         async run({ options, json }) {
             // open the object's noun, showing it as fields or JSON
             const remote = await noun.client(context);
-            const show = (row: JsonObject) =>
-                json ? JSON.stringify(row) : Render.object(row, noun.type, context.terminal);
+            const show = async (row: JsonObject) =>
+                json
+                    ? JSON.stringify(row)
+                    : Render.object(
+                          schema.jsonObject().parse((await titled(context, noun, [row]))[0]),
+                          noun.type,
+                          context.terminal,
+                      );
 
             // follow the object as it changes until interrupted
             if (options["watch"] === true) {
@@ -220,14 +392,14 @@ function getCommand(context: Context, noun: Noun, id: string): Verb {
                 using interrupted = new Interrupt(context.environment.process);
                 for await (const rows of watch(noun, remote, query, interrupted.signal, context)) {
                     const [row] = rows;
-                    await live.show(row === undefined ? `No ${noun.name} ${id}.` : show(row));
+                    await live.show(row === undefined ? `No ${noun.name} ${id}.` : await show(row));
                 }
                 interrupted.require();
             }
             // read it once through the noun's get method
             else {
                 const row = await remote.run(noun.type, noun.method("get"), { id });
-                await context.terminal.print(show(schema.jsonObject().parse(row)));
+                await context.terminal.print(await show(schema.jsonObject().parse(row)));
             }
         },
     };
@@ -263,9 +435,7 @@ function methodCommand(context: Context, noun: Noun, method: string, id: string 
             const remote = await noun.client(context);
             const result = await remote.run(noun.type, method, input);
             await context.terminal.print(
-                json
-                    ? JSON.stringify(result)
-                    : renderResult(noun, method, result, context.terminal),
+                json ? JSON.stringify(result) : await renderResult(context, noun, method, result),
             );
         },
     };
@@ -349,7 +519,7 @@ function declaredCommand(
             await context.terminal.print(
                 call.json
                     ? JSON.stringify(result)
-                    : renderResult(noun, command.method, result, context.terminal),
+                    : await renderResult(context, noun, command.method, result),
             );
         },
     };
@@ -393,14 +563,21 @@ async function methodInput(
 }
 
 /** Render a method's result: a changed object as one event, any other result as it is. */
-function renderResult(noun: Noun, method: string, result: JsonValue, terminal: Terminal): string {
+async function renderResult(
+    context: Context,
+    noun: Noun,
+    method: string,
+    result: JsonValue,
+): Promise<string> {
     // show what a method without a changed object returned
     const row = schema.jsonObject().safeParse(result);
     const word = RESULT_WORDS[noun.type.method(method).kind];
     if (!row.success) {
         return JSON.stringify(result);
     } else if (word === undefined) {
-        return Render.object(row.data, noun.type, terminal);
+        const [shown] = await titled(context, noun, [row.data]);
+
+        return Render.object(schema.jsonObject().parse(shown), noun.type, context.terminal);
     }
 
     // say what happened to the object, by its title, with its identifier beside it
@@ -409,7 +586,7 @@ function renderResult(noun: Noun, method: string, result: JsonValue, terminal: T
     const named = title === undefined ? undefined : row.data[title];
     const subject = typeof named === "string" ? `${noun.name} '${named}'` : noun.name;
 
-    return terminal.event(word, "done", subject, id);
+    return context.terminal.event(word, "done", subject, id);
 }
 
 /** Follow a query's rows for the person through an in-memory replica until the signal aborts. */
@@ -420,14 +597,6 @@ async function* watch(
     signal: AbortSignal,
     context: Context,
 ): AsyncGenerator<readonly JsonObject[]> {
-    // refuse events, which a store lists by page and no replica follows
-    if (noun.type.storage === "events") {
-        throw CliError.of(
-            "USAGE_INVALID",
-            `flag '--watch' is invalid: '${noun.plural}' are events, which must be listed by page`,
-        );
-    }
-
     // replicate the type's rows in memory as the person signed in
     const { environment } = await context.native();
     const objects = ObjectClient.keyed([noun.type]);

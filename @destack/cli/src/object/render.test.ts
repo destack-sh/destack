@@ -23,7 +23,12 @@ const card = defineObject({
 });
 
 test("list a type's title first, then its other fields, its identifier last", () => {
-    expect(Render.columns(card, undefined)).toEqual(["headline", "author", "body", "color", "id"]);
+    expect(Render.columns(card, { kind: "table" }, undefined)).toEqual([
+        "headline",
+        "author",
+        "body",
+        "id",
+    ]);
 });
 
 /** Two cards as the space returns them. */
@@ -34,12 +39,17 @@ const cards = [
 
 test("show a person a table with the identifiers last and the rows counted", () => {
     expect(
-        Render.table(cards, Render.columns(card, undefined), card, TerminalFixture.terminal(true)),
+        Render.table(
+            cards,
+            Render.columns(card, { kind: "table" }, undefined),
+            card,
+            TerminalFixture.terminal(true),
+        ),
     ).toBe(
         [
-            "  HEADLINE     AUTHOR  BODY            COLOR  ID",
-            "  Launch       ada     Write the post  -      card-1",
-            "  Intel start  grace   Fix it          red    card-2",
+            "  HEADLINE     AUTHOR  BODY            ID",
+            "  Launch       ada     Write the post  card-1",
+            "  Intel start  grace   Fix it          card-2",
             "",
             "  2 cards",
         ].join("\n"),

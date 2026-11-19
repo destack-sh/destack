@@ -148,7 +148,7 @@ test("leave hidden commands and options out of help, showing their own help", as
 test("report a failure without a service code as internal, exiting with 1", async () => {
     // report a broken service's failure as JSON on a terminal of its own
     const running = TerminalFixture.process({}, testHost().scheduler);
-    const terminal = new Terminal(running, "UTC");
+    const terminal = new Terminal(running, { timeZone: "UTC", locale: "en-US" });
     const code = await new CommandFailure(new TypeError("the title index is corrupt")).report(
         true,
         terminal,
@@ -167,7 +167,7 @@ test("report a failure without a service code as internal, exiting with 1", asyn
 test("report each cause of a failure below its message, outermost first", async () => {
     // report a failure wrapping two causes, as text and as JSON
     const running = TerminalFixture.process({}, testHost().scheduler);
-    const terminal = new Terminal(running, "UTC");
+    const terminal = new Terminal(running, { timeZone: "UTC", locale: "en-US" });
     const failure = new CommandFailure(
         new Error("activation did not finish", {
             cause: new Error("cannot replace the application", {
@@ -195,7 +195,7 @@ test("report each cause of a failure below its message, outermost first", async 
 test("exit an interrupted command as an interrupted program, printing nothing", async () => {
     // report an interrupt and a usage error on a terminal of its own
     const running = TerminalFixture.process({}, testHost().scheduler);
-    const terminal = new Terminal(running, "UTC");
+    const terminal = new Terminal(running, { timeZone: "UTC", locale: "en-US" });
     const codes = [
         await new CommandFailure(new Interrupted()).report(false, terminal),
         await new CommandFailure(

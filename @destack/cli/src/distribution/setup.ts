@@ -59,7 +59,7 @@ export class Setup {
         this.autostart = fields.autostart;
         this.desktop = fields.desktop;
         this.environment = fields.environment;
-        this.terminal = new Terminal(fields.environment.process, fields.environment.timeZone);
+        this.terminal = new Terminal(fields.environment.process, fields.environment);
     }
 
     /** Read the setup of this universe in an environment. */
