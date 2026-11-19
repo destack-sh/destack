@@ -13,9 +13,13 @@ import { runTool } from "./tool.ts";
 import { Toolchain } from "../toolchain/index.ts";
 import { CheckResult, type Diagnostic } from "../diagnostic/diagnostic.ts";
 import { checkMarkdown, fixMarkdown } from "../markdown/index.ts";
+import { Architecture } from "../architecture/index.ts";
 import { CheckError } from "../error/index.ts";
 import type { Plugin } from "../lint/plugin.ts";
 import { schema } from "@destack/schema";
+
+/** The file that lays out a workspace's packages in layers. */
+const ARCHITECTURE_FILE = "ARCHITECTURE.md";
 
 /** A package.json: a package's description, or a workspace's packages. */
 const Manifest = schema.looseObject({
@@ -126,6 +130,14 @@ async function checkMarkdownFiles(
         }
         const description = await readmeDescription(file, files);
         diagnostics.push(...checkMarkdown(relative(directory, file), text, description));
+
+        // check the layers of an architecture against its workspace's packages
+        if (basename(file) === ARCHITECTURE_FILE) {
+            const packages = await Architecture.packages(dirname(file), files);
+            diagnostics.push(
+                ...Architecture.parse(text).check(packages, relative(directory, file), text),
+            );
+        }
     }
 
     return diagnostics;
