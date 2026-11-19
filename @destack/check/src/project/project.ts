@@ -33,10 +33,9 @@ export interface TestOptions {
     readonly isListing?: boolean;
     /** Whether to write the snapshots the tests compare against anew. */
     readonly isUpdating?: boolean;
+    /** The pattern the full names of the tests to run match, as Playwright's grep. */
+    readonly grep?: string;
 }
-
-/** A file the formatter would change, as its check lists it with the time it took. */
-const FORMAT_LISTING = /^(\S.*?) \(\d+m?s\)$/u;
 
 /** A plain TypeScript diagnostic line: file, line, column, severity, code and message. */
 const TYPESCRIPT_DIAGNOSTIC = /^(.+?)\((\d+),(\d+)\): (error|warning) (TS\d+): (.*)$/u;
@@ -182,6 +181,7 @@ export class Project {
                 "--passWithNoTests",
                 `--maxWorkers=${workers}`,
                 ...(options.isUpdating === true ? ["--update"] : []),
+                ...(options.grep === undefined ? [] : ["--testNamePattern", options.grep]),
                 ...database,
                 ...(options.files ?? []),
             ],
@@ -273,12 +273,11 @@ export class Project {
             return [];
         }
 
-        // name each listed file, else the formatter's failure
-        const listed = result.stdout.split("\n").flatMap((line) => {
-            const [, filename] = FORMAT_LISTING.exec(line.trim()) ?? [];
-
-            return filename === undefined ? [] : [filename];
-        });
+        // read the unformatted files, one per line
+        const listed = result.stdout
+            .split("\n")
+            .map((line) => line.trim())
+            .filter((line) => line !== "");
         const filenames = listed.length === 0 ? ["."] : listed;
 
         return filenames.map((filename) => ({

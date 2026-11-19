@@ -74,7 +74,7 @@ export async function formatPackage(options: CheckOptions, write = true): Promis
                 "--disable-nested-config",
                 "--ignore-path",
                 ignore,
-                write ? "--write" : "--check",
+                write ? "--write" : "--list-different",
                 "--",
                 ...(await selectFiles(options)).map((file) => resolve(options.directory, file)),
             ],
