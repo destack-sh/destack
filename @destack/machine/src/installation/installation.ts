@@ -39,7 +39,8 @@ import { ViewDescription } from "@destack/package/manifest";
 import { type ApplicationOptions, ApplicationInstallation } from "./application.ts";
 import { Approval } from "./approval.ts";
 import { checkout } from "../computer/checkout/object/index.ts";
-import { CommitBuild, type Forge } from "./follow.ts";
+import { CommitBuild } from "./follow.ts";
+import { reference, tag } from "@destack/registry/object";
 import { StackInstallation } from "./stack.ts";
 import type { TokenIssuer } from "@destack/access/token";
 import { StackError } from "@destack/stack/error";
@@ -73,7 +74,7 @@ export function implementInstallations(options: InstallationOptions) {
                 const { follows, directory } = await RolloutTarget.resolveDeclared(
                     rest.packageId,
                     { selection, version },
-                    options,
+                    options.space.machine,
                 );
 
                 return {
@@ -170,7 +171,7 @@ function resumeProjection(options: InstallationOptions): ObjectProjection<typeof
         name: "resume",
         watches: [
             ...resumeWatches(options.resources, options.binder.objects()),
-            ...(options.forge === null ? [] : forgeWatches(options.forge)),
+            ...(options.space.machine.isBuilding ? followedWatches() : []),
         ],
         reports: {
             object: installation,
@@ -229,17 +230,15 @@ function resumeProjection(options: InstallationOptions): ObjectProjection<typeof
             }
 
             // then build the commit a followed reference points at
-            const { forge } = options;
             const { followsId, directory } = current.installation;
-            if (forge !== null && RolloutTarget.follows(current.installation) === "reference") {
+            const isFollowing = RolloutTarget.follows(current.installation) === "reference";
+            if (options.space.machine.isBuilding && isFollowing) {
                 const followed = {
                     id: present(followsId, "the followed reference"),
                     directory: present(directory, "the followed directory"),
                 };
                 await telemetry.span("destack.rollout.build", attributes, () =>
-                    new CommitBuild(current, followed, { ...options, forge }).reconcile(
-                        reconciliation,
-                    ),
+                    new CommitBuild(current, followed, options).reconcile(reconciliation),
                 );
             }
 
@@ -426,21 +425,21 @@ const WAITING: Relation = {
 };
 
 /** Wake a moved tag's or reference's followers and their managers, and a tag's waiting rollouts. */
-function forgeWatches(forge: Forge): ObjectWatch[] {
+function followedWatches(): ObjectWatch[] {
     return [
-        ...[forge.tags, forge.references].flatMap((table): ObjectWatch[] => [
+        ...[tag.table, reference.table].flatMap((table): ObjectWatch[] => [
             { table, path: [FOLLOWERS], on: { installationId: "id" } },
             { table, path: [FOLLOWERS], on: { installationId: "managerInstallationId" } },
         ]),
         // a rollout whose plan waits for a release once a tag of its space moves
-        { table: forge.tags, path: [WAITING], on: { installationId: "installationId" } },
+        { table: tag.table, path: [WAITING], on: { installationId: "installationId" } },
         // the followers of a reference, and their managers, once the build of its commit succeeds
         ...["id", "managerInstallationId"].map((column): ObjectWatch => ({
             table: build.table,
             where: { state: "succeeded" },
             path: [
                 {
-                    table: forge.references,
+                    table: reference.table,
                     cardinality: "many",
                     on: { kind: "key", column: "commit", parent: "commit" },
                 },

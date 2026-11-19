@@ -28,6 +28,7 @@ import { type SpaceProvider } from "@destack/stack/object";
 import { RequestId, Replica, type Call, ObjectReference, Scope, type Subject } from "@destack/sync";
 import { placement, Placement, type space } from "@destack/account/object";
 import { SpaceReplica } from "./replica.ts";
+import { stopInstances } from "../deployment/deployment.ts";
 import { machineBound, type HandoffOptions, type Handoff, SourceHandoff } from "./handoff.ts";
 import type { Runtime } from "../runtime/index.ts";
 import {
@@ -45,9 +46,7 @@ import { Recipient } from "@destack/identity";
 import { AccessContext, Caller, principal } from "@destack/access";
 import {
     Database,
-    deployment,
     build,
-    instance,
     restore,
     Restore,
     snapshot,
@@ -1085,18 +1084,7 @@ export class SpaceTransfer {
 
     /** Stop the space's instances on this machine's runtimes, whatever their records say. */
     async #stop(options: Pick<HandoffOptions, "runtimes">): Promise<void> {
-        // stop each instance of the space its runtime runs
-        const instances = await this.space.database
-            .select({ id: instance.table.id, runtime: deployment.table.runtime })
-            .from(instance.table)
-            .innerJoin(deployment.table, eq(deployment.table.id, instance.table.deploymentId))
-            .where(eq(instance.table.scope, this.spaceId));
-        for (const running of instances) {
-            const runtime = options.runtimes.find((entry) => entry.name === running.runtime);
-            if (runtime?.isRunning(running.id) === true) {
-                await runtime.stop(running.id);
-            }
-        }
+        await stopInstances(this.space.database, this.spaceId, options.runtimes);
     }
 
     /** Match the spaces a machine took over and fenced toward itself. */

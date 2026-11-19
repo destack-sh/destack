@@ -28,7 +28,6 @@ import { BlobStore, type DatabaseConnection, Snapshot, TABLE } from "@destack/db
 import { connectBunSqlite } from "@destack/db/bun";
 import type { SqliteDatabase } from "@destack/db/sqlite";
 import { DatabasePersonalKeyring, type EventKind, EventStore } from "@destack/event";
-import type { Registry } from "../installation/build.ts";
 import { type Deriver, type Keychain, type Keyring, LocalKeyring } from "@destack/identity";
 import { BunKeychain, type KeychainStore } from "@destack/identity/bun";
 import { mailConnector } from "@destack/mail/transport";
@@ -161,8 +160,6 @@ export interface ComputerOptions {
         identity: (scope: Identifier<"space">) => Promise<Deriver>,
         packages: LocalBuildStore,
     ) => Runtime & { readonly close: () => Promise<void> };
-    /** The forges' registry, by default the directory's forges called as the machine. */
-    readonly releases?: Registry;
     /** The installed distribution the machine stages and activates. */
     readonly distribution?: DistributionHost;
     /** Read the toolchain the compilers run, once they first need it. */
@@ -379,7 +376,6 @@ export class Computer implements AsyncDisposable {
                     volumes: spaces,
                     builds,
                     targets: COMPUTER_RUNTIMES,
-                    ...(options.releases === undefined ? {} : { releases: options.releases }),
                     isBuilding: true,
                     isEnforcingEntitlements: false,
                     // serve accounts' hostnames on a cloud machine, which their DNS points at

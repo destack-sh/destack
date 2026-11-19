@@ -1,13 +1,10 @@
 import type { RevisionOptions } from "./target.ts";
 import { type Caller, principal } from "@destack/access";
-import type { PublishStore } from "@destack/registry/client";
 import { LATEST_TAG } from "@destack/registry/object";
 import { and, eq, Snapshot } from "@destack/db";
 import { setting, SettingValue } from "@destack/setting/object";
 import { buildRetention } from "@destack/stack/setting";
-import { type BuildObject, BuildStore } from "@destack/build/store";
-import type { PackageFile } from "@destack/package/file";
-import type { Runtime } from "@destack/package/runtime";
+import { BuildStore } from "@destack/build/store";
 import {
     type MethodContextOf,
     type NextOf,
@@ -19,11 +16,10 @@ import { SpaceAddress } from "@destack/account/address";
 import type { GrantRequest } from "@destack/account/authentication";
 import stackPackage from "@destack/stack/package";
 import type { MountFetch, ObjectStore } from "@destack/object/server";
-import { BuildImage, PackageManifest } from "@destack/package/manifest";
-import { PackageId, type PackageRelease } from "@destack/package";
+import { PackageManifest } from "@destack/package/manifest";
+import { type PackageRelease } from "@destack/package";
 import { Digest, type Identifier, present, schema } from "@destack/schema";
 import { RequestId, ObjectReference, Scope } from "@destack/sync";
-import type { InstallationSelection } from "@destack/object";
 import {
     build,
     Build,
@@ -31,7 +27,6 @@ import {
     BuildSource,
     installationRevision,
 } from "@destack/stack/object";
-import type {} from "@destack/package/import-meta";
 import { StackError } from "@destack/stack/error";
 
 /** A checkout source of a build. */
@@ -40,55 +35,15 @@ export type CheckoutSource = Extract<BuildSource, { readonly kind: "checkout" }>
 /** A repository commit source of a build. */
 export type CommitSource = Extract<BuildSource, { readonly kind: "commit" }>;
 
-/** The registry of published releases. */
-export interface Registry {
-    /** Find the digest of a package release's image, by its version or a distribution tag. */
-    readonly find: (packageId: PackageId, release: string) => Promise<Digest>;
-    /** Read the version a followed release or tag names at its package's forge. */
-    readonly version: (packageId: PackageId, followed: ObjectReference) => Promise<string>;
-    /** Read the release, tag or repository reference a selection names, at its forge's home. */
-    readonly followed: (
-        packageId: PackageId,
-        selection: Exclude<InstallationSelection, { readonly kind: "host" | "checkout" }>,
-    ) => Promise<ObjectReference>;
-    /** The releases the distribution ships, which a scope runs of a package it installs none of. */
-    readonly distribution: readonly PackageRelease[];
-    /** Read the address npm clients ask for a handle's packages: its forge's npm mount. */
-    readonly npm: (handle: string) => Promise<string>;
-    /** Push a stored image and its builds to its account's forge. */
-    readonly push: (
-        store: PublishStore,
-        image: Digest,
-        account: Identifier<"account">,
-        signal?: AbortSignal,
-    ) => Promise<void>;
-    /** Pull a published image into a store for some runtimes, refusing another package's root. */
-    readonly pull: (
-        store: Pick<BuildStore, "get" | "image" | "pull">,
-        packageId: PackageId,
-        image: Digest,
-        runtimes: readonly Runtime[] | "all",
-    ) => Promise<BuildImage>;
-    /** Open a published image's or build's objects at its package's forge, as a build store. */
-    readonly store: (
-        packageId: PackageId,
-        root: Pick<BuildObject, "kind" | "digest">,
-    ) => Promise<Pick<BuildStore, "read">>;
-    /** List the files a package's published build attached at its forge. */
-    readonly attachments: (packageId: PackageId, manifest: Digest) => Promise<PackageFile[]>;
-}
-
 /** The options of the build server. */
 export interface BuildOptions {
     /** The machine running the spaces' commit builds. */
     readonly buildRunner: Identifier<"machine"> | null;
     /** The space whose builds the server records, reading through to its machine's builds. */
     readonly space: Pick<RevisionOptions["space"], "builds" | "machine">;
-    /** The registry the space's builds are pushed to. */
-    readonly registry: Registry;
     /** Publish each of an account's packages in a stored image for a caller. */
     readonly publish: (
-        store: PublishStore,
+        store: BuildStore,
         image: Digest,
         account: Identifier<"account">,
         tag: string,
@@ -302,10 +257,11 @@ export function implementBuild(options: BuildOptions) {
                 handle: async (context) => context.prepared,
             },
             push: {
-                // push a succeeded build's image and its builds to its package's forge before the transaction
                 prepare: async (context) => {
+                    // push a succeeded build's image and its builds to its account's registry before the transaction
                     const image = Build.image(context.target);
-                    await options.registry.push(options.space.builds, image, context.input.account);
+                    const { machine, builds } = options.space;
+                    await machine.push(builds, image, context.input.account);
 
                     return { image };
                 },

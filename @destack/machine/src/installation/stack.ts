@@ -324,7 +324,7 @@ async function appliedDefinition(
 /** Where a stack revision applies. */
 export interface StackApplicationOptions extends Pick<
     RevisionOptions,
-    "space" | "registry" | "forge" | "linked" | "shipped"
+    "space" | "linked" | "shipped"
 > {
     /** The object store running the handlers' calls as its principal. */
     readonly store: Pick<

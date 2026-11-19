@@ -1,4 +1,5 @@
 import { Catalog } from "@destack/locale";
+import { locateHome } from "../machine/registry.ts";
 import * as accountObject from "@destack/account/object";
 import { AccountError } from "@destack/account/error";
 import { Failure, HTTP_DOMAIN } from "@destack/error";
@@ -142,8 +143,6 @@ export class InstallationOriginServer {
     readonly #assets = new Map<string, Promise<AssetIndex>>();
     /** The catalog paths each build's pages load, by build and base. */
     readonly #catalogs = new Map<string, Promise<string[]>>();
-    /** The home of each account's residency, by account. */
-    readonly #residencies = new Map<string, Promise<Identifier<"space">>>();
 
     /** Serve the origins of a space's installations through its gateway. */
     constructor(
@@ -1232,11 +1231,9 @@ export class InstallationOriginServer {
                 installation: found.installationId,
                 space: this.#space.id,
                 account: space.scope,
-                residencyHome: await InstallationOriginServer.#memo(
-                    this.#residencies,
-                    space.scope,
-                    () =>
-                        this.#space.residencyHome(schema.identifier("account").parse(space.scope)),
+                residencyHome: await locateHome(
+                    this.#space.machine,
+                    schema.identifier("account").parse(space.scope),
                 ),
                 view: name,
                 base,

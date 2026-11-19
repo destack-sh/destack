@@ -253,8 +253,8 @@ export class CheckoutServer {
     ): Promise<void> {
         // pull the template's release whole, its source files among them
         const { machine, compilers, host } = this;
-        const image = await machine.releases.find(source.template, source.release);
-        await machine.releases.pull(machine.builds, source.template, image, "all");
+        const image = await machine.resolve(source.template, source.release);
+        await machine.pull(source.template, { kind: "image", digest: image }, "all");
         const opened = await machine.builds.image(image);
 
         // read the packages the release links, each at the version it released with

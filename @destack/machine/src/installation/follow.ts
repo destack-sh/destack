@@ -1,48 +1,86 @@
 import type { RevisionOptions } from "./target.ts";
 import { Manager } from "@destack/access";
-import { installation } from "@destack/object";
-import { reference } from "@destack/registry/object";
-import { and, type DatabaseConnection, eq, inArray, Snapshot, type Table } from "@destack/db";
+import { installation, type Installation } from "@destack/object";
+import { Space } from "@destack/account/object";
+import { reference, referenceShape, tag, tagShape } from "@destack/registry/object";
+import { and, type DatabaseConnection, eq, inArray, Snapshot } from "@destack/db";
 import type { ObjectReconciliation } from "@destack/object";
-import { type Commit, type Identifier, present } from "@destack/schema";
+import { Commit, type Identifier, present, schema } from "@destack/schema";
 import { DatabaseError } from "@destack/db";
 import { StackError } from "@destack/stack/error";
 import { ACTIVE_BUILD_STATES, build, Build } from "@destack/stack/object";
 import { installationRevision, type InstallationRollout, rollout } from "@destack/stack/object";
-import type { CommitSource, Registry } from "./build.ts";
+import type { CommitSource } from "./build.ts";
 
-/** The forge a machine follows: the references and tags its spaces' installations follow. */
-export interface Forge {
-    /** Read the account of a repository, absent for a repository without an account. */
-    readonly owner: (id: string) => Promise<Identifier<"account"> | undefined>;
-    /** The table of the references the space replicates. */
-    readonly references: Table;
-    /** The table of the distribution tags the space replicates. */
-    readonly tags: Table;
-    /** Read a followed reference in a space's replica, absent once deleted. */
-    readonly reference: (
-        reader: Pick<Snapshot, "read">,
-        id: string,
-    ) => Promise<
-        | {
-              readonly repository: Identifier<"repository">;
-              readonly name: string;
-              readonly commit: Commit | undefined;
-          }
-        | undefined
-    >;
-    /** Read the version a followed tag points at in a space's replica, absent while none. */
-    readonly version: (reader: Pick<Snapshot, "read">, id: string) => Promise<string | undefined>;
+/** Read a followed reference in a space's replica of its registry, absent once deleted. */
+export async function followedReference(
+    reader: Pick<Snapshot, "read">,
+    id: string,
+): Promise<
+    | {
+          readonly repository: Identifier<"repository">;
+          readonly name: string;
+          readonly commit: Commit | undefined;
+      }
+    | undefined
+> {
+    const followed = await reader
+        .read(reference.table)
+        .findFirst({ where: { id: schema.identifier("reference").parse(id) } });
+
+    return followed === undefined || followed.deletedAt !== null
+        ? undefined
+        : {
+              repository: followed.parentId,
+              name: followed.name,
+              commit: followed.commit === null ? undefined : Commit.parse(followed.commit),
+          };
+}
+
+/** Read the version a followed tag points at in a space's registry replica, absent while none. */
+export async function followedVersion(
+    reader: Pick<Snapshot, "read">,
+    id: string,
+): Promise<string | undefined> {
+    const followed = await reader
+        .read(tag.table)
+        .findFirst({ where: { id: schema.identifier("tag").parse(id) } });
+
+    return followed?.version;
+}
+
+/** Follow the reference each served installation follows, from its home. */
+export const referenceFollow = referenceShape.per(installation, {
+    where: { deletedAt: { isNull: true }, followsType: reference.name },
+    key: (row, view) => followedKey(row, view, "reference"),
+});
+
+/** Follow the tag each served installation follows, from its home. */
+export const tagFollow = tagShape.per(installation, {
+    where: { deletedAt: { isNull: true }, followsType: tag.name },
+    key: (row, view) => followedKey(row, view, "tag"),
+});
+
+/** Key the row an installation follows at its home, none outside a served space. */
+async function followedKey<Type extends "reference" | "tag">(
+    row: Pick<Installation, "scope" | "followsScope" | "followsId">,
+    view: Pick<Snapshot, "read">,
+    type: Type,
+) {
+    // follow nothing outside a space served here
+    const spaceId = schema.identifier("space").safeParse(row.scope);
+    const isServed = spaceId.success && (await Space.isServing(view, spaceId.data));
+    if (!isServed || row.followsScope === null || row.followsId === null) {
+        return undefined;
+    }
+
+    return { key: { scope: row.followsScope, id: schema.identifier(type).parse(row.followsId) } };
 }
 
 /** What building an installation's selected commit builds and evaluates with. */
 export interface CommitBuildOptions {
-    /** The repositories the installations select. */
-    readonly forge: Forge;
-    /** The space whose builds are read, through to its machine's builds and forges. */
+    /** The space whose builds are read, through to its machine's builds and registries. */
     readonly space: RevisionOptions["space"];
-    /** The registry of the releases a stack's build depends on. */
-    readonly registry: Pick<Registry, "store">;
 }
 
 /** The build of the commit an installation's followed reference points at. */
@@ -70,10 +108,9 @@ export class CommitBuild {
         // read the followed reference once replicated, refusing a repository of another account
         const target = this.#target;
         const { id, directory } = this.#followed;
-        const { forge } = this.#options;
         const { database } = reconciliation;
         const snapshot = Snapshot.live(database);
-        const followed = await forge.reference(snapshot, id);
+        const followed = await followedReference(snapshot, id);
         if (followed === undefined) {
             return;
         }
@@ -119,7 +156,6 @@ export class CommitBuild {
         // read the commits the space's installations following references of the directory point at
         const { scope } = this.#target;
         const { directory } = this.#followed;
-        const { forge } = this.#options;
         const { database } = reconciliation;
         const snapshot = Snapshot.live(database);
         const isSame = (source: { readonly repository: string; readonly directory: string }) =>
@@ -129,7 +165,7 @@ export class CommitBuild {
         });
         const references = await Promise.all(
             following.map((each) =>
-                forge.reference(snapshot, present(each.followsId, "a followed reference")),
+                followedReference(snapshot, present(each.followsId, "a followed reference")),
             ),
         );
         const followed = new Set(

@@ -1,3 +1,5 @@
+import type { Machine } from "../machine/machine.ts";
+import { callRegistry, findPublisherHome } from "../machine/registry.ts";
 import type { Space } from "../space/space.ts";
 import { Failure } from "@destack/error";
 import { DeclarationReference } from "@destack/package/declare";
@@ -37,9 +39,9 @@ import { ObjectReference, ObjectTypeReference } from "@destack/sync";
 import { Setting } from "@destack/setting";
 import { SettingValue } from "@destack/setting/object";
 import { build, Build, type BuildSource } from "@destack/stack/object";
-import type { Registry } from "./build.ts";
-import type { Forge } from "./follow.ts";
-import { release, reference, tag } from "@destack/registry/object";
+import { followedReference, followedVersion } from "./follow.ts";
+import { packageObject, release, reference, repository, tag } from "@destack/registry/object";
+import { RegistryError } from "@destack/registry/error";
 import { checkout } from "../computer/checkout/object/index.ts";
 import type { InstallationSelection } from "@destack/object";
 import type { Binder } from "../resource/binding.ts";
@@ -55,21 +57,17 @@ import {
     rollout,
 } from "@destack/stack/object";
 
-/** What targeting and describing revisions read: space, the registry, blobs and the forge. */
+/** What targeting and describing revisions read: space, blobs and the known types. */
 export interface RevisionOptions {
     /** The kinds of objects bindings target. */
     readonly binder: Binder;
-    /** The space whose builds are read, through to its machine's builds and forges. */
+    /** The space whose builds are read, through to its machine's builds and registries. */
     readonly space: Pick<
         Space,
         "builds" | "machine" | "root" | "pull" | "read" | "requireFollowable" | "requireRepository"
     >;
-    /** The registry of published releases. */
-    readonly registry: Registry;
     /** The space's blobs, storing the states its revisions require. */
     readonly blobs: BlobStore;
-    /** The forge whose references and tags installations select, null without one. */
-    readonly forge: Forge | null;
     /** The types every space knows beside those it serves, which descriptions refer to. */
     readonly known: readonly ObjectType[];
     /** The release the machine links of each package, which its spaces run before any revision. */
@@ -146,7 +144,7 @@ export const RolloutTarget = {
             readonly selection?: InstallationSelection | undefined;
             readonly version?: string | undefined;
         },
-        options: Pick<RevisionOptions, "registry" | "shipped">,
+        options: Machine,
     ): Promise<{
         readonly follows: ObjectReference | undefined;
         readonly directory: string | null;
@@ -169,13 +167,68 @@ export const RolloutTarget = {
             return { follows: followed, directory: selection.directory };
         }
 
-        // read a release, tag or reference at its forge's home
-        const followed = await options.registry.followed(packageId, selection);
+        // read a release, tag or reference at its registry's home
+        const followed = await RolloutTarget.resolveFollowed(options, packageId, selection);
 
         return {
             follows: followed,
             directory: selection.kind === "repository" ? selection.directory : null,
         };
+    },
+
+    /** Find the release, tag or repository reference a selection names, at its registry's home. */
+    async resolveFollowed(
+        machine: Machine,
+        packageId: PackageId,
+        selection: Exclude<InstallationSelection, { readonly kind: "host" | "checkout" }>,
+    ): Promise<ObjectReference> {
+        // take the release a version names at its package's registry
+        if (selection.kind === "release") {
+            const home = await findPublisherHome(machine, packageObject, packageId);
+            const found = await callRegistry(machine, home).release.resolve({
+                spaceId: home,
+                parentId: packageId,
+                release: selection.version,
+            });
+
+            return release.reference(found.scope, found.id);
+        }
+        // find the package's tag by its name
+        else if (selection.kind === "tag") {
+            const home = await findPublisherHome(machine, packageObject, packageId);
+            const { items } = await callRegistry(machine, home).tag.list({
+                spaceId: home,
+                where: { parentId: packageId, name: selection.tag },
+                limit: 1,
+            });
+            const [row] = items;
+            if (row === undefined) {
+                throw RegistryError.of(
+                    "RELEASE_NOT_FOUND",
+                    `tag '${selection.tag}' of '${packageId}' not found`,
+                );
+            }
+
+            return tag.reference(row.scope, row.id);
+        }
+        // find the repository's reference by its name
+        else {
+            const home = await findPublisherHome(machine, repository, selection.repository);
+            const { items } = await callRegistry(machine, home).reference.list({
+                spaceId: home,
+                where: { parentId: selection.repository, name: selection.reference },
+                limit: 1,
+            });
+            const [row] = items;
+            if (row === undefined) {
+                throw RegistryError.of(
+                    "RELEASE_NOT_FOUND",
+                    `reference '${selection.reference}' of repository '${selection.repository}' not found`,
+                );
+            }
+
+            return reference.reference(row.scope, row.id);
+        }
     },
 
     /** Report whether an installation's build resolves without a build here: a release or a pin. */
@@ -299,7 +352,7 @@ export const RolloutTarget = {
         }
 
         // leave a host's release already on the machine
-        const { forge } = options;
+        const { isBuilding } = options.space.machine;
         const hosted = kind === "host" ? RolloutTarget.host(packageId, options) : undefined;
         if (
             hosted !== undefined &&
@@ -314,8 +367,8 @@ export const RolloutTarget = {
                 ? undefined
                 : await InstallationRevision.build(reader, row.targetRevisionId);
         const tagged =
-            kind === "tag" && forge !== null
-                ? await forge.version(reader, present(installed.followsId, "the followed tag"))
+            kind === "tag" && isBuilding
+                ? await followedVersion(reader, present(installed.followsId, "the followed tag"))
                 : undefined;
         if (
             tagged !== undefined &&
@@ -325,7 +378,7 @@ export const RolloutTarget = {
             return undefined;
         }
 
-        // resolve the host's release, or the followed release or tag at its forge
+        // resolve the host's release, or the followed release or tag at its registry
         const resolved = hosted ?? (await selectedRelease(reader, installed, options));
         if (resolved === undefined) {
             return undefined;
@@ -345,7 +398,7 @@ export const RolloutTarget = {
         spaceId: Identifier<"space">,
         packageId: PackageId,
         installationId: Identifier<"installation"> | undefined,
-        options: Pick<RevisionOptions, "forge" | "registry" | "linked" | "shipped"> & {
+        options: Pick<RevisionOptions, "linked" | "shipped"> & {
             readonly space: Pick<Space, "builds" | "machine" | "root" | "pull" | "read">;
         },
     ): Promise<BuildReader | undefined> {
@@ -414,7 +467,6 @@ export const RolloutTarget = {
         image: BuildImage,
         options: {
             readonly space: Pick<Space, "builds" | "machine" | "root" | "pull" | "read">;
-            readonly registry: Pick<Registry, "store">;
         },
     ): Promise<StackEvaluation> {
         // take the builds the machine links, then the image's
@@ -499,7 +551,7 @@ export const RolloutTarget = {
         target: Pick<Installation, "name" | "capabilities" | "allowed">,
         image: BuildImage,
         objects: readonly ObjectType[],
-        options: Pick<RevisionOptions, "space" | "registry" | "blobs" | "known">,
+        options: Pick<RevisionOptions, "space" | "blobs" | "known">,
     ): Promise<Pick<InstallationRevision, "dependencies" | "states">> {
         // read the image's root and the builds of the installable packages the image has
         const { blobs } = options;
@@ -606,14 +658,12 @@ async function selectBuild(
     }
     // take the succeeded build of the commit a followed reference points at
     else if (kind === "reference") {
-        const { forge } = options;
-        const followed =
-            forge === null
-                ? undefined
-                : await forge.reference(
-                      snapshot,
-                      present(installed.followsId, "the followed reference"),
-                  );
+        const followed = options.space.machine.isBuilding
+            ? await followedReference(
+                  snapshot,
+                  present(installed.followsId, "the followed reference"),
+              )
+            : undefined;
         if (followed?.commit === undefined) {
             return undefined;
         }
@@ -659,26 +709,26 @@ async function selectedRelease(
         Installation,
         "followsPackageId" | "followsType" | "followsScope" | "followsId" | "packageId"
     >,
-    options: Pick<RevisionOptions, "forge" | "registry"> & {
+    options: {
         readonly space: Pick<Space, "builds" | "machine" | "root" | "pull" | "read">;
     },
 ): Promise<{ readonly version: string; readonly image: Digest } | undefined> {
-    // read the version a tag points at in the forge's replica
+    // read the version a tag points at in the space's replica of its registry
     const { packageId } = installed;
-    const { forge, registry } = options;
+    const { machine } = options.space;
     const followed = ObjectReference.at("follows", installed);
     const kind = RolloutTarget.follows(installed);
-    if (kind === "tag" && forge !== null) {
-        const version = await forge.version(snapshot, followed.id);
+    if (kind === "tag" && machine.isBuilding) {
+        const version = await followedVersion(snapshot, followed.id);
 
         return version === undefined
             ? undefined
-            : { version, image: await registry.find(packageId, version) };
+            : { version, image: await machine.resolve(packageId, version) };
     }
-    // read a release's version, or a tag's once on a machine following no forge, at the registry
+    // read a release's version, or a tag's on a machine replicating no tags, at its registry
     else {
-        const version = await registry.version(packageId, followed);
-        const image = await published(registry, packageId, version);
+        const version = await readVersion(machine, followed);
+        const image = await published(machine, packageId, version);
 
         return image === undefined ? undefined : { version, image };
     }
@@ -686,12 +736,12 @@ async function selectedRelease(
 
 /** Find a published release's image by version or tag, absent while none is published. */
 async function published(
-    registry: Pick<Registry, "find">,
+    machine: Pick<Machine, "resolve">,
     packageId: PackageId,
     named: string,
 ): Promise<Digest | undefined> {
-    return await registry.find(packageId, named).catch((error: unknown) => {
-        // answer absent for the forge's missing release, and fail on any other refusal
+    return await machine.resolve(packageId, named).catch((error: unknown) => {
+        // answer absent for the registry's missing release, and fail on any other refusal
         if (Failure.of(error).reason === "RELEASE_NOT_FOUND") {
             return undefined;
         }
@@ -705,7 +755,7 @@ async function mainState(
     reader: BuildReader,
     revision: Pick<InstallationRevision, "dependencies">,
     objects: readonly ObjectType[],
-    options: Pick<RevisionOptions, "space" | "registry" | "known">,
+    options: Pick<RevisionOptions, "space" | "known">,
 ): Promise<DatabaseState | undefined> {
     // declare no tables for a package declaring no object types
     const packageId = PackageManifest.package(reader.manifest).id;
@@ -832,4 +882,23 @@ async function declaredStates(
     }
 
     return states;
+}
+
+/** Read the version a followed release or tag points at, at the registry in its home. */
+async function readVersion(machine: Machine, followed: ObjectReference): Promise<string> {
+    // read the tag, or the release itself, by its identifier where it lives
+    const home = schema.identifier("space").parse(followed.scope);
+    const client = callRegistry(machine, home);
+    const row =
+        followed.type === tag.name
+            ? await client.tag.get({
+                  spaceId: home,
+                  id: schema.identifier("tag").parse(followed.id),
+              })
+            : await client.release.get({
+                  spaceId: home,
+                  id: schema.identifier("release").parse(followed.id),
+              });
+
+    return row.version;
 }

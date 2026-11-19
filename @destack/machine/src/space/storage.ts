@@ -7,7 +7,7 @@ import { claim, entitlement, organization } from "@destack/account/object";
 import { identityKey } from "@destack/account/identity";
 import { call, type ObjectType } from "@destack/object";
 import { spaceReplicated, spaceTables } from "@destack/stack/stack";
-import { Forge } from "@destack/registry/client";
+import { reference, tag } from "@destack/registry/object";
 import type { CatalogueBucketHost } from "@destack/bucket/provider";
 import type { S3Credentials } from "@destack/bucket/s3";
 import { type DatabaseConnection, defineDatabase, type Table } from "@destack/db";
@@ -24,7 +24,8 @@ const KERNEL_REPLICATED: readonly Table[] = [
     ...spaceReplicated,
     organization.table,
     entitlement.table,
-    ...Forge.replicated.map((type) => type.table),
+    reference.table,
+    tag.table,
     claim.table,
 ];
 

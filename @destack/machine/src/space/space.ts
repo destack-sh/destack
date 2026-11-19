@@ -1,5 +1,7 @@
 import { TelemetryScope } from "@destack/telemetry";
-import { reference } from "@destack/registry/object";
+import { reference, repository } from "@destack/registry/object";
+import { referenceFollow, tagFollow } from "../installation/follow.ts";
+import { callRegistry, locateHome } from "../machine/registry.ts";
 import type * as packageRuntime from "@destack/package/runtime";
 import type { defineDatabase } from "@destack/db";
 import { Failure } from "@destack/error";
@@ -47,8 +49,6 @@ import {
 import type { Deriver } from "@destack/identity";
 import {
     CallKey,
-    ClaimLookup,
-    claimTable,
     type CursorPage,
     Egress,
     Isolate,
@@ -107,7 +107,7 @@ import {
 import { type Credential, Session } from "@destack/account/client";
 import objectPackage from "@destack/object/package";
 import { type graph, PackageId, PackageRelease, Sandbox } from "@destack/package";
-import { Digest, type Identifier, present, schema } from "@destack/schema";
+import { Commit, Digest, type Identifier, present, schema } from "@destack/schema";
 import {
     ObjectReference,
     type Publisher,
@@ -148,7 +148,7 @@ import type {
     WorkloadResource,
 } from "../runtime/runtime.ts";
 import { RolloutTarget } from "../installation/target.ts";
-import { Forge, type PublishStore, Registry } from "@destack/registry/client";
+import registryPackage from "@destack/registry/package";
 import { S3Credentials, type S3Server } from "@destack/bucket/s3";
 import connectionPackage, { CONNECTION_INSTALLATION } from "@destack/connection/client";
 import type { ConnectionLease } from "@destack/connection/object";
@@ -158,6 +158,7 @@ import { PackageError } from "@destack/package/error";
 import { serveS3 } from "../resource/s3.ts";
 import { ProviderIndex } from "../resource/resource.ts";
 import { SpaceTransfer } from "../transfer/transfer.ts";
+import { stopInstances } from "../deployment/deployment.ts";
 import type { SpaceRole } from "./placement.ts";
 import type { OtlpSignal } from "@destack/telemetry/otlp";
 import { Gateway } from "../gateway/index.ts";
@@ -274,15 +275,13 @@ export interface SpaceStart {
     readonly buckets: CatalogueBucketHost;
     /** The S3 API over the space's buckets. */
     readonly s3: Pick<S3Server, "fetch" | "serve">;
-    /** The forge whose references and tags installations select, null on a machine not building. */
-    readonly forge: Forge | null;
     /** The account package's remote of this start, signed as the space or its installations. */
     readonly remote: ObjectRemote;
     /** The claim type of unique index names, and the universe that serves it. */
     readonly claims: ClaimPrimary;
     /** The graphs of the space's builds, served as external objects. */
     readonly external: ExternalStorage;
-    /** The shapes the start follows beside the space's own, such as the forge's references. */
+    /** The shapes the start follows beside the space's own, such as the registry's references. */
     readonly follows: readonly Follow[];
     /** The start's own controllers: the space's reconcile and a rated primary's meter. */
     readonly controllers: readonly ((store: ObjectStore) => Controller)[];
@@ -379,8 +378,8 @@ export class Space {
             blobs: fields.blobs,
             environment: fields.machine.environment,
             sources: [fields.machine.builds],
-            pullFile: (built, file) => fields.machine.pullFile(built, file),
-            pullAttachments: (built) => fields.machine.pullAttachments(built),
+            pull: (packageId, digest) =>
+                fields.machine.pull(packageId, { kind: "manifest", digest }, "all"),
         });
         this.keystore = new IdentityKeystore(
             fields.machine.keyring,
@@ -472,7 +471,6 @@ export class Space {
                         ? await this.installed("machine")
                         : { installed: [], unavailable: [] };
                 await this.#root(installed, unavailable);
-                const forge = this.forge();
 
                 // close the start's connections as it retires
                 const connections = new DisposableStack();
@@ -487,14 +485,13 @@ export class Space {
                     partitions: await this.partitions(),
                     buckets,
                     s3: serveS3(buckets, this.database, machine.environment),
-                    forge,
                     remote,
                     claims: {
                         object: accountObject.claim,
                         home: RemoteStore.of(remote, Scope.universe.id),
                     },
                     external: volume.graphs(this.builds),
-                    follows: forge === null ? [] : forge.follows(),
+                    follows: machine.isBuilding ? [referenceFollow, tagFollow] : [],
                     controllers: [
                         () => this.controller(),
                         () => this.builds.controller(),
@@ -534,14 +531,6 @@ export class Space {
                 return start;
             },
         );
-    }
-
-    /** Open the forge installations follow, none on a machine that builds nothing. */
-    forge(): Forge | null {
-        const { machine } = this;
-        const lookup = ClaimLookup.of(machine.directory.snapshot.read(claimTable));
-
-        return machine.isBuilding ? new Forge(lookup) : null;
     }
 
     /** Serve one start of the space's workload: its store, installations, gateway and meters. */
@@ -597,15 +586,13 @@ export class Space {
         version?: string,
     ): Promise<BuildReader | undefined> {
         // read the installed release and the distribution's
-        const { releases, linked, shipped } = this.machine;
+        const { linked, shipped } = this.machine;
         const installed = await RolloutTarget.reader(view, spaceId, packageId, undefined, {
-            forge: this.#current().forge,
-            registry: releases,
             linked,
             shipped,
             space: this,
         });
-        const distributed = PackageRelease.newest(releases.distribution, packageId);
+        const distributed = shipped.get(packageId);
         const isInstalled =
             installed !== undefined &&
             (version === undefined || installed.manifest.package.version === version);
@@ -616,7 +603,7 @@ export class Space {
         }
         // pull a named version
         else if (version !== undefined) {
-            return this.root(packageId, await releases.find(packageId, version));
+            return this.root(packageId, await this.machine.resolve(packageId, version));
         }
         // pull the distribution's release of a package the space does not install
         else if (distributed !== undefined) {
@@ -767,7 +754,9 @@ export class Space {
     async #pull(packageId: PackageId, image: Digest): Promise<BuildImage> {
         // pull a published image from its forge
         if (!(await this.builds.contains(image))) {
-            return await this.machine.pull(packageId, image);
+            await this.machine.pull(packageId, { kind: "image", digest: image });
+
+            return await this.machine.builds.image(image);
         }
 
         // pull the space's own image from the space's builds
@@ -790,13 +779,13 @@ export class Space {
         }
 
         // list a published build's manifest once, the linked release's in place of another
-        const { builds, linked, releases } = this.machine;
+        const { builds, linked } = this.machine;
         const release = linked.get(packageId);
         const resolved =
             release === undefined ? manifest : (await builds.image(release.image)).root;
         if ((await builds.find(resolved)) === undefined) {
             const root = { kind: "manifest", digest: resolved } as const;
-            await builds.pull(await releases.store(packageId, root), root, []);
+            await this.machine.pull(packageId, root, []);
         }
 
         return await this.builds.contents(resolved);
@@ -2188,7 +2177,7 @@ export class Space {
         const { follows } = await RolloutTarget.resolveDeclared(
             stack.packageId,
             selection.kind === "release" ? { version: selection.version } : { selection },
-            { registry: this.machine.releases, shipped: this.machine.shipped },
+            this.machine,
         );
 
         return { digest, follows };
@@ -2534,6 +2523,20 @@ export class Space {
                 try {
                     // release the store's sockets first, their clients resuming elsewhere
                     this.machine.hibernation?.release(this.id);
+
+                    // stop the store's controllers, then the instances they ran, telemetry receivers last
+                    const receivers = (this.#start?.mounts ?? []).filter(
+                        (each) => each.name === OTLP_MOUNT,
+                    );
+                    await this.#instance?.stopControllers();
+                    await stopInstances(
+                        this.database,
+                        this.id,
+                        this.machine.runtimes,
+                        new Set(receivers.map((each) => each.installationId)),
+                    );
+
+                    // stop the store's servers, the builtin receivers among them
                     await this.#instance?.close();
                 } finally {
                     await this.volume.close();
@@ -2770,7 +2773,7 @@ export class Space {
 
     /** Publish each of an account's packages in a stored image for a caller. */
     async publish(
-        store: PublishStore,
+        store: BuildStore,
         image: Digest,
         account: Identifier<"account">,
         tag: string,
@@ -2789,36 +2792,39 @@ export class Space {
             );
         }
 
-        // publish through the forges in the accounts' residency homes, calling each for the caller under the grant the space asks
-        const forges = Registry.of(
-            this.machine.directory,
-            (owner) => this.residencyHome(owner),
-            (audience) =>
-                this.session(this.identityOf(space).acting(acting, requested)).fetch(audience),
-            environment,
-            this.machine.registry,
-            [...this.machine.shipped.values()],
+        // push the image and publish the account's packages in it, for the caller under the grant the space asks
+        const home = await locateHome(this.machine, account);
+        const fetch = this.session(this.identityOf(space).acting(acting, requested)).fetch(
+            registryPackage.id,
         );
-
-        return await forges.publish(
-            store,
+        await this.machine.push(store, image, account, fetch);
+        const published = await callRegistry(this.machine, home, fetch).package.publish({
+            spaceId: home,
+            requestId: RequestId.create(environment),
+            accountId: account,
             image,
-            account,
             tag,
-            commit === undefined ? {} : { commit },
-        );
+            ...(commit === undefined ? {} : { commit }),
+        });
+
+        return published.releases;
     }
 
-    /** Lease a repository of the space's account to read, at the forge in its residency's home. */
+    /** Lease a repository of the space's account to read, at its residency home's registry. */
     async lease(repositoryId: Identifier<"repository">): Promise<Lease> {
-        return this.#forges().lease(await this.account(), repositoryId);
+        const home = await locateHome(this.machine, await this.account());
+
+        return this.#registry(home).repository.open({
+            spaceId: home,
+            id: repositoryId,
+            mode: "read",
+        });
     }
 
     /** Refuse a repository outside the space's account. */
-    async requireRepository(repository: Identifier<"repository">): Promise<void> {
+    async requireRepository(repositoryId: Identifier<"repository">): Promise<void> {
         // refuse any on a machine following no repositories
-        const { forge } = this.#current();
-        if (forge === null) {
+        if (!this.machine.isBuilding) {
             throw StackError.of(
                 "REPOSITORIES_BLOCKED",
                 "cannot follow a repository: this machine does not follow any repositories",
@@ -2826,10 +2832,11 @@ export class Space {
         }
 
         // refuse one another account owns or none claims
-        if ((await forge.owner(repository)) !== (await this.account())) {
+        const owner = await this.machine.directory.owner(repository, repositoryId);
+        if (owner !== (await this.account())) {
             throw StackError.of(
                 "REPOSITORY_NOT_FOUND",
-                `repository '${repository}' of the space's account not found`,
+                `repository '${repositoryId}' of the space's account not found`,
             );
         }
     }
@@ -2841,22 +2848,32 @@ export class Space {
         }
     }
 
-    /** Read a followed reference at its forge's home as the space. */
-    reference(followed: ObjectReference): ReturnType<Registry["reference"]> {
-        return this.#forges().reference(followed);
+    /** Read a followed reference at its registry's home as the space. */
+    async reference(followed: ObjectReference): Promise<{
+        readonly repository: Identifier<"repository">;
+        readonly name: string;
+        readonly commit: Commit | undefined;
+    }> {
+        // read the reference by its identifier at its home
+        const home = schema.identifier("space").parse(followed.scope);
+        const row = await this.#registry(home).reference.get({
+            spaceId: home,
+            id: schema.identifier("reference").parse(followed.id),
+        });
+
+        // read its commit, absent before its first push
+        const commit = row.commit === null ? undefined : Commit.parse(row.commit);
+
+        return { repository: row.parentId, name: row.name, commit };
     }
 
-    /** Call the forges as the space, a peer call to each home's stack. */
-    #forges(): Registry {
+    /** Call the registry in a home as the space, a peer call to the home's stack. */
+    #registry(home: Identifier<"space">): ClientOf<typeof registryPackage> {
+        // sign as the space for the home's stack
         const self = principal.space.reference(Scope.universe.id, this.id);
+        const fetch = this.session(this.identityOf(self)).fetch(stackPackage.id);
 
-        return Registry.of(
-            this.machine.directory,
-            (account) => this.residencyHome(account),
-            () => this.session(this.identityOf(self)).fetch(stackPackage.id),
-            this.machine.environment,
-            this.machine.registry,
-        );
+        return callRegistry(this.machine, home, fetch);
     }
 
     /** Forward an instance's telemetry export, stamped with its installation and instance. */
@@ -2923,7 +2940,7 @@ export class Space {
                 accountId: use.accountId,
                 id: this.id,
             });
-            const home = await this.residencyHome(payer);
+            const home = await locateHome(this.machine, payer);
             const fetch = this.machine.fetch(stackPackage.id);
             const stack = directory.client(
                 stackPackage,
@@ -2939,11 +2956,6 @@ export class Space {
     /** Read what the current start of the workload serves with, refusing before it serves. */
     #current(): SpaceStart {
         return present(this.#start, `the workload of ${this.id}`);
-    }
-
-    /** Read the home of an account's residency through the universe, as the machine. */
-    async residencyHome(accountId: Identifier<"account">): Promise<Identifier<"space">> {
-        return this.accounts().residency.locate({ account: accountId });
     }
 }
 

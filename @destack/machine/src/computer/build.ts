@@ -10,7 +10,7 @@ import { Digest, type Identifier, schema, Uuid, type Version } from "@destack/sc
 import { CallError } from "@destack/object";
 import { RequestId } from "@destack/sync";
 import stackPackage, { PUSH_PATH } from "@destack/stack/package";
-import { PackageClient } from "@destack/build/store";
+import { RemoteBuildStore } from "@destack/build/store";
 import { ACTIVE_BUILD_STATES, build } from "@destack/stack/object";
 import type { CheckoutSource, CommitSource } from "../installation/build.ts";
 import { Failure } from "@destack/error";
@@ -171,7 +171,7 @@ export class BuildRunner {
             progress: { phase: "storing" },
         });
         const endpoint = await this.#machine.options(stackPackage, target.spaceId);
-        const pushing = new PackageClient(
+        const pushing = new RemoteBuildStore(
             `${endpoint.url}${PUSH_PATH}/${target.spaceId}/${target.id}/`,
             endpoint.fetch,
         );
@@ -192,11 +192,15 @@ export class BuildRunner {
         }
 
         // pull every build each image lists with all its files, which the shipped layer lacks
-        const { builds, releases, linked } = this.#machine;
+        const { linked } = this.#machine;
         const pulling = Promise.all(
-            [...linked.values()].map((release) =>
-                releases.pull(builds, release.package.id, release.image, "all"),
-            ),
+            [...linked.values()].map(async (release) => {
+                // pull the image whole, then read it
+                const root = { kind: "image", digest: release.image } as const;
+                await this.#machine.pull(release.package.id, root, "all");
+
+                return await this.#machine.builds.image(release.image);
+            }),
         );
         this.#linked = pulling;
         pulling.catch(() => (this.#linked = undefined));
@@ -204,12 +208,11 @@ export class BuildRunner {
         return pulling;
     }
 
-    /** Pull a required release's image from its publisher's forge, with every build it lists. */
+    /** Pull a required release's image from its publisher's registry, with every build it lists. */
     async #release(dependency: PackageVersion): Promise<Digest> {
         // pull the image of its version whole
-        const { builds, releases } = this.#machine;
-        const digest = await releases.find(dependency.id, dependency.version);
-        await releases.pull(builds, dependency.id, digest, "all");
+        const digest = await this.#machine.resolve(dependency.id, dependency.version);
+        await this.#machine.pull(dependency.id, { kind: "image", digest }, "all");
 
         return digest;
     }

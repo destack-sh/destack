@@ -708,7 +708,7 @@ export class Device<
         });
         stack.defer(() => database.close());
 
-        // follow them as their owner until the stack closes: the device's own as the device, else as the machine
+        // follow them as their owner until the stack closes: the device's own as the device, else as the machine in its partition
         return ObjectClient.start(
             {
                 environment: this.environment,
@@ -718,10 +718,13 @@ export class Device<
                 caller: isLocal
                     ? principal.device.reference(Scope.universe.id, this.id)
                     : principal.machine.reference(Scope.universe.id, machineId),
-                remote: this.loopback.connection(
-                    PackageMount.path(first.package.id),
-                    isLocal ? this.id : machineId,
-                ),
+                remote: isLocal
+                    ? this.loopback.connection(PackageMount.path(first.package.id), this.id)
+                    : this.loopback.connection(
+                          PackageMount.path(first.package.id),
+                          machineId,
+                          machineId,
+                      ),
             },
             stack,
         );

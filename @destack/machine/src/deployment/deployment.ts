@@ -184,6 +184,35 @@ export function implementInstance() {
     });
 }
 
+/** Stop a space's instances on the runtimes running them, the given installations' last. */
+export async function stopInstances(
+    database: DatabaseConnection,
+    spaceId: Identifier<"space">,
+    runtimes: readonly Runtime[],
+    last: ReadonlySet<Identifier<"installation">> = new Set(),
+): Promise<void> {
+    // read the space's instances with their runtimes, whatever their records say
+    const instances = await database
+        .select({
+            id: instance.table.id,
+            runtime: deployment.table.runtime,
+            installationId: deployment.table.installationId,
+        })
+        .from(instance.table)
+        .innerJoin(deployment.table, eq(deployment.table.id, instance.table.deploymentId))
+        .where(eq(instance.table.scope, spaceId));
+
+    // stop the others first, then the given installations', as a sidecar outlives its pod's containers
+    const first = instances.filter((running) => !last.has(running.installationId));
+    const second = instances.filter((running) => last.has(running.installationId));
+    for (const running of [...first, ...second]) {
+        const runtime = runtimes.find((entry) => entry.name === running.runtime);
+        if (runtime?.isRunning(running.id) === true) {
+            await runtime.stop(running.id);
+        }
+    }
+}
+
 /** One reconcile of one deployment of a served space the machine runs, with its instances. */
 class Reconcile {
     /** The deployment. */

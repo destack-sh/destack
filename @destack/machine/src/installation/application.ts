@@ -65,9 +65,7 @@ import {
     type StackEvaluation,
 } from "@destack/stack/object";
 import type { Binder } from "../resource/binding.ts";
-import { type Registry } from "./build.ts";
 import { Approval } from "./approval.ts";
-import type { Forge } from "./follow.ts";
 import { HOOK_WORKLOAD } from "@destack/stack/workload";
 import { type DeploymentRuntime, PROCESS_RUNTIME } from "@destack/stack/object";
 import { BOOTSTRAP_PACKAGES } from "@destack/stack/declare";
@@ -84,10 +82,8 @@ const OtherDescription = schema.object({ name: DeclarationName }).catchall(schem
 export interface ApplicationOptions {
     /** The kinds of objects bindings target. */
     readonly binder: Binder;
-    /** The space whose builds are read, through to its machine's builds and forges. */
+    /** The space whose builds are read, through to its machine's builds and registries. */
     readonly space: RevisionOptions["space"];
-    /** The registry of published releases. */
-    readonly registry: Registry;
     /** The server runtimes the machine runs, in preference order. */
     readonly runtimes: readonly Runtime[];
     /** The Destack versions whose releases the machine runs: its own and the oldest it supports. */
@@ -104,8 +100,6 @@ export interface ApplicationOptions {
     readonly trusted: ReadonlySet<Digest>;
     /** The space's blobs, storing the states its revisions require. */
     readonly blobs: BlobStore;
-    /** The forge whose references and tags installations select, null without one. */
-    readonly forge: Forge | null;
     /** The types every space knows beside those it serves, which descriptions refer to. */
     readonly known: readonly ObjectType[];
 }

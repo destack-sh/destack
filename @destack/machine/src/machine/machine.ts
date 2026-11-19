@@ -1,11 +1,8 @@
-import { StackError } from "@destack/stack/error";
 import { Failure } from "@destack/error";
 import { ObjectError } from "@destack/object/error";
-import type { PackageFile } from "@destack/package/file";
-import { type BuildImage, type PackageManifest } from "@destack/package/manifest";
-import { type BuildStore } from "@destack/build/store";
+import { type BuildImage, PackageManifest } from "@destack/package/manifest";
+import { BuildObject, type BuildStore, RemoteBuildStore } from "@destack/build/store";
 import type * as packageRuntime from "@destack/package/runtime";
-import type * as installation from "../installation/index.ts";
 import { Traffic } from "../gateway/traffic.ts";
 import { Authentication, Caller, type ChainOptions, principal } from "@destack/access";
 import { Directory, DOMAINS, UniverseOrigin } from "@destack/account/address";
@@ -32,7 +29,8 @@ import {
     type Following,
 } from "@destack/db";
 import type { Environment, FetchOptions } from "@destack/environment";
-import { Registry } from "@destack/registry/client";
+import { packageObject } from "@destack/registry/object";
+import registryPackage from "@destack/registry/package";
 import { RegistryError } from "@destack/registry/error";
 import type { Keyring } from "@destack/identity";
 import {
@@ -54,9 +52,9 @@ import type {
     RequestContext,
     Server,
 } from "@destack/object/server";
-import { PackageId, type PackageRelease } from "@destack/package";
+import { PackageId, PackageName, PackageRelease } from "@destack/package";
 import { TUNNEL_PATH, TunnelClient, type TunnelStatus } from "@destack/tunnel";
-import { type PartitionId, SPACE_KEY, TokenVerifier } from "@destack/access/token";
+import { Bearer, type PartitionId, SPACE_KEY, TokenVerifier } from "@destack/access/token";
 import { createClient, type ClientOf, ObjectConnection } from "@destack/object/client";
 import { Health, type Voucher } from "@destack/object/server";
 import type { Alarm } from "@destack/db";
@@ -79,7 +77,7 @@ import type { Runtime } from "../runtime/runtime.ts";
 import { Handoff } from "../transfer/handoff.ts";
 import { computer, MachineEnrollment } from "../computer/device/object/index.ts";
 import { Space, type SpaceStorage, SpaceRequest } from "../space/index.ts";
-import type {} from "@destack/package/import-meta";
+import { callRegistry, findPublisherHome, locateHome } from "./registry.ts";
 import { TelemetryScope } from "@destack/telemetry";
 import { MachineError } from "../error/index.ts";
 
@@ -135,8 +133,6 @@ export type MachineOptions = Pick<
     readonly describe: () => Promise<
         Omit<MethodInput<typeof accountObject.machine, "report">, "id" | "version" | "runtimes">
     >;
-    /** The forges' registry, by default the directory's forges called as the machine. */
-    readonly releases?: installation.Registry;
     /** Every release the machine ships, whose manifests its registry answers before any forge's. */
     readonly shipped: readonly PackageRelease[];
     /** The installation residency homes serve the registry protocol at, such as forge. */
@@ -197,10 +193,10 @@ export class Machine {
     readonly builds: BuildStore;
     /** The runtimes the machine pulls builds' closures for. */
     readonly targets: readonly packageRuntime.Runtime[];
-    /** The images pulled from their forges, by digest, each once. */
-    readonly #pulled = new Map<Digest, Promise<BuildImage>>();
-    /** The forges' registry of published releases, called as the machine. */
-    readonly releases: installation.Registry;
+    /** The residency home of each account located so far, by account, as homes never move. */
+    readonly homes = new Map<Identifier<"account">, Promise<Identifier<"space">>>();
+    /** The pulls in flight, by root and runtimes, which a pull of the same joins. */
+    readonly #pulling = new Map<string, Promise<void>>();
     /** The installation residency homes serve the registry protocol at. */
     readonly registry: string;
     /** Whether the machine builds the commits its spaces' installations select. */
@@ -308,10 +304,10 @@ export class Machine {
         this.server = options.server;
         this.#linked = new Map(options.linked);
         this.shipped = new Map(
-            options.shipped.map((release) => [PackageId.parse(release.package.id), release]),
+            options.shipped.map((each) => [PackageId.parse(each.package.id), each]),
         );
         this.#trusted = new Set(
-            [...options.shipped, ...options.linked.values()].map((release) => release.image),
+            [...options.shipped, ...options.linked.values()].map((each) => each.image),
         );
 
         // set where peers call the machine and how it verifies and reports
@@ -325,21 +321,7 @@ export class Machine {
         this.#readEnrollment = options.enrollment;
         this.#partition = options.partition;
         this.#describe = options.describe;
-
-        // read releases the machine ships first, else at the forges in their accounts' residency homes, bound to each home
-        const home = async (account: Identifier<"account">) =>
-            (await this.accounts()).residency.locate({ account });
         this.registry = options.registry;
-        this.releases =
-            options.releases ??
-            Registry.of(
-                this.directory,
-                home,
-                (audience, partition) => this.fetch(audience, { partition }),
-                this.environment,
-                options.registry,
-                options.shipped,
-            );
     }
 
     /** Capture a failure no request answers, as escaping the machine's background work. */
@@ -347,73 +329,141 @@ export class Machine {
         this.scope.captureException(error, { isEscaped: true });
     }
 
-    /** Pull a published image with its closures once, from its package's forge. */
-    pull(packageId: PackageId, image: Digest): Promise<BuildImage> {
-        // take an image pulled or pulling already
-        const known = this.#pulled.get(image);
+    /** Pull a published image or build into the machine's builds from its package's forge. */
+    pull(
+        packageId: PackageId,
+        root: { readonly kind: "image" | "manifest"; readonly digest: Digest },
+        runtimes: readonly packageRuntime.Runtime[] | "all" = this.targets,
+    ): Promise<void> {
+        // join a pull of the same root for the same runtimes in flight
+        const key = `${root.kind} ${root.digest} ${runtimes === "all" ? "all" : runtimes.join(",")}`;
+        const known = this.#pulling.get(key);
         if (known !== undefined) {
             return known;
         }
 
-        // pull it once, forgetting a failed pull, the registry tracing the transfer
-        const pulling = this.releases.pull(this.builds, packageId, image, this.targets);
-        this.#pulled.set(image, pulling);
-        pulling.catch(() => this.#pulled.delete(image));
+        // pull it, forgetting the pull once it settles, as the builds tell what is stored
+        const pulling = this.#pull(packageId, root, runtimes);
+        this.#pulling.set(key, pulling);
+        void pulling.finally(() => this.#pulling.delete(key)).catch(() => undefined);
 
         return pulling;
     }
 
-    /** Pull a file of a published build into the machine's builds from its package's forge. */
-    pullFile(
-        build: { readonly digest: Digest; readonly manifest: PackageManifest },
-        file: PackageFile,
+    /** Pull an image's closure or a build with its attachments, refusing another package's root. */
+    #pull(
+        packageId: PackageId,
+        root: { readonly kind: "image" | "manifest"; readonly digest: Digest },
+        runtimes: readonly packageRuntime.Runtime[] | "all",
     ): Promise<void> {
-        return this.scope.span("destack.machine.pull_file", {}, async () => {
-            // refuse a build without a forge, such as an npm unit
-            const owner = build.manifest.package;
-            if (!("id" in owner)) {
-                throw StackError.of("BLOB_NOT_FOUND", `package file '${file.path}' not found`);
-            }
+        return this.scope.span(
+            "destack.machine.pull",
+            { "destack.package.id": packageId },
+            async () => {
+                // pull the root, calling its package's forge only for what the builds lack
+                let opened: Promise<RemoteBuildStore> | undefined;
+                const open = () => (opened ??= this.#remote(packageId, root));
+                const source = {
+                    read: async function* (
+                        this: void,
+                        objects: readonly Pick<BuildObject, "kind" | "digest">[],
+                    ) {
+                        if (objects.length > 0) {
+                            yield* (await open()).read(objects);
+                        }
+                    },
+                };
+                await this.builds.pull(source, root, runtimes);
 
-            // write the file from the build's forge
-            const forge = await this.releases.store(owner.id, {
-                kind: "manifest",
-                digest: build.digest,
-            });
-            await this.builds.write(forge.read([{ kind: "file", digest: file.digest }]));
-        });
+                // require the root build to be the package's
+                const build =
+                    root.kind === "image"
+                        ? (await this.builds.image(root.digest)).root
+                        : root.digest;
+                const built = PackageManifest.package(await this.builds.get(build));
+                if (built.id !== packageId) {
+                    const kind = root.kind === "image" ? "image" : "build";
+                    throw RegistryError.of(
+                        "MANIFEST_INVALID",
+                        `${kind} '${root.digest}' is invalid: its root is a build of '${built.name}' instead of the requested package`,
+                    );
+                }
+
+                // pull a build's attachments beside it, such as its graph
+                if (root.kind === "manifest") {
+                    const remote = await open();
+                    const files = await remote.attachments();
+                    const objects = files.map(
+                        (file) => ({ kind: "file", digest: file.digest }) as const,
+                    );
+                    await this.builds.write(remote.read(objects));
+                    await this.builds.attach(root.digest, files);
+                }
+            },
+        );
     }
 
-    /** Pull the files a published build's forge attached to it into the machine's builds. */
-    pullAttachments(build: {
-        readonly digest: Digest;
-        readonly manifest: PackageManifest;
-    }): Promise<void> {
-        return this.scope.span("destack.machine.pull_attachments", {}, async () => {
-            // refuse a build without a forge, such as an npm unit
-            const owner = build.manifest.package;
-            if (!("id" in owner)) {
-                throw StackError.of(
-                    "GRAPH_NOT_FOUND",
-                    `graph of build '${build.digest}' not found`,
-                );
-            }
+    /** Resolve a release's image: a shipped release first, else at its publisher's forge. */
+    async resolve(packageId: PackageId, named: string): Promise<Digest> {
+        // take a shipped release first, a dev build of it among them
+        const shipped = PackageRelease.select([...this.shipped.values()], packageId, named);
+        if (shipped !== undefined) {
+            return shipped.image;
+        }
 
-            // list the attached files, leaving a build its forge attached none
-            const files = await this.releases.attachments(owner.id, build.digest);
-            if (files.length === 0) {
-                return;
-            }
-
-            // write them from the build's forge, then attach them
-            const forge = await this.releases.store(owner.id, {
-                kind: "manifest",
-                digest: build.digest,
-            });
-            const objects = files.map((file) => ({ kind: "file", digest: file.digest }) as const);
-            await this.builds.write(forge.read(objects));
-            await this.builds.attach(build.digest, files);
+        // resolve it at its publisher's forge, as the machine
+        const home = await findPublisherHome(this, packageObject, packageId);
+        const found = await callRegistry(this, home).release.resolve({
+            spaceId: home,
+            parentId: packageId,
+            release: named,
         });
+
+        return found.image;
+    }
+
+    /** Push a stored image and its builds to its account's forge, as the machine or a caller. */
+    async push(
+        store: BuildStore,
+        image: Digest,
+        account: Identifier<"account">,
+        fetch?: Fetch,
+    ): Promise<void> {
+        return this.scope.span(
+            "destack.machine.push",
+            { "destack.account.id": account },
+            async () => {
+                // push the image's objects below its root's handle at the account's residency home's forge
+                const read = await store.image(image);
+                const { handle } = PackageName.split(
+                    PackageManifest.package(await store.get(read.root)).name,
+                );
+                const home = await locateHome(this, account);
+                const url = `${await this.#registryUrl(home)}${registryPackage.mounts.builds.path}/${handle}/`;
+                const uploads = new RemoteBuildStore(
+                    url,
+                    fetch ?? this.fetch(registryPackage.id, { partition: home }),
+                );
+                await uploads.push(store, [image]);
+            },
+        );
+    }
+
+    /** Locate the forge in a home: the URL its package's mounts lie below. */
+    #registryUrl(home: Identifier<"space">): Promise<string> {
+        return this.directory.mount(home, this.registry, registryPackage.id, this.clock.now());
+    }
+
+    /** Open a published image's or build's objects at its package's forge, as the machine. */
+    async #remote(
+        packageId: PackageId,
+        root: Pick<BuildObject, "kind" | "digest">,
+    ): Promise<RemoteBuildStore> {
+        // locate the forge's builds below the root's path, bound to the forge's home
+        const home = await findPublisherHome(this, packageObject, packageId);
+        const url = `${await this.#registryUrl(home)}${registryPackage.mounts.builds.path}/${BuildObject.path(root)}/`;
+
+        return new RemoteBuildStore(url, this.fetch(registryPackage.id, { partition: home }));
     }
 
     /** Retain the builds a space runs in the machine's builds. */
@@ -433,10 +483,12 @@ export class Machine {
 
     /** Pull the images of the releases the machine links, by package name. */
     async linkedImages(): Promise<Map<string, BuildImage>> {
-        const pulled = [...this.#linked.values()].map(
-            async (release) =>
-                [release.package.name, await this.pull(release.package.id, release.image)] as const,
-        );
+        const pulled = [...this.#linked.values()].map(async (each) => {
+            // pull the image for the machine's runtimes, then read it
+            await this.pull(each.package.id, { kind: "image", digest: each.image });
+
+            return [each.package.name, await this.builds.image(each.image)] as const;
+        });
 
         return new Map(await Promise.all(pulled));
     }
@@ -452,15 +504,15 @@ export class Machine {
     }
 
     /** Link a package's release in place of the earlier one, as a newer distribution does. */
-    link(release: PackageRelease): void {
+    link(released: PackageRelease): void {
         // trust the release's image in place of the replaced one
-        const id = PackageId.parse(release.package.id);
+        const id = PackageId.parse(released.package.id);
         const replaced = this.#linked.get(id);
         if (replaced !== undefined) {
             this.#trusted.delete(replaced.image);
         }
-        this.#linked.set(id, release);
-        this.#trusted.add(release.image);
+        this.#linked.set(id, released);
+        this.#trusted.add(released.image);
     }
 
     /** Follow the directory, the identities and a machine's own placements from the universe. */
@@ -863,31 +915,34 @@ export class Machine {
 
     /** Start a space once while serving, trying again after a failed start. */
     space(space: Identifier<"space">): Promise<Space> {
-        // refuse unless serving, as no stop would close the space
+        // take a started space, a closing one too while the machine drains
+        const started = this.#started.get(space);
+        if (started !== undefined) {
+            return started;
+        }
+
+        // refuse a start unless serving, as no stop would close the space
         const refused = this.health.refusal();
         if (refused !== undefined) {
             return Promise.reject(refused);
         }
 
         // start it once, refusing its calls as unavailable while a start fails
-        let started = this.#started.get(space);
-        if (started === undefined) {
-            started = Space.start(this, space).catch((error: unknown) => {
-                // pass an unavailable start on with its wait, and name any other failure
-                if (ObjectError.is(error, "SERVER_UNAVAILABLE")) {
-                    throw error;
-                }
-                throw ObjectError.of(
-                    "SERVER_UNAVAILABLE",
-                    `space '${space}' is unavailable: it cannot start: ${Failure.of(error).message}`,
-                    { data: {}, cause: error },
-                );
-            });
-            started.catch(() => this.#started.delete(space));
-            this.#started.set(space, started);
-        }
+        const starting = Space.start(this, space).catch((error: unknown) => {
+            // pass an unavailable start on with its wait, and name any other failure
+            if (ObjectError.is(error, "SERVER_UNAVAILABLE")) {
+                throw error;
+            }
+            throw ObjectError.of(
+                "SERVER_UNAVAILABLE",
+                `space '${space}' is unavailable: it cannot start: ${Failure.of(error).message}`,
+                { data: {}, cause: error },
+            );
+        });
+        starting.catch(() => this.#started.delete(space));
+        this.#started.set(space, starting);
 
-        return started;
+        return starting;
     }
 
     /** Locate a space by its identifier or address where its machine answers. */
@@ -1011,7 +1066,7 @@ export class Machine {
     /** Serve a request at the machine's own hosts, in the space it names. */
     async serve(request: Request, voucher?: Voucher): Promise<Response> {
         return (
-            this.#refusal() ??
+            this.#refusal(request) ??
             (await this.npm(request)) ??
             this.#serve(await this.#route(request), voucher)
         );
@@ -1026,25 +1081,26 @@ export class Machine {
             return undefined;
         }
 
-        // find the handle's forge
-        const forge = await this.releases.npm(handle).catch((error: unknown) => {
-            if (!RegistryError.is(error, "PUBLISHER_NOT_FOUND")) {
-                throw error;
-            }
-
-            return undefined;
-        });
-
         // answer 404 for a handle no account holds, as npm clients expect
-        return forge === undefined
-            ? new Response(null, { status: 404 })
-            : Response.redirect(`${forge}${path}${url.search}`, 307);
+        const account = await this.directory.account(handle);
+        if (account === undefined) {
+            return new Response(null, { status: 404 });
+        }
+
+        // send it to the npm mount of the registry in the account's residency home
+        const home = await locateHome(this, account);
+        const mount = await this.#registryUrl(home);
+
+        return Response.redirect(
+            `${mount}${registryPackage.mounts.npm.path}${path}${url.search}`,
+            307,
+        );
     }
 
     /** Serve a request to a name the machine takes: an installation origin's or a route's. */
     async serveName(request: Request): Promise<Response> {
         // refuse before the machine enrolls and while it is paused
-        const refused = this.#refusal();
+        const refused = this.#refusal(request);
         if (refused !== undefined) {
             return refused;
         }
@@ -1193,11 +1249,26 @@ export class Machine {
         });
     }
 
-    /** Refuse a request with the machine's health unless it serves. */
-    #refusal(): Response | undefined {
+    /** Refuse a request by the machine's health, letting its instances call it while it drains. */
+    #refusal(request: Request): Response | undefined {
+        // serve while serving, and an instance's own call while draining, as a sidecar outlives its pod's containers
         const refused = this.health.refusal();
+        const isInstanceCall = this.health.status === "draining" && this.#isInstance(request);
+        if (refused === undefined || isInstanceCall) {
+            return undefined;
+        }
 
-        return refused === undefined ? undefined : refusal(refused, this.environment.telemetry);
+        return refusal(refused, this.environment.telemetry);
+    }
+
+    /** Report whether a request carries the secret of an instance this machine runs. */
+    #isInstance(request: Request): boolean {
+        const secret = Bearer.token(request.headers.get("authorization"));
+
+        return (
+            secret !== undefined &&
+            this.runtimes.some((runtime) => runtime.identify(secret) !== undefined)
+        );
     }
 
     /** Serve a request in the space the machine found for it. */
@@ -1333,15 +1404,21 @@ export class Machine {
 
     /** Close every space at once, refusing with each that failed to close. */
     async #closeSpaces(): Promise<void> {
-        // close every space, even when one fails
-        const spaces = [...this.#started.values()];
-        this.#started.clear();
-        const started = await Promise.allSettled(spaces);
+        // close every space, even when one fails, each answering its instances until it closes
+        const started = await Promise.allSettled(
+            [...this.#started].map(async ([id, space]) => ({ id, space: await space })),
+        );
 
-        // close each started space, a failed start having answered its caller and opened nothing
+        // close each started space, then forget it, a failed start having opened nothing
         const closed = await Promise.allSettled(
             started.flatMap((result) =>
-                result.status === "fulfilled" ? [result.value.close()] : [],
+                result.status === "fulfilled"
+                    ? [
+                          result.value.space
+                              .close()
+                              .finally(() => this.#started.delete(result.value.id)),
+                      ]
+                    : [],
             ),
         );
 
