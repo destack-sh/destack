@@ -29,10 +29,6 @@
         "@destack/telemetry": "workspace:*",
         "semver": "7.8.5"
     },
-    "scripts": {
-        "typecheck": "tsc --project tsconfig.json && destack-check readme",
-        "test": "bun --bun run vitest run --config vitest.config.ts"
-    },
     "devDependencies": {
         "@destack/test": "workspace:*",
         "@types/semver": "7.8.0",

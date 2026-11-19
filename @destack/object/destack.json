@@ -122,5 +122,8 @@
                 "reason": "MethodContext.results states call results after parsing each by its method's output schema, as an oRPC client reads its contract's output (ruling 2026-10-16)"
             }
         ]
+    },
+    "test": {
+        "databases": ["sqlite", "postgresql"]
     }
 }

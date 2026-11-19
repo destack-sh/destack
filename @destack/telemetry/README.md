@@ -240,10 +240,10 @@ DESTACK_TELEMETRY=tree bun run test tests/apply.test.ts
 
 ### Benchmark an operation
 
-`just bench` reports host seconds per operation with p50 and p95, and each histogram's count per operation, for benchstat.
+`destack test --tier bench` reports host seconds per operation with p50 and p95, and each histogram's count per operation, for benchstat.
 
 ```sh
-just bench
+destack test --tier bench
 benchstat node_modules/.cache/destack/bench/main/database-sqlite.txt node_modules/.cache/destack/bench/current/database-sqlite.txt
 ```
 

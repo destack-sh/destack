@@ -10,11 +10,6 @@
         "./test": "./src/test/index.ts",
         "./scenario": "./src/scenario/index.ts"
     },
-    "scripts": {
-        "typecheck": "tsc --project tsconfig.json && destack-check readme",
-        "test": "bun --bun run vitest run --config vitest.config.ts --project 'unit:*' --project 'scenario:*'",
-        "bench": "bun --bun run vitest run --config vitest.config.ts --project 'bench:*'"
-    },
     "dependencies": {
         "@destack/db": "workspace:*",
         "@destack/environment": "workspace:*",

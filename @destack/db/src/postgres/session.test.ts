@@ -1,7 +1,10 @@
-import { expect, onTestFinished, refusal, test } from "@destack/test";
+import { expect, onTestFinished, refusal, testOn } from "@destack/test";
 import { testSimulation } from "@destack/test/world";
 import type { Session, SessionTransaction } from "../database/session.ts";
 import { TestDatabase } from "../test/database.ts";
+
+/** Test against PostgreSQL alone, as the file tests its own connector or host. */
+const onPostgresql = testOn("postgresql");
 
 /** A read-write transaction at PostgreSQL's default isolation. */
 const WRITE: SessionTransaction = { isolationLevel: "read committed", isReadOnly: false };
@@ -16,7 +19,7 @@ async function openSession(): Promise<Session> {
     return storage.database.driver.session;
 }
 
-test("refuse a nested transaction beside an open sibling", async () => {
+onPostgresql("refuse a nested transaction beside an open sibling", async () => {
     // open two nested transactions at once
     const session = await openSession();
     const held = Promise.withResolvers<void>();
@@ -37,19 +40,22 @@ test("refuse a nested transaction beside an open sibling", async () => {
     ]);
 });
 
-test("refuse a transaction the server rolled back at its commit, after its work caught a failed statement", async () => {
-    // fail a statement, catch it, and return as if the transaction succeeded
-    const session = await openSession();
-    const committed = await refusal(
-        session.transaction(async (transaction) => {
-            await transaction.run("SELECT 1 / 0", []).catch(() => undefined);
+onPostgresql(
+    "refuse a transaction the server rolled back at its commit, after its work caught a failed statement",
+    async () => {
+        // fail a statement, catch it, and return as if the transaction succeeded
+        const session = await openSession();
+        const committed = await refusal(
+            session.transaction(async (transaction) => {
+                await transaction.run("SELECT 1 / 0", []).catch(() => undefined);
 
-            return "done";
-        }, WRITE),
-    );
-    expect(committed).toEqual([
-        "INTERNAL_SERVER_ERROR",
-        "QUERY_BROKEN",
-        "the transaction rolled back at its commit, after a statement in it failed",
-    ]);
-});
+                return "done";
+            }, WRITE),
+        );
+        expect(committed).toEqual([
+            "INTERNAL_SERVER_ERROR",
+            "QUERY_BROKEN",
+            "the transaction rolled back at its commit, after a statement in it failed",
+        ]);
+    },
+);

@@ -47,5 +47,8 @@
     "stamps": {
         "defineDatabase": { "module": 1 },
         "defineTable": { "module": 3 }
+    },
+    "test": {
+        "databases": ["sqlite", "postgresql"]
     }
 }

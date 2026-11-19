@@ -12,8 +12,6 @@
         "./icons": "./src/phosphor/icons.ts"
     },
     "scripts": {
-        "typecheck": "tsc --project tsconfig.json && destack-check readme",
-        "test": "bun --bun run vitest run --config vitest.config.ts",
         "generate": "bun run src/phosphor/generate.ts"
     },
     "dependencies": {

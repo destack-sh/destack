@@ -26,9 +26,6 @@ export function defineConfiguration(
         environment,
     });
 
-    // play the package's scenarios through the DOM driver when the tests render into the DOM
-    const include = configuration.test?.include ?? test.configDefaults.include;
-
     // render components in a DOM, loading the runtime's modules natively for test servers
     return test.defineConfiguration(
         {
@@ -43,15 +40,12 @@ export function defineConfiguration(
                             : undefined,
                 },
                 transforms,
-                ...(isDom
-                    ? [test.scenarioPlugin([{ module: "@destack/view/test", name: "ViewDriver" }])]
-                    : []),
+                ...(isDom ? [test.scenarioPlugin(["@destack/view/test"])] : []),
                 ...(configuration.plugins ?? []),
             ],
             test: {
                 environment: fileURLToPath(new URL("environment.ts", import.meta.url)),
                 ...configuration.test,
-                include: isDom ? [...include, test.SCENARIO_MODULES] : include,
             },
         },
         environment,

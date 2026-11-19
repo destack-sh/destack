@@ -19,10 +19,6 @@
         "./error": "./src/error/index.ts",
         "./test": "./src/test/index.ts"
     },
-    "scripts": {
-        "typecheck": "tsc --project tsconfig.json && destack-check readme",
-        "test": "bun --bun run vitest run --config vitest.config.ts"
-    },
     "dependencies": {
         "@destack/environment": "workspace:*",
         "@destack/package": "workspace:*",

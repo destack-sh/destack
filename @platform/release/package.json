@@ -7,8 +7,21 @@
         "./deployment/universe": "./src/deployment/cloudflare/universe.ts"
     },
     "scripts": {
-        "typecheck": "tsc --project tsconfig.json && destack-check readme",
-        "test": "bun run src/main.ts platform format-check && bun run src/main.ts platform validate && bun --bun run vitest run --config vitest.config.ts"
+        "check": "bun run src/main.ts platform validate && bun run src/main.ts platform format-check",
+        "fix": "bun run src/main.ts platform format",
+        "build": "bun run src/main.ts distribution build",
+        "pack": "bun run src/main.ts distribution pack",
+        "icon": "bun run src/main.ts distribution icon",
+        "installer": "bun run src/main.ts installer build",
+        "sign": "bun run src/main.ts update sign",
+        "publish": "bun run --env-file=../../.env.local src/main.ts update publish",
+        "refresh": "bun run src/main.ts update renew",
+        "init": "bun run src/main.ts platform init",
+        "diff": "bun run src/main.ts platform diff",
+        "deploy": "bun run src/main.ts platform deploy",
+        "custody": "bun run src/main.ts custody",
+        "local": "bun run src/main.ts local",
+        "release": "gh workflow run release.yml --ref main"
     },
     "devDependencies": {
         "@cloudflare/workers-types": "5.20260917.1",

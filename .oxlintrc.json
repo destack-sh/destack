@@ -592,6 +592,7 @@
                 "@destack/stack/src/bun/runner.ts",
                 "@destack/stack/src/cloudflare/workload.ts",
                 "@destack/test/src/host/host.ts",
+                "@destack/test/src/plan/vitest.ts",
                 "@destack/theme/src/token/generate.ts",
                 "@destack/ui/src/chart/generate.ts",
                 "@destack/update/src/test/command.ts",

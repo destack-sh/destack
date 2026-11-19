@@ -20,11 +20,6 @@
         "./computer/test/setup": "./src/computer/test/setup.ts",
         "./scenario": "./src/scenario/index.ts"
     },
-    "scripts": {
-        "typecheck": "tsc --project tsconfig.json && destack-check readme",
-        "test": "bun --bun run vitest run --config vitest.config.ts --project \"test:*\" --project \"scenario:*\"",
-        "bench": "bun --bun run vitest run --config vitest.config.ts --project \"bench:*\""
-    },
     "dependencies": {
         "@destack/access": "workspace:*",
         "@destack/account": "workspace:*",

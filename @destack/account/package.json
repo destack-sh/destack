@@ -54,9 +54,5 @@
     "devDependencies": {
         "@destack/test": "workspace:*",
         "@types/node": "26.6.1"
-    },
-    "scripts": {
-        "typecheck": "tsc --project tsconfig.json && destack-check readme",
-        "test": "bun --bun run vitest run --config vitest.config.ts"
     }
 }

@@ -5,7 +5,10 @@ import { modulePlugin } from "@destack/package/vite";
 import { ModuleTransformer } from "@destack/package/transform";
 import { rolldown } from "rolldown";
 import { testHost } from "@destack/test/host";
-import { expect, onTestFinished, test } from "@destack/test";
+import { expect, onTestFinished, testOn } from "@destack/test";
+
+/** Test against SQLite alone, as the file tests its own connector or host. */
+const onSqlite = testOn("sqlite");
 
 /** Run the scenario in the Workers runtime with one Durable Object, disposed after the test. */
 async function start(): Promise<Miniflare> {
@@ -33,175 +36,209 @@ async function start(): Promise<Miniflare> {
     return worker;
 }
 
-test("migrate, write and read a Durable Object's SQLite storage, rolling back only a failed nested transaction", async () => {
-    const worker = await start();
+onSqlite(
+    "migrate, write and read a Durable Object's SQLite storage, rolling back only a failed nested transaction",
+    async () => {
+        const worker = await start();
 
-    // commit the written and the outer rows, without the nested one
-    const response = await worker.dispatchFetch("https://notes.test/");
-    expect([response.status, await response.json()]).toEqual([
-        200,
-        [
-            { id: "a", title: "Changed" },
-            { id: "b", title: "Outer" },
-        ],
-    ]);
-});
+        // commit the written and the outer rows, without the nested one
+        const response = await worker.dispatchFetch("https://notes.test/");
+        expect([response.status, await response.json()]).toEqual([
+            200,
+            [
+                { id: "a", title: "Changed" },
+                { id: "b", title: "Outer" },
+            ],
+        ]);
+    },
+);
 
-test("keep the rows referencing a rebuilt table in a Durable Object, whose storage always enforces foreign keys", async () => {
-    const worker = await start();
+onSqlite(
+    "keep the rows referencing a rebuilt table in a Durable Object, whose storage always enforces foreign keys",
+    async () => {
+        const worker = await start();
 
-    // rebuild the folders, keeping the document and the page, which still cascade after
-    const response = await worker.dispatchFetch("https://notes.test/rebuild");
-    expect([response.status, await response.json()]).toEqual([
-        200,
-        {
-            folders: [{ id: "f" }],
-            documents: [{ id: "d", folderId: "f" }],
-            pages: [{ id: "p", documentId: "d" }],
-            left: 0,
-        },
-    ]);
-});
+        // rebuild the folders, keeping the document and the page, which still cascade after
+        const response = await worker.dispatchFetch("https://notes.test/rebuild");
+        expect([response.status, await response.json()]).toEqual([
+            200,
+            {
+                folders: [{ id: "f" }],
+                documents: [{ id: "d", folderId: "f" }],
+                pages: [{ id: "p", documentId: "d" }],
+                left: 0,
+            },
+        ]);
+    },
+);
 
-test("store two databases of one declaration in a Durable Object's storage, each namespace with separate rows, index entries, log and plan", async () => {
-    const worker = await start();
+onSqlite(
+    "store two databases of one declaration in a Durable Object's storage, each namespace with separate rows, index entries, log and plan",
+    async () => {
+        const worker = await start();
 
-    // read each namespace's row, its playlist's indexed track, its logged insert, and a plan dropping only its tables
-    const response = await worker.dispatchFetch("https://notes.test/namespaces");
-    expect([response.status, await response.json()]).toEqual([
-        200,
-        [1, 2].map((index) => {
-            const namespace = index === 1 ? "first" : "second";
+        // read each namespace's row, its playlist's indexed track, its logged insert, and a plan dropping only its tables
+        const response = await worker.dispatchFetch("https://notes.test/namespaces");
+        expect([response.status, await response.json()]).toEqual([
+            200,
+            [1, 2].map((index) => {
+                const namespace = index === 1 ? "first" : "second";
 
-            return {
-                rows: [{ id: "a", title: `Entry ${index}` }],
-                tracks: [{ row: "p", position: 0, title: `Track ${index}` }],
-                changes: [["insert", `space-${index}`, { id: "a", title: `Entry ${index}` }]],
+                return {
+                    rows: [{ id: "a", title: `Entry ${index}` }],
+                    tracks: [{ row: "p", position: 0, title: `Track ${index}` }],
+                    changes: [["insert", `space-${index}`, { id: "a", title: `Entry ${index}` }]],
+                    steps: [
+                        `table/${namespace}.destack__db__playlist`,
+                        `table/${namespace}.destack__db__playlist_track_entry`,
+                        `table/${namespace}.destack__durable_scenario__entry`,
+                    ],
+                };
+            }),
+        ]);
+    },
+);
+
+onSqlite(
+    "provision, plan, apply, measure and destroy a workload's database in a Durable Object, opening it through the workload's connector",
+    async () => {
+        const worker = await start();
+
+        // set up the database in its object, then write, measure and drop its relations
+        const response = await worker.dispatchFetch("https://notes.test/host");
+        expect([response.status, await response.json()]).toEqual([
+            200,
+            {
+                reference: "durable-object:database-01996ab0-0000-7000-8000-00000000d002",
                 steps: [
-                    `table/${namespace}.destack__db__playlist`,
-                    `table/${namespace}.destack__db__playlist_track_entry`,
-                    `table/${namespace}.destack__durable_scenario__entry`,
+                    "table/database-01996ab0-0000-7000-8000-00000000d002.destack__durable_scenario__entry",
                 ],
-            };
-        }),
-    ]);
-});
+                rows: [{ id: "a", title: "Kept" }],
+                isMeasured: true,
+                remaining: [{ count: 0 }],
+            },
+        ]);
+    },
+);
 
-test("provision, plan, apply, measure and destroy a workload's database in a Durable Object, opening it through the workload's connector", async () => {
-    const worker = await start();
+onSqlite(
+    "write and read rows in statements binding more values than a Durable Object's storage takes at once, or integers it cannot bind",
+    async () => {
+        const worker = await start();
 
-    // set up the database in its object, then write, measure and drop its relations
-    const response = await worker.dispatchFetch("https://notes.test/host");
-    expect([response.status, await response.json()]).toEqual([
-        200,
-        {
-            reference: "durable-object:database-01996ab0-0000-7000-8000-00000000d002",
-            steps: [
-                "table/database-01996ab0-0000-7000-8000-00000000d002.destack__durable_scenario__entry",
-            ],
-            rows: [{ id: "a", title: "Kept" }],
-            isMeasured: true,
-            remaining: [{ count: 0 }],
-        },
-    ]);
-});
+        // write 80 rows in one statement of 160 values and read them back intact in one
+        const response = await worker.dispatchFetch("https://notes.test/parameters");
+        expect([response.status, await response.json()]).toEqual([
+            200,
+            { isEqual: true, stored: { size: "4611686018427387904" } },
+        ]);
+    },
+);
 
-test("write and read rows in statements binding more values than a Durable Object's storage takes at once, or integers it cannot bind", async () => {
-    const worker = await start();
+onSqlite(
+    "check emptiness past 100 tables, filter by 150 predicates, log a 70-column row and insert 300 kilobytes within Durable Object SQLite's limits",
+    async () => {
+        const worker = await start();
 
-    // write 80 rows in one statement of 160 values and read them back intact in one
-    const response = await worker.dispatchFetch("https://notes.test/parameters");
-    expect([response.status, await response.json()]).toEqual([
-        200,
-        { isEqual: true, stored: { size: "4611686018427387904" } },
-    ]);
-});
+        // answer 119 empty tables, the one matching note, the logged row with its 71 fields, and 301 notes
+        const response = await worker.dispatchFetch("https://notes.test/limits");
+        expect([response.status, await response.json()]).toEqual([
+            200,
+            { empty: 119, matched: [{ id: "n149", title: "Last" }], logged: [71], notes: 301 },
+        ]);
+    },
+);
 
-test("check emptiness past 100 tables, filter by 150 predicates, log a 70-column row and insert 300 kilobytes within Durable Object SQLite's limits", async () => {
-    const worker = await start();
+onSqlite(
+    "refuse a transaction's client used past it, even while a later transaction is open",
+    async () => {
+        const worker = await start();
 
-    // answer 119 empty tables, the one matching note, the logged row with its 71 fields, and 301 notes
-    const response = await worker.dispatchFetch("https://notes.test/limits");
-    expect([response.status, await response.json()]).toEqual([
-        200,
-        { empty: 119, matched: [{ id: "n149", title: "Last" }], logged: [71], notes: 301 },
-    ]);
-});
+        // commit only the later transaction's write
+        const response = await worker.dispatchFetch("https://notes.test/leaked");
+        expect([response.status, await response.json()]).toEqual([
+            200,
+            {
+                refused: "the transaction has finished",
+                rows: [
+                    { id: "a", title: "Kept" },
+                    { id: "b", title: "Later" },
+                ],
+            },
+        ]);
+    },
+);
 
-test("refuse a transaction's client used past it, even while a later transaction is open", async () => {
-    const worker = await start();
+onSqlite(
+    "count the rows a Durable Object's statements read and write, each in the one measure following them",
+    async () => {
+        const worker = await start();
 
-    // commit only the later transaction's write
-    const response = await worker.dispatchFetch("https://notes.test/leaked");
-    expect([response.status, await response.json()]).toEqual([
-        200,
-        {
-            refused: "the transaction has finished",
-            rows: [
-                { id: "a", title: "Kept" },
-                { id: "b", title: "Later" },
-            ],
-        },
-    ]);
-});
+        // count the insert's rows with key index entries, then the three notes read back
+        const response = await worker.dispatchFetch("https://notes.test/rows");
+        expect([response.status, await response.json()]).toEqual([
+            200,
+            {
+                counts: [
+                    [0, 6],
+                    [3, 0],
+                    [0, 0],
+                ],
+                notes: 3,
+            },
+        ]);
+    },
+);
 
-test("count the rows a Durable Object's statements read and write, each in the one measure following them", async () => {
-    const worker = await start();
+onSqlite(
+    "read another object's database through its reader, refusing other operations and undoing a statement that writes",
+    async () => {
+        const worker = await start();
 
-    // count the insert's rows with key index entries, then the three notes read back
-    const response = await worker.dispatchFetch("https://notes.test/rows");
-    expect([response.status, await response.json()]).toEqual([
-        200,
-        {
-            counts: [
-                [0, 6],
-                [3, 0],
-                [0, 0],
-            ],
-            notes: 3,
-        },
-    ]);
-});
+        // read a note, a file and a namespace's note, and refuse a measure and a delete
+        const response = await worker.dispatchFetch("https://notes.test/reader");
+        expect([response.status, await response.json()]).toEqual([
+            200,
+            {
+                found: { id: "b", title: "Note b" },
+                named: { id: "n", title: "Spaced" },
+                measured: "operation 'measure' is invalid: this object only accepts reads",
+                files: [["f", "9007199254740991", "0001feff"]],
+                deleted: "read is invalid: a read of another object wrote rows",
+                kept: ["a", "b"],
+            },
+        ]);
+    },
+);
 
-test("read another object's database through its reader, refusing other operations and undoing a statement that writes", async () => {
-    const worker = await start();
+onSqlite(
+    "wake a reader in another object waiting for a row once the object commits it, before its wait ends",
+    async () => {
+        const worker = await start();
+        const objects = await worker.getDurableObjectNamespace("NOTES");
+        const response = await objects
+            .get(objects.idFromName("waited"))
+            .fetch("https://object.test/reader-wait");
 
-    // read a note, a file and a namespace's note, and refuse a measure and a delete
-    const response = await worker.dispatchFetch("https://notes.test/reader");
-    expect([response.status, await response.json()]).toEqual([
-        200,
-        {
-            found: { id: "b", title: "Note b" },
-            named: { id: "n", title: "Spaced" },
-            measured: "operation 'measure' is invalid: this object only accepts reads",
-            files: [["f", "9007199254740991", "0001feff"]],
-            deleted: "read is invalid: a read of another object wrote rows",
-            kept: ["a", "b"],
-        },
-    ]);
-});
+        // find the row, woken by the commit rather than the wait's end
+        expect(await response.json()).toEqual({ isFound: true, isWoken: true });
+    },
+);
 
-test("wake a reader in another object waiting for a row once the object commits it, before its wait ends", async () => {
-    const worker = await start();
-    const objects = await worker.getDurableObjectNamespace("NOTES");
-    const response = await objects
-        .get(objects.idFromName("waited"))
-        .fetch("https://object.test/reader-wait");
+onSqlite(
+    "fail a reader's wait for a database its object never opened, before the wait ends",
+    async () => {
+        const worker = await start();
+        const objects = await worker.getDurableObjectNamespace("NOTES");
+        const response = await objects
+            .get(objects.idFromName("refused"))
+            .fetch("https://object.test/reader-refused");
 
-    // find the row, woken by the commit rather than the wait's end
-    expect(await response.json()).toEqual({ isFound: true, isWoken: true });
-});
-
-test("fail a reader's wait for a database its object never opened, before the wait ends", async () => {
-    const worker = await start();
-    const objects = await worker.getDurableObjectNamespace("NOTES");
-    const response = await objects
-        .get(objects.idFromName("refused"))
-        .fetch("https://object.test/reader-refused");
-
-    // fail with the object's refusal rather than wait in silence
-    expect(await response.json()).toEqual({
-        failure: "connection to database 'unopened' is unavailable: this object has not opened it",
-        isAborted: false,
-    });
-});
+        // fail with the object's refusal rather than wait in silence
+        expect(await response.json()).toEqual({
+            failure:
+                "connection to database 'unopened' is unavailable: this object has not opened it",
+            isAborted: false,
+        });
+    },
+);

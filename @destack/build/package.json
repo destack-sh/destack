@@ -17,10 +17,6 @@
         "./table": "./src/store/table.ts",
         "./test": "./src/test/index.ts"
     },
-    "scripts": {
-        "typecheck": "tsc --project tsconfig.json && destack-check readme",
-        "test": "bun --bun run vitest run --config vitest.config.ts"
-    },
     "dependencies": {
         "@cloudflare/workers-types": "5.20260917.1",
         "@destack/bucket": "workspace:*",
@@ -53,5 +49,8 @@
     "devDependencies": {
         "@destack/test": "workspace:*",
         "@types/bun": "1.4.4"
+    },
+    "scripts": {
+        "update": "UPDATE_BUILD_FIXTURES=1 bun run --cwd ../cli dev test ../build --update"
     }
 }

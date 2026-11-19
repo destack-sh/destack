@@ -2,7 +2,7 @@ import { TestDatabase } from "../test/database.ts";
 import postgres from "postgres";
 import { Plan, ResourceId } from "@destack/resource";
 import { Digest, schema, Uuid } from "@destack/schema";
-import { expect, onTestFinished, test, refusal } from "@destack/test";
+import { expect, onTestFinished, refusal, testOn } from "@destack/test";
 import type { DatabaseConnection } from "../database/connection.ts";
 import { defineDatabase } from "../declare/database.ts";
 import { DatabaseError } from "../error/error.ts";
@@ -14,6 +14,9 @@ import { connectPostgres } from "./connection.ts";
 import { reportNotices } from "./pool.ts";
 import { PostgresDatabaseHost } from "./host.ts";
 import { testHost } from "@destack/test/host";
+
+/** Test against PostgreSQL alone, as the file tests its own connector or host. */
+const onPostgresql = testOn("postgresql");
 
 /** Notes with a title. */
 const note = defineTable("note", { id: text("id").primaryKey(), title: text("title") });
@@ -63,99 +66,106 @@ function recordOf(id: ResourceId) {
     };
 }
 
-test("provision a PostgreSQL schema twice with the same log, plan and apply it, connect a workload to it once applied, count its bytes, and destroy it", async () => {
-    // run on the real host, whose identifiers stay unique across runs
-    const system = testHost();
+onPostgresql(
+    "provision a PostgreSQL schema twice with the same log, plan and apply it, connect a workload to it once applied, count its bytes, and destroy it",
+    async () => {
+        // run on the real host, whose identifiers stay unique across runs
+        const system = testHost();
 
-    // provide databases in the test server
-    const id = ResourceId.parse(`resource-${Uuid.v7(system)}`);
-    const host = openHost(TestDatabase.address(), [id]);
-    const provider = databaseProvider(host, "database");
-    const record = recordOf(id);
-    const bound = (reference: string) => ({
-        resource: record.id,
-        kind: record.kind,
-        provider: provider.code,
-        reference,
-    });
-
-    // provision the schema twice, and refuse connecting before its tables apply
-    const qualified = note[TABLE].sqlName;
-    const epoch = async (schemaName: string) => {
-        await using connection = await connectPostgres(host.pool, [], {
-            environment: system,
-            schema: schemaName,
+        // provide databases in the test server
+        const id = ResourceId.parse(`resource-${Uuid.v7(system)}`);
+        const host = openHost(TestDatabase.address(), [id]);
+        const provider = databaseProvider(host, "database");
+        const record = recordOf(id);
+        const bound = (reference: string) => ({
+            resource: record.id,
+            kind: record.kind,
+            provider: provider.code,
+            reference,
         });
 
-        return (await connection.log.position()).epoch;
-    };
-    const { reference } = await provider.provision.provision(record);
-    const epochs = [await epoch(reference)];
-    const again = await provider.provision.provision(record);
-    epochs.push(await epoch(again.reference));
-    const provisioned = { ...record, reference };
-    const early = await outcome(host.connector.connect(bound(reference), notes, system));
+        // provision the schema twice, and refuse connecting before its tables apply
+        const qualified = note[TABLE].sqlName;
+        const epoch = async (schemaName: string) => {
+            await using connection = await connectPostgres(host.pool, [], {
+                environment: system,
+                schema: schemaName,
+            });
 
-    // refuse a plan other than the reviewed one, then apply the reviewed plan and connect
-    const desired = [notes.state()];
-    const plan = await provider.reconcile.plan(provisioned, desired);
-    const stale = await refusal(
-        provider.reconcile.apply(provisioned, desired, Digest.parse("0".repeat(64))),
-    );
-    await provider.reconcile.apply(provisioned, desired, await Plan.digest(plan, system.crypto));
-    const applied = await outcome(host.connector.connect(bound(reference), notes, system));
+            return (await connection.log.position()).epoch;
+        };
+        const { reference } = await provider.provision.provision(record);
+        const epochs = [await epoch(reference)];
+        const again = await provider.provision.provision(record);
+        epochs.push(await epoch(again.reference));
+        const provisioned = { ...record, reference };
+        const early = await outcome(host.connector.connect(bound(reference), notes, system));
 
-    // count the bytes, then destroy the schema
-    const bytes = await host.bytes(reference);
-    await provider.provision.destroy(provisioned);
-    const refused = await host.bytes(reference).then(
-        () => "counted",
-        (error: unknown) =>
-            DatabaseError.is(error) && error.cause instanceof Error
-                ? [error.reason, error.cause.message]
-                : error,
-    );
+        // refuse a plan other than the reviewed one, then apply the reviewed plan and connect
+        const desired = [notes.state()];
+        const plan = await provider.reconcile.plan(provisioned, desired);
+        const stale = await refusal(
+            provider.reconcile.apply(provisioned, desired, Digest.parse("0".repeat(64))),
+        );
+        await provider.reconcile.apply(
+            provisioned,
+            desired,
+            await Plan.digest(plan, system.crypto),
+        );
+        const applied = await outcome(host.connector.connect(bound(reference), notes, system));
 
-    // name the schema by the resource, and connect only between applying and destroying
-    expect({
-        reference,
-        again: again.reference,
-        isLogUnchanged: epochs[0] === epochs[1],
-        early,
-        steps: plan.steps,
-        stale,
-        applied,
-        isCounted: bytes > 0,
-        refused,
-    }).toEqual({
-        reference: id,
-        again: id,
-        isLogUnchanged: true,
-        early: `cannot open database 'notes': it has not applied '${qualified}'`,
-        steps: [
-            {
-                action: "create",
-                target: `table/${qualified}`,
-                risk: "safe",
-                detail: "create table",
-                phase: "tables",
-                statements: [
-                    `CREATE TABLE "${qualified}" (\n    "id" text COLLATE "C" NOT NULL,\n    "title" text COLLATE "C",\n    CONSTRAINT "${qualified}_id_pk" PRIMARY KEY ("id")\n)`,
-                ],
-            },
-        ],
-        stale: [
-            "CONFLICT",
-            "PLAN_CONFLICT",
-            `cannot apply the plan of '${id}': it changed since review`,
-        ],
-        applied: "connected",
-        isCounted: true,
-        refused: ["QUERY_BROKEN", `schema "${id}" does not exist`],
-    });
-});
+        // count the bytes, then destroy the schema
+        const bytes = await host.bytes(reference);
+        await provider.provision.destroy(provisioned);
+        const refused = await host.bytes(reference).then(
+            () => "counted",
+            (error: unknown) =>
+                DatabaseError.is(error) && error.cause instanceof Error
+                    ? [error.reason, error.cause.message]
+                    : error,
+        );
 
-test("snapshot a PostgreSQL database's rows and restore them into another", async () => {
+        // name the schema by the resource, and connect only between applying and destroying
+        expect({
+            reference,
+            again: again.reference,
+            isLogUnchanged: epochs[0] === epochs[1],
+            early,
+            steps: plan.steps,
+            stale,
+            applied,
+            isCounted: bytes > 0,
+            refused,
+        }).toEqual({
+            reference: id,
+            again: id,
+            isLogUnchanged: true,
+            early: `cannot open database 'notes': it has not applied '${qualified}'`,
+            steps: [
+                {
+                    action: "create",
+                    target: `table/${qualified}`,
+                    risk: "safe",
+                    detail: "create table",
+                    phase: "tables",
+                    statements: [
+                        `CREATE TABLE "${qualified}" (\n    "id" text COLLATE "C" NOT NULL,\n    "title" text COLLATE "C",\n    CONSTRAINT "${qualified}_id_pk" PRIMARY KEY ("id")\n)`,
+                    ],
+                },
+            ],
+            stale: [
+                "CONFLICT",
+                "PLAN_CONFLICT",
+                `cannot apply the plan of '${id}': it changed since review`,
+            ],
+            applied: "connected",
+            isCounted: true,
+            refused: ["QUERY_BROKEN", `schema "${id}" does not exist`],
+        });
+    },
+);
+
+onPostgresql("snapshot a PostgreSQL database's rows and restore them into another", async () => {
     // run on the real host, whose identifiers stay unique across runs
     const system = testHost();
 

@@ -11,10 +11,6 @@
         "./error": "./src/error/index.ts",
         "./workload": "./src/workload/index.ts"
     },
-    "scripts": {
-        "typecheck": "tsc --project tsconfig.json && destack-check readme",
-        "test": "bun --bun run vitest run --config vitest.config.ts"
-    },
     "dependencies": {
         "@anthropic-ai/sandbox-runtime": "0.0.77",
         "@destack/environment": "workspace:*",

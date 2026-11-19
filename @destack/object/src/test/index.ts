@@ -12,3 +12,6 @@ export * from "./audit.ts";
 export * from "./replica.ts";
 export * from "./identity.ts";
 export * from "../scenario/interaction.ts";
+export * from "./driver.ts";
+export * from "./client.ts";
+export * from "./text.ts";

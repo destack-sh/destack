@@ -31,7 +31,7 @@
             "DOM",
             "DOM.Iterable"
         ],
-        "types": ["vite/client"]
+        "types": ["@destack/build/browser", "vite/client"]
     },
     "include": ["**/*"],
     "exclude": ["node_modules", "dist", "target", "coverage", "out"]

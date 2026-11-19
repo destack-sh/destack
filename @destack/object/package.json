@@ -46,10 +46,5 @@
     "devDependencies": {
         "@destack/test": "workspace:*",
         "@types/bun": "1.4.4"
-    },
-    "scripts": {
-        "typecheck": "tsc --project tsconfig.json && destack-check readme",
-        "test": "bun --bun run vitest run --config vitest.config.ts --project 'unit:*'",
-        "bench": "bun --bun run vitest run --config vitest.config.ts --project 'bench:*'"
     }
 }

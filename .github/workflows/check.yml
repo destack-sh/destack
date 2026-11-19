@@ -248,7 +248,7 @@ jobs:
                   persist-credentials: false
             - name: Set up
               uses: ./.github/actions/setup
-            - name: Typecheck updates
-              run: bun run --cwd @destack/update typecheck
+            - name: Check updates
+              run: bun run --cwd @destack/cli dev check ../update
             - name: Test updates
-              run: bun --bun run --cwd @destack/update test --maxWorkers=4
+              run: bun run --cwd @destack/cli dev test ../update

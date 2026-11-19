@@ -21,10 +21,10 @@ A release deploys:
 Build, pack, review and deploy:
 
 ```sh
-just @platform/release/build
-just @platform/release/pack
-just @platform/release/diff production universe
-just @platform/release/deploy production
+bun run build
+bun run pack
+bun run diff production universe
+bun run deploy production
 ```
 
 ## Reference

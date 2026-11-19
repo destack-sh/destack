@@ -10,7 +10,7 @@
     },
     "scripts": {
         "build": "bun run generate && bun run build/main.ts build",
-        "check": "bun run typecheck && bun run lint && bun run format-check && bun run test && bun run build",
+        "check": "destack-check format-check build scripts content.ts && destack-check check build scripts content.ts && tsc -p build/tsconfig.json --noEmit && bun run test && bun run build",
         "dev": "bun run generate && bun run build/main.ts dev",
         "format": "destack-check format src build scripts content.ts",
         "format-check": "destack-check format-check src build scripts content.ts",
@@ -19,7 +19,9 @@
         "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p build/tsconfig.json --noEmit",
         "generate": "bun run scripts/generate-pricing.ts && bun run scripts/generate-headword.ts",
         "generate-icons": "bun run scripts/generate-icons.ts",
-        "generate-sky": "bun run scripts/generate-sky.ts"
+        "generate-sky": "bun run scripts/generate-sky.ts",
+        "clean": "rm -rf .generated .vinxi .output dist",
+        "generate-check": "bun run scripts/generate-pricing.ts --check && bun run scripts/generate-headword.ts --check"
     },
     "dependencies": {
         "@destack/environment": "workspace:*",

@@ -1,5 +1,5 @@
 import { join } from "node:path";
-import { expect, onTestFinished, Recording, test } from "@destack/test";
+import { expect, onTestFinished, Recording, testOn } from "@destack/test";
 import { SimulatedTelemetry } from "@destack/environment/simulation";
 import { channelHub } from "../channel/channel.ts";
 import { socketChannel } from "../channel/socket.ts";
@@ -14,31 +14,36 @@ import { SqliteDatabase } from "../sqlite/database.ts";
 import { Database } from "bun:sqlite";
 import { testHost } from "@destack/test/host";
 
+/** Test against SQLite alone, as the file tests its own connector or host. */
+const onSqlite = testOn("sqlite");
+
 /** The preload that gives a child process's modules their package. */
 const PRELOAD = "@destack/package/bun/preload";
 
 /** The host the processes share a file on. */
 const HOST = testHost();
 
-test("wake a file's readers on a commit another process announces on the file's channel", async () => {
-    // open the file here, with its log under a space's scope
-    const directory = await HOST.files.makeTemporaryDirectory("destack-sqlite-channel-");
-    onTestFinished(() => HOST.files.remove(directory, { recursive: true }));
-    const path = join(directory, "database.db");
-    const reader = await connectBunSqlite(path, [setting], {
-        environment: HOST,
-        openChannel: (name) => socketChannel(`${path}#${name}`, HOST),
-    });
-    onTestFinished(() => reader.close());
-    await reader.log.create("space-a");
-    await reader.migrate([setting]);
+onSqlite(
+    "wake a file's readers on a commit another process announces on the file's channel",
+    async () => {
+        // open the file here, with its log under a space's scope
+        const directory = await HOST.files.makeTemporaryDirectory("destack-sqlite-channel-");
+        onTestFinished(() => HOST.files.remove(directory, { recursive: true }));
+        const path = join(directory, "database.db");
+        const reader = await connectBunSqlite(path, [setting], {
+            environment: HOST,
+            openChannel: (name) => socketChannel(`${path}#${name}`, HOST),
+        });
+        onTestFinished(() => reader.close());
+        await reader.log.create("space-a");
+        await reader.migrate([setting]);
 
-    // wait here while another process writes the file and announces its commit
-    const waiting = reader.log.waitUntil(
-        async () => (await reader.log.position()).sequence > 0,
-        AbortSignal.timeout(5000),
-    );
-    const script = `
+        // wait here while another process writes the file and announces its commit
+        const waiting = reader.log.waitUntil(
+            async () => (await reader.log.position()).sequence > 0,
+            AbortSignal.timeout(5000),
+        );
+        const script = `
         import { socketChannel } from ${JSON.stringify(join(import.meta.dirname, "../channel/socket.ts"))};
         import { connectBunSqlite } from ${JSON.stringify(join(import.meta.dirname, "connection.ts"))};
         import { setting } from ${JSON.stringify(join(import.meta.dirname, "test/setting.ts"))};
@@ -53,125 +58,141 @@ test("wake a file's readers on a commit another process announces on the file's 
             void host.clock.sleep(50).then(stop);
         } });
     `;
-    const child = HOST.process.spawn(
-        [HOST.process.executable, "--preload", PRELOAD, "-e", script],
-        {
-            stderr: "pipe",
-        },
-    );
-    expect([await child.exited, await new Response(child.stderr).text()]).toEqual([0, ""]);
-    expect(await waiting).toBe(true);
-});
+        const child = HOST.process.spawn(
+            [HOST.process.executable, "--preload", PRELOAD, "-e", script],
+            {
+                stderr: "pipe",
+            },
+        );
+        expect([await child.exited, await new Response(child.stderr).text()]).toEqual([0, ""]);
+        expect(await waiting).toBe(true);
+    },
+);
 
-test("read anew on a reader connection what another connection commits, as it caches none of its reads", async () => {
-    // open a file as its writer, and as a reader that sees none of the writer's commits
-    const directory = await HOST.files.makeTemporaryDirectory("destack-sqlite-reader-");
-    onTestFinished(() => HOST.files.remove(directory, { recursive: true }));
-    const path = join(directory, "database.db");
-    const writer = await connectBunSqlite(path, changeTables, { environment: HOST });
-    onTestFinished(() => writer.close());
-    await writer.log.create("inbox");
-    await writer.migrate(changeTables);
-    const client = new BunClient(new Database(path), HOST);
-    const reader = new SqliteDatabase(client, changeTables, "embedded", "reader", {
-        environment: HOST,
-        name: "reader",
-    });
-    onTestFinished(() => reader.close());
-    const notes = async () => (await reader.select().from(note)).map((row) => row.id);
+onSqlite(
+    "read anew on a reader connection what another connection commits, as it caches none of its reads",
+    async () => {
+        // open a file as its writer, and as a reader that sees none of the writer's commits
+        const directory = await HOST.files.makeTemporaryDirectory("destack-sqlite-reader-");
+        onTestFinished(() => HOST.files.remove(directory, { recursive: true }));
+        const path = join(directory, "database.db");
+        const writer = await connectBunSqlite(path, changeTables, { environment: HOST });
+        onTestFinished(() => writer.close());
+        await writer.log.create("inbox");
+        await writer.migrate(changeTables);
+        const client = new BunClient(new Database(path), HOST);
+        const reader = new SqliteDatabase(client, changeTables, "embedded", "reader", {
+            environment: HOST,
+            name: "reader",
+        });
+        onTestFinished(() => reader.close());
+        const notes = async () => (await reader.select().from(note)).map((row) => row.id);
 
-    // read the notes before and after the writer commits one
-    const before = await notes();
-    await writer.transaction((transaction) => transaction.insert(note).values(first).execute());
-    expect({ before, after: await notes() }).toEqual({ before: [], after: [first.id] });
-});
+        // read the notes before and after the writer commits one
+        const before = await notes();
+        await writer.transaction((transaction) => transaction.insert(note).values(first).execute());
+        expect({ before, after: await notes() }).toEqual({ before: [], after: [first.id] });
+    },
+);
 
-test("read anew what an unannounced commit wrote, once a position read finds it in the log", async () => {
-    // open a file twice: a reader on a channel, and a writer that announces nothing
-    const directory = await HOST.files.makeTemporaryDirectory("destack-sqlite-undelivered-");
-    onTestFinished(() => HOST.files.remove(directory, { recursive: true }));
-    const path = join(directory, "database.db");
-    const hub = channelHub<unknown>();
-    const reader = await connectBunSqlite(path, changeTables, {
-        environment: HOST,
-        openChannel: hub,
-    });
-    onTestFinished(() => reader.close());
-    await reader.log.create("inbox");
-    await reader.migrate(changeTables);
-    const writer = await connectBunSqlite(path, changeTables, { environment: HOST });
-    onTestFinished(() => writer.close());
-    const revise = (number: number) =>
-        reader.transaction((transaction) =>
+onSqlite(
+    "read anew what an unannounced commit wrote, once a position read finds it in the log",
+    async () => {
+        // open a file twice: a reader on a channel, and a writer that announces nothing
+        const directory = await HOST.files.makeTemporaryDirectory("destack-sqlite-undelivered-");
+        onTestFinished(() => HOST.files.remove(directory, { recursive: true }));
+        const path = join(directory, "database.db");
+        const hub = channelHub<unknown>();
+        const reader = await connectBunSqlite(path, changeTables, {
+            environment: HOST,
+            openChannel: hub,
+        });
+        onTestFinished(() => reader.close());
+        await reader.log.create("inbox");
+        await reader.migrate(changeTables);
+        const writer = await connectBunSqlite(path, changeTables, { environment: HOST });
+        onTestFinished(() => writer.close());
+        const revise = (number: number) =>
+            reader.transaction((transaction) =>
+                transaction
+                    .insert(revision)
+                    .values({ scope: "inbox", noteId: "a", number, title: "First" })
+                    .execute(),
+            );
+
+        // listen to commits, catch the position up once, then read the notes from the database
+        await reader.log.listening();
+        await revise(1);
+        await reader.log.position();
+        const notes = async () => (await reader.select().from(note)).map((row) => row.id);
+        const before = await notes();
+
+        // commit a note through the writer unannounced, then a revision through the reader
+        await writer.transaction((transaction) => transaction.insert(note).values(first).execute());
+        await revise(2);
+
+        // read the position, which finds the writer's commit in the log, then the notes anew
+        await reader.log.position();
+        expect({ before, after: await notes() }).toEqual({ before: [], after: [first.id] });
+    },
+);
+
+onSqlite(
+    "rerun a transaction once over an unannounced commit to a row it read, then commit on the fresh row",
+    async () => {
+        // open a file twice: a reader on a channel, and a writer that announces nothing
+        const directory = await HOST.files.makeTemporaryDirectory(
+            "destack-sqlite-undelivered-race-",
+        );
+        onTestFinished(() => HOST.files.remove(directory, { recursive: true }));
+        const path = join(directory, "database.db");
+        const hub = channelHub<unknown>();
+        const telemetry = new SimulatedTelemetry(HOST);
+        const reader = await connectBunSqlite(path, changeTables, {
+            environment: { ...HOST, telemetry },
+            openChannel: hub,
+        });
+        onTestFinished(() => reader.close());
+        await reader.log.create("inbox");
+        await reader.migrate(changeTables);
+        const writer = await connectBunSqlite(path, changeTables, { environment: HOST });
+        onTestFinished(() => writer.close());
+
+        // store a note, listen to commits, catch up, and read the position into memory
+        await reader.transaction((transaction) => transaction.insert(note).values(first).execute());
+        await reader.log.listening();
+        await reader.log.position();
+        await reader.log.position();
+
+        // retitle the note through the writer, unannounced
+        await writer.transaction((transaction) =>
             transaction
-                .insert(revision)
-                .values({ scope: "inbox", noteId: "a", number, title: "First" })
+                .update(note)
+                .set({ title: "Second" })
+                .where(eq(note.id, first.id))
                 .execute(),
         );
 
-    // listen to commits, catch the position up once, then read the notes from the database
-    await reader.log.listening();
-    await revise(1);
-    await reader.log.position();
-    const notes = async () => (await reader.select().from(note)).map((row) => row.id);
-    const before = await notes();
-
-    // commit a note through the writer unannounced, then a revision through the reader
-    await writer.transaction((transaction) => transaction.insert(note).values(first).execute());
-    await revise(2);
-
-    // read the position, which finds the writer's commit in the log, then the notes anew
-    await reader.log.position();
-    expect({ before, after: await notes() }).toEqual({ before: [], after: [first.id] });
-});
-
-test("rerun a transaction once over an unannounced commit to a row it read, then commit on the fresh row", async () => {
-    // open a file twice: a reader on a channel, and a writer that announces nothing
-    const directory = await HOST.files.makeTemporaryDirectory("destack-sqlite-undelivered-race-");
-    onTestFinished(() => HOST.files.remove(directory, { recursive: true }));
-    const path = join(directory, "database.db");
-    const hub = channelHub<unknown>();
-    const telemetry = new SimulatedTelemetry(HOST);
-    const reader = await connectBunSqlite(path, changeTables, {
-        environment: { ...HOST, telemetry },
-        openChannel: hub,
-    });
-    onTestFinished(() => reader.close());
-    await reader.log.create("inbox");
-    await reader.migrate(changeTables);
-    const writer = await connectBunSqlite(path, changeTables, { environment: HOST });
-    onTestFinished(() => writer.close());
-
-    // store a note, listen to commits, catch up, and read the position into memory
-    await reader.transaction((transaction) => transaction.insert(note).values(first).execute());
-    await reader.log.listening();
-    await reader.log.position();
-    await reader.log.position();
-
-    // retitle the note through the writer, unannounced
-    await writer.transaction((transaction) =>
-        transaction.update(note).set({ title: "Second" }).where(eq(note.id, first.id)).execute(),
-    );
-
-    // append to the title read in a transaction, which loses one race and reads the fresh row
-    const before = await Recording.read(telemetry);
-    await Transaction.run(reader, async (transaction) => {
-        const row = present(
-            await transaction.read(note).findFirst({ where: { id: first.id } }),
-            "the note",
-        );
-        await transaction.write({
-            table: note,
-            before: row,
-            after: { ...row, title: `${row.title}!` },
+        // append to the title read in a transaction, which loses one race and reads the fresh row
+        const before = await Recording.read(telemetry);
+        await Transaction.run(reader, async (transaction) => {
+            const row = present(
+                await transaction.read(note).findFirst({ where: { id: first.id } }),
+                "the note",
+            );
+            await transaction.write({
+                table: note,
+                before: row,
+                after: { ...row, title: `${row.title}!` },
+            });
         });
-    });
-    const [stored] = await reader.select({ title: note.title }).from(note);
-    const races = (await Recording.read(telemetry))
-        .since(before)
-        .count({ name: "destack.transaction.retries" });
-    expect({ races, title: stored?.title }).toEqual({
-        races: 1,
-        title: "Second!",
-    });
-});
+        const [stored] = await reader.select({ title: note.title }).from(note);
+        const races = (await Recording.read(telemetry))
+            .since(before)
+            .count({ name: "destack.transaction.retries" });
+        expect({ races, title: stored?.title }).toEqual({
+            races: 1,
+            title: "Second!",
+        });
+    },
+);

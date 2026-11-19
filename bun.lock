@@ -189,6 +189,7 @@
         "@destack/view": "workspace:*",
       },
       "devDependencies": {
+        "@destack/check": "workspace:*",
         "@destack/control": "workspace:*",
         "@destack/environment": "workspace:*",
         "@destack/identity": "workspace:*",
@@ -1090,6 +1091,7 @@
         "lightningcss": "1.33.0",
       },
       "devDependencies": {
+        "@destack/build": "workspace:*",
         "@destack/test": "workspace:*",
         "vite": "8.3.8",
       },

@@ -29,10 +29,6 @@
         "./waves": "./src/waves/index.ts",
         "./destack.json": "./destack.json"
     },
-    "scripts": {
-        "typecheck": "tsc --project tsconfig.json && destack-check readme",
-        "test": "bun --bun run vitest run --config vitest.config.ts"
-    },
     "dependencies": {
         "@destack/error": "workspace:*",
         "@destack/package": "workspace:*",

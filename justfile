@@ -20,24 +20,25 @@ install:
 update:
     bun update
 
-# build
+# build the site and the release
 build:
-    just @platform/build
+    bun run --cwd @platform/site build
+    bun run --cwd @platform/release build
 
-# generate
+# generate the site's pricing and headwords
 generate:
-    just @platform/site/generate
+    bun run --cwd @platform/site generate
 
-# regenerate every tool root's settings, then format every package: the only recipe that writes
+# fix every package through its pinned toolchain: its generated settings, formatting and lints, the only recipe that writes
 fix:
     #!/usr/bin/env bash
     set -euo pipefail
-    # regenerate each tool root's settings: the workspace's and each template's, never a test's byte-exact fixtures
-    for directory in $(git ls-files '.oxfmtrc.json' '*/.oxfmtrc.json' | grep -v '/tests/' | xargs -n1 dirname); do
-        (cd "$directory" && bun run destack-check configure)
+    # write the workspace root's settings, then fix each package in turn
+    bun run destack-check configure
+    cd "{{justfile_directory()}}/@destack/cli"
+    for definition in "{{justfile_directory()}}"/@destack/*/destack.json "{{justfile_directory()}}"/@platform/*/destack.json; do
+        bun run --silent dev fix "$(dirname "$definition")"
     done
-    just @destack/format
-    just @platform/format
 
 alias fmt := fix
 
@@ -106,46 +107,27 @@ affected base="":
 check-package directory *arguments:
     #!/usr/bin/env bash
     set -euo pipefail
-    cd "{{justfile_directory()}}/{{directory}}"
-    bun run destack-check format-check
-    # typecheck through the package's script, which also compiles its README listings
-    if [ -n "$(jq -r '.scripts.typecheck // ""' package.json)" ]; then
-        bun run typecheck
-    else
-        bunx tsc --noEmit -p .
-    fi
-    bun run destack-check check {{arguments}}
+    # check the package through its pinned toolchain with the command line's sources
+    cd "{{justfile_directory()}}/@destack/cli"
+    bun run --silent dev check "{{justfile_directory()}}/{{directory}}" {{arguments}}
 
 # test a package in every tier, or its unit tier with --fast, or the given test files of it
 test directory *arguments:
     #!/usr/bin/env bash
     set -euo pipefail
     # read --fast as the unit tier alone, the other arguments as test files
+    options=()
     files=()
     for argument in {{arguments}}; do
         if [ "$argument" = --fast ]; then
-            export DESTACK_TEST_TIERS=unit
+            options+=(--tier unit)
         else
             files+=("$argument")
         fi
     done
-    # give each test worker two cores, as a scenario test runs its workloads beside it
-    cores="$(getconf _NPROCESSORS_ONLN)"
-    workers=$(( cores / 2 > 4 ? 4 : (cores / 2 < 1 ? 1 : cores / 2) ))
-    cd "{{justfile_directory()}}/{{directory}}"
-    test="$(jq -r '.scripts.test // ""' package.json)"
-
-    # run vitest with the files, other scripts as written
-    if [[ "$test" == *"vitest run"* && "$test" != *"&&"* && "$test" != *";"* ]]; then
-        bun run test --maxWorkers="$workers" ${files[@]+"${files[@]}"}
-    elif [ "${#files[@]}" -gt 0 ]; then
-        echo "error: {{directory}} runs no single vitest to filter" >&2
-        exit 1
-    elif [[ "$test" == *vitest* ]]; then
-        bun run test --maxWorkers="$workers"
-    elif [ -n "$test" ]; then
-        bun run test
-    fi
+    # run the package's tests through its plan with the command line's sources
+    cd "{{justfile_directory()}}/@destack/cli"
+    bun run --silent dev test "{{justfile_directory()}}/{{directory}}" ${options[@]+"${options[@]}"} ${files[@]+"${files[@]}"}
 
 # list a package's vitest test files
 test-files directory:
@@ -290,8 +272,16 @@ postgres action:
 [positional-arguments]
 local *arguments:
     @case "${1:-serve}" in serve | reset) just postgres up ;; esac
-    @just @platform/release/local "$@"
+    @bun run --cwd @platform/release local "$@"
 
 # pack
 pack target="":
-    just @platform/release/pack "{{target}}"
+    bun run --cwd @platform/release pack {{target}}
+
+# serve the company site locally
+company-dev:
+    cd @platform/company && bunx wrangler@4.134.0 dev --port 3838
+
+# deploy the company site with its token from .env.local
+company-deploy:
+    cd @platform/company && CLOUDFLARE_API_TOKEN="${CLOUDFLARE_COMPANY_API_TOKEN:?CLOUDFLARE_COMPANY_API_TOKEN is required}" bunx wrangler@4.134.0 deploy

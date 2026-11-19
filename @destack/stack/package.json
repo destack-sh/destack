@@ -19,9 +19,6 @@
         "./cloudflare": "./src/cloudflare/index.ts",
         "./setting": "./src/setting/index.ts"
     },
-    "scripts": {
-        "typecheck": "tsc --project tsconfig.json && destack-check readme"
-    },
     "dependencies": {
         "@destack/access": "workspace:*",
         "@destack/account": "workspace:*",

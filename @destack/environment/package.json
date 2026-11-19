@@ -16,10 +16,6 @@
         "./workerd": "./src/workerd/index.ts",
         "./destack.json": "./destack.json"
     },
-    "scripts": {
-        "typecheck": "tsc --project tsconfig.json && destack-check readme",
-        "test": "bun --bun run vitest run --config vitest.config.ts"
-    },
     "devDependencies": {
         "@destack/package": "workspace:*",
         "@destack/test": "workspace:*",

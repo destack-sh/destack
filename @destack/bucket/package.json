@@ -27,8 +27,6 @@
         "@destack/telemetry": "workspace:*"
     },
     "scripts": {
-        "typecheck": "tsc --project tsconfig.json && destack-check readme",
-        "test": "bun --bun run vitest run --config vitest.config.ts",
         "test:cloudflare": "bun run tests/cloudflare/run.ts"
     },
     "devDependencies": {

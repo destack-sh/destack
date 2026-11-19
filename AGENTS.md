@@ -626,3 +626,5 @@ Write boring, plain commit messages:
 - **SC33** Commit messages SHOULD name code concepts as proper nouns, not files: `add SiteTable, rename Foo -> Bar`.
 - **SC34** Commit messages SHOULD follow the style of the last 50 or so commits when in doubt.
 - **SC35** Commit messages MUST NOT mention non-human authors or contributors: no co-authors and no bylines.
+
+## Custom

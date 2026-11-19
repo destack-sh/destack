@@ -27,10 +27,6 @@
         "./test": "./src/test/index.ts",
         "./schemas/destack.json": "./schemas/destack.json"
     },
-    "scripts": {
-        "typecheck": "tsc --project tsconfig.json && destack-check readme",
-        "test": "bun --bun run vitest run --config vitest.config.ts"
-    },
     "dependencies": {
         "@destack/environment": "workspace:*",
         "@destack/error": "workspace:*",

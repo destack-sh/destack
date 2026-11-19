@@ -11,15 +11,17 @@ const HOST = testHost();
 /** The longest an ad-hoc signature may take, in milliseconds. */
 const SIGN_MILLISECONDS = 3000;
 
+/** Test on a Mac alone, which signs and exchanges real application bundles. */
+const onMac = test.skipIf(HOST.host.os !== "darwin");
+
 /** The release target of the host. */
 const TARGET = Release.target(HOST.host.os, HOST.host.architecture);
 
-test("recover macOS activation after bundle replacement", async () => {
+onMac("recover macOS activation after bundle replacement", async () => {
     // construct an ad-hoc signed application entirely inside the temporary installation
-    const world = requireMac();
-    const directory = await world.files.makeTemporaryDirectory("destack-macos-update-");
+    const directory = await HOST.files.makeTemporaryDirectory("destack-macos-update-");
     try {
-        const installer = new Installer(join(directory, "installation"), world);
+        const installer = new Installer(join(directory, "installation"), HOST);
         const release = new Release("2026.9.1", TARGET);
         const staged = join(installer.directory, "versions", release.directory);
         const application = join(staged, "Destack.app");
@@ -57,14 +59,13 @@ test("recover macOS activation after bundle replacement", async () => {
         expect(await installer.current()).toEqual({ release, sha256, directory: staged });
         expect(await HOST.files.exists(join(installer.directory, "activate.json"))).toBe(false);
     } finally {
-        await world.files.remove(directory, { recursive: true });
+        await HOST.files.remove(directory, { recursive: true });
     }
 });
 
-test("replace signed applications while keeping stable and dev identities separate", async () => {
+onMac("replace signed applications while keeping stable and dev identities separate", async () => {
     // create genuine ad-hoc signed bundles without modifying installed applications
-    const world = requireMac();
-    const directory = await world.files.makeTemporaryDirectory("destack-bundle-");
+    const directory = await HOST.files.makeTemporaryDirectory("destack-bundle-");
     try {
         const source = join(directory, "source.app");
         const destination = join(directory, "renamed.app");
@@ -74,7 +75,7 @@ test("replace signed applications while keeping stable and dev identities separa
         ]) {
             const release = new Release(version, TARGET);
             await writeApplication(source, release, "org.example.editor.dev");
-            await installApplication(source, destination, "org.example.editor.dev", world);
+            await installApplication(source, destination, "org.example.editor.dev", HOST);
             expect(
                 await HOST.files.readTextFile(join(destination, "Contents/Resources/version")),
             ).toBe(version);
@@ -84,7 +85,7 @@ test("replace signed applications while keeping stable and dev identities separa
         const stable = new Release("2026.9.2", TARGET);
         await writeApplication(source, stable, "org.example.editor");
         expect(
-            await refusal(installApplication(source, destination, "org.example.editor", world)),
+            await refusal(installApplication(source, destination, "org.example.editor", HOST)),
         ).toEqual([
             "INTERNAL_SERVER_ERROR",
             "VERIFICATION_BROKEN",
@@ -94,7 +95,7 @@ test("replace signed applications while keeping stable and dev identities separa
             "2026.9.1-dev.20260912100002.0123456789ab",
         );
     } finally {
-        await world.files.remove(directory, { recursive: true });
+        await HOST.files.remove(directory, { recursive: true });
     }
 });
 
@@ -133,15 +134,4 @@ async function writeApplication(
     );
     const diagnostic = await new Response(signing.stderr).text();
     expect(await signing.exited, diagnostic).toBe(0);
-}
-
-/** Require the host to be a Mac, failing loudly elsewhere, and answer it. */
-function requireMac(): typeof HOST {
-    if (HOST.host.os !== "darwin") {
-        throw new Error(
-            "the macOS installer tests run on a Mac: run the integration project there",
-        );
-    }
-
-    return HOST;
 }

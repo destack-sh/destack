@@ -12,5 +12,8 @@
                 "reason": "ObjectReference.columns states the reference columns whose keys a template computes (ruling 2026-10-16)"
             }
         ]
+    },
+    "test": {
+        "databases": ["sqlite", "postgresql"]
     }
 }

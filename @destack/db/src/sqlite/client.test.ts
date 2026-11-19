@@ -1,10 +1,13 @@
 import { TEST_START } from "@destack/test/world";
-import { expect, test, refusal } from "@destack/test";
+import { expect, refusal, testOn } from "@destack/test";
 import { SimulatedClock } from "@destack/environment/simulation";
 import { environmentOn } from "../test/environment.ts";
 import { SqliteWorkQueue } from "./client.ts";
 
-test("run queued work in arrival order, one piece at a time", async () => {
+/** Test against SQLite alone, as the file tests its own connector or host. */
+const onSqlite = testOn("sqlite");
+
+onSqlite("run queued work in arrival order, one piece at a time", async () => {
     // queue three pieces, the first finishing last
     const environment = environmentOn(new SimulatedClock(TEST_START));
     const queue = new SqliteWorkQueue(environment.telemetry, "memory");
@@ -23,19 +26,22 @@ test("run queued work in arrival order, one piece at a time", async () => {
     expect(order).toEqual(["first", "second"]);
 });
 
-test("run work awaited one piece after another at once, arming no wait for its turn", async () => {
-    // await one piece, then queue the next as a caller's following statement does
-    const environment = environmentOn(new SimulatedClock(TEST_START));
-    const queue = new SqliteWorkQueue(environment.telemetry, "memory");
-    await queue.run(async () => "first", environment);
-    const second = queue.run(async () => "second", environment);
-    const armed = environment.clock.next;
+onSqlite(
+    "run work awaited one piece after another at once, arming no wait for its turn",
+    async () => {
+        // await one piece, then queue the next as a caller's following statement does
+        const environment = environmentOn(new SimulatedClock(TEST_START));
+        const queue = new SqliteWorkQueue(environment.telemetry, "memory");
+        await queue.run(async () => "first", environment);
+        const second = queue.run(async () => "second", environment);
+        const armed = environment.clock.next;
 
-    // find the queue idle, with no timer armed for the turn
-    expect([armed, await second]).toEqual([undefined, "second"]);
-});
+        // find the queue idle, with no timer armed for the turn
+        expect([armed, await second]).toEqual([undefined, "second"]);
+    },
+);
 
-test("refuse work whose turn does not come within the wait", async () => {
+onSqlite("refuse work whose turn does not come within the wait", async () => {
     // occupy the connection, as a transaction does whose code queues a statement outside it
     const environment = environmentOn(new SimulatedClock(TEST_START));
     const queue = new SqliteWorkQueue(environment.telemetry, "memory", 1);

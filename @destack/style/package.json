@@ -13,10 +13,6 @@
         "./frame.stylex": "./src/style/frame.stylex.ts",
         "./preflight.css": "./src/preflight/preflight.css"
     },
-    "scripts": {
-        "typecheck": "tsc --project tsconfig.json && destack-check readme",
-        "test": "bun --bun run vitest run --config vitest.config.ts"
-    },
     "dependencies": {
         "@destack/environment": "workspace:*",
         "@destack/package": "workspace:*",
@@ -34,7 +30,8 @@
         }
     },
     "devDependencies": {
-        "vite": "8.3.8",
-        "@destack/test": "workspace:*"
+        "@destack/build": "workspace:*",
+        "@destack/test": "workspace:*",
+        "vite": "8.3.8"
     }
 }

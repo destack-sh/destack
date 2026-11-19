@@ -75,10 +75,10 @@ export const quote = MACHINE_HOST.quote(MACHINES.small);
 
 ### Refresh vendor prices
 
-`just refresh` reads Cloudflare's pricing pages and rewrites the prices and their date.
+`bun run refresh` reads Cloudflare's pricing pages and rewrites the prices and their date.
 
 ```sh
-just refresh
+bun run refresh
 ```
 
 ## Comparison
