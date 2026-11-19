@@ -8,7 +8,7 @@ import { openForge } from "./forge.ts";
 import { readSpecifier } from "./install.ts";
 
 /** The template a package is made from unless another is asked for. */
-const DEFAULT_TEMPLATE = "@destack/template-blank";
+const DEFAULT_TEMPLATE = "@destack/blank";
 
 /** Make a package from a published template in a new checkout on this computer. */
 export function newCommand(context: Context): Verb {
