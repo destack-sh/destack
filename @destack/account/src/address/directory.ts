@@ -71,6 +71,14 @@ export class Directory<View extends Pick<Snapshot, "read"> = Snapshot> {
             : schema.string().parse(nth(Claim.values(claimed), 0));
     }
 
+    /** Find the account claiming an object's identifier, none for an object no account claims. */
+    async owner(type: ObjectType, id: string): Promise<Identifier<"account"> | undefined> {
+        const claims = ClaimLookup.of(this.snapshot.read(claimTable));
+        const found = await Claim.lookup(type, claims, "id", [id]);
+
+        return found === undefined ? undefined : schema.identifier("account").parse(found.scope);
+    }
+
     /** Find an account's object of a type at an address, and whether the address is former. */
     async find<Object extends ObjectType>(
         type: Object,

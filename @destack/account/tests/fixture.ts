@@ -1,5 +1,6 @@
 import type { DatabaseConnection } from "@destack/db";
 import type { Environment } from "@destack/environment";
+import { universe } from "@destack/access";
 import { type Claimant, ClaimRefusal, defineObject, field } from "@destack/object";
 import { RemoteStore, Reservation } from "@destack/object/server";
 import { RequestId, type Page, Scope } from "@destack/sync";
@@ -33,7 +34,7 @@ export const Redirect = schema.looseObject({
     url: schema.string(),
 });
 
-/** A scope with a separate database and a name unique in the account, like a space. */
+/** A scope with a separate database, a name unique in its account and a global identifier. */
 export const place = defineObject({
     name: "place",
     identity: "space",
@@ -41,7 +42,10 @@ export const place = defineObject({
     title: t`${plural(argument("count"), { one: "Place", other: "Places" })}`,
     scope: account,
     fields: { name: field.string() },
-    indexes: { name: { on: ["name"], across: () => account } },
+    indexes: {
+        name: { on: ["name"], across: () => account },
+        id: { on: ["id"], across: () => universe },
+    },
     container: "scope",
     access: {
         permissions: ["read"],

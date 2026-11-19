@@ -149,6 +149,19 @@ test("list an account's placements to those reading it and to any machine, and t
     ]);
 });
 
+test("find the account claiming a place's identifier, and none for an identifier no account claims", async () => {
+    // claim the place's names, its identifier among them
+    const opened = await openNotes();
+    await using fixture = opened.fixture;
+
+    // find its account by the identifier, and none for a new identifier
+    const directory = new Directory(Snapshot.live(fixture.database));
+    expect([
+        await directory.owner(place, opened.spaceId),
+        await directory.owner(place, Identifier.create("space", fixture.environment)),
+    ]).toEqual([opened.accountId, undefined]);
+});
+
 test("find no account or place at an address once the account's deletion was requested", async () => {
     // delete the account of a named place as its owner stepped up
     const opened = await openNotes();
