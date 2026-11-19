@@ -506,8 +506,13 @@ export class ObjectClient<
 
     /** Measure each query through the replica with its root. */
     #upstream(objects: readonly ObjectType[]): sync.Upstream {
-        // map tables to storages, and storages to their replicas
-        const storages = new Map(objects.map((object) => [object.table, object.storage]));
+        // map tables to storages, events as durable, and storages to their replicas
+        const storages = new Map(
+            objects.map((object) => [
+                object.table,
+                object.storage === "events" ? "durable" : object.storage,
+            ]),
+        );
         const upstreams = new Map<ObjectStorage, sync.Upstream>([
             ["durable", this.replica.upstream(this.database, this.prediction)],
             ...(this.ephemeral === undefined

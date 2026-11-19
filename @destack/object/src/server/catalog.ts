@@ -1,4 +1,5 @@
 import { PackageManifest } from "@destack/package/manifest";
+import type { ObjectRemote } from "../replica/remote.ts";
 import { graph, PackageVersion } from "@destack/package";
 import { RelationGraph } from "../query/query.ts";
 import type { EventStore } from "@destack/event";
@@ -56,7 +57,7 @@ export interface CatalogExclusion {
 /** The stores a catalog's types need beside its database, and the principal owning local ones. */
 type CatalogStores = Pick<
     CatalogOptions,
-    "database" | "claims" | "ephemeral" | "events" | "principal" | "device"
+    "database" | "claims" | "ephemeral" | "events" | "remote" | "principal" | "device"
 > & {
     /** The files of the external types. */
     readonly external: readonly ExternalStorage[];
@@ -90,6 +91,8 @@ export interface CatalogOptions {
     readonly ephemeral?: EphemeralStorage;
     /** The event log of the store's database, with its calls and served events types. */
     readonly events?: EventStore;
+    /** The home a replica follows, absent at the home. */
+    readonly remote?: ObjectRemote;
 }
 
 /** The packages a store serves, with their types, routes, tables and access rules. */
@@ -137,7 +140,7 @@ export class Catalog {
     readonly decided: readonly ObjectType[];
     /** The served or authorized durable types whose rows the database replicates from home. */
     readonly replicated: readonly ObjectType[];
-    /** The types follower replicas compile against: followed, decided and served local ones. */
+    /** The types follower replicas compile against: followed, decided, local and events ones. */
     readonly followed: RelationGraph;
     /** The relations between the object types served, which the served queries compile against. */
     readonly relations: RelationGraph;
@@ -356,7 +359,7 @@ export class Catalog {
             return tracked;
         }
 
-        // follow the durable tables and the decision tables, the replicated ones no installation here serves
+        // follow the durable, local, events and decision tables, the replicated ones no installation here serves
         const decided = Catalog.#durable(objects, policies);
         const replicated = decided.filter(
             (object) =>
@@ -364,10 +367,12 @@ export class Catalog {
                 !installed.has(ObjectTypeReference.key(object.typeReference)),
         );
         const local = objects.filter((object) => object.storage === "local");
+        const events = objects.filter((object) => object.storage === "events");
         const tables = [
             ...new Set([
                 ...decided.flatMap((object) => object.tables),
                 ...local.flatMap((object) => object.tables),
+                ...events.flatMap((object) => object.tables),
                 ...decisionTables,
             ]),
         ];
@@ -389,7 +394,7 @@ export class Catalog {
             authorizer,
             decided,
             replicated,
-            followed: new RelationGraph([...shapes, ...decided, ...local]),
+            followed: new RelationGraph([...shapes, ...decided, ...local, ...events]),
             tables,
             provisioned: Catalog.#control(
                 objects,
@@ -572,8 +577,12 @@ export class Catalog {
         else if (type.storage === "ephemeral" && options.ephemeral === undefined) {
             return new TypeError(`ephemeral object ${type.name} needs a store`);
         }
-        // refuse an events type without the event log over the store's database
-        else if (type.storage === "events" && options.events?.database !== options.database) {
+        // refuse an events type at a home without its event log
+        else if (
+            type.storage === "events" &&
+            options.remote === undefined &&
+            options.events?.database !== options.database
+        ) {
             return new TypeError(`events object ${type.name} needs the store's event log`);
         }
         // refuse an external type without files

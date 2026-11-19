@@ -24,7 +24,7 @@ export async function testEvents(
 
     return new EventStore({
         database,
-        kinds: [call.eventKind(), ...kinds],
+        kinds: [...new Map([call.eventKind(), ...kinds].map((kind) => [kind.key, kind])).values()],
         files: () => bucket,
         personal: new DatabasePersonalKeyring(database, keyring, environment),
         ...(settings === undefined ? {} : { settings }),

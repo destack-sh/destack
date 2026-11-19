@@ -3,12 +3,13 @@ import { AccessContext, Caller, none, principal, relation, through } from "@dest
 import { defineDatabase, TABLE } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
 import { EventTime } from "@destack/event";
-import { schema, type Identifier } from "@destack/schema";
+import { present, schema, type Identifier } from "@destack/schema";
 import { RequestId, Scope } from "@destack/sync";
 import { testCallKey } from "@destack/object/test";
 import { testEvents, serversOf } from "../src/test/index.ts";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { defineObject, EventView, field } from "../src/index.ts";
+import { ObjectClient } from "../src/client/index.ts";
 import { openSpace, space, spacePrincipal } from "../src/test/space.ts";
 import { userContext, users } from "./fixture/user.ts";
 import { tablesOf } from "../src/index.ts";
@@ -21,6 +22,9 @@ const spaceId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-
 
 /** The first event's time, in Unix microseconds. */
 const START = EventTime.of(1_800_000_000_000);
+
+/** How long a client waits on the simulated clock for the visits it follows: a minute. */
+const FOLLOW_MILLISECONDS = 60_000;
 
 /** The microseconds in a minute, the series' step. */
 const MINUTE = EventTime.of(60_000);
@@ -375,5 +379,87 @@ test("read the events a space appended after a log sequence, in commit order", a
             "visit-01996ab0-0000-7000-8000-000000000003",
         ],
         drained: 0,
+    });
+});
+
+test("follow the visits a visitor may read on a client as the home appends them, catching up after a pause", async () => {
+    // serve the visits at the space's home, and open alice's client following her home visits
+    const servers = serversOf([visit]);
+    const objects = await TestObjectStore.open({
+        packages: servers,
+        scope: space.reference(Scope.universe.id, spaceId),
+    });
+    onTestFinished(() => objects[Symbol.asyncDispose]());
+    const { environment } = objects;
+    const storage = await TestDatabase.create([], { environment, dialect: "sqlite" });
+    onTestFinished(() => storage.close());
+    const client = await ObjectClient.open({
+        database: storage.database,
+        objects: { visit },
+        scope: spaceId,
+        caller: principal.user.reference(Scope.universe.id, users.alice),
+        environment,
+        remote: objects.as(users.alice).connect(present(servers[0], "the visits' server").package),
+    });
+    const followed = client.query.visit.findMany({ where: { page: "home" } }).subscribe();
+    let controller = new AbortController();
+    let following = client.follow(controller.signal);
+    onTestFinished(async () => {
+        controller.abort();
+        await following;
+        await client.close();
+    });
+    await followed.ready;
+
+    // append two visits of alice's and one of bob's, then wait until her client has hers
+    const visited = (visitor: Identifier<"user">, id: string, path: string) =>
+        objects.as(visitor).call(
+            visit.call("visit", {
+                spaceId,
+                id,
+                time: START,
+                visitorId: visitor,
+                page: path,
+                duration: 1000,
+                data: { referrer: null },
+            }),
+        );
+    await visited(users.alice, "visit-01996ab0-0000-7000-8000-0000000000a1", "home");
+    await visited(users.alice, "visit-01996ab0-0000-7000-8000-0000000000a2", "about");
+    await visited(users.bob, "visit-01996ab0-0000-7000-8000-0000000000a3", "home");
+    await visited(users.alice, "visit-01996ab0-0000-7000-8000-0000000000a4", "home");
+    const ids = async () =>
+        (await storage.database.select({ id: visit.table.id }).from(visit.table))
+            .map((row) => row.id)
+            .toSorted();
+    await storage.database.log.waitUntil(
+        async () => (await ids()).length === 2,
+        environment.clock.timeout(FOLLOW_MILLISECONDS),
+    );
+
+    const received = await ids();
+
+    // stop following, append another home visit, and catch up on it once following again
+    controller.abort();
+    await following;
+    await visited(users.alice, "visit-01996ab0-0000-7000-8000-0000000000a5", "home");
+    controller = new AbortController();
+    following = client.follow(controller.signal);
+    await storage.database.log.waitUntil(
+        async () => (await ids()).length === 3,
+        environment.clock.timeout(FOLLOW_MILLISECONDS),
+    );
+
+    // hold alice's home visits alone, without bob's or her other page's, the missed one caught up
+    expect({ received, caughtUp: await ids() }).toEqual({
+        received: [
+            "visit-01996ab0-0000-7000-8000-0000000000a1",
+            "visit-01996ab0-0000-7000-8000-0000000000a4",
+        ],
+        caughtUp: [
+            "visit-01996ab0-0000-7000-8000-0000000000a1",
+            "visit-01996ab0-0000-7000-8000-0000000000a4",
+            "visit-01996ab0-0000-7000-8000-0000000000a5",
+        ],
     });
 });

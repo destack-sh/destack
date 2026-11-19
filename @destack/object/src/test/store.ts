@@ -365,7 +365,14 @@ export class TestObjectStore implements TestScope, AsyncDisposable {
                 ? universe.reference(Scope.universe.id, Scope.universe.id)
                 : Subject.parse(scope),
             callKey: testCallKey,
-            events: await testEvents(storage.database, environment),
+            events: await testEvents(
+                storage.database,
+                environment,
+                implementations
+                    .flatMap((each) => Object.values(each.package.objects))
+                    .filter((type) => type.storage === "events")
+                    .map((type) => type.eventKind()),
+            ),
             database: storage.database,
             ...(ephemeral === undefined ? {} : { ephemeral }),
             ...(options.publisher === undefined ? {} : { publisher: options.publisher }),
