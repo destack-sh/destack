@@ -1,6 +1,6 @@
 import { IdentityError, Jwt } from "@destack/identity";
 import { BearerProtocol } from "@destack/environment";
-import { DomainError } from "@destack/error";
+import { Failure } from "@destack/error";
 import { AccessError } from "../error/index.ts";
 
 /** The shape of an authorization header with one bearer token, per RFC 6750 2.1. */
@@ -81,7 +81,7 @@ export const Bearer = {
             return AccessError.of(reason, message, { cause: error });
         }
         // pass on a refusal the key source answered
-        else if (DomainError.is(error) || (error instanceof Error && "status" in error)) {
+        else if (Failure.isRefusal(error)) {
             return error;
         }
         // answer any other failure as unavailable keys
