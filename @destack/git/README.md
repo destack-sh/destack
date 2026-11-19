@@ -17,6 +17,7 @@ Git clients use leases:
 - `Lease`: a remote URL with headers, to read or write.
 - `GitLease`: checks out one commit.
 - `GitCredential`: a short-lived basic credential.
+- `GitRemote`: forwards a smart HTTP request to a leased remote.
 
 Backends:
 
@@ -55,6 +56,7 @@ A `GitStorage`'s `provider` is `"local"` or `"cloudflare-artifacts"`.
 | `create(id)`     | creates an empty repository with `HEAD` at `main`, and answers its remote URL |
 | `references(id)` | lists the branches and tags, and the default branch, as a `GitListing`        |
 | `open(id, mode)` | leases a Git client `"read"` or `"write"` access to the repository            |
+| `serve(lease, path, request)` | answers a Git smart HTTP request below a leased repository, such as `/info/refs` |
 | `delete(id)`     | deletes the repository and its history, passing one already gone              |
 
 ### GitListing

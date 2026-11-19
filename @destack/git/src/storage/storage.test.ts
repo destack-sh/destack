@@ -23,6 +23,11 @@ const host = testSimulation().environment("storage");
 /** The storage the tests connect, as a package declares one. */
 const repositoryStorage = defineGitStorage({ name: "repositories" });
 
+/** Ask a repository's advertisement of a Git service as a Git client does. */
+function ask(service: string): Request {
+    return new Request(`https://forge.test/info/refs?service=${service}`);
+}
+
 test("create a local repository, push a branch and a tag into it, list them and delete it, each step again as well", async () => {
     const storage = new LocalGitStorage(await temporary("destack-storage-"), host);
     const id = "repository-site";
@@ -61,6 +66,37 @@ test("create a local repository, push a branch and a tag into it, list them and 
     await storage.delete(id);
     await storage.delete(id);
     expect(await host.files.readDirectory(storage.directory)).toEqual([]);
+});
+
+test("serve a local repository's smart HTTP advertisement through git http-backend, refusing a push through a read lease", async () => {
+    const storage = new LocalGitStorage(await temporary("destack-storage-"), host);
+    const id = "repository-served";
+
+    // push a commit and a tag into a new repository
+    await storage.create(id);
+    const worktree = await Worktree.open();
+    await worktree.commit("README.md", "# Served\n");
+    await worktree.tag("v1");
+    await worktree.push((await storage.open(id, "write")).url, "main", "v1");
+
+    // read the upload-pack advertisement as a Git client asks for it, through a read lease
+    const read = await storage.open(id, "read");
+    const advertised = await storage.serve(read, "/info/refs", ask("git-upload-pack"));
+    const body = new Uint8Array(await advertised.arrayBuffer());
+
+    // answer the references the storage lists, and refuse receive-pack to the read lease
+    const refused = await storage.serve(read, "/info/refs", ask("git-receive-pack"));
+    expect([
+        advertised.status,
+        advertised.headers.get("content-type"),
+        GitAdvertisement.parse(body),
+        refused.status,
+    ]).toEqual([
+        200,
+        "application/x-git-upload-pack-advertisement",
+        await storage.references(id),
+        403,
+    ]);
 });
 
 test("parse the reference advertisement git upload-pack serves, peeling annotated tags and tags of tags", async () => {

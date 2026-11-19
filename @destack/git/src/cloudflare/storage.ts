@@ -5,7 +5,7 @@ import type { Connector, Lease, LeaseMode } from "@destack/resource";
 import { schema } from "@destack/schema";
 import type { Fetch } from "@destack/object";
 import { GitError } from "../error/index.ts";
-import { GitAdvertisement } from "../storage/index.ts";
+import { GitAdvertisement, GitRemote } from "../storage/index.ts";
 import type { GitListing, GitStorage } from "../storage/index.ts";
 
 /** The provider code of Git storages in Cloudflare Artifacts. */
@@ -176,6 +176,11 @@ export class ArtifactsStorage implements GitStorage {
         return this.#span("destack.git.references", async () => {
             return GitAdvertisement.read(await this.open(id, "read"), this.#fetch);
         });
+    }
+
+    /** Forward a smart HTTP request to the repository's remote with the lease's token. */
+    serve(lease: Lease, path: string, request: Request): Promise<Response> {
+        return GitRemote.forward(lease, path, request, this.#fetch);
     }
 
     /** Lease a Git client a Bearer token scoped to the repository and mode for an hour. */

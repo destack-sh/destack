@@ -1,8 +1,8 @@
 import type {} from "@destack/package/import-meta";
 import { TelemetryScope } from "@destack/telemetry";
-import { pathToFileURL } from "node:url";
-import { join } from "node:path";
-import { type Environment, FileSystemError } from "@destack/environment";
+import { fileURLToPath, pathToFileURL } from "node:url";
+import { basename, dirname, join } from "node:path";
+import { type Environment, FileSystemError, Pipe } from "@destack/environment";
 import type { Connector, Lease, LeaseMode } from "@destack/resource";
 import { found, Uuid, zip } from "@destack/schema";
 import type { GitListing, GitReference, GitStorage } from "../storage/index.ts";
@@ -23,6 +23,15 @@ const DELETION_PREFIX = ".delete-";
 
 /** The branch of a new repository's HEAD. */
 const INITIAL_BRANCH = "main";
+
+/** The blank line ending the headers a CGI program writes before its body (RFC 3875 6.2). */
+const CGI_HEADERS_END = new TextEncoder().encode("\r\n\r\n");
+
+/** The status a CGI response without a Status header answers with (RFC 3875 6.3.3). */
+const CGI_DEFAULT_STATUS = 200;
+
+/** The user git http-backend sees on writes, which enables receive-pack (git-http-backend(1)). */
+const WRITER = "destack";
 
 /** A reference as git for-each-ref lists it. */
 interface ListedReference {
@@ -202,6 +211,113 @@ export class LocalGitStorage implements GitStorage {
         return this.#span("destack.git.open", async () => {
             return { url: this.#remote(id), mode, headers: {} };
         });
+    }
+
+    /** Answer a smart HTTP request below a leased repository with git http-backend. */
+    serve(lease: Lease, path: string, request: Request): Promise<Response> {
+        return this.#span("destack.git.serve", async () => {
+            // run git's smart HTTP server on the repository, enabling receive-pack for writes only
+            const repository = fileURLToPath(lease.url);
+            const { search } = new URL(request.url);
+            const header = (name: string) => request.headers.get(name) ?? "";
+            const child = this.environment.process.spawn(["git", "http-backend"], {
+                variables: {
+                    ...Git.variables(this.environment, []),
+                    GIT_PROJECT_ROOT: dirname(repository),
+                    GIT_HTTP_EXPORT_ALL: "1",
+                    PATH_INFO: `/${basename(repository)}${path}`,
+                    REQUEST_METHOD: request.method,
+                    QUERY_STRING: search.slice(1),
+                    CONTENT_TYPE: header("content-type"),
+                    HTTP_CONTENT_ENCODING: header("content-encoding"),
+                    GIT_PROTOCOL: header("git-protocol"),
+                    ...(lease.mode === "write" ? { REMOTE_USER: WRITER } : {}),
+                },
+                stdin: "pipe",
+                stdout: "pipe",
+                stderr: "inherit",
+            });
+
+            // stream the request body in while the response streams out
+            const written =
+                request.body === null ? child.stdin.close() : Pipe.to(request.body, child.stdin);
+            written.catch(() => child.kill());
+
+            return LocalGitStorage.#respond(child.stdout);
+        });
+    }
+
+    /** Read a CGI program's output as a response: its headers, then its body as it streams. */
+    static async #respond(output: ReadableStream<Uint8Array>): Promise<Response> {
+        // read until the blank line ending the headers
+        const reader = output.getReader();
+        let buffered: Uint8Array<ArrayBuffer> = new Uint8Array(0);
+        let end = -1;
+        while (end === -1) {
+            const { done, value } = await reader.read();
+            if (done) {
+                throw GitError.of("COMMAND_BROKEN", "git http-backend ended before its headers");
+            }
+            buffered = LocalGitStorage.#concat(buffered, value);
+            end = LocalGitStorage.#find(buffered, CGI_HEADERS_END);
+        }
+
+        // read the status and the headers
+        const lines = new TextDecoder().decode(buffered.subarray(0, end)).split("\r\n");
+        const headers = new Headers();
+        let status = CGI_DEFAULT_STATUS;
+        for (const line of lines) {
+            const separator = line.indexOf(":");
+            const name = line.slice(0, separator).trim();
+            const value = line.slice(separator + 1).trim();
+            if (name.toLowerCase() === "status") {
+                status = Number.parseInt(value, 10);
+            } else {
+                headers.append(name, value);
+            }
+        }
+
+        // stream the bytes after the headers, then the rest of the output
+        const rest = buffered.subarray(end + CGI_HEADERS_END.length);
+        const body = new ReadableStream<Uint8Array>({
+            start: (controller) => {
+                if (rest.length > 0) {
+                    controller.enqueue(rest);
+                }
+            },
+            pull: async (controller) => {
+                const { done, value } = await reader.read();
+                if (done) {
+                    controller.close();
+                } else {
+                    controller.enqueue(value);
+                }
+            },
+            cancel: (reason) => reader.cancel(reason),
+        });
+
+        return new Response(body, { status, headers });
+    }
+
+    /** Join two byte arrays. */
+    static #concat(first: Uint8Array, second: Uint8Array): Uint8Array<ArrayBuffer> {
+        // copy both into one new array
+        const joined = new Uint8Array(first.length + second.length);
+        joined.set(first);
+        joined.set(second, first.length);
+
+        return joined;
+    }
+
+    /** Find the first index of a byte sequence, or -1. */
+    static #find(bytes: Uint8Array, sequence: Uint8Array): number {
+        for (let index = 0; index + sequence.length <= bytes.length; index += 1) {
+            if (sequence.every((byte, offset) => bytes[index + offset] === byte)) {
+                return index;
+            }
+        }
+
+        return -1;
     }
 
     /** Build a repository's directory as a file URL. */

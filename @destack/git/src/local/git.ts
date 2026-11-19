@@ -19,15 +19,12 @@ const NULL_DEVICE = { darwin: "/dev/null", linux: "/dev/null", win32: "\\\\.\\nu
 
 /** The git command line, run without prompts, user configuration or system configuration. */
 export const Git = {
-    /** Run a git command in a directory, returning its output and failing with git's message. */
-    async run(
-        directory: string,
-        command: readonly [string, ...string[]],
+    /** Build the variables git runs with: the host's path, no prompts, only the given settings. */
+    variables(
         environment: Environment<"process" | "host">,
-        options: GitOptions = {},
-    ): Promise<string> {
+        configuration: readonly GitSetting[],
+    ): Record<string, string> {
         // pass the configuration in the environment, so credentials stay out of the process list
-        const configuration = options.configuration ?? [];
         const settings = Object.fromEntries(
             configuration.flatMap(([key, value], index) => [
                 [`GIT_CONFIG_KEY_${index}`, key],
@@ -43,18 +40,28 @@ export const Git = {
             }),
         );
 
+        return {
+            ...host,
+            GIT_CONFIG_NOSYSTEM: "1",
+            GIT_CONFIG_GLOBAL: NULL_DEVICE[environment.host.os],
+            GIT_TERMINAL_PROMPT: "0",
+            GIT_CONFIG_COUNT: String(configuration.length),
+            ...settings,
+        };
+    },
+
+    /** Run a git command in a directory, returning its output and failing with git's message. */
+    async run(
+        directory: string,
+        command: readonly [string, ...string[]],
+        environment: Environment<"process" | "host">,
+        options: GitOptions = {},
+    ): Promise<string> {
         // run git to completion, or until the signal aborts
         const { code, stdout, stderr } = await environment.process.run(
             ["git", "-C", directory, ...command],
             {
-                variables: {
-                    ...host,
-                    GIT_CONFIG_NOSYSTEM: "1",
-                    GIT_CONFIG_GLOBAL: NULL_DEVICE[environment.host.os],
-                    GIT_TERMINAL_PROMPT: "0",
-                    GIT_CONFIG_COUNT: String(configuration.length),
-                    ...settings,
-                },
+                variables: Git.variables(environment, options.configuration ?? []),
                 input: options.input ?? "",
                 ...(options.signal === undefined ? {} : { signal: options.signal }),
             },

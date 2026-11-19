@@ -73,4 +73,6 @@ export interface GitStorage {
     readonly references: (id: string) => Promise<GitListing>;
     /** Lease a Git client access to a repository for a checkout. */
     readonly open: (id: string, mode: LeaseMode) => Promise<Lease>;
+    /** Answer a smart HTTP request below a repository, such as `/info/refs`, through a lease. */
+    readonly serve: (lease: Lease, path: string, request: Request) => Promise<Response>;
 }
