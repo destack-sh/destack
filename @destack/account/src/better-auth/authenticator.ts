@@ -20,7 +20,12 @@ import { Home } from "./home.ts";
 import { BetterAuthRefusal } from "./refusal.ts";
 import { MailError } from "@destack/mail/error";
 import type { MailTransport } from "@destack/mail/transport";
-import { JWKS_PATH } from "../authentication/path.ts";
+import {
+    HANDLE_CHECK_PATH,
+    HOME_LOCATION_PATH,
+    JWKS_PATH,
+    RESIDENCY_CHOICE_PATH,
+} from "../authentication/path.ts";
 import { Identity } from "../object/identity.ts";
 import type { CodeCheck } from "../oauth/email.ts";
 import type { TokenLifetime } from "../oauth/resource.ts";
@@ -33,6 +38,9 @@ import { type Clock, type Environment, type Scheduler } from "@destack/environme
 import type {} from "@destack/package/import-meta";
 import { AccountError } from "../error/error.ts";
 import { UniverseOrigin } from "../address/address.ts";
+
+/** The limit of a sign-up form's reads, Better Auth's general rule: 100 requests per 10 seconds. */
+const FORM_READ_LIMIT = { window: 10, max: 100 } as const;
 
 /** The label that derives the cookie and provider token secret from the process's root key. */
 const SESSION_SECRET_LABEL = { label: "@destack/account/session-secret", context: "" } as const;
@@ -446,7 +454,16 @@ function settings(
             crossSubDomainCookies: { enabled: false },
             ipAddress: options.ipAddress,
         },
-        rateLimit: { enabled: true, storage: "database" },
+        // limit the sign-up form's reads and Home's location as any other read
+        rateLimit: {
+            enabled: true,
+            storage: "database",
+            customRules: {
+                [HANDLE_CHECK_PATH]: FORM_READ_LIMIT,
+                [RESIDENCY_CHOICE_PATH]: FORM_READ_LIMIT,
+                [HOME_LOCATION_PATH]: FORM_READ_LIMIT,
+            },
+        },
     } satisfies BetterAuthOptions;
 }
 

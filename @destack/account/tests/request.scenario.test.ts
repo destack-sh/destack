@@ -264,6 +264,47 @@ test("mail a known person's code with a link entering it on the sign-in view, wh
     });
 });
 
+test("answer a handle check on every keystroke and the residencies on every load, past the limit of sign-up attempts", async () => {
+    await using fixture = await TestAccountStore.open({
+        signIn: { ipAddress: { ipAddressHeaders: ["x-forwarded-for"] } },
+    });
+
+    // check a handle as it is typed and list the residencies on five loads, all from one address
+    const browser = fixture.browser();
+    const read = async (path: string, init: RequestInit = {}): Promise<number> => {
+        const headers = { "x-forwarded-for": "192.0.2.1", "content-type": "application/json" };
+        const response = await browser.send(new Request(`${ISSUER}${path}`, { ...init, headers }));
+        await response.arrayBuffer();
+
+        return response.status;
+    };
+    const typed = ["a", "ad", "ada", "ada-", "ada-l", "ada-lo", "ada-lov"];
+    const checks = [];
+    for (const handle of typed) {
+        checks.push(await read(`/sign-up/handle?${new URLSearchParams({ handle })}`));
+    }
+    const loads = [];
+    for (let index = 0; index < 5; index += 1) {
+        loads.push(await read("/sign-up/residency"));
+    }
+
+    // try signing in with a wrong code four times from the same address, which the strict rule limits
+    const attempt = {
+        method: "POST",
+        body: JSON.stringify({ email: "ada@example.com", otp: "000000" }),
+    };
+    const attempts = [];
+    for (let index = 0; index < 4; index += 1) {
+        attempts.push(await read("/sign-in/email-otp", attempt));
+    }
+
+    expect({ checks, loads, attempts }).toEqual({
+        checks: typed.map(() => 200),
+        loads: [200, 200, 200, 200, 200],
+        attempts: [400, 400, 400, 429],
+    });
+});
+
 test("answer a sign-up's handle check and the residencies with the one the visitor's country is offered", async () => {
     await using fixture = await TestAccountStore.open();
     await fixture.signInBrowser("ada@example.com", "ada");
