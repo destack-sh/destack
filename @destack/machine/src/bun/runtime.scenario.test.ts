@@ -65,8 +65,11 @@ console.log(JSON.stringify({}));
 `;
 
 /** Write a fixture build's authored package.json, which a placed tree reads. */
-function authored(name: string): [string, Uint8Array<ArrayBuffer>] {
-    const json = { name, version: "2026.9.0", type: "module", exports: {} };
+function authored(
+    name: string,
+    dependencies: Readonly<Record<string, string>> = {},
+): [string, Uint8Array<ArrayBuffer>] {
+    const json = { name, version: "2026.9.0", type: "module", exports: {}, dependencies };
 
     return ["package.json", new TextEncoder().encode(JSON.stringify(json))];
 }
@@ -81,6 +84,7 @@ test("run an instance as a Bun process bound at the egress, serving forwarded ca
     const runtime = new BunRuntime({
         isolation: "sandbox",
         program: Program.of({}, world.process.loader),
+        builtins: [],
         environment: world,
         identity: async () => testKeys(world),
         directory,
@@ -308,37 +312,74 @@ test("run an instance as a Bun process bound at the egress, serving forwarded ca
     });
 });
 
-test("keep an instance's data in the runtime's own directory when it runs its build in place from a layer", async () => {
-    // lay the build out as a layer does, beside the runtime's directory, and let the store find it there
+test("call an app's export in a sandbox, importing a builtin the runtime supplies", async () => {
+    // run sandboxed calls beside a store
     const world = testSimulation().environment("runtime");
     const directory = await world.files.makeTemporaryDirectory("destack-runtime-");
     onTestFinished(() => world.files.remove(directory, { recursive: true }));
-    const layered = join(directory, "layer", "notes");
-    await world.files.mkdir(join(layered, "bun"), { recursive: true });
-    await world.files.mkdir(join(layered, "node_modules"), { recursive: true });
-    await world.files.writeTextFile(join(layered, "bun/workload.js"), ECHO_RUNNER);
-    const store = await testStore(world);
-    onTestFinished(() => store[Symbol.asyncDispose]());
-    const packages = new Proxy(store, {
-        get: (target, key) => {
-            const value: unknown = Reflect.get(target, key);
+    const packages = await testStore(world);
+    onTestFinished(() => packages[Symbol.asyncDispose]());
+    const stored = async (
+        name: string,
+        role: "app" | "builtin",
+        index: number,
+        source: string,
+        imports: readonly string[],
+        dependencies: Readonly<Record<string, string>>,
+    ) => {
+        const id = PackageId.parse(`package-01996ab0-0000-7000-8000-0000000002b${index}`);
+        const build = await MemoryBuild.write(
+            new Map([
+                ["bun/index.js", new TextEncoder().encode(source)],
+                authored(name, dependencies),
+            ]),
+            {
+                role,
+                package: { id, name, version: "2026.9.0" },
+                outputs: {
+                    bun: {
+                        runtime: "bun",
+                        emit: true,
+                        workloads: {},
+                        views: {},
+                        directory: "bun",
+                        exports: { ".": { path: "bun/index.js", imports: [...imports] } },
+                        peers: {},
+                    },
+                },
+            },
+            world.crypto,
+        );
 
-            return key === "layered"
-                ? () => layered
-                : typeof value === "function"
-                  ? (...input: unknown[]): unknown => Reflect.apply(value, target, input)
-                  : value;
-        },
-    });
+        return await packages.putImage(BuildImage.of(await packages.put(build)));
+    };
+    const kit = await stored("@acme/kit", "builtin", 1, 'export const marker = "kit";\n', [], {});
+    const app = await stored(
+        "@acme/notes",
+        "app",
+        2,
+        'import { marker } from "@acme/kit";\nexport function describe() { return marker; }\n',
+        ["@acme/kit"],
+        { "@acme/kit": "2026.9.0" },
+    );
 
-    // run instances below a directory of the runtime's own
-    const workers = join(directory, "workers");
+    // supply the kit as a builtin
     const runtime = new BunRuntime({
         isolation: "sandbox",
         program: Program.of({}, world.process.loader),
+        builtins: [
+            {
+                package: {
+                    id: PackageId.parse("package-01996ab0-0000-7000-8000-0000000002b1"),
+                    name: "@acme/kit",
+                    version: "2026.9.0",
+                },
+                image: kit,
+            },
+        ],
         environment: world,
         identity: async () => testKeys(world),
-        directory: workers,
+        directory,
         packages,
         egress: () => "http://127.0.0.1:7470/.destack/egress",
         sampling: async () => 1,
@@ -347,79 +388,8 @@ test("keep an instance's data in the runtime's own directory when it runs its bu
     });
     onTestFinished(() => runtime.close());
 
-    // start an instance of the layered build
-    const build = await MemoryBuild.write(
-        new Map([
-            ["bun/workload.js", new TextEncoder().encode(ECHO_RUNNER)],
-            authored("@acme/notes"),
-        ]),
-        {
-            role: "app",
-            package: { id: PACKAGE, name: "@acme/notes", version: "2026.9.0" },
-            outputs: {
-                bun: {
-                    runtime: "bun",
-                    emit: true,
-                    workloads: {
-                        notes: {
-                            entrypoint: "./workload/notes",
-                            packages: [],
-                            resources: [],
-                            secrets: [],
-                            compute: {},
-                            sandbox: {},
-                        },
-                    },
-                    views: {},
-                    directory: "bun",
-                    exports: {
-                        "./workload/notes": {
-                            path: "bun/workload.js",
-                            imports: [],
-                        },
-                    },
-                    peers: {},
-                },
-            },
-        },
-        world.crypto,
-    );
-    const image = await store.putImage(BuildImage.of(await store.put(build)));
-    const installationId = schema
-        .identifier("installation")
-        .parse("installation-01996ab0-0000-7000-8000-0000000000f1");
-    const scope = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-0000000000f4");
-    await runtime.start(
-        {
-            settings: {},
-            instanceId: schema
-                .identifier("instance")
-                .parse("instance-01996ab0-0000-7000-8000-0000000000f2"),
-            installationId,
-            name: "notes",
-            deploymentId: schema
-                .identifier("deployment")
-                .parse("deployment-01996ab0-0000-7000-8000-0000000000f3"),
-            build,
-            image,
-            output: "bun",
-            workload: "notes",
-            enabled: [],
-            sandbox: {},
-            directories: [],
-            served: [],
-            installations: [],
-            scope,
-            resources: [],
-        },
-        async () => {},
-    );
-
-    // find its start in the data directory below the runtime's, none beside the layer
-    expect({
-        starts: await world.files.readTextFile(join(workers, installationId, "data", "starts")),
-        isBesideLayer: await world.files.exists(join(directory, installationId)),
-    }).toEqual({ starts: "start\n", isBesideLayer: false });
+    // call the export in a sandbox
+    expect(await runtime.call(app, "bun/index.js", "describe", [])).toBe("kit");
 });
 
 /** A workload runner answering each request with the status of a fetch of the URL it names. */
@@ -462,6 +432,7 @@ test("deny a sandboxed workload's calls to hosts its capabilities omit", async (
     const runtime = new BunRuntime({
         isolation: "sandbox",
         program: Program.of({}, world.process.loader),
+        builtins: [],
         environment: world,
         identity: async () => testKeys(world),
         directory,
@@ -599,6 +570,7 @@ test("import and call a shared package's export as the machine's own instance, a
     const runtime = new BunRuntime({
         isolation: "sandbox",
         program: Program.of({ "@acme/shared/server": async () => own }, world.process.loader),
+        builtins: [],
         environment: world,
         identity: async () => testKeys(world),
         directory,
@@ -705,6 +677,7 @@ test("refuse a sandboxed call of a release running a native addon, and load it f
     const runtime = new BunRuntime({
         isolation: "sandbox",
         program: Program.of({}, world.process.loader),
+        builtins: [],
         environment: world,
         identity: async () => testKeys(world),
         directory,

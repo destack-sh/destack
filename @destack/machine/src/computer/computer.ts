@@ -41,7 +41,6 @@ import {
     DistributionManifest,
     DistributionPlatform,
     OriginPath,
-    type PackageId,
     type PackageRelease,
 } from "@destack/package";
 import { serveProcess } from "@destack/object/bun";
@@ -300,7 +299,7 @@ export class Computer implements AsyncDisposable {
                 const linked = DistributionManifest.builtins(options.shipped, platform);
 
                 // open the machine's builds over the shipped builds read in place, the compilers and the spaces' storage
-                const builds = stack.use(await Computer.#openBuilds(options, linked, database));
+                const builds = stack.use(await Computer.#openBuilds(options, database));
 
                 // share the builtins with the servers the machine loads, from its compiled table or its files
                 const program = await Program.current(
@@ -335,7 +334,11 @@ export class Computer implements AsyncDisposable {
                 const { runtime, processes } = Computer.#startRuntime(
                     options,
                     origin,
-                    { packages: builds, program },
+                    {
+                        packages: builds,
+                        program,
+                        builtins: [...linked.values()],
+                    },
                     () => machine,
                 );
                 stack.defer(() => runtime.close());
@@ -653,7 +656,6 @@ export class Computer implements AsyncDisposable {
     /** Open the machine's builds: blobs below its directory, shipped builds read in place. */
     static async #openBuilds(
         options: Pick<ComputerOptions, "directory" | "environment" | "layer">,
-        linked: ReadonlyMap<PackageId, PackageRelease>,
         database: SqliteDatabase,
     ): Promise<LocalBuildStore> {
         // store the blobs in a directory, indexed in the machine's database, layered over the shipped builds
@@ -677,7 +679,11 @@ export class Computer implements AsyncDisposable {
     static #startRuntime(
         options: ComputerOptions,
         origin: string,
-        builds: { readonly packages: LocalBuildStore; readonly program: Program },
+        builds: {
+            readonly packages: LocalBuildStore;
+            readonly program: Program;
+            readonly builtins: readonly PackageRelease[];
+        },
         machine: () => Machine,
     ): {
         readonly runtime: Runtime & { readonly close: () => Promise<void> };
@@ -707,7 +713,15 @@ export class Computer implements AsyncDisposable {
     static #startProcesses(
         options: ComputerOptions,
         origin: string,
-        { packages, program }: { readonly packages: LocalBuildStore; readonly program: Program },
+        {
+            packages,
+            program,
+            builtins,
+        }: {
+            readonly packages: LocalBuildStore;
+            readonly program: Program;
+            readonly builtins: readonly PackageRelease[];
+        },
         egress: (scope: Identifier<"space">) => string,
         identity: (scope: Identifier<"space">) => Promise<Deriver>,
         machine: () => Machine,
@@ -719,6 +733,7 @@ export class Computer implements AsyncDisposable {
             identity,
             directory: join(options.directory, "workers"),
             packages,
+            builtins,
             egress,
             // serve an installation below this machine's origin, where its space runs
             url: async (scope, installation) => InstallationMount.url(origin, scope, installation),

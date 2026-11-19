@@ -1,11 +1,12 @@
 import type { Program } from "@destack/package/bun";
+import type { PackageRelease } from "@destack/package";
 import { RequestBody, SERVER_EXPORT } from "@destack/object";
 import { Authentication } from "@destack/access";
-import { dirname, join } from "node:path";
+import { join } from "node:path";
 import { type Environment, Pipe } from "@destack/environment";
-import { DependencyTree, type LocalBuildStore } from "@destack/build";
+import { BuildTree, type LocalBuildStore } from "@destack/build";
 import { PackageFile } from "@destack/package/file";
-import { BuildImage, MANIFEST_PATH, PackageManifest } from "@destack/package/manifest";
+import { BuildImage, PackageManifest } from "@destack/package/manifest";
 import { Sandbox, type SandboxOptions } from "@destack/sandbox";
 import { type Digest, type Identifier, JsonValue, present } from "@destack/schema";
 import type { Deriver } from "@destack/identity";
@@ -28,9 +29,6 @@ import { PackageImplementation } from "@destack/object/server";
 /** The server runtime this runtime runs instances on. */
 const BUN_RUNTIME = "bun";
 
-/** The directory below the runtime's with the builds its instances run, one per manifest digest. */
-const BUILDS_DIRECTORY = "builds";
-
 /** How long a runner may take to serve, in milliseconds. */
 const START_TIMEOUT_MILLISECONDS = 10_000;
 
@@ -52,14 +50,6 @@ if (typeof exported !== "function") {
 }
 process.stdout.write(JSON.stringify((await exported(...input)) ?? null));
 `;
-
-/** A build placed for this runtime: its directory, and its closure's roots read on demand. */
-interface PlacedBuild {
-    /** The directory with the build's files. */
-    readonly build: string;
-    /** Read the roots of the build's closure in the store's trees, once. */
-    readonly roots: () => Promise<readonly string[]>;
-}
 
 /** The workload a Bun build's entry exports, which a runtime starts in this process. */
 type HostedWorkload = Pick<BunWorkload, "start">;
@@ -109,8 +99,10 @@ export class BunRuntime implements Runtime {
     readonly #identity: (scope: Identifier<"space">) => Promise<Pick<Deriver, "derive">>;
     /** The runners starting and running. */
     readonly #registry: InstanceRegistry<Runner>;
-    /** Each build's directory and closure roots by digest, shared by its starts and calls. */
-    readonly #layouts = new Map<Digest, Promise<PlacedBuild>>();
+    /** Each image's tree, by digest, shared by its starts and calls. */
+    readonly #trees = new Map<Digest, Promise<BuildTree>>();
+    /** The builtin releases the runtime supplies. */
+    readonly #builtins: readonly PackageRelease[];
     /** The host the runners run on: its files, processes and clock. */
     readonly #environment: Environment<"files" | "process" | "host">;
     /** How the runners are isolated. */
@@ -125,6 +117,8 @@ export class BunRuntime implements Runtime {
         readonly directory: string;
         /** The machine's store of builds, with every build's closure. */
         readonly packages: LocalBuildStore;
+        /** The builtin releases the runtime supplies. */
+        readonly builtins: readonly PackageRelease[];
         /** The modules this process shares with the servers it loads: the builtins. */
         readonly program: Program;
         /** The machine's egress of a space's instances, below which they call addresses. */
@@ -151,6 +145,7 @@ export class BunRuntime implements Runtime {
         // set the directory, the egress, the output and the spaces' identities
         this.#directory = options.directory;
         this.#packages = options.packages;
+        this.#builtins = options.builtins;
         this.#program = options.program;
         this.#egress = options.egress;
         this.#sampling = options.sampling;
@@ -211,14 +206,14 @@ export class BunRuntime implements Runtime {
                 return await this.#program.module(shared);
             }
 
-            // place the build, link the builtin modules its closure may load to this process's own, and import the export
-            const { build: placed } = await this.#write(image);
+            // link the builtins to this process's own and import the export
+            const directory = await this.#build(image);
             const imports = await this.#imports(read);
 
             // load the modules as one real operation, completed in order whether the host loaded them before or not
             return await this.#environment.scheduler.run(async () => {
                 await this.#program.link(imports);
-                const module: unknown = await import(join(placed, exported.path));
+                const module: unknown = await import(join(directory, exported.path));
 
                 return module;
             });
@@ -349,16 +344,17 @@ export class BunRuntime implements Runtime {
             return await BunRuntime.#apply(await this.#program.module(shared), shared, name, input);
         }
 
-        // write the build as its instances run it, then call the export in the module, refusing an addon in a sandbox
-        const written = await this.#write(image);
-        const module = join(written.build, path);
+        // find the module in the image's tree
+        const tree = await this.#tree(image);
+        const directory = await this.#build(image);
+        const module = join(directory, path);
         if (this.#isolation === "sandbox") {
             await this.#requireNoAddon(await this.#packages.image(image));
         }
 
         return this.#isolation === "sandbox"
             ? await this.#callSandboxed(
-                  { build: written.build, roots: await written.roots() },
+                  { build: directory, roots: await tree.roots(this.#environment.files) },
                   module,
                   name,
                   input,
@@ -373,7 +369,7 @@ export class BunRuntime implements Runtime {
 
     /** Call an export in a sandboxed process confined to the build, its closure and no network. */
     async #callSandboxed(
-        written: Pick<BunInstanceLayout, "build" | "roots">,
+        layout: Pick<BunInstanceLayout, "build" | "roots">,
         module: string,
         name: string,
         input: readonly JsonValue[],
@@ -384,9 +380,9 @@ export class BunRuntime implements Runtime {
             {
                 executable: process.executable,
                 arguments: ["--no-env-file", "--eval", CALL_PROGRAM],
-                directory: written.build,
+                directory: layout.build,
                 environment: {},
-                read: [written.build, ...written.roots],
+                read: [layout.build, ...layout.roots],
                 write: [],
                 network: [],
                 sockets: [],
@@ -463,8 +459,8 @@ export class BunRuntime implements Runtime {
         exited: (exit: InstanceExit) => Promise<void>,
         identify: (secret: string) => void,
     ): Promise<Runner> {
-        // write the build's files and describe its start
-        const { placed, ...directories } = await this.#directories(spec);
+        // find the build and describe its start
+        const directories = await this.#directories(spec);
         const start = await this.#start(spec);
         identify(start.secret);
 
@@ -474,7 +470,15 @@ export class BunRuntime implements Runtime {
         }
 
         return this.#isolation === "sandbox"
-            ? this.#sandboxed(spec, exited, { ...directories, roots: await placed.roots() }, start)
+            ? this.#sandboxed(
+                  spec,
+                  exited,
+                  {
+                      ...directories,
+                      roots: await (await this.#tree(spec.image)).roots(this.#environment.files),
+                  },
+                  start,
+              )
             : this.#hosted(spec, exited, directories, start);
     }
 
@@ -609,12 +613,10 @@ export class BunRuntime implements Runtime {
         return sandbox;
     }
 
-    /** Place an instance's build, and create its installation's data and cache directories. */
-    async #directories(
-        spec: InstanceSpec,
-    ): Promise<Omit<BunInstanceLayout, "roots"> & { readonly placed: PlacedBuild }> {
-        // place the build once, and keep the installation's directories in the runtime's own
-        const placed = await this.#write(spec.image);
+    /** Find an instance's build, and create its installation's data and cache directories. */
+    async #directories(spec: InstanceSpec): Promise<Omit<BunInstanceLayout, "roots">> {
+        // find the build and the installation's directories
+        const build = await this.#build(spec.image);
         const { files } = this.#environment;
         await files.mkdir(this.#directory, { recursive: true });
         const root = await files.realPath(this.#directory);
@@ -626,21 +628,58 @@ export class BunRuntime implements Runtime {
             await files.mkdir(directory, { recursive: true });
         }
 
-        return { build: placed.build, data, cache, placed };
+        return { build, data, cache };
     }
 
-    /** Write an image's root's Bun output and closure once, shared by its instances and calls. */
-    async #write(digest: Digest): Promise<PlacedBuild> {
-        // share the layout of each image
-        const known = this.#layouts.get(digest);
+    /** Lay out an image's tree once, shared by its instances and calls. */
+    #tree(digest: Digest): Promise<BuildTree> {
+        // share each image's tree
+        const known = this.#trees.get(digest);
         if (known !== undefined) {
-            return await known;
+            return known;
         }
-        const placing = this.#place(digest);
-        this.#layouts.set(digest, placing);
-        placing.catch(() => this.#layouts.delete(digest));
+        const tree = this.#layOut(digest);
+        this.#trees.set(digest, tree);
+        tree.catch(() => this.#trees.delete(digest));
 
-        return await placing;
+        return tree;
+    }
+
+    /** Lay out an image's tree in the store. */
+    async #layOut(digest: Digest): Promise<BuildTree> {
+        // link the builtins for a sandbox only
+        const image = await this.#packages.image(digest);
+        const supplied = this.#isolation === "sandbox" ? this.#builtins : [];
+        const builtins = await Promise.all(
+            supplied.map(
+                async (builtin) =>
+                    [builtin.package.name, await this.#packages.image(builtin.image)] as const,
+            ),
+        );
+
+        return await this.#packages.tree(image, BUN_RUNTIME, new Map(builtins));
+    }
+
+    /** Find the directory of an image's root build. */
+    async #build(digest: Digest): Promise<string> {
+        // refuse a release without a Bun output
+        const image = await this.#packages.image(digest);
+        const root = await this.#packages.contents(image.root);
+        const { name, version } = PackageManifest.package(root.manifest);
+        const isRunning = Object.values(root.manifest.outputs).some(
+            (each) => each.runtime === BUN_RUNTIME,
+        );
+        if (!isRunning) {
+            throw MachineError.of(
+                "RELEASE_INVALID",
+                `release '${name}@${version}' is invalid: it has no ${BUN_RUNTIME} output`,
+            );
+        }
+
+        // find the root build's directory in the tree
+        const tree = await this.#tree(digest);
+
+        return present(tree.directories[name], `the directory of ${name}`);
     }
 
     /** Refuse an image whose builds run a native addon on Bun. */
@@ -658,71 +697,6 @@ export class BunRuntime implements Runtime {
                 );
             }
         }
-    }
-
-    /** Place an image's root's Bun output in the runtime's directory, its closure in the trees. */
-    async #place(digest: Digest): Promise<PlacedBuild> {
-        // run a layered build in place, its run tree linked beside it, walking its links only for a sandbox
-        const { files } = this.#environment;
-        const image = await this.#packages.image(digest);
-        const layered = this.#packages.layered(digest);
-        if (layered !== undefined && (await files.exists(join(layered, "node_modules")))) {
-            const build = await files.realPath(layered);
-            let roots: Promise<readonly string[]> | undefined;
-
-            return { build, roots: () => (roots ??= DependencyTree.linkedRoots(build, files)) };
-        }
-
-        // place the closure's Bun outputs in the store's trees
-        const build = await this.#packages.contents(image.root);
-        const tree = await this.#packages.runTree(image, BUN_RUNTIME);
-        const roots = await tree.roots(files);
-
-        // leave a build written before, whose manifest a write publishes last
-        await files.mkdir(this.#directory, { recursive: true });
-        const written = join(await files.realPath(this.#directory), BUILDS_DIRECTORY, digest);
-        if (await files.exists(join(written, MANIFEST_PATH))) {
-            return { build: written, roots: () => Promise.resolve(roots) };
-        }
-
-        // write the build's Bun output with its maps, its manifest and its closure's links in the store's temporary directory
-        await files.mkdir(dirname(written), { recursive: true });
-        const staging = await this.#packages.makeTemporaryDirectory("run-");
-        const staged = join(staging, "build");
-        const isRunning = Object.values(build.manifest.outputs).some(
-            (each) => each.runtime === BUN_RUNTIME,
-        );
-        if (!isRunning) {
-            const { name, version } = PackageManifest.package(build.manifest);
-            throw MachineError.of(
-                "RELEASE_INVALID",
-                `release '${name}@${version}' is invalid: it has no ${BUN_RUNTIME} output`,
-            );
-        }
-        await this.#packages.place(
-            (await build.runFiles([BUN_RUNTIME])).map((file) => ({
-                file,
-                destination: join(staged, file.path),
-            })),
-        );
-        await files.writeFile(
-            join(staged, MANIFEST_PATH),
-            PackageManifest.serialize(build.manifest),
-        );
-        await tree.link(join(staged, "node_modules"), files);
-
-        // move it in, leaving a build another process moved in first
-        try {
-            await files.rename(staged, written);
-        } catch (error) {
-            if (!(await files.exists(join(written, MANIFEST_PATH)))) {
-                throw error;
-            }
-        } finally {
-            await files.remove(staging, { recursive: true });
-        }
-
-        return { build: written, roots: () => Promise.resolve(roots) };
     }
 
     /** Describe a runner's start with a fresh secret. */
