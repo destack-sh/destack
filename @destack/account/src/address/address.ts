@@ -77,12 +77,6 @@ export const PlatformDomain = {
 /** The domain installation origins answer below on a loopback machine, as browsers resolve it. */
 export const LOOPBACK_DOMAIN = "localhost";
 
-/** The installation origin's path opening a view or object, and receiving a sign-in. */
-export const OPEN_PATH = "/.destack/open";
-
-/** The installation origin's path requesting its person's permission or a fresh sign-in. */
-export const REQUEST_PATH = "/.destack/request";
-
 /** The path of the universe's issuer below its origin, the account's oauth mount. */
 export const OAUTH_PATH = "/oauth";
 

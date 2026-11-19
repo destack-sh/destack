@@ -1,3 +1,4 @@
+import { OriginPath } from "@destack/package";
 import { testSimulation } from "@destack/object/test";
 import { expect, test } from "@destack/test";
 import { Proof } from "@destack/identity";
@@ -10,7 +11,7 @@ import { BrowserClient, type ClientRecord, type ClientStore } from "./browser-cl
 const ORIGIN = "https://home--home--ada.destack.space";
 
 /** The path below which the host registers and binds the client. */
-const PATH = "/.destack/client";
+const PATH = OriginPath.session;
 
 /** Keep a browser's client in memory, as its IndexedDB keeps it across visits. */
 function memoryStore(): ClientStore {

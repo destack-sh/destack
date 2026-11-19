@@ -1,16 +1,11 @@
+import { OriginPath } from "@destack/package";
 import { type DatabaseConnection, eq, Snapshot } from "@destack/db";
 import type { Crypto } from "@destack/environment";
 import { Digest, schema } from "@destack/schema";
 import { OAuthError } from "../authentication/token.ts";
 import { client, DEVICE_CLIENT_NAME } from "../object/client.ts";
 import { OAUTH_SCOPES, type Application, application } from "../object/application.ts";
-import {
-    DOMAINS,
-    InstallationOrigin,
-    LOOPBACK_DOMAIN,
-    OPEN_PATH,
-    SpaceAddress,
-} from "../address/address.ts";
+import { DOMAINS, InstallationOrigin, LOOPBACK_DOMAIN, SpaceAddress } from "../address/address.ts";
 
 /** The grant type of a device's sign-in by a code a person approves (RFC 8628 3.4). */
 export const DEVICE_CODE = "urn:ietf:params:oauth:grant-type:device_code";
@@ -169,7 +164,7 @@ export class OAuthClient {
         }
         // match an installation origin's open path exactly
         else if (registration.kind === "installation") {
-            if (uri !== `${registration.origin}${OPEN_PATH}`) {
+            if (uri !== `${registration.origin}${OriginPath.open}`) {
                 throw OAuthError.of(
                     "REQUEST_INVALID",
                     "redirect_uri is invalid: it is not the origin's open path",
