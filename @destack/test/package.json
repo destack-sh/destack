@@ -17,6 +17,7 @@
         "@destack/error": "workspace:*",
         "@destack/package": "workspace:*",
         "@destack/schema": "workspace:*",
+        "@destack/telemetry": "workspace:*",
         "@vitest/coverage-v8": "5.0.1",
         "@vitest/ui": "5.1.0",
         "vite": "8.3.8",

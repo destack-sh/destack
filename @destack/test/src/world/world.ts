@@ -1,3 +1,4 @@
+import { OtlpExporter } from "@destack/telemetry/otlp";
 import { Simulation, type SimulationOptions, WorldOptions } from "@destack/environment/simulation";
 import { afterAll, onTestFinished, TestRunner } from "vitest";
 import { testHost } from "../host/index.ts";
@@ -10,7 +11,12 @@ export const TEST_START = Date.UTC(2026, 9, 1);
 
 /** Read the options the test run gives every world: jitter, and the readback it asks for. */
 export function testWorldOptions(): WorldOptions {
-    return WorldOptions.of(testHost().process);
+    const host = testHost();
+
+    return WorldOptions.of(
+        host.process,
+        OtlpExporter.spans(host.process.variables, (request) => host.network.fetch(request)),
+    );
 }
 
 /** Open a test's own running world at a start, which its stores and nodes share, until it ends. */
