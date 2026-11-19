@@ -70,6 +70,11 @@ export function testCommand(context: Context): Verb {
                 description: "The one database to run against: sqlite or postgresql",
                 argument: "database",
             },
+            grep: {
+                type: "string",
+                description: "Run the tests whose full name matches the pattern",
+                argument: "pattern",
+            },
             list: { type: "boolean", description: "List the tests instead of running them" },
             update: {
                 type: "boolean",
@@ -86,6 +91,7 @@ export function testCommand(context: Context): Verb {
                 files: rest,
                 isListing: options["list"] === true,
                 isUpdating: options["update"] === true,
+                ...(typeof options["grep"] === "string" ? { grep: options["grep"] } : {}),
             });
 
             // refuse a run with failures
