@@ -13,7 +13,7 @@ import type { Localization } from "@destack/locale";
 import { type Identifier, type JsonObject, type JsonValue, schema, Text } from "@destack/schema";
 import { ObjectReference } from "@destack/sync";
 import stackPackage from "@destack/stack/package";
-import { HOME_PATH, VIEW_KIND } from "@destack/view/declare";
+import { ScopePath, VIEW_KIND } from "@destack/view/declare";
 import { type CommandEntry, Keybinding, type PaletteEntry } from "@destack/view/palette";
 import homePackage from "../package.ts";
 
@@ -85,7 +85,7 @@ export class SpaceCatalog {
     ): Promise<SpaceCatalog> {
         // describe the space's store at its home, in one call
         const home = connect(
-            `${HOME_PATH}/${space.id}${PackageMount.path(stackPackage.id)}`,
+            `${ScopePath.of(space.id)}${PackageMount.path(stackPackage.id)}`,
             space.id,
         );
         const description = await ObjectStoreDescription.read(home.store);
@@ -265,7 +265,7 @@ export class SpaceCatalog {
     /** Reach an object type's installation by name. */
     #client(name: string, type: ObjectType): ObjectConnection {
         return this.#connect(
-            `${HOME_PATH}/${this.space.id}${InstallationMount.path(this.space.id, name)}${PackageMount.path(type.package.id)}`,
+            `${ScopePath.of(this.space.id)}${InstallationMount.path(this.space.id, name)}${PackageMount.path(type.package.id)}`,
             this.space.id,
         );
     }

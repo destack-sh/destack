@@ -1,5 +1,6 @@
+import { OriginPath } from "@destack/package";
 import { DeclarationReference } from "@destack/package/declare";
-import { InstallationOrigin, SpaceAddress, OPEN_PATH } from "@destack/account/address";
+import { InstallationOrigin, SpaceAddress } from "@destack/account/address";
 import { present, schema } from "@destack/schema";
 import {
     createEffect,
@@ -130,5 +131,5 @@ function openEntry(listing: PaletteListing, entry: ViewEntry | ObjectEntry, orig
     );
 
     // open it in the window the palette opens in, or over
-    (window.top ?? window).location.href = new URL(`${OPEN_PATH}?${query}`, origin).href;
+    (window.top ?? window).location.href = new URL(`${OriginPath.open}?${query}`, origin).href;
 }

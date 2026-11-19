@@ -1,4 +1,5 @@
-import { InstallationOrigin, SpaceAddress, OPEN_PATH } from "@destack/account/address";
+import { OriginPath } from "@destack/package";
+import { InstallationOrigin, SpaceAddress } from "@destack/account/address";
 import { Failure } from "@destack/error";
 import { argument, t } from "@destack/locale";
 import { present, schema, type Identifier } from "@destack/schema";
@@ -35,7 +36,7 @@ import { installation, PackageMount } from "@destack/object";
 import { createClient } from "@destack/object/client";
 import objectPackage from "@destack/object/package";
 import { RequestId } from "@destack/sync";
-import { HOME_PATH } from "@destack/view/declare";
+import { ScopePath } from "@destack/view/declare";
 import { SpaceCatalog } from "../palette/catalog.ts";
 import { AppDirectoryDialog } from "./directory.tsx";
 import {
@@ -151,7 +152,7 @@ function SpaceItem(properties: {
     ) => {
         const objects = createClient<typeof objectPackage.router>(
             objectPackage,
-            origin(`${HOME_PATH}/${waiting.space}${PackageMount.path(objectPackage.id)}`),
+            origin(`${ScopePath.of(waiting.space)}${PackageMount.path(objectPackage.id)}`),
             environment,
         );
         const request = { scope: waiting.space, id: waiting.approval };
@@ -315,5 +316,5 @@ function openPath(address: string, view: Pick<ViewEntry, "installation" | "name"
         [VIEW_PARAMETER]: view.name,
     });
 
-    return `${OPEN_PATH}?${query}`;
+    return `${OriginPath.open}?${query}`;
 }

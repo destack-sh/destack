@@ -7,7 +7,7 @@ import type { Plan } from "@destack/resource";
 import { type Identifier, present } from "@destack/schema";
 import stackPackage from "@destack/stack/package";
 import { type Call, ObjectReference, RequestId, type Subject } from "@destack/sync";
-import { HOME_PATH } from "@destack/view/declare";
+import { ScopePath } from "@destack/view/declare";
 
 /** A plan an installation of a space waits on, as a person reviews it. */
 export interface WaitingPlan {
@@ -49,7 +49,7 @@ export async function readWaitingChanges(
     // list the approvals asking the person on change requests
     const objects = createClient<typeof objectPackage.router>(
         objectPackage,
-        origin(`${HOME_PATH}/${space}${PackageMount.path(objectPackage.id)}`),
+        origin(`${ScopePath.of(space)}${PackageMount.path(objectPackage.id)}`),
         environment,
     );
     const asking = await Array.fromAsync(
@@ -98,7 +98,7 @@ export async function allowAlways(
     // read the person's grant to the actor, at the universe
     const universe = createClient<typeof objectPackage.router>(
         objectPackage,
-        origin(`${HOME_PATH}/${person.id}${PackageMount.path(objectPackage.id)}`),
+        origin(`${ScopePath.of(person.id)}${PackageMount.path(objectPackage.id)}`),
         environment,
     );
     const { items } = await universe.grant.list({
@@ -116,7 +116,7 @@ export async function allowAlways(
     });
     const space = createClient<typeof objectPackage.router>(
         objectPackage,
-        origin(`${HOME_PATH}/${waiting.space}${PackageMount.path(objectPackage.id)}`),
+        origin(`${ScopePath.of(waiting.space)}${PackageMount.path(objectPackage.id)}`),
         environment,
     );
     await space.approval.approve({
@@ -135,7 +135,7 @@ export async function readWaitingPlans(
     // list the space's installations, page by page
     const objects = createClient<typeof objectPackage.router>(
         objectPackage,
-        origin(`${HOME_PATH}/${space}${PackageMount.path(objectPackage.id)}`),
+        origin(`${ScopePath.of(space)}${PackageMount.path(objectPackage.id)}`),
         environment,
     );
     const items = [];
@@ -178,7 +178,7 @@ function stackClient(
 ) {
     return createClient<typeof stackPackage.router>(
         stackPackage,
-        origin(`${HOME_PATH}/${space}${PackageMount.path(stackPackage.id)}`),
+        origin(`${ScopePath.of(space)}${PackageMount.path(stackPackage.id)}`),
         environment,
     );
 }

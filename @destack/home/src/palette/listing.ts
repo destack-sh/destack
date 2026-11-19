@@ -4,7 +4,7 @@ import { ObjectTypePool, type ObjectType } from "@destack/object";
 import { ObjectConnection } from "@destack/object/client";
 import { schema } from "@destack/schema";
 import { ObjectReference, type Subject } from "@destack/sync";
-import { HOME_PATH } from "@destack/view/declare";
+import { ScopePath } from "@destack/view/declare";
 import {
     type ActionEntry,
     type CommandEntry,
@@ -220,7 +220,7 @@ class LocalObjects {
         device: string,
     ): Promise<LocalObjects> {
         // describe the local types the device's store serves
-        const remote = connect(`${HOME_PATH}/${device}`, device);
+        const remote = connect(ScopePath.of(device), device);
         const types = ObjectTypePool.of([]).declare(await remote.describe());
 
         // find the window and visit types

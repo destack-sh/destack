@@ -36,7 +36,7 @@ import {
     useOrigin,
     useView,
 } from "@destack/view";
-import { HOME_PATH } from "@destack/view/declare";
+import { ScopePath } from "@destack/view/declare";
 
 /** Offer the residency's apps to install into a space, marking those it has. */
 export function AppDirectoryDialog(properties: {
@@ -52,12 +52,12 @@ export function AppDirectoryDialog(properties: {
     const residency = useView().residencyHome;
     const registry = createClient(
         registryPackage,
-        origin(`${HOME_PATH}/${residency}${PackageMount.path(registryPackage.id)}`),
+        origin(`${ScopePath.of(residency)}${PackageMount.path(registryPackage.id)}`),
         environment,
     );
     const objects = createClient(
         objectPackage,
-        origin(`${HOME_PATH}/${properties.space}${PackageMount.path(objectPackage.id)}`),
+        origin(`${ScopePath.of(properties.space)}${PackageMount.path(objectPackage.id)}`),
         environment,
     );
     const [apps, setApps] = createSignal<readonly Package[]>();

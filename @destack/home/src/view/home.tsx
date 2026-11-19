@@ -1,10 +1,10 @@
+import { OriginPath } from "@destack/package";
 import * as style from "@destack/style";
 import { text } from "@destack/theme/text";
 import { space } from "@destack/theme/tokens.stylex";
 import { Card, CardContent, CardHeader, CardTitle } from "@destack/ui/card";
 import { t } from "@destack/locale";
 import { Loading, onSettled, useEnvironment, useLocale } from "@destack/view";
-import { CLIENT_PATH } from "@destack/view/declare";
 import { BrowserClient } from "@destack/account/browser";
 import { Spaces } from "./space.tsx";
 
@@ -28,7 +28,7 @@ export default function Home() {
     // bind the shell's credential to this browser's client once it shows
     onSettled(() => {
         const { origin } = new URL(environment.navigation.currentEntry.url);
-        new BrowserClient({ path: CLIENT_PATH, origin, environment })
+        new BrowserClient({ path: OriginPath.session, origin, environment })
             .bind(BrowserClient.describe(navigator))
             .catch((error: unknown) => globalThis.reportError(error));
     });
