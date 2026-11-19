@@ -1,88 +1,108 @@
 # Architecture
 
-Destack is composed of six layers, from the people using it down to the machines running it.
-Each layer is a set of packages under [`@destack`](@destack); the tables below list what each package does and the prior art it follows.
+Destack is composed of 8 layers, from the desktop and the terminal people open down to the core every package uses.
+Each layer is a set of packages under [`@destack`](@destack), and a package depends only on packages in its own layer or below; `destack-check` refuses a dependency on a higher layer.
+The tables below list what each package does, in its own description, and the prior art it follows.
 
-## 01 Identity
+## 01 Application
 
-Who you are, and who gets in.
-
-| Package | What it does | Prior art |
-|---|---|---|
-| [`@destack/identity`](@destack/identity) | Create self-certifying identities with signing and rotation keys, and keep keys in keyrings and keychains | did:plc, JWK, DPoP |
-| [`@destack/account`](@destack/account) | Sign people in with magic links, passkeys, two-factor and OAuth, and serve accounts, spaces, domains and an OpenID Connect provider | Better Auth |
-| [`@destack/connection`](@destack/connection) | Store credentials for external accounts and attach them to outbound requests | Nango |
-
-## 02 Presentation
-
-What you see and touch.
+What users interact with: the desktop, the terminal, and any userland apps.
 
 | Package | What it does | Prior art |
 |---|---|---|
-| [`@destack/style`](@destack/style) | Write component styles in StyleX, with Tailwind's breakpoints and preflight | StyleX, Tailwind |
-| [`@destack/theme`](@destack/theme) | Define themes over colour roles, with contrast, nested surfaces, swatches and motion | Radix Themes, shadcn/ui |
-| [`@destack/icon`](@destack/icon) | Draw icons by name, loaded lazily | Phosphor |
-| [`@destack/view`](@destack/view) | Render package views in one shell, and give them live queries, mutations, settings and commands | Solid |
-| [`@destack/shader`](@destack/shader) | Render animated gradients and effects as Solid components | Paper Shaders |
-| [`@destack/ui`](@destack/ui) | Use buttons, dialogs, selects, sidebars, charts and the rest on Solid and StyleX | shadcn/ui, Radix, Base UI |
-| [`@destack/web`](@destack/web) | Build websites with server rendering, prerendering, and sitemap, robots and manifest files | SolidStart, Next.js |
-| [`@destack/desktop`](@destack/desktop) | Run the native shell: windows, menus, banners, the badge, the tray and the command palette | Tauri |
-| [`@destack/cli`](@destack/cli) | Read and change a space's objects, stacks, installations and packages from the terminal | kubectl, gh |
+| [`@destack/desktop`](@destack/desktop) | Open Destack apps in desktop windows, with banners, a badge, a tray and a command palette. | Tauri |
+| [`@destack/cli`](@destack/cli) | Use Destack from the terminal: sign in, install packages and work with a space's objects. | kubectl, gh |
 
-## 03 Application
+## 02 Runtime
 
-What your apps actually do.
+Where packages run: machines, the spaces they serve and the stacks they apply.
 
 | Package | What it does | Prior art |
 |---|---|---|
-| [`@destack/error`](@destack/error) | Declare the call errors callers receive, with their codes and HTTP statuses | gRPC status codes |
-| [`@destack/telemetry`](@destack/telemetry) | Emit logs, traces and metrics, and capture errors and sessions, from any package | OpenTelemetry, Sentry |
-| [`@destack/locale`](@destack/locale) | Write translatable messages and format them for a locale from catalogs | Lingui, MessageFormat 2 |
-| [`@destack/environment`](@destack/environment) | Take time and the network as effects, real or simulated with virtual time and faults | FoundationDB simulation, TigerBeetle VOPR |
-| [`@destack/access`](@destack/access) | Declare relations and permissions as a schema, and check, grant and request access | Zanzibar, SpiceDB |
-| [`@destack/setting`](@destack/setting) | Declare typed settings and resolve each value along user, space, installation and device scopes | — |
-| [`@destack/workflow`](@destack/workflow) | Run durable functions that record each step, with schedules, triggers and approvals | Temporal, DBOS, Inngest, Restate |
-| [`@destack/message`](@destack/message) | Send email over SMTP, web push, webhooks and desktop messages, and sign webhook deliveries | Standard Webhooks |
-| [`@destack/notification`](@destack/notification) | Record notifications per recipient, keep each person's inbox, and send them as messages under focus and summary settings | Knock, Novu |
-| [`@destack/social`](@destack/social) | Add comments, reactions, read receipts, favourites and presence to any object type | Liveblocks |
-| [`@destack/observability`](@destack/observability) | Store a space's logs, spans and metrics, group failures into issues, fire alerts, and declare usage meters | Sentry, Grafana |
-| [`@destack/finance`](@destack/finance) | Declare products, features and metered usage, bill through a payment provider, and derive entitlements | Autumn, Orb |
+| [`@destack/stack`](@destack/stack) | Declare and apply a space's stack: its installations, resources, bindings, deployments, routes, runs and transfers. | Pulumi, CloudFormation |
+| [`@destack/machine`](@destack/machine) | Run a machine: serve the spaces placed on it with their modules (buckets, vaults, connections, messages, observability, audit), route their installations' calls and keep their builds. | — |
+| [`@destack/relay`](@destack/relay) | Relay HTTP requests for Destack names to the machines serving them. | Cloudflare Tunnel, ngrok |
+| [`@destack/tunnel`](@destack/tunnel) | Carry HTTP requests over one WebSocket session between a machine and a relay, as a tunnel. | Cloudflare Tunnel |
+| [`@destack/control`](@destack/control) | Run a universe: the account, object, setting and control packages over one store at one origin. | Kubernetes control plane |
 
-## 04 Persistence
+## 03 Service
 
-What they remember.
+What apps build on for shared work: accounts, connections, messages, notifications, billing, repositories and packages.
 
 | Package | What it does | Prior art |
 |---|---|---|
-| [`@destack/schema`](@destack/schema) | Declare schemas limited to what JSON Schema expresses, with Temporal time types, and convert them both ways | Zod, JSON Schema |
-| [`@destack/db`](@destack/db) | Define and query SQL tables on SQLite and PostgreSQL, with migrations, full-text search, sealed columns and a change log | Drizzle |
-| [`@destack/sync`](@destack/sync) | Replicate queried rows from the change log to other databases and to browsers, with optimistic local writes | PostgreSQL logical replication, Replicache |
-| [`@destack/bucket`](@destack/bucket) | Store files through the R2 binding API, in local directories, in R2 or in any S3-compatible store | Cloudflare R2, S3 |
-| [`@destack/event`](@destack/event) | Append events to a table, compact them into Parquet segments, and query, aggregate and delete them | ClickHouse |
-| [`@destack/object`](@destack/object) | Declare object types and their packages: synced tables with access rules, methods served and called over oRPC, workloads, history and events | Convex, oRPC, OpenAPI |
-| [`@destack/vault`](@destack/vault) | Store versioned secrets encrypted at rest, generate keys, and stage and promote versions | AWS Secrets Manager |
+| [`@destack/account`](@destack/account) | Sign people and machines in, and manage their accounts, organizations and spaces. | Better Auth |
+| [`@destack/connection`](@destack/connection) | Connect external accounts once, and call their APIs with credentials kept in a vault. | Nango |
+| [`@destack/workflow`](@destack/workflow) | Run durable functions step by step as objects of the space they run in. | Temporal, DBOS, Inngest, Restate |
+| [`@destack/message`](@destack/message) | Send messages on a channel, email, push, webhook or a desktop. | Standard Webhooks |
+| [`@destack/mail`](@destack/mail) | Send email over SMTP or Amazon SES, or print it on machines without a provider. | — |
+| [`@destack/notification`](@destack/notification) | Declare notifications, notify recipients, watch objects and deliver them as messages. | Knock, Novu |
+| [`@destack/social`](@destack/social) | Attach comments, reactions, receipts, favourites and presence to any object, notifying mentioned and participating principals. | Liveblocks |
+| [`@destack/observability`](@destack/observability) | Query, follow and alert on the telemetry and analytics of Destack scopes, group their failures into issues, and measure what their spaces use. | Sentry, Grafana |
+| [`@destack/finance`](@destack/finance) | Sell products with features, bill accounts for subscriptions and usage, and derive their entitlements. | Autumn, Orb |
+| [`@destack/vault`](@destack/vault) | Keep secrets as encrypted versions and rotate them without redeploying. | AWS Secrets Manager |
+| [`@destack/forge`](@destack/forge) | Host the Git repositories of accounts and publish, resolve and distribute their Destack packages. | GitHub, npm |
 
-## 05 Source
+## 04 Build
 
-Where it all comes from, and how it changes.
-
-| Package | What it does | Prior art |
-|---|---|---|
-| [`@destack/package`](@destack/package) | Describe a package in `destack.json`: its sandbox permissions, examples and scenarios, manifests and module transform | Deno permissions, Storybook |
-| [`@destack/resource`](@destack/resource) | Declare resource kinds with desired state, and plan, apply and upgrade them through providers | Kubernetes CRDs, Terraform |
-| [`@destack/test`](@destack/test) | Run tests and play declared scenarios through a driver per interaction | Vitest, Playwright |
-| [`@destack/build`](@destack/build) | Compile a package into one output per runtime, and store builds by content | Vite, Rolldown, OCI registries |
-| [`@destack/stack`](@destack/stack) | Declare a space's resources and package installations, and apply them as revisions with a plan and an approval | Pulumi, CloudFormation |
-| [`@destack/forge`](@destack/forge) | Host Git repositories and publish packages as npm releases | GitHub, npm |
-
-## 06 Infrastructure
-
-Where it all runs.
+How packages are built, tested and published.
 
 | Package | What it does | Prior art |
 |---|---|---|
-| [`@destack/sandbox`](@destack/sandbox) | Run processes with explicit filesystem and network permissions on macOS and Linux | Seatbelt, bubblewrap |
-| [`@destack/update`](@destack/update) | Check, download, stage and activate signed releases, and publish them | TUF |
-| [`@destack/relay`](@destack/relay) | Route requests for a space's or a machine's name through a tunnel to the machine serving it | Cloudflare Tunnel, ngrok |
-| [`@destack/machine`](@destack/machine) | Run spaces on any host, on Bun or Cloudflare, with placement, builds, a request gateway and metering | — |
-| [`@destack/control`](@destack/control) | Run the universe: the object, account and setting packages over one database, on Bun or as a Cloudflare Worker | Kubernetes control plane |
+| [`@destack/build`](@destack/build) | Compile Destack packages into one module output per runtime, and keep the builds by content. | Vite, Rolldown, OCI registries |
+| [`@destack/git`](@destack/git) | Declare Git storage in Destack and keep its repositories locally or in Cloudflare Artifacts. | — |
+| [`@destack/registry`](@destack/registry) | Publish and resolve packages, releases and tags, and push builds and Git, through the registry a space installs. | npm registry |
+| [`@destack/test`](@destack/test) | Write and run Destack tests: unit tests on Vitest, simulated worlds, and scenarios played through drivers. | Vitest, Playwright |
+| [`@destack/check`](@destack/check) | Lint, format and check Destack packages and their READMEs with one command. | Oxlint |
+| [`@destack/sandbox`](@destack/sandbox) | Launch processes with operating system filesystem and network restrictions. | Seatbelt, bubblewrap |
+| [`@destack/update`](@destack/update) | Update installed Destack distributions from a signed release feed. | TUF |
+
+## 05 View
+
+What people see and touch.
+
+| Package | What it does | Prior art |
+|---|---|---|
+| [`@destack/style`](@destack/style) | Style components with StyleX, compiled into one stylesheet per build. | StyleX, Tailwind |
+| [`@destack/theme`](@destack/theme) | Theme views with an accent, a base and roles solved for contrast, in light and dark. | Radix Themes, shadcn/ui |
+| [`@destack/icon`](@destack/icon) | Draw Phosphor icons by name, each one loaded only where it is used. | Phosphor |
+| [`@destack/ui`](@destack/ui) | Build views from accessible Solid components styled with StyleX and themed by the person's theme. | shadcn/ui, Radix, Base UI |
+| [`@destack/view`](@destack/view) | Build a package's views with Solid, reading and changing its space's objects live. | Solid |
+| [`@destack/shader`](@destack/shader) | Draw fragment shader effects in views, colored by the theme. | Paper Shaders |
+
+## 06 Object
+
+What apps model, share and sync.
+
+| Package | What it does | Prior art |
+|---|---|---|
+| [`@destack/object`](@destack/object) | Declare object types with access, methods and sync, and call them from anywhere. | Convex, oRPC, OpenAPI |
+| [`@destack/sync`](@destack/sync) | Synchronize database rows to subscribers and local replicas, as each commit lands. | PostgreSQL logical replication, Replicache |
+| [`@destack/access`](@destack/access) | Decide who may do what to each object, and share, delegate and revoke that access. | Zanzibar, SpiceDB |
+| [`@destack/event`](@destack/event) | Keep the append-only events of scopes, hot in their database and sealed into their bucket, and query, fold and follow them. | ClickHouse |
+| [`@destack/setting`](@destack/setting) | Declare, place and resolve scoped settings. | — |
+
+## 07 Storage
+
+Where bytes rest: tables and files.
+
+| Package | What it does | Prior art |
+|---|---|---|
+| [`@destack/db`](@destack/db) | Declare tables, query them on SQLite and PostgreSQL, and log every commit. | Drizzle |
+| [`@destack/bucket`](@destack/bucket) | Store files in buckets on local disk, Cloudflare R2 or any S3 endpoint. | Cloudflare R2, S3 |
+
+## 08 Core
+
+What every package uses: schemas, errors, effects, messages, telemetry and identities.
+
+| Package | What it does | Prior art |
+|---|---|---|
+| [`@destack/schema`](@destack/schema) | Define Destack's portable values: validation schemas, identifiers, versions, time values, digests and canonical JSON. | Zod, JSON Schema |
+| [`@destack/error`](@destack/error) | Declare the errors a package's callers receive, each with a stable reason, an HTTP code and typed data. | gRPC status codes |
+| [`@destack/environment`](@destack/environment) | Take every effect through one environment: time, randomness and the network, real or simulated. | FoundationDB simulation, TigerBeetle VOPR |
+| [`@destack/color`](@destack/color) | Name the preset color palettes and the seed each one grows from. | Radix Colors |
+| [`@destack/locale`](@destack/locale) | Localise messages and format numbers, money and dates for a person's language and region. | Lingui, MessageFormat 2 |
+| [`@destack/telemetry`](@destack/telemetry) | Instrument Destack packages with traces, metrics, logs, exceptions and analytics. | OpenTelemetry, Sentry |
+| [`@destack/package`](@destack/package) | Describe Destack packages, their declarations, builds and source code. | Deno permissions, Storybook |
+| [`@destack/resource`](@destack/resource) | Declare the resources a package uses, bind their clients in a workload, and plan their changes. | Kubernetes CRDs, Terraform |
+| [`@destack/identity`](@destack/identity) | Prove who a principal is and keep the keys proving it. | did:plc, JWK, DPoP |
