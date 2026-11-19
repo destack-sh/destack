@@ -61,6 +61,11 @@ export const PackageName = Object.assign(
     },
 );
 
+/** An account's Git repository name, a DNS label of at most 63 characters (RFC 1035 2.3.4). */
+export const RepositoryName = schema.string().regex(/^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/u);
+/** An account's Git repository name. */
+export type RepositoryName = schema.Infer<typeof RepositoryName>;
+
 /** A scoped or unscoped dependency name. */
 export const DependencyName = Object.assign(
     schema
