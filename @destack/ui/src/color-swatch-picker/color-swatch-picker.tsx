@@ -1,5 +1,5 @@
 import * as style from "@destack/style";
-import { ACCENT_PRESETS, type AccentPreset } from "@destack/theme";
+import { ACCENT_PRESETS, type AccentPreset } from "@destack/color";
 import { color, radius, size, space, stroke, swatch } from "@destack/theme/tokens.stylex";
 import { For, type JSX, omit, Show } from "@destack/view";
 import {

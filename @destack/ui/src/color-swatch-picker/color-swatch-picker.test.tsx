@@ -1,7 +1,7 @@
 import { expect, test } from "@destack/test";
 import { render } from "@destack/view/test";
 import { flush } from "@destack/view";
-import type { AccentPreset } from "@destack/theme";
+import type { AccentPreset } from "@destack/color";
 import { ColorSwatchPicker } from "./index.ts";
 
 /** List the preset of each chosen swatch of a container. */
