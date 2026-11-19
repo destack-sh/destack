@@ -1,7 +1,7 @@
-import { Icon } from "@destack/icon";
+import { Icon } from "@destack/ui/icon";
 import caretLeft from "@destack/icon/phosphor/caret-left";
 import caretRight from "@destack/icon/phosphor/caret-right";
-import { t } from "@destack/locale";
+import { Locale, t } from "@destack/locale";
 import * as style from "@destack/style";
 import { color, size, space, weight } from "@destack/theme/tokens.stylex";
 import { text } from "@destack/theme/text";
@@ -391,7 +391,7 @@ function CalendarMonths(properties: {
     // read the locale's direction and week, and the calendar's state
     const calendar = properties.calendar;
     const locale = useLocale();
-    const firstDay = (): number => calendar.weekStartsOn ?? Day.firstDayOf(locale.tag);
+    const firstDay = (): number => calendar.weekStartsOn ?? Locale.firstDay(locale.tag);
     const control = new CalendarControl(calendar, firstDay, properties.month);
     const today = properties.today;
 

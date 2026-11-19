@@ -1,18 +1,8 @@
 import type { Environment } from "@destack/environment";
-import type { LocaleTag } from "@destack/locale";
-import { PlainDate, schema, TimeZone } from "@destack/schema";
-
-/** The first day of the week where the locale does not say, ISO 8601's Monday. */
-const DEFAULT_FIRST_DAY = 1;
+import { PlainDate, TimeZone } from "@destack/schema";
 
 /** The days of a week. */
 const WEEK = 7;
-
-/** The week a locale uses, as `Intl.Locale.getWeekInfo` reads it where the engine has it. */
-const WeekInfo = schema.looseObject({
-    /** The first day of the week, from 1 for Monday to 7 for Sunday. */
-    firstDay: schema.number().int().min(DEFAULT_FIRST_DAY).max(WEEK),
-});
 
 /** The milliseconds of a day. */
 const DAY_MILLISECONDS = 86_400_000;
@@ -74,16 +64,6 @@ export const Day = {
     /** Read the first day of a date's month. */
     monthOf(date: PlainDate): PlainDate {
         return { year: date.year, month: date.month, day: 1 };
-    },
-
-    /** Read the first day of the week a locale uses, else Monday. */
-    firstDayOf(tag: LocaleTag): number {
-        const locale = new Intl.Locale(tag);
-        const getWeekInfo: unknown = Reflect.get(locale, "getWeekInfo");
-
-        return typeof getWeekInfo === "function"
-            ? WeekInfo.parse(Reflect.apply(getWeekInfo, locale, [])).firstDay
-            : DEFAULT_FIRST_DAY;
     },
 
     /** Move a date to the start of its week, the week starting on a weekday from 1 to 7. */
