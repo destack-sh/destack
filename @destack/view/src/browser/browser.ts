@@ -26,7 +26,7 @@ import { CONTEXT_SCOPES } from "../declare/context.ts";
 import type { ViewMount } from "../page/context.ts";
 import { renderView } from "../page/mount.ts";
 import { recordVisits } from "./visit.ts";
-import { DeviceRequest, type DeviceRole, deviceObjects } from "./device.ts";
+import { DeviceRequest, DeviceRole, deviceObjects } from "./device.ts";
 import { mountPackages } from "../page/view.ts";
 import { PageAuthorization } from "./authorization.ts";
 import { PaletteOverlay } from "../palette/overlay.ts";
@@ -465,7 +465,7 @@ async function openTabs(
     // follow a person's own settings and profile, and list the parts each scope plays for the view
     const { device } = devices;
     const roles = new Map<string, DeviceRole[]>(
-        device === undefined ? [] : [[context.user.id, ["user"]]],
+        DeviceRole.played(device).includes("user") ? [[context.user.id, ["user"]]] : [],
     );
     for (const name of CONTEXT_SCOPES) {
         const scope = context[name];

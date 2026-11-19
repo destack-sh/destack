@@ -17,7 +17,12 @@ export { BrowserEnvironment } from "@destack/environment/browser";
 const DEVICE_ROLES = ["user", "account", "space"] as const;
 
 /** The parts a scope plays for a page, each opening its own object types. */
-const DeviceRole = schema.enum(["user", "account", "space"]);
+export const DeviceRole = Object.assign(schema.enum(DEVICE_ROLES), {
+    /** List the parts a page's scopes may play: the person's own only on their device. */
+    played(device: Subject | undefined): DeviceRole[] {
+        return DEVICE_ROLES.filter((role) => role !== "user" || device !== undefined);
+    },
+});
 /** The part a scope plays for a page. */
 export type DeviceRole = schema.Infer<typeof DeviceRole>;
 
@@ -42,12 +47,10 @@ export function serveDevice(
     environment: Environment & Environment<"broadcast" | BrowserCapability>,
 ): void {
     BrowserDevice.listen(scope, async (message) => {
-        // open the device's database file with the tables of every object type the package's client views open
+        // open the device's database file with the tables of the object types it stores
         const request = DeviceRequest.parse(message);
         const { name } = request;
-        const objects = Object.fromEntries(
-            views.flatMap((view) => Object.entries(deviceObjects(view, DEVICE_ROLES))),
-        );
+        const objects = storedObjects(views, request);
         const file = await WasmClient.opfs(name, environment);
         const database = connectWasmSqlite(file, ObjectClient.tables(objects), {
             name,
@@ -85,6 +88,16 @@ export function serveDevice(
             environment,
         });
     });
+}
+
+/** List the object types a device stores for its views, the person's own only on their device. */
+export function storedObjects(
+    views: readonly View[],
+    request: Pick<DeviceRequest, "device">,
+): Readonly<Record<string, ObjectType>> {
+    const roles = DeviceRole.played(request.device);
+
+    return Object.fromEntries(views.flatMap((view) => Object.entries(deviceObjects(view, roles))));
 }
 
 /** List the object types a scope's roles open for a view, keyed by type. */
