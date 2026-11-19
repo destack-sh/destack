@@ -1,13 +1,11 @@
 import { BuildLayer } from "@destack/package/manifest";
 import { install } from "@destack/stack/declare";
-import { VAULT } from "@destack/vault/test";
 import { Account, account, type ResidencyCode } from "@destack/account/object";
 import { principal } from "@destack/access";
 import { integration, Issuer } from "@destack/connection/object";
 import { defineConnection } from "@destack/connection/declare";
 import connectionPackage, { CONNECTION_INSTALLATION } from "@destack/connection/package";
 import { connectionVault } from "@destack/connection/stack";
-import { CONNECTION } from "@destack/connection/test";
 import accountPackage from "@destack/account/package";
 import type { TestPerson } from "@destack/account/test";
 import { RemoteBuildStore, BuildStore } from "@destack/build/store";
@@ -26,11 +24,13 @@ import { type Digest, Identifier, present, schema } from "@destack/schema";
 import { join } from "node:path";
 import { installationRevision } from "@destack/stack/object";
 import {
+    CONNECTION,
     FORGE_HOME_OPTIONS,
     FORGE_HOME_STACK,
     FORGE_HOME_TYPES,
     TestPackage,
     TestSpace,
+    VAULT,
     ids,
 } from "@destack/machine/test";
 import { RequestId, type Subject } from "@destack/sync";
