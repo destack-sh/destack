@@ -42,7 +42,7 @@ Each type the space installs adds a plural and a singular, such as `notebooks` a
 | spaces   | `switch`                                                             |
 | apps     | `install`, `uninstall`, `open`, `apply`, `plan`, `approve`, `reject` |
 | share    | `share`, `invited`, `accept`                                         |
-| build    | `new`, `dev`, `build`, `publish`, `tag`                              |
+| build    | `new`, `dev`, `check`, `fix`, `test`, `build`, `publish`, `tag`      |
 | settings | `setting`, `settings`                                                |
 
 ### Flags
@@ -91,11 +91,13 @@ destack approve notes --plan 9a2e…
 
 ### Develop and publish a package
 
-`new` makes a package from a template, `dev` previews it, and `publish` releases it under a tag.
+`new` makes a package from a template, `dev` previews it, `check` and `test` run its pinned toolchain, and `publish` releases it under a tag.
 
 ```sh
 destack new @acme/notebooks
 destack dev ./notebooks
+destack check ./notebooks
+destack test ./notebooks --tier unit
 destack publish ./notebooks --tag latest
 ```
 

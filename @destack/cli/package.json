@@ -29,6 +29,7 @@
         "@destack/view": "workspace:*"
     },
     "devDependencies": {
+        "@destack/check": "workspace:*",
         "@destack/environment": "workspace:*",
         "@destack/identity": "workspace:*",
         "@destack/machine-board-fixture": "workspace:*",
@@ -37,10 +38,7 @@
         "@types/bun": "1.4.4"
     },
     "scripts": {
-        "typecheck": "tsc --project tsconfig.json && destack-check readme",
-        "test": "bun --bun run vitest run --config vitest.config.ts --project 'unit:*' --project 'scenario:*'",
-        "dev": "bun run src/main.ts",
-        "bench": "bun --bun run vitest run --config vitest.config.ts --project \"bench:*\""
+        "dev": "bun run src/main.ts"
     },
     "exports": {
         "./scenario": "./src/scenario/index.ts"

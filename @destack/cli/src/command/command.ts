@@ -100,6 +100,8 @@ export interface Verb {
     readonly description: string;
     /** The positional arguments in order, the optional ones last. */
     readonly arguments?: readonly Argument[];
+    /** The argument taking every word after the positional ones, such as test files. */
+    readonly rest?: Pick<Argument, "name" | "usage">;
     /** The command's options, by name. */
     readonly options?: Readonly<Record<string, Option>>;
     /** Whether the command prints JSON with --json. */
@@ -145,6 +147,8 @@ export type Options = Readonly<Record<string, string | boolean | undefined>>;
 export interface Call {
     /** The positional arguments by name, an omitted optional one absent. */
     readonly arguments: Readonly<Record<string, string | undefined>>;
+    /** The words after the positional arguments, for a command with a rest argument. */
+    readonly rest: readonly string[];
     /** The options given, by name. */
     readonly options: Options;
     /** Whether the command prints JSON. */
@@ -297,7 +301,7 @@ export class CommandTree {
         command: Verb,
         words: readonly string[],
         path: readonly string[],
-    ): Pick<Call, "arguments" | "options"> {
+    ): Omit<Call, "json"> {
         // parse the options the command declares, passing on positional arguments
         const declaredOptions: Record<string, { readonly type: Option["type"] }> =
             Object.fromEntries(
@@ -323,9 +327,9 @@ export class CommandTree {
             );
         }
 
-        // read each positional argument, refusing extra and missing ones
+        // read each positional argument, refusing extra words without a rest argument, and missing ones
         const declared = command.arguments ?? [];
-        if (parsed.positionals.length > declared.length) {
+        if (parsed.positionals.length > declared.length && command.rest === undefined) {
             throw CliError.of(
                 "USAGE_INVALID",
                 `usage is invalid: use '${path.join(" ") + CommandTree.usage(command)}'`,
@@ -343,7 +347,11 @@ export class CommandTree {
             values[argument.name] = value;
         }
 
-        return { arguments: values, options: parsed.values };
+        return {
+            arguments: values,
+            rest: parsed.positionals.slice(declared.length),
+            options: parsed.values,
+        };
     }
 
     /** Refuse an option the command lacks, and a string option whose value starts with a dash. */
@@ -486,13 +494,16 @@ export class CommandTree {
 
     /** Render a command's positional arguments, bracketing optional ones. */
     static usage(command: Verb): string {
-        return (command.arguments ?? [])
-            .map((argument) => {
-                const placeholder = argument.usage ?? argument.name;
+        // name each positional argument, then the rest
+        const positional = (command.arguments ?? []).map((argument) => {
+            const placeholder = argument.usage ?? argument.name;
 
-                return argument.default === undefined ? ` <${placeholder}>` : ` [${placeholder}]`;
-            })
-            .join("");
+            return argument.default === undefined ? ` <${placeholder}>` : ` [${placeholder}]`;
+        });
+        const rest =
+            command.rest === undefined ? "" : ` [${command.rest.usage ?? command.rest.name}...]`;
+
+        return positional.join("") + rest;
     }
 }
 

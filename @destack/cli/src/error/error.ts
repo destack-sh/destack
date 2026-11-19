@@ -24,11 +24,17 @@ export const CliError = defineErrorFamily({
 
         // invalid
 
+        CHECK_INVALID: {},
+
         METHOD_INVALID: {},
+
+        PACKAGE_INVALID: {},
 
         RESOURCE_LIMIT_INVALID: {},
 
         SETTING_INVALID: {},
+
+        TEST_INVALID: {},
 
         USAGE_INVALID: {},
 

@@ -10,6 +10,7 @@ import { nounCommand } from "../object/command.ts";
 import { settingCommand, settingsCommand } from "../object/setting.ts";
 import { applyCommand, approveCommand, planCommand, rejectCommand } from "../workflow/apply.ts";
 import { buildCommand, devCommand, publishCommand } from "../workflow/dev.ts";
+import { checkCommand, fixCommand, testCommand } from "../workflow/check.ts";
 import { tagCommand } from "../workflow/tag.ts";
 import { newCommand } from "../workflow/new.ts";
 import { installCommand, uninstallCommand } from "../workflow/install.ts";
@@ -135,6 +136,9 @@ export class CommandLine {
             new: newCommand(context),
             dev: devCommand(context),
             build: buildCommand(context),
+            check: checkCommand(context),
+            fix: fixCommand(context),
+            test: testCommand(context),
             publish: publishCommand(context),
             tag: tagCommand(context),
 
