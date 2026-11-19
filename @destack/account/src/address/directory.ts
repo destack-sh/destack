@@ -2,13 +2,7 @@ import type { Clock, Environment } from "@destack/environment";
 import { type Snapshot, TABLE } from "@destack/db";
 import { Claim, ClaimLookup, claimTable, type ObjectType } from "@destack/object";
 import { nth, present, schema, type Identifier } from "@destack/schema";
-import {
-    type Fetch,
-    InstallationMount,
-    type Package,
-    PackageMount,
-    SpaceMount,
-} from "@destack/object";
+import { type Fetch, type Package, PackageMount, SpaceMount } from "@destack/object";
 import { type ClientOf, createClient, ObjectConnection } from "@destack/object/client";
 import objectPackage from "@destack/object/package";
 import type { ObjectReference, Publisher } from "@destack/sync";
@@ -162,27 +156,21 @@ export class Directory<View extends Pick<Snapshot, "read"> = Snapshot> {
         return { ...placed, url };
     }
 
-    /** Locate a package below an installation of a space, at the URL its machine answers at now. */
-    async mount(
-        spaceId: Identifier<"space">,
-        installation: string,
-        packageId: string,
-        now: number,
-    ): Promise<string> {
+    /** Locate a package of a space, served by its one installation of it, on its machine now. */
+    async package(spaceId: Identifier<"space">, packageId: string, now: number): Promise<string> {
         const { url } = await this.locate(spaceId, now);
 
-        return `${InstallationMount.url(url, spaceId, installation)}${PackageMount.path(packageId)}`;
+        return `${SpaceMount.url(url, spaceId)}${PackageMount.path(packageId)}`;
     }
 
-    /** Call a package below an installation of a space, locating its machine on each call. */
+    /** Call a package of a space, locating its machine on each call. */
     client<Handle extends Package>(
         handle: Handle,
         spaceId: Identifier<"space">,
-        installation: string,
         fetch: Fetch,
         environment: Environment,
     ): ClientOf<Handle> {
-        const url = () => this.mount(spaceId, installation, handle.id, environment.clock.now());
+        const url = () => this.package(spaceId, handle.id, environment.clock.now());
 
         return createClient<Handle["router"]>(handle, { url, fetch }, environment);
     }

@@ -3,6 +3,7 @@ import { type Identifier, present, schema } from "@destack/schema";
 import { AccountHandle, HANDLE_LENGTH } from "./handle.ts";
 import { MachineName } from "../object/machine.ts";
 import { InstallationName, PackageMount } from "@destack/object";
+import { RepositoryName } from "@destack/package";
 import { Label } from "./label.ts";
 
 /** The longest DNS label, which one wildcard certificate covers (RFC 1035 2.3.4). */
@@ -89,7 +90,7 @@ export const UNIVERSE_PAGES = {
     apps: "/apps",
 } as const;
 
-/** A link at the universe's origin: an account's profile, or one of its apps. */
+/** A link at the universe's origin: an account's profile, app or repository. */
 export type UniverseLink =
     | {
           /** A profile, at `/@<handle>`. */
@@ -102,6 +103,16 @@ export type UniverseLink =
           readonly kind: "app";
           /** The installation the link opens. */
           readonly installation: InstallationOrigin;
+      }
+    | {
+          /** A Git repository, at `/@<handle>/<name>.git`, redirecting to its account's forge. */
+          readonly kind: "repository";
+          /** The account's handle. */
+          readonly handle: string;
+          /** The repository's name within the account. */
+          readonly name: RepositoryName;
+          /** The Git path below the repository, such as `/info/refs`, or empty. */
+          readonly path: string;
       };
 
 /** The universe's origin: its issuer, its links below `/@`, and its packages' mounts. */
@@ -137,23 +148,34 @@ export const UniverseOrigin = {
         return undefined;
     },
 
-    /** Read the link a path holds: a profile at `/@<handle>`, or an app below it. */
+    /** Read the link a path holds: a profile at `/@<handle>`, or an app or repository below it. */
     link(pathname: string): UniverseLink | undefined {
         // split the path below its `@`
         const [handle, space, name, ...rest] = pathname.replace(/\/$/u, "").split("/").slice(1);
-        if (handle === undefined || !handle.startsWith("@") || rest.length > 0) {
+        if (handle === undefined || !handle.startsWith("@")) {
             return undefined;
         }
         const account = handle.slice(1);
         const isHandle = AccountHandle.safeParse(account).success;
+        const repository = RepositoryName.safeParse(space?.replace(/\.git$/u, ""));
+        const below = [name, ...rest].filter((each) => each !== undefined);
 
+        // read a repository with the Git path below it
+        if (isHandle && space?.endsWith(".git") === true && repository.success) {
+            const path = below.length === 0 ? "" : `/${below.join("/")}`;
+
+            return { kind: "repository", handle: account, name: repository.data, path };
+        }
         // read a profile
-        if (isHandle && space === undefined) {
+        else if (isHandle && space === undefined) {
             return { kind: "profile", handle: account };
-        } else if (
+        }
+        // read an app
+        else if (
             isHandle &&
             space !== undefined &&
             name !== undefined &&
+            rest.length === 0 &&
             SpaceName.safeParse(space).success &&
             InstallationName.safeParse(name).success
         ) {
