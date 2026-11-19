@@ -703,6 +703,28 @@ export const Rollout = {
         return joined === undefined ? undefined : Rollout.join(joined.rollout, joined.installation);
     },
 
+    /** List the installations a space serves, with their rollouts. */
+    async listServed(
+        database: DatabaseConnection,
+        spaceId: Identifier<"space">,
+    ): Promise<InstallationRollout[]> {
+        const joined = await database
+            .select({ rollout: rollout.table, installation: installation.table })
+            .from(rollout.table)
+            .innerJoin(installation.table, joinedInstallation())
+            .innerJoin(space.table, eq(space.table.id, rollout.table.scope))
+            .where(
+                and(
+                    eq(rollout.table.scope, spaceId),
+                    isNotNull(rollout.table.servedRevisionId),
+                    Space.served(),
+                    launchable(),
+                ),
+            );
+
+        return joined.map((row) => Rollout.join(row.rollout, row.installation));
+    },
+
     /** Read where an installation's space moves while a transfer fences it here. */
     async moved(
         database: DatabaseConnection,
