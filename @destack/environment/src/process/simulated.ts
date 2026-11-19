@@ -14,13 +14,8 @@ import {
     type SpawnOptions,
     type SubprocessOutput,
     Subprocess,
+    type TerminalSize,
 } from "./process.ts";
-
-/** The width a simulated terminal reports: 80 columns, the VT100's. */
-const SIMULATED_COLUMNS = 80;
-
-/** The height a simulated terminal reports: 24 lines, the VT100's. */
-const SIMULATED_ROWS = 24;
 
 /** The process a simulation gives a node: its arguments, variables and working directory. */
 export interface ProcessOptions {
@@ -44,8 +39,8 @@ export interface ProcessOptions {
     readonly parent?: ProcessChannel;
     /** The bytes or stream the standard input reads, none by default. */
     readonly stdin?: Uint8Array<ArrayBuffer> | ReadableStream<Uint8Array>;
-    /** Whether the standard streams are a terminal, false by default. */
-    readonly isTerminal?: boolean;
+    /** The terminal the standard streams run on, a pipe when absent. */
+    readonly terminal?: TerminalSize;
 }
 
 /** A node's process: given values, written output, raised signals and real children. */
@@ -107,7 +102,8 @@ export class SimulatedProcess implements Process {
         this.#scheduler = scheduler;
 
         // read the given stream on standard input, else the given bytes then its end, and write output into chunks
-        const { stdin, isTerminal = false } = options;
+        const { stdin, terminal } = options;
+        const isTerminal = terminal !== undefined;
         const readable =
             stdin instanceof ReadableStream
                 ? stdin
@@ -129,8 +125,8 @@ export class SimulatedProcess implements Process {
                 }
             },
         };
-        this.stdout = SimulatedProcess.#output(isTerminal);
-        this.stderr = SimulatedProcess.#output(isTerminal);
+        this.stdout = SimulatedProcess.#output(terminal);
+        this.stderr = SimulatedProcess.#output(terminal);
     }
 
     /** Find a command on the process's search path, on the host's files. */
@@ -301,7 +297,7 @@ export class SimulatedProcess implements Process {
     }
 
     /** Make an output that stores what is written to it. */
-    static #output(isTerminal: boolean): Output & { readonly chunks: Uint8Array[] } {
+    static #output(terminal: TerminalSize | undefined): Output & { readonly chunks: Uint8Array[] } {
         // store a copy of each chunk written, at once
         const chunks: Uint8Array[] = [];
         const encoder = new TextEncoder();
@@ -312,9 +308,9 @@ export class SimulatedProcess implements Process {
         return {
             write: async (chunk) => writeSync(chunk),
             writeSync,
-            isTerminal,
-            columns: isTerminal ? SIMULATED_COLUMNS : undefined,
-            rows: isTerminal ? SIMULATED_ROWS : undefined,
+            isTerminal: terminal !== undefined,
+            columns: terminal?.columns,
+            rows: terminal?.rows,
             chunks,
         };
     }

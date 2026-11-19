@@ -1,5 +1,6 @@
 import { expect, test } from "@destack/test";
 import { testSimulation } from "@destack/test/world";
+import { TerminalSize } from "./process.ts";
 import { SimulatedProcess } from "./simulated.ts";
 
 /** A process with no arguments in the root, as the simulation's runtime runs it. */
@@ -17,7 +18,10 @@ const OPTIONS = {
 test("report a terminal's size and take raw mode on it, and report no size and refuse raw mode on a pipe", async () => {
     // run one process on a terminal and one on a pipe
     await using simulation = testSimulation();
-    const terminal = new SimulatedProcess({ ...OPTIONS, isTerminal: true }, simulation.scheduler);
+    const terminal = new SimulatedProcess(
+        { ...OPTIONS, terminal: TerminalSize.VT100 },
+        simulation.scheduler,
+    );
     const piped = new SimulatedProcess(OPTIONS, simulation.scheduler);
 
     // switch the terminal to raw mode, and refuse it on the pipe

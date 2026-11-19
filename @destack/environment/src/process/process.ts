@@ -9,6 +9,20 @@ export type Signal =
     | "SIGUSR2"
     | "SIGWINCH";
 
+/** A terminal's size in character cells. */
+export interface TerminalSize {
+    /** The columns of a line. */
+    readonly columns: number;
+    /** The lines of a screen. */
+    readonly rows: number;
+}
+
+/** A terminal's size in character cells. */
+export const TerminalSize = {
+    /** The VT100's 80 by 24 cells, which terminals still open at. */
+    VT100: { columns: 80, rows: 24 } satisfies TerminalSize,
+};
+
 /** Where a subprocess's standard stream goes: a pipe, the parent's own, nowhere, or a file. */
 export type StandardStream =
     | "pipe"
