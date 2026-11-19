@@ -2,6 +2,9 @@ import { basename } from "node:path";
 import type { Environment } from "@destack/environment";
 import { CheckError } from "../error/index.ts";
 
+/** The variables that turn color off in a tool whose output is read. */
+const PLAIN_OUTPUT = { NO_COLOR: "1", FORCE_COLOR: "0" } as const;
+
 /** Captured output from a checking tool at a fixed version. */
 export interface ToolResult {
     /** The exit status, including ordinary diagnostic failures. */
@@ -25,7 +28,7 @@ export async function runTool(
         readonly variables?: Readonly<Record<string, string>>;
     } = {},
 ): Promise<ToolResult> {
-    // start the tool under the caller's cancellation
+    // start the tool under the caller's cancellation, its output plain for reading
     const { process } = environment;
     const tool = basename(executable);
     const child = (() => {
@@ -34,7 +37,12 @@ export async function runTool(
                 [process.executable, "run", "--no-env-file", executable, ...toolArguments],
                 {
                     workingDirectory: directory,
-                    variables: { ...process.variables, ...options.variables, BUN_BE_BUN: "1" },
+                    variables: {
+                        ...process.variables,
+                        ...options.variables,
+                        ...PLAIN_OUTPUT,
+                        BUN_BE_BUN: "1",
+                    },
                     stdout: "pipe",
                     stderr: "pipe",
                     ...(options.signal === undefined ? {} : { signal: options.signal }),

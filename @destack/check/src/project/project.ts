@@ -1,6 +1,5 @@
 import { createRequire } from "node:module";
 import { dirname, isAbsolute, join, relative, resolve } from "node:path";
-import { pathToFileURL } from "node:url";
 import type { Environment } from "@destack/environment";
 import { checkPackage, fixPackage } from "../check/check.ts";
 import { configurePackage } from "../check/configuration.ts";
@@ -129,20 +128,12 @@ export class Project {
 
     /** Run the package's tests through the plan its files derive, returning the run's exit code. */
     async test(options: TestOptions = {}): Promise<number> {
-        // resolve the package's own Vitest and test plan, as its tests import them
-        const require = createRequire(join(this.directory, "package.json"));
+        // plan the tests with the toolchain's test kit and Vitest, loaded only when tests run
+        const { TestPlan } = await import("@destack/test/plan");
+        const require = createRequire(import.meta.url);
         const vitest = join(dirname(require.resolve("vitest/package.json")), "vitest.mjs");
         const configuration = require.resolve("@destack/test/plan/vitest");
-        const plan: unknown = await import(
-            pathToFileURL(require.resolve("@destack/test/plan")).href
-        );
-        if (!isTestPlanModule(plan)) {
-            throw CheckError.of(
-                "CONFIGURATION_INVALID",
-                `package '${this.directory}' is invalid: its @destack/test exports no TestPlan`,
-            );
-        }
-        const planned = await plan.TestPlan.of(this.directory, this.environment.files);
+        const planned = await TestPlan.of(this.directory, this.environment.files);
         const hasNode = planned.targets.some((target) => target.kind === "node");
 
         // run the Bun targets, then the Node targets apart, as Vitest runs one runtime per process
@@ -349,21 +340,4 @@ export class Project {
                   },
               ];
     }
-}
-
-/** What `destack test` reads of a package's test plan: whether it has Node targets. */
-interface TestPlanModule {
-    /** The plan of a package's tests. */
-    readonly TestPlan: {
-        /** Plan the tests of the package in a directory. */
-        readonly of: (
-            directory: string,
-            files: Environment<"files">["files"],
-        ) => Promise<{ readonly targets: readonly { readonly kind: string }[] }>;
-    };
-}
-
-/** Report whether a module is @destack/test's plan module. */
-function isTestPlanModule(module: unknown): module is TestPlanModule {
-    return typeof module === "object" && module !== null && "TestPlan" in module;
 }
