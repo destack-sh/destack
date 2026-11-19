@@ -20,8 +20,17 @@ const FRAMES_PER_SECOND = 60;
 export class SimulatedStorage implements Storage {
     /** The stored values by key. */
     readonly #values = new Map<string, string>();
+    /** The state of the persistent-storage permission, which a prompt leaves to the person. */
+    readonly #permission: PermissionState;
+    /** The person's answer to the persistence prompt, which a prompted request waits for. */
+    readonly #answer = Promise.withResolvers<boolean>();
     /** Whether the browser keeps the storage under pressure. */
     isPersisted = false;
+
+    /** Make a node's storage under a persistent-storage permission. */
+    constructor(permission: PermissionState = "granted") {
+        this.#permission = permission;
+    }
 
     /** Read a key's value, null without one. */
     getItem(key: string): string | null {
@@ -33,11 +42,19 @@ export class SimulatedStorage implements Storage {
         this.#values.set(key, value);
     }
 
-    /** Persist the storage, as a browser granting it does. */
+    /** Persist the storage, at once or once the person answers the browser's prompt. */
     async persist(): Promise<boolean> {
-        this.isPersisted = true;
+        this.isPersisted =
+            this.#permission === "prompt"
+                ? await this.#answer.promise
+                : this.#permission === "granted";
 
-        return true;
+        return this.isPersisted;
+    }
+
+    /** Answer the browser's persistence prompt as the person does. */
+    answer(isGranted: boolean): void {
+        this.#answer.resolve(isGranted);
     }
 }
 
@@ -474,6 +491,8 @@ export interface BrowserSimulationOptions {
     readonly url?: string;
     /** Whether each media query matches on each node's display, false for any other. */
     readonly media?: Readonly<Record<string, boolean>>;
+    /** The state of each node's persistent-storage permission, granted by default. */
+    readonly persistentStorage?: PermissionState;
 }
 
 /** The browser half of a simulation: each node's environment with a browser's capabilities. */
@@ -517,7 +536,7 @@ export class BrowserSimulation {
         const options = this.#options;
         const environment = {
             ...base,
-            storage: new SimulatedStorage(),
+            storage: new SimulatedStorage(options.persistentStorage),
             locks: this.locks.of(node),
             broadcast: this.broadcast.of(node),
             navigation: new SimulatedNavigation(options.url ?? URL_START),
