@@ -30,43 +30,6 @@ Show designs as code and diagrams:
 - **PS31** Ideas SHOULD come with code, as pseudocode at least, ideally in a form expected to run.
 - **PS32** Interfaces SHOULD be designed like APIs, since everything is an API in some sense.
 - **PS33** Noun trees and main boxes and lines SHOULD be drawn in ASCII, annotated with field names, types, methods and signatures.
-  ```text
-  Heap // per owner
-  ├── HeapOptions { gc: GcOptions, size_classes: SizeClassTable, ... }
-  ├── HeapLimits
-  ├── GcPacer
-  ├── is_gc_requested: bool
-  └── HeapStorage
-      ├── SmallStorage
-      │   ├── SizeClassTable
-      │   ├── SmallSpan[]
-      │   ├── partial_spans
-      │   └── cursors: cache index -> span
-      ├── LargeStorage
-      │   ├── LargeBlock[]
-      │   └── free_large_block_ids
-      ├── page_table: logical page -> PageOwner
-      ├── AllocationUsage
-      ├── GcState
-      └── CollectorState
-
-  /// One heap small space.
-  #[derive(Debug, Clone, PartialEq, Eq)]
-  pub(crate) struct SmallStorage {
-      /// The configured size-class table.
-      pub(crate) size_classes: SizeClassTable,
-      /// The configured span width.
-      pub(crate) span_size_bytes: usize,
-      /// The live heap spans.
-      pub(crate) spans: Vec<SmallSpan>,
-      /// The reusable non-full spans per exact small-span class, excluding the class cursor.
-      pub(crate) partial_spans: BTreeMap<SmallSpanClass, Vec<usize>>,
-      /// The span each small allocation class reserves from, by class cache index.
-      pub(crate) cursors: Vec<Option<usize>>,
-  }
-
-  // ... and so on ...
-  ```
 
 ### Tracing (PT)
 
@@ -98,7 +61,7 @@ Trace callers and scenarios first:
 
 ## Design (D)
 
-Model the problem with the fewest, most pristine nouns and verbs in a way the target machine understands well.
+Model the problem with the fewest, most pristine nouns and verbs that model the problem idiomatically in a way that the target machine understands well.
 
 ### Modeling (DM)
 
@@ -117,7 +80,8 @@ Keep types few and complete:
 - **DM14** State and responsibility SHOULD be bundled with the nouns they belong to, without inheritance hierarchies (unless mechanically required).
 
 Give each fact one owner:
-- **DM20** Every piece of the model SHOULD have one clear representation with one obvious owner; values derivable from it, such as the acting principal being the last delegate, are computed instead of stored.
+- **DM20** Every piece of the model SHOULD have one clear representation and "way of doing things", with one obvious owner
+- **DM21** One source of truth for all values SHOULD be preferred, and derived-at-runtime or at query time values SHOULD be preferred where feasible.
 
 Expose granular, reusable parts:
 - **DM30** Logic and state SHOULD be incrementally granular, reusable at several levels of granularity.
@@ -127,11 +91,12 @@ Put verbs on appropriate nouns:
 - **DM40** Associated functions SHOULD live on their noun when one presents itself, even when they use no state.
 - **DM41** Verbs SHOULD live on the noun that performs them, such as `authorization.grant` or `Scope.own`, instead of exported free functions; modules MAY keep their helpers unexported behind that noun.
 - **DM42** Instance nouns (or even singleton nouns) SHOULD be preferred over static nouns that act as just "namespaces"; that is, reshaping to allow the logic to live on "instances" SHOULD BE preferred over both static methods and generic free functions where feasible.
-- **DM43** Functions that *could* be methods SHOULD be methods: `foo(definition: &Definition) -> bool` becomes `Definition.foo` (this applies for both free functions and static methods); having loads of static methods / free functions that carry a related set of state is a strong smell that we SHOULD introduce proper nouns.
+- **DM43** Functions that *could* be methods SHOULD be methods: `foo(definition: &Definition) -> bool` becomes `Definition.foo` (this applies to both free functions and static methods); having loads of static methods / free functions that carry a related set of state is a strong smell that we SHOULD introduce proper nouns.
 - **DM44** Method matrices such as `x_for_y` SHOULD be replaced by realigned state and construction flows.
 - **DM45** Functions SHOULD operate on individual "units", with callers looping / mapping, instead of taking entire collections / arrays (wherever feasible).
+- **DM46** "Clean" verbs on nouns SHOULD be preferred over "verb noun" constructions where feasible, or in any case where the target noun is inferrable or plausibly redundant (e.g., `Registry.pull` is better than `Registry.pullRepository`).
 
-Make mutation obvious:
+Make mutation obvious and minimal:
 - **DM50** Mutating methods MUST make the mutation obvious in name and signature.
 - **DM51** Methods SHOULD return mutated state or take the mutator instead of mutating internally, where performance allows: `resolve_x` returns the resolved value instead of filling a cache and returning nothing.
 
