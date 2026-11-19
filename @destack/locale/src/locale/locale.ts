@@ -1,5 +1,17 @@
 import { schema } from "@destack/schema";
 
+/** The first day of the week where the engine does not say, ISO 8601's Monday. */
+const DEFAULT_FIRST_DAY = 1;
+
+/** The days of a week. */
+const WEEK_DAYS = 7;
+
+/** The week a locale uses, as `Intl.Locale.getWeekInfo` reads it where the engine has it. */
+const WeekInfo = schema.looseObject({
+    /** The first day of the week, from 1 for Monday to 7 for Sunday. */
+    firstDay: schema.number().int().min(DEFAULT_FIRST_DAY).max(WEEK_DAYS),
+});
+
 /** The parents CLDR gives locales whose parent is not their language alone. */
 const PARENTS: Readonly<Record<string, string>> = {
     "en-150": "en-001",
@@ -63,6 +75,17 @@ export type Direction = schema.Infer<typeof Direction>;
 
 /** The language tags people read and packages write in. */
 export const Locale = {
+    /** Read the first day of the week a locale uses, from 1 for Monday to 7 for Sunday. */
+    firstDay(tag: string): number {
+        // ask the engine, which Firefox does not answer
+        const locale = new Intl.Locale(tag);
+        const getWeekInfo: unknown = Reflect.get(locale, "getWeekInfo");
+
+        return typeof getWeekInfo === "function"
+            ? WeekInfo.parse(Reflect.apply(getWeekInfo, locale, [])).firstDay
+            : DEFAULT_FIRST_DAY;
+    },
+
     /** Read the direction a locale writes in from the script it most likely uses. */
     direction(tag: LocaleTag): Direction {
         const script = new Intl.Locale(tag).maximize().script;
