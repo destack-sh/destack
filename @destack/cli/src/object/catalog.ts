@@ -11,15 +11,11 @@ import {
     type MethodKind,
     ObjectType,
     type Package,
+    PackageMount,
     Casing,
 } from "@destack/object";
-import {
-    type ClientOptions,
-    ObjectStoreDescription,
-    ProcedureRemote,
-} from "@destack/object/client";
-import { PARTITION_HEADER } from "@destack/object/workload";
-import { nth, present, schema } from "@destack/schema";
+import { ObjectStoreDescription, ObjectConnection } from "@destack/object/client";
+import { nth, schema } from "@destack/schema";
 import { Scope } from "@destack/sync";
 import stackPackage from "@destack/stack/package";
 import { Setting, SETTING_KIND } from "@destack/setting";
@@ -158,13 +154,8 @@ export class Noun {
     }
 
     /** Open a client of the type's objects in the scope the terminal uses for them. */
-    async client(context: Context): Promise<ProcedureRemote> {
-        return ProcedureRemote.at({
-            scope: await this.#locate(context),
-            endpoint: await Noun.options(context, this.store, this.package),
-            ...(await this.#homes(context)),
-            environment: (await context.native()).environment,
-        });
+    async client(context: Context): Promise<ObjectConnection> {
+        return Noun.connect(context, this.store, this.package, await this.#locate(context));
     }
 
     /** The levels of the scopes the type's objects live in, none for objects in any scope. */
@@ -226,60 +217,55 @@ export class Noun {
         }
     }
 
-    /** Read a package implementation's client options, as the person or the machine's owner. */
-    static async options(
+    /** Connect to a package implementation's store, closed once the command line ran. */
+    static async connect(
         context: Context,
         store: Store,
         implementation: Pick<PackageImplementationDescription, "packageId" | "installation">,
-    ): Promise<ClientOptions> {
-        // call this computer's device, and its machine's partition by the partition header
+        scope?: string,
+    ): Promise<ObjectConnection> {
+        // close the connection once the command line ran
+        const connection = await Noun.#open(context, store, implementation, scope);
+        context.defer(() => connection.close());
+
+        return connection;
+    }
+
+    /** Open a connection to a package implementation's store, as the person or the owner. */
+    static async #open(
+        context: Context,
+        store: Store,
+        implementation: Pick<PackageImplementationDescription, "packageId" | "installation">,
+        scope?: string,
+    ): Promise<ObjectConnection> {
+        // connect to this computer's device, and its machine's partition by the partition header
         const { packageId } = implementation;
         const name = implementation.installation?.name;
         const native = await context.native();
+        const path = PackageMount.path(packageId);
         if (store === "device") {
-            return native.loopback.options(packageId);
+            return native.loopback.connection(path, scope);
         } else if (store === "machine") {
-            const options = native.loopback.options(packageId);
-            const send = present(options.fetch, "the loopback's fetch");
             const { machine } = await native.loopback.read();
 
-            return {
-                ...options,
-                fetch: (request, ...rest) => {
-                    request.headers.set(PARTITION_HEADER, machine);
-
-                    return send(request, ...rest);
-                },
-            };
+            return native.loopback.connection(path, scope, machine);
         }
 
-        // call the universe at the person's issuer
+        // connect to the universe at the person's issuer, stepping up as a call asks
         const launcher = await context.launcher();
         const { elevate } = context.consent();
         if (store === "universe") {
-            return launcher.endpoint(packageId, "universe", { elevate });
-        }
-        // call a named installation of the space at its origin
-        else if (name !== undefined) {
-            return launcher.installation(await context.requireSpace(), name, packageId);
-        }
-        // call the space's own package at the machine serving it
-        else {
-            return launcher.endpoint(packageId, await context.locate(), { elevate });
-        }
-    }
-
-    /** Read the client options of the homes the type's changes act in, as the person. */
-    async #homes(context: Context): Promise<{ readonly homes?: (scope: string) => ClientOptions }> {
-        // call this computer's device or machine alone as its owner
-        if (this.store === "device" || this.store === "machine") {
-            return {};
+            return launcher.connect({ scope: scope ?? Scope.universe.id }, packageId, { elevate });
         }
 
-        // call each scope's home as the person
-        const launcher = await context.launcher();
+        // connect to a named installation of the space at its origin, else to the space's own package where it is
+        const space = await context.requireSpace();
 
-        return { homes: (scope) => launcher.store(scope) };
+        return launcher.connect(
+            name === undefined ? { space } : { space, installation: name },
+            packageId,
+            { elevate },
+        );
     }
 }
 
@@ -352,16 +338,12 @@ export class Catalog {
     /** Describe a store as the person or this machine's owner, knowing the built-in types. */
     static async describe(context: Context, store: Store): Promise<ObjectStoreDescription> {
         // describe the store, the machine's partition by its scope beside the device's default one
-        const client = await context.native();
-        const options = await Noun.options(context, store, { packageId: DESCRIBING[store] });
+        const connection = await Noun.connect(context, store, { packageId: DESCRIBING[store] });
         const known = BUILT_IN_PACKAGES.flatMap((handle) => Object.values(handle.objects)).filter(
             (type): type is ObjectType => type instanceof ObjectType,
         );
 
-        return await ObjectStoreDescription.read(
-            ProcedureRemote.procedures(options, client.environment),
-            known,
-        );
+        return await ObjectStoreDescription.read(connection.store, known);
     }
 
     /** Select an object by its identifier, in a space and a view. */

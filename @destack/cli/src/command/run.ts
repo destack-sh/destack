@@ -190,7 +190,7 @@ export class CommandLine {
             // answer a completion script's candidates for the typed words
             const line = CommandLine.read(words[0] === COMPLETE ? words.slice(1) : words);
             const space = line.space ?? environment.process.variables[SPACE_VARIABLE];
-            const context = new Context(open, space, environment);
+            await using context = new Context(open, space, environment);
             await using terminal = context.terminal;
             const tree = new CommandTree(CommandLine.tree(context));
             if (words[0] === COMPLETE) {

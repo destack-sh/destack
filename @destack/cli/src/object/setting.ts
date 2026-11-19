@@ -8,7 +8,7 @@ import type { Terminal } from "../output/index.ts";
 
 import { listCommand } from "./command.ts";
 import { LIST_OPTIONS } from "./flag.ts";
-import type { ObjectClient, ProcedureRemote } from "@destack/object/client";
+import type { ObjectClient, ObjectConnection } from "@destack/object/client";
 import { Noun } from "./catalog.ts";
 import { Render } from "./render.ts";
 import { CliError } from "../error/index.ts";
@@ -411,10 +411,10 @@ async function show(
 /** The values a store's settings noun stores at its scope, without overrides. */
 class StoreSettingValues implements SettingValues {
     /** The client of the store's settings. */
-    readonly #remote: ProcedureRemote;
+    readonly #remote: ObjectConnection;
 
     /** Read and write a store's settings through a client. */
-    constructor(remote: ProcedureRemote) {
+    constructor(remote: ObjectConnection) {
         this.#remote = remote;
     }
 

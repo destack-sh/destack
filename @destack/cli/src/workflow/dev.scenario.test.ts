@@ -50,7 +50,7 @@ const Phase = schema.looseObject({ state: schema.string(), phase: schema.string(
 const Summary = schema.object({
     space: schema.string(),
     id: schema.string(),
-    lock: schema.string(),
+    image: schema.string(),
     package: schema.unknown(),
 });
 

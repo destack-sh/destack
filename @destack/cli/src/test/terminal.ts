@@ -165,7 +165,7 @@ export class TerminalFixture {
 
     /** Publish a fixture of the run into its account's forge as the platform's operator. */
     async publish(fixture: string): Promise<void> {
-        await this.computer.publish(TestDistribution.lockOf(fixture));
+        await this.computer.publish(TestDistribution.imageOf(fixture));
     }
 
     /** Install a published fixture under a name in a space, the owner's home by default. */

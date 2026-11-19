@@ -35,7 +35,7 @@ const BUILT_IN_SETTINGS: readonly Setting[] = [...NATIVE_SETTINGS, ...DESKTOP_SE
 export type CliEnvironment = Environment<"files" | "process" | "host" | "opener" | "server">;
 
 /** What a command line acts in: its environment, this computer's device, the person and a space. */
-export class Context {
+export class Context implements AsyncDisposable {
     /** The space --space names: an address, identifier, alias, home, residency or bare name. */
     readonly spaceOption: string | undefined;
     /** The command line's clock, network, files, processes and platform. */
@@ -56,6 +56,8 @@ export class Context {
     #location: Promise<PlacementEndpoint> | undefined;
     /** The nouns and settings the stores describe, read once. */
     #catalog: Promise<Catalog> | undefined;
+    /** What closes once the command line ran, such as its connections. */
+    readonly #closing = new AsyncDisposableStack();
 
     /** Act in an environment through the native device an opener opens, in the space of --space. */
     constructor(
@@ -68,6 +70,16 @@ export class Context {
         this.spaceOption = space;
         this.environment = environment;
         this.terminal = new Terminal(environment.process, environment.timeZone);
+    }
+
+    /** Close something once the command line ran, as its connections close. */
+    defer(close: () => void | Promise<void>): void {
+        this.#closing.defer(close);
+    }
+
+    /** Close what the command line opened. */
+    async [Symbol.asyncDispose](): Promise<void> {
+        await this.#closing.disposeAsync();
     }
 
     /** Open this computer's native device once. */

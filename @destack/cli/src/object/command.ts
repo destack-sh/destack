@@ -1,6 +1,6 @@
 import { Condition, TABLE } from "@destack/db";
 import { connectBunSqlite } from "@destack/db/bun";
-import { ObjectClient, type ProcedureRemote } from "@destack/object/client";
+import { ObjectClient, type ObjectConnection } from "@destack/object/client";
 import type { ObjectQuery } from "@destack/object";
 import { principal } from "@destack/access";
 import { Scope } from "@destack/sync";
@@ -415,7 +415,7 @@ function renderResult(noun: Noun, method: string, result: JsonValue, terminal: T
 /** Follow a query's rows for the person through an in-memory replica until the signal aborts. */
 async function* watch(
     noun: Noun,
-    remote: ProcedureRemote,
+    remote: ObjectConnection,
     query: Pick<ObjectQuery, "where" | "orderBy" | "limit">,
     signal: AbortSignal,
     context: Context,

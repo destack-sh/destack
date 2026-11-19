@@ -21,12 +21,12 @@ const PACKAGE = {
 /** A printed installation's identifier. */
 const Created = schema.looseObject({ id: schema.identifier("installation") });
 
-/** A printed release's version and lock. */
+/** A printed release's version and image. */
 const Published = schema.looseObject({
     releases: schema.array(
         schema.looseObject({
             package: schema.looseObject({ version: schema.string() }),
-            lock: schema.string(),
+            image: schema.string(),
         }),
     ),
 });
@@ -34,12 +34,12 @@ const Published = schema.looseObject({
 /** A printed installation revision's build. */
 const Revised = schema.looseObject({ buildId: schema.identifier("build") });
 
-/** A printed build's source, lock and state. */
+/** A printed build's source, image and state. */
 const Built = schema.looseObject({
     /** What the build compiled. */
     source: schema.jsonObject(),
-    /** The digest of the stored build's lock. */
-    lock: schema.string(),
+    /** The digest of the stored build's image. */
+    image: schema.string(),
     /** How the build ended. */
     state: schema.string(),
 });
@@ -70,7 +70,7 @@ async function build(terminal: TerminalFixture, target: InstallationRollout) {
     const revision = Revised.parse(await json(terminal, ["installation-revision", revisionId]));
     const built = Built.parse(await json(terminal, ["stack:build", revision.buildId]));
 
-    return { source: built.source, lock: built.lock, state: built.state };
+    return { source: built.source, image: built.image, state: built.state };
 }
 
 /** Read an installation's name, what it follows and its readiness, without its change time. */
@@ -107,7 +107,7 @@ test("follow a published release's tag, then pin the installation to the release
     const converged = await terminal.rollout(following.id, isReady);
 
     // pin it to the release instead, until it runs it at the new generation
-    const { lock } = released;
+    const { image } = released;
     const { version } = released.package;
     await json(terminal, ["install", specifier, "--name", "notebooks"]);
     const settled = await terminal.rollout(
@@ -146,8 +146,8 @@ test("follow a published release's tag, then pin the installation to the release
             },
         ],
         builds: [
-            { source, lock, state: "succeeded" },
-            { source, lock, state: "succeeded" },
+            { source, image, state: "succeeded" },
+            { source, image, state: "succeeded" },
         ],
     });
 });

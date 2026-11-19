@@ -61,7 +61,7 @@ export function buildCommand(context: Context): Verb {
             await context.terminal.print(
                 json
                     ? JSON.stringify(built)
-                    : context.terminal.event("Built", "done", `build '${built.lock}'`),
+                    : context.terminal.event("Built", "done", `build '${built.image}'`),
             );
         },
     };
@@ -141,7 +141,7 @@ async function build(
 ): Promise<{
     readonly space: string;
     readonly id: Identifier<"build">;
-    readonly lock: string;
+    readonly image: string;
     readonly package: PackageJson["package"];
 }> {
     // draw request identifiers from the device's environment
@@ -182,7 +182,7 @@ async function build(
     return {
         space,
         id: created.id,
-        lock: stackObject.Build.lock(finished),
+        image: stackObject.Build.image(finished),
         package: read.package,
     };
 }
