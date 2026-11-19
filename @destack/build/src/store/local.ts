@@ -24,8 +24,8 @@ import {
     LayerIndex,
     type LayerFile,
 } from "@destack/package/manifest";
-import { DependencyTree } from "../dependency/tree.ts";
-import { Digest, found, JsonValue, present, schema, Uuid } from "@destack/schema";
+import { BuildTree } from "../dependency/tree.ts";
+import { Digest, JsonValue, present, schema, Uuid } from "@destack/schema";
 import { HOST_RUNTIME, type Runtime } from "@destack/package/runtime";
 
 /** The directory below a store's directory with its blobs, by digest. */
@@ -48,9 +48,6 @@ const LAYERED_DIRECTORY = "layered";
 
 /** The directory below a store's directory with its linked layers, by releases and runtimes. */
 const LAYERS_DIRECTORY = "layers";
-
-/** The suffix of an image's run directory while it is written, moved in once whole. */
-const STAGING_SUFFIX = ".staging";
 
 /** The prefix of a directory's root, forgotten once the directory is gone. */
 const DIRECTORY_ROOT_PREFIX = "directory:";
@@ -416,8 +413,8 @@ export class LocalBuildStore
             await this.#link(join(pool, digest), join(directory, digest));
         }
 
-        // remove the builds and run directories left out
-        const kept = new Set<string>([...builds, ...shipped.keys()]);
+        // remove the builds left out
+        const kept = new Set<string>(builds);
         const stale = (await files.readDirectory(directory)).filter(
             (entry) =>
                 (entry.kind === "directory" || entry.kind === "symlink") &&
@@ -436,19 +433,7 @@ export class LocalBuildStore
         for (const image of isHosting ? shipped.values() : []) {
             const releases = await BuildImage.releases(image, (digest) => this.get(digest));
             const resolve = (build: Digest, name: string) => BuildImage.resolve(image, build, name);
-            await DependencyTree.materialize(this, releases, resolve, trees, { kind: "compile" });
-        }
-
-        // write each hosted image's root with its run tree in a directory of the image's own
-        for (const [digest, image] of isHosting ? shipped : []) {
-            const reader = found(readers, image.root);
-            const isRunning = Object.values(reader.manifest.outputs).some(
-                (output) => output.runtime === HOST_RUNTIME,
-            );
-            const run = join(directory, digest);
-            if (isRunning && !(await files.exists(run))) {
-                await this.#writeRun(reader, await this.runTree(image, HOST_RUNTIME, trees), run);
-            }
+            await BuildTree.materialize(this, releases, resolve, trees, { kind: "compile" });
         }
 
         // index each build's manifest and files last
@@ -579,24 +564,6 @@ export class LocalBuildStore
         );
     }
 
-    /** Write an image's root and its run tree in a directory, unless another process did first. */
-    async #writeRun(reader: BuildReader, tree: DependencyTree, run: string): Promise<void> {
-        // stage it under this process's name
-        const { files, process } = this.environment;
-        const staging = `${run}${STAGING_SUFFIX}.${process.id}`;
-        await files.remove(staging, { recursive: true, force: true });
-        await this.#writeDirectory(reader, staging, await reader.distributed());
-        await tree.link(join(staging, "node_modules"), files);
-
-        // move it in, leaving one another process moved in first
-        await files.rename(staging, run).catch(async (error: unknown) => {
-            if (!FileSystemError.is(error, "FILE_EXISTS")) {
-                throw error;
-            }
-            await files.remove(staging, { recursive: true });
-        });
-    }
-
     /** Write a build into the store's layered builds once, unless another writer did first. */
     async #writePooled(reader: BuildReader, build: string): Promise<void> {
         // leave a build the pool has
@@ -642,46 +609,63 @@ export class LocalBuildStore
         await files.writeFile(join(directory, MANIFEST_PATH), manifest, { createNew: true });
     }
 
-    /** Lay out the tree an image's root runs with on a runtime, a layered one in place. */
-    runTree(
+    /** Lay out the tree an image runs on a runtime. */
+    tree(
         image: BuildImage,
         runtime: Runtime,
+        builtins: ReadonlyMap<string, BuildImage>,
         directory: string = this.trees,
-    ): Promise<DependencyTree> {
-        return this.scope.span("destack.build.run_tree", {}, () =>
-            this.#runTree(image, runtime, directory),
+    ): Promise<BuildTree> {
+        return this.scope.span("destack.build.tree", {}, () =>
+            this.#tree(image, runtime, builtins, directory),
         );
     }
 
-    /** Place each build of an image's export closure for a runtime. */
-    async #runTree(
+    /** Place the builds an image runs with. */
+    async #tree(
         image: BuildImage,
         runtime: Runtime,
+        builtins: ReadonlyMap<string, BuildImage>,
         directory: string,
-    ): Promise<DependencyTree> {
-        // read the closure of every export, refusing a build the store lacks
-        const closure = await this.closure(
+    ): Promise<BuildTree> {
+        // read the closures of the image and the builtins it reaches
+        const find = async (needed: Digest) => {
+            const stored = await this.find(needed);
+            if (stored === undefined) {
+                throw BuildError.of(
+                    "DEPENDENCY_INVALID",
+                    `build '${needed}' of image root '${image.root}' is invalid: it is missing from the store`,
+                );
+            }
+
+            return stored;
+        };
+        const reached = await this.imports(image, runtime, CLOSURE_BASE, builtins, find);
+        const images = [
             image,
-            runtime,
-            async (needed) => {
-                const stored = await this.find(needed);
-                if (stored === undefined) {
-                    throw BuildError.of(
-                        "DEPENDENCY_INVALID",
-                        `build '${needed}' of image root '${image.root}' is invalid: it is missing from the store`,
-                    );
-                }
-
-                return stored;
-            },
-            "export",
+            ...[...builtins.values()].filter((each) => reached.builds.has(each.root)),
+        ];
+        const closures = await Promise.all(
+            images.map((each) => this.closure(each, runtime, find, "export")),
         );
+        const closure = new Set(closures.flatMap((each) => [...each]));
 
-        // place each closure build's output once
-        const releases = await BuildImage.releases(image, (digest) => this.get(digest));
-        const resolve = (build: Digest, name: string) => BuildImage.resolve(image, build, name);
+        // list each image's releases once
+        const listed = await Promise.all(
+            images.map((each) => BuildImage.releases(each, (digest) => this.get(digest))),
+        );
+        const releases = [...new Map(listed.flat().map((each) => [each.manifest, each])).values()];
 
-        return await DependencyTree.materialize(this, releases, resolve, directory, {
+        // resolve a name through its image, else to its builtin
+        const resolve = (build: Digest, name: string) => {
+            const listing = images.find((each) => BuildImage.lists(each, build));
+            const pinned =
+                listing === undefined ? undefined : BuildImage.resolve(listing, build, name);
+
+            return pinned ?? builtins.get(name)?.root;
+        };
+
+        return await BuildTree.materialize(this, releases, resolve, directory, {
             kind: "run",
             runtime,
             closure,
@@ -743,7 +727,7 @@ export class LocalBuildStore
             .filter((entry) => entry.kind === "directory")
             .map((entry) => ({
                 name: entry.name,
-                manifest: DependencyTree.manifestOf(entry.name),
+                manifest: BuildTree.manifestOf(entry.name),
             }));
         const manifests = await this.#stored(trees.map((tree) => tree.manifest));
         for (const tree of trees) {

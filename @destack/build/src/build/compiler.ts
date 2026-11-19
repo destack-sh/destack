@@ -14,7 +14,7 @@ import { PackageFile } from "@destack/package/file";
 import type { LocalBuildStore } from "../store/local.ts";
 import { BuildObject } from "../store/store.ts";
 import type { PackageBuildOptions } from "./build.ts";
-import { DependencyTree } from "../dependency/tree.ts";
+import { BuildTree } from "../dependency/tree.ts";
 import {
     type BuildRequest,
     type BuildResponse,
@@ -242,10 +242,10 @@ export class Compiler implements AsyncDisposable {
     /** Materialize a request's dependency builds in the store's trees, which the compiler reads. */
     async #install(
         options: Pick<PackageBuildOptions, "dependencies" | "links">,
-    ): Promise<DependencyTree> {
+    ): Promise<BuildTree> {
         const { dependencies, links } = options;
 
-        return await DependencyTree.install(dependencies, links, this.workspace, this.store);
+        return await BuildTree.install(dependencies, links, this.workspace, this.store);
     }
 
     /** Start the compiler again after a failed one. */

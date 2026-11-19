@@ -12,7 +12,7 @@ import { LocalBuildStore } from "./local.ts";
 import { BuildObject, BuildStore } from "./store.ts";
 import { BuildLayer, LAYER_FORMAT } from "@destack/package/manifest";
 import { hoisted } from "../dependency/test/store.ts";
-import { DependencyTree } from "../dependency/tree.ts";
+import { BuildTree } from "../dependency/tree.ts";
 
 /** A day, in milliseconds. */
 const DAY_MILLISECONDS = 24 * 60 * 60_000;
@@ -396,7 +396,7 @@ test("link a running tree's build to its closure's builds alone, never reading o
         "@example/library": library,
         "@example/tool": tool,
     };
-    const tree = await DependencyTree.materialize(store, ...hoisted(entries), store.trees, {
+    const tree = await BuildTree.materialize(store, ...hoisted(entries), store.trees, {
         kind: "run",
         runtime: "bun",
         closure,
@@ -455,7 +455,7 @@ test("move a build's tree into place after the trees it links", async () => {
 
     // materialize the app running on Bun
     const entries = { "@example/answer": built, "@example/library": required };
-    await DependencyTree.materialize(store, ...hoisted(entries), store.trees, {
+    await BuildTree.materialize(store, ...hoisted(entries), store.trees, {
         kind: "run",
         runtime: "bun",
         closure: new Set([built.manifest, required.manifest]),
@@ -488,7 +488,7 @@ test("leave the builtins out of a run tree, as the runtime links them", async ()
 
     // place the app and the library alone
     const image = BuildImage.of(root, { [root]: { "@example/library": library }, [library]: {} });
-    const tree = await store.runTree(image, "bun");
+    const tree = await store.tree(image, "bun", new Map());
     expect(Object.keys(tree.directories).toSorted()).toEqual([
         "@example/answer",
         "@example/library",

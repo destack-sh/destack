@@ -1,7 +1,7 @@
 import type { FileSystem } from "@destack/environment";
 import type { BuildReader } from "@destack/package/manifest";
 import { testSimulation } from "../src/test/world.ts";
-import { DependencyTree } from "../src/dependency/index.ts";
+import { BuildTree } from "../src/dependency/index.ts";
 import { join } from "node:path";
 import { present, schema } from "@destack/schema";
 import { expect, refusal, test } from "@destack/test";
@@ -205,7 +205,7 @@ test("apply the extensions of a package's runtime dependency closure, its depend
     const loaded = await loadExtensions(
         directory,
         await readPackageJson(directory, files),
-        await DependencyTree.read({}, files),
+        await BuildTree.read({}, files),
         files,
     );
     await using store = await LocalBuildStore.temporary(environment);
@@ -250,7 +250,7 @@ test("compile a package through a listed extension and leave a development depen
             await loadExtensions(
                 directory,
                 await readPackageJson(directory, files),
-                await DependencyTree.read({}, files),
+                await BuildTree.read({}, files),
                 files,
             )
         ).map((entry) => entry.directory);
@@ -324,7 +324,7 @@ test("load a listed package's extension without walking its dependencies, and bu
         await loadExtensions(
             directory,
             await readPackageJson(directory, files),
-            await DependencyTree.read({}, files),
+            await BuildTree.read({}, files),
             files,
         );
     await using store = await LocalBuildStore.temporary(environment);
@@ -436,13 +436,9 @@ test("refuse what a module an extension generates imports until the package decl
     const leaf = present(entries["@fixture/leaf"], "the leaf build");
     const destination = join(root, "deployed");
     await build.writeDirectory(destination, files);
-    const tree = await DependencyTree.materialize(
-        store,
-        [leaf],
-        () => undefined,
-        join(root, "builds"),
-        { kind: "compile" },
-    );
+    const tree = await BuildTree.materialize(store, [leaf], () => undefined, join(root, "builds"), {
+        kind: "compile",
+    });
     await tree.link(join(destination, "node_modules"), files);
     const barrel = present(
         build.manifest.outputs["bun"]?.exports["barrel"]?.path,

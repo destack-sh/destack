@@ -3,7 +3,7 @@ import { expect, refusal, test } from "@destack/test";
 import type { Environment, FileSystem } from "@destack/environment";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { CompilerPool, DependencyTree, Workspace } from "../src/index.ts";
+import { CompilerPool, BuildTree, Workspace } from "../src/index.ts";
 import { BuildImage } from "@destack/package/manifest";
 import { present, schema } from "@destack/schema";
 import { BuildStore } from "../src/store/index.ts";
@@ -138,7 +138,7 @@ test("build a workspace's units once, keep the application's build on a library 
         const destination = join(directory, `application-${index}`);
         await built.writeDirectory(destination, files);
         const entries = await store.entriesOf(image);
-        const tree = await DependencyTree.materialize(
+        const tree = await BuildTree.materialize(
             store,
             [present(entries[LIBRARY], "the library build")],
             () => undefined,
@@ -458,7 +458,7 @@ test("materialize a library's tree once per checkout, each linking the npm packa
     // materialize its tree for each checkout into the store's shared trees
     const linked: string[] = [];
     for (const { workspace } of [first, second]) {
-        const tree = await DependencyTree.materialize(
+        const tree = await BuildTree.materialize(
             store,
             [built],
             () => undefined,

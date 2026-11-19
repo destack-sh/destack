@@ -1,7 +1,7 @@
 import { ModuleTransformer } from "@destack/package/transform";
 import type { Program } from "@destack/package/bun";
 import { Environment, FileSystemError, type Output, Telemetry } from "@destack/environment";
-import { DependencyTree } from "../dependency/tree.ts";
+import { BuildTree } from "../dependency/tree.ts";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
@@ -431,7 +431,7 @@ export class CompilerWorker implements AsyncDisposable {
         // plan the outputs with the extensions of the package's dependency closure
         const { files: system } = this.environment;
         const packageJson = await readPackageJson(options.directory, system);
-        const tree = await DependencyTree.read(options.tree, system);
+        const tree = await BuildTree.read(options.tree, system);
         const loaded = await loadExtensions(options.directory, packageJson, tree, system);
         const extensions = loaded.map((entry) => entry.extension);
         const own = declarations
@@ -642,7 +642,7 @@ export class CompilerWorker implements AsyncDisposable {
         // link the dependency builds and the outputs' npm packages, as installed beside the package
         const { files: system } = this.environment;
         const modules = join(files.directory, "node_modules");
-        const linked = await DependencyTree.read(tree, system);
+        const linked = await BuildTree.read(tree, system);
         await linked.link(modules, system);
         const npm = new Set([...outputs.values()].flatMap((output) => [...output.npm]));
         for (const name of [...npm].filter((each) => linked.directories[each] === undefined)) {

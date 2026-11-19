@@ -10,7 +10,7 @@ import { type JsonObject, type JsonValue, schema, type Version } from "@destack/
 import { PackagePath } from "@destack/package/file";
 import { type Runtime } from "@destack/package/runtime";
 import { PackageLocator } from "@destack/package/locator";
-import { DependencyTree } from "../dependency/tree.ts";
+import { BuildTree } from "../dependency/tree.ts";
 
 /** Source manifests and selected runtime exports for a package build. */
 export interface PackageSource {
@@ -33,7 +33,7 @@ export interface PackageSource {
     /** The package's root modules: exports, type declarations and extra modules. */
     entries: readonly string[];
     /** The builds of the package's Destack dependencies, materialized for it. */
-    tree: DependencyTree;
+    tree: BuildTree;
     /** The files the build reads and the processes its transforms run. */
     environment: Environment<"files" | "process">;
     /** The compiling program, which shares its toolchain with the code the build loads. */
@@ -84,7 +84,7 @@ export const PackageSource = {
         }
 
         // read the dependencies' builds and list the root modules
-        const tree = await DependencyTree.read(options.tree, files);
+        const tree = await BuildTree.read(options.tree, files);
         const roots = [
             ...Object.values(definition.exports),
             ...Object.values(definition.types),

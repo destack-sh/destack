@@ -1,5 +1,5 @@
 import { HOST_RUNTIME } from "@destack/package/runtime";
-import { DependencyTree } from "../dependency/tree.ts";
+import { BuildTree } from "../dependency/tree.ts";
 import { join } from "node:path";
 import type { FileSystem } from "@destack/environment";
 import {
@@ -37,7 +37,7 @@ export interface LoadedExtension {
 export async function loadExtensions(
     directory: string,
     packageJson: PackageJson,
-    tree: DependencyTree,
+    tree: BuildTree,
     files: FileSystem,
 ): Promise<LoadedExtension[]> {
     // take the package itself, then its listed extensions and its runtime dependency closure
@@ -127,7 +127,7 @@ export async function loadTransforms(
     // develop from the sources, where no dependency's build is materialized
     const { files } = context.environment;
     const packageJson = await readPackageJson(context.directory, files);
-    const tree = await DependencyTree.read({}, files);
+    const tree = await BuildTree.read({}, files);
     const loaded = await loadExtensions(context.directory, packageJson, tree, files);
 
     return transformPlugins(

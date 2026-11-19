@@ -97,7 +97,7 @@ interface TreeVisit {
 }
 
 /** The builds of a package's Destack dependencies, materialized as a node_modules tree. */
-export class DependencyTree {
+export class BuildTree {
     /** The directory of each dependency's build or npm unit, by package name. */
     readonly directories: Readonly<Record<string, string>>;
     /** The role of each placed Destack build, by package name. */
@@ -122,9 +122,9 @@ export class DependencyTree {
         links: Readonly<Record<Digest, Readonly<Record<string, Digest>>>>,
         directory: string,
         store: LocalBuildStore,
-    ): Promise<DependencyTree> {
+    ): Promise<BuildTree> {
         // find the workspace the tree serves
-        const workspace = await DependencyTree.#workspace(directory, store.environment.files);
+        const workspace = await BuildTree.#workspace(directory, store.environment.files);
 
         // place the dependencies and every build their images link
         const builds = Object.values(dependencies);
@@ -149,7 +149,7 @@ export class DependencyTree {
             "destack.dependency.install",
             { "destack.dependency.builds": builds.length },
             () =>
-                DependencyTree.materialize(store, builds, resolve, store.trees, scope, {
+                BuildTree.materialize(store, builds, resolve, store.trees, scope, {
                     workspace,
                 }),
         );
@@ -166,14 +166,12 @@ export class DependencyTree {
             /** The workspace whose Bun store links its members' npm packages, else the entries. */
             readonly workspace?: string | undefined;
         } = {},
-    ): Promise<DependencyTree> {
+    ): Promise<BuildTree> {
         // take the builds the tree places
         const { files, crypto } = store.environment;
         const { workspace } = options;
         const installation =
-            workspace === undefined
-                ? undefined
-                : await DependencyTree.#installation(workspace, files);
+            workspace === undefined ? undefined : await BuildTree.#installation(workspace, files);
         const placed = new Map(
             builds
                 .filter((entry) => scope.kind === "compile" || scope.closure.has(entry.manifest))
@@ -192,7 +190,7 @@ export class DependencyTree {
         >();
         for (const [manifest, entry] of placed) {
             const reader = await store.contents(manifest);
-            const required = await DependencyTree.#required(reader, entry);
+            const required = await BuildTree.#required(reader, entry);
             const resolved = required.flatMap((each) => {
                 const target = resolve(manifest, each);
 
@@ -208,10 +206,10 @@ export class DependencyTree {
             const installed =
                 installation === undefined || !isMember
                     ? new Map<string, string>()
-                    : await DependencyTree.#installed(
+                    : await BuildTree.#installed(
                           installation,
                           entry.package.name,
-                          await DependencyTree.#authored(reader),
+                          await BuildTree.#authored(reader),
                           links,
                       );
             read.set(manifest, { reader, required, links, installed });
@@ -221,14 +219,14 @@ export class DependencyTree {
         const visits = new Map<Digest, TreeVisit>();
         for (const [manifest, entry] of placed) {
             const { reader, required, links, installed } = present(read.get(manifest), manifest);
-            const edges = DependencyTree.#edges(
+            const edges = BuildTree.#edges(
                 manifest,
                 (each) => present(read.get(each), each).links,
                 (each) => present(read.get(each), each).installed,
             );
             const base =
                 edges.length === 0 ? manifest : `${manifest}+${await Digest.json(edges, crypto)}`;
-            const root = join(directory, DependencyTree.#rootName(base, scope));
+            const root = join(directory, BuildTree.#rootName(base, scope));
             visits.set(manifest, {
                 name: entry.package.name,
                 entry,
@@ -255,7 +253,7 @@ export class DependencyTree {
 
             // place a root the trees lack
             if (!(await files.exists(visit.root))) {
-                await DependencyTree.#place(store, visit, visits, scope);
+                await BuildTree.#place(store, visit, visits, scope);
             }
         };
         for (const manifest of visits.keys()) {
@@ -273,9 +271,9 @@ export class DependencyTree {
                     )
                     .toReversed(),
             );
-        const tree = await DependencyTree.read(placedIn("destack"), files);
+        const tree = await BuildTree.read(placedIn("destack"), files);
 
-        return new DependencyTree(
+        return new BuildTree(
             { ...placedIn("npm"), ...tree.directories },
             tree.roles,
             tree.#exports,
@@ -292,7 +290,7 @@ export class DependencyTree {
         }
         // take every runtime dependency a Destack build's package.json declares
         else {
-            const authored = await DependencyTree.#authored(reader);
+            const authored = await BuildTree.#authored(reader);
 
             return PackageJson.runtimeDependencies(authored);
         }
@@ -345,7 +343,7 @@ export class DependencyTree {
         const target = join(staged, "node_modules", name);
         for (const [each, manifest] of Object.entries(visit.links)) {
             const linked = join(present(visits.get(manifest), manifest).root, "node_modules", each);
-            await DependencyTree.#symlink(
+            await BuildTree.#symlink(
                 linked,
                 join(staged, "node_modules", each),
                 { staged, root },
@@ -369,7 +367,7 @@ export class DependencyTree {
             }
             const prefix = `${output.directory}/`;
             await store.place(
-                (await DependencyTree.#placed(reader, scope))
+                (await BuildTree.#placed(reader, scope))
                     .filter((file) => file.path.startsWith(prefix))
                     .map((file) => ({
                         file,
@@ -393,7 +391,7 @@ export class DependencyTree {
         }
         // place a Destack build's files
         else {
-            const built = await DependencyTree.#placed(reader, scope);
+            const built = await BuildTree.#placed(reader, scope);
             await store.place(
                 built
                     .filter((file) => file.path !== "package.json")
@@ -403,16 +401,16 @@ export class DependencyTree {
                 join(target, MANIFEST_PATH),
                 PackageManifest.serialize(reader.manifest),
             );
-            const authored = await DependencyTree.#authored(reader);
+            const authored = await BuildTree.#authored(reader);
             for (const [each, path] of visit.installed) {
-                await DependencyTree.#symlink(
+                await BuildTree.#symlink(
                     path,
                     join(target, "node_modules", each),
                     { staged, root },
                     files,
                 );
             }
-            const exports = DependencyTree.#exportsOf(
+            const exports = BuildTree.#exportsOf(
                 Object.values(reader.manifest.outputs),
                 authored.exports,
             );
@@ -423,7 +421,7 @@ export class DependencyTree {
         }
 
         // move it into place
-        await DependencyTree.#move(staged, root, files);
+        await BuildTree.#move(staged, root, files);
     }
 
     /** Find the npm packages a member declares as the workspace installed them. */
@@ -461,7 +459,7 @@ export class DependencyTree {
     /** Read how a workspace installs npm packages: by its members' links, else in its Bun store. */
     static async #installation(workspace: string, files: FileSystem): Promise<WorkspaceInstall> {
         // read the members of the workspace the lockfile belongs to, none outside a lockfile
-        const located = await DependencyTree.#workspace(workspace, files);
+        const located = await BuildTree.#workspace(workspace, files);
         const lockfile = await BunLockfile.read(located, files);
         const members = lockfile === undefined ? {} : lockfile.workspaces;
         const installed = join(located, "node_modules", ".bun");
@@ -477,8 +475,8 @@ export class DependencyTree {
         return {
             members: new Set(sources.keys()),
             find: async (owner, name, release, isRequired) =>
-                (await DependencyTree.#linked(sources.get(owner), name, files)) ??
-                DependencyTree.#installedIf(installed, entries, release, isRequired),
+                (await BuildTree.#linked(sources.get(owner), name, files)) ??
+                BuildTree.#installedIf(installed, entries, release, isRequired),
         };
     }
 
@@ -583,7 +581,7 @@ export class DependencyTree {
     static async read(
         directories: Readonly<Record<string, string>>,
         files: FileSystem,
-    ): Promise<DependencyTree> {
+    ): Promise<BuildTree> {
         // read each package's exports, and its role where it declares one
         const roles = new Map<string, PackageRole>();
         const exports = new Map<string, schema.Infer<typeof MaterializedExports>>();
@@ -599,7 +597,7 @@ export class DependencyTree {
             }
         }
 
-        return new DependencyTree(directories, roles, exports);
+        return new BuildTree(directories, roles, exports);
     }
 
     /** List the real roots a tree's packages link to, each once. */
@@ -607,23 +605,11 @@ export class DependencyTree {
         // start at each package's root
         const pending = await Promise.all(
             Object.values(this.directories).map((directory) =>
-                files.realPath(DependencyTree.#rootOf(directory)),
+                files.realPath(BuildTree.#rootOf(directory)),
             ),
         );
 
-        return await DependencyTree.#follow(pending, files);
-    }
-
-    /** List the real roots a directory's node_modules links to, each once. */
-    static async linkedRoots(directory: string, files: FileSystem): Promise<readonly string[]> {
-        const linked = await DependencyTree.#linkedPackages(join(directory, "node_modules"), files);
-        const pending = await Promise.all(
-            linked.map(async (path) =>
-                files.realPath(DependencyTree.#rootOf(await files.realPath(path))),
-            ),
-        );
-
-        return await DependencyTree.#follow(pending, files);
+        return await BuildTree.#follow(pending, files);
     }
 
     /** Follow roots' linked packages to their roots, visiting each root once. */
@@ -634,14 +620,12 @@ export class DependencyTree {
                 // take the links beside the root's packages and inside each package it places
                 roots.add(root);
                 const modules = join(root, "node_modules");
-                const placed = await DependencyTree.#placedPackages(modules, files);
+                const placed = await BuildTree.#placedPackages(modules, files);
                 const directories = [modules, ...placed.map((path) => join(path, "node_modules"))];
                 for (const directory of directories) {
-                    for (const linked of await DependencyTree.#linkedPackages(directory, files)) {
+                    for (const linked of await BuildTree.#linkedPackages(directory, files)) {
                         pending.push(
-                            await files.realPath(
-                                DependencyTree.#rootOf(await files.realPath(linked)),
-                            ),
+                            await files.realPath(BuildTree.#rootOf(await files.realPath(linked))),
                         );
                     }
                 }
@@ -665,7 +649,7 @@ export class DependencyTree {
             const path = join(directory, entry.name);
             // list a scope's packages
             if (entry.kind === "directory" && entry.name.startsWith("@")) {
-                placed.push(...(await DependencyTree.#placedPackages(path, files)));
+                placed.push(...(await BuildTree.#placedPackages(path, files)));
             }
             // list a package, leaving dotfiles such as .bin
             else if (entry.kind === "directory" && !entry.name.startsWith(".")) {
@@ -686,7 +670,7 @@ export class DependencyTree {
             if (entry.kind === "symlink") {
                 linked.push(path);
             } else if (entry.kind === "directory" && entry.name.startsWith("@")) {
-                linked.push(...(await DependencyTree.#linkedPackages(path, files)));
+                linked.push(...(await BuildTree.#linkedPackages(path, files)));
             }
         }
 
@@ -700,8 +684,8 @@ export class DependencyTree {
             for (const [subpath, conditions] of Object.entries(exports)) {
                 const types = conditions["types"];
                 if (types !== undefined) {
-                    paths[DependencyTree.#specifier(name, subpath)] = [
-                        join(DependencyTree.#directory(this.directories, name), types),
+                    paths[BuildTree.#specifier(name, subpath)] = [
+                        join(BuildTree.#directory(this.directories, name), types),
                     ];
                 }
             }
@@ -730,7 +714,7 @@ export class DependencyTree {
         }
 
         // answer each runtime's module of the subpath, none for a subpath of types alone
-        const directory = DependencyTree.#directory(this.directories, name);
+        const directory = BuildTree.#directory(this.directories, name);
         const modules: Partial<Record<Runtime, string>> = {};
         for (const runtime of Runtime.options) {
             const module = conditions[runtime];
@@ -764,7 +748,7 @@ export class DependencyTree {
             );
             for (const [subpath, module] of subpaths) {
                 const conditions = (exports[subpath] ??= {});
-                for (const condition of DependencyTree.#conditions(output.runtime)) {
+                for (const condition of BuildTree.#conditions(output.runtime)) {
                     conditions[condition] = `./${module.path}`;
                 }
             }

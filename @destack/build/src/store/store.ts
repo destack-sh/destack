@@ -1559,11 +1559,6 @@ export class BuildStore<
         return { map, builds };
     }
 
-    /** Find a layered build's or image's directory, which runtimes run in place. */
-    layered(digest: Digest): string | undefined {
-        return this.layer.directory(digest);
-    }
-
     /** List the real directories the store's layer keeps files in, which its readers read. */
     layerDirectories(): Promise<readonly string[]> {
         return this.layer.directories();
