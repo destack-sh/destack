@@ -69,7 +69,7 @@
         "@destack/observability": "workspace:*",
         "@destack/finance": "workspace:*",
         "@destack/forge": "workspace:*",
-        "@destack/home": "workspace:*",
+        "@destack/blank": "workspace:*",
         "@destack/notification": "workspace:*",
         "@destack/social": "workspace:*",
         "@destack/vault": "workspace:*",
