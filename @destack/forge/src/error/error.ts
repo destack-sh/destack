@@ -9,6 +9,7 @@ export const ForgeError = defineErrorFamily({
         GITHUB_WEBHOOK_NOT_FOUND: {},
         PACKAGE_NOT_FOUND: {},
         RELEASE_NOT_FOUND: {},
+        REPOSITORY_NOT_FOUND: {},
         TARGET_NOT_FOUND: {},
         UPLOAD_OUTSIDE_ACCOUNT_NOT_FOUND: {},
 

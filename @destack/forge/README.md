@@ -56,6 +56,14 @@ Prereleases are dev versions, and the forge keeps each package's newest ones and
 The forge answers npm clients below its `npm` mount, read-only: a package's listing, and each release's sources as a tarball.
 A release keeps its tarball and what a listing says of it from its publish, so neither request packs anything.
 
+### Git clients
+
+Git clones and pushes a repository at `https://destack.app/@<handle>/<name>.git`.
+
+```sh
+git clone https://destack.app/@ada/site.git
+```
+
 ## Examples
 
 ### Install the forge

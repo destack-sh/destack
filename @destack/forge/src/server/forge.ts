@@ -3,8 +3,9 @@ import { connectionShape, Runner } from "@destack/connection/server";
 import { BuildStore } from "@destack/build/store";
 import type { BuildLayer } from "@destack/package/manifest";
 import type { Environment } from "@destack/environment";
-import { type BlobStore, inArray, Snapshot, TABLE, Transaction } from "@destack/db";
-import { Directory } from "@destack/account/address";
+import { type BlobStore, inArray, type Select, Snapshot, TABLE, Transaction } from "@destack/db";
+import { Lease } from "@destack/resource";
+import { Directory, UniverseOrigin } from "@destack/account/address";
 import { Account, account, claimShape, spaceRecordShape } from "@destack/account/object";
 import {
     Claim,
@@ -36,7 +37,7 @@ import type { GitStorage } from "@destack/git";
 import { ForgeError, type ForgeReason } from "../error/index.ts";
 import { implementPackageObject } from "./package.ts";
 import { implementRelease } from "./release.ts";
-import { implementRepository } from "./repository.ts";
+import { implementRepository, RepositoryHosting } from "./repository.ts";
 import { implementTag } from "./tag.ts";
 import { implementIssuer } from "./issuer.ts";
 
@@ -89,6 +90,9 @@ export interface ClaimReader {
     readonly read: Snapshot["read"];
 }
 
+/** The Git service that writes a repository, which leases it for writing (gitprotocol-http). */
+const RECEIVE_PACK = "git-receive-pack";
+
 /** The path npm clients ask below the mount: a package, or a release's tarball below `/-/`. */
 const NPM_PATH = /\/@([^/]+)\/([^/]+?)(\/-\/[^/]+?-(\d[^/]*)\.tgz)?$/u;
 
@@ -102,6 +106,8 @@ export class Forge {
     readonly #options: ForgeOptions;
     /** The repositories hosted at GitHub, absent in a universe running no GitHub App. */
     readonly #github: GitHubHosting | undefined;
+    /** Where repositories live: the forge's storage, GitHub and Git remotes. */
+    readonly #repositories: RepositoryHosting;
 
     /** Serve the forge over its home's storage, stores and GitHub App. */
     constructor(options: ForgeOptions) {
@@ -115,13 +121,14 @@ export class Forge {
         this.#github = hosting;
 
         // serve repositories at their origins, and releases packed from pushed builds
+        this.#repositories = new RepositoryHosting({
+            storage: options.storage,
+            github: hosting,
+            fetch: options.fetch,
+            vault: options.vault,
+        });
         this.handled = [
-            implementRepository({
-                storage: options.storage,
-                github: hosting,
-                fetch: options.fetch,
-                vault: options.vault,
-            }),
+            implementRepository(this.#repositories),
             reference,
             implementPackageObject({ store: this.store }),
             implementRelease(),
@@ -201,6 +208,7 @@ export class Forge {
             mounts: {
                 builds: (request, _caller, context, store) => this.#builds(request, context, store),
                 npm: (request, _caller, context, store) => this.#npm(request, context, store),
+                git: (request, _caller, context, store) => this.#git(request, context, store),
                 github:
                     webhook ??
                     (async () => {
@@ -279,6 +287,39 @@ export class Forge {
                 : { ...packageObject.reference(home, found.objectId), id: found.objectId };
 
         return { accountId, package: claimed };
+    }
+
+    /** Find a repository by its account's handle and its name, refusing an unknown one. */
+    static async repository(
+        handle: string,
+        name: string,
+        reader: ClaimReader,
+        home: Identifier<"space">,
+    ): Promise<Select<typeof repository.table>> {
+        // resolve the account handle, then the repository claiming the name within the account
+        await Forge.#acquire(reader, Claim.key(account, "handle", [handle]));
+        const accountId = await new Directory(reader).account(handle);
+        const keyed =
+            accountId === undefined ? undefined : Claim.key(repository, "name", [accountId, name]);
+        if (keyed !== undefined) {
+            await Forge.#acquire(reader, keyed);
+        }
+        const claimed =
+            keyed === undefined ? undefined : await Claim.owner(reader.read(claimTable), keyed);
+        const found =
+            claimed === undefined
+                ? undefined
+                : await reader.read(repository.table).findFirst({
+                      where: { scope: home, id: repository.identifier(claimed.objectId) },
+                  });
+        if (found === undefined) {
+            throw ForgeError.of(
+                "REPOSITORY_NOT_FOUND",
+                `repository '@${handle}/${name}' not found`,
+            );
+        }
+
+        return found;
     }
 
     /** Refuse a builtin outside the platform's organization, the one owning the forge's home. */
@@ -436,6 +477,63 @@ export class Forge {
         );
 
         return Response.json(listing);
+    }
+
+    /** Answer Git's smart HTTP below a repository, as the caller's open of it allows. */
+    async #git(request: Request, context: RequestContext, objects: ObjectStore): Promise<Response> {
+        // read the repository and the Git path, writing for receive-pack alone
+        const { pathname, searchParams } = new URL(request.url);
+        const link = UniverseOrigin.link(decodeURIComponent(pathname));
+        if (link?.kind !== "repository") {
+            throw ForgeError.of("REPOSITORY_NOT_FOUND", "repository not found");
+        }
+        const service =
+            link.path === "/info/refs" ? searchParams.get("service") : link.path.slice(1);
+        const mode = service === RECEIVE_PACK ? "write" : "read";
+
+        // ask an anonymous caller to authenticate, as git asks its credential helper on a 401
+        if (Caller.isAnonymous(context.access())) {
+            throw ForgeError.of(
+                "CREDENTIAL_UNAUTHENTICATED",
+                "authentication required: caller credential is missing",
+            );
+        }
+
+        // find the repository, and open it as the caller, concealing each refusal
+        const snapshot = Snapshot.live(objects.database);
+        const reader: ClaimReader = {
+            acquire: (follow, at) => objects.acquire(follow, at, context.signal),
+            read: (table) => snapshot.read(table),
+        };
+        const target = await Forge.repository(link.handle, link.name, reader, this.#options.home);
+        const lease = await Forge.conceal("REPOSITORY_NOT_FOUND", "repository not found", () =>
+            objects.query(
+                context.access(target.scope),
+                repository.call("open", { ...repository.target(target), mode }),
+            ),
+        );
+        const response = await this.#repositories.serve(
+            target,
+            Lease.parse(lease),
+            link.path,
+            request,
+        );
+
+        // answer a read as it streams, or a push once its references are refreshed
+        if (link.path !== `/${RECEIVE_PACK}` || !response.ok) {
+            return response;
+        }
+        const body = new Uint8Array(await response.arrayBuffer());
+        await objects.mutate(
+            objects.as(repository),
+            {
+                id: RequestId.create(objects.environment),
+                calls: [repository.call("refresh", repository.target(target))],
+            },
+            { component: "git" },
+        );
+
+        return new Response(body, { status: response.status, headers: response.headers });
     }
 
     /** Authorize an upload below an account's handle: an enrolled machine's or a publisher's. */

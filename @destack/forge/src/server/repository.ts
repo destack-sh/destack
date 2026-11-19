@@ -24,6 +24,7 @@ import {
     GitAdvertisement,
     GitCredential,
     type GitListing,
+    GitRemote,
     type GitReference,
     type GitStorage,
 } from "@destack/git";
@@ -48,10 +49,9 @@ export interface RepositoryOptions {
     readonly vault: ObjectReference;
 }
 
-/** Implement repositories. */
-export function implementRepository(options: RepositoryOptions): typeof repository {
-    const hosting = new RepositoryHosting(options);
-    const { github } = options;
+/** Implement repositories over where they are hosted. */
+export function implementRepository(hosting: RepositoryHosting): typeof repository {
+    const { github } = hosting;
 
     return repository.implement({
         methods: {
@@ -195,7 +195,7 @@ export function implementRepository(options: RepositoryOptions): typeof reposito
 }
 
 /** Where the forge's repositories store their Git data: its storage, GitHub or a Git remote. */
-class RepositoryHosting {
+export class RepositoryHosting {
     /** The repositories hosted at GitHub, absent in a universe running no GitHub App. */
     readonly github: GitHubHosting | undefined;
     /** The storage of platform repositories. */
@@ -366,6 +366,13 @@ class RepositoryHosting {
                 headers: await this.#basic(target, runner),
             };
         }
+    }
+
+    /** Answer a smart HTTP request below a repository through a lease of its origin. */
+    serve(target: Row, lease: Lease, path: string, request: Request): Promise<Response> {
+        return target.hosting === "platform"
+            ? this.#storage.serve(lease, path, request)
+            : GitRemote.forward(lease, path, request, this.#fetch);
     }
 
     /** Delete the storage of a rolled back creation, its columns unread when unprepared. */
