@@ -1,6 +1,6 @@
 import { expect, test } from "@destack/test";
 import { apca, Color, Palette, Srgb } from "./index.ts";
-import { PRESETS } from "../preset/index.ts";
+import { PRESETS } from "@destack/color";
 
 /** Seeds across hues, lightness and chroma. */
 const SEEDS = ["#3e63dd", "#f76b15", "#ffc53d", "#46a758", "#ff0000", "#7c3aed", "#888888"];

@@ -1,6 +1,6 @@
 import { schema } from "@destack/schema";
 import { Color, HexColor, Srgb } from "./color.ts";
-import { PRESETS, Preset } from "../preset/index.ts";
+import { PRESETS, Preset } from "@destack/color";
 
 /** The exponent chroma falls by from the seed's lightness toward white. */
 const LIGHTER_FALLOFF = 0.5;

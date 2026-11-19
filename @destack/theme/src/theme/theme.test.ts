@@ -2,7 +2,7 @@ import { PackageVersion } from "@destack/package";
 import { expect, refusal, test } from "@destack/test";
 import { defineTheme } from "../declare/index.ts";
 import { apca, Color, Palette, Srgb } from "../palette/index.ts";
-import { GRAY_PRESETS, PRESET_NAMES, PRESETS } from "../preset/index.ts";
+import { GRAY_PRESETS, PRESET_NAMES, PRESETS } from "@destack/color";
 import {
     DEFAULT_DISPLAY,
     GRAPHIC_CONTRAST,

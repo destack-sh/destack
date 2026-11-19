@@ -1,7 +1,7 @@
 import { PackageVersion, PackageError } from "@destack/package";
 import { present, schema } from "@destack/schema";
 import { apca, Palette, Seed, type ColorScheme, Srgb } from "../palette/index.ts";
-import { ACCENT_PRESETS } from "../preset/index.ts";
+import { ACCENT_PRESETS } from "@destack/color";
 import { MOTION_VARIABLE, TOKENS, VARIABLE_PREFIX, type Variable } from "../token/index.ts";
 import { DENSITY_SCALES, Density, TEXT_SCALES, type Contrast, type Display } from "./display.ts";
 import {
