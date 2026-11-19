@@ -14,60 +14,68 @@ export async function renderOnServer(module: string): Promise<Record<string, str
     // compile the module and Solid's server runtime for the server from the tested package, as builds do
     const host = testHost();
     const root = host.process.workingDirectory;
-    const server = await createServer({
-        root,
-        configFile: false,
-        logLevel: "silent",
-        appType: "custom",
-        server: { middlewareMode: true, hmr: false, ws: false },
-        optimizeDeps: { noDiscovery: true },
-        plugins: [
-            modulePlugin(new ModuleTransformer(host)),
-            loadTransforms({
-                directory: root,
-                runtime: "bun",
-                server: true,
-                environment: host,
-            }),
-        ],
-    });
+    const cache = await host.files.makeTemporaryDirectory("destack-hydration-");
     try {
-        // load the module, the runtime rendering its components and the environment context they read
-        const loaded = await server.ssrLoadModule(resolve(root, module));
-        const runtime = await server.ssrLoadModule("@solidjs/web");
-        const view = await server.ssrLoadModule(resolve(root, CONTEXT_MODULE));
-        const context: unknown = Reflect.get(view, "EnvironmentContext");
-        const render: unknown = Reflect.get(runtime, "renderToString");
-        const create: unknown = Reflect.get(runtime, "createComponent");
-        if (!isRenderer(render) || !isCreator(create) || !isFunction(context)) {
-            throw new TypeError(
-                "the server runtime has no renderToString, createComponent or environment context",
-            );
-        }
-
-        // render each exported component in turn on a server render's environment, past the exports the compiler adds
-        const environment = BrowserEnvironment.server(host);
-        const rendered: Record<string, string> = {};
-        for (const [name, component] of Object.entries(loaded)) {
-            if (name.startsWith("$$")) {
-                continue;
-            }
-            if (!isFunction(component)) {
-                throw new TypeError(`'${module}' exports '${name}', which is not a component`);
-            }
-            rendered[name] = await render(() =>
-                create(context, {
-                    value: environment,
-                    get children() {
-                        return create(component, {});
-                    },
+        const server = await createServer({
+            root,
+            // give this server its own dependency cache
+            cacheDir: cache,
+            configFile: false,
+            logLevel: "silent",
+            appType: "custom",
+            server: { middlewareMode: true, hmr: false, ws: false },
+            optimizeDeps: { noDiscovery: true },
+            plugins: [
+                modulePlugin(new ModuleTransformer(host)),
+                loadTransforms({
+                    directory: root,
+                    runtime: "bun",
+                    server: true,
+                    environment: host,
                 }),
-            );
-        }
+            ],
+        });
+        try {
+            // load the module, the runtime rendering its components and the environment context they read
+            const loaded = await server.ssrLoadModule(resolve(root, module));
+            const runtime = await server.ssrLoadModule("@solidjs/web");
+            const view = await server.ssrLoadModule(resolve(root, CONTEXT_MODULE));
+            const context: unknown = Reflect.get(view, "EnvironmentContext");
+            const render: unknown = Reflect.get(runtime, "renderToString");
+            const create: unknown = Reflect.get(runtime, "createComponent");
+            if (!isRenderer(render) || !isCreator(create) || !isFunction(context)) {
+                throw new TypeError(
+                    "the server runtime has no renderToString, createComponent or environment context",
+                );
+            }
 
-        return rendered;
+            // render each exported component in turn on a server render's environment, past the exports the compiler adds
+            const environment = BrowserEnvironment.server(host);
+            const rendered: Record<string, string> = {};
+            for (const [name, component] of Object.entries(loaded)) {
+                if (name.startsWith("$$")) {
+                    continue;
+                }
+                if (!isFunction(component)) {
+                    throw new TypeError(`'${module}' exports '${name}', which is not a component`);
+                }
+                rendered[name] = await render(() =>
+                    create(context, {
+                        value: environment,
+                        get children() {
+                            return create(component, {});
+                        },
+                    }),
+                );
+            }
+
+            return rendered;
+        } finally {
+            await server.close();
+        }
     } finally {
-        await server.close();
+        // remove the server's cache, also after a failed start
+        await host.files.remove(cache, { recursive: true });
     }
 }
 
