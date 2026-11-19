@@ -2,10 +2,10 @@
     "name": "@example/blank",
     "license": "MIT",
     "type": "module",
-    "description": "Start a new Destack package from an empty package with one setting.",
+    "description": "Show an empty page with Destack's mark: the app a space and a new package start from.",
     "exports": {
-        "./setting": "./src/setting/index.ts",
-        "./package": "./src/package.ts"
+        "./package": "./src/package.ts",
+        "./view": "./src/view/index.ts"
     },
     "scripts": {
         "postinstall": "destack-check configure"
@@ -18,8 +18,8 @@
         "@destack/locale": "latest",
         "@destack/object": "2026.9.0",
         "@destack/package": "latest",
-        "@destack/schema": "latest",
-        "@destack/setting": "2026.9.0",
-        "@example/stack": "2026.9.0"
+        "@destack/style": "latest",
+        "@destack/theme": "latest",
+        "@destack/view": "latest"
     }
 }

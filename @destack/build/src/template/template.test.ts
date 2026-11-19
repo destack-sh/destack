@@ -11,34 +11,25 @@ import { expectDirectory } from "../../tests/fixture.ts";
 /** The packages the instances depend on at a released version, the others at the default tag. */
 const RELEASED = ["@destack/object", "@destack/setting"];
 
-test.each(["stack", "blank"])("instantiate the %s package template", async (name) => {
+test("instantiate the blank package as a template", async () => {
     await using simulation = testSimulation();
     const environment = simulation.environment("test");
     const { files } = environment;
     const directory = await files.makeTemporaryDirectory("template-");
     const template = await Template.read(
-        fileURLToPath(new URL(`../../../template-${name}/`, import.meta.url)),
+        fileURLToPath(new URL("../../../blank/", import.meta.url)),
         files,
     );
     const parameters: TemplateInput = {
         id: PackageId.parse("package-01996ab0-0000-7000-8000-000000000005"),
-        name: `@example/${name}`,
-        dependencies:
-            name === "blank"
-                ? {
-                      "@destack/template-stack": {
-                          id: PackageId.parse("package-01996ab0-0000-7000-8000-000000000006"),
-                          name: "@example/stack",
-                          version: "2026.9.0",
-                      },
-                  }
-                : {},
+        name: "@example/blank",
+        dependencies: {},
         versions: Object.fromEntries(RELEASED.map((each) => [each, "2026.9.0"])),
     };
 
     try {
         // instantiate the package into a new directory
-        const destination = join(directory, name);
+        const destination = join(directory, "blank");
         await template.write(destination, parameters, Toolchain.workspace(), files);
 
         // compare every written file against the fixture
@@ -49,7 +40,7 @@ test.each(["stack", "blank"])("instantiate the %s package template", async (name
         }
         await expectDirectory(
             written,
-            new URL(`../../tests/fixture/template/${name}/expected/`, import.meta.url),
+            new URL("../../tests/fixture/template/blank/expected/", import.meta.url),
             environment,
         );
     } finally {

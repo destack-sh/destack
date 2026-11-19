@@ -1,0 +1,27 @@
+import mark from "@destack/theme/mark.svg?url";
+import * as style from "@destack/style";
+import { swatch } from "@destack/theme/tokens.stylex";
+import type { JSX } from "@destack/view";
+
+/** The page's layout: the brand's orange, the mark centred on it. */
+const styles = style.create({
+    page: {
+        display: "grid",
+        placeItems: "center",
+        minBlockSize: "100dvh",
+        backgroundColor: swatch.orangeSolid,
+    },
+    mark: {
+        inlineSize: "6rem",
+        blockSize: "6rem",
+    },
+});
+
+/** Render an empty page with Destack's mark. */
+export default function Blank(): JSX.Element {
+    return (
+        <main {...style.attrs(styles.page)}>
+            <img src={mark} alt="Destack" {...style.attrs(styles.mark)} />
+        </main>
+    );
+}

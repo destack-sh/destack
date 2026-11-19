@@ -3,5 +3,10 @@
     "id": "package-01996ab0-0000-7000-8000-000000000005",
     "role": "app",
     "language": "typescript",
-    "runtimes": ["browser", "bun", "workerd"]
+    "runtimes": ["browser", "bun", "workerd"],
+    "exports": {
+        "./view": {
+            "runtimes": ["browser"]
+        }
+    }
 }
