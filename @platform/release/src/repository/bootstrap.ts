@@ -4,7 +4,7 @@ import type { FileSystem } from "@destack/environment";
 import type { Metadata, Targets } from "@tufjs/models";
 import { TargetCustom } from "@destack/update/release";
 import type { Catalog, CatalogDistribution } from "../distribution/catalog.ts";
-import { INSTALLER_FORMATS, InstallerFormat } from "../distribution/catalog.ts";
+import { downloadNameOf, INSTALLER_FORMATS, InstallerFormat } from "../distribution/catalog.ts";
 
 /** A signed target path of a target or installer name with its archive or installer extension. */
 const TARGET_PATH = new RegExp(
@@ -24,14 +24,12 @@ export async function writeBootstrap(
     const cases: string[] = [];
     const versions = new Set<string>();
     for (const [path, file] of Object.entries(targets.signed.targets)) {
-        const match = TARGET_PATH.exec(path);
-        const target = match?.[1];
-        if (!match || target === undefined) {
+        const [, target, format] = TARGET_PATH.exec(path) ?? [];
+        if (target === undefined || format === undefined) {
             throw new Error(`invalid target path: '${path}'`);
         }
 
         // leave out a release's manifest, which updaters read and people never download
-        const format = match[2];
         if (format === "json") {
             continue;
         }
@@ -44,7 +42,13 @@ export async function writeBootstrap(
         const download = new URL(`targets/${sha256}.${path}`, url).href;
         const { version } = TargetCustom.parse(file.unrecognizedFields["custom"]);
         const distribution = (downloads[target] ??= { installers: {} });
-        const entry = { version, url: download, sha256, size: file.length };
+        const entry = {
+            version,
+            url: download,
+            sha256,
+            size: file.length,
+            name: downloadNameOf(target, format),
+        };
         versions.add(version);
 
         // list an archive and its installer case

@@ -13,6 +13,7 @@ import { TargetCustom } from "@destack/update/release";
 import { RepositoryConfiguration } from "./index.ts";
 import { RepositoryRenewal } from "./renewal.ts";
 import { R2ReleaseBucket } from "./bucket.ts";
+import { downloadNameOf } from "../distribution/catalog.ts";
 import { SignedRepository } from "@destack/update/publish";
 import { Manifest } from "@destack/update";
 import { MetadataDocument } from "./document.ts";
@@ -38,7 +39,7 @@ const CONTENT_TYPES: Readonly<Record<string, string>> = {
 };
 
 /** A target's installer or archive under its digest, capturing its target and format. */
-const DOWNLOAD = /^targets\/[0-9a-f]{64}\.(.+\.(?:dmg|tar\.gz))$/u;
+const DOWNLOAD = /^targets\/[0-9a-f]{64}\.(.+)\.(dmg|tar\.gz)$/u;
 
 /** Upload immutable files before publishing the timestamp that makes them current. */
 export async function publish(
@@ -293,9 +294,11 @@ function targetPath(target: TargetFile): string {
 
 /** Read the name a browser saves an installer or archive as, absent for files programs read. */
 function downloadName(path: string): string | undefined {
-    const [, target] = DOWNLOAD.exec(path) ?? [];
+    const [, target, format] = DOWNLOAD.exec(path) ?? [];
 
-    return target === undefined ? undefined : `Destack-${target}`;
+    return target === undefined || format === undefined
+        ? undefined
+        : downloadNameOf(target, format);
 }
 
 /** Select the media type of an explicitly supported publication file. */

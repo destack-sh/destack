@@ -19,10 +19,17 @@ export const CatalogDownload = schema.object({
     sha256: schema.string(),
     /** Exact archive length in bytes. */
     size: schema.number(),
+    /** The file name a browser saves the download as. */
+    name: schema.string(),
 });
 
 /** One public archive or installer authenticated by targets metadata. */
 export type CatalogDownload = schema.Infer<typeof CatalogDownload>;
+
+/** Name the file a browser saves a download as: the universal installer after the app alone. */
+export function downloadNameOf(target: string, format: string): string {
+    return format === "dmg" ? "Destack.dmg" : `Destack-${target}.${format}`;
+}
 
 /** An updater archive and native installer choices for one platform. */
 export const CatalogDistribution = schema.object({
