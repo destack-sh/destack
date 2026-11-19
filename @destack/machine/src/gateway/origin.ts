@@ -3,21 +3,15 @@ import { locateHome } from "../machine/registry.ts";
 import * as accountObject from "@destack/account/object";
 import { AccountError } from "@destack/account/error";
 import { Failure, HTTP_DOMAIN } from "@destack/error";
-import { PackageId, PackageVersion, Sandbox } from "@destack/package";
+import { OriginPath, PackageId, PackageVersion, Sandbox } from "@destack/package";
 import { Digest, schema, type Identifier, present, Uuid } from "@destack/schema";
-import {
-    InstallationOrigin,
-    OPEN_PATH,
-    REQUEST_PATH,
-    SpaceAddress,
-} from "@destack/account/address";
+import { InstallationOrigin, SpaceAddress } from "@destack/account/address";
 import { Issuer, Session, UserIdentity } from "@destack/account/client";
 import type { GrantRequest } from "@destack/account/authentication";
 import { TokenCache } from "@destack/access/token";
 import { Launcher, type LauncherMachine } from "../launcher/index.ts";
 import {
     InstallationMount,
-    PACKAGE_PATH,
     PackageDescription,
     PackageMount,
     SpaceMount,
@@ -60,11 +54,9 @@ import {
 import type { PackageFile } from "@destack/package/file";
 import { Bookmark, createClient, type ClientOf } from "@destack/object/client";
 import {
-    CLIENT_PATH,
-    HOME_PATH,
     INSTALLATION_PARAMETER,
     LINK_PARAMETER,
-    PLATFORM_PATH,
+    ScopePath,
     TARGET_PARAMETER,
     TOKEN_PARAMETER,
     ViewAddress,
@@ -78,9 +70,6 @@ import type { Gateway, GatewaySpace } from "./gateway.ts";
 import { MachineError } from "../error/index.ts";
 import { OriginCookie } from "./cookie.ts";
 import { StaticHost, AssetIndex } from "./host.ts";
-
-/** The path a view's dependency builds are served below, each under its digest. */
-export const BUILD_PATH = "/.destack/build/";
 
 /** The cookie with a page's session on its installation's origin, as a backend for frontend. */
 export const SESSION_COOKIE = "destack-session";
@@ -162,7 +151,7 @@ export class InstallationOriginServer {
 
             // complete a sign-in the issuer returns to the open path with its code
             const code = url.searchParams.get("code");
-            if (request.method === "GET" && url.pathname === OPEN_PATH && code !== null) {
+            if (request.method === "GET" && url.pathname === OriginPath.open && code !== null) {
                 return await this.#complete(request, url, code, found, mount);
             }
 
@@ -180,23 +169,19 @@ export class InstallationOriginServer {
 
             // serve a page's own paths as its visitor, and the installation's own package
             const page = await this.#page(request, url, found, mount);
-            if (url.pathname === PACKAGE_PATH || url.pathname.startsWith(`${PACKAGE_PATH}/`)) {
-                return await this.#package(request, url, page);
-            }
-            // serve the platform's packages
-            else if (url.pathname.startsWith(`${PLATFORM_PATH}/`)) {
-                return await this.#platform(request, url, page);
-            }
-            // forward a call to its scope's primary
-            else if (url.pathname.startsWith(`${HOME_PATH}/`)) {
-                return await this.#primary(request, url, page);
+            const scoped = ScopePath.parse(url.pathname);
+            if (scoped !== undefined) {
+                return await this.#call(request, url, page, scoped);
             }
             // request the page's person's permission a call needs, or a fresh sign-in
-            else if (url.pathname === REQUEST_PATH) {
+            else if (url.pathname === OriginPath.request) {
                 return await this.#request(url, page);
             }
             // register or bind the page's client
-            else if (url.pathname === CLIENT_PATH || url.pathname.startsWith(`${CLIENT_PATH}/`)) {
+            else if (
+                url.pathname === OriginPath.session ||
+                url.pathname.startsWith(`${OriginPath.session}/`)
+            ) {
                 return await this.#client(request, url, page);
             }
             // append the page's telemetry
@@ -204,7 +189,10 @@ export class InstallationOriginServer {
                 return await this.#pageTelemetry(request, url, page);
             }
             // open another installation's view at its own origin
-            else if (url.pathname === OPEN_PATH && url.searchParams.has(INSTALLATION_PARAMETER)) {
+            else if (
+                url.pathname === OriginPath.open &&
+                url.searchParams.has(INSTALLATION_PARAMETER)
+            ) {
                 return await this.#open(url);
             }
 
@@ -261,7 +249,7 @@ export class InstallationOriginServer {
         }
 
         // take the token a sign-in posts to the open path as a form (OpenID form_post)
-        if (request.method !== "POST" || url.pathname !== OPEN_PATH) {
+        if (request.method !== "POST" || url.pathname !== OriginPath.open) {
             return undefined;
         }
         const form = await RequestBody.text(request, "a launch form", LAUNCH_FORM_BYTES);
@@ -349,7 +337,7 @@ export class InstallationOriginServer {
                 : { authorization_details: [{ type: GRANT_DETAIL, ...grant }] };
         const authorization = await issuer.authorizeSigned(
             origin,
-            `${origin}${OPEN_PATH}`,
+            `${origin}${OriginPath.open}`,
             state,
             ORIGIN_SCOPES,
             environment.clock.now(),
@@ -405,7 +393,7 @@ export class InstallationOriginServer {
 
         // redeem the code for the person's account token, which lives within their session at the issuer
         const issuer = this.#issuer();
-        const redirect = `${url.origin}${OPEN_PATH}`;
+        const redirect = `${url.origin}${OriginPath.open}`;
         const signedIn = await issuer.redeem(url.origin, code, attempt.verifier, redirect);
         const { environment } = this.#space.machine;
         const user = new UserIdentity(
@@ -552,7 +540,7 @@ export class InstallationOriginServer {
             exp: now + SESSION_SECONDS,
         });
         url.searchParams.delete(TOKEN_PARAMETER);
-        const path = url.pathname === OPEN_PATH ? "/" : `${url.pathname}${url.search}`;
+        const path = url.pathname === OriginPath.open ? "/" : `${url.pathname}${url.search}`;
 
         return new Response(null, {
             status: 303,
@@ -682,76 +670,79 @@ export class InstallationOriginServer {
         return authentication;
     }
 
-    /** Call the space's object API or the installation's own package, as the page's person. */
-    async #package(request: Request, url: URL, page: Page): Promise<Response> {
-        // connect to the space store through the stack package, else call the installation's
-        InstallationOriginServer.#requireSameOrigin(request, url);
-        const { rollout: found } = page;
-        const below = url.pathname.slice(PACKAGE_PATH.length) || "/";
-        const isObjectApi = below === CONNECTION_PATH;
-        const packageId = PackageId.parse(
-            isObjectApi ? stackPackage.id : found.installation.packageId,
-        );
+    /** Call a scope's packages under the page's grant: in-process here, else at its primary. */
+    async #call(
+        request: Request,
+        url: URL,
+        page: Page,
+        scoped: { readonly scope: string; readonly path: string },
+    ): Promise<Response> {
+        // call the page's own space in-process, forwarding any other scope to its primary
+        return scoped.scope === this.#space.id
+            ? await this.#local(request, url, page, scoped.path)
+            : await this.#primary(request, url, page);
+    }
 
-        // act as the visitor toward that package, with the links they opened the page by
+    /** Call the space's store or one of its packages in-process, as the page's person. */
+    async #local(request: Request, url: URL, page: Page, path: string): Promise<Response> {
+        // act as the visitor toward the package, with the links they opened the page by
+        InstallationOriginServer.#requireSameOrigin(request, url);
         const headers = InstallationOriginServer.#linked(request.headers, page);
         headers.delete("cookie");
+        const called = copyRequest(request, { headers }, `${url.origin}${path}${url.search}`);
+        const installed = InstallationMount.of(called);
+        const mounted = PackageMount.of(installed?.request ?? called);
 
-        // connect to the space's store, vouching for the visitor anew at each call as each request did
-        if (isObjectApi) {
-            const mounted = copyRequest(request, { headers }, `${url.origin}${below}${url.search}`);
+        // connect to the space's store, vouching for the visitor anew at each call
+        if (path === CONNECTION_PATH) {
+            return this.#space.call(stackPackage.id, called, async () =>
+                this.#authentication(page, stackPackage.id, request),
+            );
+        }
+        // refuse an installation of another space below this space's path
+        else if (installed !== undefined && installed.spaceId !== this.#space.id) {
+            throw MachineError.of(
+                "SCOPE_PATH_NOT_FOUND",
+                `scope path not found: installation '${installed.installation}' is not in '${this.#space.id}'`,
+            );
+        }
+        // call an installation's package below its mount, the page's own by its package alone
+        else if (
+            mounted !== undefined &&
+            (installed !== undefined || mounted.packageId === page.rollout.installation.packageId)
+        ) {
+            const packageId = PackageId.parse(mounted.packageId);
+            const installation = installed?.installation ?? page.rollout.installationId;
+            const mount = InstallationMount.url(request.url, this.#space.id, installation);
+            const below = new URL(mounted.request.url);
+            const served = copyRequest(
+                called,
+                {},
+                `${mount}${PackageMount.path(packageId)}${below.pathname}${below.search}`,
+            );
 
-            return this.#space.call(packageId, mounted, async () =>
+            return await this.#gateway.serve(served, async () =>
                 this.#authentication(page, packageId, request),
             );
         }
-        // call the installation's package below its mount
+        // call a package the space's store serves
+        else if (mounted !== undefined) {
+            const packageId = PackageId.parse(mounted.packageId);
+
+            return this.#space.call(packageId, mounted.request, async () =>
+                this.#authentication(page, packageId, request),
+            );
+        }
+        // refuse a path naming no package
         else {
-            const mount = InstallationMount.url(request.url, this.#space.id, found.installationId);
-            const mounted = copyRequest(
-                request,
-                { headers },
-                `${mount}${PackageMount.path(packageId)}${below}${url.search}`,
-            );
-
-            return await this.#gateway.serve(mounted, async () =>
-                this.#authentication(page, packageId, request),
+            throw MachineError.of(
+                "SCOPE_PATH_NOT_FOUND",
+                `scope path not found: '${path}' names no package of '${this.#space.id}'`,
             );
         }
     }
 
-    /** Call a platform service a view declares, as the page's person under their grant. */
-    async #platform(request: Request, url: URL, page: Page): Promise<Response> {
-        // require a service mount that a view of the installation declares, called from the page's own origin
-        InstallationOriginServer.#requireSameOrigin(request, url);
-        const below = new URL(url);
-        below.pathname = url.pathname.slice(PLATFORM_PATH.length);
-        const routed = PackageMount.of(new Request(below.href, request));
-        if (routed === undefined) {
-            throw MachineError.of(
-                "PLATFORM_SERVICE_NOT_FOUND",
-                `platform service '${url.pathname}' not found`,
-            );
-        }
-        const packageId = PackageId.parse(routed.packageId);
-        const views = Object.values(ViewDescription.list(page.reader.manifest));
-        if (!views.some((view) => view.packages.includes(packageId))) {
-            throw MachineError.of(
-                "VIEW_PACKAGE_DENIED",
-                `package '${packageId}' is forbidden: no view of '${page.rollout.installation.name}' declares it`,
-            );
-        }
-
-        // call it as the visitor at each call, with the links they opened the page by
-        const headers = InstallationOriginServer.#linked(routed.request.headers, page);
-        headers.delete("cookie");
-
-        return this.#space.call(packageId, new Request(routed.request, { headers }), async () =>
-            this.#authentication(page, packageId, routed.request),
-        );
-    }
-
-    /** Forward a page's call below a scope's home path to that scope's primary, as its person. */
+    /** Forward a page's call below a scope's path to that scope's primary, as its person. */
     async #primary(request: Request, url: URL, page: Page): Promise<Response> {
         // call a space's stack at the machine serving it, else the account package at the universe
         InstallationOriginServer.#requireSameOrigin(request, url);
@@ -837,13 +828,13 @@ export class InstallationOriginServer {
         const requestId = RequestId.create(this.#space.machine.environment);
 
         // bind the page's session to a client by a proof of its key, which has no body
-        if (url.pathname === `${CLIENT_PATH}/bind`) {
+        if (url.pathname === `${OriginPath.session}/bind`) {
             return await this.#bind(request, url, accounts, userId);
         }
 
         // register a client or its key
         const body = await RequestBody.json(request, "a client registration", REGISTRATION_BYTES);
-        if (url.pathname === `${CLIENT_PATH}/key`) {
+        if (url.pathname === `${OriginPath.session}/key`) {
             const {
                 client: parent,
                 publicKey,
@@ -860,7 +851,7 @@ export class InstallationOriginServer {
             return Response.json({});
         }
         // refuse another path below the client's
-        else if (url.pathname !== CLIENT_PATH) {
+        else if (url.pathname !== OriginPath.session) {
             throw MachineError.of(
                 "CLIENT_PATH_NOT_FOUND",
                 `client path '${url.pathname}' not found`,
@@ -1054,10 +1045,10 @@ export class InstallationOriginServer {
         const closure = await InstallationOriginServer.#memo(
             this.#closures,
             `${page.image} ${base}`,
-            () => this.#space.imports(page.image, "browser", `${base}${BUILD_PATH}`),
+            () => this.#space.imports(page.image, "browser", `${base}${OriginPath.build}/`),
         );
-        if (pathname.startsWith(BUILD_PATH)) {
-            const [digest = "", ...path] = pathname.slice(BUILD_PATH.length).split("/");
+        if (pathname.startsWith(`${OriginPath.build}/`)) {
+            const [digest = "", ...path] = pathname.slice(`${OriginPath.build}/`.length).split("/");
             const reached = Digest.safeParse(digest);
             if (!reached.success || !closure.builds.has(reached.data)) {
                 throw MachineError.of("VIEW_NOT_FOUND", `build '${digest}' of the views not found`);

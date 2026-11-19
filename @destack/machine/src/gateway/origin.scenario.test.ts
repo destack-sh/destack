@@ -1,6 +1,5 @@
 import { testIdentity } from "@destack/object/test";
 import { type Crypto, WebSocketUpgrade } from "@destack/environment";
-import { OTLP_ORIGIN_PATH } from "@destack/telemetry/otlp";
 import { eq } from "@destack/db";
 import { testHost } from "@destack/test/host";
 import { DOMAINS } from "@destack/account/address";
@@ -15,7 +14,6 @@ import {
     defineObject,
     field,
     definePackage,
-    PACKAGE_PATH,
     PackageMount,
     EDITION_HEADER,
     VERSION_HEADER,
@@ -25,8 +23,7 @@ import {
 import objectPackage from "@destack/object/package";
 import { createClient, ObjectConnection } from "@destack/object/client";
 import { describeObject, describePackage } from "@destack/object/inspect";
-import observabilityPackage from "@destack/observability/package";
-import { PackageVersion, PackageId, Sandbox } from "@destack/package";
+import { OriginPath, PackageId, PackageVersion, Sandbox } from "@destack/package";
 import type { BuildReader } from "@destack/package/manifest";
 import { MemoryBuild } from "@destack/package/test";
 import objectDefinition from "@destack/object/destack.json" with { type: "json" };
@@ -36,7 +33,7 @@ import { setting } from "@destack/setting/object";
 import * as stackObject from "@destack/stack/object";
 import stackPackage from "@destack/stack/package";
 import { expect, refusal, test } from "@destack/test";
-import { type Address, HOME_PATH, PLATFORM_PATH, ViewAddress } from "@destack/view/declare";
+import { type Address, ScopePath, ViewAddress } from "@destack/view/declare";
 import viewPackage from "@destack/view/destack.json" with { type: "json" };
 import { LINK_COOKIE, SESSION_COOKIE } from "./origin.ts";
 import { OWNER_EMAIL, PUBLISHER, TestComputer } from "../computer/test/index.ts";
@@ -479,7 +476,7 @@ async function openPage(served: Served, address: Address) {
     ) =>
         ObjectConnection.open({
             scope,
-            url: ObjectConnection.url(`${origin}${options.mount ?? PACKAGE_PATH}`),
+            url: ObjectConnection.url(`${origin}${options.mount ?? ScopePath.of(scope)}`),
             websocket: (url, protocols) =>
                 host.open(options.send ?? fetch, WebSocketUpgrade.to(url, protocols)),
             ...(options.bookmark === undefined ? {} : { bookmark: options.bookmark }),
@@ -526,7 +523,7 @@ function registerClient(
     id: Identifier<"client">,
 ): Promise<Response> {
     return page.fetch(
-        new Request(`${page.origin}/.destack/client`, {
+        new Request(`${page.origin}${OriginPath.session}`, {
             method: "POST",
             body: JSON.stringify({ id, name: "Firefox", platform: "macOS" }),
         }),
@@ -695,7 +692,7 @@ test("serve anonymous visitors and refuse forged credentials", async () => {
     // serve the page without a cookie to an anonymous visitor, and take their telemetry
     const unopened = await listener.fetch(new Request(`${origin}/home`));
     const telemetry = await listener.fetch(
-        new Request(`${origin}${OTLP_ORIGIN_PATH}/v1/traces`, {
+        new Request(`${origin}${OriginPath.telemetry}/v1/traces`, {
             method: "POST",
             headers: { origin, "content-type": "application/json" },
             body: "{}",
@@ -1041,7 +1038,7 @@ test("rate-limit anonymous writes by the first proxy's address", async () => {
     });
 });
 
-test("call a page's package and declared services under its grant", async () => {
+test("call a page's package and its space's packages under its grant only", async () => {
     // open the tasks board in the owner's home
     const home = await openHome();
     const installation = await installTasks(home);
@@ -1058,18 +1055,20 @@ test("call a page's package and declared services under its grant", async () => 
     await remote.run(task, "complete", { id: created.id });
     const listed = await remote.list(task);
 
-    // read the installation through the declared stack service, which the grant does not give
+    // read the installation through the space's stack, which the grant does not give
     const call = (packageId: string, path: string) =>
         page.fetch(
-            new Request(`${page.origin}${PLATFORM_PATH}${PackageMount.path(packageId)}${path}`, {
-                headers: { [VERSION_HEADER]: stackPackage.version, [EDITION_HEADER]: "1" },
-            }),
+            new Request(
+                `${page.origin}${ScopePath.of(home.spaceId)}${PackageMount.path(packageId)}${path}`,
+                {
+                    headers: { [VERSION_HEADER]: stackPackage.version, [EDITION_HEADER]: "1" },
+                },
+            ),
         );
-    const declared = await call(
+    const outside = await call(
         stackPackage.id,
         `/spaces/${home.spaceId}/rollouts/${installation.id}`,
     );
-    const undeclared = await call(observabilityPackage.id, "/issues");
     const { database } = await home.computer.machine.space(home.spaceId);
     const [rolled] = await database
         .select({ id: stackObject.rollout.table.id })
@@ -1080,9 +1079,12 @@ test("call a page's package and declared services under its grant", async () => 
     // refuse a call from another site, and an anonymous visitor without the page's cookie the unshared space
     const listener = home.computer.computer;
     const foreign = await listener.fetch(
-        new Request(`${page.origin}${PACKAGE_PATH}/tasks`, {
-            headers: { cookie: page.cookie, origin: "https://foreign.test" },
-        }),
+        new Request(
+            `${page.origin}${ScopePath.of(home.spaceId)}${PackageMount.path(installation.packageId)}/tasks`,
+            {
+                headers: { cookie: page.cookie, origin: "https://foreign.test" },
+            },
+        ),
     );
     const visitor = page.connect(home.spaceId, {
         send: (request) => {
@@ -1096,13 +1098,12 @@ test("call a page's package and declared services under its grant", async () => 
 
     expect({
         listed: listed.map((row) => [row["title"], row["status"]]),
-        declared: [declared.status, await declared.json()],
-        undeclared: await summary(undeclared),
+        outside: [outside.status, await outside.json()],
         foreign: await summary(foreign),
         unshared,
     }).toEqual({
         listed: [["Water", "done"]],
-        declared: [
+        outside: [
             403,
             {
                 defined: true,
@@ -1118,12 +1119,6 @@ test("call a page's package and declared services under its grant", async () => 
                 },
             },
         ],
-        undeclared: answered(
-            "FORBIDDEN",
-            "VIEW_PACKAGE_DENIED",
-            403,
-            `package '${observabilityPackage.id}' is forbidden: no view of 'tasks' declares it`,
-        ),
         foreign: answered(
             "FORBIDDEN",
             "ORIGIN_DENIED",
@@ -1216,7 +1211,7 @@ test("keep a page's session cookie across its computer's restart", async () => {
     const objects = createClient(
         objectPackage,
         {
-            url: `${page.origin}${HOME_PATH}/${home.spaceId}${PackageMount.path(objectPackage.id)}`,
+            url: `${page.origin}${ScopePath.of(home.spaceId)}${PackageMount.path(objectPackage.id)}`,
             fetch: send,
         },
         restarted.environment,
@@ -1267,7 +1262,7 @@ test("call a scope's home path within the start page's grant only", async () => 
         path: "/",
     });
     const below = (packageId: PackageId) => ({
-        url: `${page.origin}${HOME_PATH}/${home.spaceId}${PackageMount.path(packageId)}`,
+        url: `${page.origin}${ScopePath.of(home.spaceId)}${PackageMount.path(packageId)}`,
         fetch: (request: Request) => {
             // send the page's own host, as a browser does
             const headers = new Headers(request.headers);
@@ -1294,7 +1289,7 @@ test("call a scope's home path within the start page's grant only", async () => 
     const call = accountObject.client.call("revoke", {
         ...accountObject.client.target({ scope: user.identifier(owner.id), id: client }),
     });
-    const universe = page.connect(owner.id, { mount: `${HOME_PATH}/${owner.id}` });
+    const universe = page.connect(owner.id, { mount: ScopePath.of(owner.id) });
     const pushed = await universe.store
         .push({
             scope: owner.id,
@@ -1366,7 +1361,7 @@ test("register a browser client and bind pages to it by proof", async () => {
     const { pair } = await KeyPair.generate(environment.crypto);
     const now = () => environment.clock.now();
     const keyed = await page.fetch(
-        new Request(`${page.origin}/.destack/client/key`, {
+        new Request(`${page.origin}${OriginPath.session}/key`, {
             method: "POST",
             body: JSON.stringify({
                 client,
@@ -1383,7 +1378,7 @@ test("register a browser client and bind pages to it by proof", async () => {
     );
 
     // bind with a proof of the bind request, and with one of another request
-    const url = `${page.origin}/.destack/client/bind`;
+    const url = `${page.origin}${OriginPath.session}/bind`;
     const bind = async (target: string) =>
         page.fetch(
             new Request(url, {
@@ -1407,7 +1402,7 @@ test("register a browser client and bind pages to it by proof", async () => {
         new Request(location, { headers: { cookie } }),
     );
     await document.body?.cancel();
-    const elsewhere = await bind(`${page.origin}/.destack/client/elsewhere`);
+    const elsewhere = await bind(`${page.origin}${OriginPath.session}/elsewhere`);
 
     // remove the client as the person, and bind again
     await page.session.session.accounts().client.revoke({

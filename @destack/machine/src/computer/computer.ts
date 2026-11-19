@@ -40,6 +40,7 @@ import { Identifier, present, schema } from "@destack/schema";
 import {
     DistributionManifest,
     DistributionPlatform,
+    OriginPath,
     type PackageId,
     type PackageRelease,
 } from "@destack/package";
@@ -52,7 +53,7 @@ import { type Runtime } from "../runtime/runtime.ts";
 import { createClient, type ClientOf } from "@destack/object/client";
 import { SeverityNumber, TelemetryScope } from "@destack/telemetry";
 import { startTelemetry } from "@destack/telemetry/bun";
-import { OTLP_ORIGIN_PATH, OtlpExporter } from "@destack/telemetry/otlp";
+import { OtlpExporter } from "@destack/telemetry/otlp";
 import stackPackage from "@destack/stack/package";
 import type { DistributionHost } from "@destack/update/server";
 import {
@@ -1214,8 +1215,12 @@ export class Computer implements AsyncDisposable {
               )
             : undefined;
 
+        // forward the telemetry of a process on this computer into the owner's home, as the machine's own
+        if (isLoopback && url.pathname.startsWith(`${OriginPath.telemetry}/`)) {
+            return Computer.#observe(this.machine, request);
+        }
         // refuse a service of a partition this machine does not serve yet
-        if (own !== undefined && "error" in own) {
+        else if (own !== undefined && "error" in own) {
             return refusal(own.error, this.machine.environment.telemetry);
         }
         // serve one of the machine's own services
@@ -1297,6 +1302,17 @@ export class Computer implements AsyncDisposable {
         });
     }
 
+    /** Send an OTLP export into the telemetry of the owner's home, as the machine bound to it. */
+    static async #observe(machine: Machine, request: Request): Promise<Response> {
+        // locate the owner's home and send as this machine bound to it, below the path
+        const home = await machine.home();
+        const { url } = await machine.directory.locate(home, machine.clock.now());
+        const { pathname } = new URL(request.url);
+        const send = machine.fetch(stackPackage.id, { partition: home });
+
+        return send(new Request(`${SpaceMount.url(url, home)}${pathname}`, request));
+    }
+
     /** Start a machine process's telemetry: its own log, and its owner's home once enrolled. */
     static async #startTelemetry(
         environment: Environment<"process">,
@@ -1304,17 +1320,9 @@ export class Computer implements AsyncDisposable {
     ): ReturnType<typeof startTelemetry> {
         // post each export to the telemetry of the owner's home where its machine answers, nothing before it enrolls
         const target = {
-            endpoint: `${OWN_TELEMETRY_ORIGIN}${OTLP_ORIGIN_PATH}`,
-            fetch: async (request: Request) => {
-                // locate the owner's home and send as this machine bound to it, below the path
-                const own = present(machine(), "the enrolled machine");
-                const home = await own.home();
-                const { url } = await own.directory.locate(home, own.clock.now());
-                const { pathname } = new URL(request.url);
-                const send = own.fetch(stackPackage.id, { partition: home });
-
-                return send(new Request(`${SpaceMount.url(url, home)}${pathname}`, request));
-            },
+            endpoint: `${OWN_TELEMETRY_ORIGIN}${OriginPath.telemetry}`,
+            fetch: (request: Request) =>
+                Computer.#observe(present(machine(), "the enrolled machine"), request),
         };
         // write every record to the machine's own log too, beside its owner's home, and the export's own failures there alone
         const write = (line: string) => environment.process.stderr.writeSync(line);

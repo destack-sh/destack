@@ -7,7 +7,7 @@ import {
     SpaceMount,
     RequestBody,
 } from "@destack/object";
-import { HOME_PATH } from "@destack/view/declare";
+import { ScopePath } from "@destack/view/declare";
 import type {} from "@destack/package/import-meta";
 import { MachineError } from "../error/index.ts";
 
@@ -50,21 +50,28 @@ export class ScopePrimary {
         this.#send = send;
     }
 
-    /** Read the scope a request's path names below the home path. */
+    /** Read the scope a request's path names, refusing a path below no scope. */
     static scopeOf(url: URL): string {
-        const [scope = ""] = url.pathname.slice(HOME_PATH.length + 1).split("/");
-
-        return scope;
+        return ScopePrimary.#parse(url).scope;
     }
 
-    /** Forward a page's request below the scope's home path to its primary, as its person. */
+    /** Read a request's scope and the path below it, refusing a path below no scope. */
+    static #parse(url: URL): { readonly scope: string; readonly path: string } {
+        const scoped = ScopePath.parse(url.pathname);
+        if (scoped === undefined) {
+            throw MachineError.of(
+                "SCOPE_PATH_NOT_FOUND",
+                `scope path not found: '${url.pathname}' names no scope`,
+            );
+        }
+
+        return scoped;
+    }
+
+    /** Forward a page's request below the scope's path to its primary, as its person. */
     async forward(request: Request, url: URL): Promise<Response> {
         // read the path below the scope
-        const path = `/${url.pathname
-            .slice(HOME_PATH.length + 1)
-            .split("/")
-            .slice(1)
-            .join("/")}`;
+        const { path } = ScopePrimary.#parse(url);
 
         // connect to the scope's store, confined to the scope's rows
         if (path === CONNECTION_PATH) {
@@ -85,8 +92,8 @@ export class ScopePrimary {
                 mounted === undefined
             ) {
                 throw MachineError.of(
-                    "HOME_PATH_NOT_FOUND",
-                    `home path not found: a page must call '${this.scope}' packages below '${[HOME_PATH, this.scope].join("/")}'`,
+                    "SCOPE_PATH_NOT_FOUND",
+                    `scope path not found: a page must call '${this.scope}' packages below '${ScopePath.of(this.scope)}'`,
                 );
             }
 
@@ -95,8 +102,8 @@ export class ScopePrimary {
         // refuse anything else of the universe
         else {
             throw MachineError.of(
-                "HOME_PATH_NOT_FOUND",
-                "home path not found: a page must connect to the universe's primary at its store",
+                "SCOPE_PATH_NOT_FOUND",
+                "scope path not found: a page must connect to the universe's primary at its store",
             );
         }
     }

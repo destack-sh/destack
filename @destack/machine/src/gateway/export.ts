@@ -7,13 +7,11 @@ import {
     ImportMap,
     type BuildImage,
     type PackageManifest,
-    VIEW_ASSET_PATH,
     ViewDescription,
 } from "@destack/package/manifest";
-import { Sandbox } from "@destack/package";
+import { OriginPath, Sandbox } from "@destack/package";
 import type { Digest } from "@destack/schema";
 import { MachineError } from "../error/index.ts";
-import { BUILD_PATH } from "./origin.ts";
 import { HEADERS_FILE, StaticHost, AssetIndex } from "./host.ts";
 
 /** The headers of a dependency build's files, which never change under its digest. */
@@ -70,7 +68,12 @@ export class StaticExport {
         }
 
         // map the modules the pages import below the build path, as the origin does
-        const closure = await this.#builds.imports(opened, "browser", BUILD_PATH, linked);
+        const closure = await this.#builds.imports(
+            opened,
+            "browser",
+            `${OriginPath.build}/`,
+            linked,
+        );
 
         // write the build's public files at their paths, then the site's files at the paths it answers, pages with the map
         for (const file of files.values()) {
@@ -91,7 +94,7 @@ export class StaticExport {
             this.#builds.contents(digest),
         );
         for (const [name, asset] of assets.files) {
-            await this.#copy(asset.reader, asset.file, `${VIEW_ASSET_PATH}${name}`);
+            await this.#copy(asset.reader, asset.file, `${OriginPath.asset}/${name}`);
         }
 
         // refuse a page or stylesheet referring to a disk path, or to an asset or build file the site lacks
@@ -145,7 +148,7 @@ export class StaticExport {
     async #copyBuild(digest: Digest): Promise<void> {
         const reader = await this.#builds.contents(digest);
         for (const file of StaticExport.#browserFiles(reader.manifest, await reader.files())) {
-            await this.#copy(reader, file, `${BUILD_PATH}${digest}/${file.path}`);
+            await this.#copy(reader, file, `${OriginPath.build}/${digest}/${file.path}`);
         }
     }
 
@@ -178,7 +181,7 @@ export class StaticExport {
             .map(([extension, type]) => `/*${extension}\n  Content-Type: ${type}`);
         const rules = [
             `/*\n  Permissions-Policy: ${policy}`,
-            `${BUILD_PATH}*\n${BUILD_HEADERS}`,
+            `${OriginPath.build}/*\n${BUILD_HEADERS}`,
             ...types,
         ];
         const text = [...(own === undefined ? [] : [own.trimEnd()]), ...rules].join("\n");

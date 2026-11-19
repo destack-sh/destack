@@ -1,9 +1,5 @@
-import {
-    type BuildReader,
-    type PackageManifest,
-    VIEW_ASSET_PATH,
-    ViewDescription,
-} from "@destack/package/manifest";
+import { OriginPath } from "@destack/package";
+import { type BuildReader, type PackageManifest, ViewDescription } from "@destack/package/manifest";
 import type { Digest } from "@destack/schema";
 import type { PackageFile } from "@destack/package/file";
 import { Catalog } from "@destack/locale";
@@ -158,8 +154,8 @@ export class AssetIndex {
 
     /** Find the asset a path below the asset path answers. */
     find(path: string): { readonly reader: BuildReader; readonly file: PackageFile } | undefined {
-        return path.startsWith(VIEW_ASSET_PATH)
-            ? this.files.get(path.slice(VIEW_ASSET_PATH.length))
+        return path.startsWith(`${OriginPath.asset}/`)
+            ? this.files.get(path.slice(`${OriginPath.asset}/`.length))
             : undefined;
     }
 }
@@ -317,7 +313,7 @@ export class StaticHost {
             }
             // place an asset below the asset path
             else if (file.path.startsWith(`${this.assets}/`)) {
-                const path = `${VIEW_ASSET_PATH}${file.path.slice(this.assets.length + 1)}`;
+                const path = `${OriginPath.asset}/${file.path.slice(this.assets.length + 1)}`;
 
                 return this.#file(path) === file ? [{ path, file }] : [];
             }
@@ -344,8 +340,8 @@ export class StaticHost {
             return undefined;
         }
         // answer a view asset from the browser output's asset directory
-        else if (path.startsWith(VIEW_ASSET_PATH)) {
-            return this.files.get(`${this.assets}/${path.slice(VIEW_ASSET_PATH.length)}`);
+        else if (path.startsWith(`${OriginPath.asset}/`)) {
+            return this.files.get(`${this.assets}/${path.slice(`${OriginPath.asset}/`.length)}`);
         }
         // answer a page from the pages directory
         else {

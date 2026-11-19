@@ -13,11 +13,10 @@ const machineError = defineErrorFamily({
         CLIENT_PATH_NOT_FOUND: {},
         DIRECTORY_NOT_FOUND: {},
         EGRESS_ADDRESS_NOT_FOUND: {},
-        HOME_PATH_NOT_FOUND: {},
+        SCOPE_PATH_NOT_FOUND: {},
         INSTALLATION_NOT_FOUND: {},
         PACKAGE_MOUNT_NOT_FOUND: {},
         PACKAGE_NOT_FOUND: {},
-        PLATFORM_SERVICE_NOT_FOUND: {},
         PRESENTER_NOT_FOUND: {},
         PREVIEW_NOT_FOUND: {},
         ROUTE_NOT_FOUND: {},
@@ -72,7 +71,6 @@ const machineError = defineErrorFamily({
         PUBLISHER_DENIED: {},
         SIGN_IN_DENIED: {},
         VIEW_GRANT_DENIED: {},
-        VIEW_PACKAGE_DENIED: {},
 
         // blocked
         BUILD_BLOCKED: {},

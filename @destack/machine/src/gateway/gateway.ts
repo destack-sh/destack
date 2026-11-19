@@ -5,7 +5,7 @@ import { ViewState } from "@destack/view/declare";
 import * as accountObject from "@destack/account/object";
 import type { WorkloadInstance } from "@destack/object/workload";
 import { OtlpExport } from "@destack/telemetry/otlp";
-import { DeclarationName, PackageId, PackageName } from "@destack/package";
+import { DeclarationName, OriginPath, PackageId, PackageName } from "@destack/package";
 import {
     canonicalize,
     type Digest,
@@ -51,7 +51,7 @@ import {
 } from "@destack/stack/object";
 import { Bucket, Snapshot } from "@destack/db";
 import { Attribution } from "@destack/package/stack";
-import { OTLP_ORIGIN_PATH, OtlpSignal } from "@destack/telemetry/otlp";
+import { OtlpSignal } from "@destack/telemetry/otlp";
 import { Authentication, Caller, CALLER_HEADER, principal } from "@destack/access";
 import { copyRequest, Forwarded, WebSocketUpgrade } from "@destack/environment";
 import { type Space, type SpaceStart } from "../space/space.ts";
@@ -423,7 +423,7 @@ export class Gateway {
             return await this.#sockets(request);
         }
         // take telemetry: an instance's by its secret, a page's or a machine's by its verified caller
-        else if (url.pathname.startsWith(`${OTLP_ORIGIN_PATH}/`)) {
+        else if (url.pathname.startsWith(`${OriginPath.telemetry}/`)) {
             const verified = (await voucher?.(request)) ?? (await this.#signed(request));
 
             return await this.#telemetry(request, verified?.caller.subject);
