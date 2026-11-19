@@ -45,7 +45,7 @@ alias fmt := fix
 # check the workflows, the repository's documents and the shared settings, writing nothing
 check-repository:
     actionlint
-    bun run destack-check check README.md AGENTS.md CONTRIBUTING.md SECURITY.md @platform/site/content
+    bun run destack-check check README.md AGENTS.md ARCHITECTURE.md CONTRIBUTING.md SECURITY.md @platform/site/content
 
 # check the repository, then check and test each package the changes since a base affect, as CI does
 check base="": (postgres "up")
