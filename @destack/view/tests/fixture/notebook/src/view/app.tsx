@@ -1,4 +1,4 @@
-import { Icon } from "@destack/icon";
+import { Icon } from "@destack/ui/icon";
 
 /** The notebooks heading. */
 export default function Notebooks() {
