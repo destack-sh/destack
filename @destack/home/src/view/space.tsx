@@ -21,6 +21,7 @@ import {
     useAccount,
     useEnvironment,
     useLocale,
+    useConnect,
     useOrigin,
     useQuery,
     useScope,
@@ -112,6 +113,7 @@ function SpaceItem(properties: {
     // read the views the space's installations mount, from their builds' index
     const locale = useLocale();
     const origin = useOrigin();
+    const connect = useConnect();
     const environment = useEnvironment();
     const [views, setViews] = createSignal<readonly Pick<ViewEntry, "installation" | "name">[]>([]);
     const [failure, setFailure] = createSignal<string | undefined>(undefined);
@@ -162,7 +164,7 @@ function SpaceItem(properties: {
     ) => void settled(allowAlways(waiting, person, origin, environment));
     const [installed, setInstalled] = createSignal<readonly PackageId[]>([]);
     const readViews = (id: Identifier<"space">) =>
-        SpaceCatalog.read({ id, address: properties.address }, origin, environment).then(
+        SpaceCatalog.read({ id, address: properties.address }, connect).then(
             (catalog) => {
                 setFailure(undefined);
                 setInstalled(catalog.installations.map((each) => each.packageId));

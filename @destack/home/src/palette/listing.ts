@@ -1,10 +1,9 @@
 import { Failure } from "@destack/error";
 import type { Localization } from "@destack/locale";
 import { ObjectTypePool, type ObjectType } from "@destack/object";
-import { ProcedureRemote } from "@destack/object/client";
+import { ObjectConnection } from "@destack/object/client";
 import { schema } from "@destack/schema";
 import { ObjectReference, type Subject } from "@destack/sync";
-import type { ClientOptions } from "@destack/object/client";
 import { HOME_PATH } from "@destack/view/declare";
 import {
     type ActionEntry,
@@ -18,7 +17,6 @@ import {
     type WindowEntry,
 } from "@destack/view/palette";
 import { type PaletteSpace, SpaceCatalog } from "./catalog.ts";
-import type { Environment } from "@destack/environment";
 
 /** The most objects the person opened lately that the palette offers: a screenful. */
 const RECENT_LIMIT = 20;
@@ -78,7 +76,7 @@ export class PaletteListing {
 
     /** Read the person's home, their device's objects and the actions of the page under it. */
     static async read(
-        origin: (path: string) => ClientOptions,
+        connect: (path: string, scope: string) => ObjectConnection,
         person: {
             readonly user: Subject;
             readonly home: PaletteSpace;
@@ -86,17 +84,14 @@ export class PaletteListing {
         },
         preferences: PalettePreferences,
         reading: {
-            readonly environment: Environment;
             readonly localization: Localization;
             readonly focus: PaletteFocus;
             readonly actions: readonly ActionEntry[];
         },
     ): Promise<PaletteListing> {
         // read the person's home's catalog
-        const { environment, localization, focus, actions } = reading;
-        const [home] = await Promise.allSettled([
-            SpaceCatalog.read(person.home, origin, environment),
-        ]);
+        const { localization, focus, actions } = reading;
+        const [home] = await Promise.allSettled([SpaceCatalog.read(person.home, connect)]);
         const catalog = home.status === "fulfilled" ? home.value : undefined;
 
         // read the device's windows and the objects the person opened lately, or why not
@@ -105,7 +100,7 @@ export class PaletteListing {
             device === undefined
                 ? []
                 : await Promise.allSettled([
-                      PaletteListing.#readLocal(origin, device, person.user, catalog, environment),
+                      PaletteListing.#readLocal(connect, device, person.user, catalog),
                   ]);
 
         // offer the page's actions, and the home's commands applying to the focused object
@@ -188,13 +183,12 @@ export class PaletteListing {
 
     /** Read the device's windows and the person's recent objects through its local objects. */
     static async #readLocal(
-        origin: (path: string) => ClientOptions,
+        connect: (path: string, scope: string) => ObjectConnection,
         device: string,
         user: Subject,
         home: SpaceCatalog | undefined,
-        environment: Environment,
     ): Promise<{ readonly reached: LocalObjects; readonly entries: PaletteEntry[] }> {
-        const reached = await LocalObjects.open(origin, device, environment);
+        const reached = await LocalObjects.open(connect, device);
         const [windows, recent] = await Promise.all([
             reached.windows(),
             reached.recent(user, home),
@@ -207,14 +201,14 @@ export class PaletteListing {
 /** The local objects of the device hosting the palette: its windows and the person's visits. */
 class LocalObjects {
     /** The device's home. */
-    readonly #remote: ProcedureRemote;
+    readonly #remote: ObjectConnection;
     /** The device's window type, as its store describes it. */
     readonly #window: ObjectType;
     /** The device's visit type, as its store describes it. */
     readonly #visit: ObjectType;
 
     /** Reach the device's windows and visits through its home. */
-    private constructor(remote: ProcedureRemote, window: ObjectType, visit: ObjectType) {
+    private constructor(remote: ObjectConnection, window: ObjectType, visit: ObjectType) {
         this.#remote = remote;
         this.#window = window;
         this.#visit = visit;
@@ -222,16 +216,11 @@ class LocalObjects {
 
     /** Open the device's local objects at its home, by the types its store describes. */
     static async open(
-        origin: (path: string) => ClientOptions,
+        connect: (path: string, scope: string) => ObjectConnection,
         device: string,
-        environment: Environment,
     ): Promise<LocalObjects> {
         // describe the local types the device's store serves
-        const remote = ProcedureRemote.at({
-            scope: device,
-            endpoint: origin(`${HOME_PATH}/${device}`),
-            environment,
-        });
+        const remote = connect(`${HOME_PATH}/${device}`, device);
         const types = ObjectTypePool.of([]).declare(await remote.describe());
 
         // find the window and visit types

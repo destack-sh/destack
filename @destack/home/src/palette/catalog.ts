@@ -7,11 +7,7 @@ import {
     PackageMount,
     Presentation,
 } from "@destack/object";
-import {
-    type ClientOptions,
-    ObjectStoreDescription,
-    ProcedureRemote,
-} from "@destack/object/client";
+import { type ObjectConnection, ObjectStoreDescription } from "@destack/object/client";
 import { DeclarationName, type PackageId } from "@destack/package";
 import type { Localization } from "@destack/locale";
 import { type Identifier, type JsonObject, type JsonValue, schema, Text } from "@destack/schema";
@@ -20,7 +16,6 @@ import stackPackage from "@destack/stack/package";
 import { HOME_PATH, VIEW_KIND } from "@destack/view/declare";
 import { type CommandEntry, Keybinding, type PaletteEntry } from "@destack/view/palette";
 import homePackage from "../package.ts";
-import type { Environment } from "@destack/environment";
 
 /** The view of Home the command palette's page mounts, which it leaves out of its views. */
 const PALETTE_VIEW = "command";
@@ -66,38 +61,34 @@ export class SpaceCatalog {
     readonly space: PaletteSpace;
     /** The enabled installations applying a revision, with what they declare. */
     readonly installations: readonly CatalogInstallation[];
-    /** Reach a path below the page's origin, which forwards the space's calls as the person. */
-    readonly #origin: (path: string) => ClientOptions;
-    /** The environment the space's calls run in. */
-    readonly #environment: Environment;
+    /** Connect to a store below the page's origin, which forwards the calls as the person. */
+    readonly #connect: (path: string, scope: string) => ObjectConnection;
 
     /** Keep a space's installations. */
     constructor(
         space: PaletteSpace,
         installations: readonly CatalogInstallation[],
         connection: {
-            readonly origin: (path: string) => ClientOptions;
-            readonly environment: Environment;
+            readonly connect: (path: string, scope: string) => ObjectConnection;
         },
     ) {
         // set the space, its installations and the page's origin
         this.space = space;
         this.installations = installations;
-        this.#origin = connection.origin;
-        this.#environment = connection.environment;
+        this.#connect = connection.connect;
     }
 
     /** Read a space's installations with what they declare, as its store describes them. */
     static async read(
         space: PaletteSpace,
-        origin: (path: string) => ClientOptions,
-        environment: Environment,
+        connect: (path: string, scope: string) => ObjectConnection,
     ): Promise<SpaceCatalog> {
         // describe the space's store at its home, in one call
-        const home = origin(`${HOME_PATH}/${space.id}${PackageMount.path(stackPackage.id)}`);
-        const description = await ObjectStoreDescription.read(
-            ProcedureRemote.procedures(home, environment),
+        const home = connect(
+            `${HOME_PATH}/${space.id}${PackageMount.path(stackPackage.id)}`,
+            space.id,
         );
+        const description = await ObjectStoreDescription.read(home.store);
 
         // list each named installation's commands, views and types, by name
         const installations = description.packages
@@ -124,7 +115,7 @@ export class SpaceCatalog {
             })
             .toSorted((left, right) => Text.compare(left.name, right.name));
 
-        return new SpaceCatalog(space, installations, { origin, environment });
+        return new SpaceCatalog(space, installations, { connect });
     }
 
     /** List the commands and views the space's installations declare, in the person's language. */
@@ -272,14 +263,10 @@ export class SpaceCatalog {
     }
 
     /** Reach an object type's installation by name. */
-    #client(name: string, type: ObjectType): ProcedureRemote {
-        return ProcedureRemote.at({
-            scope: this.space.id,
-            endpoint: this.#origin(
-                `${HOME_PATH}/${this.space.id}${InstallationMount.path(this.space.id, name)}${PackageMount.path(type.package.id)}`,
-            ),
-            homes: (scope) => this.#origin(`${HOME_PATH}/${scope}`),
-            environment: this.#environment,
-        });
+    #client(name: string, type: ObjectType): ObjectConnection {
+        return this.#connect(
+            `${HOME_PATH}/${this.space.id}${InstallationMount.path(this.space.id, name)}${PackageMount.path(type.package.id)}`,
+            this.space.id,
+        );
     }
 }

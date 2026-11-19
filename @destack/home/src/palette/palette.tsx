@@ -8,7 +8,7 @@ import {
     Show,
     useEnvironment,
     useLocale,
-    useOrigin,
+    useConnect,
     useSetting,
     useView,
 } from "@destack/view";
@@ -47,7 +47,7 @@ export default function Commands() {
     const parent = ParentPage.of(over);
     const close = () =>
         parent === undefined ? environment.navigation.assign("about:blank") : parent.close();
-    const origin = useOrigin();
+    const connect = useConnect();
     const localization = useLocale();
 
     // read the entries of the person's home, whose origin this page has, and of their device, once their choices are read
@@ -81,8 +81,7 @@ export default function Commands() {
                             under === undefined || under.selection.length === 0
                                 ? focus
                                 : { ...focus, objects: [...under.selection] };
-                        const read = await PaletteListing.read(origin, person, preferences, {
-                            environment,
+                        const read = await PaletteListing.read(connect, person, preferences, {
                             localization,
                             focus: selected,
                             actions: under?.actions ?? [],
