@@ -16,11 +16,10 @@ What users interact with: the desktop, the terminal, and any userland apps.
 
 ## 02 Runtime
 
-Where packages run: machines, the spaces they serve and the stacks they apply.
+Where packages run: machines, the spaces they serve, and the relays reaching them.
 
 | Package | What it does | Prior art |
 |---|---|---|
-| [`@destack/stack`](@destack/stack) | Declare and apply a space's stack: its installations, resources, bindings, deployments, routes, runs and transfers. | Pulumi, CloudFormation |
 | [`@destack/machine`](@destack/machine) | Run a machine: serve the spaces placed on it with their modules (buckets, vaults, connections, messages, observability, audit), route their installations' calls and keep their builds. | — |
 | [`@destack/relay`](@destack/relay) | Relay HTTP requests for Destack names to the machines serving them. | Cloudflare Tunnel, ngrok |
 | [`@destack/tunnel`](@destack/tunnel) | Carry HTTP requests over one WebSocket session between a machine and a relay, as a tunnel. | Cloudflare Tunnel |
@@ -28,15 +27,14 @@ Where packages run: machines, the spaces they serve and the stacks they apply.
 
 ## 03 Service
 
-What apps build on for shared work: accounts, connections, messages, notifications, billing, repositories and packages.
+What apps build on for shared work: stacks, connections, messages, notifications, billing, repositories and packages.
 
 | Package | What it does | Prior art |
 |---|---|---|
-| [`@destack/account`](@destack/account) | Sign people and machines in, and manage their accounts, organizations and spaces. | Better Auth |
+| [`@destack/stack`](@destack/stack) | Declare and apply a space's stack: its installations, resources, bindings, deployments, routes, runs and transfers. | Pulumi, CloudFormation |
 | [`@destack/connection`](@destack/connection) | Connect external accounts once, and call their APIs with credentials kept in a vault. | Nango |
 | [`@destack/workflow`](@destack/workflow) | Run durable functions step by step as objects of the space they run in. | Temporal, DBOS, Inngest, Restate |
 | [`@destack/message`](@destack/message) | Send messages on a channel, email, push, webhook or a desktop. | Standard Webhooks |
-| [`@destack/mail`](@destack/mail) | Send email over SMTP or Amazon SES, or print it on machines without a provider. | — |
 | [`@destack/notification`](@destack/notification) | Declare notifications, notify recipients, watch objects and deliver them as messages. | Knock, Novu |
 | [`@destack/social`](@destack/social) | Attach comments, reactions, receipts, favourites and presence to any object, notifying mentioned and participating principals. | Liveblocks |
 | [`@destack/observability`](@destack/observability) | Query, follow and alert on the telemetry and analytics of Destack scopes, group their failures into issues, and measure what their spaces use. | Sentry, Grafana |
@@ -72,7 +70,7 @@ What people see and touch.
 
 ## 06 Object
 
-What apps model, share and sync.
+What apps model, share and sync, and the accounts people sign in with.
 
 | Package | What it does | Prior art |
 |---|---|---|
@@ -81,6 +79,7 @@ What apps model, share and sync.
 | [`@destack/access`](@destack/access) | Decide who may do what to each object, and share, delegate and revoke that access. | Zanzibar, SpiceDB |
 | [`@destack/event`](@destack/event) | Keep the append-only events of scopes, hot in their database and sealed into their bucket, and query, fold and follow them. | ClickHouse |
 | [`@destack/setting`](@destack/setting) | Declare, place and resolve scoped settings. | — |
+| [`@destack/account`](@destack/account) | Sign people and machines in, and manage their accounts, organizations and spaces. | Better Auth |
 
 ## 07 Storage
 
@@ -93,7 +92,7 @@ Where bytes rest: tables and files.
 
 ## 08 Core
 
-What every package uses: schemas, errors, effects, messages, telemetry and identities.
+What every package uses: schemas, errors, effects, messages, telemetry, mail and identities.
 
 | Package | What it does | Prior art |
 |---|---|---|
@@ -104,6 +103,7 @@ What every package uses: schemas, errors, effects, messages, telemetry and ident
 | [`@destack/color`](@destack/color) | Name the preset color palettes and the seed each one grows from. | Radix Colors |
 | [`@destack/locale`](@destack/locale) | Localise messages and format numbers, money and dates for a person's language and region. | Lingui, MessageFormat 2 |
 | [`@destack/telemetry`](@destack/telemetry) | Instrument Destack packages with traces, metrics, logs, exceptions and analytics. | OpenTelemetry, Sentry |
+| [`@destack/mail`](@destack/mail) | Send email over SMTP or Amazon SES, or print it on machines without a provider. | — |
 | [`@destack/package`](@destack/package) | Describe Destack packages, their declarations, builds and source code. | Deno permissions, Storybook |
 | [`@destack/resource`](@destack/resource) | Declare the resources a package uses, bind their clients in a workload, and plan their changes. | Kubernetes CRDs, Terraform |
 | [`@destack/identity`](@destack/identity) | Prove who a principal is and keep the keys proving it. | did:plc, JWK, DPoP |
