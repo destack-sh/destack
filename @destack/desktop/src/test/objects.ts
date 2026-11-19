@@ -1,7 +1,7 @@
 import { principal } from "@destack/access";
 import { connectBunSqlite } from "@destack/db/bun";
 import type { ObjectType } from "@destack/object";
-import { ObjectClient, ProcedureRemote } from "@destack/object/client";
+import { ObjectClient, ObjectRemote } from "@destack/object/client";
 import { Identifier } from "@destack/schema";
 import { Scope } from "@destack/sync";
 import { onTestFinished } from "@destack/test";
@@ -25,19 +25,7 @@ export async function localObjects<const Objects extends Readonly<Record<string,
         scope: device.id,
         caller: device,
         device,
-        remote: ProcedureRemote.at({
-            scope: device.id,
-            endpoint: {
-                url: "http://local.invalid/",
-                fetch: async () => {
-                    throw new TypeError("local objects cannot call a server");
-                },
-            },
-            reconnect: () => {
-                throw new TypeError("local objects cannot move to a machine");
-            },
-            environment: environment,
-        }),
+        remote: ObjectRemote.local(() => new TypeError("local objects cannot call a server")),
     });
     onTestFinished(() => opened.close());
 
