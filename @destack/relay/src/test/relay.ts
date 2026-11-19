@@ -232,7 +232,7 @@ export class TestRelay implements AsyncDisposable {
                     secret,
                     egress,
                     url: relayOrigin,
-                    sampling: 0,
+                    telemetry: { sampling: 0, delay: 5000 },
                 },
                 build,
                 // record the workload's telemetry in the world, as its node's
