@@ -178,8 +178,9 @@ const styles = style.create({
     menuButton: {
         display: "flex",
         alignItems: "center",
-        gap: space[2],
-        width: "100%",
+        // show the icon alone in a square while the sidebar collapses to its icons
+        gap: { default: space[2], [style.when.ancestor('[data-collapsible="icon"]')]: space[6] },
+        width: { default: "100%", [style.when.ancestor('[data-collapsible="icon"]')]: space[6] },
         overflow: "hidden",
         paddingInline: space[2],
         borderRadius: radius[3],
@@ -503,6 +504,7 @@ export function Sidebar(properties: SidebarProperties): JSX.Element {
                 {...rest}
                 {...style.attributes(
                     [
+                        style.defaultMarker(),
                         text.xs,
                         styles.sidebar,
                         styles[sidebar.side],
