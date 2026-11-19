@@ -709,8 +709,14 @@ export class Machine {
     ): Promise<MachineEnrollment> {
         // enroll the machine in its span
         return this.scope.span("destack.machine.enroll", {}, async () => {
-            // enroll through the approving person's client with a new key
+            // skip enrollment for a standing key
             const { accountId, ...enrollment } = input;
+            const issuer = UniverseOrigin.issuer(universe);
+            if (await this.identity.isStanding(issuer, (request) => this.send(request))) {
+                return { kind: "personal", universe, accountId, status: "enrolled" };
+            }
+
+            // enroll through the approving person's client with a new key
             await this.identity.enroll(accounts, {
                 ...enrollment,
                 scope: accountId,
