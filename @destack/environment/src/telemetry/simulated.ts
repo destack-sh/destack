@@ -22,6 +22,7 @@ import {
 } from "@opentelemetry/sdk-trace";
 import type { ContextManager, TextMapPropagator } from "@opentelemetry/api";
 import { SpanStatusCode } from "@opentelemetry/api";
+import { millisToHrTime } from "@opentelemetry/core";
 import { AsyncLocalStorageContextManager } from "@opentelemetry/context-async-hooks";
 import { type Resource, resourceFromAttributes } from "@opentelemetry/resources";
 import { Clock } from "../clock/clock.ts";
@@ -52,26 +53,39 @@ interface SpanTotals {
     readonly children: Map<string, SpanTotals>;
 }
 
-/** A span processor recording each span's host duration beside its simulated one. */
+/** A span's start and end on the host's clock, in fractional UTC epoch milliseconds. */
+interface HostTime {
+    /** When the span started. */
+    readonly start: number;
+    /** When the span ended. */
+    readonly end: number;
+}
+
+/** A span processor recording each span's host start and end beside its simulated times. */
 class HostTimes implements SpanProcessor {
     /** The host time each running span started at, by span. */
     readonly #started = new Map<string, number>();
-    /** The host milliseconds each ended span took, by span. */
-    readonly durations = new Map<string, number>();
+    /** The host start and end of each ended span, by span. */
+    readonly times = new Map<string, HostTime>();
 
     /** Note a span's host start. */
     onStart(span: Span): void {
-        this.#started.set(span.spanContext().spanId, Clock.monotonic.now());
+        this.#started.set(span.spanContext().spanId, HostTimes.#now());
     }
 
-    /** Record an ended span's host duration. */
+    /** Record an ended span's host start and end. */
     onEnd(span: ReadableSpan): void {
         const { spanId } = span.spanContext();
-        const started = this.#started.get(spanId);
-        if (started !== undefined) {
-            this.durations.set(spanId, Clock.monotonic.now() - started);
+        const start = this.#started.get(spanId);
+        if (start !== undefined) {
+            this.times.set(spanId, { start, end: HostTimes.#now() });
             this.#started.delete(spanId);
         }
+    }
+
+    /** Read the host's time in fractional epoch milliseconds on its monotonic clock. */
+    static #now(): number {
+        return performance.timeOrigin + Clock.monotonic.now();
     }
 
     /** Flush nothing, as durations stay in memory. */
@@ -125,7 +139,7 @@ export class SimulatedTelemetry implements Telemetry {
 
     /** Record a world's telemetry in memory, drawing identifiers from its clock and randomness. */
     constructor(environment: { readonly clock: Clock; readonly random: Random }) {
-        // keep the clock, and record every span, record and metric in memory
+        // set the clock, and record every span, record and metric in memory
         this.clock = environment.clock;
         this.#identifiers = new TraceIdGenerator(environment);
         const providers = this.#providers(resourceFromAttributes({}));
@@ -142,8 +156,10 @@ export class SimulatedTelemetry implements Telemetry {
             return known;
         }
 
-        // name the host on its providers' resource, as OpenTelemetry's `host.name`
-        const providers = this.#providers(resourceFromAttributes({ "host.name": name }));
+        // name the host on its providers' resource as OpenTelemetry's `host.name`, and as the service a trace viewer shows
+        const providers = this.#providers(
+            resourceFromAttributes({ "host.name": name, "service.name": name }),
+        );
         const telemetry: Telemetry = {
             ...providers,
             propagator: this.propagator,
@@ -201,6 +217,44 @@ export class SimulatedTelemetry implements Telemetry {
         return this.#spans.getFinishedSpans();
     }
 
+    /** The spans ended so far on the host's clock, as a trace viewer lays them out. */
+    get hostSpans(): readonly ReadableSpan[] {
+        return this.spans.map((span) => {
+            // return a span another process recorded on its own clock as it is
+            const time = this.#hostTimes.times.get(span.spanContext().spanId);
+            if (time === undefined) {
+                return span;
+            }
+
+            // stamp it with the host's start, end and duration
+            const startTime = millisToHrTime(time.start);
+            const endTime = millisToHrTime(time.end);
+            const duration = millisToHrTime(time.end - time.start);
+
+            return {
+                name: span.name,
+                kind: span.kind,
+                spanContext: () => span.spanContext(),
+                ...(span.parentSpanContext === undefined
+                    ? {}
+                    : { parentSpanContext: span.parentSpanContext }),
+                startTime,
+                endTime,
+                duration,
+                status: span.status,
+                attributes: span.attributes,
+                links: span.links,
+                events: span.events,
+                ended: span.ended,
+                resource: span.resource,
+                instrumentationScope: span.instrumentationScope,
+                droppedAttributesCount: span.droppedAttributesCount,
+                droppedEventsCount: span.droppedEventsCount,
+                droppedLinksCount: span.droppedLinksCount,
+            };
+        });
+    }
+
     /** The log records emitted so far, oldest first. */
     get logs(): readonly ReadableLogRecord[] {
         return this.#logs.getFinishedLogRecords();
@@ -247,7 +301,8 @@ export class SimulatedTelemetry implements Telemetry {
             const [seconds, nanoseconds] = span.duration;
             path.count += 1;
             path.world += seconds * MILLISECONDS_PER_SECOND + nanoseconds / 1_000_000;
-            path.host += this.#hostTimes.durations.get(span.spanContext().spanId) ?? 0;
+            const time = this.#hostTimes.times.get(span.spanContext().spanId);
+            path.host += time === undefined ? 0 : time.end - time.start;
             const statements = span.attributes[STATEMENTS];
             path.statements += typeof statements === "number" ? statements : 0;
         }

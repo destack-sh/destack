@@ -425,8 +425,8 @@ export class Simulation {
 
     /** Stop the world's loop, remove the nodes' files, and stop the telemetry's context. */
     async #dispose(): Promise<void> {
-        // describe what the world spent, when the run asks
-        await this.#options.world.describe(() => this.telemetry.describe());
+        // describe and export what the world spent, when the run asks
+        await this.#options.world.end(this.telemetry);
 
         // stop the loop, completing operations at once from now on, then refuse a failure no wait took
         this.#isRunning = false;

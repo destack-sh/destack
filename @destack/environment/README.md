@@ -40,7 +40,7 @@ await backUpNote(BunEnvironment.system);
 
 // run it in a simulation with files in memory, as the process's settings ask
 await using simulation = new Simulation({
-    world: WorldOptions.of(BunEnvironment.system.process),
+    world: WorldOptions.of(BunEnvironment.system.process, undefined),
     seed: 7,
     start: Date.UTC(2026, 10, 12),
     files: "memory",
@@ -160,7 +160,7 @@ import { BunEnvironment } from "@destack/environment/bun";
 import { Simulation, WorldOptions } from "@destack/environment/simulation";
 
 // start a world with a laptop and a host
-const options = WorldOptions.of(BunEnvironment.system.process);
+const options = WorldOptions.of(BunEnvironment.system.process, undefined);
 await using simulation = new Simulation({ world: options, seed: 7, start: Date.UTC(2026, 10, 12) });
 const laptop = simulation.environment("laptop");
 const host = simulation.environment("host");
@@ -192,7 +192,7 @@ const world: World = {
 
 // play its shared steps in a simulation
 await using simulation = Simulation.of(world, {
-    world: WorldOptions.of(BunEnvironment.system.process),
+    world: WorldOptions.of(BunEnvironment.system.process, undefined),
 });
 for (const step of world.steps) {
     if (World.isStep(step)) {

@@ -1904,9 +1904,9 @@ test("observe the same timeline with and without jitter, as the world schedules 
     // run operations settling in reverse, a waited one and timers, recording what the world sees when
     const timeline = async (jitter: boolean) => {
         const variables = jitter ? { DESTACK_SIMULATION_JITTER: "1" } : {};
-        const { stderr } = testHost().process;
+        const host = testHost();
         await using simulation = new Simulation({
-            world: WorldOptions.of({ variables, stderr }),
+            world: WorldOptions.of({ variables, stderr: host.process.stderr }, undefined),
             seed: 3,
             start: START,
         });
