@@ -2,7 +2,6 @@ import { fromJsonSchema, present, schema, Uuid } from "@destack/schema";
 import { insertEpoch } from "../log/schema.ts";
 import { sql } from "../sql/index.ts";
 import type { DatabaseConnection } from "../database/connection.ts";
-import { rebuildTree } from "../tree/rebuild.ts";
 import { DatabaseError } from "../error/error.ts";
 import { STATE, type TableState, writeState } from "./state.ts";
 import { literal, quote } from "../dialect/quote.ts";
@@ -55,28 +54,10 @@ async function applySteps(
         await runStatements(transaction, changes, manager);
         transaction.state.logging = "unknown";
 
-        // convert rows and rebuild trees after the triggers
-        let pending: string[] = [];
-        for (const step of plan.steps.filter((each) => each.phase === "rows")) {
-            // flush the batch and rebuild the tree
-            if (step.tree !== undefined) {
-                await runStatements(transaction, pending, manager);
-                pending = [];
-                await rebuildTree(transaction, step.tree).catch((cause: unknown) => {
-                    throw DatabaseError.of(
-                        "MIGRATION_BROKEN",
-                        `'${step.target}': ${step.detail} failed`,
-                        {
-                            cause,
-                        },
-                    );
-                });
-            }
-            // batch the step's statements
-            else {
-                pending.push(...step.statements);
-            }
-        }
+        // convert rows after the triggers
+        const pending = plan.steps
+            .filter((each) => each.phase === "rows")
+            .flatMap((step) => step.statements);
 
         // record the declared state
         const recorded = plan.state.map((state) =>

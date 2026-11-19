@@ -1,7 +1,7 @@
 import { expect, onTestFinished, test } from "@destack/test";
 import { TestDatabase } from "../test/database.ts";
 import { text } from "../table/column.ts";
-import { defineTable, TABLE } from "../table/table.ts";
+import { defineTable } from "../table/table.ts";
 import { defineDatabase } from "./database.ts";
 import { testSimulation } from "@destack/test/world";
 
@@ -22,23 +22,17 @@ const folder = defineTable(
 /** Notes, which this package declares. */
 const note = defineTable("note", { id: text("id").primaryKey() });
 
-test("declare local and replicated tables, replicating a replicated tree's index, and refuse a table listed twice", () => {
-    // store the notes and replicate the users and folders with their tree index
+test("declare local and replicated tables, and refuse a table listed twice", () => {
+    // store the notes and replicate the users and folders
     const database = defineDatabase({ name: "main", tables: [note], replicated: [user, folder] });
-    const tree = folder[TABLE].tree;
     expect({
         tables: database.tables,
         replicated: database.spec.replicated,
         isReplicated: database.tables.map((table) => database.replicates(table)),
     }).toEqual({
-        tables: [note, user, folder, tree?.ancestors, tree?.revision],
-        replicated: [
-            "destack__db__user",
-            "destack__db__folder",
-            "destack__db__folder_tree_ancestor",
-            "destack__db__folder_tree_ancestor_revision",
-        ],
-        isReplicated: [false, true, true, true, true],
+        tables: [note, user, folder],
+        replicated: ["destack__db__user", "destack__db__folder"],
+        isReplicated: [false, true, true],
     });
 
     // refuse a table both declared and replicated

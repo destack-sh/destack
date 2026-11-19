@@ -7,14 +7,12 @@ import type { Dialect } from "../dialect/dialect.ts";
 import type { DatabaseConnection } from "../database/connection.ts";
 import { TableDescription } from "../table/description.ts";
 import { ChangeDescription } from "../log/description.ts";
-import { TreeDescription } from "../tree/description.ts";
 import { AggregateDescription } from "../aggregate/description.ts";
 import { DependentDescription } from "../dependent/description.ts";
 import { describeTable } from "../table/description.ts";
 import { dialectSQL, inline } from "../sql/index.ts";
 import { qualify, relation } from "../table/namespace.ts";
 import { describeLog, loggedKey } from "../log/schema.ts";
-import { expandTrees } from "../tree/tree.ts";
 import { literal, quote } from "../dialect/quote.ts";
 import { DatabaseError } from "../error/error.ts";
 
@@ -42,8 +40,6 @@ export const TableState = schema.object({
     isReplicated: schema.literal(true).exactOptional(),
     /** The columns the change triggers record, absent for unlogged tables. */
     log: ChangeDescription.exactOptional(),
-    /** The ancestor index maintained over the table, absent without a tree. */
-    tree: TreeDescription.exactOptional(),
     /** The table's multikey indexes. */
     multikeyIndexes: schema.array(MultikeyIndexDescription).exactOptional(),
     /** The aggregates the table declares, of its rows or of another table's into it. */
@@ -130,7 +126,7 @@ export type DatabaseState = schema.Infer<typeof DatabaseState>;
 
 /** The options of a table declaration. */
 export interface DeclareOptions {
-    /** Whether the whole database is a replica, without foreign keys and tree indexes. */
+    /** Whether the whole database is a replica, without foreign keys. */
     readonly isReplica?: boolean;
     /** The SQL names of replicated tables, which have no unique constraints or foreign keys. */
     readonly replicated?: ReadonlySet<string>;
@@ -165,11 +161,10 @@ export function logOf(state: TableState): string {
 
 /** Report whether an applied state covers a declaration. */
 export function coversState(applied: TableState, declared: TableState): boolean {
-    // require the same or a newer release and the same log and tree
+    // require the same or a newer release and the same log
     if (
         Version.compare(applied.package.version, declared.package.version) < 0 ||
         logOf(applied) !== logOf(declared) ||
-        canonicalize(applied.tree ?? null) !== canonicalize(declared.tree ?? null) ||
         canonicalize(applied.multikeyIndexes ?? []) !==
             canonicalize(declared.multikeyIndexes ?? []) ||
         canonicalize(applied.aggregates ?? []) !== canonicalize(declared.aggregates ?? []) ||
@@ -216,7 +211,7 @@ export function declareState(
 ): TableState[] {
     // add foreign keys to tables this database has and leave other references logical
     const isReplica = options.isReplica === true;
-    const declared = expandMultikeyIndexes(isReplica ? tables : expandTrees(tables));
+    const declared = expandMultikeyIndexes(tables);
     const local = new Set(isReplica ? [] : declared.map((table) => table[TABLE].sqlName));
     const replicated = options.replicated ?? new Set<string>();
     const { packages } = options;
@@ -230,10 +225,9 @@ export function declareState(
     const aggregates = describeAggregates(included, named, isReplica);
 
     return included.map((table) => {
-        // describe the table with its log and tree
+        // describe the table with its log
         const definition = table[TABLE];
         const log = describeLog(table);
-        const tree = isReplica ? undefined : definition.tree?.describe();
         const multikeyIndexes = definition.multikeyIndexes.map((each) => each.describe());
         const moved = describeMoves(table);
         const conversions = describeConversions(table, dialect);
@@ -251,7 +245,6 @@ export function declareState(
             table: isReplica ? asReplica(table, kept) : kept,
             ...(isReplicated ? { isReplicated: true as const } : {}),
             ...(log === undefined ? {} : { log }),
-            ...(tree === undefined ? {} : { tree }),
             ...(multikeyIndexes.length === 0 ? {} : { multikeyIndexes }),
             ...(aggregated === undefined ? {} : { aggregates: aggregated }),
             ...(dependents.length === 0 ? {} : { dependents }),
@@ -292,7 +285,7 @@ export function localState(state: TableState, namespace: string | undefined): Ta
 
 /** Rename the table, its indexes and every table the state refers to. */
 function renameState(state: TableState, name: (relation: string) => string): TableState {
-    const { table, tree, aggregates, dependents, multikeyIndexes, moved } = state;
+    const { table, aggregates, dependents, multikeyIndexes, moved } = state;
 
     return {
         ...state,
@@ -306,16 +299,6 @@ function renameState(state: TableState, name: (relation: string) => string): Tab
             ),
             indexes: table.indexes.map((index) => ({ ...index, name: name(index.name) })),
         },
-        ...(tree === undefined
-            ? {}
-            : {
-                  tree: {
-                      ...tree,
-                      table: name(tree.table),
-                      ancestors: name(tree.ancestors),
-                      revision: name(tree.revision),
-                  },
-              }),
         ...(aggregates === undefined
             ? {}
             : {

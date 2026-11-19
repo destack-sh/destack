@@ -182,7 +182,7 @@ test("select rows by their relations, and count and look up through relations, a
     ]);
 });
 
-test("include a tree's descendants and ancestors through its index, each node without itself", async () => {
+test("include a tree's descendants and ancestors by walking its parent column, each node without itself", async () => {
     const connection = await open();
 
     // read every node below and above each node

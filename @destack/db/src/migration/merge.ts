@@ -85,11 +85,10 @@ function mergeTable(states: readonly TableState[]): {
         indexes: indexes.entries,
     };
 
-    // require agreement on the log and tree
+    // require agreement on the log
     const logs = new Set(states.map((state) => logOf(state)));
-    const trees = new Set(states.map((state) => canonicalize(state.tree ?? null)));
-    if (logs.size > 1 || trees.size > 1) {
-        return { state: newest, reason: "releases disagree on the table's log or tree" };
+    if (logs.size > 1) {
+        return { state: newest, reason: "releases disagree on the table's log" };
     }
 
     // log every retained column

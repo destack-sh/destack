@@ -511,7 +511,7 @@ function pathOf(table: Table, from: RelationColumn, to: RelationColumn): Path {
 /** List the relations following a table's tree down and up, none for a table without a tree. */
 function treeRelations(table: Table): Readonly<Record<string, Relation>> {
     // relate no rows without a tree
-    const tree = table[TABLE].tree?.definition;
+    const tree = table[TABLE].tree;
     if (tree === undefined) {
         return {};
     }

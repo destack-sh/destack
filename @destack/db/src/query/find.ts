@@ -223,7 +223,7 @@ class Level {
         const parent =
             parents === undefined
                 ? []
-                : [sql`${parents.join.column} AS ${sql.identifier("parent")}`];
+                : [sql`${parents.join.selected} AS ${sql.identifier("parent")}`];
         const selected = sql.join([...this.#fields, ...parent], sql.raw(", "));
 
         // read the rows meeting the condition, of the batch's parents when joined
@@ -231,7 +231,7 @@ class Level {
             parents === undefined
                 ? this.#where
                 : sql`${this.#where} AND ${parents.join.filter(parents.values)}`;
-        const source = sql`FROM ${this.table}${parents?.join.from ?? sql``} WHERE ${where}`;
+        const source = sql`FROM ${this.table}${parents?.join.from(parents.values) ?? sql``} WHERE ${where}`;
         const limit = this.#limit;
 
         // read every row
@@ -245,7 +245,7 @@ class Level {
         // read each parent's first rows, ranked within its parent's rows
         else {
             const rank = sql.identifier("rank");
-            const ranked = sql`SELECT ${selected}, ROW_NUMBER() OVER (PARTITION BY ${parents.join.column} ORDER BY ${this.#order}) AS ${rank} ${source}`;
+            const ranked = sql`SELECT ${selected}, ROW_NUMBER() OVER (PARTITION BY ${parents.join.selected} ORDER BY ${this.#order}) AS ${rank} ${source}`;
 
             return sql`SELECT * FROM (${ranked}) AS ${sql.identifier("ranked")} WHERE ${rank} <= ${limit} ORDER BY ${rank}`;
         }
@@ -275,24 +275,29 @@ class Level {
     }
 }
 
-/** How a level's rows join their parents: the joined table, and each row's parent column. */
+/** How a level's rows join their parents: the joined rows and each row's parent. */
 class Join {
-    /** The joined table and its join condition, absent for a key path. */
-    readonly from: SQL | undefined;
-    /** The table of the column with the parent. */
-    readonly table: Table;
-    /** The column with the parent, by property. */
-    readonly name: string;
-    /** The column with the parent. */
+    /** Join a batch of parents' rows, as SQL after the level's table. */
+    readonly from: (values: readonly Comparable[]) => SQL;
+    /** The expression with each row's parent. */
+    readonly selected: SQL;
+    /** The column whose type decodes a parent value. */
     readonly column: Column;
+    /** Select the rows of a batch of parents. */
+    readonly filter: (values: readonly Comparable[]) => SQL;
 
-    /** Join through a table's column with each row's parent. */
-    constructor(from: SQL | undefined, table: Table, name: string, column: Column) {
-        // project the join and the parent column
+    /** Join a level's rows to a batch of parents by an expression of a column's type. */
+    constructor(
+        from: (values: readonly Comparable[]) => SQL,
+        selected: SQL,
+        column: Column,
+        filter: (values: readonly Comparable[]) => SQL,
+    ) {
+        // keep the join, the parent expression and its type
         this.from = from;
-        this.table = table;
-        this.name = name;
+        this.selected = selected;
         this.column = column;
+        this.filter = filter;
     }
 
     /** Join a level's rows to their parents along a path. */
@@ -300,40 +305,70 @@ class Join {
         // name the parent by the row's key column
         const definition = table[TABLE];
         if (path.kind === "key") {
-            return new Join(undefined, table, path.column, definition.column(path.column));
+            const column = definition.column(path.column);
+
+            return new Join(
+                () => sql``,
+                sql`${column}`,
+                column,
+                (values) => Condition.render({ [path.column]: { in: values } }, table),
+            );
         }
         // find the parent by the junction rows referencing the row
         else if (path.kind === "junction") {
             const through = path.table[TABLE];
             const from = sql` INNER JOIN ${path.table} ON ${through.column(path.to.column)} = ${definition.column(path.to.key)}`;
+            const column = through.column(path.from.column);
 
-            return new Join(from, path.table, path.from.column, through.column(path.from.column));
+            return new Join(
+                () => from,
+                sql`${column}`,
+                column,
+                (values) => Condition.render({ [path.from.column]: { in: values } }, path.table),
+            );
         }
-        // find the parent by the tree index rows referencing the row
+        // find the parent by walking the tree's parent column from the batch's parents
         else {
             return Join.#tree(table, path);
         }
     }
 
-    /** Join a level's rows to their parents through a tree's ancestor index. */
+    /** Join a level's rows to their tree parents by a recursive walk. */
     static #tree(table: Table, path: TreePath): Join {
-        // name the row on one end of an index row and the parent on the other
-        const tree = treeOf(table);
-        const index = tree.ancestors[TABLE];
-        const row = path.kind === "descendants" ? "descendant" : "ancestor";
-        const parent = path.kind === "descendants" ? "ancestor" : "descendant";
-
-        // join the index rows of the row's scope, without the row itself
+        // name the tree's columns, its pairs of ancestor and descendant, and the path's rows
         const definition = table[TABLE];
-        const from = sql` INNER JOIN ${tree.ancestors} ON ${index.column(row)} = ${definition.column(tree.definition.id)}
-            AND ${index.column("scope")} = ${definition.column(tree.definition.scope)} AND ${index.column("depth")} > 0`;
+        const tree = treeOf(table);
+        const name = (property: string) =>
+            sql.identifier(definition.column(property).definition.name);
+        const [id, scope, parent] = [name(tree.id), name(tree.scope), name(tree.parent)];
+        const pairs = sql.identifier("tree");
+        const node = sql.identifier("node");
+        const rows = sql.identifier(path.kind);
 
-        return new Join(from, tree.ancestors, parent, index.column(parent));
-    }
+        // pair each node with its ancestors, walking down from the parents or up from the children
+        const isDown = path.kind === "descendants";
+        const walk = (values: readonly Comparable[]) =>
+            isDown
+                ? sql`SELECT ${scope} AS scope, ${parent} AS ancestor, ${id} AS descendant FROM ${table} WHERE ${parent} IN (${listed(values)})
+                    UNION SELECT ${pairs}.scope, ${pairs}.ancestor, ${node}.${id} FROM ${pairs} INNER JOIN ${table} AS ${node}
+                    ON ${node}.${scope} = ${pairs}.scope AND ${node}.${parent} = ${pairs}.descendant`
+                : sql`SELECT ${scope} AS scope, ${parent} AS ancestor, ${id} AS descendant FROM ${table} WHERE ${id} IN (${listed(values)}) AND ${parent} IS NOT NULL
+                    UNION SELECT ${pairs}.scope, ${node}.${parent}, ${pairs}.descendant FROM ${pairs} INNER JOIN ${table} AS ${node}
+                    ON ${node}.${scope} = ${pairs}.scope AND ${node}.${id} = ${pairs}.ancestor WHERE ${node}.${parent} IS NOT NULL`;
 
-    /** Select the rows of some parents. */
-    filter(values: readonly Comparable[]): SQL {
-        return Condition.render({ [this.name]: { in: values } }, this.table);
+        // join each row to the parent it relates to: its ancestor below, its descendant above
+        const [own, other] = isDown ? ["descendant", "ancestor"] : ["ancestor", "descendant"];
+        const from = (values: readonly Comparable[]) =>
+            sql` INNER JOIN (WITH RECURSIVE ${pairs}(scope, ancestor, descendant) AS (${walk(values)}) SELECT scope, ancestor, descendant FROM ${pairs}) AS ${rows}
+            ON ${rows}.${sql.identifier(own)} = ${definition.column(tree.id)} AND ${rows}.scope = ${definition.column(tree.scope)}`;
+        const selected = sql`${rows}.${sql.identifier(other)}`;
+
+        return new Join(
+            from,
+            selected,
+            definition.column(tree.id),
+            (values) => sql`${selected} IN (${listed(values)})`,
+        );
     }
 
     /** Read the parent name of a selected driver value. */
@@ -446,7 +481,7 @@ function parentOf(table: Table, path: Path): Parent {
     }
     // read the tree's identifier column
     else {
-        name = treeOf(table).definition.id;
+        name = treeOf(table).id;
     }
 
     return { name, column: table[TABLE].column(name) };
@@ -510,5 +545,13 @@ function nameOf(json: unknown): string {
 function batches<Value>(values: readonly Value[], size: number): Value[][] {
     return Array.from({ length: Math.ceil(values.length / size) }, (_, index) =>
         values.slice(index * size, (index + 1) * size),
+    );
+}
+
+/** List some values as bound parameters for an IN list. */
+function listed(values: readonly Comparable[]): SQL {
+    return sql.join(
+        values.map((value) => sql`${value}`),
+        sql`, `,
     );
 }

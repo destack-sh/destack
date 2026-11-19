@@ -31,7 +31,6 @@ import { Expression } from "../expression/expression.ts";
 import type { Condition, Scalar } from "../query/condition.ts";
 import { qualify } from "./namespace.ts";
 import type { ChangeRetention } from "../log/description.ts";
-import { Tree } from "../tree/tree.ts";
 import { MultikeyIndex, type EntryTable, type MultikeyName } from "../multikey/multikey.ts";
 import { FullTextIndex } from "../search/search.ts";
 import { DatabaseError } from "../error/error.ts";
@@ -328,8 +327,6 @@ export class TableDefinition<
     readonly #declared: () => readonly TableConstraint[];
     /** The tree columns, absent without a tree. */
     readonly #treeColumns: TreeColumns | undefined;
-    /** The tree, built on first read. */
-    #tree: Tree | undefined;
     /** The multikey indexes, built on first read. */
     #multikeyIndexes: readonly MultikeyIndex[] | undefined;
     /** The primary key properties, read on first use. */
@@ -411,13 +408,9 @@ export class TableDefinition<
         return found.table as EntryTable<Extract<Constraints[number], Index<IndexName>>>;
     }
 
-    /** The ancestor index over the parent column, absent without a tree. */
-    get tree(): Tree | undefined {
-        if (this.#treeColumns !== undefined) {
-            this.#tree ??= new Tree({ name: "tree", table: this.#table, ...this.#treeColumns });
-        }
-
-        return this.#tree;
+    /** The columns of the table's tree, absent without one. */
+    get tree(): TreeColumns | undefined {
+        return this.#treeColumns;
     }
 
     /** The primary key properties in key order. */
@@ -683,8 +676,8 @@ export interface TableMove {
     readonly columns?: Readonly<Partial<Record<string, string>>>;
 }
 
-/** The properties of a single-parent tree per scope. */
-interface TreeColumns<Property extends string = string> {
+/** The properties of a single-parent tree per scope: a parent reference to the table itself. */
+export interface TreeColumns<Property extends string = string> {
     /** The property with the node identity. */
     readonly id: Property;
     /** The property with the tree scope. */

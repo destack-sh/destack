@@ -1,8 +1,6 @@
 import type { Dialect } from "../dialect/dialect.ts";
 import type { TableDescription } from "../table/description.ts";
-import type { TreeDescription } from "../tree/description.ts";
 import { createLog, logTriggers } from "../log/trigger.ts";
-import { treeTriggers } from "../tree/trigger.ts";
 import { multikeyIndexTriggers, rebuildMultikeyIndex } from "../multikey/trigger.ts";
 import { FullTextIndex } from "../search/search.ts";
 import { aggregateTriggers, recomputeAggregate } from "../aggregate/trigger.ts";
@@ -21,7 +19,6 @@ import { type PlanProblem, ResourceError, unreachablePlan } from "@destack/resou
 /** The generated triggers every plan removes and reinstalls. */
 const TRIGGERS: readonly TriggerSet[] = [
     logTriggers,
-    treeTriggers,
     multikeyIndexTriggers,
     aggregateTriggers,
     dependentTriggers,
@@ -32,10 +29,8 @@ const TRIGGERS: readonly TriggerSet[] = [
 export interface TableStep extends Step {
     /** When the step runs: with the table changes, or on the rows after them. */
     readonly phase: TablePhase;
-    /** The step's SQL, empty for tree rebuilds and log updates. */
+    /** The step's SQL, empty for log updates. */
     readonly statements: readonly string[];
-    /** The tree a rebuild step reconstructs. */
-    readonly tree?: TreeDescription;
     /** The table and columns a conversion step writes, whose values the apply checks. */
     readonly converted?: { readonly table: string; readonly columns: readonly string[] };
     /** The table a SQLite replace step rebuilds, written with the plan's other rebuilds. */
@@ -358,9 +353,8 @@ function planChange(
     changes.push(...convertSteps(state, previous, isEmpty, problems));
     changes.push(...changed.filter((each) => each.phase === "rows"));
 
-    // backfill newly bridged columns and rebuild a changed tree's index
+    // backfill newly bridged columns
     changes.push(...bridgeSteps(state, previous));
-    changes.push(...treeSteps(state, previous));
     changes.push(...fullTextSteps(state, previous));
 
     // reinstall log triggers when nothing else changed
@@ -425,24 +419,6 @@ function bridgeSteps(state: TableState, previous: TableState): TableStep[] {
                 "rows",
             ),
         );
-}
-
-/** Rebuild the ancestor index of a changed tree. */
-function treeSteps(state: TableState, previous: TableState): TableStep[] {
-    // leave an absent or unchanged tree
-    if (!state.tree || canonicalize(state.tree) === canonicalize(previous.tree ?? null)) {
-        return [];
-    }
-    const rebuild = step(
-        "update",
-        Address.join("table", state.table.name, "tree"),
-        "safe",
-        "rebuild the ancestor index",
-        [],
-        "rows",
-    );
-
-    return [{ ...rebuild, tree: state.tree }];
 }
 
 /** Fill the multikey indexes an existing table adds. */

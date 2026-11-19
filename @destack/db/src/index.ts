@@ -9,7 +9,6 @@ export * from "./dialect/dialect.ts";
 export * from "./log/index.ts";
 export * from "./limit/index.ts";
 export * from "./control/index.ts";
-export * from "./tree/index.ts";
 export * from "./search/index.ts";
 export * from "./error/index.ts";
 export * from "./channel/index.ts";

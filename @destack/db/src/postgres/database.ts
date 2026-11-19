@@ -8,7 +8,6 @@ import { CHANNEL_PREFIX } from "../log/schema.ts";
 import { DatabaseDriver } from "../database/driver.ts";
 import { PostgresSession } from "../database/session.ts";
 import type { PostgresPool } from "./pool.ts";
-import { expandTrees } from "../tree/tree.ts";
 import type * as declaration from "../declare/database.ts";
 import type { Table } from "../table/table.ts";
 import { Relations } from "../query/relation.ts";
@@ -58,9 +57,9 @@ export class PostgresDatabase<
         tables: declaration.Database<Models> | readonly Table[],
         options: PostgresConnectOptions & { readonly poolCloser: "database" | "caller" },
     ) {
-        // read how the connection writes, and declare the tables with their tree tables
+        // read how the connection writes, and declare the tables
         const { writers = "shared", schema, environment } = options;
-        const declared = "tables" in tables ? tables.tables : expandTrees(tables);
+        const declared = "tables" in tables ? tables.tables : tables;
         requireDistinct(declared, "postgresql");
 
         // key each channel by the database's schema, as the log's notifications do

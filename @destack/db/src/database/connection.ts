@@ -408,7 +408,11 @@ export class DatabaseConnection<
         );
         const stamped = await readStamp(this, manager, existing);
         if (stamped.kind === "stamped" && stamped.digest === stamp) {
+            // declare the tables, reading which of them the applied states replicate when it declares replicas
             this.state.declare(tables);
+            if (replicas.size > 0) {
+                await this.#readApplied();
+            }
 
             return {
                 plan: {
@@ -1163,20 +1167,7 @@ function cascadeLinks(table: Table, dialect: Dialect): CascadeLink[] {
         return [...deleting, ...updating];
     });
 
-    // keep a tree's ancestors at every write of its nodes
-    const tree: CascadeLink[] =
-        definition.tree === undefined
-            ? []
-            : [
-                  {
-                      written: definition.sqlName,
-                      operations: WRITE_OPERATIONS,
-                      changed: definition.tree.ancestors[TABLE].sqlName,
-                      operation: "DELETE",
-                  },
-              ];
-
-    return [...aggregates, ...dependents, ...references, ...tree];
+    return [...aggregates, ...dependents, ...references];
 }
 
 /** Require distinct SQL names across a database's tables and their indexes and keys. */

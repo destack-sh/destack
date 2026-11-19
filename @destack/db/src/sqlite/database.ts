@@ -10,7 +10,6 @@ import {
 import type { Channel } from "../channel/channel.ts";
 import { DatabaseDriver } from "../database/driver.ts";
 import { SqliteSession } from "../database/session.ts";
-import { expandTrees } from "../tree/tree.ts";
 import type * as declaration from "../declare/database.ts";
 import type { Table } from "../table/table.ts";
 import { Relations } from "../query/relation.ts";
@@ -32,8 +31,8 @@ export class SqliteDatabase<
         role: ConnectionRole,
         options: SqliteConnectOptions & { readonly namespace?: string; readonly name: string },
     ) {
-        // declare the tables with their tree tables
-        const declared = "tables" in tables ? tables.tables : expandTrees(tables);
+        // declare the tables
+        const declared = "tables" in tables ? tables.tables : tables;
         requireDistinct(declared, "sqlite");
         super(
             new DatabaseDriver(

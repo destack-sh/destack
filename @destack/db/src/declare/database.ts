@@ -5,7 +5,6 @@ import { ResourceDeclaration, type ResourceBinding } from "@destack/resource";
 import type { ResourceContext } from "@destack/resource/context";
 import type { DatabaseConnection } from "../database/connection.ts";
 import { TABLE, type Table } from "../table/table.ts";
-import { expandTrees } from "../tree/tree.ts";
 import { DatabaseState } from "../migration/state.ts";
 import { Relations } from "../query/relation.ts";
 import type { Model } from "../query/model.ts";
@@ -112,8 +111,8 @@ export function defineDatabase<
     // reject duplicate SQL names within and across the declared and replicated tables
     const owner = ModuleMetadata.require(module, "defineDatabase").package;
     const names = new Map<string, Table>();
-    const replicated = expandTrees(definition.replicated ?? []);
-    for (const table of [...expandTrees(definition.tables), ...replicated]) {
+    const replicated = definition.replicated ?? [];
+    for (const table of [...definition.tables, ...replicated]) {
         const { sqlName } = table[TABLE];
         if (names.has(sqlName)) {
             throw new TypeError(`duplicate SQL table: '${sqlName}'`);

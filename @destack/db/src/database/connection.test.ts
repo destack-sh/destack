@@ -1,5 +1,9 @@
 import { asc } from "../sql/index.ts";
-import { expect, onTestFinished, Recording, test } from "@destack/test";
+import { expect, onTestFinished, Recording, test, testOn } from "@destack/test";
+import init from "@sqlite.org/sqlite-wasm";
+import { WasmClient } from "../browser/client.ts";
+import { connectWasmSqlite } from "../browser/connection.ts";
+import { note } from "../log/test/fixture.ts";
 import { TestDatabase } from "../test/database.ts";
 import { integer, text } from "../table/column.ts";
 import { defineTable, TABLE, type Table } from "../table/table.ts";
@@ -54,6 +58,9 @@ function counters(count: number, value: number) {
         value,
     }));
 }
+
+/** Test against SQLite alone, as the file tests a connector of it. */
+const onSqlite = testOn("sqlite");
 
 test("upsert rows as they are, get them and remove them by key in one statement each", async () => {
     // run in a world of its own
@@ -323,3 +330,30 @@ test("open a database migrated before managers, keeping its tables under the dat
         stamps: [{ manager: "database" }],
     });
 });
+
+onSqlite(
+    "replicate the replicated tables again on a connection that finds them migrated",
+    async () => {
+        // migrate a table as a replica on one connection to a database
+        const world = testSimulation().environment("test");
+        const sqlite = await init();
+        const client = new WasmClient(new sqlite.oo1.DB(":memory:"), world);
+        const connect = () =>
+            connectWasmSqlite(client, [note], { name: "memory", environment: world });
+        const options = { isReplica: true, replicated: new Set([note[TABLE].sqlName]) };
+        const first = connect();
+        await first.migrate([note], options);
+
+        // open the database again, as a reloaded page does, finding the declaration stamped
+        const second = connect();
+        onTestFinished(() => second.close());
+        const plan = await second.migrate([note], options);
+
+        // expect no steps, and the table read as a replica on both connections
+        expect({
+            steps: plan.steps.length,
+            first: first.replicates(note),
+            second: second.replicates(note),
+        }).toEqual({ steps: 0, first: true, second: true });
+    },
+);
