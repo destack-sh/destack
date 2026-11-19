@@ -225,7 +225,7 @@ test("read tests through a namespace import, an extended runner and a tagged tab
     await using simulation = testSimulation();
     const environment = simulation.environment("test");
     const { directory, outliner } = await outlined(environment.files, environment);
-    const tests = await outliner.tests(join(directory, "tests/suite.test.ts"));
+    const { tests } = await outliner.outline(join(directory, "tests/suite.test.ts"));
 
     expect(tests.map((each) => [each.kind, each.name, each.suites, each.modifiers])).toEqual([
         ["suite", "notes", [], []],
@@ -238,7 +238,7 @@ test("read tests through conditional runners, recording each condition, and neve
     await using simulation = testSimulation();
     const environment = simulation.environment("test");
     const { directory, outliner } = await outlined(environment.files, environment);
-    const tests = await outliner.tests(join(directory, "tests/conditional.test.ts"));
+    const { tests } = await outliner.outline(join(directory, "tests/conditional.test.ts"));
 
     expect(tests.map((each) => [each.kind, each.name, each.modifiers])).toEqual([
         ["test", "signs", ["skipIf"]],

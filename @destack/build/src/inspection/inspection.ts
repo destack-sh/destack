@@ -2,6 +2,7 @@ import { type PackageVersion, DeclarationDescription } from "@destack/package";
 import { type Runtime } from "@destack/package/runtime";
 import { schema, type Version } from "@destack/schema";
 import { type ModuleDescription, ModuleGraph, PackageInspection } from "@destack/package/code";
+import { ExampleDeclaration } from "../graph/example.ts";
 import { TestDeclaration } from "../outline/test.ts";
 
 /** Source and resolution settings for package inspection. */
@@ -16,20 +17,28 @@ export interface InspectOptions {
     versions?: Readonly<Record<string, Version>>;
 }
 
-/** Describe the modules and declarations collected by the compiler. */
+/** The contents of an inspection beside its modules: tests, examples and declarations. */
+export const InspectionContents = schema.object({
+    /** The tests and suites the modules declare. */
+    tests: schema.array(TestDeclaration),
+    /** The examples the modules export. */
+    examples: schema.array(ExampleDeclaration),
+    /** The declarations the export entries evaluate to. */
+    declarations: schema.array(DeclarationDescription),
+});
+/** The contents of an inspection beside its modules: tests, examples and declarations. */
+export type InspectionContents = schema.Infer<typeof InspectionContents>;
+
+/** Describe the modules, tests, examples and declarations collected by the compiler. */
 export function inspectModules(
     source: PackageVersion,
     modules: ModuleDescription[],
-    tests: TestDeclaration[],
-    declarations: DeclarationDescription[],
+    contents: InspectionContents,
 ): PackageInspection {
     return PackageInspection.create(
         source.name,
         new ModuleGraph(modules),
-        schema.object({
-            tests: schema.array(TestDeclaration),
-            declarations: schema.array(DeclarationDescription),
-        }),
-        { tests, declarations },
+        InspectionContents,
+        contents,
     );
 }

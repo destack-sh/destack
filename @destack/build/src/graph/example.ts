@@ -1,32 +1,40 @@
 import { graph, type PackageVersion } from "@destack/package";
-import type { SourceRange } from "@destack/package/source";
-import { type JsonObject, schema } from "@destack/schema";
+import { SourceRange } from "@destack/package/source";
+import { schema } from "@destack/schema";
 import type { Definition, DefinitionSite } from "../outline/definition.ts";
 import type { DeclarationGraph } from "./declaration.ts";
 
 /** An example a module exports, located and described, with the properties its module gives. */
-export interface ExampleDeclaration extends DefinitionSite {
+const exampleSchema = schema.object({
+    /** The literal name. */
+    name: schema.string(),
+    /** The exported constant with the example. */
+    symbol: schema.string(),
+    /** The defining call's range in its module. */
+    source: SourceRange,
     /** The symbol the example shows. */
-    readonly of: graph.Moniker;
+    of: graph.Moniker,
     /** The calls bringing the shown objects into the example's state, by scope. */
-    readonly objects: Readonly<
-        Record<
-            string,
-            readonly {
-                readonly object: graph.Moniker;
-                readonly method: string;
-                readonly input: JsonObject;
-            }[]
-        >
-    >;
+    objects: schema.record(
+        schema.string(),
+        schema.array(
+            schema.object({
+                object: graph.Moniker,
+                method: schema.string(),
+                input: schema.jsonObject(),
+            }),
+        ),
+    ),
     /** The sentence saying what the example shows. */
-    readonly description: string;
+    description: schema.string(),
     /** The properties the example renders with, as its module evaluates them. */
-    readonly properties: JsonObject;
-}
+    properties: schema.jsonObject(),
+});
+/** An example a module exports, located and described, with the properties its module gives. */
+export type ExampleDeclaration = schema.Infer<typeof exampleSchema> & DefinitionSite;
 
 /** An example a module exports, located at its definition. */
-export const ExampleDeclaration = {
+export const ExampleDeclaration = Object.assign(exampleSchema, {
     /** Read an example's definition: what it shows and the calls bringing its objects. */
     async read(definition: Definition): Promise<Omit<ExampleDeclaration, "properties">> {
         // read the calls of each scope, each object by its moniker
@@ -49,7 +57,7 @@ export const ExampleDeclaration = {
             description: fields.text("description"),
         };
     },
-};
+});
 
 /** A declaration a module registers, with the edges from it and its registering call's range. */
 export interface Registration {

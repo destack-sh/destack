@@ -4,8 +4,7 @@ import { expect, refusal, test } from "@destack/test";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { present, schema } from "@destack/schema";
-import { TestDeclaration } from "../src/outline/test.ts";
-import { Workspace, CompilerPool } from "../src/index.ts";
+import { Workspace, CompilerPool, InspectionContents } from "../src/index.ts";
 import { LocalBuildStore } from "../src/store/local.ts";
 import { THING_FILES, writeThing } from "./fixture.ts";
 import { Toolchain } from "@destack/check/toolchain";
@@ -34,11 +33,7 @@ test("inspect test bodies and fixture extensions without declaring what they con
             compiler.inspect({ directory, runtime: "bun", dependencies, links: {} }),
         );
     const before = await inspect();
-    const description = schema.object({
-        tests: schema.array(TestDeclaration),
-        declarations: schema.array(DeclarationDescription),
-    });
-    const original = description.parse(before.descriptions);
+    const original = InspectionContents.parse(before.descriptions);
 
     // construct a thing in a registered test beside a fixture extension, then inspect again
     const source = `import { test } from "vitest";
@@ -53,7 +48,8 @@ test("construct a thing", () => {
     const after = await inspect();
 
     // list the one declaration and add only the statically collected test
-    expect(description.parse(after.descriptions)).toEqual({
+    expect(InspectionContents.parse(after.descriptions)).toEqual({
+        examples: [],
         declarations: original.declarations,
         tests: [
             ...original.tests,

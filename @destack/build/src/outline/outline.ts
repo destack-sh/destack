@@ -308,13 +308,6 @@ export class Outliner {
         return collectGlobals(source.program, graph.Moniker.module(source.module.moniker));
     }
 
-    /** Collect the tests and suites a module declares. */
-    async tests(file: string): Promise<TestDeclaration[]> {
-        const source = await this.#source(file);
-
-        return collectTests(source.program, graph.Moniker.module(source.module.moniker));
-    }
-
     /** Outline one module: its symbols, imports, exports and the names it uses. */
     async outline(file: string): Promise<Outline> {
         // read the module's syntax and its exports

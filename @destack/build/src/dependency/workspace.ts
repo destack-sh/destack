@@ -12,7 +12,7 @@ import {
 } from "@destack/package";
 import { type BuildReader, BuildImage, PackageManifest } from "@destack/package/manifest";
 import { PackageLocator } from "@destack/package/locator";
-import { PRIMARY_RUNTIMES, type Runtime } from "@destack/package/runtime";
+import { PRIMARY_RUNTIMES } from "@destack/package/runtime";
 import { Digest, found, nth, present, Version } from "@destack/schema";
 import { Checkout } from "../cache/index.ts";
 import { NpmInstallation, type NpmUnit } from "./npm.ts";
@@ -710,17 +710,15 @@ export class WorkspacePackage {
         return manifest;
     }
 
-    /** Inspect the root against its dependencies' builds, reusing stored units. */
+    /** Inspect the root from source, members through the workspace, releases through builds. */
     async inspect(request: Omit<InspectOptions, "directory">): Promise<PackageInspection> {
-        return await this.#against(
-            request.runtime,
-            async (compiler, dependencies) =>
-                await compiler.inspect({
-                    ...request,
-                    directory: this.root.directory,
-                    dependencies,
-                    links: await this.#releaseLinks(),
-                }),
+        // resolve members through the workspace, and releases through their builds
+        // NOTE #Performance: ui inspects in about 6 s warm, where a warm incremental check of its modules takes about 1 s
+        const dependencies = await this.#releaseRoots(this.root);
+        const links = await this.#releaseLinks();
+
+        return await this.workspace.compilers.use(this.root.directory, (compiler) =>
+            compiler.inspect({ ...request, directory: this.root.directory, dependencies, links }),
         );
     }
 
@@ -779,21 +777,6 @@ export class WorkspacePackage {
         const stored = await this.#storeEach(shared, this.#dependencies);
 
         return await this.#inputs(this.root, stored);
-    }
-
-    /** Run work with the root's compiler against the builds of its dependencies. */
-    async #against<Result>(
-        runtime: Runtime,
-        work: (
-            compiler: Compiler,
-            dependencies: Record<string, DependencyRelease>,
-        ) => Promise<Result>,
-    ): Promise<Result> {
-        const dependencies = await this.storeDependencies({});
-
-        return await this.workspace.compilers.use(this.root.directory, (compiler) =>
-            work(compiler, dependencies),
-        );
     }
 
     /** The units before the root. */

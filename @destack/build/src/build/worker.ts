@@ -9,6 +9,7 @@ import {
     type PackageVersion,
     type DeclarationDescription,
     PackageJson,
+    TEST_EXPORT,
 } from "@destack/package";
 import { found, present, schema } from "@destack/schema";
 import type { BuildExtension, TransformCache } from "@destack/package/build";
@@ -206,16 +207,30 @@ export class CompilerWorker implements AsyncDisposable {
 
     /** Inspect source using retained compiler state and source configurations. */
     async inspect(options: InspectOptions & Pick<RequestedBuild, "tree">) {
-        // inspect the package's program, and read its tests from its modules' syntax
-        const { project, inspection, declarations } = await this.#inspectPackage(options);
+        // inspect the package's program, and outline each of its modules from their syntax
+        const { project, inspection, declarations, transformer } =
+            await this.#inspectPackage(options);
         const outliner = new Outliner(this.environment, this.#modules);
-        const files = await outliner.files(project.directory);
-        const tests = [];
-        for (const file of files) {
-            tests.push(...(await outliner.tests(file)));
+        const outlines = [];
+        for (const file of await outliner.files(project.directory)) {
+            outlines.push(await outliner.outline(file));
         }
 
-        return inspectModules(project.packageJson.package, inspection.modules, tests, declarations);
+        // read its tests, and its examples with the properties their modules evaluate
+        const tests = outlines.flatMap((outline) => outline.tests);
+        const read = await Promise.all(
+            outlines
+                .flatMap((outline) => outline.definitions)
+                .filter((definition) => definition.kind === "example")
+                .map((definition) => ExampleDeclaration.read(definition)),
+        );
+        const examples = await Evaluation.examples(project, read, transformer);
+
+        return inspectModules(project.packageJson.package, inspection.modules, {
+            tests,
+            examples,
+            declarations,
+        });
     }
 
     /** Index a package from its syntax and its build's declarations: each module's graph file. */
@@ -729,18 +744,28 @@ export class CompilerWorker implements AsyncDisposable {
     }
 }
 
-/** Read a source's package.json as released: as authored, or at the release's version. */
+/** Read a source's package.json as released: at its version, without the test layer. */
 async function releasedManifest(project: PackageSource): Promise<Uint8Array<ArrayBuffer>> {
-    // take the authored bytes of the version they list
+    // read the authored manifest and its exports
     const path = resolve(project.directory, "package.json");
     const authored = await project.environment.files.readTextFile(path);
     const manifest = schema.jsonObject().parse(JSON.parse(authored));
+    const exports = schema.jsonObject().parse(manifest["exports"]);
     const { version } = project.packageJson.package;
-    if (manifest["version"] === version) {
+
+    // take the authored bytes when they list the version and no test layer
+    const isTested = Object.hasOwn(exports, TEST_EXPORT);
+    if (manifest["version"] === version && !isTested) {
         return new TextEncoder().encode(authored);
     }
 
-    return new TextEncoder().encode(`${JSON.stringify({ ...manifest, version }, null, 4)}\n`);
+    // otherwise list the release's version, and only the exports the build ships
+    const shipped = Object.fromEntries(
+        Object.entries(exports).filter(([name]) => name !== TEST_EXPORT),
+    );
+    const released = { ...manifest, version, exports: shipped };
+
+    return new TextEncoder().encode(`${JSON.stringify(released, null, 4)}\n`);
 }
 
 /** Plan the requested module outputs and the prerender output, refusing invalid plans. */
