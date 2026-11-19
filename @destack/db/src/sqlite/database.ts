@@ -31,8 +31,8 @@ export class SqliteDatabase<
         role: ConnectionRole,
         options: SqliteConnectOptions & { readonly namespace?: string; readonly name: string },
     ) {
-        // declare the tables
-        const declared = "tables" in tables ? tables.tables : tables;
+        // declare the distinct tables
+        const declared = "tables" in tables ? tables.tables : [...new Set(tables)];
         requireDistinct(declared, "sqlite");
         super(
             new DatabaseDriver(

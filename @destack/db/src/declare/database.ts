@@ -108,11 +108,11 @@ export interface DatabaseDefinition<
 export function defineDatabase<
     Models extends Readonly<Record<string, Model>> = Readonly<Record<string, Model>>,
 >(definition: DatabaseDefinition<Models>, module?: ModuleMetadata): Database<Models> {
-    // reject duplicate SQL names within and across the declared and replicated tables
+    // refuse two distinct tables of one SQL name
     const owner = ModuleMetadata.require(module, "defineDatabase").package;
     const names = new Map<string, Table>();
-    const replicated = definition.replicated ?? [];
-    for (const table of [...definition.tables, ...replicated]) {
+    const replicated = [...new Set(definition.replicated ?? [])];
+    for (const table of [...new Set(definition.tables), ...replicated]) {
         const { sqlName } = table[TABLE];
         if (names.has(sqlName)) {
             throw new TypeError(`duplicate SQL table: '${sqlName}'`);

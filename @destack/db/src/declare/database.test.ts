@@ -22,9 +22,13 @@ const folder = defineTable(
 /** Notes, which this package declares. */
 const note = defineTable("note", { id: text("id").primaryKey() });
 
-test("declare local and replicated tables, and refuse a table listed twice", () => {
-    // store the notes and replicate the users and folders
-    const database = defineDatabase({ name: "main", tables: [note], replicated: [user, folder] });
+test("drop repeated tables, and refuse a table both declared and replicated", () => {
+    // store the notes and replicate the users and folders, listing notes and users twice
+    const database = defineDatabase({
+        name: "main",
+        tables: [note, note],
+        replicated: [user, folder, user],
+    });
     expect({
         tables: database.tables,
         replicated: database.spec.replicated,

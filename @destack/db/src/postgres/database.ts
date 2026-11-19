@@ -57,9 +57,9 @@ export class PostgresDatabase<
         tables: declaration.Database<Models> | readonly Table[],
         options: PostgresConnectOptions & { readonly poolCloser: "database" | "caller" },
     ) {
-        // read how the connection writes, and declare the tables
+        // read how the connection writes, and declare the distinct tables
         const { writers = "shared", schema, environment } = options;
-        const declared = "tables" in tables ? tables.tables : tables;
+        const declared = "tables" in tables ? tables.tables : [...new Set(tables)];
         requireDistinct(declared, "postgresql");
 
         // key each channel by the database's schema, as the log's notifications do
