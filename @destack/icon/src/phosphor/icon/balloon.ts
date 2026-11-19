@@ -1,4 +1,4 @@
-import type { IconBodies } from "../../icon/icon.tsx";
+import type { IconBodies } from "../../icon/icon.ts";
 
 /** The SVG body of the balloon icon in each weight. */
 const icon: IconBodies = {

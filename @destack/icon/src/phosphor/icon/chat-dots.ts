@@ -1,4 +1,4 @@
-import type { IconBodies } from "../../icon/icon.tsx";
+import type { IconBodies } from "../../icon/icon.ts";
 
 /** The SVG body of the chat-dots icon in each weight. */
 const icon: IconBodies = {

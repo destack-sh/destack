@@ -1,70 +1,47 @@
 # @destack/icon
 
-Draw Phosphor icons by name, each one loaded only where it is used.
+Name Phosphor icons and store their SVG bodies, each one loaded only where it is used.
 
 ## Overview
 
-`@destack/icon` is Phosphor's icons as one component: icons by name, one module per icon, and a build that imports only the icons a package uses.
+`@destack/icon` is Phosphor's icons as data, as `@phosphor-icons/core` is: their names, their catalog and one module of SVG bodies per icon.
+Declarations validate icon names against it, and `@destack/ui` draws the icons.
 
-Views draw icons:
+- `IconName`: the name of a Phosphor icon, such as `book-open`, as a schema and a type.
+- `IconBodies`: one icon's SVG body in each weight, and `IconBodies.load` to load one by name.
+- `@destack/icon/phosphor/<name>`: one icon's bodies, imported where it is drawn.
+- `@destack/icon/icons`: every icon with its categories and the words that find it, for pickers.
 
-- `Icon`: one icon in the current text color.
-- `LazyIcon`: an icon chosen at run time, loaded on first draw.
-- `@destack/icon/phosphor/<name>`: one icon's bodies in every weight.
+Validate a declared icon and load its bodies:
 
-Builds import only what is used:
+```ts
+import { IconBodies, IconName } from "@destack/icon";
 
-- `iconExtension`: passes each literal-named `Icon` its module.
-
-Draw an icon from its module:
-
-```tsx
-import { Icon } from "@destack/icon";
-import trash from "@destack/icon/phosphor/trash";
-
-// draw the bold trash icon, labelled for assistive technology
-export const DeleteIcon = () => <Icon icon={trash} weight="bold" size="1.5rem" label="Delete" />;
+// validate the icon a type declares and load its bodies on first use
+const name = IconName.parse("book-open");
+const bodies = await IconBodies.load(name);
 ```
 
 ## Reference
 
-### Icon
-
-`Icon` takes its icon by `name`, written as a literal, or as an imported `icon`.
-A computed name without `icon` fails the build, and `LazyIcon` takes one instead.
-
-| Property | What it is                                                                   |
-| -------- | ---------------------------------------------------------------------------- |
-| `name`   | the Phosphor icon's name, as an `IconName`                                   |
-| `icon`   | the bodies imported from `@destack/icon/phosphor/<name>`                     |
-| `weight` | `"thin"`, `"light"`, `"regular"`, `"bold"`, `"fill"` or `"duotone"`          |
-| `size`   | the width and height as a CSS length, `1em` by default                       |
-| `label`  | the accessible name, which exposes the icon as an image instead of hiding it |
-| `xstyle` | StyleX styles, such as margins                                               |
+| Export | What it is |
+|---|---|
+| `IconName` | The name of a Phosphor icon, as a schema and a type. |
+| `IconWeight` | `"thin"`, `"light"`, `"regular"`, `"bold"`, `"fill"` or `"duotone"`. |
+| `IconBodies` | One icon's SVG body in each weight, and `IconBodies.load(name)`. |
+| `ICONS` | Every icon in name order, with its categories and search words, from `@destack/icon/icons`. |
 
 ## Examples
 
-### Draw an icon chosen at run time
+### Import one icon's bodies
 
-`LazyIcon` takes a name known only at run time.
+Each icon's module holds its body in every weight, and bundlers keep only the icons imported.
 
-```tsx
-import type { IconName } from "@destack/icon";
-import { LazyIcon } from "@destack/icon/lazy";
+```ts
+import type { IconBodies } from "@destack/icon";
+import trash from "@destack/icon/phosphor/trash";
 
-// load the icon's module on first draw
-export const FileIcon = (properties: { readonly name: IconName }) => (
-    <LazyIcon name={properties.name} />
-);
+// read the trash icon's bold body
+const bodies: IconBodies = trash;
+export const bold = bodies.bold;
 ```
-
-## Comparison
-
-### Phosphor React
-
-Names, weights and sizes follow `@phosphor-icons/react`.
-
-| Phosphor React         | `@destack/icon`      | Difference                                                  |
-| ---------------------- | -------------------- | ----------------------------------------------------------- |
-| one component per icon | `Icon` with a `name` | The build imports only the icons a package uses.            |
-| `alt` or `aria-hidden` | `label`              | Icons are hidden from assistive technology unless labelled. |

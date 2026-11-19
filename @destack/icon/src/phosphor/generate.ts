@@ -21,6 +21,9 @@ const ICONS = join(OUTPUT, "icon");
 /** The module with every icon, its categories and its search words. */
 const ICONS_LIST = join(OUTPUT, "icons.ts");
 
+/** The module listing every icon's name alone. */
+const NAMES_LIST = join(OUTPUT, "names.ts");
+
 /** The directory holding Phosphor's SVG sources. */
 const ASSETS = join(
     dirname(fileURLToPath(import.meta.resolve("@phosphor-icons/core/package.json"))),
@@ -59,7 +62,14 @@ async function generate(files: FileSystem): Promise<void> {
     await writeModule(
         files,
         ICONS_LIST,
-        `/** Every Phosphor icon in name order: its name, the categories it belongs to and the words that find it. */\nexport const ICONS = [\n${listed.join("")}] as const;\n\n/** The name of a Phosphor icon. */\nexport type IconName = (typeof ICONS)[number]["name"];\n`,
+        `/** Every Phosphor icon in name order: its name, the categories it belongs to and the words that find it. */\nexport const ICONS = [\n${listed.join("")}] as const;\n`,
+    );
+
+    // write every icon's name alone, which schemas validate names against without the catalog
+    await writeModule(
+        files,
+        NAMES_LIST,
+        `/** Every Phosphor icon's name, in name order. */\nexport const ICON_NAMES = [\n${names.map((name) => `    ${JSON.stringify(name)},\n`).join("")}] as const;\n`,
     );
 
     // replace the icon modules, dropping icons Phosphor removed
@@ -78,7 +88,7 @@ async function generate(files: FileSystem): Promise<void> {
 
             return `    ${weight}: ${JSON.stringify(body)},\n`;
         });
-        const source = `import type { IconBodies } from "../../icon/icon.tsx";\n\n/** The SVG body of the ${name} icon in each weight. */\nconst icon: IconBodies = {\n${entries.join("")}};\n\nexport default icon;\n`;
+        const source = `import type { IconBodies } from "../../icon/icon.ts";\n\n/** The SVG body of the ${name} icon in each weight. */\nconst icon: IconBodies = {\n${entries.join("")}};\n\nexport default icon;\n`;
         await writeModule(files, join(ICONS, `${name}.ts`), source);
     }
 }

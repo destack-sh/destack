@@ -1,4 +1,4 @@
-import type { IconBodies } from "../../icon/icon.tsx";
+import type { IconBodies } from "../../icon/icon.ts";
 
 /** The SVG body of the arrows-out-cardinal icon in each weight. */
 const icon: IconBodies = {

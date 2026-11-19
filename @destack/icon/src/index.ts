@@ -1,2 +1,2 @@
-export type { IconName } from "./phosphor/icons.ts";
+export * from "./name/index.ts";
 export * from "./icon/index.ts";

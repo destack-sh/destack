@@ -9364,6 +9364,3 @@ export const ICONS = [
         tags: ["logos", "google", "videos", "movies", "social media"],
     },
 ] as const;
-
-/** The name of a Phosphor icon. */
-export type IconName = (typeof ICONS)[number]["name"];
