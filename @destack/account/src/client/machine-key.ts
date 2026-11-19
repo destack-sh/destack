@@ -1,6 +1,6 @@
 import type { Fetch, OmitEach } from "@destack/object";
 import type { Environment } from "@destack/environment";
-import { RequestId, Scope, type Subject } from "@destack/sync";
+import { RequestId, Scope, type Subject, SyncError } from "@destack/sync";
 import { type Identifier, schema } from "@destack/schema";
 import type { ClientOf } from "@destack/object/client";
 import { Machine, machine } from "../object/index.ts";
@@ -65,7 +65,7 @@ export class MachineKey implements Signer {
         return credential;
     }
 
-    /** Generate and store a key pair, and return its public half with a proof of possession. */
+    /** Generate and store a declared machine's key pair, its public half with a proof. */
     async generate(): Promise<{ publicKey: PublicKey; proof: string }> {
         // replace the stored pair and prove possession of the pair stored
         const stored = await this.#keys.load(this.machineId);
@@ -98,27 +98,44 @@ export class MachineKey implements Signer {
         );
     }
 
+    /** Tell whether an issuer takes the stored key, as ACME's onlyReturnExisting does. */
+    async isStanding(issuer: string, fetch: Fetch): Promise<boolean> {
+        // stand nowhere without a stored key
+        if ((await this.#keys.load(this.machineId)) === undefined) {
+            return false;
+        }
+
+        // ask the issuer for a token
+        try {
+            await this.at(issuer, fetch).token(accountPackage.id, {});
+
+            return true;
+        } catch (error) {
+            if (SyncError.is(error, "FOLLOWER_UNAUTHENTICATED")) {
+                return false;
+            }
+            throw error;
+        }
+    }
+
     /** Enroll this machine with a new key through a client the approving user signed in. */
     async enroll(
         client: ClientOf<typeof accountPackage>,
         enrollment: Enrollment,
     ): Promise<Machine> {
-        await this.generate();
-
-        return this.register(client, enrollment);
-    }
-
-    /** Enroll this machine with the key it stores through a client the approving user signed in. */
-    async register(
-        client: ClientOf<typeof accountPackage>,
-        enrollment: Enrollment,
-    ): Promise<Machine> {
+        // enroll a new pair
+        const stored = await this.#keys.load(this.machineId);
+        const generated = await KeyPair.generate(this.#environment.crypto);
+        const { pair } = generated;
         const row = await client.machine.enroll({
             ...enrollment,
             id: this.machineId,
-            publicKey: await this.key(),
-            proof: await this.prove(),
+            publicKey: pair.publicKey,
+            proof: await this.#proof(pair),
         });
+
+        // store the enrolled pair
+        await this.#replace(stored, generated);
 
         return Machine.of(row);
     }
@@ -146,15 +163,7 @@ export class MachineKey implements Signer {
 
     /** Sign a proof for this machine now that it has its key. */
     async prove(): Promise<string> {
-        const pair = await this.#load();
-
-        return Proof.sign(
-            pair.privateKey,
-            pair.publicKey,
-            this.machineId,
-            this.#environment.clock.now(),
-            this.#environment,
-        );
+        return this.#proof(await this.#load());
     }
 
     /** Sign an assertion of this machine for a token endpoint now (RFC 7523). */
@@ -223,17 +232,22 @@ export class MachineKey implements Signer {
             requestId: RequestId.create(this.#environment),
             parent: { ...machine.typeReference, id: this.machineId },
             publicKey: pair.publicKey,
-            proof: await Proof.sign(
-                pair.privateKey,
-                pair.publicKey,
-                this.machineId,
-                this.#environment.clock.now(),
-                this.#environment,
-            ),
+            proof: await this.#proof(pair),
         });
 
         // store the new pair or the one a racing writer stored
         await this.#replace(stored, generated);
+    }
+
+    /** Sign a proof of possession of a key pair for this machine now. */
+    #proof(pair: KeyPair): Promise<string> {
+        return Proof.sign(
+            pair.privateKey,
+            pair.publicKey,
+            this.machineId,
+            this.#environment.clock.now(),
+            this.#environment,
+        );
     }
 
     /** Load the stored key pair and refuse a machine without one. */
