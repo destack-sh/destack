@@ -158,10 +158,11 @@ function Count() {
 }
 
 test("call a package the view declares where the host mounts it, and refuse it to a view declaring none", async () => {
-    // mount the counter at the view's platform path, answering from a fetch recording the path
+    // mount the counter below the view's space path, answering from a fetch recording the path
     await using simulation = testSimulation();
     const paths: string[] = [];
-    const mounted = mountPackages([counter], (path) => ({
+    const space = "space-01996ab0-0000-7000-8000-000000000001";
+    const mounted = mountPackages([counter], space, (path) => ({
         url: new URL(path, "https://notes--personal--florian.localhost").href,
     }));
     const packages = new Map(
@@ -196,7 +197,7 @@ test("call a package the view declares where the host mounts it, and refuse it t
     // read the count through the declared package's mount
     await changed(element, () => element.textContent === "notes: 3", RENDER_MILLISECONDS);
     dispose();
-    expect(paths).toEqual([`/.destack/platform/${counter.id}/tallies/count`]);
+    expect(paths).toEqual([`/.destack/${space}/${counter.id}/tallies/count`]);
 
     // refuse the package to a view declaring none, into the error boundary
     const refused = document.createElement("div");

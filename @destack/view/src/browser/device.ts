@@ -3,12 +3,12 @@ import type { BrowserCapability } from "@destack/environment/browser";
 import { broadcastChannel, connectWasmSqlite, WasmClient } from "@destack/db/browser";
 import { BrowserDevice, type DeviceWorkerScope } from "@destack/object/browser";
 import { ObjectClient, ObjectConnection } from "@destack/object/client";
-import { PACKAGE_PATH, type ObjectType } from "@destack/object";
+import type { ObjectType } from "@destack/object";
 import { schema } from "@destack/schema";
 import { Subject } from "@destack/sync";
 import { account, space, user } from "@destack/account/object";
 import { deviceSetting, setting } from "@destack/setting/object";
-import { HOME_PATH } from "../declare/context.ts";
+import { ScopePath } from "../declare/context.ts";
 import type { View } from "../declare/view.ts";
 
 export { BrowserEnvironment } from "@destack/environment/browser";
@@ -36,6 +36,8 @@ export const DeviceRequest = schema.object({
     device: Subject.exactOptional(),
     /** The page's origin with its base, which serves the package and the homes. */
     root: schema.string().min(1),
+    /** The space of the page's installation, whose store the device connects to. */
+    space: schema.string().min(1),
 });
 /** What a page's tab asks its device worker for. */
 export type DeviceRequest = schema.Infer<typeof DeviceRequest>;
@@ -60,11 +62,11 @@ export function serveDevice(
         // follow and write every scope over one connection to the package's origin, connecting to enclosing homes below its home path
         const connection = ObjectConnection.open({
             scope: request.caller.id,
-            url: ObjectConnection.url(`${request.root}${PACKAGE_PATH}`),
+            url: ObjectConnection.url(`${request.root}${ScopePath.of(request.space)}`),
             homes: (home: string) =>
                 ObjectConnection.open({
                     scope: home,
-                    url: ObjectConnection.url(`${request.root}${HOME_PATH}/${home}`),
+                    url: ObjectConnection.url(`${request.root}${ScopePath.of(home)}`),
                     environment,
                 }),
             environment,

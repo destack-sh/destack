@@ -1,5 +1,5 @@
+import { OriginPath } from "@destack/package";
 import { DeclarationReference } from "@destack/package/declare";
-import { OPEN_PATH } from "@destack/account/address";
 import { present } from "@destack/schema";
 import { Shortcut } from "@destack/object";
 import { type CommandDeclaration, isCommandPlatform, Keybinding } from "./keybinding.ts";
@@ -150,7 +150,7 @@ export class PaletteOverlay {
         if (command !== undefined) {
             query.set(COMMAND_PARAMETER, DeclarationReference.key(command));
         }
-        const url = `${OPEN_PATH}?${query.toString()}`;
+        const url = `${OriginPath.open}?${query.toString()}`;
 
         // show it in a modal dialog above the page
         const localization = this.#localization();

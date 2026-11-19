@@ -1,3 +1,6 @@
+import { GrantDeclaration } from "@destack/access";
+import { user } from "@destack/account/object";
+import { setting } from "@destack/setting/object";
 import { DeclarationName, defineKind, ModuleMetadata, type PackageVersion } from "@destack/package";
 import {
     type ViewAudience,
@@ -11,6 +14,16 @@ import type { Component } from "solid-js";
 import type { Environment } from "@destack/environment";
 import { ViewError } from "../error/error.ts";
 import type { Message } from "@destack/locale";
+
+/** What every page's runtime reads as its person, granted to each package with views. */
+const PAGE_PERMISSIONS: GrantDeclaration = {
+    user: {
+        // read the person's own settings, which every page presents itself in
+        home: [setting.permission("read")],
+        // read the person's profile, whose language every page presents in
+        universe: [user.permission("read")],
+    },
+};
 
 /** The view declaration kind, described as builds index a view's declaration. */
 export const VIEW_KIND = defineKind({ name: "view", description: ViewDescription.declaration });
@@ -124,6 +137,11 @@ export class View {
         this.packages = definition.packages ?? [];
         this.component = definition.component;
         this.render = definition.render ?? { mode: "client" };
+    }
+
+    /** What the page runtime reads as the person: their settings and their profile's language. */
+    get permissions(): GrantDeclaration {
+        return PAGE_PERMISSIONS;
     }
 
     /** List the object types the view opens in scopes of a type, with those living anywhere. */

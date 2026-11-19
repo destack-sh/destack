@@ -4,15 +4,15 @@ import type { BrowserCapability, BrowserEnvironment } from "@destack/environment
 import "../styles/styles.ts";
 import { Catalog, Locale, type LocaleTag, Localization, SOURCE_LOCALE } from "@destack/locale";
 import { present, schema } from "@destack/schema";
-import { PackageId } from "@destack/package";
+import { OriginPath, PackageId } from "@destack/package";
 import { BrowserTab } from "@destack/object/browser";
 import { BrowserClient } from "@destack/account/browser";
 import { ObjectTypeReference, type Subject } from "@destack/sync";
 import { principal } from "@destack/access";
 import { type ClientOptions, ObjectConnection } from "@destack/object/client";
 import { reportToDevtools, startTelemetry } from "@destack/telemetry/browser";
-import { OTLP_ORIGIN_PATH, OtlpExporter } from "@destack/telemetry/otlp";
-import { CLIENT_PATH, CONTEXT_ELEMENT, HOME_PATH, ViewContext } from "../declare/context.ts";
+import { OtlpExporter } from "@destack/telemetry/otlp";
+import { CONTEXT_ELEMENT, ScopePath, ViewContext } from "../declare/context.ts";
 import type { CommandDeclaration } from "../palette/keybinding.ts";
 import { PageUndo } from "../page/undo.ts";
 import { account, space, user } from "@destack/account/object";
@@ -60,7 +60,7 @@ export async function mount(
     const { network, navigation } = environment;
     const exporter = OtlpExporter.http(
         {
-            endpoint: `${context.base}${OTLP_ORIGIN_PATH}`,
+            endpoint: `${context.base}${OriginPath.telemetry}`,
             isKeepalive: true,
             fetch: (request) => network.fetch(request),
         },
@@ -78,7 +78,7 @@ export async function mount(
     const isPerson = principal.user.is(context.user);
     const device = isPerson
         ? await new BrowserClient({
-              path: `${context.base}${CLIENT_PATH}`,
+              path: `${context.base}${OriginPath.session}`,
               origin,
               environment,
           }).device()
@@ -92,7 +92,7 @@ export async function mount(
         environment,
     );
     const clients = new Map([...tabs].map(([scope, tab]) => [scope, tab.client]));
-    const packages = mountPackages(view.packages, call);
+    const packages = mountPackages(view.packages, context.space, call);
     const connections = new Map<string, ObjectConnection>();
     const connect = (path: string, scope: string): ObjectConnection => {
         // connect to each path's store once for the page, each scope over its socket
@@ -103,7 +103,7 @@ export async function mount(
         const connection = ObjectConnection.open({
             scope,
             url: ObjectConnection.url(`${root}${path}`),
-            homes: (home) => connect(`${HOME_PATH}/${home}`, home),
+            homes: (home) => connect(ScopePath.of(home), home),
             environment,
         });
         connections.set(path, connection);
@@ -512,6 +512,7 @@ async function openTabs(
         caller: context.user,
         ...(device === undefined ? {} : { device }),
         root: devices.root,
+        space: context.space,
     };
     const worker = BrowserTab.worker(
         devices.worker,

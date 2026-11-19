@@ -1,5 +1,5 @@
-import { InstallationOrigin, OPEN_PATH } from "@destack/account/address";
-import { DeclarationName, PackageId } from "@destack/package";
+import { InstallationOrigin } from "@destack/account/address";
+import { DeclarationName, OriginPath, PackageId } from "@destack/package";
 import { type Identifier, schema } from "@destack/schema";
 import { ObjectReference } from "@destack/sync";
 import { Shortcut } from "@destack/object";
@@ -141,7 +141,7 @@ export const PaletteFocus = Object.assign(paletteFocus, {
         const origin = InstallationOrigin.parse(url.hostname, domain);
 
         // read the object of an opening or the one a view opens for
-        const parameter = url.pathname === OPEN_PATH ? OBJECT_PARAMETER : TARGET_PARAMETER;
+        const parameter = url.pathname === OriginPath.open ? OBJECT_PARAMETER : TARGET_PARAMETER;
         const object = readReference(url.searchParams.get(parameter));
 
         return {

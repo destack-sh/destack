@@ -1,6 +1,6 @@
-import { DeclarationName } from "@destack/package";
+import { DeclarationName, OriginPath } from "@destack/package";
 import { schema } from "@destack/schema";
-import { SpaceAddress, OPEN_PATH } from "@destack/account/address";
+import { SpaceAddress } from "@destack/account/address";
 import { ObjectReference } from "@destack/sync";
 import {
     INSTALLATION_PARAMETER,
@@ -44,7 +44,7 @@ export const ViewAddress = Object.assign(viewAddress, {
             [PATH_PARAMETER]: address.path,
         });
 
-        return `${OPEN_PATH}?${query.toString()}`;
+        return `${OriginPath.open}?${query.toString()}`;
     },
 
     /** Read the view and location an open path's query addresses. */
@@ -86,5 +86,5 @@ export function objectUrl(
         query.set(VIEW_PARAMETER, options.view);
     }
 
-    return `${OPEN_PATH}?${query.toString()}`;
+    return `${OriginPath.open}?${query.toString()}`;
 }

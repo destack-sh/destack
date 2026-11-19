@@ -4,11 +4,11 @@ import { Localization, SOURCE_LOCALE } from "@destack/locale";
 import type { JsonObject } from "@destack/schema";
 import { TelemetryScope } from "@destack/telemetry";
 import { reportToDevtools, startTelemetry } from "@destack/telemetry/browser";
-import { OTLP_ORIGIN_PATH, OtlpExporter } from "@destack/telemetry/otlp";
+import { OtlpExporter } from "@destack/telemetry/otlp";
 import type { ThemeDescription } from "@destack/theme";
 import { type Component, createComponent } from "solid-js";
 import { hydrate } from "@solidjs/web";
-import type { PackageVersion } from "@destack/package";
+import { OriginPath, type PackageVersion } from "@destack/package";
 import type { View } from "../declare/view.ts";
 import { recordVisits } from "../browser/visit.ts";
 import { ViewError } from "../error/error.ts";
@@ -141,7 +141,7 @@ function startPageTelemetry(
 ): Promise<PageTelemetry> {
     const exporter = OtlpExporter.http(
         {
-            endpoint: OTLP_ORIGIN_PATH,
+            endpoint: OriginPath.telemetry,
             isKeepalive: true,
             fetch: (request) => environment.network.fetch(request),
         },

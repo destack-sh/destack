@@ -2,7 +2,7 @@ import { useContext } from "solid-js";
 import type { ObjectClient, ObjectConnection } from "@destack/object/client";
 import { type Client, type Package, type ProcedureRouter, PackageMount } from "@destack/object";
 import { type ClientOptions, createClient } from "@destack/object/client";
-import { PLATFORM_PATH } from "../declare/context.ts";
+import { ScopePath } from "../declare/context.ts";
 import { ViewError } from "../error/error.ts";
 import { useEnvironment, ViewMountContext } from "./context.ts";
 
@@ -47,15 +47,16 @@ export function usePackage<Definition extends ProcedureRouter>(
     return createClient(handle, options, environment);
 }
 
-/** Mount the packages a view declares below the platform path of its origin. */
+/** Mount the packages a view declares below its space's path on its origin. */
 export function mountPackages(
     handles: readonly Package[],
+    space: string,
     origin: (path: string) => ClientOptions,
 ): ReadonlyMap<string, ClientOptions> {
     return new Map(
         handles.map((handle) => [
             handle.id,
-            origin(`${PLATFORM_PATH}${PackageMount.path(handle.id)}`),
+            origin(`${ScopePath.of(space)}${PackageMount.path(handle.id)}`),
         ]),
     );
 }

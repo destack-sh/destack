@@ -1,17 +1,31 @@
-import { DeclarationName } from "@destack/package";
+import { DeclarationName, OriginPath } from "@destack/package";
 import { ImportMap } from "@destack/package/manifest";
 import { schema } from "@destack/schema";
 import { ObjectReference, Subject } from "@destack/sync";
 import { ViewError } from "../error/error.ts";
 
-/** The same-origin host path below which a browser registers its client. */
-export const CLIENT_PATH = "/.destack/client";
+/** A scope: the universe, or an identifier such as `space-<uuid>`. */
+const SCOPE_SEGMENT =
+    /^(?:universe|[a-z][a-z0-9]*(?:-[a-z0-9]+)*-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/u;
 
-/** The same-origin host path below which a view calls the home of a scope, `<path>/<scope>`. */
-export const HOME_PATH = "/.destack/home";
+/** The same-origin path of a scope, below which a page calls its packages. */
+export const ScopePath = {
+    /** Write a scope's path, such as `/.destack/space-<uuid>`, the packages' mounts below it. */
+    of(scope: string): `${typeof OriginPath.root}/${string}` {
+        return `${OriginPath.root}/${scope}`;
+    },
 
-/** The same-origin host path below which a view calls the platform services it declares. */
-export const PLATFORM_PATH = "/.destack/platform";
+    /** Read the scope a path addresses and the path below it, absent for another reserved path. */
+    parse(pathname: string): { readonly scope: string; readonly path: string } | undefined {
+        // take the first segment below the root as a scope, refusing the other reserved names
+        if (!pathname.startsWith(`${OriginPath.root}/`)) {
+            return undefined;
+        }
+        const [scope = "", ...rest] = pathname.slice(OriginPath.root.length + 1).split("/");
+
+        return SCOPE_SEGMENT.test(scope) ? { scope, path: `/${rest.join("/")}` } : undefined;
+    },
+};
 
 /** The identifier of the script element with the view's context. */
 export const CONTEXT_ELEMENT = "destack-view";

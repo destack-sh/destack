@@ -8,14 +8,14 @@ import type {
     Plugin,
     PrerenderContext,
 } from "@destack/package/build";
-import { BROWSER_SANDBOX, type DeclarationDescription, Sandbox } from "@destack/package";
-import { BASELINE_MODULE } from "@destack/package/vite";
 import {
-    type OutputContent,
-    VIEW_ASSET_PATH,
-    ViewDescription,
-    ViewRender,
-} from "@destack/package/manifest";
+    BROWSER_SANDBOX,
+    type DeclarationDescription,
+    OriginPath,
+    Sandbox,
+} from "@destack/package";
+import { BASELINE_MODULE } from "@destack/package/vite";
+import { type OutputContent, ViewDescription, ViewRender } from "@destack/package/manifest";
 import { COMMAND_KIND, CommandDescription } from "@destack/object";
 import { present } from "@destack/schema";
 import { THEME_KIND } from "@destack/theme/declare";
@@ -209,7 +209,7 @@ function assetPlugin(): Plugin {
         name: `${VIEW_PACKAGE}/asset`,
         resolveFileUrl: ({ fileName }) =>
             fileName.startsWith(ASSET_DIRECTORY)
-                ? JSON.stringify(`${VIEW_ASSET_PATH}${fileName.slice(ASSET_DIRECTORY.length)}`)
+                ? JSON.stringify(`${OriginPath.asset}/${fileName.slice(ASSET_DIRECTORY.length)}`)
                 : null,
     };
 }

@@ -1,4 +1,4 @@
-import { REQUEST_PATH } from "@destack/account/address";
+import { OriginPath } from "@destack/package";
 import { PermissionReference, StepUp } from "@destack/access";
 import type { BrowserEnvironment } from "@destack/environment/browser";
 import { Failure } from "@destack/error";
@@ -50,7 +50,7 @@ export class PageAuthorization {
             return undefined;
         }
 
-        return `${root}${REQUEST_PATH}?${query.toString()}`;
+        return `${root}${OriginPath.request}?${query.toString()}`;
     }
 
     /** Tell the page its authorization returned, reporting whether this is the window it opened. */
