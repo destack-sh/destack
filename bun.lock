@@ -16,6 +16,7 @@
       "name": "@destack/access",
       "dependencies": {
         "@destack/db": "workspace:*",
+        "@destack/environment": "workspace:*",
         "@destack/error": "workspace:*",
         "@destack/identity": "workspace:*",
         "@destack/package": "workspace:*",
@@ -24,7 +25,6 @@
         "@destack/telemetry": "workspace:*",
       },
       "devDependencies": {
-        "@destack/environment": "workspace:*",
         "@destack/test": "workspace:*",
         "@types/bun": "1.4.4",
       },
@@ -400,6 +400,7 @@
         "@destack/access": "workspace:*",
         "@destack/account": "workspace:*",
         "@destack/bucket": "workspace:*",
+        "@destack/build": "workspace:*",
         "@destack/connection": "workspace:*",
         "@destack/db": "workspace:*",
         "@destack/error": "workspace:*",
@@ -444,7 +445,6 @@
         "@destack/db": "workspace:*",
         "@destack/environment": "workspace:*",
         "@destack/error": "workspace:*",
-        "@destack/event": "workspace:*",
         "@destack/git": "workspace:*",
         "@destack/locale": "workspace:*",
         "@destack/object": "workspace:*",
@@ -461,7 +461,6 @@
       },
       "devDependencies": {
         "@destack/check": "workspace:*",
-        "@destack/identity": "workspace:*",
         "@destack/machine": "workspace:*",
         "@destack/test": "workspace:*",
         "@types/bun": "1.4.4",
@@ -822,6 +821,8 @@
         "@orpc/openapi-client": "1.15.1",
         "@orpc/server": "1.15.1",
         "@orpc/shared": "1.15.1",
+        "@orpc/standard-server": "1.15.1",
+        "@orpc/standard-server-peer": "1.15.1",
         "fractional-indexing": "3.2.0",
       },
       "devDependencies": {
@@ -901,7 +902,6 @@
         "@destack/resource": "workspace:*",
         "@destack/schema": "workspace:*",
         "@destack/sync": "workspace:*",
-        "@destack/telemetry": "workspace:*",
         "semver": "7.8.5",
       },
       "devDependencies": {
